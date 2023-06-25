@@ -417,12 +417,40 @@ namespace DnsServerCore.Dns.ZoneManagers
                     }
                 }
 
+                bool hasA = false;
+                bool hasAAAA = false;
+
+                if ((refRecord.Type == DnsResourceRecordType.SRV) || (refRecord.Type == DnsResourceRecordType.SVCB) || (refRecord.Type == DnsResourceRecordType.HTTPS))
+                {
+                    foreach (DnsResourceRecord additionalRecord in additionalRecords)
+                    {
+                        if (additionalRecord.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                        {
+                            switch (additionalRecord.Type)
+                            {
+                                case DnsResourceRecordType.A:
+                                    hasA = true;
+                                    break;
+
+                                case DnsResourceRecordType.AAAA:
+                                    hasAAAA = true;
+                                    break;
+                            }
+                        }
+
+                        if (hasA && hasAAAA)
+                            break;
+                    }
+                }
+
+                if (!hasA)
                 {
                     IReadOnlyList<DnsResourceRecord> records = zoneNode.QueryRecords(DnsResourceRecordType.A, dnssecOk);
                     if ((records.Count > 0) && (records[0].Type == DnsResourceRecordType.A))
                         additionalRecords.AddRange(records);
                 }
 
+                if (!hasAAAA)
                 {
                     IReadOnlyList<DnsResourceRecord> records = zoneNode.QueryRecords(DnsResourceRecordType.AAAA, dnssecOk);
                     if ((records.Count > 0) && (records[0].Type == DnsResourceRecordType.AAAA))
@@ -1000,6 +1028,225 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
 
             return null;
+        }
+
+        public void ConvertZoneType(string zoneName, AuthZoneType type)
+        {
+            AuthZoneInfo currentZoneInfo = GetAuthZoneInfo(zoneName, false);
+            if (currentZoneInfo is null)
+                throw new DnsServerException("No such zone was found: " + (zoneName.Length == 0 ? "." : zoneName));
+
+            if (currentZoneInfo.Type == type)
+                throw new DnsServerException("Cannot convert the zone '" + (zoneName.Length == 0 ? "." : zoneName) + "' from " + currentZoneInfo.Type.ToString() + " to " + type.ToString() + " zone: the zone is already of the same type.");
+
+            switch (currentZoneInfo.Type)
+            {
+                case AuthZoneType.Primary:
+                    switch (type)
+                    {
+                        case AuthZoneType.Forwarder:
+                            if (currentZoneInfo.DnssecStatus != AuthZoneDnssecStatus.Unsigned)
+                                throw new DnsServerException("Cannot convert the zone '" + (zoneName.Length == 0 ? "." : zoneName) + "' from " + currentZoneInfo.Type.ToString() + " to " + type + " zone: converting the zone will cause lose of DNSSEC private keys.");
+
+                            break;
+
+                        default:
+                            throw new DnsServerException("Cannot convert the zone '" + (zoneName.Length == 0 ? "." : zoneName) + "' from " + currentZoneInfo.Type.ToString() + " to " + type + " zone: not supported.");
+                    }
+
+                    break;
+
+                case AuthZoneType.Secondary:
+                    switch (type)
+                    {
+                        case AuthZoneType.Primary:
+                        case AuthZoneType.Forwarder:
+                            break;
+
+                        default:
+                            throw new DnsServerException("Cannot convert the zone '" + (zoneName.Length == 0 ? "." : zoneName) + "' from " + currentZoneInfo.Type.ToString() + " to " + type + " zone: not supported.");
+                    }
+
+
+                    break;
+
+                case AuthZoneType.Forwarder:
+                    switch (type)
+                    {
+                        case AuthZoneType.Primary:
+                            break;
+
+                        default:
+                            throw new DnsServerException("Cannot convert the zone '" + (zoneName.Length == 0 ? "." : zoneName) + "' from " + currentZoneInfo.Type.ToString() + " to " + type + " zone: not supported.");
+                    }
+
+                    break;
+
+                default:
+                    throw new DnsServerException("Cannot convert the zone '" + (zoneName.Length == 0 ? "." : zoneName) + "' from " + currentZoneInfo.Type.ToString() + " to " + type.ToString() + " zone: not supported.");
+            }
+
+            //read all current records
+            List<DnsResourceRecord> allRecords = new List<DnsResourceRecord>();
+            ListAllZoneRecords(zoneName, allRecords);
+
+            try
+            {
+                //delete current zone
+                DeleteZone(zoneName);
+
+                //create new zone
+                AuthZoneInfo newZoneInfo;
+
+                switch (type)
+                {
+                    case AuthZoneType.Primary:
+                        switch (currentZoneInfo.Type)
+                        {
+                            case AuthZoneType.Secondary:
+                                {
+                                    //reset SOA metadata and remove DNSSEC records
+                                    List<DnsResourceRecord> updateRecords = new List<DnsResourceRecord>(allRecords.Count);
+
+                                    foreach (DnsResourceRecord record in allRecords)
+                                    {
+                                        switch (record.Type)
+                                        {
+                                            case DnsResourceRecordType.SOA:
+                                                {
+                                                    AuthRecordInfo recordInfo = record.GetAuthRecordInfo();
+                                                    record.Tag = null;
+
+                                                    AuthRecordInfo newRecordInfo = record.GetAuthRecordInfo();
+                                                    newRecordInfo.Comments = recordInfo.Comments;
+                                                }
+                                                break;
+
+                                            case DnsResourceRecordType.DNSKEY:
+                                            case DnsResourceRecordType.RRSIG:
+                                            case DnsResourceRecordType.NSEC:
+                                            case DnsResourceRecordType.NSEC3:
+                                            case DnsResourceRecordType.NSEC3PARAM:
+                                                continue;
+                                        }
+
+                                        updateRecords.Add(record);
+                                    }
+
+                                    allRecords = updateRecords;
+                                }
+                                break;
+
+                            case AuthZoneType.Forwarder:
+                                {
+                                    //remove all FWD records
+                                    List<DnsResourceRecord> updateRecords = new List<DnsResourceRecord>(allRecords.Count);
+
+                                    foreach (DnsResourceRecord record in allRecords)
+                                    {
+                                        if (record.Type == DnsResourceRecordType.FWD)
+                                            continue;
+
+                                        updateRecords.Add(record);
+                                    }
+
+                                    allRecords = updateRecords;
+                                }
+                                break;
+                        }
+
+                        newZoneInfo = CreatePrimaryZone(zoneName, _dnsServer.ServerDomain, false);
+                        break;
+
+                    case AuthZoneType.Forwarder:
+                        switch (currentZoneInfo.Type)
+                        {
+                            case AuthZoneType.Primary:
+                                {
+                                    //remove SOA record
+                                    List<DnsResourceRecord> updateRecords = new List<DnsResourceRecord>(allRecords.Count);
+
+                                    foreach (DnsResourceRecord record in allRecords)
+                                    {
+                                        if (record.Type == DnsResourceRecordType.SOA)
+                                            continue;
+
+                                        updateRecords.Add(record);
+                                    }
+
+                                    allRecords = updateRecords;
+                                }
+                                break;
+
+                            case AuthZoneType.Secondary:
+                                {
+                                    //remove SOA and DNSSEC records
+                                    List<DnsResourceRecord> updateRecords = new List<DnsResourceRecord>(allRecords.Count);
+
+                                    foreach (DnsResourceRecord record in allRecords)
+                                    {
+                                        switch (record.Type)
+                                        {
+                                            case DnsResourceRecordType.SOA:
+                                            case DnsResourceRecordType.DNSKEY:
+                                            case DnsResourceRecordType.RRSIG:
+                                            case DnsResourceRecordType.NSEC:
+                                            case DnsResourceRecordType.NSEC3:
+                                            case DnsResourceRecordType.NSEC3PARAM:
+                                                continue;
+                                        }
+
+                                        updateRecords.Add(record);
+                                    }
+
+                                    allRecords = updateRecords;
+                                }
+                                break;
+                        }
+
+                        newZoneInfo = CreateForwarderZone(zoneName, DnsTransportProtocol.Udp, "this-server", _dnsServer.DnssecValidation, NetProxyType.None, null, 0, null, null, null);
+                        break;
+
+                    default:
+                        throw new InvalidOperationException();
+                }
+
+                //load records
+                LoadRecords(newZoneInfo.ApexZone, allRecords);
+            }
+            catch (Exception ex)
+            {
+                _dnsServer.LogManager?.Write("DNS Server failed to convert the zone '" + (zoneName.Length == 0 ? "." : zoneName) + "' from " + currentZoneInfo.Type.ToString() + " to " + type.ToString() + " zone.\r\n" + ex.ToString());
+
+                //delete the zone if it was created
+                DeleteZone(zoneName);
+
+                //reload old zone file
+                string zoneFile = Path.Combine(_dnsServer.ConfigFolder, "zones", zoneName + ".zone");
+
+                _zoneIndexLock.EnterWriteLock();
+                try
+                {
+                    using (FileStream fS = new FileStream(zoneFile, FileMode.Open, FileAccess.Read))
+                    {
+                        AuthZoneInfo zoneInfo = LoadZoneFrom(fS);
+                        _zoneIndex.Add(zoneInfo);
+                        _zoneIndex.Sort();
+                    }
+
+                    _dnsServer.LogManager?.Write("DNS Server successfully loaded zone file: " + zoneFile);
+                }
+                catch (Exception ex2)
+                {
+                    _dnsServer.LogManager?.Write("DNS Server failed to load zone file: " + zoneFile + "\r\n" + ex2.ToString());
+                }
+                finally
+                {
+                    _zoneIndexLock.ExitWriteLock();
+                }
+
+                throw;
+            }
         }
 
         public void SignPrimaryZoneWithRsaNSEC(string zoneName, string hashAlgorithm, int kskKeySize, int zskKeySize, uint dnsKeyTtl, ushort zskRolloverDays)
@@ -2115,39 +2362,29 @@ namespace DnsServerCore.Dns.ZoneManagers
                     authority = zone.QueryRecords(DnsResourceRecordType.APP, false);
                     if (authority.Count == 0)
                     {
-                        if (closest is not null)
-                            authority = closest.QueryRecords(DnsResourceRecordType.APP, false);
+                        if (apexZone is ForwarderZone)
+                            return GetForwarderResponse(request, zone, closest, apexZone); //no APP record available so process FWD response
 
-                        if (authority.Count == 0)
+                        authority = apexZone.QueryRecords(DnsResourceRecordType.SOA, dnssecOk);
+
+                        if (dnssecOk)
                         {
-                            authority = apexZone.QueryRecords(DnsResourceRecordType.APP, false);
-                            if (authority.Count == 0)
+                            //add proof of non existence (NODATA) to prove that no such type or record exists
+                            IReadOnlyList<DnsResourceRecord> nsecRecords;
+
+                            if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
+                                nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(zone, apexZone);
+                            else
+                                nsecRecords = _root.FindNSecProofOfNonExistenceNoData(zone);
+
+                            if (nsecRecords.Count > 0)
                             {
-                                if (apexZone is ForwarderZone)
-                                    return GetForwarderResponse(request, zone, closest, apexZone); //no APP record available so process FWD response
+                                List<DnsResourceRecord> newAuthority = new List<DnsResourceRecord>(authority.Count + nsecRecords.Count);
 
-                                authority = apexZone.QueryRecords(DnsResourceRecordType.SOA, dnssecOk);
+                                newAuthority.AddRange(authority);
+                                newAuthority.AddRange(nsecRecords);
 
-                                if (dnssecOk)
-                                {
-                                    //add proof of non existence (NODATA) to prove that no such type or record exists
-                                    IReadOnlyList<DnsResourceRecord> nsecRecords;
-
-                                    if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
-                                        nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(zone, apexZone);
-                                    else
-                                        nsecRecords = _root.FindNSecProofOfNonExistenceNoData(zone);
-
-                                    if (nsecRecords.Count > 0)
-                                    {
-                                        List<DnsResourceRecord> newAuthority = new List<DnsResourceRecord>(authority.Count + nsecRecords.Count);
-
-                                        newAuthority.AddRange(authority);
-                                        newAuthority.AddRange(nsecRecords);
-
-                                        authority = newAuthority;
-                                    }
-                                }
+                                authority = newAuthority;
                             }
                         }
                     }
