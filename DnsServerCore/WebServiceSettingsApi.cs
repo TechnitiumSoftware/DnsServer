@@ -1404,7 +1404,7 @@ namespace DnsServerCore
 
                     response.ContentType = "application/zip";
                     response.ContentLength = backupZipStream.Length;
-                    response.Headers.ContentDisposition = "attachment;filename=DnsServerBackup.zip";
+                    response.Headers.ContentDisposition = "attachment;filename=" + _dnsWebService.DnsServer.ServerDomain + DateTime.UtcNow.ToString("_yyyy-MM-dd_HH-mm-ss") + "_backup.zip";
 
                     using (Stream output = response.Body)
                     {
