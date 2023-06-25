@@ -951,7 +951,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public bool NotifyFailed
+        public string[] NotifyFailed
         {
             get
             {
