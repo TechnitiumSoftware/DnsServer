@@ -1929,9 +1929,6 @@ namespace DnsServerCore.Dns
                                 break;
 
                             case DnsResourceRecordType.FWD:
-                                if (!request.RecursionDesired)
-                                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
-
                                 //do conditional forwarding
                                 return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, response.Authority, _dnssecValidation, false, skipDnsAppAuthoritativeRequestHandlers);
 
