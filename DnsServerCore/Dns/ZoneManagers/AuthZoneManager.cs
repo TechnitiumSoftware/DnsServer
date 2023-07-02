@@ -1163,13 +1163,17 @@ namespace DnsServerCore.Dns.ZoneManagers
                         {
                             case AuthZoneType.Primary:
                                 {
-                                    //remove SOA record
+                                    //remove SOA and NS records
                                     List<DnsResourceRecord> updateRecords = new List<DnsResourceRecord>(allRecords.Count);
 
                                     foreach (DnsResourceRecord record in allRecords)
                                     {
-                                        if (record.Type == DnsResourceRecordType.SOA)
-                                            continue;
+                                        switch (record.Type)
+                                        {
+                                            case DnsResourceRecordType.SOA:
+                                            case DnsResourceRecordType.NS:
+                                                continue;
+                                        }
 
                                         updateRecords.Add(record);
                                     }
@@ -1180,7 +1184,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                             case AuthZoneType.Secondary:
                                 {
-                                    //remove SOA and DNSSEC records
+                                    //remove SOA, NS and DNSSEC records
                                     List<DnsResourceRecord> updateRecords = new List<DnsResourceRecord>(allRecords.Count);
 
                                     foreach (DnsResourceRecord record in allRecords)
@@ -1188,6 +1192,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                                         switch (record.Type)
                                         {
                                             case DnsResourceRecordType.SOA:
+                                            case DnsResourceRecordType.NS:
                                             case DnsResourceRecordType.DNSKEY:
                                             case DnsResourceRecordType.RRSIG:
                                             case DnsResourceRecordType.NSEC:
