@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 var zoneOptionsAvailableTsigKeyNames;
+var editZoneInfo;
 var editZoneRecords;
 
 $(function () {
@@ -410,7 +411,7 @@ function refreshZones(checkDisplay, pageNumber) {
                 }
 
                 if (!hideOptionsMenu) {
-                    tableHtmlRows += "<li><a href=\"#\" onclick=\"showZoneOptionsModal('" + name + "'); return false;\">Options</a></li>";
+                    tableHtmlRows += "<li><a href=\"#\" onclick=\"showZoneOptionsModal('" + name + "'); return false;\">Zone Options</a></li>";
                 }
 
                 if (!zones[i].internal) {
@@ -526,12 +527,12 @@ function enableZone(objBtn) {
     var zone = $("#titleEditZone").attr("data-zone");
 
     var btn = $(objBtn);
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: "/api/zones/enable?token=" + sessionData.token + "&zone=" + zone,
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
 
             $("#btnEnableZoneEditZone").hide();
             $("#btnDisableZoneEditZone").show();
@@ -541,9 +542,10 @@ function enableZone(objBtn) {
             showAlert("success", "Zone Enabled!", "Zone '" + zone + "' was enabled successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
+            btn.button("reset");
             showPageLogin();
         }
     });
@@ -593,12 +595,12 @@ function disableZone(objBtn) {
         return;
 
     var btn = $(objBtn);
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: "/api/zones/disable?token=" + sessionData.token + "&zone=" + zone,
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
 
             $("#btnEnableZoneEditZone").show();
             $("#btnDisableZoneEditZone").hide();
@@ -608,9 +610,10 @@ function disableZone(objBtn) {
             showAlert("success", "Zone Disabled!", "Zone '" + zone + "' was disabled successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
+            btn.button("reset");
             showPageLogin();
         }
     });
@@ -654,22 +657,96 @@ function deleteZone(objBtn) {
         return;
 
     var btn = $(objBtn);
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: "/api/zones/delete?token=" + sessionData.token + "&zone=" + zone,
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
             refreshZones();
 
             showAlert("success", "Zone Deleted!", "Zone '" + zone + "' was deleted successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
+            btn.button("reset");
             showPageLogin();
         }
+    });
+}
+
+function showConvertZoneModal(zone, type) {
+    var lblConvertZoneZoneName = $("#lblConvertZoneZoneName");
+
+    lblConvertZoneZoneName.text(zone === "." ? "<root>" : zone);
+    lblConvertZoneZoneName.attr("data-zone", zone);
+
+    $("#divConvertZoneAlert").html("");
+
+    switch (type) {
+        case "Primary":
+            $("#rdConvertZoneToTypePrimary").attr("disabled", true);
+            $("#rdConvertZoneToTypeForwarder").attr("disabled", false);
+
+            $("#rdConvertZoneToTypeForwarder").prop("checked", true);
+            break;
+
+        case "Secondary":
+            $("#rdConvertZoneToTypePrimary").attr("disabled", false);
+            $("#rdConvertZoneToTypeForwarder").attr("disabled", false);
+
+            $("#rdConvertZoneToTypePrimary").prop("checked", true);
+            break;
+
+        case "Forwarder":
+            $("#rdConvertZoneToTypePrimary").attr("disabled", false);
+            $("#rdConvertZoneToTypeForwarder").attr("disabled", true);
+
+            $("#rdConvertZoneToTypePrimary").prop("checked", true);
+            break;
+
+        default:
+            $("#rdConvertZoneToTypePrimary").attr("disabled", true);
+            $("#rdConvertZoneToTypeForwarder").attr("disabled", true);
+
+            $("#rdConvertZoneToTypePrimary").prop("checked", false);
+            $("#rdConvertZoneToTypeForwarder").prop("checked", false);
+            break;
+    }
+
+    $("#modalConvertZone").modal("show");
+}
+
+function convertZone(objBtn) {
+    var divConvertZoneAlert = $("#divConvertZoneAlert");
+
+    var zone = $("#lblConvertZoneZoneName").attr("data-zone");
+    var type = $("input[name=rdConvertZoneToType]:checked").val();
+
+    var btn = $(objBtn);
+    btn.button("loading");
+
+    HTTPRequest({
+        url: "/api/zones/convert?token=" + sessionData.token + "&zone=" + zone + "&type=" + type,
+        success: function (responseJSON) {
+            btn.button("reset");
+            $("#modalConvertZone").modal("hide");
+
+            showEditZone(zone);
+
+            showAlert("success", "Zone Converted!", "The zone was converted successfully.");
+        },
+        error: function () {
+            btn.button("reset");
+        },
+        invalidToken: function () {
+            btn.button("reset");
+            $("#modalConvertZone").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divConvertZoneAlert
     });
 }
 
@@ -826,6 +903,23 @@ function showZoneOptionsModal(zone) {
                 $("#txtZoneNotifyNameServers").val(value);
             }
 
+            if (responseJSON.response.notifyFailed) {
+                var value = "";
+
+                for (var i = 0; i < responseJSON.response.notifyFailedFor.length; i++) {
+                    if (i == 0)
+                        value = responseJSON.response.notifyFailedFor[i];
+                    else
+                        value += ", " + responseJSON.response.notifyFailedFor[i];
+                }
+
+                $("#divZoneNotifyFailedNameServers").show();
+                $("#lblZoneNotifyFailedNameServers").text(value);
+            }
+            else {
+                $("#divZoneNotifyFailedNameServers").hide();
+            }
+
             if (responseJSON.response.type == "Primary") {
                 //dynamic update
                 switch (responseJSON.response.update) {
@@ -953,7 +1047,7 @@ function saveZoneOptions() {
         updateSecurityPolicies = false;
 
     var btn = $("#btnSaveZoneOptions");
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: "/api/zones/options/set?token=" + sessionData.token + "&zone=" + zone
@@ -961,17 +1055,17 @@ function saveZoneOptions() {
             + "&notify=" + notify + "&notifyNameServers=" + encodeURIComponent(notifyNameServers)
             + "&update=" + update + "&updateIpAddresses=" + encodeURIComponent(updateIpAddresses) + "&updateSecurityPolicies=" + encodeURIComponent(updateSecurityPolicies),
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalZoneOptions").modal("hide");
 
             showAlert("success", "Options Saved!", "Zone options were saved successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
             divZoneOptionsLoader.hide();
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalZoneOptions").modal("hide");
             showPageLogin();
         },
@@ -1060,21 +1154,21 @@ function saveZonePermissions(objBtn) {
 
     var apiUrl = "/api/zones/permissions/set?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&userPermissions=" + encodeURIComponent(userPermissions) + "&groupPermissions=" + encodeURIComponent(groupPermissions);
 
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: apiUrl,
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalEditPermissions").modal("hide");
 
             showAlert("success", "Permissions Saved!", "Zone permissions were saved successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalEditPermissions").modal("hide");
             showPageLogin();
         },
@@ -1093,19 +1187,19 @@ function resyncZone(objBtn, zone) {
     }
 
     var btn = $(objBtn);
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: "/api/zones/resync?token=" + sessionData.token + "&zone=" + zone,
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
             showAlert("success", "Resync Triggered!", "Zone '" + zone + "' resync was triggered successfully. Please check the Logs for confirmation.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             showPageLogin();
         }
     });
@@ -1301,7 +1395,7 @@ function addZone() {
             showAlert("success", "Zone Added!", "Zone was added successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
             $("#modalAddZone").modal("hide");
@@ -1476,11 +1570,35 @@ function showEditZone(zone, showPageNumber) {
             switch (zoneType) {
                 case "Primary":
                 case "Secondary":
-                    $("#btnZoneOptions").show();
+                case "Forwarder":
+                    $("#divZoneOptions").show();
                     break;
 
                 default:
-                    $("#btnZoneOptions").hide();
+                    $("#divZoneOptions").hide();
+                    break;
+            }
+
+            switch (zoneType) {
+                case "Primary":
+                case "Secondary":
+                case "Forwarder":
+                    $("#lnkZoneConvert").show();
+                    break;
+
+                default:
+                    $("#lnkZoneConvert").hide();
+                    break;
+            }
+
+            switch (zoneType) {
+                case "Primary":
+                case "Secondary":
+                    $("#lnkZoneOptions").show();
+                    break;
+
+                default:
+                    $("#lnkZoneOptions").hide();
                     break;
             }
 
@@ -1562,6 +1680,8 @@ function showEditZone(zone, showPageNumber) {
                     $("#divZoneDnssecOptions").hide();
                     break;
             }
+
+            editZoneInfo = responseJSON.response.zone;
 
             if (!zoneHideDnssecRecords || (responseJSON.response.zone.dnssecStatus === "Unsigned")) {
                 editZoneRecords = responseJSON.response.records;
@@ -1729,12 +1849,35 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
             break;
 
         case "NS":
+            var notifyFailed = false;
+
+            if (editZoneInfo.notifyFailedFor != null) {
+                for (var i = 0; i < editZoneInfo.notifyFailedFor.length; i++) {
+                    if (editZoneInfo.notifyFailedFor[i] == record.rData.nameServer) {
+                        notifyFailed = true;
+                        break;
+                    }
+                }
+            }
+
             tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Name Server:</b> " + htmlEncode(record.rData.nameServer);
 
-            if (record.glueRecords != null) {
-                tableHtmlRow += "<br /><b>Glue Addresses:</b> " + record.glueRecords;
+            if (notifyFailed)
+                tableHtmlRow += "<span class=\"label label-warning\" style=\"margin-left: 8px;\">Notify Failed</span>";
 
-                additionalDataAttributes = "data-record-glue=\"" + htmlEncode(record.glueRecords) + "\" ";
+            if (record.glueRecords != null) {
+                var glue = null;
+
+                for (var i = 0; i < record.glueRecords.length; i++) {
+                    if (i == 0)
+                        glue = record.glueRecords[i];
+                    else
+                        glue += ", " + record.glueRecords[i];
+                }
+
+                tableHtmlRow += "<br /><b>Glue Addresses:</b> " + glue;
+
+                additionalDataAttributes = "data-record-glue=\"" + htmlEncode(glue) + "\" ";
             } else {
                 additionalDataAttributes = "data-record-glue=\"\" ";
             }
@@ -2109,6 +2252,23 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
                 "data-record-svc-params=\"" + htmlEncode(JSON.stringify(record.rData.svcParams)) + "\"";
             break;
 
+        case "URI":
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Priority: </b> " + htmlEncode(record.rData.priority) +
+                "<br /><b>Weight:</b> " + htmlEncode(record.rData.weight) +
+                "<br /><b>URI:</b> " + htmlEncode(record.rData.uri);
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "data-record-priority=\"" + htmlEncode(record.rData.priority) + "\" " +
+                "data-record-weight=\"" + htmlEncode(record.rData.weight) + "\" " +
+                "data-record-uri=\"" + htmlEncode(record.rData.uri) + "\" ";
+            break;
+
         case "CAA":
             tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Flags: </b> " + htmlEncode(record.rData.flags) +
                 "<br /><b>Tag:</b> " + htmlEncode(record.rData.tag) +
@@ -2349,6 +2509,11 @@ function clearAddEditRecordForm() {
     $("#txtAddEditRecordDataSvcbTargetName").val("");
     $("#tableAddEditRecordDataSvcbParams").html("");
 
+    $("#divAddEditRecordDataUri").hide();
+    $("#txtAddEditRecordDataUriPriority").val("");
+    $("#txtAddEditRecordDataUriWeight").val("");
+    $("#txtAddEditRecordDataUri").val("");
+
     $("#divAddEditRecordDataCaa").hide();
     $("#txtAddEditRecordDataCaaFlags").val("");
     $("#txtAddEditRecordDataCaaTag").val("");
@@ -2390,7 +2555,18 @@ function clearAddEditRecordForm() {
 function showAddRecordModal() {
     var zone = $("#titleEditZone").attr("data-zone");
 
+    var lastType = $("#optAddEditRecordType").val();
+
     clearAddEditRecordForm();
+
+    if (zone.endsWith(".in-addr.arpa") || zone.endsWith(".ip6.arpa")) {
+        $("#optAddEditRecordType").val("PTR");
+        modifyAddRecordFormByType(true);
+    }
+    else if (lastType != "SOA") {
+        $("#optAddEditRecordType").val(lastType);
+        modifyAddRecordFormByType(true);
+    }
 
     $("#titleAddEditRecord").text("Add Record");
     $("#lblAddEditRecordZoneName").text(zone === "." ? "" : zone);
@@ -2456,6 +2632,7 @@ function modifyAddRecordFormByType(addMode) {
 
     $("#txtAddEditRecordName").prop("placeholder", "@");
     $("#divAddEditRecordTtl").show();
+    $("#txtAddEditRecordDataValue").attr("placeholder", "");
 
     var type = $("#optAddEditRecordType").val();
 
@@ -2470,6 +2647,7 @@ function modifyAddRecordFormByType(addMode) {
     $("#divAddEditRecordDataSshfp").hide();
     $("#divAddEditRecordDataTlsa").hide();
     $("#divAddEditRecordDataSvcb").hide();
+    $("#divAddEditRecordDataUri").hide();
     $("#divAddEditRecordDataCaa").hide();
     $("#divAddEditRecordDataForwarder").hide();
     $("#divAddEditRecordDataApplication").hide();
@@ -2580,6 +2758,13 @@ function modifyAddRecordFormByType(addMode) {
             $("#divAddEditRecordDataSvcb").show();
             break;
 
+        case "URI":
+            $("#txtAddEditRecordDataUriPriority").val("");
+            $("#txtAddEditRecordDataUriWeight").val("");
+            $("#txtAddEditRecordDataUri").val("");
+            $("#divAddEditRecordDataUri").show();
+            break;
+
         case "CAA":
             $("#txtAddEditRecordDataCaaFlags").val("");
             $("#txtAddEditRecordDataCaaTag").val("");
@@ -2621,8 +2806,9 @@ function modifyAddRecordFormByType(addMode) {
 
         default:
             $("#txtAddEditRecordDataUnknownType").val("");
-            $("#lblAddEditRecordDataValue").text("RDATA (Hex)");
+            $("#lblAddEditRecordDataValue").text("RDATA");
             $("#txtAddEditRecordDataValue").val("");
+            $("#txtAddEditRecordDataValue").attr("placeholder", "hex string");
 
             $("#divAddEditRecordData").show();
             $("#divAddEditRecordDataUnknownType").show();
@@ -2916,6 +3102,31 @@ function addRecord() {
             apiUrl += "&svcPriority=" + svcPriority + "&svcTargetName=" + encodeURIComponent(svcTargetName) + "&svcParams=" + encodeURIComponent(svcParams);
             break;
 
+        case "URI":
+            var uriPriority = $("#txtAddEditRecordDataUriPriority").val();
+            if (uriPriority === "") {
+                showAlert("warning", "Missing!", "Please enter a suitable priority.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataUriPriority").focus();
+                return;
+            }
+
+            var uriWeight = $("#txtAddEditRecordDataUriWeight").val();
+            if (uriWeight === "") {
+                showAlert("warning", "Missing!", "Please enter a suitable weight.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataUriWeight").focus();
+                return;
+            }
+
+            var uri = $("#txtAddEditRecordDataUri").val();
+            if (uri === "") {
+                showAlert("warning", "Missing!", "Please enter a suitable value into the URI field.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataUri").focus();
+                return;
+            }
+
+            apiUrl += "&uriPriority=" + uriPriority + "&uriWeight=" + uriWeight + "&uri=" + encodeURIComponent(uri);
+            break;
+
         case "CAA":
             var flags = $("#txtAddEditRecordDataCaaFlags").val();
             if (flags === "")
@@ -3047,7 +3258,7 @@ function addRecord() {
             showAlert("success", "Record Added!", "Resource record was added successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
             $("#modalAddEditRecord").modal("hide");
@@ -3113,16 +3324,26 @@ function addSvcbRecordParamEditRow(paramKey, paramValue) {
 
     var tableHtmlRows = "<tr id=\"tableAddEditRecordDataSvcbParamsRow" + id + "\">";
 
-    tableHtmlRows += "<td><select class=\"form-control\">";
-    tableHtmlRows += "<option" + (paramKey == "mandatory" ? " selected" : "") + ">mandatory</option>";
-    tableHtmlRows += "<option" + (paramKey == "alpn" ? " selected" : "") + ">alpn</option>";
-    tableHtmlRows += "<option" + (paramKey == "no-default-alpn" ? " selected" : "") + ">no-default-alpn</option>";
-    tableHtmlRows += "<option" + (paramKey == "port" ? " selected" : "") + ">port</option>";
-    tableHtmlRows += "<option" + (paramKey == "ipv4hint" ? " selected" : "") + ">ipv4hint</option>";
-    tableHtmlRows += "<option" + (paramKey == "ipv6hint" ? " selected" : "") + ">ipv6hint</option>";
-    tableHtmlRows += "</select></td>";
+    if ((paramKey != "") && isFinite(paramKey)) {
+        tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" placeholder=\"key number\" value=\"" + htmlEncode(paramKey) + "\"></td>";
+        tableHtmlRows += "<td><input type=\"text\" data-optional=\"true\" class=\"form-control\" placeholder=\"hex string\" value=\"" + htmlEncode(paramValue) + "\"></td>";
+    }
+    else {
+        tableHtmlRows += "<td id=\"tableAddEditRecordDataSvcbParamsRowColumn1" + id + "\">";
+        tableHtmlRows += "<select class=\"form-control\" onchange=\"if (event.target.value === 'Unknown') { $('#tableAddEditRecordDataSvcbParamsRowColumn1" + id + "').html('<input type=\\\'text\\\' class=\\\'form-control\\\' placeholder=\\\'key number\\\' >'); $('#tableAddEditRecordDataSvcbParamsRowColumn2" + id + "').html('<input type=\\\'text\\\' data-optional=\\\'true\\\' class=\\\'form-control\\\' placeholder=\\\'hex string\\\' >'); }\">";
+        tableHtmlRows += "<option" + (paramKey == "mandatory" ? " selected" : "") + ">mandatory</option>";
+        tableHtmlRows += "<option" + (paramKey == "alpn" ? " selected" : "") + ">alpn</option>";
+        tableHtmlRows += "<option" + (paramKey == "no-default-alpn" ? " selected" : "") + ">no-default-alpn</option>";
+        tableHtmlRows += "<option" + (paramKey == "port" ? " selected" : "") + ">port</option>";
+        tableHtmlRows += "<option" + (paramKey == "ipv4hint" ? " selected" : "") + ">ipv4hint</option>";
+        tableHtmlRows += "<option" + (paramKey == "ipv6hint" ? " selected" : "") + ">ipv6hint</option>";
+        tableHtmlRows += "<option" + (paramKey == "dohpath" ? " selected" : "") + ">dohpath</option>";
+        tableHtmlRows += "<option>Unknown</option>";
+        tableHtmlRows += "</select></td>";
 
-    tableHtmlRows += "<td><input type=\"text\" data-optional=\"true\" class=\"form-control\" value=\"" + htmlEncode(paramValue) + "\"></td>";
+        tableHtmlRows += "<td id=\"tableAddEditRecordDataSvcbParamsRowColumn2" + id + "\"><input type=\"text\" data-optional=\"true\" class=\"form-control\" value=\"" + htmlEncode(paramValue) + "\"></td>";
+    }
+
     tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-warning\" onclick=\"$('#tableAddEditRecordDataSvcbParamsRow" + id + "').remove();\">Remove</button></td></tr>";
 
     $("#tableAddEditRecordDataSvcbParams").append(tableHtmlRows);
@@ -3329,6 +3550,12 @@ function showEditRecordModal(objBtn) {
             for (var paramKey in svcParams) {
                 addSvcbRecordParamEditRow(paramKey, svcParams[paramKey]);
             }
+            break;
+
+        case "URI":
+            $("#txtAddEditRecordDataUriPriority").val(divData.attr("data-record-priority"));
+            $("#txtAddEditRecordDataUriWeight").val(divData.attr("data-record-weight"));
+            $("#txtAddEditRecordDataUri").val(divData.attr("data-record-uri"));
             break;
 
         case "CAA":
@@ -3817,6 +4044,37 @@ function updateRecord() {
             apiUrl += "&svcPriority=" + svcPriority + "&newSvcPriority=" + newSvcPriority + "&svcTargetName=" + encodeURIComponent(svcTargetName) + "&newSvcTargetName=" + encodeURIComponent(newSvcTargetName) + "&svcParams=" + encodeURIComponent(svcParams) + "&newSvcParams=" + encodeURIComponent(newSvcParams);
             break;
 
+        case "URI":
+            var uriPriority = divData.attr("data-record-priority");
+
+            var newUriPriority = $("#txtAddEditRecordDataUriPriority").val();
+            if (newUriPriority === "") {
+                showAlert("warning", "Missing!", "Please enter a suitable priority.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataUriPriority").focus();
+                return;
+            }
+
+            var uriWeight = divData.attr("data-record-weight");
+
+            var newUriWeight = $("#txtAddEditRecordDataUriWeight").val();
+            if (newUriWeight === "") {
+                showAlert("warning", "Missing!", "Please enter a suitable weight.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataUriWeight").focus();
+                return;
+            }
+
+            var uri = divData.attr("data-record-uri");
+
+            var newUri = $("#txtAddEditRecordDataUri").val();
+            if (newUri === "") {
+                showAlert("warning", "Missing!", "Please enter a suitable value into the URI field.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataUri").focus();
+                return;
+            }
+
+            apiUrl += "&uriPriority=" + uriPriority + "&newUriPriority=" + newUriPriority + "&uriWeight=" + uriWeight + "&newUriWeight=" + newUriWeight + "&uri=" + encodeURIComponent(uri) + "&newUri=" + encodeURIComponent(newUri);
+            break;
+
         case "CAA":
             var flags = divData.attr("data-record-flags");
             var tag = divData.attr("data-record-tag");
@@ -3920,14 +4178,15 @@ function updateRecord() {
 
     apiUrl = "/api/zones/records/update?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&type=" + encodeURIComponent(type) + "&domain=" + encodeURIComponent(domain) + "&newDomain=" + encodeURIComponent(newDomain) + "&ttl=" + ttl + "&disable=" + disable + "&comments=" + encodeURIComponent(comments) + apiUrl;
 
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: apiUrl,
         success: function (responseJSON) {
             $("#modalAddEditRecord").modal("hide");
 
-            //update local array
+            //update local data
+            editZoneInfo = responseJSON.response.zone;
             editZoneRecords[index] = responseJSON.response.updatedRecord;
 
             //show record
@@ -3943,7 +4202,7 @@ function updateRecord() {
             showAlert("success", "Record Updated!", "Resource record was updated successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
             $("#modalAddEditRecord").modal("hide");
@@ -4039,6 +4298,10 @@ function updateRecordState(objBtn, disable) {
             apiUrl += "&svcPriority=" + svcPriority + "&svcTargetName=" + encodeURIComponent(svcTargetName) + "&svcParams=" + encodeURIComponent(svcParams);
             break;
 
+        case "URI":
+            apiUrl += "&uriPriority=" + divData.attr("data-record-priority") + "&uriWeight=" + encodeURIComponent(divData.attr("data-record-weight")) + "&uri=" + encodeURIComponent(divData.attr("data-record-uri"));
+            break;
+
         case "CAA":
             apiUrl += "&flags=" + divData.attr("data-record-flags") + "&tag=" + encodeURIComponent(divData.attr("data-record-tag")) + "&value=" + encodeURIComponent(divData.attr("data-record-value"));
             break;
@@ -4068,12 +4331,12 @@ function updateRecordState(objBtn, disable) {
             break;
     }
 
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: apiUrl,
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
 
             //update local arrays
             editZoneRecords[index] = responseJSON.response.updatedRecord;
@@ -4095,7 +4358,7 @@ function updateRecordState(objBtn, disable) {
             }
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
             showPageLogin();
@@ -4180,6 +4443,10 @@ function deleteRecord(objBtn) {
             apiUrl += "&svcPriority=" + svcPriority + "&svcTargetName=" + encodeURIComponent(svcTargetName) + "&svcParams=" + encodeURIComponent(svcParams);
             break;
 
+        case "URI":
+            apiUrl += "&uriPriority=" + divData.attr("data-record-priority") + "&uriWeight=" + encodeURIComponent(divData.attr("data-record-weight")) + "&uri=" + encodeURIComponent(divData.attr("data-record-uri"));
+            break;
+
         case "CAA":
             apiUrl += "&flags=" + divData.attr("data-record-flags") + "&tag=" + encodeURIComponent(divData.attr("data-record-tag")) + "&value=" + encodeURIComponent(divData.attr("data-record-value"));
             break;
@@ -4198,7 +4465,7 @@ function deleteRecord(objBtn) {
                 apiUrl += "&rdata=" + encodeURIComponent(rdata);
     }
 
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: apiUrl,
@@ -4212,7 +4479,7 @@ function deleteRecord(objBtn) {
             showAlert("success", "Record Deleted!", "Resource record was deleted successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
             showPageLogin();
@@ -4285,7 +4552,7 @@ function signPrimaryZone() {
     HTTPRequest({
         url: "/api/zones/dnssec/sign?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&algorithm=" + algorithm + "&dnsKeyTtl=" + dnsKeyTtl + "&zskRolloverDays=" + zskRolloverDays + "&nxProof=" + nxProof + additionalParameters,
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalDnssecSignZone").modal("hide");
 
             var zoneHideDnssecRecords = (localStorage.getItem("zoneHideDnssecRecords") == "true");
@@ -4342,7 +4609,7 @@ function unsignPrimaryZone() {
     HTTPRequest({
         url: "/api/zones/dnssec/unsign?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone),
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalDnssecUnsignZone").modal("hide");
 
             var zoneHideDnssecRecords = (localStorage.getItem("zoneHideDnssecRecords") == "true");
@@ -4535,19 +4802,19 @@ function updateDnssecPrivateKey(keyTag, objBtn) {
     var zone = $("#lblDnssecPropertiesZoneName").attr("data-zone");
     var rolloverDays = $("#txtDnssecPropertiesPrivateKeyAutomaticRollover" + id).val();
 
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: "/api/zones/dnssec/properties/updatePrivateKey?token=" + sessionData.token + "&zone=" + zone + "&keyTag=" + keyTag + "&rolloverDays=" + rolloverDays,
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
             showAlert("success", "Updated!", "The DNSKEY automatic rollover config was updated successfully.", divDnssecPropertiesAlert);
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalDnssecProperties").modal("hide");
             showPageLogin();
         },
@@ -4653,20 +4920,20 @@ function publishAllDnssecPrivateKeys(objBtn) {
     var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
     var zone = $("#lblDnssecPropertiesZoneName").attr("data-zone");
 
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: "/api/zones/dnssec/properties/publishAllPrivateKeys?token=" + sessionData.token + "&zone=" + zone,
         success: function (responseJSON) {
             refreshDnssecProperties();
-            btn.button('reset');
+            btn.button("reset");
             showAlert("success", "Keys Published!", "All the generated DNSSEC private keys were published successfully.", divDnssecPropertiesAlert);
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalDnssecProperties").modal("hide");
             showPageLogin();
         },
@@ -4699,21 +4966,21 @@ function generateAndAddDnssecPrivateKey(objBtn) {
             break;
     }
 
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: "/api/zones/dnssec/properties/generatePrivateKey?token=" + sessionData.token + "&zone=" + zone + "&keyType=" + keyType + "&rolloverDays=" + rolloverDays + "&algorithm=" + algorithm + additionalParameters,
         success: function (responseJSON) {
             $("#divDnssecPropertiesGenerateKey").collapse("hide");
             refreshDnssecProperties();
-            btn.button('reset');
+            btn.button("reset");
             showAlert("success", "Key Generated!", "The DNSSEC private key was generated successfully.", divDnssecPropertiesAlert);
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalDnssecProperties").modal("hide");
             showPageLogin();
         },
@@ -4774,7 +5041,7 @@ function changeDnssecNxProof(objBtn) {
     if (!confirm("Are you sure you want to change the proof of non-existence options for the zone?"))
         return;
 
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: apiUrl,
@@ -4787,7 +5054,7 @@ function changeDnssecNxProof(objBtn) {
             if (saltLength != null)
                 btn.attr("data-nsec3-salt-length", saltLength);
 
-            btn.button('reset');
+            btn.button("reset");
 
             var zoneHideDnssecRecords = (localStorage.getItem("zoneHideDnssecRecords") == "true");
             if (!zoneHideDnssecRecords)
@@ -4796,10 +5063,10 @@ function changeDnssecNxProof(objBtn) {
             showAlert("success", "Proof Changed!", "The proof of non-existence was changed successfully.", divDnssecPropertiesAlert);
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalDnssecProperties").modal("hide");
             showPageLogin();
         },
@@ -4813,19 +5080,19 @@ function updateDnssecDnsKeyTtl(objBtn) {
     var zone = $("#lblDnssecPropertiesZoneName").attr("data-zone");
     var ttl = $("#txtDnssecPropertiesDnsKeyTtl").val();
 
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: "/api/zones/dnssec/properties/updateDnsKeyTtl?token=" + sessionData.token + "&zone=" + zone + "&ttl=" + ttl,
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
             showAlert("success", "TTL Updated!", "The DNSKEY TTL was updated successfully.", divDnssecPropertiesAlert);
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalDnssecProperties").modal("hide");
             showPageLogin();
         },

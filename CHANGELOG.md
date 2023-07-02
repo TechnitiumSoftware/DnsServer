@@ -1,5 +1,16 @@
 # Technitium DNS Server Change Log
 
+## Version 11.3
+Release Date: 2 July 2023
+
+- Added support for URI record type ([RFC 7553](https://www.rfc-editor.org/rfc/rfc7553.html)).
+- Added support for `dohpath` parameter for SVCB record type ([draft-ietf-add-svcb-dns](https://datatracker.ietf.org/doc/draft-ietf-add-svcb-dns/)).
+- Added support for configuring generic parameter for SVCB & HTTPS record types in UI.
+- Added feature to allow converting zone from one type to another to help scenarios like upgrade of a secondary zone to primary zone when decommissioning the existing primary zone.
+- Updated primary zone NOTIFY implementation to keep rechecking when notify fails and explicitly show notify failed status against the specific name servers in the UI.
+- Zone Alias App: Added new DNS app that allows creating aliases for any zone (internal or external) such that they all return the same set of records.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 11.2
 Release Date: 27 May 2023
 

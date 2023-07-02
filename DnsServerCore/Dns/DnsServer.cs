@@ -1308,7 +1308,11 @@ namespace DnsServerCore.Dns
                         }
 
                         if (!isPermitted)
+                        {
+                            _log?.Write(remoteEP, protocol, "DNS Server refused a zone UPDATE request [" + uRecord.Name.ToLowerInvariant() + " " + uRecord.Type.ToString() + " " + uRecord.Class.ToString() + "] due to Dynamic Updates Security Policy for zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
+
                             return false;
+                        }
                     }
                 }
 
@@ -1440,11 +1444,7 @@ namespace DnsServerCore.Dns
 
                         //check for permissions
                         if (!await IsUpdatePermittedAsync())
-                        {
-                            _log?.Write(remoteEP, protocol, "DNS Server refused a zone UPDATE request due to Dynamic Updates Security Policy for zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
-
                             return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
-                        }
 
                         //process update section
                         {
@@ -1929,9 +1929,6 @@ namespace DnsServerCore.Dns
                                 break;
 
                             case DnsResourceRecordType.FWD:
-                                if (!request.RecursionDesired)
-                                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
-
                                 //do conditional forwarding
                                 return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, response.Authority, _dnssecValidation, false, skipDnsAppAuthoritativeRequestHandlers);
 

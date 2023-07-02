@@ -40,6 +40,9 @@ namespace DnsServerCore
                 if (remoteIP is null)
                     return new IPEndPoint(IPAddress.Any, 0);
 
+                if (remoteIP.IsIPv4MappedToIPv6)
+                    remoteIP = remoteIP.MapToIPv4();
+
                 if (!ignoreXRealIpHeader && NetUtilities.IsPrivateIP(remoteIP))
                 {
                     string xRealIp = context.Request.Headers["X-Real-IP"];

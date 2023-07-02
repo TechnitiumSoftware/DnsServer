@@ -37,6 +37,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 - DNSSEC support for all supported DNS transport protocols including encrypted DNS protocols.
 - DANE TLSA [RFC 6698](https://datatracker.ietf.org/doc/html/rfc6698) record type support. This includes support for automatically generating the hash values using certificates in PEM format.
 - SVCB & HTTPS [draft-ietf-dnsop-svcb-https](https://www.ietf.org/archive/id/draft-ietf-dnsop-svcb-https-12.html) record type support.
+- URI [RFC 7553](https://www.rfc-editor.org/rfc/rfc7553.html) record type support.
 - SSHFP [RFC 4255](https://www.rfc-editor.org/rfc/rfc4255.html) record type support.
 - CNAME cloaking feature to block domain names that resolve to CNAME which are blocked.
 - QNAME minimization support in recursive resolver [RFC 9156](https://www.rfc-editor.org/rfc/rfc9156.html).

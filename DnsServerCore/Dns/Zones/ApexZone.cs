@@ -199,12 +199,16 @@ namespace DnsServerCore.Dns.Zones
         {
             DnsServer dnsServer = state as DnsServer;
 
-            async Task NotifyZoneNameServers(List<string> existingNameServers)
+            List<string> notifiedNameServers = new List<string>();
+
+            async Task NotifyZoneNameServersAsync(bool onlyFailedNameServers)
             {
                 string primaryNameServer = (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).PrimaryNameServer;
                 IReadOnlyList<DnsResourceRecord> nsRecords = GetRecords(DnsResourceRecordType.NS); //stub zone has no authority so cant use QueryRecords
 
                 //notify all secondary name servers
+                List<Task> tasks = new List<Task>();
+
                 foreach (DnsResourceRecord nsRecord in nsRecords)
                 {
                     if (nsRecord.GetAuthRecordInfo().Disabled)
@@ -215,14 +219,23 @@ namespace DnsServerCore.Dns.Zones
                     if (primaryNameServer.Equals(nameServerHost, StringComparison.OrdinalIgnoreCase))
                         continue; //skip primary name server
 
-                    existingNameServers.Add(nameServerHost);
+                    if (onlyFailedNameServers)
+                    {
+                        lock (_notifyFailed)
+                        {
+                            if (!_notifyFailed.Contains(nameServerHost))
+                                continue;
+                        }
+                    }
+
+                    notifiedNameServers.Add(nameServerHost);
 
                     List<NameServerAddress> nameServers = new List<NameServerAddress>(2);
                     await ResolveNameServerAddressesAsync(dnsServer, nsRecord, nameServers);
 
                     if (nameServers.Count > 0)
                     {
-                        _ = NotifyNameServerAsync(dnsServer, nameServerHost, nameServers);
+                        tasks.Add(NotifyNameServerAsync(dnsServer, nameServerHost, nameServers));
                     }
                     else
                     {
@@ -232,82 +245,90 @@ namespace DnsServerCore.Dns.Zones
                                 _notifyFailed.Add(nameServerHost);
                         }
 
-                        LogManager log = dnsServer.LogManager;
-                        if (log != null)
-                            log.Write("DNS Server failed to notify name server '" + nameServerHost + "' due to failure in resolving its IP address for zone: " + (_name == "" ? "<root>" : _name));
+                        dnsServer.LogManager?.Write("DNS Server failed to notify name server '" + nameServerHost + "' due to failure in resolving its IP address for zone: " + (_name == "" ? "<root>" : _name));
                     }
                 }
+
+                await Task.WhenAll(tasks);
             }
 
-            void NotifySpecifiedNameServers(List<string> existingNameServers)
+            async Task NotifySpecifiedNameServersAsync(bool onlyFailedNameServers)
             {
                 IReadOnlyCollection<IPAddress> specifiedNameServers = _notifyNameServers;
                 if (specifiedNameServers is not null)
                 {
+                    List<Task> tasks = new List<Task>();
+
                     foreach (IPAddress specifiedNameServer in specifiedNameServers)
                     {
                         string nameServerHost = specifiedNameServer.ToString();
-                        existingNameServers.Add(nameServerHost);
 
-                        _ = NotifyNameServerAsync(dnsServer, nameServerHost, new NameServerAddress[] { new NameServerAddress(specifiedNameServer) });
+                        if (onlyFailedNameServers)
+                        {
+                            lock (_notifyFailed)
+                            {
+                                if (!_notifyFailed.Contains(nameServerHost))
+                                    continue;
+                            }
+                        }
+
+                        notifiedNameServers.Add(nameServerHost);
+
+                        tasks.Add(NotifyNameServerAsync(dnsServer, nameServerHost, new NameServerAddress[] { new NameServerAddress(specifiedNameServer) }));
                     }
+
+                    await Task.WhenAll(tasks);
                 }
             }
 
             try
             {
-                List<string> existingNameServers = new List<string>();
-
                 switch (_notify)
                 {
                     case AuthZoneNotify.ZoneNameServers:
-                        await NotifyZoneNameServers(existingNameServers);
+                        await NotifyZoneNameServersAsync(!_notifyTimerTriggered);
                         break;
 
                     case AuthZoneNotify.SpecifiedNameServers:
-                        NotifySpecifiedNameServers(existingNameServers);
+                        await NotifySpecifiedNameServersAsync(!_notifyTimerTriggered);
                         break;
 
                     case AuthZoneNotify.BothZoneAndSpecifiedNameServers:
-                        await NotifyZoneNameServers(existingNameServers);
-                        NotifySpecifiedNameServers(existingNameServers);
+                        Task t1 = NotifyZoneNameServersAsync(!_notifyTimerTriggered);
+                        Task t2 = NotifySpecifiedNameServersAsync(!_notifyTimerTriggered);
+
+                        await Task.WhenAll(t1, t2);
                         break;
                 }
 
                 //remove non-existent name servers from notify failed list
                 lock (_notifyFailed)
                 {
-                    List<string> toRemove = new List<string>();
-
-                    foreach (string failedNameServer in _notifyFailed)
+                    if (_notifyFailed.Count > 0)
                     {
-                        bool found = false;
+                        List<string> toRemove = new List<string>();
 
-                        foreach (string existingNameServer in existingNameServers)
+                        foreach (string failedNameServer in _notifyFailed)
                         {
-                            if (failedNameServer.Equals(existingNameServer))
-                            {
-                                found = true;
-                                break;
-                            }
+                            if (!notifiedNameServers.Contains(failedNameServer))
+                                toRemove.Add(failedNameServer);
                         }
 
-                        if (!found)
-                            toRemove.Add(failedNameServer);
-                    }
-
-                    if (toRemove.Count > 0)
-                    {
                         foreach (string failedNameServer in toRemove)
                             _notifyFailed.Remove(failedNameServer);
+
+                        if (_notifyFailed.Count > 0)
+                        {
+                            //set timer to notify failed name servers again
+                            int retryInterval = (int)((_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).Retry * 1000);
+                            _notifyTimer.Change(retryInterval, Timeout.Infinite);
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
-                LogManager log = dnsServer.LogManager;
-                if (log != null)
-                    log.Write(ex);
+                dnsServer.LogManager?.Write(ex);
             }
             finally
             {
@@ -659,16 +680,19 @@ namespace DnsServerCore.Dns.Zones
             set { _updateSecurityPolicies = value; }
         }
 
-        public bool NotifyFailed
+        public string[] NotifyFailed
         {
             get
             {
                 if (_notifyFailed is null)
-                    return false;
+                    return Array.Empty<string>();
 
                 lock (_notifyFailed)
                 {
-                    return _notifyFailed.Count > 0;
+                    if (_notifyFailed.Count > 0)
+                        return _notifyFailed.ToArray();
+
+                    return Array.Empty<string>();
                 }
             }
         }

@@ -448,7 +448,15 @@
                                                 <button id="btnDisableZoneEditZone" type="button" class="btn btn-warning" style="padding: 2px 0px; width: 100px;" onclick="disableZone(this);">Disable Zone</button>
                                                 <button id="btnEditZoneDeleteZone" type="button" class="btn btn-danger" style="padding: 2px 0px; width: 100px;" onclick="deleteZone(this);">Delete Zone</button>
                                                 <button id="btnZoneResync" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="resyncZone(this, $('#titleEditZone').attr('data-zone'));" data-loading-text="Resyncing...">Resync</button>
-                                                <button id="btnZoneOptions" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showZoneOptionsModal($('#titleEditZone').attr('data-zone'));">Options</button>
+                                                <div id="divZoneOptions" class="btn-group">
+                                                    <button type="button" class="btn btn-primary dropdown-toggle" style="padding: 2px 0px; width: 100px;" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                        Options <span class="caret"></span>
+                                                    </button>
+                                                    <ul class="dropdown-menu">
+                                                        <li id="lnkZoneConvert"><a href="#" onclick="showConvertZoneModal($('#titleEditZone').attr('data-zone'), $('#titleEditZone').attr('data-zone-type')); return false;">Convert Zone</a></li>
+                                                        <li id="lnkZoneOptions"><a href="#" onclick="showZoneOptionsModal($('#titleEditZone').attr('data-zone')); return false;">Zone Options</a></li>
+                                                    </ul>
+                                                </div>
                                                 <button id="btnZonePermissions" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showZonePermissionsModal($('#titleEditZone').attr('data-zone'));">Permissions</button>
                                                 <div id="divZoneDnssecOptions" class="btn-group">
                                                     <button type="button" class="btn btn-primary dropdown-toggle" style="padding: 2px 0px; width: 100px;" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -810,6 +818,7 @@
                                                 <option>TLSA</option>
                                                 <option>SVCB</option>
                                                 <option>HTTPS</option>
+                                                <option>URI</option>
                                                 <option>CAA</option>
                                                 <option>ANY</option>
                                                 <option>AXFR</option>
@@ -1485,16 +1494,16 @@
                                                                 <input type="number" class="form-control" id="txtCacheNegativeRecordTtl" placeholder="-ve TTL" style="width: 100px; display: inline;">
                                                                 <span>seconds (recommended 300)</span>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The negative TTL value to use when there is no SOA MINIMUM value available.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The negative TTL value to use when there is no SOA MINIMUM value available. Negative caching stores records in cache for <code>NXDOMAIN</code> and <code>NODATA</code> responses.</div>
                                                         </div>
 
                                                         <div class="form-group">
                                                             <label for="txtCacheFailureRecordTtl" class="col-sm-3 control-label">Cache Failure TTL</label>
                                                             <div class="col-sm-6">
                                                                 <input type="number" class="form-control" id="txtCacheFailureRecordTtl" placeholder="fail TTL" style="width: 100px; display: inline;">
-                                                                <span>seconds (recommended 60)</span>
+                                                                <span>seconds (recommended 10)</span>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The failure TTL value to be used for caching failure responses. This allows storing failure record in cache and prevent frequent recursive resolution requests to the name servers that are responding with <code>ServerFailure</code>.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The failure TTL value to be used for caching failure responses. This allows storing failure record in cache and prevent frequent recursive resolution requests to the name servers that are responding with <code>ServerFailure</code> or failing to respond.</div>
                                                         </div>
                                                     </div>
 
@@ -3325,6 +3334,7 @@ ns1.example.com ([2001:db8::])
                                         <option id="optAddEditRecordTypeTlsa">TLSA</option>
                                         <option>SVCB</option>
                                         <option>HTTPS</option>
+                                        <option>URI</option>
                                         <option>CAA</option>
                                         <option id="optAddEditRecordTypeAName">ANAME</option>
                                         <option id="optAddEditRecordTypeFwd">FWD</option>
@@ -3685,6 +3695,28 @@ MII...
                             </div>
 
 
+                            <div id="divAddEditRecordDataUri" style="display: none;">
+                                <div class="form-group">
+                                    <label for="txtAddEditRecordDataUriPriority" class="col-sm-4 control-label">Priority</label>
+                                    <div class="col-sm-7">
+                                        <input type="number" class="form-control" id="txtAddEditRecordDataUriPriority" style="width: 100px;">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="txtAddEditRecordDataUriWeight" class="col-sm-4 control-label">Weight</label>
+                                    <div class="col-sm-7">
+                                        <input type="number" class="form-control" id="txtAddEditRecordDataUriWeight" style="width: 100px;">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="txtAddEditRecordDataUri" class="col-sm-4 control-label">URI</label>
+                                    <div class="col-sm-7">
+                                        <input type="text" class="form-control" id="txtAddEditRecordDataUri">
+                                    </div>
+                                </div>
+                            </div>
+
+
                             <div id="divAddEditRecordDataCaa" style="display: none;">
                                 <div class="form-group">
                                     <label for="txtAddEditRecordDataCaaFlags" class="col-sm-4 control-label">Flags</label>
@@ -3878,6 +3910,43 @@ MII...
         </form>
     </div>
 
+    <div id="modalConvertZone" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">Convert Zone - <span id="lblConvertZoneZoneName"></span></h4>
+                </div>
+                <div class="modal-body">
+                    <div id="divConvertZoneAlert"></div>
+                    <div class="form-horizontal">
+                        <div class="form-group">
+                            <label class="col-sm-4 control-label">Convert To</label>
+                            <div class="col-sm-8">
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdConvertZoneToType" id="rdConvertZoneToTypePrimary" value="Primary" />
+                                        Primary Zone
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdConvertZoneToType" id="rdConvertZoneToTypeForwarder" value="Forwarder" />
+                                        Conditional Forwarder Zone
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="btnConvertZone" type="submit" class="btn btn-warning" data-loading-text="Converting..." onclick="convertZone(this); return false;">Convert Zone</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="modalZoneOptions" class="modal fade" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document" style="width: 780px;">
             <div class="modal-content">
@@ -4011,6 +4080,13 @@ MII...
                                             <div class="col-sm-8">
                                                 <textarea id="txtZoneNotifyNameServers" class="form-control" rows="5" spellcheck="false"></textarea>
                                                 <div>Note: Enter only the IP addresses of the name servers above.</div>
+                                            </div>
+                                        </div>
+
+                                        <div id="divZoneNotifyFailedNameServers" class="form-group" style="display: none;">
+                                            <label class="col-sm-3 control-label">Notify Failed Name Servers</label>
+                                            <div class="col-sm-8">
+                                                <span id="lblZoneNotifyFailedNameServers" class="form-control"></span>
                                             </div>
                                         </div>
 
