@@ -4,7 +4,7 @@
 		<TargetFramework>net7.0</TargetFramework>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-		<Version>4.0.1</Version>
+		<Version>4.0.2</Version>
 		<Company>Technitium</Company>
 		<Product>Technitium DNS Server</Product>
 		<Authors>Shreyas Zare</Authors>
@@ -18,7 +18,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.Data.Sqlite" Version="7.0.5" />
+		<PackageReference Include="Microsoft.Data.Sqlite" Version="7.0.8" />
 	</ItemGroup>
 
 	<ItemGroup>
