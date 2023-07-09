@@ -30,6 +30,12 @@ namespace AutoPtr
 {
     public class App : IDnsApplication, IDnsAppRecordRequestHandler
     {
+        #region variables
+
+        IDnsServer _dnsServer;
+
+        #endregion
+
         #region IDisposable
 
         public void Dispose()
@@ -43,23 +49,29 @@ namespace AutoPtr
 
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
+            _dnsServer = dnsServer;
+
             return Task.CompletedTask;
         }
 
-        public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, string appRecordName, uint appRecordTtl, string appRecordData)
+        public async Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, string appRecordName, uint appRecordTtl, string appRecordData)
         {
             DnsQuestionRecord question = request.Question[0];
-
-            if (question.Type != DnsResourceRecordType.PTR)
-                return Task.FromResult<DnsDatagram>(null);
-
             string qname = question.Name;
 
             if (qname.Length == appRecordName.Length)
-                return Task.FromResult<DnsDatagram>(null);
+                return null;
 
             if (!IPAddressExtensions.TryParseReverseDomain(qname, out IPAddress address))
-                return Task.FromResult<DnsDatagram>(null);
+                return null;
+
+            if (question.Type != DnsResourceRecordType.PTR)
+            {
+                //NODATA reponse
+                DnsDatagram soaResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(zoneName, DnsResourceRecordType.SOA, DnsClass.IN));
+
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, null, soaResponse.Answer);
+            }
 
             string domain = null;
 
@@ -105,7 +117,7 @@ namespace AutoPtr
                         break;
 
                     default:
-                        return Task.FromResult<DnsDatagram>(null);
+                        return null;
                 }
 
                 if (jsonAppRecordData.TryGetProperty("prefix", out JsonElement jsonPrefix) && (jsonPrefix.ValueKind != JsonValueKind.Null))
@@ -117,7 +129,7 @@ namespace AutoPtr
 
             DnsResourceRecord[] answer = new DnsResourceRecord[] { new DnsResourceRecord(qname, DnsResourceRecordType.PTR, DnsClass.IN, appRecordTtl, new DnsPTRRecordData(domain)) };
 
-            return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answer));
+            return new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answer);
         }
 
         #endregion
