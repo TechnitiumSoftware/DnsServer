@@ -51,7 +51,7 @@ namespace WeightedRoundRobin
         {
             DnsQuestionRecord question = request.Question[0];
 
-            if (!question.Name.Equals(appRecordName, StringComparison.OrdinalIgnoreCase))
+            if (!question.Name.Equals(appRecordName, StringComparison.OrdinalIgnoreCase) && !appRecordName.StartsWith("*.", StringComparison.OrdinalIgnoreCase))
                 return Task.FromResult<DnsDatagram>(null);
 
             string jsonPropertyName;
