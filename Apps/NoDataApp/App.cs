@@ -50,17 +50,17 @@ namespace NoData
         {
             DnsQuestionRecord question = request.Question[0];
 
-            if (question.Name.Equals(appRecordName, StringComparison.OrdinalIgnoreCase))
-            {
-                using JsonDocument jsonDocument = JsonDocument.Parse(appRecordData);
-                JsonElement jsonAppRecordData = jsonDocument.RootElement;
+            if (!question.Name.Equals(appRecordName, StringComparison.OrdinalIgnoreCase) && !appRecordName.StartsWith("*.", StringComparison.OrdinalIgnoreCase))
+                return Task.FromResult<DnsDatagram>(null);
 
-                foreach (JsonElement jsonBlockedType in jsonAppRecordData.GetProperty("blockedTypes").EnumerateArray())
-                {
-                    DnsResourceRecordType blockedType = Enum.Parse<DnsResourceRecordType>(jsonBlockedType.GetString(), true);
-                    if ((blockedType == question.Type) || (blockedType == DnsResourceRecordType.ANY))
-                        return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question));
-                }
+            using JsonDocument jsonDocument = JsonDocument.Parse(appRecordData);
+            JsonElement jsonAppRecordData = jsonDocument.RootElement;
+
+            foreach (JsonElement jsonBlockedType in jsonAppRecordData.GetProperty("blockedTypes").EnumerateArray())
+            {
+                DnsResourceRecordType blockedType = Enum.Parse<DnsResourceRecordType>(jsonBlockedType.GetString(), true);
+                if ((blockedType == question.Type) || (blockedType == DnsResourceRecordType.ANY))
+                    return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question));
             }
 
             return Task.FromResult<DnsDatagram>(null);
