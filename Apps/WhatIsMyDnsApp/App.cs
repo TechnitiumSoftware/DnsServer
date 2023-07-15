@@ -50,7 +50,7 @@ namespace WhatIsMyDns
         {
             DnsQuestionRecord question = request.Question[0];
 
-            if (!question.Name.Equals(appRecordName, StringComparison.OrdinalIgnoreCase) && !appRecordName.StartsWith("*.", StringComparison.OrdinalIgnoreCase))
+            if (!question.Name.Equals(appRecordName, StringComparison.OrdinalIgnoreCase) && !appRecordName.StartsWith('*'))
                 return Task.FromResult<DnsDatagram>(null);
 
             DnsResourceRecord answer;
