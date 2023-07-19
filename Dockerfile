@@ -1,3 +1,21 @@
+# syntax=docker/dockerfile:1.5
+
+FROM mcr.microsoft.com/dotnet/sdk:7.0 AS builder
+
+WORKDIR /src
+RUN <<EOF bash
+# Stop on first error
+set -xe
+
+git clone --depth 1 https://github.com/TechnitiumSoftware/TechnitiumLibrary.git TechnitiumLibrary
+git clone --depth 1 https://github.com/TechnitiumSoftware/DnsServer.git DnsServer
+
+dotnet build TechnitiumLibrary/TechnitiumLibrary.ByteTree/TechnitiumLibrary.ByteTree.csproj -c Release
+dotnet build TechnitiumLibrary/TechnitiumLibrary.Net/TechnitiumLibrary.Net.csproj -c Release
+
+dotnet publish DnsServer/DnsServerApp/DnsServerApp.csproj -c Release
+EOF
+
 FROM mcr.microsoft.com/dotnet/aspnet:7.0
 LABEL product="Technitium DNS Server"
 LABEL vendor="Technitium"
@@ -5,16 +23,32 @@ LABEL email="support@technitium.com"
 LABEL project_url="https://technitium.com/dns/"
 LABEL github_url="https://github.com/TechnitiumSoftware/DnsServer"
 
+
+# Using build cache to speed up the build process
+RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+
 WORKDIR /opt/technitium/dns/
 
-RUN apt update; apt install curl -y; \
-curl https://packages.microsoft.com/config/debian/11/packages-microsoft-prod.deb --output packages-microsoft-prod.deb; \
-dpkg -i packages-microsoft-prod.deb; \
+
+RUN --mount=type=cache,target=/var/cache --mount=type=cache,target=/var/lib/apt <<EOF bash
+set -xe
+
+apt update
+apt dist-upgrade -y --no-install-recommends
+apt install curl -y --no-install-recommends
+
+curl https://packages.microsoft.com/config/debian/11/packages-microsoft-prod.deb --output packages-microsoft-prod.deb
+dpkg -i packages-microsoft-prod.deb
 rm packages-microsoft-prod.deb
 
-RUN apt update; apt install libmsquic -y; apt clean -y;
+apt update
+apt install -y --no-install-recommends libmsquic
+apt autoremove -y
 
-COPY ./DnsServerApp/bin/Release/publish/ .
+EOF
+
+
+COPY --link --from=builder /src/DnsServer/DnsServerApp/bin/Release/publish/ .
 
 EXPOSE 5380/tcp
 EXPOSE 53443/tcp
