@@ -62,7 +62,7 @@ namespace AutoPtr
             if (qname.Length == appRecordName.Length)
                 return null;
 
-            if (!IPAddressExtensions.TryParseReverseDomain(qname, out IPAddress address))
+            if (!IPAddressExtensions.TryParseReverseDomain(qname.ToLowerInvariant(), out IPAddress address))
                 return null;
 
             if (question.Type != DnsResourceRecordType.PTR)
