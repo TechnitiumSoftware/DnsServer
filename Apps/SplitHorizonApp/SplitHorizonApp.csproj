@@ -11,7 +11,7 @@
 		<RootNamespace>SplitHorizon</RootNamespace>
 		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-		<Description>Allows creating APP records in a primary and forwarder zones that can return different set of A or AAAA records, or CNAME record for clients querying over public, private, or other specified networks.\n\nEnables Address Translation of IP addresses in a DNS response for A &amp; AAAA type request based on the client's network address and the configured 1:1 translation.</Description>
+		<Description>Allows creating APP records in primary and forwarder zones that can return different set of A or AAAA records, or CNAME record for clients querying over public, private, or other specified networks.\n\nEnables Address Translation of IP addresses in a DNS response for A &amp; AAAA type request based on the client's network address and the configured 1:1 translation.</Description>
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
 		<OutputType>Library</OutputType>
 	</PropertyGroup>

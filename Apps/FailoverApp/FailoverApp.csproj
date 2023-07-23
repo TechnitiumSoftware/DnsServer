@@ -11,7 +11,7 @@
 		<RootNamespace>Failover</RootNamespace>
 		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-		<Description>Allows creating APP records in a primary and forwarder zones that can return A or AAAA records, or CNAME record based on the health status of the servers. The app supports email alerts and web hooks to relay the health status.</Description>
+		<Description>Allows creating APP records in primary and forwarder zones that can return A or AAAA records, or CNAME record based on the health status of the servers. The app supports email alerts and web hooks to relay the health status.</Description>
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
 		<OutputType>Library</OutputType>
 	</PropertyGroup>
