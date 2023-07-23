@@ -4,7 +4,7 @@
 		<TargetFramework>net7.0</TargetFramework>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-		<Version>1.0.1</Version>
+		<Version>1.0.2</Version>
 		<Company>Technitium</Company>
 		<Product>Technitium DNS Server</Product>
 		<Authors>Shreyas Zare</Authors>
@@ -12,7 +12,7 @@
 		<RootNamespace>AutoPtr</RootNamespace>
 		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-		<Description>Allows creating APP records in a primary and forwarder zones that can return automatically generated response for a PTR request for both IPv4 and IPv6.</Description>
+		<Description>Allows creating APP records in primary and forwarder zones that can return automatically generated response for a PTR request for both IPv4 and IPv6.</Description>
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
 		<OutputType>Library</OutputType>
 	</PropertyGroup>
