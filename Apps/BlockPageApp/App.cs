@@ -69,7 +69,8 @@ namespace BlockPage
         readonly List<Socket> _httpListeners = new List<Socket>();
         readonly List<Socket> _httpsListeners = new List<Socket>();
 
-        X509Certificate2 _webServerTlsCertificate;
+        X509Certificate2Collection _webServerTlsCertificateCollection;
+        SslServerAuthenticationOptions _sslServerAuthenticationOptions;
         DateTime _webServerTlsCertificateLastModifiedOn;
 
         Timer _tlsCertificateUpdateTimer;
@@ -128,7 +129,7 @@ namespace BlockPage
                 }
 
                 //bind to HTTPS port 443
-                if (_webServerTlsCertificate is not null)
+                if (_webServerTlsCertificateCollection is not null)
                 {
                     IPEndPoint httpsEP = new IPEndPoint(localAddress, 443);
                     Socket httpsListener = null;
@@ -211,7 +212,28 @@ namespace BlockPage
             if (Path.GetExtension(webServerTlsCertificateFilePath) != ".pfx")
                 throw new ArgumentException("Web server TLS certificate file must be PKCS #12 formatted with .pfx extension: " + webServerTlsCertificateFilePath);
 
-            _webServerTlsCertificate = new X509Certificate2(webServerTlsCertificateFilePath, webServerTlsCertificatePassword);
+            _webServerTlsCertificateCollection = new X509Certificate2Collection();
+            _webServerTlsCertificateCollection.Import(webServerTlsCertificateFilePath, webServerTlsCertificatePassword, X509KeyStorageFlags.PersistKeySet);
+
+            X509Certificate2 serverCertificate = null;
+
+            foreach (X509Certificate2 certificate in _webServerTlsCertificateCollection)
+            {
+                if (certificate.HasPrivateKey)
+                {
+                    serverCertificate = certificate;
+                    break;
+                }
+            }
+
+            if (serverCertificate is null)
+                throw new ArgumentException("Web server TLS certificate file must contain a certificate with private key.");
+
+            _sslServerAuthenticationOptions = new SslServerAuthenticationOptions()
+            {
+                ServerCertificateContext = SslStreamCertificateContext.Create(serverCertificate, _webServerTlsCertificateCollection, false)
+            };
+
             _webServerTlsCertificateLastModifiedOn = fileInfo.LastWriteTimeUtc;
 
             _dnsServer.WriteLog("Web server TLS certificate was loaded: " + webServerTlsCertificateFilePath);
@@ -296,7 +318,7 @@ namespace BlockPage
                 if (usingHttps)
                 {
                     SslStream httpsStream = new SslStream(stream);
-                    await httpsStream.AuthenticateAsServerAsync(_webServerTlsCertificate).WithTimeout(TCP_RECV_TIMEOUT);
+                    await httpsStream.AuthenticateAsServerAsync(_sslServerAuthenticationOptions).WithTimeout(TCP_RECV_TIMEOUT);
 
                     stream = httpsStream;
                 }
@@ -558,7 +580,7 @@ namespace BlockPage
                     else
                     {
                         //disable HTTPS
-                        _webServerTlsCertificate = null;
+                        _webServerTlsCertificateCollection = null;
                     }
                 }
                 else
