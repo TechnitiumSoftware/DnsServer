@@ -67,6 +67,7 @@ namespace DnsServerCore
                 jsonWriter.WriteStartObject();
 
                 jsonWriter.WriteString("version", _dnsWebService.GetServerVersion());
+                jsonWriter.WriteString("uptimestamp", _dnsWebService._uptimestamp);
                 jsonWriter.WriteString("dnsServerDomain", _dnsWebService.DnsServer.ServerDomain);
                 jsonWriter.WriteNumber("defaultRecordTtl", _dnsWebService._zonesApi.DefaultRecordTtl);
 
