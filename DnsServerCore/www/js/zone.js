@@ -377,6 +377,19 @@ function refreshZones(checkDisplay, pageNumber) {
 
                 var isReadOnlyZone = zones[i].internal;
 
+                var showResyncMenu;
+
+                switch (zones[i].type) {
+                    case "Secondary":
+                    case "Stub":
+                        showResyncMenu = true;
+                        break;
+
+                    default:
+                        showResyncMenu = false;
+                        break;
+                }
+
                 var hideOptionsMenu;
 
                 switch (zones[i].type) {
@@ -408,6 +421,10 @@ function refreshZones(checkDisplay, pageNumber) {
                 if (!zones[i].internal) {
                     tableHtmlRows += "<li id=\"mnuEnableZone" + id + "\"" + (zones[i].disabled ? "" : " style=\"display: none;\"") + "><a href=\"#\" data-id=\"" + id + "\" data-zone=\"" + htmlEncode(name) + "\" onclick=\"enableZoneMenu(this); return false;\">Enable</a></li>";
                     tableHtmlRows += "<li id=\"mnuDisableZone" + id + "\"" + (!zones[i].disabled ? "" : " style=\"display: none;\"") + "><a href=\"#\" data-id=\"" + id + "\" data-zone=\"" + htmlEncode(name) + "\" onclick=\"disableZoneMenu(this); return false;\">Disable</a></li>";
+                }
+
+                if (showResyncMenu) {
+                    tableHtmlRows += "<li><a href=\"#\" data-id=\"" + id + "\" data-zone=\"" + htmlEncode(name) + "\" data-zone-type=\"" + zones[i].type + "\" onclick=\"resyncZoneMenu(this); return false;\">Resync</a></li>";
                 }
 
                 if (!hideOptionsMenu) {
@@ -1173,6 +1190,45 @@ function saveZonePermissions(objBtn) {
             showPageLogin();
         },
         objAlertPlaceholder: divEditPermissionsAlert
+    });
+}
+
+function resyncZoneMenu(objMenuItem) {
+    var mnuItem = $(objMenuItem);
+
+    var id = mnuItem.attr("data-id");
+    var zone = mnuItem.attr("data-zone");
+    var zoneType = mnuItem.attr("data-zone-type");
+
+    if (zoneType == "Secondary") {
+        if (!confirm("The resync action will perform a full zone transfer (AXFR). You will need to check the logs to confirm if the resync action was successful.\r\n\r\nAre you sure you want to resync the '" + zone + "' zone?"))
+            return;
+    }
+    else {
+        if (!confirm("The resync action will perform a full zone refresh. You will need to check the logs to confirm if the resync action was successful.\r\n\r\nAre you sure you want to resync the '" + zone + "' zone?"))
+            return;
+    }
+
+    var btn = $("#btnZoneRowOption" + id);
+    var originalBtnHtml = btn.html();
+    btn.prop("disabled", true);
+    btn.html("<img src='/img/loader-small.gif'/>");
+
+    HTTPRequest({
+        url: "/api/zones/resync?token=" + sessionData.token + "&zone=" + zone,
+        success: function (responseJSON) {
+            btn.prop("disabled", false);
+            btn.html(originalBtnHtml);
+
+            showAlert("success", "Resync Triggered!", "Zone '" + zone + "' resync was triggered successfully. Please check the Logs for confirmation.");
+        },
+        error: function () {
+            btn.prop("disabled", false);
+            btn.html(originalBtnHtml);
+        },
+        invalidToken: function () {
+            showPageLogin();
+        }
     });
 }
 
