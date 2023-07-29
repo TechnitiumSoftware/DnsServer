@@ -28,7 +28,6 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
@@ -37,6 +36,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Quic;
+using System.Net.Security;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -59,6 +59,7 @@ namespace DnsServerCore
         #region variables
 
         internal readonly Version _currentVersion;
+        internal readonly DateTime _uptimestamp = DateTime.UtcNow;
         readonly string _appFolder;
         internal readonly string _configFolder;
 
@@ -76,7 +77,8 @@ namespace DnsServerCore
         readonly WebServiceLogsApi _logsApi;
 
         WebApplication _webService;
-        X509Certificate2 _webServiceTlsCertificate;
+        X509Certificate2Collection _webServiceCertificateCollection;
+        SslServerAuthenticationOptions _webServiceSslServerAuthenticationOptions;
 
         DnsServer _dnsServer;
         DhcpServer _dhcpServer;
@@ -249,22 +251,17 @@ namespace DnsServerCore
                     serverOptions.Listen(webServiceLocalAddress, _webServiceHttpPort);
 
                 //https
-                if (!safeMode && _webServiceEnableTls && (_webServiceTlsCertificate is not null))
+                if (!safeMode && _webServiceEnableTls && (_webServiceCertificateCollection is not null))
                 {
-                    serverOptions.ConfigureHttpsDefaults(delegate (HttpsConnectionAdapterOptions configureOptions)
-                    {
-                        configureOptions.ServerCertificateSelector = delegate (ConnectionContext context, string dnsName)
-                        {
-                            return _webServiceTlsCertificate;
-                        };
-                    });
-
                     foreach (IPAddress webServiceLocalAddress in _webServiceLocalAddresses)
                     {
                         serverOptions.Listen(webServiceLocalAddress, _webServiceTlsPort, delegate (ListenOptions listenOptions)
                         {
                             listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
-                            listenOptions.UseHttps();
+                            listenOptions.UseHttps(delegate (SslStream stream, SslClientHelloInfo clientHelloInfo, object state, CancellationToken cancellationToken)
+                            {
+                                return ValueTask.FromResult(_webServiceSslServerAuthenticationOptions);
+                            }, null);
                         });
                     }
                 }
@@ -277,7 +274,7 @@ namespace DnsServerCore
 
             _webService = builder.Build();
 
-            if (_webServiceHttpToTlsRedirect && !safeMode && _webServiceEnableTls && (_webServiceTlsCertificate is not null))
+            if (_webServiceHttpToTlsRedirect && !safeMode && _webServiceEnableTls && (_webServiceCertificateCollection is not null))
                 _webService.UseHttpsRedirection();
 
             _webService.UseDefaultFiles();
@@ -301,7 +298,7 @@ namespace DnsServerCore
                 {
                     _log?.Write(new IPEndPoint(webServiceLocalAddress, _webServiceHttpPort), "Http", "Web Service was bound successfully.");
 
-                    if (!safeMode && _webServiceEnableTls && (_webServiceTlsCertificate is not null))
+                    if (!safeMode && _webServiceEnableTls && (_webServiceCertificateCollection is not null))
                         _log?.Write(new IPEndPoint(webServiceLocalAddress, _webServiceHttpPort), "Https", "Web Service was bound successfully.");
                 }
             }
@@ -313,7 +310,7 @@ namespace DnsServerCore
                 {
                     _log?.Write(new IPEndPoint(webServiceLocalAddress, _webServiceHttpPort), "Http", "Web Service failed to bind.");
 
-                    if (!safeMode && _webServiceEnableTls && (_webServiceTlsCertificate is not null))
+                    if (!safeMode && _webServiceEnableTls && (_webServiceCertificateCollection is not null))
                         _log?.Write(new IPEndPoint(webServiceLocalAddress, _webServiceHttpPort), "Https", "Web Service failed to bind.");
                 }
 
@@ -676,7 +673,30 @@ namespace DnsServerCore
             if (Path.GetExtension(tlsCertificatePath) != ".pfx")
                 throw new ArgumentException("Web Service TLS certificate file must be PKCS #12 formatted with .pfx extension: " + tlsCertificatePath);
 
-            _webServiceTlsCertificate = new X509Certificate2(tlsCertificatePath, tlsCertificatePassword);
+            X509Certificate2Collection certificateCollection = new X509Certificate2Collection();
+            certificateCollection.Import(tlsCertificatePath, tlsCertificatePassword, X509KeyStorageFlags.PersistKeySet);
+
+            X509Certificate2 serverCertificate = null;
+
+            foreach (X509Certificate2 certificate in certificateCollection)
+            {
+                if (certificate.HasPrivateKey)
+                {
+                    serverCertificate = certificate;
+                    break;
+                }
+            }
+
+            if (serverCertificate is null)
+                throw new ArgumentException("Web Service TLS certificate file must contain a certificate with private key.");
+
+            _webServiceCertificateCollection = certificateCollection;
+
+            _webServiceSslServerAuthenticationOptions = new SslServerAuthenticationOptions
+            {
+                ServerCertificateContext = SslStreamCertificateContext.Create(serverCertificate, _webServiceCertificateCollection, false)
+            };
+
             _webServiceTlsCertificateLastModifiedOn = fileInfo.LastWriteTimeUtc;
 
             _log.Write("Web Service TLS certificate was loaded: " + tlsCertificatePath);
@@ -692,7 +712,10 @@ namespace DnsServerCore
             if (Path.GetExtension(tlsCertificatePath) != ".pfx")
                 throw new ArgumentException("DNS Server TLS certificate file must be PKCS #12 formatted with .pfx extension: " + tlsCertificatePath);
 
-            _dnsServer.Certificate = new X509Certificate2(tlsCertificatePath, tlsCertificatePassword);
+            X509Certificate2Collection certificateCollection = new X509Certificate2Collection();
+            certificateCollection.Import(tlsCertificatePath, tlsCertificatePassword, X509KeyStorageFlags.PersistKeySet);
+
+            _dnsServer.CertificateCollection = certificateCollection;
             _dnsTlsCertificateLastModifiedOn = fileInfo.LastWriteTimeUtc;
 
             _log.Write("DNS Server TLS certificate was loaded: " + tlsCertificatePath);
