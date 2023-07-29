@@ -223,6 +223,7 @@ namespace DnsServerCore
         {
             //general
             jsonWriter.WriteString("version", _dnsWebService.GetServerVersion());
+            jsonWriter.WriteString("uptimestamp", _dnsWebService._uptimestamp);
             jsonWriter.WriteString("dnsServerDomain", _dnsWebService.DnsServer.ServerDomain);
 
             jsonWriter.WritePropertyName("dnsServerLocalEndPoints");
@@ -797,7 +798,7 @@ namespace DnsServerCore
                     if (!string.IsNullOrEmpty(_dnsWebService._dnsTlsCertificatePath) && (_dnsWebService.DnsServer.EnableDnsOverTls || _dnsWebService.DnsServer.EnableDnsOverHttps || _dnsWebService.DnsServer.EnableDnsOverQuic))
                         restartDnsService = true;
 
-                    _dnsWebService.DnsServer.Certificate = null;
+                    _dnsWebService.DnsServer.CertificateCollection = null;
                     _dnsWebService._dnsTlsCertificatePath = null;
                     _dnsWebService._dnsTlsCertificatePassword = "";
                 }
