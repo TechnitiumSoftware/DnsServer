@@ -157,7 +157,7 @@ namespace DnsServerCore.Dhcp
 
         private async Task ReadUdpRequestAsync(Socket udpListener)
         {
-            byte[] recvBuffer = new byte[576];
+            byte[] recvBuffer = new byte[1500];
 
             try
             {
@@ -179,8 +179,13 @@ namespace DnsServerCore.Dhcp
                         {
                             case SocketError.ConnectionReset:
                             case SocketError.HostUnreachable:
-                            case SocketError.MessageSize:
                             case SocketError.NetworkReset:
+                                result = default;
+                                break;
+
+                            case SocketError.MessageSize:
+                                _log?.Write(ex);
+
                                 result = default;
                                 break;
 
