@@ -220,6 +220,8 @@ function showPageMain() {
         var type = $('input[name=rdStatType]:checked').val();
         if (type === "lastHour")
             refreshDashboard(true);
+
+        $("#lblAboutUptime").text(moment(sessionData.info.uptimestamp).local().format("lll") + " (" + moment(sessionData.info.uptimestamp).fromNow() + ")");
     }, 60000);
 }
 
@@ -227,7 +229,7 @@ $(function () {
     var headerHtml = $("#header").html();
 
     $("#header").html("<div class=\"title\"><a href=\"/\"><img src=\"/img/logo25x25.png\" alt=\"Technitium Logo\" /><span class=\"text\" style=\"color: #ffffff;\">Technitium</span></a>" + headerHtml + "</div>");
-    $("#footer").html("<div class=\"content\"><a href=\"https://technitium.com/\" target=\"_blank\">Technitium</a> | <a href=\"https://blog.technitium.com/\" target=\"_blank\">Blog</a> | <a href=\"https://go.technitium.com/?id=35\" target=\"_blank\">Donate</a> | <a href=\"https://dnsclient.net/\" target=\"_blank\">DNS Client</a> | <a href=\"https://github.com/TechnitiumSoftware/DnsServer\" target=\"_blank\"><i class=\"fa fa-github\"></i>&nbsp;GitHub</a> | <a href=\"https://technitium.com/aboutus.html\" target=\"_blank\">About</a></div>");
+    $("#footer").html("<div class=\"content\"><a href=\"https://technitium.com/\" target=\"_blank\">Technitium</a> | <a href=\"https://blog.technitium.com/\" target=\"_blank\">Blog</a> | <a href=\"https://go.technitium.com/?id=35\" target=\"_blank\">Donate</a> | <a href=\"https://dnsclient.net/\" target=\"_blank\">DNS Client</a> | <a href=\"https://github.com/TechnitiumSoftware/DnsServer\" target=\"_blank\"><i class=\"fa fa-github\"></i>&nbsp;GitHub</a> | <a href=\"#\" onclick=\"showAbout(); return false;\">About</a></div>");
 
     //dropdown list box support
     $('.dropdown').on('click', 'a', function (e) {
@@ -782,6 +784,57 @@ $(function () {
     });
 });
 
+function showAbout() {
+    if ($("#pageLogin").is(":visible")) {
+        window.open("https://technitium.com/aboutus.html", "_blank");
+    }
+    else {
+        $("#mainPanelTabListDashboard").removeClass("active");
+        $("#mainPanelTabPaneDashboard").removeClass("active");
+
+        $("#mainPanelTabListZones").removeClass("active");
+        $("#mainPanelTabPaneZones").removeClass("active");
+
+        $("#mainPanelTabListCachedZones").removeClass("active");
+        $("#mainPanelTabPaneCachedZones").removeClass("active");
+
+        $("#mainPanelTabListAllowedZones").removeClass("active");
+        $("#mainPanelTabPaneAllowedZones").removeClass("active");
+
+        $("#mainPanelTabListBlockedZones").removeClass("active");
+        $("#mainPanelTabPaneBlockedZones").removeClass("active");
+
+        $("#mainPanelTabListApps").removeClass("active");
+        $("#mainPanelTabPaneApps").removeClass("active");
+
+        $("#mainPanelTabListDnsClient").removeClass("active");
+        $("#mainPanelTabPaneDnsClient").removeClass("active");
+
+        $("#mainPanelTabListSettings").removeClass("active");
+        $("#mainPanelTabPaneSettings").removeClass("active");
+
+        $("#mainPanelTabListDhcp").removeClass("active");
+        $("#mainPanelTabPaneDhcp").removeClass("active");
+
+        $("#mainPanelTabListAdmin").removeClass("active");
+        $("#mainPanelTabPaneAdmin").removeClass("active");
+
+        $("#mainPanelTabListLogs").removeClass("active");
+        $("#mainPanelTabPaneLogs").removeClass("active");
+
+        $("#mainPanelTabListAbout").addClass("active");
+        $("#mainPanelTabPaneAbout").addClass("active");
+
+        setTimeout(function () {
+            window.scroll({
+                top: 0,
+                left: 0,
+                behavior: "smooth"
+            });
+        }, 500);
+    }
+}
+
 function checkForUpdate() {
     HTTPRequest({
         url: "/api/user/checkForUpdate?token=" + sessionData.token,
@@ -859,6 +912,7 @@ function loadDnsSettings() {
         success: function (responseJSON) {
             document.title = responseJSON.response.dnsServerDomain + " - " + "Technitium DNS Server v" + responseJSON.response.version;
             $("#lblAboutVersion").text(responseJSON.response.version);
+            $("#lblAboutUptime").text(moment(responseJSON.response.uptimestamp).local().format("lll") + " (" + moment(responseJSON.response.uptimestamp).fromNow() + ")");
             checkForReverseProxy(responseJSON);
 
             //general
