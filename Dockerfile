@@ -32,5 +32,7 @@ VOLUME ["/etc/dns"]
 
 STOPSIGNAL SIGINT
 
+HEALTHCHECK CMD dig +short +norecurse +retry=0 @127.0.0.1 technitium.com || exit 1
+
 ENTRYPOINT ["/usr/bin/dotnet", "/opt/technitium/dns/DnsServerApp.dll"]
 CMD ["/etc/dns"]
