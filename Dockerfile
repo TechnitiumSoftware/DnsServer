@@ -12,7 +12,7 @@ curl https://packages.microsoft.com/config/debian/11/packages-microsoft-prod.deb
 dpkg -i packages-microsoft-prod.deb; \
 rm packages-microsoft-prod.deb
 
-RUN apt update; apt install libmsquic -y; apt clean -y;
+RUN apt update; apt install libmsquic dnsutils -y; apt clean -y;
 
 COPY ./DnsServerApp/bin/Release/publish/ .
 
