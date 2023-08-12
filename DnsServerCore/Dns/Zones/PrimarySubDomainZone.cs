@@ -140,14 +140,17 @@ namespace DnsServerCore.Dns.Zones
                     if (record.OriginalTtlValue > _primaryZone.GetZoneSoaExpire())
                         throw new DnsServerException("Failed to add record: TTL cannot be greater than SOA EXPIRE.");
 
-                    base.AddRecord(record);
+                    AddRecord(record, out IReadOnlyList<DnsResourceRecord> addedRecords, out IReadOnlyList<DnsResourceRecord> deletedRecords);
 
-                    _primaryZone.CommitAndIncrementSerial(null, new DnsResourceRecord[] { record });
+                    if (addedRecords.Count > 0)
+                    {
+                        _primaryZone.CommitAndIncrementSerial(deletedRecords, addedRecords);
 
-                    if (_primaryZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned)
-                        _primaryZone.UpdateDnssecRecordsFor(this, record.Type);
+                        if (_primaryZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned)
+                            _primaryZone.UpdateDnssecRecordsFor(this, record.Type);
 
-                    _primaryZone.TriggerNotify();
+                        _primaryZone.TriggerNotify();
+                    }
                     break;
             }
         }
@@ -235,9 +238,13 @@ namespace DnsServerCore.Dns.Zones
                     if (!TryDeleteRecord(oldRecord.Type, oldRecord.RDATA, out DnsResourceRecord deletedRecord))
                         throw new InvalidOperationException("Cannot update record: the record does not exists to be updated.");
 
-                    base.AddRecord(newRecord);
+                    AddRecord(newRecord, out IReadOnlyList<DnsResourceRecord> addedRecords, out IReadOnlyList<DnsResourceRecord> deletedRecords);
 
-                    _primaryZone.CommitAndIncrementSerial(new DnsResourceRecord[] { deletedRecord }, new DnsResourceRecord[] { newRecord });
+                    List<DnsResourceRecord> allDeletedRecords = new List<DnsResourceRecord>(deletedRecords.Count + 1);
+                    allDeletedRecords.Add(deletedRecord);
+                    allDeletedRecords.AddRange(deletedRecords);
+
+                    _primaryZone.CommitAndIncrementSerial(allDeletedRecords, addedRecords);
 
                     if (_primaryZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned)
                         _primaryZone.UpdateDnssecRecordsFor(this, oldRecord.Type);
