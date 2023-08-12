@@ -27,8 +27,10 @@ using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using System;
@@ -176,6 +178,26 @@ namespace DnsServerCore
 
         #endregion
 
+        #region internal
+
+        internal string ConvertToRelativePath(string path)
+        {
+            if (path.StartsWith(_configFolder, Environment.OSVersion.Platform == PlatformID.Win32NT ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                path = path.Substring(_configFolder.Length).TrimStart(Path.DirectorySeparatorChar);
+
+            return path;
+        }
+
+        internal string ConvertToAbsolutePath(string path)
+        {
+            if (Path.IsPathRooted(path))
+                return path;
+
+            return Path.Combine(_configFolder, path);
+        }
+
+        #endregion
+
         #region server version
 
         internal string GetServerVersion()
@@ -267,7 +289,12 @@ namespace DnsServerCore
                 }
 
                 serverOptions.AddServerHeader = false;
-                serverOptions.Limits.MaxRequestBodySize = null;
+                serverOptions.Limits.MaxRequestBodySize = int.MaxValue;
+            });
+
+            builder.Services.Configure(delegate (FormOptions options)
+            {
+                options.MultipartBodyLengthLimit = int.MaxValue;
             });
 
             builder.Logging.ClearProviders();
@@ -622,31 +649,35 @@ namespace DnsServerCore
                 {
                     if (!string.IsNullOrEmpty(_webServiceTlsCertificatePath))
                     {
+                        string webServiceTlsCertificatePath = ConvertToAbsolutePath(_webServiceTlsCertificatePath);
+
                         try
                         {
-                            FileInfo fileInfo = new FileInfo(_webServiceTlsCertificatePath);
+                            FileInfo fileInfo = new FileInfo(webServiceTlsCertificatePath);
 
                             if (fileInfo.Exists && (fileInfo.LastWriteTimeUtc != _webServiceTlsCertificateLastModifiedOn))
-                                LoadWebServiceTlsCertificate(_webServiceTlsCertificatePath, _webServiceTlsCertificatePassword);
+                                LoadWebServiceTlsCertificate(webServiceTlsCertificatePath, _webServiceTlsCertificatePassword);
                         }
                         catch (Exception ex)
                         {
-                            _log.Write("DNS Server encountered an error while updating Web Service TLS Certificate: " + _webServiceTlsCertificatePath + "\r\n" + ex.ToString());
+                            _log.Write("DNS Server encountered an error while updating Web Service TLS Certificate: " + webServiceTlsCertificatePath + "\r\n" + ex.ToString());
                         }
                     }
 
                     if (!string.IsNullOrEmpty(_dnsTlsCertificatePath))
                     {
+                        string dnsTlsCertificatePath = ConvertToAbsolutePath(_dnsTlsCertificatePath);
+
                         try
                         {
-                            FileInfo fileInfo = new FileInfo(_dnsTlsCertificatePath);
+                            FileInfo fileInfo = new FileInfo(dnsTlsCertificatePath);
 
                             if (fileInfo.Exists && (fileInfo.LastWriteTimeUtc != _dnsTlsCertificateLastModifiedOn))
-                                LoadDnsTlsCertificate(_dnsTlsCertificatePath, _dnsTlsCertificatePassword);
+                                LoadDnsTlsCertificate(dnsTlsCertificatePath, _dnsTlsCertificatePassword);
                         }
                         catch (Exception ex)
                         {
-                            _log.Write("DNS Server encountered an error while updating DNS Server TLS Certificate: " + _dnsTlsCertificatePath + "\r\n" + ex.ToString());
+                            _log.Write("DNS Server encountered an error while updating DNS Server TLS Certificate: " + dnsTlsCertificatePath + "\r\n" + ex.ToString());
                         }
                     }
 
@@ -1019,7 +1050,7 @@ namespace DnsServerCore
 
             int version = bR.ReadByte();
 
-            if ((version >= 28) && (version <= 31))
+            if ((version >= 28) && (version <= 32))
             {
                 ReadConfigFrom(bR, version);
             }
@@ -1056,6 +1087,10 @@ namespace DnsServerCore
 
                         _webServiceLocalAddresses = localAddresses;
                     }
+                    else
+                    {
+                        _webServiceLocalAddresses = new IPAddress[] { IPAddress.Any, IPAddress.IPv6Any };
+                    }
                 }
 
                 _webServiceEnableTls = bR.ReadBoolean();
@@ -1068,15 +1103,17 @@ namespace DnsServerCore
                 if (_webServiceTlsCertificatePath.Length == 0)
                     _webServiceTlsCertificatePath = null;
 
-                if (_webServiceTlsCertificatePath != null)
+                if (_webServiceTlsCertificatePath is not null)
                 {
+                    string webServiceTlsCertificatePath = ConvertToAbsolutePath(_webServiceTlsCertificatePath);
+
                     try
                     {
-                        LoadWebServiceTlsCertificate(_webServiceTlsCertificatePath, _webServiceTlsCertificatePassword);
+                        LoadWebServiceTlsCertificate(webServiceTlsCertificatePath, _webServiceTlsCertificatePassword);
                     }
                     catch (Exception ex)
                     {
-                        _log.Write("DNS Server encountered an error while loading Web Service TLS certificate: " + _webServiceTlsCertificatePath + "\r\n" + ex.ToString());
+                        _log.Write("DNS Server encountered an error while loading Web Service TLS certificate: " + webServiceTlsCertificatePath + "\r\n" + ex.ToString());
                     }
 
                     StartTlsCertificateUpdateTimer();
@@ -1100,6 +1137,10 @@ namespace DnsServerCore
                             localEndPoints[i] = (IPEndPoint)EndPointExtensions.ReadFrom(bR);
 
                         _dnsServer.LocalEndPoints = localEndPoints;
+                    }
+                    else
+                    {
+                        _dnsServer.LocalEndPoints = new IPEndPoint[] { new IPEndPoint(IPAddress.Any, 53), new IPEndPoint(IPAddress.IPv6Any, 53) };
                     }
                 }
 
@@ -1147,11 +1188,33 @@ namespace DnsServerCore
                 }
 
                 //optional protocols
+                if (version >= 32)
+                {
+                    _dnsServer.EnableDnsOverUdpProxy = bR.ReadBoolean();
+                    _dnsServer.EnableDnsOverTcpProxy = bR.ReadBoolean();
+                }
+                else
+                {
+                    _dnsServer.EnableDnsOverUdpProxy = false;
+                    _dnsServer.EnableDnsOverTcpProxy = false;
+                }
+
                 _dnsServer.EnableDnsOverHttp = bR.ReadBoolean();
                 _dnsServer.EnableDnsOverTls = bR.ReadBoolean();
                 _dnsServer.EnableDnsOverHttps = bR.ReadBoolean();
 
-                if (version >= 31)
+                if (version >= 32)
+                {
+                    _dnsServer.EnableDnsOverQuic = bR.ReadBoolean();
+
+                    _dnsServer.DnsOverUdpProxyPort = bR.ReadInt32();
+                    _dnsServer.DnsOverTcpProxyPort = bR.ReadInt32();
+                    _dnsServer.DnsOverHttpPort = bR.ReadInt32();
+                    _dnsServer.DnsOverTlsPort = bR.ReadInt32();
+                    _dnsServer.DnsOverHttpsPort = bR.ReadInt32();
+                    _dnsServer.DnsOverQuicPort = bR.ReadInt32();
+                }
+                else if (version >= 31)
                 {
                     _dnsServer.EnableDnsOverQuic = bR.ReadBoolean();
 
@@ -1173,6 +1236,9 @@ namespace DnsServerCore
                 else
                 {
                     _dnsServer.EnableDnsOverQuic = false;
+
+                    _dnsServer.DnsOverUdpProxyPort = 538;
+                    _dnsServer.DnsOverTcpProxyPort = 538;
 
                     if (_dnsServer.EnableDnsOverHttps)
                     {
@@ -1201,13 +1267,15 @@ namespace DnsServerCore
 
                 if (_dnsTlsCertificatePath != null)
                 {
+                    string dnsTlsCertificatePath = ConvertToAbsolutePath(_dnsTlsCertificatePath);
+
                     try
                     {
-                        LoadDnsTlsCertificate(_dnsTlsCertificatePath, _dnsTlsCertificatePassword);
+                        LoadDnsTlsCertificate(dnsTlsCertificatePath, _dnsTlsCertificatePassword);
                     }
                     catch (Exception ex)
                     {
-                        _log.Write("DNS Server encountered an error while loading DNS Server TLS certificate: " + _dnsTlsCertificatePath + "\r\n" + ex.ToString());
+                        _log.Write("DNS Server encountered an error while loading DNS Server TLS certificate: " + dnsTlsCertificatePath + "\r\n" + ex.ToString());
                     }
 
                     StartTlsCertificateUpdateTimer();
@@ -1244,6 +1312,10 @@ namespace DnsServerCore
 
                         _dnsServer.RecursionDeniedNetworks = networks;
                     }
+                    else
+                    {
+                        _dnsServer.RecursionDeniedNetworks = null;
+                    }
                 }
 
                 {
@@ -1256,6 +1328,10 @@ namespace DnsServerCore
                             networks[i] = NetworkAddress.ReadFrom(bR);
 
                         _dnsServer.RecursionAllowedNetworks = networks;
+                    }
+                    else
+                    {
+                        _dnsServer.RecursionAllowedNetworks = null;
                     }
                 }
 
@@ -1320,11 +1396,19 @@ namespace DnsServerCore
                         _dnsServer.CustomBlockingARecords = dnsARecords;
                         _dnsServer.CustomBlockingAAAARecords = dnsAAAARecords;
                     }
+                    else
+                    {
+                        _dnsServer.CustomBlockingARecords = null;
+                        _dnsServer.CustomBlockingAAAARecords = null;
+                    }
                 }
 
                 {
                     //read block list urls
                     int count = bR.ReadByte();
+
+                    _dnsServer.BlockListZoneManager.AllowListUrls.Clear();
+                    _dnsServer.BlockListZoneManager.BlockListUrls.Clear();
 
                     for (int i = 0; i < count; i++)
                     {
@@ -1382,6 +1466,10 @@ namespace DnsServerCore
 
                         _dnsServer.Forwarders = forwarders;
                     }
+                    else
+                    {
+                        _dnsServer.Forwarders = null;
+                    }
                 }
 
                 _dnsServer.ForwarderRetries = bR.ReadInt32();
@@ -1419,6 +1507,10 @@ namespace DnsServerCore
 
                         _webServiceLocalAddresses = localAddresses;
                     }
+                    else
+                    {
+                        _webServiceLocalAddresses = new IPAddress[] { IPAddress.Any, IPAddress.IPv6Any };
+                    }
                 }
 
                 _webServiceTlsPort = bR.ReadInt32();
@@ -1432,13 +1524,15 @@ namespace DnsServerCore
 
                 if (_webServiceTlsCertificatePath != null)
                 {
+                    string webServiceTlsCertificatePath = ConvertToAbsolutePath(_webServiceTlsCertificatePath);
+
                     try
                     {
-                        LoadWebServiceTlsCertificate(_webServiceTlsCertificatePath, _webServiceTlsCertificatePassword);
+                        LoadWebServiceTlsCertificate(webServiceTlsCertificatePath, _webServiceTlsCertificatePassword);
                     }
                     catch (Exception ex)
                     {
-                        _log.Write("DNS Server encountered an error while loading Web Service TLS certificate: " + _webServiceTlsCertificatePath + "\r\n" + ex.ToString());
+                        _log.Write("DNS Server encountered an error while loading Web Service TLS certificate: " + webServiceTlsCertificatePath + "\r\n" + ex.ToString());
                     }
 
                     StartTlsCertificateUpdateTimer();
@@ -1480,6 +1574,10 @@ namespace DnsServerCore
 
                         _dnsServer.RecursionDeniedNetworks = networks;
                     }
+                    else
+                    {
+                        _dnsServer.RecursionDeniedNetworks = null;
+                    }
                 }
 
 
@@ -1493,6 +1591,10 @@ namespace DnsServerCore
                             networks[i] = NetworkAddress.ReadFrom(bR);
 
                         _dnsServer.RecursionAllowedNetworks = networks;
+                    }
+                    else
+                    {
+                        _dnsServer.RecursionAllowedNetworks = null;
                     }
                 }
             }
@@ -1625,6 +1727,10 @@ namespace DnsServerCore
 
                     _dnsServer.Forwarders = forwarders;
                 }
+                else
+                {
+                    _dnsServer.Forwarders = null;
+                }
             }
 
             if (version <= 10)
@@ -1736,6 +1842,11 @@ namespace DnsServerCore
                     _dnsServer.CustomBlockingARecords = dnsARecords;
                     _dnsServer.CustomBlockingAAAARecords = dnsAAAARecords;
                 }
+                else
+                {
+                    _dnsServer.CustomBlockingARecords = null;
+                    _dnsServer.CustomBlockingAAAARecords = null;
+                }
             }
             else
             {
@@ -1747,6 +1858,9 @@ namespace DnsServerCore
             {
                 //read block list urls
                 int count = bR.ReadByte();
+
+                _dnsServer.BlockListZoneManager.AllowListUrls.Clear();
+                _dnsServer.BlockListZoneManager.BlockListUrls.Clear();
 
                 for (int i = 0; i < count; i++)
                 {
@@ -1783,6 +1897,10 @@ namespace DnsServerCore
 
                     _dnsServer.LocalEndPoints = localEndPoints;
                 }
+                else
+                {
+                    _dnsServer.LocalEndPoints = new IPEndPoint[] { new IPEndPoint(IPAddress.Any, 53), new IPEndPoint(IPAddress.IPv6Any, 53) };
+                }
             }
             else if (version >= 6)
             {
@@ -1795,6 +1913,10 @@ namespace DnsServerCore
                         localEndPoints[i] = new IPEndPoint(IPAddressExtensions.ReadFrom(bR), 53);
 
                     _dnsServer.LocalEndPoints = localEndPoints;
+                }
+                else
+                {
+                    _dnsServer.LocalEndPoints = new IPEndPoint[] { new IPEndPoint(IPAddress.Any, 53), new IPEndPoint(IPAddress.IPv6Any, 53) };
                 }
             }
             else
@@ -1815,13 +1937,15 @@ namespace DnsServerCore
 
                 if (_dnsTlsCertificatePath != null)
                 {
+                    string dnsTlsCertificatePath = ConvertToAbsolutePath(_dnsTlsCertificatePath);
+
                     try
                     {
-                        LoadDnsTlsCertificate(_dnsTlsCertificatePath, _dnsTlsCertificatePassword);
+                        LoadDnsTlsCertificate(dnsTlsCertificatePath, _dnsTlsCertificatePassword);
                     }
                     catch (Exception ex)
                     {
-                        _log.Write("DNS Server encountered an error while loading DNS Server TLS certificate: " + _dnsTlsCertificatePath + "\r\n" + ex.ToString());
+                        _log.Write("DNS Server encountered an error while loading DNS Server TLS certificate: " + dnsTlsCertificatePath + "\r\n" + ex.ToString());
                     }
 
                     StartTlsCertificateUpdateTimer();
@@ -1962,7 +2086,7 @@ namespace DnsServerCore
         private void WriteConfigTo(BinaryWriter bW)
         {
             bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-            bW.Write((byte)31); //version
+            bW.Write((byte)32); //version
 
             //web service
             {
@@ -2028,11 +2152,15 @@ namespace DnsServerCore
                 bW.Write(_dnsServer.ListenBacklog);
 
                 //optional protocols
+                bW.Write(_dnsServer.EnableDnsOverUdpProxy);
+                bW.Write(_dnsServer.EnableDnsOverTcpProxy);
                 bW.Write(_dnsServer.EnableDnsOverHttp);
                 bW.Write(_dnsServer.EnableDnsOverTls);
                 bW.Write(_dnsServer.EnableDnsOverHttps);
                 bW.Write(_dnsServer.EnableDnsOverQuic);
 
+                bW.Write(_dnsServer.DnsOverUdpProxyPort);
+                bW.Write(_dnsServer.DnsOverTcpProxyPort);
                 bW.Write(_dnsServer.DnsOverHttpPort);
                 bW.Write(_dnsServer.DnsOverTlsPort);
                 bW.Write(_dnsServer.DnsOverHttpsPort);
@@ -2254,7 +2382,7 @@ namespace DnsServerCore
                 _dnsServer.BlockedZoneManager.LoadBlockedZoneFile();
 
                 //load block list zone async
-                if (_dnsServer.BlockListZoneManager.BlockListUrls.Count > 0)
+                if ((_dnsServer.BlockListZoneManager.AllowListUrls.Count + _dnsServer.BlockListZoneManager.BlockListUrls.Count) > 0)
                 {
                     ThreadPool.QueueUserWorkItem(delegate (object state)
                     {
@@ -2267,10 +2395,10 @@ namespace DnsServerCore
                             _log.Write(ex);
                         }
                     });
-                }
 
-                if (_settingsApi.BlockListUpdateIntervalHours > 0)
-                    _settingsApi.StartBlockListUpdateTimer();
+                    if (_settingsApi.BlockListUpdateIntervalHours > 0)
+                        _settingsApi.StartBlockListUpdateTimer();
+                }
 
                 //load dns cache async
                 if (_saveCache)
