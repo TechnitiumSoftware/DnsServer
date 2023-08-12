@@ -283,10 +283,14 @@ namespace DnsServerCore
             jsonWriter.WriteString("webServiceTlsCertificatePassword", "************");
 
             //optional protocols
+            jsonWriter.WriteBoolean("enableDnsOverUdpProxy", _dnsWebService.DnsServer.EnableDnsOverUdpProxy);
+            jsonWriter.WriteBoolean("enableDnsOverTcpProxy", _dnsWebService.DnsServer.EnableDnsOverTcpProxy);
             jsonWriter.WriteBoolean("enableDnsOverHttp", _dnsWebService.DnsServer.EnableDnsOverHttp);
             jsonWriter.WriteBoolean("enableDnsOverTls", _dnsWebService.DnsServer.EnableDnsOverTls);
             jsonWriter.WriteBoolean("enableDnsOverHttps", _dnsWebService.DnsServer.EnableDnsOverHttps);
             jsonWriter.WriteBoolean("enableDnsOverQuic", _dnsWebService.DnsServer.EnableDnsOverQuic);
+            jsonWriter.WriteNumber("dnsOverUdpProxyPort", _dnsWebService.DnsServer.DnsOverUdpProxyPort);
+            jsonWriter.WriteNumber("dnsOverTcpProxyPort", _dnsWebService.DnsServer.DnsOverTcpProxyPort);
             jsonWriter.WriteNumber("dnsOverHttpPort", _dnsWebService.DnsServer.DnsOverHttpPort);
             jsonWriter.WriteNumber("dnsOverTlsPort", _dnsWebService.DnsServer.DnsOverTlsPort);
             jsonWriter.WriteNumber("dnsOverHttpsPort", _dnsWebService.DnsServer.DnsOverHttpsPort);
@@ -704,9 +708,9 @@ namespace DnsServerCore
 
                     if ((webServiceTlsCertificatePath != _dnsWebService._webServiceTlsCertificatePath) || (webServiceTlsCertificatePassword != _dnsWebService._webServiceTlsCertificatePassword))
                     {
-                        _dnsWebService.LoadWebServiceTlsCertificate(webServiceTlsCertificatePath, webServiceTlsCertificatePassword);
+                        _dnsWebService.LoadWebServiceTlsCertificate(_dnsWebService.ConvertToAbsolutePath(webServiceTlsCertificatePath), webServiceTlsCertificatePassword);
 
-                        _dnsWebService._webServiceTlsCertificatePath = webServiceTlsCertificatePath;
+                        _dnsWebService._webServiceTlsCertificatePath = _dnsWebService.ConvertToRelativePath(webServiceTlsCertificatePath);
                         _dnsWebService._webServiceTlsCertificatePassword = webServiceTlsCertificatePassword;
 
                         _dnsWebService.StartTlsCertificateUpdateTimer();
@@ -715,6 +719,24 @@ namespace DnsServerCore
             }
 
             //optional protocols
+            if (request.TryGetQueryOrForm("enableDnsOverUdpProxy", bool.Parse, out bool enableDnsOverUdpProxy))
+            {
+                if (_dnsWebService.DnsServer.EnableDnsOverUdpProxy != enableDnsOverUdpProxy)
+                {
+                    _dnsWebService.DnsServer.EnableDnsOverUdpProxy = enableDnsOverUdpProxy;
+                    restartDnsService = true;
+                }
+            }
+
+            if (request.TryGetQueryOrForm("enableDnsOverTcpProxy", bool.Parse, out bool enableDnsOverTcpProxy))
+            {
+                if (_dnsWebService.DnsServer.EnableDnsOverTcpProxy != enableDnsOverTcpProxy)
+                {
+                    _dnsWebService.DnsServer.EnableDnsOverTcpProxy = enableDnsOverTcpProxy;
+                    restartDnsService = true;
+                }
+            }
+
             if (request.TryGetQueryOrForm("enableDnsOverHttp", bool.Parse, out bool enableDnsOverHttp))
             {
                 if (_dnsWebService.DnsServer.EnableDnsOverHttp != enableDnsOverHttp)
@@ -750,6 +772,24 @@ namespace DnsServerCore
                         DnsWebService.ValidateQuicSupport();
 
                     _dnsWebService.DnsServer.EnableDnsOverQuic = enableDnsOverQuic;
+                    restartDnsService = true;
+                }
+            }
+
+            if (request.TryGetQueryOrForm("dnsOverUdpProxyPort", int.Parse, out int dnsOverUdpProxyPort))
+            {
+                if (_dnsWebService.DnsServer.DnsOverUdpProxyPort != dnsOverUdpProxyPort)
+                {
+                    _dnsWebService.DnsServer.DnsOverUdpProxyPort = dnsOverUdpProxyPort;
+                    restartDnsService = true;
+                }
+            }
+
+            if (request.TryGetQueryOrForm("dnsOverTcpProxyPort", int.Parse, out int dnsOverTcpProxyPort))
+            {
+                if (_dnsWebService.DnsServer.DnsOverTcpProxyPort != dnsOverTcpProxyPort)
+                {
+                    _dnsWebService.DnsServer.DnsOverTcpProxyPort = dnsOverTcpProxyPort;
                     restartDnsService = true;
                 }
             }
@@ -811,12 +851,12 @@ namespace DnsServerCore
 
                     if ((dnsTlsCertificatePath != _dnsWebService._dnsTlsCertificatePath) || (strDnsTlsCertificatePassword != _dnsWebService._dnsTlsCertificatePassword))
                     {
-                        _dnsWebService.LoadDnsTlsCertificate(dnsTlsCertificatePath, strDnsTlsCertificatePassword);
+                        _dnsWebService.LoadDnsTlsCertificate(_dnsWebService.ConvertToAbsolutePath(dnsTlsCertificatePath), strDnsTlsCertificatePassword);
 
                         if (string.IsNullOrEmpty(_dnsWebService._dnsTlsCertificatePath) && (_dnsWebService.DnsServer.EnableDnsOverTls || _dnsWebService.DnsServer.EnableDnsOverHttps || _dnsWebService.DnsServer.EnableDnsOverQuic))
                             restartDnsService = true;
 
-                        _dnsWebService._dnsTlsCertificatePath = dnsTlsCertificatePath;
+                        _dnsWebService._dnsTlsCertificatePath = _dnsWebService.ConvertToRelativePath(dnsTlsCertificatePath);
                         _dnsWebService._dnsTlsCertificatePassword = strDnsTlsCertificatePassword;
 
                         _dnsWebService.StartTlsCertificateUpdateTimer();
@@ -1379,6 +1419,28 @@ namespace DnsServerCore
 
                             if (File.Exists(dnsSettingsFile))
                                 backupZip.CreateEntryFromFile(dnsSettingsFile, "dns.config");
+
+                            //backup web service cert
+                            {
+                                string webServiceTlsCertificatePath = _dnsWebService.ConvertToAbsolutePath(_dnsWebService._webServiceTlsCertificatePath);
+
+                                if (File.Exists(webServiceTlsCertificatePath) && webServiceTlsCertificatePath.StartsWith(_dnsWebService._configFolder, Environment.OSVersion.Platform == PlatformID.Win32NT ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                                {
+                                    string entryName = _dnsWebService.ConvertToRelativePath(webServiceTlsCertificatePath).Replace('\\', '/');
+                                    backupZip.CreateEntryFromFile(webServiceTlsCertificatePath, entryName);
+                                }
+                            }
+
+                            //backup optional protocols cert
+                            {
+                                string dnsTlsCertificatePath = _dnsWebService.ConvertToAbsolutePath(_dnsWebService._dnsTlsCertificatePath);
+
+                                if (File.Exists(dnsTlsCertificatePath) && dnsTlsCertificatePath.StartsWith(_dnsWebService._configFolder, Environment.OSVersion.Platform == PlatformID.Win32NT ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                                {
+                                    string entryName = _dnsWebService.ConvertToRelativePath(dnsTlsCertificatePath).Replace('\\', '/');
+                                    backupZip.CreateEntryFromFile(dnsTlsCertificatePath, entryName);
+                                }
+                            }
                         }
 
                         if (authConfig)
@@ -1412,6 +1474,11 @@ namespace DnsServerCore
                         await backupZipStream.CopyToAsync(output);
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                _dnsWebService._log.Write(ex);
+                throw;
             }
             finally
             {
@@ -1475,7 +1542,7 @@ namespace DnsServerCore
                             if (logSettings)
                             {
                                 ZipArchiveEntry entry = backupZip.GetEntry("log.config");
-                                if (entry != null)
+                                if (entry is not null)
                                     entry.ExtractToFile(Path.Combine(_dnsWebService._configFolder, entry.Name), true);
 
                                 //reload config
@@ -1515,7 +1582,7 @@ namespace DnsServerCore
                         if (authConfig)
                         {
                             ZipArchiveEntry entry = backupZip.GetEntry("auth.config");
-                            if (entry != null)
+                            if (entry is not null)
                                 entry.ExtractToFile(Path.Combine(_dnsWebService._configFolder, entry.Name), true);
 
                             //reload auth config
@@ -1545,13 +1612,28 @@ namespace DnsServerCore
                         if (dnsSettings)
                         {
                             ZipArchiveEntry entry = backupZip.GetEntry("dns.config");
-                            if (entry != null)
+                            if (entry is not null)
                                 entry.ExtractToFile(Path.Combine(_dnsWebService._configFolder, entry.Name), true);
+
+                            //extract any certs
+                            foreach (ZipArchiveEntry certEntry in backupZip.Entries)
+                            {
+                                if (certEntry.FullName.StartsWith("apps/"))
+                                    continue;
+
+                                if (certEntry.FullName.EndsWith(".pfx", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    string certFile = Path.Combine(_dnsWebService._configFolder, certEntry.FullName);
+                                    Directory.CreateDirectory(Path.GetDirectoryName(certFile));
+
+                                    certEntry.ExtractToFile(certFile, true);
+                                }
+                            }
 
                             //reload settings and block list zone
                             _dnsWebService.LoadConfigFile();
 
-                            if (_dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Count > 0)
+                            if ((_dnsWebService.DnsServer.BlockListZoneManager.AllowListUrls.Count + _dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Count) > 0)
                             {
                                 ThreadPool.QueueUserWorkItem(delegate (object state)
                                 {
@@ -1564,12 +1646,18 @@ namespace DnsServerCore
                                         _dnsWebService._log.Write(ex);
                                     }
                                 });
-                            }
 
-                            if (_blockListUpdateIntervalHours > 0)
-                                StartBlockListUpdateTimer();
+                                if (_blockListUpdateIntervalHours > 0)
+                                    StartBlockListUpdateTimer();
+                                else
+                                    StopBlockListUpdateTimer();
+                            }
                             else
+                            {
+                                _dnsWebService.DnsServer.BlockListZoneManager.Flush();
+
                                 StopBlockListUpdateTimer();
+                            }
                         }
 
                         if (apps)
@@ -1733,6 +1821,11 @@ namespace DnsServerCore
                         _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Settings backup zip file was restored.");
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                _dnsWebService._log.Write(ex);
+                throw;
             }
             finally
             {
