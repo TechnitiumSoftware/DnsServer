@@ -107,7 +107,7 @@
                                 <li id="mainPanelTabListBlockedZones" role="presentation"><a href="#mainPanelTabPaneBlockedZones" aria-controls="mainPanelTabPaneBlockedZones" role="tab" data-toggle="tab">Blocked</a></li>
                                 <li id="mainPanelTabListApps" role="presentation"><a href="#mainPanelTabPaneApps" aria-controls="mainPanelTabPaneApps" role="tab" data-toggle="tab" onclick="refreshApps();">Apps</a></li>
                                 <li id="mainPanelTabListDnsClient" role="presentation"><a href="#mainPanelTabPaneDnsClient" aria-controls="mainPanelTabPaneDnsClient" role="tab" data-toggle="tab">DNS Client</a></li>
-                                <li id="mainPanelTabListSettings" role="presentation"><a href="#mainPanelTabPaneSettings" aria-controls="mainPanelTabPaneSettings" role="tab" data-toggle="tab" onclick="loadDnsSettings();">Settings</a></li>
+                                <li id="mainPanelTabListSettings" role="presentation"><a href="#mainPanelTabPaneSettings" aria-controls="mainPanelTabPaneSettings" role="tab" data-toggle="tab" onclick="refreshDnsSettings();">Settings</a></li>
                                 <li id="mainPanelTabListDhcp" role="presentation"><a href="#mainPanelTabPaneDhcp" aria-controls="mainPanelTabPaneDhcp" role="tab" data-toggle="tab" onclick="refreshDhcpTab();">DHCP</a></li>
                                 <li id="mainPanelTabListAdmin" role="presentation"><a href="#mainPanelTabPaneAdmin" aria-controls="mainPanelTabPaneAdmin" role="tab" data-toggle="tab" onclick="refreshAdminTab();">Administration</a></li>
                                 <li id="mainPanelTabListLogs" role="presentation"><a href="#mainPanelTabPaneLogs" aria-controls="mainPanelTabPaneLogs" role="tab" data-toggle="tab" onclick="refreshLogsTab();">Logs</a></li>
@@ -702,6 +702,7 @@
                                                 <ul id="optDnsClientNameServers" class="dropdown-menu" style="max-height: 500px; overflow-y: scroll;">
                                                     <li><a href="#">This Server {this-server}</a></li>
                                                     <li><a href="#">Recursive Query {recursive-resolver}</a></li>
+                                                    <li><a href="#">System DNS {system-dns}</a></li>
                                                     <li><a href="#">Cloudflare {1.1.1.1}</a></li>
                                                     <li><a href="#">Cloudflare {1.0.0.1}</a></li>
                                                     <li><a href="#">Cloudflare {[2606:4700:4700::1111]}</a></li>
@@ -1167,7 +1168,7 @@
                                                             <div class="col-sm-6">
                                                                 <input type="text" class="form-control" id="txtWebServiceTlsCertificatePath" placeholder="Web Service TLS Certificate File Path On Server">
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx) file path on the server. The path can be relative to the DNS server's config folder. The certificate must contain private key.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1181,7 +1182,7 @@
                                                         <div>
                                                             <p>Note! The web service port changes will be automatically applied and so you do not need to manually restart the main service. This web page will be automatically redirected to the new web console URL after saving settings. The HTTPS protocol will be enabled only when a TLS certificate is configured.</p>
                                                             <p>When using a reverse proxy with the Web Service, you need to add <code>X-Real-IP</code> header to the proxy request with the IP address of the client to allow the Web server to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code>proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
-                                                            <p>The web service uses Kestral web server which supports both HTTP/2 and HTTP/3 protocols when TLS certificate is configured. HTTP/3 protocol support is not available on all platforms. On Windows, it is available only on Windows 11 (build 22000 or later) and Windows Server 2022. On Linux, it requires <code>libmsquic</code> and <code>openssl v1.1.1</code> to be installed.</p>
+                                                            <p>The web service uses Kestral web server which supports both HTTP/2 and HTTP/3 protocols when TLS certificate is configured. HTTP/3 protocol support is not available on all platforms. On Windows, it is available only on Windows 11 (build 22000 or later) and Windows Server 2022. On Linux, it requires <code>libmsquic</code> to be installed.</p>
                                                             <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
                                                             <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "privkey.pem" -in "cert.pem" -certfile "chain.pem"</pre>
                                                         </div>
@@ -1195,6 +1196,20 @@
                                                         <div class="form-group">
                                                             <label class="col-sm-3 control-label">Optional DNS Server Protocols</label>
                                                             <div class="col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkEnableDnsOverUdpProxy" type="checkbox"> Enable DNS-over-UDP-PROXY
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-UDP-PROXY requests. It implements the <a href="https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt" target="_blank">PROXY Protocol</a> for both version 1 &amp; 2 over UDP datagram and will work only on private networks.</div>
+                                                                
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkEnableDnsOverTcpProxy" type="checkbox"> Enable DNS-over-TCP-PROXY
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-TCP-PROXY requests. It implements the <a href="https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt" target="_blank">PROXY Protocol</a> for both version 1 &amp; 2 over TCP connection and will work only on private networks.</div>
+
                                                                 <div class="checkbox">
                                                                     <label>
                                                                         <input id="chkEnableDnsOverHttp" type="checkbox"> Enable DNS-over-HTTP
@@ -1225,6 +1240,24 @@
                                                             </div>
                                                         </div>
 
+                                                        <div class="form-group">
+                                                            <label for="txtDnsOverUdpProxyPort" class="col-sm-3 control-label">DNS-over-UDP-PROXY Port</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtDnsOverUdpProxyPort" placeholder="port" style="width: 100px; display: inline;">
+                                                                <span>(default 538)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the UDP port number for DNS-over-UDP-PROXY protocol.</div>
+                                                        </div>
+                                                        
+                                                        <div class="form-group">
+                                                            <label for="txtDnsOverTcpProxyPort" class="col-sm-3 control-label">DNS-over-TCP-PROXY Port</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtDnsOverTcpProxyPort" placeholder="port" style="width: 100px; display: inline;">
+                                                                <span>(default 538)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the TCP port number for DNS-over-TCP-PROXY protocol.</div>
+                                                        </div>
+                                                        
                                                         <div class="form-group">
                                                             <label for="txtDnsOverHttpPort" class="col-sm-3 control-label">DNS-over-HTTP Port</label>
                                                             <div class="col-sm-6">
@@ -1266,7 +1299,7 @@
                                                             <div class="col-sm-6">
                                                                 <input type="text" class="form-control" id="txtDnsTlsCertificatePath" placeholder="DNS Service TLS Certificate File Path On Server">
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx) file path on the server. The path can be relative to the DNS server's config folder. The certificate must contain private key.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1282,7 +1315,7 @@
                                                             <p>These optional DNS server protocols are used to host these as a service. You do not need to enable these optional protocols to use them with Forwarders or Conditional Forwarder Zones.</p>
                                                             <p>For DNS-over-HTTP, use <code>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</code> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <code id="lblDoTHost">tls-certificate-domain:853</code>, for DNS-over-QUIC, use <code id="lblDoQHost">tls-certificate-domain:853</code>, and for DNS-over-HTTPS use <code>https://<span id="lblDoHsHost">tls-certificate-domain</span>/dns-query</code> to configure supported DNS clients.</p>
                                                             <p>When using a reverse proxy with the DNS-over-HTTP service, you need to add <code>X-Real-IP</code> header to the proxy request with the IP address of the client to allow the DNS server to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code>proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
-                                                            <p>DNS-over-QUIC protocol support is not available on all platforms. On Windows, it is available only on Windows 11 (build 22000 or later) and Windows Server 2022. On Linux, it requires <code>libmsquic</code> and <code>openssl v1.1.1</code> to be installed.</p>
+                                                            <p>DNS-over-QUIC protocol support is not available on all platforms. On Windows, it is available only on Windows 11 (build 22000 or later) and Windows Server 2022. On Linux, it requires <code>libmsquic</code> to be installed.</p>
                                                             <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
                                                             <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "privkey.pem" -in "cert.pem" -certfile "chain.pem"</pre>
                                                         </div>
@@ -1870,7 +1903,7 @@
                                                             </div>
                                                         </div>
 
-                                                        <div style="margin-top: 10px;">Forwarders are DNS servers which this DNS Server should use to resolve recursive queries. If no forwarders are configured then this DNS server will use preconfigured ROOT SERVERS to perform recursive resolution.</div>
+                                                        <div style="margin-top: 10px;">Forwarders are DNS servers which this DNS Server should use to resolve recursive queries. If no forwarders are configured then this DNS server will use preconfigured ROOT SERVERS to perform recursive resolution. To force DNS-over-HTTPS/3, use <code>h3</code> URL scheme instead of <code>https</code>.</div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/06/configuring-dns-server-for-privacy.html" target="_blank">Help: Configuring DNS Server For Privacy & Security</a></div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2023/02/configuring-dns-over-quic-and-https3.html" target="_blank">Help: Configuring DNS-over-QUIC and HTTPS/3 For Technitium DNS Server</a></div>
                                                     </div>
@@ -1939,7 +1972,7 @@
                                                                 <input type="text" class="form-control" id="txtLogFolderPath" placeholder="Log Folder Path On Server">
                                                             </div>
 
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The folder path on the server where the log files should be saved. The path can be relative to the DNS server config folder.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The folder path on the server where the log files should be saved. The path can be relative to the DNS server's config folder.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -2629,6 +2662,8 @@
                                                         <option value="Tls">TLS</option>
                                                         <option value="Https">HTTPS</option>
                                                         <option value="Quic">QUIC</option>
+                                                        <option value="UdpProxy">UDP Proxy</option>
+                                                        <option value="TcpProxy">TCP Proxy</option>
                                                     </select>
                                                 </div>
 
@@ -4790,7 +4825,7 @@ MII...
 
                                 <div class="checkbox">
                                     <label>
-                                        <input id="chkBackupDnsSettings" type="checkbox" checked> DNS Settings File (dns.config)
+                                        <input id="chkBackupDnsSettings" type="checkbox" checked> DNS Settings And Certificate Files (dns.config &amp; *.pfx)
                                     </label>
                                 </div>
 
@@ -4851,6 +4886,8 @@ MII...
                         </div>
                     </div>
 
+                    <p><b>Note!</b> The Web Service or Optional Protocols TLS certificate (.pfx) files will be included in the backup only if they exists within the DNS server's config folder.</p>
+
                     <p><b>Note!</b> It may take several minutes to generate the backup zip file if log files are selected to be backed up which will depend on the size of the log files on the disk.</p>
 
                 </div>
@@ -4892,7 +4929,7 @@ MII...
 
                                 <div class="checkbox">
                                     <label>
-                                        <input id="chkRestoreDnsSettings" type="checkbox" checked> DNS Settings File (dns.config)
+                                        <input id="chkRestoreDnsSettings" type="checkbox" checked> DNS Settings And Certificate Files (dns.config &amp; *.pfx)
                                     </label>
                                 </div>
 
