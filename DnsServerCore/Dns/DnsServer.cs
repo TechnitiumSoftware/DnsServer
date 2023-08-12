@@ -49,6 +49,7 @@ using TechnitiumLibrary.Net.Dns.ClientConnection;
 using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 using TechnitiumLibrary.Net.Proxy;
+using TechnitiumLibrary.Net.ProxyProtocol;
 
 namespace DnsServerCore.Dns
 {
@@ -103,7 +104,9 @@ namespace DnsServerCore.Dns
         NameServerAddress _thisServer;
 
         readonly List<Socket> _udpListeners = new List<Socket>();
+        readonly List<Socket> _udpProxyListeners = new List<Socket>();
         readonly List<Socket> _tcpListeners = new List<Socket>();
+        readonly List<Socket> _tcpProxyListeners = new List<Socket>();
         readonly List<Socket> _tlsListeners = new List<Socket>();
         readonly List<QuicListener> _quicListeners = new List<QuicListener>();
 
@@ -140,10 +143,14 @@ namespace DnsServerCore.Dns
         int _quicMaxInboundStreams = 100;
         int _listenBacklog = 100;
 
+        bool _enableDnsOverUdpProxy;
+        bool _enableDnsOverTcpProxy;
         bool _enableDnsOverHttp;
         bool _enableDnsOverTls;
         bool _enableDnsOverHttps;
         bool _enableDnsOverQuic;
+        int _dnsOverUdpProxyPort = 538;
+        int _dnsOverTcpProxyPort = 538;
         int _dnsOverHttpPort = 80;
         int _dnsOverTlsPort = 853;
         int _dnsOverHttpsPort = 443;
@@ -303,9 +310,15 @@ namespace DnsServerCore.Dns
 
         #region private
 
-        private async Task ReadUdpRequestAsync(Socket udpListener)
+        private async Task ReadUdpRequestAsync(Socket udpListener, DnsTransportProtocol protocol)
         {
-            byte[] recvBuffer = new byte[DnsDatagram.EDNS_MAX_UDP_PAYLOAD_SIZE];
+            byte[] recvBuffer;
+
+            if (protocol == DnsTransportProtocol.UdpProxy)
+                recvBuffer = new byte[DnsDatagram.EDNS_MAX_UDP_PAYLOAD_SIZE + 256];
+            else
+                recvBuffer = new byte[DnsDatagram.EDNS_MAX_UDP_PAYLOAD_SIZE];
+
             using MemoryStream recvBufferStream = new MemoryStream(recvBuffer);
 
             try
@@ -357,17 +370,33 @@ namespace DnsServerCore.Dns
                         if (result.RemoteEndPoint is not IPEndPoint remoteEP)
                             continue;
 
-                        if (IsQpmLimitCrossed(remoteEP.Address))
-                            continue;
-
                         try
                         {
                             recvBufferStream.Position = 0;
                             recvBufferStream.SetLength(result.ReceivedBytes);
 
+                            IPEndPoint returnEP = remoteEP;
+
+                            if (protocol == DnsTransportProtocol.UdpProxy)
+                            {
+                                if (!NetUtilities.IsPrivateIP(remoteEP.Address))
+                                {
+                                    //intentionally blocking public IP addresses from using DNS-over-UDP-PROXY
+                                    //this feature is intended to be used with a reverse proxy or load balancer on private network
+                                    continue;
+                                }
+
+                                ProxyProtocolStream proxyStream = await ProxyProtocolStream.CreateAsServerAsync(recvBufferStream);
+                                remoteEP = new IPEndPoint(proxyStream.SourceAddress, proxyStream.SourcePort);
+                                recvBufferStream.Position = proxyStream.DataOffset;
+                            }
+
+                            if (IsQpmLimitCrossed(remoteEP.Address))
+                                continue;
+
                             DnsDatagram request = DnsDatagram.ReadFrom(recvBufferStream);
 
-                            _ = ProcessUdpRequestAsync(udpListener, remoteEP, request);
+                            _ = ProcessUdpRequestAsync(udpListener, remoteEP, returnEP, protocol, request);
                         }
                         catch (EndOfStreamException)
                         {
@@ -375,7 +404,7 @@ namespace DnsServerCore.Dns
                         }
                         catch (Exception ex)
                         {
-                            _log?.Write(remoteEP, DnsTransportProtocol.Udp, ex);
+                            _log?.Write(remoteEP, protocol, ex);
                         }
                     }
                 }
@@ -409,11 +438,11 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task ProcessUdpRequestAsync(Socket udpListener, IPEndPoint remoteEP, DnsDatagram request)
+        private async Task ProcessUdpRequestAsync(Socket udpListener, IPEndPoint remoteEP, IPEndPoint returnEP, DnsTransportProtocol protocol, DnsDatagram request)
         {
             try
             {
-                DnsDatagram response = await PreProcessQueryAsync(request, remoteEP, DnsTransportProtocol.Udp, IsRecursionAllowed(remoteEP.Address));
+                DnsDatagram response = await PreProcessQueryAsync(request, remoteEP, protocol, IsRecursionAllowed(remoteEP.Address));
                 if (response is null)
                     return; //drop request
 
@@ -479,19 +508,19 @@ namespace DnsServerCore.Dns
                     }
 
                     //send dns datagram async
-                    await udpListener.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.None, remoteEP);
+                    await udpListener.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.None, returnEP);
                 }
 
-                _queryLog?.Write(remoteEP, DnsTransportProtocol.Udp, request, response);
-                _stats.QueueUpdate(request, remoteEP, DnsTransportProtocol.Udp, response);
+                _queryLog?.Write(remoteEP, protocol, request, response);
+                _stats.QueueUpdate(request, remoteEP, protocol, response);
             }
             catch (Exception ex)
             {
                 if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
                     return; //server stopping
 
-                _queryLog?.Write(remoteEP, DnsTransportProtocol.Udp, request, null);
-                _log?.Write(remoteEP, DnsTransportProtocol.Udp, ex);
+                _queryLog?.Write(remoteEP, protocol, request, null);
+                _log?.Write(remoteEP, protocol, ex);
             }
         }
 
@@ -551,6 +580,20 @@ namespace DnsServerCore.Dns
                         await tlsStream.AuthenticateAsServerAsync(_sslServerAuthenticationOptions).WithTimeout(_tcpReceiveTimeout);
 
                         await ReadStreamRequestAsync(tlsStream, remoteEP, protocol);
+                        break;
+
+                    case DnsTransportProtocol.TcpProxy:
+                        if (!NetUtilities.IsPrivateIP(remoteEP.Address))
+                        {
+                            //intentionally blocking public IP addresses from using DNS-over-TCP-PROXY
+                            //this feature is intended to be used with a reverse proxy or load balancer on private network
+                            return;
+                        }
+
+                        ProxyProtocolStream proxyStream = await ProxyProtocolStream.CreateAsServerAsync(new NetworkStream(socket)).WithTimeout(_tcpReceiveTimeout);
+                        remoteEP = new IPEndPoint(proxyStream.SourceAddress, proxyStream.SourcePort);
+
+                        await ReadStreamRequestAsync(proxyStream, remoteEP, protocol);
                         break;
 
                     default:
@@ -4012,6 +4055,45 @@ namespace DnsServerCore.Dns
                     udpListener?.Dispose();
                 }
 
+                if (_enableDnsOverUdpProxy)
+                {
+                    IPEndPoint udpProxyEP = new IPEndPoint(localEP.Address, _dnsOverUdpProxyPort);
+                    Socket udpProxyListener = null;
+
+                    try
+                    {
+                        udpProxyListener = new Socket(udpProxyEP.AddressFamily, SocketType.Dgram, ProtocolType.Udp);
+
+                        #region this code ignores ICMP port unreachable responses which creates SocketException in ReceiveFrom()
+
+                        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                        {
+                            const uint IOC_IN = 0x80000000;
+                            const uint IOC_VENDOR = 0x18000000;
+                            const uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
+
+                            udpProxyListener.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
+                        }
+
+                        #endregion
+
+                        udpProxyListener.ReceiveBufferSize = 512 * 1024;
+                        udpProxyListener.SendBufferSize = 512 * 1024;
+
+                        udpProxyListener.Bind(udpProxyEP);
+
+                        _udpProxyListeners.Add(udpProxyListener);
+
+                        _log?.Write(udpProxyEP, DnsTransportProtocol.UdpProxy, "DNS Server was bound successfully.");
+                    }
+                    catch (Exception ex)
+                    {
+                        _log?.Write(udpProxyEP, DnsTransportProtocol.UdpProxy, "DNS Server failed to bind.\r\n" + ex.ToString());
+
+                        udpProxyListener?.Dispose();
+                    }
+                }
+
                 Socket tcpListener = null;
 
                 try
@@ -4030,6 +4112,30 @@ namespace DnsServerCore.Dns
                     _log?.Write(localEP, DnsTransportProtocol.Tcp, "DNS Server failed to bind.\r\n" + ex.ToString());
 
                     tcpListener?.Dispose();
+                }
+
+                if (_enableDnsOverTcpProxy)
+                {
+                    IPEndPoint tcpProxyEP = new IPEndPoint(localEP.Address, _dnsOverTcpProxyPort);
+                    Socket tcpProxyListner = null;
+
+                    try
+                    {
+                        tcpProxyListner = new Socket(tcpProxyEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+                        tcpProxyListner.Bind(tcpProxyEP);
+                        tcpProxyListner.Listen(_listenBacklog);
+
+                        _tcpProxyListeners.Add(tcpProxyListner);
+
+                        _log?.Write(tcpProxyEP, DnsTransportProtocol.TcpProxy, "DNS Server was bound successfully.");
+                    }
+                    catch (Exception ex)
+                    {
+                        _log?.Write(tcpProxyEP, DnsTransportProtocol.TcpProxy, "DNS Server failed to bind.\r\n" + ex.ToString());
+
+                        tcpProxyListner?.Dispose();
+                    }
                 }
 
                 if (_enableDnsOverTls && (_certificateCollection is not null))
@@ -4109,7 +4215,18 @@ namespace DnsServerCore.Dns
                 {
                     _ = Task.Factory.StartNew(delegate ()
                     {
-                        return ReadUdpRequestAsync(udpListener);
+                        return ReadUdpRequestAsync(udpListener, DnsTransportProtocol.Udp);
+                    }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _queryTaskScheduler);
+                }
+            }
+
+            foreach (Socket udpProxyListener in _udpProxyListeners)
+            {
+                for (int i = 0; i < listenerTaskCount; i++)
+                {
+                    _ = Task.Factory.StartNew(delegate ()
+                    {
+                        return ReadUdpRequestAsync(udpProxyListener, DnsTransportProtocol.UdpProxy);
                     }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _queryTaskScheduler);
                 }
             }
@@ -4121,6 +4238,17 @@ namespace DnsServerCore.Dns
                     _ = Task.Factory.StartNew(delegate ()
                     {
                         return AcceptConnectionAsync(tcpListener, DnsTransportProtocol.Tcp);
+                    }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _queryTaskScheduler);
+                }
+            }
+
+            foreach (Socket tcpProxyListener in _tcpProxyListeners)
+            {
+                for (int i = 0; i < listenerTaskCount; i++)
+                {
+                    _ = Task.Factory.StartNew(delegate ()
+                    {
+                        return AcceptConnectionAsync(tcpProxyListener, DnsTransportProtocol.TcpProxy);
                     }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _queryTaskScheduler);
                 }
             }
@@ -4208,8 +4336,14 @@ namespace DnsServerCore.Dns
             foreach (Socket udpListener in _udpListeners)
                 udpListener.Dispose();
 
+            foreach (Socket udpProxyListener in _udpProxyListeners)
+                udpProxyListener.Dispose();
+
             foreach (Socket tcpListener in _tcpListeners)
                 tcpListener.Dispose();
+
+            foreach (Socket tcpProxyListener in _tcpProxyListeners)
+                tcpProxyListener.Dispose();
 
             foreach (Socket tlsListener in _tlsListeners)
                 tlsListener.Dispose();
@@ -4218,7 +4352,9 @@ namespace DnsServerCore.Dns
                 await quicListener.DisposeAsync();
 
             _udpListeners.Clear();
+            _udpProxyListeners.Clear();
             _tcpListeners.Clear();
+            _tcpProxyListeners.Clear();
             _tlsListeners.Clear();
             _quicListeners.Clear();
 
@@ -4553,6 +4689,18 @@ namespace DnsServerCore.Dns
             set { _listenBacklog = value; }
         }
 
+        public bool EnableDnsOverUdpProxy
+        {
+            get { return _enableDnsOverUdpProxy; }
+            set { _enableDnsOverUdpProxy = value; }
+        }
+
+        public bool EnableDnsOverTcpProxy
+        {
+            get { return _enableDnsOverTcpProxy; }
+            set { _enableDnsOverTcpProxy = value; }
+        }
+
         public bool EnableDnsOverHttp
         {
             get { return _enableDnsOverHttp; }
@@ -4575,6 +4723,18 @@ namespace DnsServerCore.Dns
         {
             get { return _enableDnsOverQuic; }
             set { _enableDnsOverQuic = value; }
+        }
+
+        public int DnsOverUdpProxyPort
+        {
+            get { return _dnsOverUdpProxyPort; }
+            set { _dnsOverUdpProxyPort = value; }
+        }
+
+        public int DnsOverTcpProxyPort
+        {
+            get { return _dnsOverTcpProxyPort; }
+            set { _dnsOverTcpProxyPort = value; }
         }
 
         public int DnsOverHttpPort
