@@ -310,7 +310,7 @@ var
   ResultCode: Integer;
 begin
   Result := false;
-  Exec('cmd.exe', '/c dotnet --list-runtimes | find /n "Microsoft.AspNetCore.App 7.0.8"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('cmd.exe', '/c dotnet --list-runtimes | find /n "Microsoft.AspNetCore.App 7.0.10"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   if ResultCode = 0 then 
   begin 
     Result := true;
@@ -322,7 +322,7 @@ var
   ResultCode: Integer;
 begin
   Result := false;
-  Exec('cmd.exe', '/c dotnet --list-runtimes | find /n "Microsoft.WindowsDesktop.App 7.0.8"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('cmd.exe', '/c dotnet --list-runtimes | find /n "Microsoft.WindowsDesktop.App 7.0.10"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   if ResultCode = 0 then 
   begin 
     Result := true;
@@ -336,8 +336,8 @@ begin
   begin
     AddDependency('aspdotnet70' + GetArchitectureSuffix + '.exe',
       '/lcid ' + IntToStr(GetUILanguage) + ' /passive /norestart',
-      'ASP.NET Core Runtime 7.0.8' + GetArchitectureTitle,
-      GetString('https://download.visualstudio.microsoft.com/download/pr/6ad5ebde-12f9-46c3-89a2-189834ce3ac5/e90560462225d598a7de058c818750bb/aspnetcore-runtime-7.0.8-win-x86.exe', 'https://download.visualstudio.microsoft.com/download/pr/ddfe312d-511a-4e1c-bca2-59046d1ec73f/823812d3a1421aa967748da9ac26b4e5/aspnetcore-runtime-7.0.8-win-x64.exe'),
+      'ASP.NET Core Runtime 7.0.10' + GetArchitectureTitle,
+      GetString('https://download.visualstudio.microsoft.com/download/pr/71f8f5e4-8e6d-493b-b16f-96c6fa34336a/8be06fb14a04a1c1383161c64e7e359b/aspnetcore-runtime-7.0.10-win-x86.exe', 'https://download.visualstudio.microsoft.com/download/pr/f1777e79-21d8-4ed8-a529-3f212f4b5262/e685f2224f7140dc10bc0e0b47827e3a/aspnetcore-runtime-7.0.10-win-x64.exe'),
       '', False, False, False);
   end;
 
@@ -345,8 +345,8 @@ begin
   begin
     AddDependency('dotnet70desktop' + GetArchitectureSuffix + '.exe',
       '/lcid ' + IntToStr(GetUILanguage) + ' /passive /norestart',
-      '.NET Desktop Runtime 7.0.8' + GetArchitectureTitle,
-      GetString('https://download.visualstudio.microsoft.com/download/pr/b59c30b1-05b8-46ef-9384-a94d58dc5016/8cb385cf8552abaa5876710c5c2f9492/windowsdesktop-runtime-7.0.8-win-x86.exe', 'https://download.visualstudio.microsoft.com/download/pr/53868e57-c621-476a-885b-dea78ac6edba/f1d5957ba91bde28370f0e782b3d6177/windowsdesktop-runtime-7.0.8-win-x64.exe'),
+      '.NET Desktop Runtime 7.0.10' + GetArchitectureTitle,
+      GetString('https://download.visualstudio.microsoft.com/download/pr/9812249d-fc42-41ab-bd2e-6e858d5dd5a7/95fa5a1a77eace4482bcb98ede190003/windowsdesktop-runtime-7.0.10-win-x86.exe', 'https://download.visualstudio.microsoft.com/download/pr/747f4a98-2586-4bc6-b828-34f35e384a7d/44225cfd9d365855ec77d00c4812133c/windowsdesktop-runtime-7.0.10-win-x64.exe'),
       '', False, False, False);
   end;
 end;
