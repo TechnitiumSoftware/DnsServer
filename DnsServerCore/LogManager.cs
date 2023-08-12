@@ -343,7 +343,7 @@ namespace DnsServerCore
 
         private string ConvertToRelativePath(string path)
         {
-            if (path.StartsWith(_configFolder, StringComparison.OrdinalIgnoreCase))
+            if (path.StartsWith(_configFolder, Environment.OSVersion.Platform == PlatformID.Win32NT ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
                 path = path.Substring(_configFolder.Length).TrimStart(Path.DirectorySeparatorChar);
 
             return path;
