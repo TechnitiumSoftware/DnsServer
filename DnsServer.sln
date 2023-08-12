@@ -51,7 +51,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AutoPtrApp", "Apps\AutoPtrA
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WeightedRoundRobinApp", "Apps\WeightedRoundRobinApp\WeightedRoundRobinApp.csproj", "{29688452-F88A-49F5-9C98-BE7B2812C522}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZoneAliasApp", "Apps\ZoneAliasApp\ZoneAliasApp.csproj", "{6FF8C5F7-C98E-41C1-8FCD-25AEA0057673}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ZoneAliasApp", "Apps\ZoneAliasApp\ZoneAliasApp.csproj", "{6FF8C5F7-C98E-41C1-8FCD-25AEA0057673}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
