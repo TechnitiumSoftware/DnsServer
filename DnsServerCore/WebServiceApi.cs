@@ -205,6 +205,29 @@ namespace DnsServerCore
                     importResponse = false;
                 }
             }
+            else if (server.Equals("system-dns", StringComparison.OrdinalIgnoreCase))
+            {
+                DnsClient dnsClient = new DnsClient();
+
+                dnsClient.Proxy = proxy;
+                dnsClient.PreferIPv6 = preferIPv6;
+                dnsClient.RandomizeName = randomizeName;
+                dnsClient.Retries = RETRIES;
+                dnsClient.Timeout = TIMEOUT;
+                dnsClient.UdpPayloadSize = udpPayloadSize;
+                dnsClient.DnssecValidation = dnssecValidation;
+
+                try
+                {
+                    dnsResponse = await dnsClient.ResolveAsync(domain, type);
+                }
+                catch (DnsClientResponseDnssecValidationException ex)
+                {
+                    dnsResponse = ex.Response;
+                    dnssecErrorMessage = ex.Message;
+                    importResponse = false;
+                }
+            }
             else
             {
                 if ((type == DnsResourceRecordType.AXFR) && (protocol == DnsTransportProtocol.Udp))
