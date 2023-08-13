@@ -1,5 +1,11 @@
 # Technitium DNS Server Change Log
 
+## Version 11.4.1
+Release Date: 13 August 2023
+
+- Fixed issue that caused backup operations to fail.
+- Fixed minor issue with incremental zone transfer which caused empty nodes to not get removed from secondary zones.
+
 ## Version 11.4
 Release Date: 12 August 2023
 
