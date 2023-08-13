@@ -1421,6 +1421,7 @@ namespace DnsServerCore
                                 backupZip.CreateEntryFromFile(dnsSettingsFile, "dns.config");
 
                             //backup web service cert
+                            if (!string.IsNullOrEmpty(_dnsWebService._webServiceTlsCertificatePath))
                             {
                                 string webServiceTlsCertificatePath = _dnsWebService.ConvertToAbsolutePath(_dnsWebService._webServiceTlsCertificatePath);
 
@@ -1432,6 +1433,7 @@ namespace DnsServerCore
                             }
 
                             //backup optional protocols cert
+                            if (!string.IsNullOrEmpty(_dnsWebService._dnsTlsCertificatePath))
                             {
                                 string dnsTlsCertificatePath = _dnsWebService.ConvertToAbsolutePath(_dnsWebService._dnsTlsCertificatePath);
 
