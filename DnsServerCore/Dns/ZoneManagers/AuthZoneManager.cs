@@ -1826,9 +1826,16 @@ namespace DnsServerCore.Dns.ZoneManagers
                         AuthZone zone = GetOrAddSubDomainZone(zoneName, deletedEntry.Key);
 
                         if (zone.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase))
+                        {
                             zone.SyncRecords(deletedEntry.Value, null);
+                        }
                         else if ((zone is SubDomainZone subDomainZone) && subDomainZone.AuthoritativeZone.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase))
+                        {
                             zone.SyncRecords(deletedEntry.Value, null);
+
+                            if (zone.IsEmpty)
+                                _root.TryRemove(deletedEntry.Key, out SubDomainZone _); //remove empty sub zone
+                        }
                     }
                 }
 
