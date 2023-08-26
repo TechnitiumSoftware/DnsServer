@@ -41,7 +41,7 @@ sudo apt update
 sudo apt install dotnet-sdk-7.0 libmsquic -y
 ```
 
-Note! The `libmsquic` package requires openssl v1.1.1 and is not yet compatible with openssl v3.x. You can follow [this blog post](https://blog.technitium.com/2023/02/configuring-dns-over-quic-and-https3.html) to know how to get it configured correctly. If you do not plan to use DNS-over-QUIC or HTTP/3 support, or you intend to build a docker image then you can skip installing `libmsquic` altogether.
+Note! If you do not plan to use DNS-over-QUIC or HTTP/3 support, or you intend to just build a docker image then you can skip installing `libmsquic`.
 
 4. Clone the source code for both [TechnitiumLibrary](https://github.com/TechnitiumSoftware/TechnitiumLibrary) and [DnsServer](https://github.com/TechnitiumSoftware/DnsServer) into the current folder.
 ```
