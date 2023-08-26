@@ -36,7 +36,6 @@ namespace DnsServerCore.Dns.ResourceRecords
         IReadOnlyList<DnsResourceRecord> _nsecRecords;
         NetworkAddress _eDnsClientSubnet;
 
-        bool _conditionalForwardingClientSubnet; //not serialized
         DateTime _lastUsedOn; //not serialized
 
         #endregion
@@ -187,12 +186,6 @@ namespace DnsServerCore.Dns.ResourceRecords
         {
             get { return _eDnsClientSubnet; }
             set { _eDnsClientSubnet = value; }
-        }
-
-        public bool ConditionalForwardingClientSubnet
-        {
-            get { return _conditionalForwardingClientSubnet; }
-            set { _conditionalForwardingClientSubnet = value; }
         }
 
         public DateTime LastUsedOn
