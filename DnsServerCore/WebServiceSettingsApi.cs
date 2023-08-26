@@ -152,7 +152,7 @@ namespace DnsServerCore
 
         #region private
 
-        private void RestartService(bool restartDnsService, bool restartWebService)
+        private void RestartService(bool restartDnsService, bool restartWebService, IReadOnlyList<IPAddress> oldWebServiceLocalAddresses, int oldWebServiceHttpPort, int oldWebServiceTlsPort)
         {
             if (restartDnsService)
             {
@@ -185,7 +185,7 @@ namespace DnsServerCore
                     try
                     {
                         await _dnsWebService.StopWebServiceAsync();
-                        await _dnsWebService.TryStartWebServiceAsync();
+                        await _dnsWebService.TryStartWebServiceAsync(oldWebServiceLocalAddresses, oldWebServiceHttpPort, oldWebServiceTlsPort);
 
                         _dnsWebService._log.Write("Web service was restarted successfully.");
                     }
@@ -516,7 +516,9 @@ namespace DnsServerCore
             bool restartDnsService = false;
             bool restartWebService = false;
             bool blockListUrlsUpdated = false;
+            IReadOnlyList<IPAddress> oldWebServiceLocalAddresses = _dnsWebService._webServiceLocalAddresses;
             int oldWebServiceHttpPort = _dnsWebService._webServiceHttpPort;
+            int oldWebServiceTlsPort = _dnsWebService._webServiceTlsPort;
 
             HttpRequest request = context.Request;
 
@@ -1256,7 +1258,7 @@ namespace DnsServerCore
             Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
             WriteDnsSettings(jsonWriter);
 
-            RestartService(restartDnsService, restartWebService);
+            RestartService(restartDnsService, restartWebService, oldWebServiceLocalAddresses, oldWebServiceHttpPort, oldWebServiceTlsPort);
         }
 
         public void GetTsigKeyNames(HttpContext context)
@@ -1521,6 +1523,10 @@ namespace DnsServerCore
 
             if (!request.HasFormContentType || (request.Form.Files.Count == 0))
                 throw new DnsWebServiceException("DNS backup zip file is missing.");
+
+            IReadOnlyList<IPAddress> oldWebServiceLocalAddresses = _dnsWebService._webServiceLocalAddresses;
+            int oldWebServiceHttpPort = _dnsWebService._webServiceHttpPort;
+            int oldWebServiceTlsPort = _dnsWebService._webServiceTlsPort;
 
             //write to temp file
             string tmpFile = Path.GetTempFileName();
@@ -1842,7 +1848,7 @@ namespace DnsServerCore
             }
 
             if (dnsSettings)
-                RestartService(true, true);
+                RestartService(true, true, oldWebServiceLocalAddresses, oldWebServiceHttpPort, oldWebServiceTlsPort);
 
             Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
             WriteDnsSettings(jsonWriter);
