@@ -74,7 +74,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                 IReadOnlyList<DnsResourceRecord> rrsigRecords = GetRRSIGRecordsFrom(resourceRecord);
                 IReadOnlyList<DnsResourceRecord> nsecRecords = GetNSECRecordsFrom(resourceRecord);
                 NetworkAddress eDnsClientSubnet = GetEDnsClientSubnetFrom(resourceRecord);
-                bool conditionalForwardingClientSubnet = GetConditionalForwardingClientSubnetFrom(resourceRecord);
 
                 if ((glueRecords is not null) || (rrsigRecords is not null) || (nsecRecords is not null) || (eDnsClientSubnet is not null))
                 {
@@ -84,7 +83,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                     rrInfo.RRSIGRecords = rrsigRecords;
                     rrInfo.NSECRecords = nsecRecords;
                     rrInfo.EDnsClientSubnet = eDnsClientSubnet;
-                    rrInfo.ConditionalForwardingClientSubnet = conditionalForwardingClientSubnet;
 
                     if (glueRecords is not null)
                     {
