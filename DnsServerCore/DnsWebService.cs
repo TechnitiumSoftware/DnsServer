@@ -222,35 +222,63 @@ namespace DnsServerCore
 
         #region web service
 
-        internal async Task TryStartWebServiceAsync()
+        internal async Task TryStartWebServiceAsync(IReadOnlyList<IPAddress> oldWebServiceLocalAddresses = null, int oldWebServiceHttpPort = 0, int oldWebServiceTlsPort = 0)
         {
             try
             {
                 _webServiceLocalAddresses = DnsServer.GetValidKestralLocalAddresses(_webServiceLocalAddresses);
-                await StartWebServiceAsync(false);
+
+                await StartWebServiceAsync(_webServiceLocalAddresses, _webServiceHttpPort, _webServiceTlsPort, false);
+                return;
             }
             catch (Exception ex)
             {
                 _log.Write("Web Service failed to start: " + ex.ToString());
-                _log.Write("Attempting to start Web Service on ANY (0.0.0.0) fallback address...");
+            }
+
+            if (oldWebServiceLocalAddresses is not null)
+            {
+                _log.Write("Attempting to revert Web Service end point changes ...");
 
                 try
                 {
-                    _webServiceLocalAddresses = new IPAddress[] { IPAddress.Any };
-                    await StartWebServiceAsync(false);
+                    _webServiceLocalAddresses = DnsServer.GetValidKestralLocalAddresses(oldWebServiceLocalAddresses);
+                    _webServiceHttpPort = oldWebServiceHttpPort;
+                    _webServiceTlsPort = oldWebServiceTlsPort;
+
+                    await StartWebServiceAsync(_webServiceLocalAddresses, _webServiceHttpPort, _webServiceTlsPort, false);
+
+                    SaveConfigFile(); //save reverted changes
+                    return;
                 }
                 catch (Exception ex2)
                 {
                     _log.Write("Web Service failed to start: " + ex2.ToString());
-                    _log.Write("Attempting to start Web Service on loopback (127.0.0.1) fallback address...");
-
-                    _webServiceLocalAddresses = new IPAddress[] { IPAddress.Loopback };
-                    await StartWebServiceAsync(true);
                 }
             }
+
+            _log.Write("Attempting to start Web Service on ANY (0.0.0.0) fallback address...");
+
+            try
+            {
+                _webServiceLocalAddresses = new IPAddress[] { IPAddress.Any };
+
+                await StartWebServiceAsync(_webServiceLocalAddresses, _webServiceHttpPort, _webServiceTlsPort, false);
+                return;
+            }
+            catch (Exception ex3)
+            {
+                _log.Write("Web Service failed to start: " + ex3.ToString());
+            }
+
+            _log.Write("Attempting to start Web Service on loopback (127.0.0.1) fallback address...");
+
+            _webServiceLocalAddresses = new IPAddress[] { IPAddress.Loopback };
+
+            await StartWebServiceAsync(_webServiceLocalAddresses, _webServiceHttpPort, _webServiceTlsPort, true);
         }
 
-        private async Task StartWebServiceAsync(bool safeMode)
+        private async Task StartWebServiceAsync(IReadOnlyList<IPAddress> webServiceLocalAddresses, int webServiceHttpPort, int webServiceTlsPort, bool safeMode)
         {
             WebApplicationBuilder builder = WebApplication.CreateBuilder();
 
@@ -269,15 +297,15 @@ namespace DnsServerCore
             builder.WebHost.ConfigureKestrel(delegate (WebHostBuilderContext context, KestrelServerOptions serverOptions)
             {
                 //http
-                foreach (IPAddress webServiceLocalAddress in _webServiceLocalAddresses)
-                    serverOptions.Listen(webServiceLocalAddress, _webServiceHttpPort);
+                foreach (IPAddress webServiceLocalAddress in webServiceLocalAddresses)
+                    serverOptions.Listen(webServiceLocalAddress, webServiceHttpPort);
 
                 //https
                 if (!safeMode && _webServiceEnableTls && (_webServiceCertificateCollection is not null))
                 {
-                    foreach (IPAddress webServiceLocalAddress in _webServiceLocalAddresses)
+                    foreach (IPAddress webServiceLocalAddress in webServiceLocalAddresses)
                     {
-                        serverOptions.Listen(webServiceLocalAddress, _webServiceTlsPort, delegate (ListenOptions listenOptions)
+                        serverOptions.Listen(webServiceLocalAddress, webServiceTlsPort, delegate (ListenOptions listenOptions)
                         {
                             listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
                             listenOptions.UseHttps(delegate (SslStream stream, SslClientHelloInfo clientHelloInfo, object state, CancellationToken cancellationToken)
@@ -321,24 +349,24 @@ namespace DnsServerCore
             {
                 await _webService.StartAsync();
 
-                foreach (IPAddress webServiceLocalAddress in _webServiceLocalAddresses)
+                foreach (IPAddress webServiceLocalAddress in webServiceLocalAddresses)
                 {
-                    _log?.Write(new IPEndPoint(webServiceLocalAddress, _webServiceHttpPort), "Http", "Web Service was bound successfully.");
+                    _log?.Write(new IPEndPoint(webServiceLocalAddress, webServiceHttpPort), "Http", "Web Service was bound successfully.");
 
                     if (!safeMode && _webServiceEnableTls && (_webServiceCertificateCollection is not null))
-                        _log?.Write(new IPEndPoint(webServiceLocalAddress, _webServiceHttpPort), "Https", "Web Service was bound successfully.");
+                        _log?.Write(new IPEndPoint(webServiceLocalAddress, webServiceTlsPort), "Https", "Web Service was bound successfully.");
                 }
             }
             catch
             {
                 await StopWebServiceAsync();
 
-                foreach (IPAddress webServiceLocalAddress in _webServiceLocalAddresses)
+                foreach (IPAddress webServiceLocalAddress in webServiceLocalAddresses)
                 {
-                    _log?.Write(new IPEndPoint(webServiceLocalAddress, _webServiceHttpPort), "Http", "Web Service failed to bind.");
+                    _log?.Write(new IPEndPoint(webServiceLocalAddress, webServiceHttpPort), "Http", "Web Service failed to bind.");
 
                     if (!safeMode && _webServiceEnableTls && (_webServiceCertificateCollection is not null))
-                        _log?.Write(new IPEndPoint(webServiceLocalAddress, _webServiceHttpPort), "Https", "Web Service failed to bind.");
+                        _log?.Write(new IPEndPoint(webServiceLocalAddress, webServiceTlsPort), "Https", "Web Service failed to bind.");
                 }
 
                 throw;
@@ -2411,7 +2439,7 @@ namespace DnsServerCore
                         }
                         catch (Exception ex)
                         {
-                            _log.Write(ex);
+                            _log.Write("Failed to fully load DNS Cache from disk\r\n" + ex.ToString());
                         }
                     });
                 }
