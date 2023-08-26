@@ -923,6 +923,7 @@ function refreshDnsSettings() {
         url: "/api/settings/get?token=" + sessionData.token,
         success: function (responseJSON) {
             loadDnsSettings(responseJSON);
+            checkForReverseProxy(responseJSON);
 
             divDnsSettingsLoader.hide();
             divDnsSettings.show();
@@ -938,7 +939,6 @@ function loadDnsSettings(responseJSON) {
     document.title = responseJSON.response.dnsServerDomain + " - " + "Technitium DNS Server v" + responseJSON.response.version;
     $("#lblAboutVersion").text(responseJSON.response.version);
     $("#lblAboutUptime").text(moment(responseJSON.response.uptimestamp).local().format("lll") + " (" + moment(responseJSON.response.uptimestamp).fromNow() + ")");
-    checkForReverseProxy(responseJSON);
 
     //general
     $("#txtDnsServerDomain").val(responseJSON.response.dnsServerDomain);
