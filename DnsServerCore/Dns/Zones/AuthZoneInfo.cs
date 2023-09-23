@@ -55,6 +55,7 @@ namespace DnsServerCore.Dns.Zones
         readonly IReadOnlyCollection<IPAddress> _notifyNameServers;
         readonly AuthZoneUpdate _update;
         readonly IReadOnlyCollection<IPAddress> _updateIpAddresses;
+        readonly DateTime _lastModified;
         readonly DateTime _expiry;
         readonly IReadOnlyList<DnsResourceRecord> _zoneHistory; //for IXFR support
         readonly IReadOnlyDictionary<string, object> _zoneTransferTsigKeyNames;
@@ -87,7 +88,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public AuthZoneInfo(BinaryReader bR)
+        public AuthZoneInfo(BinaryReader bR, DateTime lastModified)
         {
             byte version = bR.ReadByte();
             switch (version)
@@ -99,6 +100,7 @@ namespace DnsServerCore.Dns.Zones
                 case 5:
                 case 6:
                 case 7:
+                case 8:
                     _name = bR.ReadShortString();
                     _type = (AuthZoneType)bR.ReadByte();
                     _disabled = bR.ReadBoolean();
@@ -168,6 +170,11 @@ namespace DnsServerCore.Dns.Zones
                                 break;
                         }
                     }
+
+                    if (version >= 8)
+                        _lastModified = bR.ReadDateTime();
+                    else
+                        _lastModified = lastModified;
 
                     switch (_type)
                     {
@@ -363,6 +370,7 @@ namespace DnsServerCore.Dns.Zones
             _notifyNameServers = _apexZone.NotifyNameServers;
             _update = _apexZone.Update;
             _updateIpAddresses = _apexZone.UpdateIpAddresses;
+            _lastModified = _apexZone.LastModified;
         }
 
         #endregion
@@ -458,7 +466,7 @@ namespace DnsServerCore.Dns.Zones
             if (_apexZone is null)
                 throw new InvalidOperationException();
 
-            bW.Write((byte)7); //version
+            bW.Write((byte)8); //version
 
             bW.WriteShortString(_name);
             bW.Write((byte)_type);
@@ -501,6 +509,8 @@ namespace DnsServerCore.Dns.Zones
                 foreach (IPAddress ipAddress in _updateIpAddresses)
                     ipAddress.WriteTo(bW);
             }
+
+            bW.Write(_lastModified);
 
             switch (_type)
             {
@@ -777,6 +787,17 @@ namespace DnsServerCore.Dns.Zones
                     throw new InvalidOperationException();
 
                 _apexZone.UpdateIpAddresses = value;
+            }
+        }
+
+        public DateTime LastModified
+        {
+            get
+            {
+                if (_apexZone is null)
+                    return _lastModified;
+
+                return _apexZone.LastModified;
             }
         }
 
