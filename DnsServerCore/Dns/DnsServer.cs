@@ -2839,10 +2839,7 @@ namespace DnsServerCore.Dns
                         if (forwarder.Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                             continue;
 
-                        NetProxy proxy = forwarder.Proxy;
-                        if (proxy is null)
-                            proxy = _proxy;
-
+                        NetProxy proxy = forwarder.GetProxy(_proxy);
                         if (proxy is null)
                         {
                             //recursive resolve name server when proxy is null else let proxy resolve it
@@ -3147,14 +3144,10 @@ namespace DnsServerCore.Dns
 
         private Task<DnsDatagram> ConditionalForwarderResolveAsync(DnsQuestionRecord question, NetworkAddress eDnsClientSubnet, bool conditionalForwardingClientSubnet, IDnsCache dnsCache, DnsForwarderRecordData forwarder, string conditionalForwardingZoneCut, CancellationToken cancellationToken = default)
         {
-            NetProxy proxy = forwarder.Proxy;
-            if (proxy is null)
-                proxy = _proxy;
-
             DnsClient dnsClient = new DnsClient(forwarder.NameServer);
 
             dnsClient.Cache = dnsCache;
-            dnsClient.Proxy = proxy;
+            dnsClient.Proxy = forwarder.GetProxy(_proxy);
             dnsClient.PreferIPv6 = _preferIPv6;
             dnsClient.RandomizeName = _randomizeName;
             dnsClient.Retries = _forwarderRetries;
