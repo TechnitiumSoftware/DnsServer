@@ -321,8 +321,28 @@ namespace DnsServerCore
 
             if (importResponse)
             {
+                bool isZoneImport = false;
+
+                if (type == DnsResourceRecordType.AXFR)
+                {
+                    isZoneImport = true;
+                }
+                else
+                {
+                    foreach (DnsResourceRecord record in dnsResponse.Answer)
+                    {
+                        if (record.Type == DnsResourceRecordType.SOA)
+                        {
+                            if (record.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                                isZoneImport = true;
+
+                            break;
+                        }
+                    }
+                }
+
                 AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(domain);
-                if ((zoneInfo is null) || ((zoneInfo.Type == AuthZoneType.Secondary) && !zoneInfo.Name.Equals(domain, StringComparison.OrdinalIgnoreCase)))
+                if ((zoneInfo is null) || ((zoneInfo.Type != AuthZoneType.Primary) && !zoneInfo.Name.Equals(domain, StringComparison.OrdinalIgnoreCase)) || (isZoneImport && !zoneInfo.Name.Equals(domain, StringComparison.OrdinalIgnoreCase)))
                 {
                     if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
                         throw new DnsWebServiceException("Access was denied.");
