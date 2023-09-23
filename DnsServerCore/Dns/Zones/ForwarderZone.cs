@@ -22,7 +22,6 @@ using System;
 using System.Collections.Generic;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
-using TechnitiumLibrary.Net.Proxy;
 
 namespace DnsServerCore.Dns.Zones
 {
@@ -34,7 +33,7 @@ namespace DnsServerCore.Dns.Zones
             : base(zoneInfo)
         { }
 
-        public ForwarderZone(string name, DnsTransportProtocol forwarderProtocol, string forwarder, bool dnssecValidation, NetProxyType proxyType, string proxyAddress, ushort proxyPort, string proxyUsername, string proxyPassword, string fwdRecordComments)
+        public ForwarderZone(string name, DnsTransportProtocol forwarderProtocol, string forwarder, bool dnssecValidation, DnsForwarderRecordProxyType proxyType, string proxyAddress, ushort proxyPort, string proxyUsername, string proxyPassword, string fwdRecordComments)
             : base(name)
         {
             _zoneTransfer = AuthZoneTransfer.Deny;
@@ -47,6 +46,15 @@ namespace DnsServerCore.Dns.Zones
                 fwdRecord.GetAuthRecordInfo().Comments = fwdRecordComments;
 
             _entries[DnsResourceRecordType.FWD] = new DnsResourceRecord[] { fwdRecord };
+        }
+
+        #endregion
+
+        #region internal
+
+        internal void UpdateLastModified()
+        {
+            _lastModified = DateTime.UtcNow;
         }
 
         #endregion
@@ -66,6 +74,7 @@ namespace DnsServerCore.Dns.Zones
 
                 default:
                     base.SetRecords(type, records);
+                    UpdateLastModified();
                     break;
             }
         }
@@ -79,8 +88,37 @@ namespace DnsServerCore.Dns.Zones
 
                 default:
                     base.AddRecord(record);
+                    UpdateLastModified();
                     break;
             }
+        }
+
+        public override bool DeleteRecords(DnsResourceRecordType type)
+        {
+            if (base.DeleteRecords(type))
+            {
+                UpdateLastModified();
+                return true;
+            }
+
+            return false;
+        }
+
+        public override bool DeleteRecord(DnsResourceRecordType type, DnsResourceRecordData rdata)
+        {
+            if (base.DeleteRecord(type, rdata))
+            {
+                UpdateLastModified();
+                return true;
+            }
+
+            return false;
+        }
+
+        public override void UpdateRecord(DnsResourceRecord oldRecord, DnsResourceRecord newRecord)
+        {
+            base.UpdateRecord(oldRecord, newRecord);
+            UpdateLastModified();
         }
 
         #endregion
