@@ -22,12 +22,12 @@ using DnsServerCore.Dns;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -43,8 +43,6 @@ namespace DnsServerCore
     sealed class WebServiceSettingsApi : IDisposable
     {
         #region variables
-
-        readonly static RandomNumberGenerator _rng = RandomNumberGenerator.Create();
 
         readonly DnsWebService _dnsWebService;
 
@@ -305,7 +303,7 @@ namespace DnsServerCore
 
                 if (_dnsWebService.DnsServer.TsigKeys is not null)
                 {
-                    foreach (KeyValuePair<string, TsigKey> tsigKey in _dnsWebService.DnsServer.TsigKeys)
+                    foreach (KeyValuePair<string, TsigKey> tsigKey in _dnsWebService.DnsServer.TsigKeys.ToImmutableSortedDictionary())
                     {
                         jsonWriter.WriteStartObject();
 
@@ -886,16 +884,9 @@ namespace DnsServerCore
                         string algorithmName = strTsigKeyParts[i + 2];
 
                         if (sharedSecret.Length == 0)
-                        {
-                            byte[] key = new byte[32];
-                            _rng.GetBytes(key);
-
-                            tsigKeys.Add(keyName, new TsigKey(keyName, Convert.ToBase64String(key), algorithmName));
-                        }
+                            tsigKeys.Add(keyName, new TsigKey(keyName, algorithmName));
                         else
-                        {
                             tsigKeys.Add(keyName, new TsigKey(keyName, sharedSecret, algorithmName));
-                        }
                     }
 
                     _dnsWebService.DnsServer.TsigKeys = tsigKeys;
