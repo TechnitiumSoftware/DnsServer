@@ -2587,6 +2587,8 @@ namespace DnsServerCore.Dns.Zones
 
         internal void CommitAndIncrementSerial(IReadOnlyList<DnsResourceRecord> deletedRecords = null, IReadOnlyList<DnsResourceRecord> addedRecords = null)
         {
+            _lastModified = DateTime.UtcNow;
+
             if (_internal)
                 return;
 
