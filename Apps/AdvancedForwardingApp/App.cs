@@ -29,7 +29,6 @@ using TechnitiumLibrary;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
-using TechnitiumLibrary.Net.Proxy;
 
 namespace AdvancedForwarding
 {
@@ -82,7 +81,7 @@ namespace AdvancedForwarding
             DnsForwarderRecordData forwarderRecord;
 
             if (configProxyServer is null)
-                forwarderRecord = new DnsForwarderRecordData(protocol, forwarder, dnssecValidation, NetProxyType.None, null, 0, null, null);
+                forwarderRecord = new DnsForwarderRecordData(protocol, forwarder, dnssecValidation, DnsForwarderRecordProxyType.DefaultProxy, null, 0, null, null);
             else
                 forwarderRecord = new DnsForwarderRecordData(protocol, forwarder, dnssecValidation, configProxyServer.Type, configProxyServer.ProxyAddress, configProxyServer.ProxyPort, configProxyServer.ProxyUsername, configProxyServer.ProxyPassword);
 
@@ -769,7 +768,7 @@ namespace AdvancedForwarding
             #region variables
 
             readonly string _name;
-            readonly NetProxyType _type;
+            readonly DnsForwarderRecordProxyType _type;
             readonly string _proxyAddress;
             readonly ushort _proxyPort;
             readonly string _proxyUsername;
@@ -782,7 +781,7 @@ namespace AdvancedForwarding
             public ConfigProxyServer(JsonElement jsonProxy)
             {
                 _name = jsonProxy.GetProperty("name").GetString();
-                _type = jsonProxy.GetPropertyEnumValue("type", NetProxyType.Http);
+                _type = jsonProxy.GetPropertyEnumValue("type", DnsForwarderRecordProxyType.Http);
                 _proxyAddress = jsonProxy.GetProperty("proxyAddress").GetString();
                 _proxyPort = jsonProxy.GetProperty("proxyPort").GetUInt16();
                 _proxyUsername = jsonProxy.GetPropertyValue("proxyUsername", null);
@@ -796,7 +795,7 @@ namespace AdvancedForwarding
             public string Name
             { get { return _name; } }
 
-            public NetProxyType Type
+            public DnsForwarderRecordProxyType Type
             { get { return _type; } }
 
             public string ProxyAddress
