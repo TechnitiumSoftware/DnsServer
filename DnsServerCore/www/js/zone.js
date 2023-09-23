@@ -78,11 +78,12 @@ $(function () {
 
     $("input[type=radio][name=rdAddZoneForwarderProxyType]").change(function () {
         var proxyType = $('input[name=rdAddZoneForwarderProxyType]:checked').val();
+        var disabled = (proxyType === "NoProxy") || (proxyType === "DefaultProxy");
 
-        $("#txtAddZoneForwarderProxyAddress").prop("disabled", (proxyType === "None"));
-        $("#txtAddZoneForwarderProxyPort").prop("disabled", (proxyType === "None"));
-        $("#txtAddZoneForwarderProxyUsername").prop("disabled", (proxyType === "None"));
-        $("#txtAddZoneForwarderProxyPassword").prop("disabled", (proxyType === "None"));
+        $("#txtAddZoneForwarderProxyAddress").prop("disabled", disabled);
+        $("#txtAddZoneForwarderProxyPort").prop("disabled", disabled);
+        $("#txtAddZoneForwarderProxyUsername").prop("disabled", disabled);
+        $("#txtAddZoneForwarderProxyPassword").prop("disabled", disabled);
     });
 
     $("input[type=radio][name=rdZoneTransfer]").change(function () {
@@ -347,6 +348,10 @@ function refreshZones(checkDisplay, pageNumber) {
                 else
                     type = "<span class=\"label label-primary\">" + zones[i].type + "</span>";
 
+                var soaSerial = zones[i].soaSerial;
+                if (soaSerial == null)
+                    soaSerial = "&nbsp;";
+
                 var dnssecStatus = "";
 
                 switch (zones[i].dnssecStatus) {
@@ -374,6 +379,12 @@ function refreshZones(checkDisplay, pageNumber) {
                     expiry = "&nbsp;";
                 else
                     expiry = moment(expiry).local().format("YYYY-MM-DD HH:mm");
+
+                var lastModified = zones[i].lastModified;
+                if (lastModified == null)
+                    lastModified = "&nbsp;";
+                else
+                    lastModified = moment(lastModified).local().format("YYYY-MM-DD HH:mm");
 
                 var isReadOnlyZone = zones[i].internal;
 
@@ -413,7 +424,9 @@ function refreshZones(checkDisplay, pageNumber) {
                 tableHtmlRows += "<td>" + type + "</td>";
                 tableHtmlRows += "<td>" + dnssecStatus + "</td>";
                 tableHtmlRows += "<td>" + status + "</td>";
+                tableHtmlRows += "<td>" + soaSerial + "</td>";
                 tableHtmlRows += "<td>" + expiry + "</td>";
+                tableHtmlRows += "<td>" + lastModified + "</td>";
 
                 tableHtmlRows += "<td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnZoneRowOption" + id + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
                 tableHtmlRows += "<li><a href=\"#\" onclick=\"showEditZone('" + name + "'); return false;\">" + (isReadOnlyZone ? "View" : "Edit") + " Zone</a></li>";
@@ -1276,7 +1289,7 @@ function showAddZoneModal() {
     $("#txtAddZoneForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
     $("#txtAddZoneForwarder").val("");
     $("#chkAddZoneForwarderDnssecValidation").prop("checked", $("#chkDnssecValidation").prop("checked"));
-    $("#rdAddZoneForwarderProxyTypeNone").prop("checked", true);
+    $("#rdAddZoneForwarderProxyTypeDefaultProxy").prop("checked", true);
     $("#txtAddZoneForwarderProxyAddress").prop("disabled", true);
     $("#txtAddZoneForwarderProxyPort").prop("disabled", true);
     $("#txtAddZoneForwarderProxyUsername").prop("disabled", true);
@@ -1412,25 +1425,28 @@ function addZone() {
 
                 parameters += "&proxyType=" + proxyType;
 
-                if (proxyType != "None") {
-                    var proxyAddress = $("#txtAddZoneForwarderProxyAddress").val();
-                    var proxyPort = $("#txtAddZoneForwarderProxyPort").val();
-                    var proxyUsername = $("#txtAddZoneForwarderProxyUsername").val();
-                    var proxyPassword = $("#txtAddZoneForwarderProxyPassword").val();
+                switch (proxyType) {
+                    case "Http":
+                    case "Socks5":
+                        var proxyAddress = $("#txtAddZoneForwarderProxyAddress").val();
+                        var proxyPort = $("#txtAddZoneForwarderProxyPort").val();
+                        var proxyUsername = $("#txtAddZoneForwarderProxyUsername").val();
+                        var proxyPassword = $("#txtAddZoneForwarderProxyPassword").val();
 
-                    if ((proxyAddress == null) || (proxyAddress === "")) {
-                        showAlert("warning", "Missing!", "Please enter a domain name or IP address for Proxy Server Address to add zone.", divAddZoneAlert);
-                        $("#txtAddZoneForwarderProxyAddress").focus();
-                        return;
-                    }
+                        if ((proxyAddress == null) || (proxyAddress === "")) {
+                            showAlert("warning", "Missing!", "Please enter a domain name or IP address for Proxy Server Address to add zone.", divAddZoneAlert);
+                            $("#txtAddZoneForwarderProxyAddress").focus();
+                            return;
+                        }
 
-                    if ((proxyPort == null) || (proxyPort === "")) {
-                        showAlert("warning", "Missing!", "Please enter a port number for Proxy Server Port to add zone.", divAddZoneAlert);
-                        $("#txtAddZoneForwarderProxyPort").focus();
-                        return;
-                    }
+                        if ((proxyPort == null) || (proxyPort === "")) {
+                            showAlert("warning", "Missing!", "Please enter a port number for Proxy Server Port to add zone.", divAddZoneAlert);
+                            $("#txtAddZoneForwarderProxyPort").focus();
+                            return;
+                        }
 
-                    parameters += "&proxyAddress=" + encodeURIComponent(proxyAddress) + "&proxyPort=" + proxyPort + "&proxyUsername=" + encodeURIComponent(proxyUsername) + "&proxyPassword=" + encodeURIComponent(proxyPassword);
+                        parameters += "&proxyAddress=" + encodeURIComponent(proxyAddress) + "&proxyPort=" + proxyPort + "&proxyUsername=" + encodeURIComponent(proxyUsername) + "&proxyPassword=" + encodeURIComponent(proxyPassword);
+                        break;
                 }
             }
             break;
@@ -2361,11 +2377,14 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
                 "<br /><b>Enable DNSSEC Validation:</b> " + htmlEncode(record.rData.dnssecValidation) +
                 "<br /><b>Proxy Type:</b> " + htmlEncode(record.rData.proxyType);
 
-            if (record.rData.proxyType !== "None") {
-                tableHtmlRow += "<br /><b>Proxy Address:</b> " + htmlEncode(record.rData.proxyAddress) +
-                    "<br /><b>Proxy Port:</b> " + htmlEncode(record.rData.proxyPort) +
-                    "<br /><b>Proxy Username:</b> " + htmlEncode(record.rData.proxyUsername) +
-                    "<br /><b>Proxy Password:</b> ************";
+            switch (record.rData.proxyType) {
+                case "Http":
+                case "Socks5":
+                    tableHtmlRow += "<br /><b>Proxy Address:</b> " + htmlEncode(record.rData.proxyAddress) +
+                        "<br /><b>Proxy Port:</b> " + htmlEncode(record.rData.proxyPort) +
+                        "<br /><b>Proxy Username:</b> " + htmlEncode(record.rData.proxyUsername) +
+                        "<br /><b>Proxy Password:</b> ************";
+                    break;
             }
 
             tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
@@ -2380,11 +2399,14 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
                 "data-record-dnssec-validation=\"" + htmlEncode(record.rData.dnssecValidation) + "\" " +
                 "data-record-proxy-type=\"" + htmlEncode(record.rData.proxyType) + "\" ";
 
-            if (record.rData.proxyType != "None") {
-                additionalDataAttributes += "data-record-proxy-address=\"" + htmlEncode(record.rData.proxyAddress) + "\" " +
-                    "data-record-proxy-port=\"" + htmlEncode(record.rData.proxyPort) + "\" " +
-                    "data-record-proxy-username=\"" + htmlEncode(record.rData.proxyUsername) + "\" " +
-                    "data-record-proxy-password=\"" + htmlEncode(record.rData.proxyPassword) + "\" ";
+            switch (record.rData.proxyType) {
+                case "Http":
+                case "Socks5":
+                    additionalDataAttributes += "data-record-proxy-address=\"" + htmlEncode(record.rData.proxyAddress) + "\" " +
+                        "data-record-proxy-port=\"" + htmlEncode(record.rData.proxyPort) + "\" " +
+                        "data-record-proxy-username=\"" + htmlEncode(record.rData.proxyUsername) + "\" " +
+                        "data-record-proxy-password=\"" + htmlEncode(record.rData.proxyPassword) + "\" ";
+                    break;
             }
             break;
 
@@ -2583,7 +2605,7 @@ function clearAddEditRecordForm() {
     $("#txtAddEditRecordDataForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
     $("#txtAddEditRecordDataForwarder").val("");
     $("#chkAddEditRecordDataForwarderDnssecValidation").prop("checked", $("#chkDnssecValidation").prop("checked"));
-    $("#rdAddEditRecordDataForwarderProxyTypeNone").prop("checked", true);
+    $("#rdAddEditRecordDataForwarderProxyTypeDefaultProxy").prop("checked", true);
     $("#txtAddEditRecordDataForwarderProxyAddress").prop("disabled", true);
     $("#txtAddEditRecordDataForwarderProxyPort").prop("disabled", true);
     $("#txtAddEditRecordDataForwarderProxyUsername").prop("disabled", true);
@@ -2836,7 +2858,7 @@ function modifyAddRecordFormByType(addMode) {
             $('#txtAddEditRecordDataForwarder').prop('disabled', false);
             $("#txtAddEditRecordDataForwarder").val("");
             $("#chkAddEditRecordDataForwarderDnssecValidation").prop("checked", $("#chkDnssecValidation").prop("checked"));
-            $("#rdAddEditRecordDataForwarderProxyTypeNone").prop("checked", true);
+            $("#rdAddEditRecordDataForwarderProxyTypeDefaultProxy").prop("checked", true);
             $("#txtAddEditRecordDataForwarderProxyAddress").prop("disabled", true);
             $("#txtAddEditRecordDataForwarderProxyPort").prop("disabled", true);
             $("#txtAddEditRecordDataForwarderProxyUsername").prop("disabled", true);
@@ -3227,25 +3249,28 @@ function addRecord() {
             apiUrl += "&protocol=" + $('input[name=rdAddEditRecordDataForwarderProtocol]:checked').val() + "&forwarder=" + encodeURIComponent(forwarder);
             apiUrl += "&dnssecValidation=" + dnssecValidation + "&proxyType=" + proxyType;
 
-            if (proxyType != "None") {
-                var proxyAddress = $("#txtAddEditRecordDataForwarderProxyAddress").val();
-                var proxyPort = $("#txtAddEditRecordDataForwarderProxyPort").val();
-                var proxyUsername = $("#txtAddEditRecordDataForwarderProxyUsername").val();
-                var proxyPassword = $("#txtAddEditRecordDataForwarderProxyPassword").val();
+            switch (proxyType) {
+                case "Http":
+                case "Socks5":
+                    var proxyAddress = $("#txtAddEditRecordDataForwarderProxyAddress").val();
+                    var proxyPort = $("#txtAddEditRecordDataForwarderProxyPort").val();
+                    var proxyUsername = $("#txtAddEditRecordDataForwarderProxyUsername").val();
+                    var proxyPassword = $("#txtAddEditRecordDataForwarderProxyPassword").val();
 
-                if ((proxyAddress == null) || (proxyAddress === "")) {
-                    showAlert("warning", "Missing!", "Please enter a domain name or IP address for Proxy Server Address to add the record.", divAddEditRecordAlert);
-                    $("#txtAddEditRecordDataForwarderProxyAddress").focus();
-                    return;
-                }
+                    if ((proxyAddress == null) || (proxyAddress === "")) {
+                        showAlert("warning", "Missing!", "Please enter a domain name or IP address for Proxy Server Address to add the record.", divAddEditRecordAlert);
+                        $("#txtAddEditRecordDataForwarderProxyAddress").focus();
+                        return;
+                    }
 
-                if ((proxyPort == null) || (proxyPort === "")) {
-                    showAlert("warning", "Missing!", "Please enter a port number for Proxy Server Port to add the record.", divAddEditRecordAlert);
-                    $("#txtAddEditRecordDataForwarderProxyPort").focus();
-                    return;
-                }
+                    if ((proxyPort == null) || (proxyPort === "")) {
+                        showAlert("warning", "Missing!", "Please enter a port number for Proxy Server Port to add the record.", divAddEditRecordAlert);
+                        $("#txtAddEditRecordDataForwarderProxyPort").focus();
+                        return;
+                    }
 
-                apiUrl += "&proxyAddress=" + encodeURIComponent(proxyAddress) + "&proxyPort=" + proxyPort + "&proxyUsername=" + encodeURIComponent(proxyUsername) + "&proxyPassword=" + encodeURIComponent(proxyPassword);
+                    apiUrl += "&proxyAddress=" + encodeURIComponent(proxyAddress) + "&proxyPort=" + proxyPort + "&proxyUsername=" + encodeURIComponent(proxyUsername) + "&proxyPassword=" + encodeURIComponent(proxyPassword);
+                    break;
             }
             break;
 
@@ -3345,11 +3370,12 @@ function updateAddEditFormForwarderPlaceholder() {
 
 function updateAddEditFormForwarderProxyType() {
     var proxyType = $('input[name=rdAddEditRecordDataForwarderProxyType]:checked').val();
+    var disabled = (proxyType === "NoProxy") || (proxyType === "DefaultProxy");
 
-    $("#txtAddEditRecordDataForwarderProxyAddress").prop("disabled", (proxyType === "None"));
-    $("#txtAddEditRecordDataForwarderProxyPort").prop("disabled", (proxyType === "None"));
-    $("#txtAddEditRecordDataForwarderProxyUsername").prop("disabled", (proxyType === "None"));
-    $("#txtAddEditRecordDataForwarderProxyPassword").prop("disabled", (proxyType === "None"));
+    $("#txtAddEditRecordDataForwarderProxyAddress").prop("disabled", disabled);
+    $("#txtAddEditRecordDataForwarderProxyPort").prop("disabled", disabled);
+    $("#txtAddEditRecordDataForwarderProxyUsername").prop("disabled", disabled);
+    $("#txtAddEditRecordDataForwarderProxyPassword").prop("disabled", disabled);
 }
 
 function updateAddEditFormForwarderThisServer() {
@@ -3648,11 +3674,14 @@ function showEditRecordModal(objBtn) {
             var proxyType = divData.attr("data-record-proxy-type");
             $("#rdAddEditRecordDataForwarderProxyType" + proxyType).prop("checked", true);
 
-            if (proxyType !== "None") {
-                $("#txtAddEditRecordDataForwarderProxyAddress").val(divData.attr("data-record-proxy-address"));
-                $("#txtAddEditRecordDataForwarderProxyPort").val(divData.attr("data-record-proxy-port"));
-                $("#txtAddEditRecordDataForwarderProxyUsername").val(divData.attr("data-record-proxy-username"));
-                $("#txtAddEditRecordDataForwarderProxyPassword").val(divData.attr("data-record-proxy-password"));
+            switch (proxyType) {
+                case "Http":
+                case "Socks5":
+                    $("#txtAddEditRecordDataForwarderProxyAddress").val(divData.attr("data-record-proxy-address"));
+                    $("#txtAddEditRecordDataForwarderProxyPort").val(divData.attr("data-record-proxy-port"));
+                    $("#txtAddEditRecordDataForwarderProxyUsername").val(divData.attr("data-record-proxy-username"));
+                    $("#txtAddEditRecordDataForwarderProxyPassword").val(divData.attr("data-record-proxy-password"));
+                    break;
             }
 
             updateAddEditFormForwarderPlaceholder();
@@ -4190,25 +4219,28 @@ function updateRecord() {
 
                 apiUrl += "&proxyType=" + proxyType;
 
-                if (proxyType != "None") {
-                    var proxyAddress = $("#txtAddEditRecordDataForwarderProxyAddress").val();
-                    var proxyPort = $("#txtAddEditRecordDataForwarderProxyPort").val();
-                    var proxyUsername = $("#txtAddEditRecordDataForwarderProxyUsername").val();
-                    var proxyPassword = $("#txtAddEditRecordDataForwarderProxyPassword").val();
+                switch (proxyType) {
+                    case "Http":
+                    case "Socks5":
+                        var proxyAddress = $("#txtAddEditRecordDataForwarderProxyAddress").val();
+                        var proxyPort = $("#txtAddEditRecordDataForwarderProxyPort").val();
+                        var proxyUsername = $("#txtAddEditRecordDataForwarderProxyUsername").val();
+                        var proxyPassword = $("#txtAddEditRecordDataForwarderProxyPassword").val();
 
-                    if ((proxyAddress == null) || (proxyAddress === "")) {
-                        showAlert("warning", "Missing!", "Please enter a domain name or IP address for Proxy Server Address to update the record.", divAddEditRecordAlert);
-                        $("#txtAddEditRecordDataForwarderProxyAddress").focus();
-                        return;
-                    }
+                        if ((proxyAddress == null) || (proxyAddress === "")) {
+                            showAlert("warning", "Missing!", "Please enter a domain name or IP address for Proxy Server Address to update the record.", divAddEditRecordAlert);
+                            $("#txtAddEditRecordDataForwarderProxyAddress").focus();
+                            return;
+                        }
 
-                    if ((proxyPort == null) || (proxyPort === "")) {
-                        showAlert("warning", "Missing!", "Please enter a port number for Proxy Server Port to update the record.", divAddEditRecordAlert);
-                        $("#txtAddEditRecordDataForwarderProxyPort").focus();
-                        return;
-                    }
+                        if ((proxyPort == null) || (proxyPort === "")) {
+                            showAlert("warning", "Missing!", "Please enter a port number for Proxy Server Port to update the record.", divAddEditRecordAlert);
+                            $("#txtAddEditRecordDataForwarderProxyPort").focus();
+                            return;
+                        }
 
-                    apiUrl += "&proxyAddress=" + encodeURIComponent(proxyAddress) + "&proxyPort=" + proxyPort + "&proxyUsername=" + encodeURIComponent(proxyUsername) + "&proxyPassword=" + encodeURIComponent(proxyPassword);
+                        apiUrl += "&proxyAddress=" + encodeURIComponent(proxyAddress) + "&proxyPort=" + proxyPort + "&proxyUsername=" + encodeURIComponent(proxyUsername) + "&proxyPassword=" + encodeURIComponent(proxyPassword);
+                        break;
                 }
             }
             break;
@@ -4373,8 +4405,11 @@ function updateRecordState(objBtn, disable) {
 
             apiUrl += "&dnssecValidation=" + divData.attr("data-record-dnssec-validation") + "&proxyType=" + proxyType;
 
-            if (proxyType != "None") {
-                apiUrl += "&proxyAddress=" + encodeURIComponent(divData.attr("data-record-proxy-address")) + "&proxyPort=" + divData.attr("data-record-proxy-port") + "&proxyUsername=" + encodeURIComponent(divData.attr("data-record-proxy-username")) + "&proxyPassword=" + encodeURIComponent(divData.attr("data-record-proxy-password"));
+            switch (proxyType) {
+                case "Http":
+                case "Socks5":
+                    apiUrl += "&proxyAddress=" + encodeURIComponent(divData.attr("data-record-proxy-address")) + "&proxyPort=" + divData.attr("data-record-proxy-port") + "&proxyUsername=" + encodeURIComponent(divData.attr("data-record-proxy-username")) + "&proxyPassword=" + encodeURIComponent(divData.attr("data-record-proxy-password"));
+                    break;
             }
             break;
 
