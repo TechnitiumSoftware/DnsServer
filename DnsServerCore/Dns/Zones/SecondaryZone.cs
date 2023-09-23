@@ -475,6 +475,8 @@ namespace DnsServerCore.Dns.Zones
                             ClearZoneHistory();
                         }
 
+                        _lastModified = DateTime.UtcNow;
+
                         //trigger notify
                         TriggerNotify();
 
