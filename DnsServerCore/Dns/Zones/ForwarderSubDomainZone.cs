@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -24,11 +24,19 @@ namespace DnsServerCore.Dns.Zones
 {
     class ForwarderSubDomainZone : SubDomainZone
     {
+        #region variables
+
+        readonly ForwarderZone _forwarderZone;
+
+        #endregion
+
         #region constructor
 
         public ForwarderSubDomainZone(ForwarderZone forwarderZone, string name)
             : base(forwarderZone, name)
-        { }
+        {
+            _forwarderZone = forwarderZone;
+        }
 
         #endregion
 
@@ -44,6 +52,7 @@ namespace DnsServerCore.Dns.Zones
 
                 default:
                     base.SetRecords(type, records);
+                    _forwarderZone.UpdateLastModified();
                     break;
             }
         }
@@ -57,8 +66,37 @@ namespace DnsServerCore.Dns.Zones
 
                 default:
                     base.AddRecord(record);
+                    _forwarderZone.UpdateLastModified();
                     break;
             }
+        }
+
+        public override bool DeleteRecords(DnsResourceRecordType type)
+        {
+            if (base.DeleteRecords(type))
+            {
+                _forwarderZone.UpdateLastModified();
+                return true;
+            }
+
+            return false;
+        }
+
+        public override bool DeleteRecord(DnsResourceRecordType type, DnsResourceRecordData rdata)
+        {
+            if (base.DeleteRecord(type, rdata))
+            {
+                _forwarderZone.UpdateLastModified();
+                return true;
+            }
+
+            return false;
+        }
+
+        public override void UpdateRecord(DnsResourceRecord oldRecord, DnsResourceRecord newRecord)
+        {
+            base.UpdateRecord(oldRecord, newRecord);
+            _forwarderZone.UpdateLastModified();
         }
 
         #endregion
