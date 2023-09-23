@@ -400,14 +400,16 @@
                                                     <th><a href="#" onclick="sortTable('tableZonesBody', 2); return false;">Type</a></th>
                                                     <th><a href="#" onclick="sortTable('tableZonesBody', 3); return false;">DNSSEC</a></th>
                                                     <th><a href="#" onclick="sortTable('tableZonesBody', 4); return false;">Status</a></th>
-                                                    <th><a href="#" onclick="sortTable('tableZonesBody', 5); return false;">Expiry</a></th>
+                                                    <th><a href="#" onclick="sortTable('tableZonesBody', 5); return false;">Serial</a></th>
+                                                    <th><a href="#" onclick="sortTable('tableZonesBody', 6); return false;">Expiry</a></th>
+                                                    <th><a href="#" onclick="sortTable('tableZonesBody', 7); return false;">Last Modified</a></th>
                                                     <th style="width: 36px;"></th>
                                                 </tr>
                                             </thead>
                                             <tbody id="tableZonesBody"></tbody>
                                             <tfoot>
                                                 <tr>
-                                                    <td colspan="7">
+                                                    <td colspan="9">
                                                         <div>
                                                             <div class="pull-left" style="padding-top: 8px;">
                                                                 <b id="tableZonesFooterStatus">0 zones</b>
@@ -1180,7 +1182,7 @@
                                                         </div>
 
                                                         <div>
-                                                            <p>Note! The web service port changes will be automatically applied and so you do not need to manually restart the main service. This web page will be automatically redirected to the new web console URL after saving settings. The HTTPS protocol will be enabled only when a TLS certificate is configured.</p>
+                                                            <p>Note! The web service port changes will be automatically applied and so you do not need to manually restart the main service. The TLS certificate too will be automatically reloaded when the certificate file's date modified property on disk changes. This web page will be automatically redirected to the new web console URL after saving settings. The HTTPS protocol will be enabled only when a TLS certificate is configured.</p>
                                                             <p>When using a reverse proxy with the Web Service, you need to add <code>X-Real-IP</code> header to the proxy request with the IP address of the client to allow the Web server to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code>proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
                                                             <p>The web service uses Kestral web server which supports both HTTP/2 and HTTP/3 protocols when TLS certificate is configured. HTTP/3 protocol support is not available on all platforms. On Windows, it is available only on Windows 11 (build 22000 or later) and Windows Server 2022. On Linux, it requires <code>libmsquic</code> to be installed.</p>
                                                             <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
@@ -1202,7 +1204,7 @@
                                                                     </label>
                                                                 </div>
                                                                 <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-UDP-PROXY requests. It implements the <a href="https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt" target="_blank">PROXY Protocol</a> for both version 1 &amp; 2 over UDP datagram and will work only on private networks.</div>
-                                                                
+
                                                                 <div class="checkbox">
                                                                     <label>
                                                                         <input id="chkEnableDnsOverTcpProxy" type="checkbox"> Enable DNS-over-TCP-PROXY
@@ -1248,7 +1250,7 @@
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the UDP port number for DNS-over-UDP-PROXY protocol.</div>
                                                         </div>
-                                                        
+
                                                         <div class="form-group">
                                                             <label for="txtDnsOverTcpProxyPort" class="col-sm-3 control-label">DNS-over-TCP-PROXY Port</label>
                                                             <div class="col-sm-6">
@@ -1257,7 +1259,7 @@
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the TCP port number for DNS-over-TCP-PROXY protocol.</div>
                                                         </div>
-                                                        
+
                                                         <div class="form-group">
                                                             <label for="txtDnsOverHttpPort" class="col-sm-3 control-label">DNS-over-HTTP Port</label>
                                                             <div class="col-sm-6">
@@ -1311,7 +1313,7 @@
                                                         </div>
 
                                                         <div>
-                                                            <p>Note! These optional DNS server protocol changes will be automatically applied and so you do not need to manually restart the main service. The DNS-over-TLS, DNS-over-QUIC, and DNS-over-HTTPS protocols will be enabled only when a TLS certificate is configured.</p>
+                                                            <p>Note! These optional DNS server protocol changes will be automatically applied and so you do not need to manually restart the main service. The TLS certificate too will be automatically reloaded when the certificate file's date modified property on disk changes. The DNS-over-TLS, DNS-over-QUIC, and DNS-over-HTTPS protocols will be enabled only when a TLS certificate is configured.</p>
                                                             <p>These optional DNS server protocols are used to host these as a service. You do not need to enable these optional protocols to use them with Forwarders or Conditional Forwarder Zones.</p>
                                                             <p>For DNS-over-HTTP, use <code>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</code> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <code id="lblDoTHost">tls-certificate-domain:853</code>, for DNS-over-QUIC, use <code id="lblDoQHost">tls-certificate-domain:853</code>, and for DNS-over-HTTPS use <code>https://<span id="lblDoHsHost">tls-certificate-domain</span>/dns-query</code> to configure supported DNS clients.</p>
                                                             <p>When using a reverse proxy with the DNS-over-HTTP service, you need to add <code>X-Real-IP</code> header to the proxy request with the IP address of the client to allow the DNS server to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code>proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
@@ -3267,8 +3269,14 @@ ns1.example.com ([2001:db8::])
                                     <div class="col-sm-7">
                                         <div class="radio">
                                             <label>
-                                                <input type="radio" name="rdAddZoneForwarderProxyType" id="rdAddZoneForwarderProxyTypeNone" value="None" checked>
-                                                No Proxy (default)
+                                                <input type="radio" name="rdAddZoneForwarderProxyType" value="NoProxy">
+                                                No Proxy
+                                            </label>
+                                        </div>
+                                        <div class="radio">
+                                            <label>
+                                                <input type="radio" name="rdAddZoneForwarderProxyType" id="rdAddZoneForwarderProxyTypeDefaultProxy" value="DefaultProxy" checked>
+                                                Default Proxy (default)
                                             </label>
                                         </div>
                                         <div class="radio">
@@ -3845,8 +3853,14 @@ MII...
                                         <div class="col-sm-7">
                                             <div class="radio">
                                                 <label>
-                                                    <input type="radio" name="rdAddEditRecordDataForwarderProxyType" id="rdAddEditRecordDataForwarderProxyTypeNone" value="None" checked>
-                                                    No Proxy (default)
+                                                    <input type="radio" name="rdAddEditRecordDataForwarderProxyType" id="rdAddEditRecordDataForwarderProxyTypeNoProxy" value="NoProxy">
+                                                    No Proxy
+                                                </label>
+                                            </div>
+                                            <div class="radio">
+                                                <label>
+                                                    <input type="radio" name="rdAddEditRecordDataForwarderProxyType" id="rdAddEditRecordDataForwarderProxyTypeDefaultProxy" value="DefaultProxy" checked>
+                                                    Default Proxy (default)
                                                 </label>
                                             </div>
                                             <div class="radio">
@@ -4180,7 +4194,7 @@ MII...
                                             </div>
                                         </div>
 
-                                        <div>Note! Dynamic updates should be allowed only to trusted IP addresses since they will be able to add/delete records in the zone. Setting up a security policy below is highly recommended.</div>
+                                        <div>Note! Dynamic updates should be allowed only to trusted IP addresses since they will be able to add/delete records in the zone. If no security policy is configured below then access will be provided only based on the options selected here. Thus setting up a security policy below is highly recommended.</div>
                                     </div>
 
                                     <div class="well well-sm form-horizontal">
