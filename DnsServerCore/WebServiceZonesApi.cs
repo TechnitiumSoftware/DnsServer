@@ -33,7 +33,6 @@ using TechnitiumLibrary;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
-using TechnitiumLibrary.Net.Proxy;
 
 namespace DnsServerCore
 {
@@ -622,12 +621,15 @@ namespace DnsServerCore
                             jsonWriter.WriteBoolean("dnssecValidation", rdata.DnssecValidation);
                             jsonWriter.WriteString("proxyType", rdata.ProxyType.ToString());
 
-                            if (rdata.ProxyType != NetProxyType.None)
+                            switch (rdata.ProxyType)
                             {
-                                jsonWriter.WriteString("proxyAddress", rdata.ProxyAddress);
-                                jsonWriter.WriteNumber("proxyPort", rdata.ProxyPort);
-                                jsonWriter.WriteString("proxyUsername", rdata.ProxyUsername);
-                                jsonWriter.WriteString("proxyPassword", rdata.ProxyPassword);
+                                case DnsForwarderRecordProxyType.Http:
+                                case DnsForwarderRecordProxyType.Socks5:
+                                    jsonWriter.WriteString("proxyAddress", rdata.ProxyAddress);
+                                    jsonWriter.WriteNumber("proxyPort", rdata.ProxyPort);
+                                    jsonWriter.WriteString("proxyUsername", rdata.ProxyUsername);
+                                    jsonWriter.WriteString("proxyPassword", rdata.ProxyPassword);
+                                    break;
                             }
                         }
                     }
@@ -746,6 +748,7 @@ namespace DnsServerCore
                 case AuthZoneType.Primary:
                     jsonWriter.WriteBoolean("internal", zoneInfo.Internal);
                     jsonWriter.WriteString("dnssecStatus", zoneInfo.DnssecStatus.ToString());
+                    jsonWriter.WriteNumber("soaSerial", (zoneInfo.GetApexRecords(DnsResourceRecordType.SOA)[0].RDATA as DnsSOARecordData).Serial);
 
                     if (!zoneInfo.Internal)
                     {
@@ -766,6 +769,7 @@ namespace DnsServerCore
 
                 case AuthZoneType.Secondary:
                     jsonWriter.WriteString("dnssecStatus", zoneInfo.DnssecStatus.ToString());
+                    jsonWriter.WriteNumber("soaSerial", (zoneInfo.GetApexRecords(DnsResourceRecordType.SOA)[0].RDATA as DnsSOARecordData).Serial);
                     jsonWriter.WriteString("expiry", zoneInfo.Expiry);
                     jsonWriter.WriteBoolean("isExpired", zoneInfo.IsExpired);
                     jsonWriter.WriteBoolean("syncFailed", zoneInfo.SyncFailed);
@@ -786,12 +790,14 @@ namespace DnsServerCore
                     break;
 
                 case AuthZoneType.Stub:
+                    jsonWriter.WriteNumber("soaSerial", (zoneInfo.GetApexRecords(DnsResourceRecordType.SOA)[0].RDATA as DnsSOARecordData).Serial);
                     jsonWriter.WriteString("expiry", zoneInfo.Expiry);
                     jsonWriter.WriteBoolean("isExpired", zoneInfo.IsExpired);
                     jsonWriter.WriteBoolean("syncFailed", zoneInfo.SyncFailed);
                     break;
             }
 
+            jsonWriter.WriteString("lastModified", zoneInfo.LastModified);
             jsonWriter.WriteBoolean("disabled", zoneInfo.Disabled);
 
             jsonWriter.WriteEndObject();
@@ -943,19 +949,22 @@ namespace DnsServerCore
                         DnsTransportProtocol forwarderProtocol = request.GetQueryOrFormEnum("protocol", DnsTransportProtocol.Udp);
                         string forwarder = request.GetQueryOrForm("forwarder");
                         bool dnssecValidation = request.GetQueryOrForm("dnssecValidation", bool.Parse, false);
-                        NetProxyType proxyType = request.GetQueryOrFormEnum("proxyType", NetProxyType.None);
+                        DnsForwarderRecordProxyType proxyType = request.GetQueryOrFormEnum("proxyType", DnsForwarderRecordProxyType.DefaultProxy);
 
                         string proxyAddress = null;
                         ushort proxyPort = 0;
                         string proxyUsername = null;
                         string proxyPassword = null;
 
-                        if (proxyType != NetProxyType.None)
+                        switch (proxyType)
                         {
-                            proxyAddress = request.GetQueryOrForm("proxyAddress");
-                            proxyPort = request.GetQueryOrForm("proxyPort", ushort.Parse);
-                            proxyUsername = request.QueryOrForm("proxyUsername");
-                            proxyPassword = request.QueryOrForm("proxyPassword");
+                            case DnsForwarderRecordProxyType.Http:
+                            case DnsForwarderRecordProxyType.Socks5:
+                                proxyAddress = request.GetQueryOrForm("proxyAddress");
+                                proxyPort = request.GetQueryOrForm("proxyPort", ushort.Parse);
+                                proxyUsername = request.QueryOrForm("proxyUsername");
+                                proxyPassword = request.QueryOrForm("proxyPassword");
+                                break;
                         }
 
                         switch (forwarderProtocol)
@@ -2366,7 +2375,7 @@ namespace DnsServerCore
                         string forwarder = request.GetQueryOrFormAlt("forwarder", "value");
                         bool dnssecValidation = request.GetQueryOrForm("dnssecValidation", bool.Parse, false);
 
-                        NetProxyType proxyType = NetProxyType.None;
+                        DnsForwarderRecordProxyType proxyType = DnsForwarderRecordProxyType.DefaultProxy;
                         string proxyAddress = null;
                         ushort proxyPort = 0;
                         string proxyUsername = null;
@@ -2374,13 +2383,16 @@ namespace DnsServerCore
 
                         if (!forwarder.Equals("this-server"))
                         {
-                            proxyType = request.GetQueryOrFormEnum("proxyType", NetProxyType.None);
-                            if (proxyType != NetProxyType.None)
+                            proxyType = request.GetQueryOrFormEnum("proxyType", DnsForwarderRecordProxyType.DefaultProxy);
+                            switch (proxyType)
                             {
-                                proxyAddress = request.GetQueryOrForm("proxyAddress");
-                                proxyPort = request.GetQueryOrForm("proxyPort", ushort.Parse);
-                                proxyUsername = request.QueryOrForm("proxyUsername");
-                                proxyPassword = request.QueryOrForm("proxyPassword");
+                                case DnsForwarderRecordProxyType.Http:
+                                case DnsForwarderRecordProxyType.Socks5:
+                                    proxyAddress = request.GetQueryOrForm("proxyAddress");
+                                    proxyPort = request.GetQueryOrForm("proxyPort", ushort.Parse);
+                                    proxyUsername = request.QueryOrForm("proxyUsername");
+                                    proxyPassword = request.QueryOrForm("proxyPassword");
+                                    break;
                             }
                         }
 
@@ -3322,7 +3334,7 @@ namespace DnsServerCore
 
                         bool dnssecValidation = request.GetQueryOrForm("dnssecValidation", bool.Parse, false);
 
-                        NetProxyType proxyType = NetProxyType.None;
+                        DnsForwarderRecordProxyType proxyType = DnsForwarderRecordProxyType.DefaultProxy;
                         string proxyAddress = null;
                         ushort proxyPort = 0;
                         string proxyUsername = null;
@@ -3330,13 +3342,16 @@ namespace DnsServerCore
 
                         if (!newForwarder.Equals("this-server"))
                         {
-                            proxyType = request.GetQueryOrFormEnum("proxyType", NetProxyType.None);
-                            if (proxyType != NetProxyType.None)
+                            proxyType = request.GetQueryOrFormEnum("proxyType", DnsForwarderRecordProxyType.DefaultProxy);
+                            switch (proxyType)
                             {
-                                proxyAddress = request.GetQueryOrForm("proxyAddress");
-                                proxyPort = request.GetQueryOrForm("proxyPort", ushort.Parse);
-                                proxyUsername = request.QueryOrForm("proxyUsername");
-                                proxyPassword = request.QueryOrForm("proxyPassword");
+                                case DnsForwarderRecordProxyType.Http:
+                                case DnsForwarderRecordProxyType.Socks5:
+                                    proxyAddress = request.GetQueryOrForm("proxyAddress");
+                                    proxyPort = request.GetQueryOrForm("proxyPort", ushort.Parse);
+                                    proxyUsername = request.QueryOrForm("proxyUsername");
+                                    proxyPassword = request.QueryOrForm("proxyPassword");
+                                    break;
                             }
                         }
 
