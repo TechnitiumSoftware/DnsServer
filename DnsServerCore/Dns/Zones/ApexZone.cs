@@ -64,6 +64,7 @@ namespace DnsServerCore.Dns.Zones
         protected IReadOnlyCollection<IPAddress> _notifyNameServers;
         protected AuthZoneUpdate _update;
         protected IReadOnlyCollection<IPAddress> _updateIpAddresses;
+        protected DateTime _lastModified;
         protected List<DnsResourceRecord> _zoneHistory; //for IXFR support
         protected IReadOnlyDictionary<string, object> _zoneTransferTsigKeyNames;
         protected IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> _updateSecurityPolicies;
@@ -92,6 +93,7 @@ namespace DnsServerCore.Dns.Zones
             _notifyNameServers = zoneInfo.NotifyNameServers;
             _update = zoneInfo.Update;
             _updateIpAddresses = zoneInfo.UpdateIpAddresses;
+            _lastModified = zoneInfo.LastModified;
 
             if (zoneInfo.ZoneHistory is null)
                 _zoneHistory = new List<DnsResourceRecord>();
@@ -105,6 +107,7 @@ namespace DnsServerCore.Dns.Zones
         protected ApexZone(string name)
             : base(name)
         {
+            _lastModified = DateTime.UtcNow;
             _zoneHistory = new List<DnsResourceRecord>();
         }
 
@@ -667,6 +670,9 @@ namespace DnsServerCore.Dns.Zones
                 _updateIpAddresses = value;
             }
         }
+
+        public DateTime LastModified
+        { get { return _lastModified; } }
 
         public IReadOnlyDictionary<string, object> ZoneTransferTsigKeyNames
         {
