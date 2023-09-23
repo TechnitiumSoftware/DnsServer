@@ -222,7 +222,7 @@ namespace DnsServerCore
 
         #region web service
 
-        internal async Task TryStartWebServiceAsync(IReadOnlyList<IPAddress> oldWebServiceLocalAddresses = null, int oldWebServiceHttpPort = 0, int oldWebServiceTlsPort = 0)
+        internal async Task TryStartWebServiceAsync(IReadOnlyList<IPAddress> oldWebServiceLocalAddresses, int oldWebServiceHttpPort, int oldWebServiceTlsPort)
         {
             try
             {
@@ -236,25 +236,22 @@ namespace DnsServerCore
                 _log.Write("Web Service failed to start: " + ex.ToString());
             }
 
-            if (oldWebServiceLocalAddresses is not null)
+            _log.Write("Attempting to revert Web Service end point changes ...");
+
+            try
             {
-                _log.Write("Attempting to revert Web Service end point changes ...");
+                _webServiceLocalAddresses = DnsServer.GetValidKestralLocalAddresses(oldWebServiceLocalAddresses);
+                _webServiceHttpPort = oldWebServiceHttpPort;
+                _webServiceTlsPort = oldWebServiceTlsPort;
 
-                try
-                {
-                    _webServiceLocalAddresses = DnsServer.GetValidKestralLocalAddresses(oldWebServiceLocalAddresses);
-                    _webServiceHttpPort = oldWebServiceHttpPort;
-                    _webServiceTlsPort = oldWebServiceTlsPort;
+                await StartWebServiceAsync(_webServiceLocalAddresses, _webServiceHttpPort, _webServiceTlsPort, false);
 
-                    await StartWebServiceAsync(_webServiceLocalAddresses, _webServiceHttpPort, _webServiceTlsPort, false);
-
-                    SaveConfigFile(); //save reverted changes
-                    return;
-                }
-                catch (Exception ex2)
-                {
-                    _log.Write("Web Service failed to start: " + ex2.ToString());
-                }
+                SaveConfigFile(); //save reverted changes
+                return;
+            }
+            catch (Exception ex2)
+            {
+                _log.Write("Web Service failed to start: " + ex2.ToString());
             }
 
             _log.Write("Attempting to start Web Service on ANY (0.0.0.0) fallback address...");
@@ -1001,7 +998,7 @@ namespace DnsServerCore
                 //adding a conditional forwarder zone for disabling DNSSEC validation for ntp.org so that systems with no real-time clock can sync time
                 string ntpDomain = "ntp.org";
                 string fwdRecordComments = "This forwarder zone was automatically created to disable DNSSEC validation for ntp.org to allow systems with no real-time clock (e.g. Raspberry Pi) to sync time via NTP when booting.";
-                if (_dnsServer.AuthZoneManager.CreateForwarderZone(ntpDomain, DnsTransportProtocol.Udp, "this-server", false, NetProxyType.None, null, 0, null, null, fwdRecordComments) is not null)
+                if (_dnsServer.AuthZoneManager.CreateForwarderZone(ntpDomain, DnsTransportProtocol.Udp, "this-server", false, DnsForwarderRecordProxyType.DefaultProxy, null, 0, null, null, fwdRecordComments) is not null)
                 {
                     //set permissions
                     _authManager.SetPermission(PermissionSection.Zones, ntpDomain, _authManager.GetGroup(Group.ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
@@ -2445,7 +2442,7 @@ namespace DnsServerCore
                 }
 
                 //start web service
-                await TryStartWebServiceAsync();
+                await TryStartWebServiceAsync(new IPAddress[] { IPAddress.Any, IPAddress.IPv6Any }, 5380, 53443);
 
                 //start dns and dhcp
                 await _dnsServer.StartAsync();
