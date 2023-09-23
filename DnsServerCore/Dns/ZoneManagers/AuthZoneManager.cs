@@ -31,7 +31,6 @@ using System.Threading.Tasks;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
-using TechnitiumLibrary.Net.Proxy;
 
 namespace DnsServerCore.Dns.ZoneManagers
 {
@@ -832,7 +831,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     {
                         using (FileStream fS = new FileStream(zoneFile, FileMode.Open, FileAccess.Read))
                         {
-                            AuthZoneInfo zoneInfo = LoadZoneFrom(fS);
+                            AuthZoneInfo zoneInfo = LoadZoneFrom(fS, File.GetLastWriteTimeUtc(fS.SafeFileHandle));
                             _zoneIndex.Add(zoneInfo);
                         }
 
@@ -1006,7 +1005,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public AuthZoneInfo CreateForwarderZone(string zoneName, DnsTransportProtocol forwarderProtocol, string forwarder, bool dnssecValidation, NetProxyType proxyType, string proxyAddress, ushort proxyPort, string proxyUsername, string proxyPassword, string fwdRecordComments)
+        public AuthZoneInfo CreateForwarderZone(string zoneName, DnsTransportProtocol forwarderProtocol, string forwarder, bool dnssecValidation, DnsForwarderRecordProxyType proxyType, string proxyAddress, ushort proxyPort, string proxyUsername, string proxyPassword, string fwdRecordComments)
         {
             ForwarderZone apexZone = new ForwarderZone(zoneName, forwarderProtocol, forwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword, fwdRecordComments);
 
@@ -1209,7 +1208,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 break;
                         }
 
-                        newZoneInfo = CreateForwarderZone(zoneName, DnsTransportProtocol.Udp, "this-server", _dnsServer.DnssecValidation, NetProxyType.None, null, 0, null, null, null);
+                        newZoneInfo = CreateForwarderZone(zoneName, DnsTransportProtocol.Udp, "this-server", _dnsServer.DnssecValidation, DnsForwarderRecordProxyType.DefaultProxy, null, 0, null, null, null);
                         break;
 
                     default:
@@ -1234,7 +1233,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 {
                     using (FileStream fS = new FileStream(zoneFile, FileMode.Open, FileAccess.Read))
                     {
-                        AuthZoneInfo zoneInfo = LoadZoneFrom(fS);
+                        AuthZoneInfo zoneInfo = LoadZoneFrom(fS, File.GetLastWriteTimeUtc(fS.SafeFileHandle));
                         _zoneIndex.Add(zoneInfo);
                         _zoneIndex.Sort();
                     }
@@ -2498,7 +2497,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        public AuthZoneInfo LoadZoneFrom(Stream s)
+        public AuthZoneInfo LoadZoneFrom(Stream s, DateTime lastModified)
         {
             BinaryReader bR = new BinaryReader(s);
 
@@ -2618,7 +2617,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 case 4:
                     {
                         //read zone info
-                        AuthZoneInfo zoneInfo = new AuthZoneInfo(bR);
+                        AuthZoneInfo zoneInfo = new AuthZoneInfo(bR, lastModified);
 
                         //create zone
                         ApexZone apexZone = CreateEmptyZone(zoneInfo);
