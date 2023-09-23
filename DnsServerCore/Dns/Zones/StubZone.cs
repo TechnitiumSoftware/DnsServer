@@ -350,6 +350,8 @@ namespace DnsServerCore.Dns.Zones
                 _entries[DnsResourceRecordType.NS] = nsRecords;
                 _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { receivedSoaRecord };
 
+                _lastModified = DateTime.UtcNow;
+
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
