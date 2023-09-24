@@ -1076,8 +1076,41 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
 
             if (zoneInfo is null)
-                throw new DnsServerException("Failed for clone the zone: zone already exists.");
+                throw new DnsServerException("Failed to clone the zone: zone already exists.");
 
+            //copy zone options
+            zoneInfo.Disabled = sourceZoneInfo.Disabled;
+
+            if (zoneInfo.Type == AuthZoneType.Primary)
+            {
+                zoneInfo.ZoneTransfer = sourceZoneInfo.ZoneTransfer;
+                zoneInfo.ZoneTransferNameServers = sourceZoneInfo.ZoneTransferNameServers;
+                zoneInfo.ZoneTransferTsigKeyNames = sourceZoneInfo.ZoneTransferTsigKeyNames;
+
+                zoneInfo.Notify = sourceZoneInfo.Notify;
+                zoneInfo.NotifyNameServers = sourceZoneInfo.NotifyNameServers;
+
+                zoneInfo.Update = sourceZoneInfo.Update;
+                zoneInfo.UpdateIpAddresses = sourceZoneInfo.UpdateIpAddresses;
+
+                {
+                    Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> updateSecurityPolicies = new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>>(sourceZoneInfo.UpdateSecurityPolicies.Count);
+
+                    foreach (KeyValuePair<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> sourceSecurityPolicy in sourceZoneInfo.UpdateSecurityPolicies)
+                    {
+                        Dictionary<string, IReadOnlyList<DnsResourceRecordType>> policyMap = new Dictionary<string, IReadOnlyList<DnsResourceRecordType>>();
+
+                        foreach (KeyValuePair<string, IReadOnlyList<DnsResourceRecordType>> sourcePolicyMap in sourceSecurityPolicy.Value)
+                            policyMap.Add(sourcePolicyMap.Key.Substring(0, sourcePolicyMap.Key.Length - sourceZoneName.Length) + zoneName, sourcePolicyMap.Value);
+
+                        updateSecurityPolicies.Add(sourceSecurityPolicy.Key, policyMap);
+                    }
+
+                    zoneInfo.UpdateSecurityPolicies = updateSecurityPolicies;
+                }
+            }
+
+            //copy records
             List<DnsResourceRecord> sourceRecords = new List<DnsResourceRecord>();
             ListAllZoneRecords(sourceZoneName, sourceRecords);
 
