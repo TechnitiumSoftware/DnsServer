@@ -33,6 +33,14 @@ namespace DnsServerCore.Dns.Zones
             : base(zoneInfo)
         { }
 
+        public ForwarderZone(string name)
+            : base(name)
+        {
+            _zoneTransfer = AuthZoneTransfer.Deny;
+            _notify = AuthZoneNotify.None;
+            _update = AuthZoneUpdate.Deny;
+        }
+
         public ForwarderZone(string name, DnsTransportProtocol forwarderProtocol, string forwarder, bool dnssecValidation, DnsForwarderRecordProxyType proxyType, string proxyAddress, ushort proxyPort, string proxyUsername, string proxyPassword, string fwdRecordComments)
             : base(name)
         {
