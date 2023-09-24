@@ -3960,6 +3960,40 @@ MII...
         </form>
     </div>
 
+    <div id="modalCloneZone" class="modal fade" tabindex="-1" role="dialog">
+        <form>
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">Clone Zone - <span id="lblCloneZoneZoneName"></span></h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divCloneZoneAlert"></div>
+                        <div class="form-horizontal">
+                            <div class="form-group">
+                                <label for="txtCloneZoneSourceZoneName" class="col-sm-4 control-label">Source Zone</label>
+                                <div class="col-sm-7">
+                                    <input id="txtCloneZoneSourceZoneName" type="text" class="form-control" disabled>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="txtCloneZoneZoneName" class="col-sm-4 control-label">New Zone</label>
+                                <div class="col-sm-7">
+                                    <input id="txtCloneZoneZoneName" type="text" class="form-control" placeholder="example.com">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="btnCloneZone" type="submit" class="btn btn-primary" data-loading-text="Cloning..." onclick="cloneZone(this); return false;">Clone Zone</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
     <div id="modalConvertZone" class="modal fade" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
