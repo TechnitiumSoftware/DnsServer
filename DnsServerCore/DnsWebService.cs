@@ -408,6 +408,7 @@ namespace DnsServerCore
             //zones
             _webService.MapGetAndPost("/api/zones/list", _zonesApi.ListZones);
             _webService.MapGetAndPost("/api/zones/create", _zonesApi.CreateZoneAsync);
+            _webService.MapGetAndPost("/api/zones/clone", _zonesApi.CloneZone);
             _webService.MapGetAndPost("/api/zones/convert", _zonesApi.ConvertZone);
             _webService.MapGetAndPost("/api/zones/enable", _zonesApi.EnableZone);
             _webService.MapGetAndPost("/api/zones/disable", _zonesApi.DisableZone);
