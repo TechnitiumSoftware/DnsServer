@@ -1004,6 +1004,44 @@ namespace DnsServerCore
             jsonWriter.WriteString("domain", string.IsNullOrEmpty(zoneInfo.Name) ? "." : zoneInfo.Name);
         }
 
+        public void CloneZone(HttpContext context)
+        {
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
+                throw new DnsWebServiceException("Access was denied.");
+
+            HttpRequest request = context.Request;
+
+            string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+
+            string sourceZoneName = request.GetQueryOrForm("sourceZone").TrimEnd('.');
+            if (DnsClient.IsDomainNameUnicode(sourceZoneName))
+                sourceZoneName = DnsClient.ConvertDomainNameToAscii(sourceZoneName);
+
+            AuthZoneInfo sourceZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(sourceZoneName);
+            if (sourceZoneInfo is null)
+                throw new DnsWebServiceException("No such authoritative zone was found: " + sourceZoneName);
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, sourceZoneInfo.Name, session.User, PermissionFlag.View))
+                throw new DnsWebServiceException("Access was denied.");
+
+            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.CloneZone(zoneName, sourceZoneName);
+
+            //set permissions
+            _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.ViewModifyDelete);
+            _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService._authManager.GetGroup(Group.ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
+            _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService._authManager.GetGroup(Group.DNS_ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
+            _dnsWebService._authManager.SaveConfigFile();
+
+            //save zone
+            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
+
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] " + sourceZoneInfo.Type.ToString() + " zone '" + sourceZoneInfo.Name + "' was cloned as '" + zoneName + "' sucessfully.");
+        }
+
         public void ConvertZone(HttpContext context)
         {
             UserSession session = context.GetCurrentSession();
