@@ -448,6 +448,13 @@ function refreshZones(checkDisplay, pageNumber) {
                     tableHtmlRows += "<li><a href=\"#\" onclick=\"showZonePermissionsModal('" + name + "'); return false;\">Permissions</a></li>";
                 }
 
+                switch (zones[i].type) {
+                    case "Primary":
+                    case "Forwarder":
+                        tableHtmlRows += "<li><a href=\"#\" onclick=\"showCloneZoneModal('" + name + "'); return false;\">Clone Zone</a></li>";
+                        break;
+                }
+
                 if (!zones[i].internal) {
                     tableHtmlRows += "<li role=\"separator\" class=\"divider\"></li>";
                     tableHtmlRows += "<li><a href=\"#\" data-id=\"" + id + "\" data-zone=\"" + htmlEncode(name) + "\" onclick=\"deleteZoneMenu(this); return false;\">Delete Zone</a></li>";
@@ -704,6 +711,57 @@ function deleteZone(objBtn) {
             btn.button("reset");
             showPageLogin();
         }
+    });
+}
+
+function showCloneZoneModal(sourceZone) {
+    $("#lblCloneZoneZoneName").text(sourceZone === "." ? "<root>" : sourceZone);
+
+    $("#divCloneZoneAlert").html("");
+    $("#txtCloneZoneSourceZoneName").val(sourceZone);
+    $("#txtCloneZoneZoneName").val("");
+
+    $("#modalCloneZone").modal("show");
+
+    setTimeout(function () {
+        $("#txtCloneZoneZoneName").focus();
+    }, 1000);
+}
+
+function cloneZone(objBtn) {
+    var divCloneZoneAlert = $("#divCloneZoneAlert");
+
+    var sourceZone = $("#txtCloneZoneSourceZoneName").val();
+
+    var zone = $("#txtCloneZoneZoneName").val();
+    if ((zone == null) || (zone === "")) {
+        showAlert("warning", "Missing!", "Please enter a domain name for the new zone.", divCloneZoneAlert);
+        $("#txtCloneZoneZoneName").focus();
+        return;
+    }
+
+    var btn = $(objBtn);
+    btn.button("loading");
+
+    HTTPRequest({
+        url: "/api/zones/clone?token=" + sessionData.token + "&zone=" + zone + "&sourceZone=" + sourceZone,
+        success: function (responseJSON) {
+            btn.button("reset");
+            $("#modalCloneZone").modal("hide");
+
+            refreshZones();
+
+            showAlert("success", "Zone Cloned!", "Zone was cloned from successfully.");
+        },
+        error: function () {
+            btn.button("reset");
+        },
+        invalidToken: function () {
+            btn.button("reset");
+            $("#modalCloneZone").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divCloneZoneAlert
     });
 }
 
