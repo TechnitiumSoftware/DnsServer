@@ -1005,6 +1005,30 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
+        public AuthZoneInfo CreateForwarderZone(string zoneName)
+        {
+            ForwarderZone apexZone = new ForwarderZone(zoneName);
+
+            _zoneIndexLock.EnterWriteLock();
+            try
+            {
+                if (_root.TryAdd(apexZone))
+                {
+                    AuthZoneInfo zoneInfo = new AuthZoneInfo(apexZone);
+                    _zoneIndex.Add(zoneInfo);
+                    _zoneIndex.Sort();
+
+                    return zoneInfo;
+                }
+            }
+            finally
+            {
+                _zoneIndexLock.ExitWriteLock();
+            }
+
+            return null;
+        }
+
         public AuthZoneInfo CreateForwarderZone(string zoneName, DnsTransportProtocol forwarderProtocol, string forwarder, bool dnssecValidation, DnsForwarderRecordProxyType proxyType, string proxyAddress, ushort proxyPort, string proxyUsername, string proxyPassword, string fwdRecordComments)
         {
             ForwarderZone apexZone = new ForwarderZone(zoneName, forwarderProtocol, forwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword, fwdRecordComments);
@@ -1027,6 +1051,59 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
 
             return null;
+        }
+
+        public AuthZoneInfo CloneZone(string zoneName, string sourceZoneName)
+        {
+            AuthZoneInfo sourceZoneInfo = GetAuthZoneInfo(sourceZoneName, false);
+            if (sourceZoneInfo is null)
+                throw new DnsServerException("No such zone was found: " + (zoneName.Length == 0 ? "." : zoneName));
+
+            AuthZoneInfo zoneInfo;
+
+            switch (sourceZoneInfo.Type)
+            {
+                case AuthZoneType.Primary:
+                    zoneInfo = CreatePrimaryZone(zoneName, _dnsServer.ServerDomain, false);
+                    break;
+
+                case AuthZoneType.Forwarder:
+                    zoneInfo = CreateForwarderZone(zoneName);
+                    break;
+
+                default:
+                    throw new DnsServerException("Cannot clone the zone: source zone must be a primary or conditional forwarder zone.");
+            }
+
+            if (zoneInfo is null)
+                throw new DnsServerException("Failed for clone the zone: zone already exists.");
+
+            List<DnsResourceRecord> sourceRecords = new List<DnsResourceRecord>();
+            ListAllZoneRecords(sourceZoneName, sourceRecords);
+
+            List<DnsResourceRecord> newRecords = new List<DnsResourceRecord>(sourceRecords.Count);
+
+            foreach (DnsResourceRecord sourceRecord in sourceRecords)
+            {
+                switch (sourceRecord.Type)
+                {
+                    case DnsResourceRecordType.DNSKEY:
+                    case DnsResourceRecordType.RRSIG:
+                    case DnsResourceRecordType.NSEC:
+                    case DnsResourceRecordType.NSEC3:
+                    case DnsResourceRecordType.NSEC3PARAM:
+                    case DnsResourceRecordType.DS:
+                        continue; //skip DNSSEC records
+
+                    default:
+                        newRecords.Add(new DnsResourceRecord(sourceRecord.Name.Substring(0, sourceRecord.Name.Length - sourceZoneName.Length) + zoneName, sourceRecord.Type, sourceRecord.Class, sourceRecord.TTL, sourceRecord.RDATA));
+                        break;
+                }
+            }
+
+            LoadRecords(zoneInfo.ApexZone, newRecords);
+
+            return zoneInfo;
         }
 
         public void ConvertZoneType(string zoneName, AuthZoneType type)
@@ -1197,6 +1274,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                                             case DnsResourceRecordType.NSEC:
                                             case DnsResourceRecordType.NSEC3:
                                             case DnsResourceRecordType.NSEC3PARAM:
+                                            case DnsResourceRecordType.DS:
                                                 continue;
                                         }
 
@@ -1208,7 +1286,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 break;
                         }
 
-                        newZoneInfo = CreateForwarderZone(zoneName, DnsTransportProtocol.Udp, "this-server", _dnsServer.DnssecValidation, DnsForwarderRecordProxyType.DefaultProxy, null, 0, null, null, null);
+                        newZoneInfo = CreateForwarderZone(zoneName);
                         break;
 
                     default:
