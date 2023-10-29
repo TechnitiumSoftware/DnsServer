@@ -23,6 +23,7 @@ var editZoneRecords;
 
 $(function () {
     $("input[type=radio][name=rdAddZoneType]").change(function () {
+        $("#divAddZoneUseSoaSerialDateScheme").hide();
         $("#divAddZonePrimaryNameServerAddresses").hide();
         $("#divAddZoneZoneTransferProtocol").hide();
         $("#divAddZoneTsigKeyName").hide();
@@ -34,6 +35,7 @@ $(function () {
         var zoneType = $('input[name=rdAddZoneType]:checked').val();
         switch (zoneType) {
             case "Primary":
+                $("#divAddZoneUseSoaSerialDateScheme").show();
                 break;
 
             case "Secondary":
@@ -714,6 +716,59 @@ function deleteZone(objBtn) {
     });
 }
 
+function showImportZoneModal(zone) {
+    $("#lblImportZoneName").text(zone);
+    $("#divImportZoneAlert").html("");
+    $("#txtImportZoneFile").val("");
+    $("#chkImportZoneOverwrite").prop("checked", true)
+    $("#btnImportZone").button("reset");
+
+    $("#modalImportZone").modal("show");
+
+    setTimeout(function () {
+        $("#txtImportZoneFile").focus();
+    }, 1000);
+}
+
+function importZone() {
+    var divImportZoneAlert = $("#divImportZoneAlert");
+
+    var zone = $("#lblImportZoneName").text();
+    var overwrite = $("#chkImportZoneOverwrite").prop("checked");
+    var records = $("#txtImportZoneFile").val();
+
+    var btn = $("#btnImportZone").button("loading");
+
+    HTTPRequest({
+        url: "/api/zones/import?token=" + sessionData.token + "&zone=" + zone + "&overwrite=" + overwrite,
+        method: "POST",
+        contentType: "text/plain",
+        data: records,
+        processData: false,
+        success: function (responseJSON) {
+            $("#modalImportZone").modal("hide");
+
+            showEditZone(zone);
+
+            showAlert("success", "Zone Imported!", "The zone file was imported successfully.");
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            $("#modalImportZone").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divImportZoneAlert
+    });
+}
+
+function exportZone(zone) {
+    window.open("/api/zones/export?token=" + sessionData.token + "&zone=" + zone, "_blank");
+
+    showAlert("success", "Zone Exported!", "Zone file was exported successfully.");
+}
+
 function showCloneZoneModal(sourceZone) {
     $("#lblCloneZoneZoneName").text(sourceZone === "." ? "<root>" : sourceZone);
 
@@ -1337,6 +1392,7 @@ function showAddZoneModal() {
 
     $("#txtAddZone").val("");
     $("#rdAddZoneTypePrimary").prop("checked", true);
+    $("#chkAddZoneUseSoaSerialDateScheme").prop("checked", $("#chkUseSoaSerialDateScheme").prop("checked"));
     $("#txtAddZonePrimaryNameServerAddresses").val("");
     $("#rdAddZoneZoneTransferProtocolTcp").prop("checked", true);
     $("#optAddZoneTsigKeyName").val("");
@@ -1357,6 +1413,7 @@ function showAddZoneModal() {
     $("#txtAddZoneForwarderProxyUsername").val("");
     $("#txtAddZoneForwarderProxyPassword").val("");
 
+    $("#divAddZoneUseSoaSerialDateScheme").show();
     $("#divAddZonePrimaryNameServerAddresses").hide();
     $("#divAddZoneZoneTransferProtocol").hide();
     $("#divAddZoneTsigKeyName").hide();
@@ -1454,6 +1511,12 @@ function addZone() {
     var parameters;
 
     switch (type) {
+        case "Primary":
+            var useSoaSerialDateScheme = $("#chkAddZoneUseSoaSerialDateScheme").prop("checked");
+
+            parameters = "&useSoaSerialDateScheme=" + useSoaSerialDateScheme;
+            break;
+
         case "Secondary":
             var tsigKeyName = $("#optAddZoneTsigKeyName").val();
 
@@ -1701,11 +1764,29 @@ function showEditZone(zone, showPageNumber) {
                 case "Primary":
                 case "Secondary":
                 case "Forwarder":
-                    $("#divZoneOptions").show();
+                    $("#divOptionsMenu").show();
                     break;
 
                 default:
-                    $("#divZoneOptions").hide();
+                    $("#divOptionsMenu").hide();
+                    break;
+            }
+
+            switch (zoneType) {
+                case "Primary":
+                case "Forwarder":
+                    $("#lnkImportZone").show();
+                    $("#lnkExportZone").show();
+                    break;
+
+                case "Secondary":
+                    $("#lnkImportZone").hide();
+                    $("#lnkExportZone").show();
+                    break;
+
+                default:
+                    $("#lnkImportZone").hide();
+                    $("#lnkExportZone").hide();
                     break;
             }
 
@@ -1765,6 +1846,7 @@ function showEditZone(zone, showPageNumber) {
                                 $("#lnkZoneDnssecShowRecords").hide();
                             }
 
+                            $("#lnkZoneDnssecViewDsRecords").show();
                             $("#lnkZoneDnssecProperties").show();
                             $("#lnkZoneDnssecUnsignZone").show();
                             break;
@@ -1773,6 +1855,7 @@ function showEditZone(zone, showPageNumber) {
                             $("#lnkZoneDnssecSignZone").show();
                             $("#lnkZoneDnssecHideRecords").hide();
                             $("#lnkZoneDnssecShowRecords").hide();
+                            $("#lnkZoneDnssecViewDsRecords").hide();
                             $("#lnkZoneDnssecProperties").hide();
                             $("#lnkZoneDnssecUnsignZone").hide();
                             break;
@@ -1796,6 +1879,7 @@ function showEditZone(zone, showPageNumber) {
                                 $("#lnkZoneDnssecShowRecords").hide();
                             }
 
+                            $("#lnkZoneDnssecViewDsRecords").hide();
                             $("#lnkZoneDnssecProperties").hide();
                             $("#lnkZoneDnssecUnsignZone").hide();
                             break;
@@ -2483,6 +2567,18 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
             additionalDataAttributes = "data-record-app-name=\"" + htmlEncode(record.rData.appName) + "\" " +
                 "data-record-classpath=\"" + htmlEncode(record.rData.classPath) + "\" " +
                 "data-record-data=\"" + htmlEncode(record.rData.data) + "\"";
+            break;
+
+        case "ALIAS":
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Type: </b> " + htmlEncode(record.rData.type) +
+                "<br /><b>Alias:</b> " + htmlEncode(record.rData.alias);
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
             break;
 
         default:
@@ -3760,11 +3856,18 @@ function showEditRecordModal(objBtn) {
             break;
 
         default:
+            var rdata = divData.attr("data-record-rdata");
+
+            if (rdata == null) {
+                showAlert("danger", "Not Supported!", "Editing this record type is not supported.");
+                return;
+            }
+
             $("#optAddEditRecordType").val("Unknown");
             $("#txtAddEditRecordDataUnknownType").val(type);
             $("#txtAddEditRecordDataUnknownType").prop("disabled", true);
 
-            $("#txtAddEditRecordDataValue").val(divData.attr("data-record-rdata"));
+            $("#txtAddEditRecordDataValue").val(rdata);
             break;
     }
 
@@ -4713,6 +4816,7 @@ function signPrimaryZone() {
                 $("#lnkZoneDnssecHideRecords").hide();
                 $("#lnkZoneDnssecShowRecords").show();
 
+                $("#lnkZoneDnssecViewDsRecords").show();
                 $("#lnkZoneDnssecProperties").show();
                 $("#lnkZoneDnssecUnsignZone").show();
 
@@ -4770,6 +4874,7 @@ function unsignPrimaryZone() {
                 $("#lnkZoneDnssecHideRecords").hide();
                 $("#lnkZoneDnssecShowRecords").hide();
 
+                $("#lnkZoneDnssecViewDsRecords").hide();
                 $("#lnkZoneDnssecProperties").hide();
                 $("#lnkZoneDnssecUnsignZone").hide();
 
@@ -4794,6 +4899,65 @@ function unsignPrimaryZone() {
             showPageLogin();
         },
         objAlertPlaceholder: divDnssecUnsignZoneAlert
+    });
+}
+
+function showViewDsModal(zoneName) {
+    var divDnssecViewDsAlert = $("#divDnssecViewDsAlert");
+    var divDnssecViewDsLoader = $("#divDnssecViewDsLoader");
+    var divDnssecViewDs = $("#divDnssecViewDs");
+    var lblDnssecViewDsZoneName = $("#lblDnssecViewDsZoneName");
+
+    divDnssecViewDsAlert.html("");
+    lblDnssecViewDsZoneName.text(zoneName === "." ? "<root>" : zoneName);
+
+    divDnssecViewDsLoader.show();
+    divDnssecViewDs.hide();
+
+    $("#modalDnssecViewDs").modal("show");
+
+    HTTPRequest({
+        url: "/api/zones/dnssec/viewDS?token=" + sessionData.token + "&zone=" + zoneName,
+        success: function (responseJSON) {
+            var tableHtmlRows = "";
+
+            for (var i = 0; i < responseJSON.response.dsRecords.length; i++) {
+                var rowspan = responseJSON.response.dsRecords[i].digests.length + 1;
+
+                tableHtmlRows += "<tr>"
+                    + "<td rowspan=" + rowspan + ">" + responseJSON.response.dsRecords[i].keyTag + "</td>"
+                    + "<td rowspan=" + rowspan + ">" + responseJSON.response.dsRecords[i].dnsKeyState;
+
+                if (responseJSON.response.dsRecords[i].dnsKeyStateReadyBy != null)
+                    tableHtmlRows += "</br>(ready by: " + moment(responseJSON.response.dsRecords[i].dnsKeyStateReadyBy).local().format("YYYY-MM-DD HH:mm") + ")";
+
+                tableHtmlRows += "</td><td rowspan=" + rowspan + ">" + responseJSON.response.dsRecords[i].algorithm + "</td>";
+
+                for (var j = 0; j < responseJSON.response.dsRecords[i].digests.length; j++) {
+                    if (j > 0)
+                        tableHtmlRows += "<tr>";
+
+                    tableHtmlRows += "<td>" + responseJSON.response.dsRecords[i].digests[j].digestType + "</td><td style=\"word-break: break-all;\">" + responseJSON.response.dsRecords[i].digests[j].digest + "</td>";
+                    tableHtmlRows += "</tr>";
+                }
+
+                tableHtmlRows += "<tr><td colspan=\"2\" style=\"word-break: break-all;\"><b>Public Key</b></br>" + responseJSON.response.dsRecords[i].publicKey + "</td></tr>";
+            }
+
+            $("#tableDnssecViewDsBody").html(tableHtmlRows);
+
+            divDnssecViewDsLoader.hide();
+            divDnssecViewDs.show();
+        },
+        error: function () {
+            divDnssecViewDsLoader.hide();
+        },
+        invalidToken: function () {
+            $("#modalDnssecViewDs").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divDnssecViewDsAlert,
+        objLoaderPlaceholder: divDnssecViewDsLoader
     });
 }
 
