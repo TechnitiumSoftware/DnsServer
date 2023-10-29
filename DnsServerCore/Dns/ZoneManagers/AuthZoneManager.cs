@@ -41,6 +41,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         readonly DnsServer _dnsServer;
 
         string _serverDomain;
+        bool _useSoaSerialDateScheme;
 
         readonly AuthZoneTree _root = new AuthZoneTree();
 
@@ -931,7 +932,12 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public AuthZoneInfo CreatePrimaryZone(string zoneName, string primaryNameServer, bool @internal)
         {
-            PrimaryZone apexZone = new PrimaryZone(_dnsServer, zoneName, primaryNameServer, @internal);
+            return CreatePrimaryZone(zoneName, primaryNameServer, @internal, _useSoaSerialDateScheme);
+        }
+
+        public AuthZoneInfo CreatePrimaryZone(string zoneName, string primaryNameServer, bool @internal, bool useSoaSerialDateScheme)
+        {
+            PrimaryZone apexZone = new PrimaryZone(_dnsServer, zoneName, primaryNameServer, @internal, useSoaSerialDateScheme);
 
             _zoneIndexLock.EnterWriteLock();
             try
@@ -1093,6 +1099,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 zoneInfo.Update = sourceZoneInfo.Update;
                 zoneInfo.UpdateIpAddresses = sourceZoneInfo.UpdateIpAddresses;
 
+                if (sourceZoneInfo.UpdateSecurityPolicies is not null)
                 {
                     Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> updateSecurityPolicies = new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>>(sourceZoneInfo.UpdateSecurityPolicies.Count);
 
@@ -1129,7 +1136,21 @@ namespace DnsServerCore.Dns.ZoneManagers
                         continue; //skip DNSSEC records
 
                     default:
-                        newRecords.Add(new DnsResourceRecord(sourceRecord.Name.Substring(0, sourceRecord.Name.Length - sourceZoneName.Length) + zoneName, sourceRecord.Type, sourceRecord.Class, sourceRecord.TTL, sourceRecord.RDATA));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(sourceRecord.Name.Substring(0, sourceRecord.Name.Length - sourceZoneName.Length) + zoneName, sourceRecord.Type, sourceRecord.Class, sourceRecord.TTL, sourceRecord.RDATA);
+
+                        if (sourceRecord.Tag is AuthRecordInfo srInfo)
+                        {
+                            AuthRecordInfo nrInfo = new AuthRecordInfo();
+
+                            nrInfo.Disabled = srInfo.Disabled;
+                            nrInfo.GlueRecords = srInfo.GlueRecords;
+                            nrInfo.Comments = srInfo.Comments;
+                            nrInfo.UseSoaSerialDateScheme = srInfo.UseSoaSerialDateScheme;
+
+                            newRecord.Tag = nrInfo;
+                        }
+
+                        newRecords.Add(newRecord);
                         break;
                 }
             }
@@ -1996,7 +2017,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             return historyRecords;
         }
 
-        internal void ImportRecords(string zoneName, IReadOnlyList<DnsResourceRecord> records)
+        internal void ImportRecords(string zoneName, IReadOnlyList<DnsResourceRecord> records, bool overwrite)
         {
             _ = _root.FindZone(zoneName, out _, out _, out ApexZone apexZone, out _);
             if ((apexZone is null) || !apexZone.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase))
@@ -2011,15 +2032,25 @@ namespace DnsServerCore.Dns.ZoneManagers
                 {
                     foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> rrsetEntry in zoneEntry.Value)
                     {
-                        if (rrsetEntry.Key == DnsResourceRecordType.RRSIG)
+                        switch (rrsetEntry.Key)
                         {
-                            //RRSIG records in response are not complete RRSet
-                            foreach (DnsResourceRecord record in rrsetEntry.Value)
-                                apexZone.AddRecord(record);
-                        }
-                        else
-                        {
-                            apexZone.SetRecords(rrsetEntry.Key, rrsetEntry.Value);
+                            case DnsResourceRecordType.CNAME:
+                            case DnsResourceRecordType.DNAME:
+                            case DnsResourceRecordType.SOA:
+                                apexZone.SetRecords(rrsetEntry.Key, rrsetEntry.Value);
+                                break;
+
+                            default:
+                                if (overwrite)
+                                {
+                                    apexZone.SetRecords(rrsetEntry.Key, rrsetEntry.Value);
+                                }
+                                else
+                                {
+                                    foreach (DnsResourceRecord record in rrsetEntry.Value)
+                                        apexZone.AddRecord(record);
+                                }
+                                break;
                         }
                     }
                 }
@@ -2031,15 +2062,25 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                     foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> rrsetEntry in zoneEntry.Value)
                     {
-                        if (rrsetEntry.Key == DnsResourceRecordType.RRSIG)
+                        switch (rrsetEntry.Key)
                         {
-                            //RRSIG records in response are not complete RRSet
-                            foreach (DnsResourceRecord record in rrsetEntry.Value)
-                                authZone.AddRecord(record);
-                        }
-                        else
-                        {
-                            authZone.SetRecords(rrsetEntry.Key, rrsetEntry.Value);
+                            case DnsResourceRecordType.CNAME:
+                            case DnsResourceRecordType.DNAME:
+                            case DnsResourceRecordType.SOA:
+                                authZone.SetRecords(rrsetEntry.Key, rrsetEntry.Value);
+                                break;
+
+                            default:
+                                if (overwrite)
+                                {
+                                    authZone.SetRecords(rrsetEntry.Key, rrsetEntry.Value);
+                                }
+                                else
+                                {
+                                    foreach (DnsResourceRecord record in rrsetEntry.Value)
+                                        authZone.AddRecord(record);
+                                }
+                                break;
                         }
                     }
 
@@ -2047,8 +2088,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                         subDomainZone.AutoUpdateState();
                 }
             }
-
-            apexZone.UpdateDnssecStatus();
         }
 
         internal void LoadRecords(ApexZone apexZone, IReadOnlyList<DnsResourceRecord> records)
@@ -2436,13 +2475,13 @@ namespace DnsServerCore.Dns.ZoneManagers
                 {
                     if (zone is ApexZone)
                     {
-                        if (delegation is null || !delegation.IsActive || (delegation.Name.Length > apexZone.Name.Length))
+                        if ((delegation is null) || !delegation.IsActive || (delegation.Name.Length > apexZone.Name.Length))
                             return null; //no authoritative parent side delegation zone available to answer for DS
 
                         zone = delegation; //switch zone to parent side sub domain delegation zone for DS record
                     }
                 }
-                else if (zone.Equals(delegation))
+                else if ((delegation is not null) && delegation.IsActive && (delegation.Name.Length > apexZone.Name.Length))
                 {
                     //zone is delegation
                     return GetReferralResponse(request, dnssecOk, delegation, apexZone);
@@ -2556,6 +2595,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 break;
 
                             case DnsResourceRecordType.ANAME:
+                            case DnsResourceRecordType.ALIAS:
                                 authority = apexZone.GetRecords(DnsResourceRecordType.SOA); //adding SOA for use with NO DATA response
                                 break;
                         }
@@ -2855,6 +2895,12 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             get { return _serverDomain; }
             set { UpdateServerDomain(value); }
+        }
+
+        public bool UseSoaSerialDateScheme
+        {
+            get { return _useSoaSerialDateScheme; }
+            set { _useSoaSerialDateScheme = value; }
         }
 
         public int TotalZones
