@@ -1,5 +1,26 @@
 # Technitium DNS Server Change Log
 
+## Version 11.5
+Release Date: 29 October 2023
+
+- Added support to import and export zones in standard RFC 1035 text file format.
+- Added feature to clone an existing zone with all its records and zone options.
+- Added DS Info viewer that shows all the info needed for updating DS records for the signed primary zone in a single view.
+- Added option to configure IP/network addresses that are allowed to perform zone transfer for all local zones without any TSIG authentication.
+- Added option to configure IP/network addresses that are allowed to bypass domain name blocking.
+- Added option to independently configure HTTP/3 protocol for DNS web service.
+- Added option to ignore resolver error logs so as to limit the log file size.
+- Added zone last modified date time stamp.
+- Added check for DNS web service local end point changes to ensure that the new end points are available to bind before saving settings to avoid locking out of the DNS admin web panel.
+- Updated DNS web service to revert to old local end point if new end point fails to bind.
+- Zone Options for zone transfer name servers and dynamic updates IP addresses can now accept network addresses too.
+- Updated conditional forwarder zones to allow bypassing default proxy configured in the DNS Server Settings.
+- Added new `IDnsRequestBlockingHandler` interface for DNS apps to allow the same level of blocking support as that of the DNS server's built-in blocking feature.
+- Advanced Blocking App: Updated app to implement the new `IDnsRequestBlockingHandler` interface. Added support to allow selecting group based on the DNS server local end point on which the request was received.
+- Split Horizon App: Address translation now supports using network addresses too for external to internal translation.
+- Default Records App: New app added that allows setting one or more default records for configured local zones.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 11.4.1
 Release Date: 13 August 2023
 
