@@ -565,10 +565,18 @@ namespace DnsServerCore
 
             if (response is null)
             {
-                responseInfo = " NO RESPONSE FROM SERVER!";
+                responseInfo = "; NO RESPONSE FROM SERVER!";
             }
             else
             {
+                responseInfo = "; RCODE: " + response.RCODE.ToString();
+
+                if ((response.Additional.Count > 0) && (response.Additional[response.Additional.Count - 1].Type == DnsResourceRecordType.TSIG))
+                {
+                    if (response.Additional[response.Additional.Count - 1].RDATA is DnsTSIGRecordData tsig)
+                        responseInfo += "; TSIG: " + tsig.Error.ToString();
+                }
+
                 string answer;
 
                 if (response.Answer.Count == 0)
@@ -631,10 +639,10 @@ namespace DnsServerCore
                 if (responseECS is not null)
                     answer += "; ECS: " + responseECS.Address.ToString() + "/" + responseECS.ScopePrefixLength;
 
-                responseInfo = " RCODE: " + response.RCODE.ToString() + "; ANSWER: " + answer;
+                responseInfo += "; ANSWER: " + answer;
             }
 
-            Write(ep, protocol, question + ";" + responseInfo);
+            Write(ep, protocol, question + responseInfo);
         }
 
         public void Write(IPEndPoint ep, DnsTransportProtocol protocol, string message)
