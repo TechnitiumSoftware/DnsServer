@@ -217,10 +217,12 @@ RESPONSE:
 	"username": "admin",
 	"token": "932b2a3495852c15af01598f62563ae534460388b6a370bfbbb8bb6094b698e9",
 	"info": {
-		"version": "11.4",
+		"version": "11.5",
 		"uptimestamp": "2023-07-29T08:01:31.1117463Z",
 		"dnsServerDomain": "server1",
 		"defaultRecordTtl": 3600,
+		"useSoaSerialDateScheme": false,
+		"dnssecValidation": true,
 		"permissions": {
 			"Dashboard": {
 				"canView": true,
@@ -1314,44 +1316,53 @@ RESPONSE:
 			{
 				"name": "192.168.10.5",
 				"domain": "server1.local",
-				"hits": 236
+				"hits": 236,
+				"rateLimited": false
 			},
 			{
 				"name": "192.168.10.4",
 				"domain": "nas1.local",
-				"hits": 16
+				"hits": 16,
+				"rateLimited": false
 			},
 			{
 				"name": "192.168.10.6",
 				"domain": "server2.local",
-				"hits": 14
+				"hits": 14,
+				"rateLimited": false
 			},
 			{
 				"name": "192.168.10.3",
 				"domain": "nas2.local",
-				"hits": 12
+				"hits": 12,
+				"rateLimited": false
 			},
 			{
 				"name": "217.31.193.175",
 				"domain": "condor175.knot-resolver.cz",
-				"hits": 10
+				"hits": 10,
+				"rateLimited": false
 			},
 			{
 				"name": "162.158.180.45",
-				"hits": 9
+				"hits": 9,
+				"rateLimited": false
 			},
 			{
 				"name": "217.31.193.163",
 				"domain": "gondor-resolver.labs.nic.cz",
-				"hits": 9
+				"hits": 9,
+				"rateLimited": false
 			},
 			{
 				"name": "210.245.24.68",
-				"hits": 8
+				"hits": 8,
+				"rateLimited": false
 			},
 			{
 				"name": "101.91.16.140",
-				"hits": 8
+				"hits": 8,
+				"rateLimited": false
 			}
 		],
 		"topDomains": [
@@ -1471,44 +1482,53 @@ The response json will include the object with definition same in the `getStats`
 			{
 				"name": "192.168.10.5",
 				"domain": "server1.local",
-				"hits": 236
+				"hits": 236,
+				"rateLimited": false
 			},
 			{
 				"name": "192.168.10.4",
 				"domain": "nas1.local",
-				"hits": 16
+				"hits": 16,
+				"rateLimited": false
 			},
 			{
 				"name": "192.168.10.6",
 				"domain": "server2.local",
-				"hits": 14
+				"hits": 14,
+				"rateLimited": false
 			},
 			{
 				"name": "192.168.10.3",
 				"domain": "nas2.local",
-				"hits": 12
+				"hits": 12,
+				"rateLimited": false
 			},
 			{
 				"name": "217.31.193.175",
 				"domain": "condor175.knot-resolver.cz",
-				"hits": 10
+				"hits": 10,
+				"rateLimited": false
 			},
 			{
 				"name": "162.158.180.45",
-				"hits": 9
+				"hits": 9,
+				"rateLimited": false
 			},
 			{
 				"name": "217.31.193.163",
 				"domain": "gondor-resolver.labs.nic.cz",
-				"hits": 9
+				"hits": 9,
+				"rateLimited": false
 			},
 			{
 				"name": "210.245.24.68",
-				"hits": 8
+				"hits": 8,
+				"rateLimited": false
 			},
 			{
 				"name": "101.91.16.140",
-				"hits": 8
+				"hits": 8,
+				"rateLimited": false
 			}
 		],
 	},
@@ -1576,9 +1596,11 @@ RESPONSE:
 				"name": "",
 				"type": "Secondary",
 				"dnssecStatus": "SignedWithNSEC",
+				"soaSerial": 1,
 				"expiry": "2022-02-26T07:57:08.1842183Z",
 				"isExpired": false,
 				"syncFailed": false,
+				"lastModified": "2022-02-26T07:57:08.1842183Z",
 				"disabled": false
 			},
 			{
@@ -1586,6 +1608,8 @@ RESPONSE:
 				"type": "Primary",
 				"internal": true,
 				"dnssecStatus": "Unsigned",
+				"soaSerial": 1,
+				"lastModified": "2022-02-26T07:57:08.1842183Z",
 				"disabled": false
 			},
 			{
@@ -1593,6 +1617,8 @@ RESPONSE:
 				"type": "Primary",
 				"internal": true,
 				"dnssecStatus": "Unsigned",
+				"soaSerial": 1,
+				"lastModified": "2022-02-26T07:57:08.1842183Z",
 				"disabled": false
 			},
 			{
@@ -1600,6 +1626,8 @@ RESPONSE:
 				"type": "Primary",
 				"internal": true,
 				"dnssecStatus": "Unsigned",
+				"soaSerial": 1,
+				"lastModified": "2022-02-26T07:57:08.1842183Z",
 				"disabled": false
 			},
 			{
@@ -1607,6 +1635,8 @@ RESPONSE:
 				"type": "Primary",
 				"internal": true,
 				"dnssecStatus": "Unsigned",
+				"soaSerial": 1,
+				"lastModified": "2022-02-26T07:57:08.1842183Z",
 				"disabled": false
 			},
 			{
@@ -1614,8 +1644,10 @@ RESPONSE:
 				"type": "Primary",
 				"internal": false,
 				"dnssecStatus": "SignedWithNSEC",
+				"soaSerial": 1,
 				"notifyFailed": false,
 				"notifyFailedFor": [],
+				"lastModified": "2022-02-26T07:57:08.1842183Z",
 				"disabled": false
 			},
 			{
@@ -1623,6 +1655,8 @@ RESPONSE:
 				"type": "Primary",
 				"internal": true,
 				"dnssecStatus": "Unsigned",
+				"soaSerial": 1,
+				"lastModified": "2022-02-26T07:57:08.1842183Z",
 				"disabled": false
 			},
 			{
@@ -1630,8 +1664,10 @@ RESPONSE:
 				"type": "Primary",
 				"internal": false,
 				"dnssecStatus": "Unsigned",
+				"soaSerial": 1,
 				"notifyFailed": false,
 				"notifyFailedFor": [],
+				"lastModified": "2022-02-26T07:57:08.1842183Z",
 				"disabled": false
 			},
 			{
@@ -1639,8 +1675,10 @@ RESPONSE:
 				"type": "Primary",
 				"internal": false,
 				"dnssecStatus": "Unsigned",
+				"soaSerial": 1,
 				"notifyFailed": false,
 				"notifyFailedFor": [],
+				"lastModified": "2022-02-26T07:57:08.1842183Z",
 				"disabled": false
 			},
 			{
@@ -1648,8 +1686,10 @@ RESPONSE:
 				"type": "Primary",
 				"internal": false,
 				"dnssecStatus": "Unsigned",
+				"soaSerial": 1,
 				"notifyFailed": false,
 				"notifyFailedFor": [],
+				"lastModified": "2022-02-26T07:57:08.1842183Z",
 				"disabled": false
 			}
 		]
@@ -1676,13 +1716,14 @@ WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
 - `zone`: The domain name for creating the new zone. The value can be valid domain name, an IP address, or an network address in CIDR format. When value is IP address or network address, a reverse zone is created.
 - `type`: The type of zone to be created. Valid values are [`Primary`, `Secondary`, `Stub`, `Forwarder`].
+- `useSoaSerialDateScheme` (optional): Set value to `true` to enable using date scheme for SOA serial. This optional parameter is used only with Primary zone. Default value is `false`.
 - `primaryNameServerAddresses` (optional): List of comma separated IP addresses of the primary name server. This optional parameter is used only with Secondary and Stub zones. If this parameter is not used, the DNS server will try to recursively resolve the primary name server addresses automatically.
 - `zoneTransferProtocol` (optional): The zone transfer protocol to be used by secondary zones. Valid values are [`Tcp`, `Tls`, `Quic`].
 - `tsigKeyName` (optional): The TSIG key name to be used by secondary zones.
 - `protocol` (optional): The DNS transport protocol to be used by the conditional forwarder zone. This optional parameter is used with Conditional Forwarder zones. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `Quic`]. Default `Udp` protocol is used when this parameter is missing.
 - `forwarder` (optional): The address of the DNS server to be used as a forwarder. This optional parameter is required to be used with Conditional Forwarder zones. A special value `this-server` can be used as a forwarder which when used will forward all the requests internally to this DNS server such that you can override the zone with records and rest of the zone gets resolved via This Server.
 - `dnssecValidation` (optional): Set this boolean value to indicate if DNSSEC validation must be done. This optional parameter is required to be used with Conditional Forwarder zones.
-- `proxyType` (optional): The type of proxy that must be used for conditional forwarding. This optional parameter is required to be used with Conditional Forwarder zones. Valid values are [`None`, `Http`, `Socks5`]. Default value `None` is used when this parameter is missing.
+- `proxyType` (optional): The type of proxy that must be used for conditional forwarding. This optional parameter is required to be used with Conditional Forwarder zones. Valid values are [`NoProxy`, `DefaultProxy`, `Http`, `Socks5`]. Default value `DefaultProxy` is used when this parameter is missing.
 - `proxyAddress` (optional): The proxy server address to use when `proxyType` is configured. This optional parameter is required to be used with Conditional Forwarder zones.
 - `proxyPort` (optional): The proxy server port to use when `proxyType` is configured. This optional parameter is required to be used with Conditional Forwarder zones.
 - `proxyUsername` (optional): The proxy server username to use when `proxyType` is configured. This optional parameter is required to be used with Conditional Forwarder zones.
@@ -1700,6 +1741,71 @@ RESPONSE:
 
 WHERE:
 - `domain`: Will contain the zone that was created. This is specifically useful to know the reverse zone that was created.
+
+### Import Zone 
+
+Allows importing a complete zone file or a set of DNS resource records in standard RFC 1035 zone file format.
+
+URL:\
+`http://localhost:5380/api/zones/import?token=x&zone=example.com&overwrite=true`
+
+PERMISSIONS:\
+Zones: Modify
+Zone: Modify
+
+WHERE:
+- `token`: The session token generated by the `login` or the `createToken` call.
+- `zone`: The domain name of the zone to import.
+- `overwrite` (optional): Set to `true` to allow overwriting existing resource record set for the records being imported.
+
+REQUEST: This is a POST request call where the request must use `text/plain` content type and request body must contain the zone file in text format.
+
+RESPONSE:
+```
+{
+	"status": "ok"
+}
+```
+
+### Export Zone
+
+Exports the complete zone in standard RFC 1035 zone file format.
+
+URL:\
+`http://localhost:5380/api/zones/export?token=x&zone=example.com`
+
+PERMISSIONS:\
+Zones: View
+Zone: View
+
+WHERE:
+- `token`: The session token generated by the `login` or the `createToken` call.
+- `zone`: The domain name of the zone to export.
+
+RESPONSE: Response is a downloadable text file with `Content-Type: text/plain` and `Content-Disposition: attachment`.
+
+### Clone Zone
+
+Clones an existing zone with all the records to create a new zone.
+
+URL:\
+`http://localhost:5380/api/zones/clone?token=x&zone=example.com&sourceZone=template.com`
+
+PERMISSIONS:\
+Zones: Modify
+Zone: View
+
+WHERE:
+- `token`: The session token generated by the `login` or the `createToken` call.
+- `zone`: The domain name of the zone to be created.
+- `sourceZone`: The domain name of the zone to be cloned.
+
+RESPONSE:
+```
+{
+	"status": "ok"
+}
+```
 
 ### Convert Zone Type
 
@@ -2096,6 +2202,54 @@ RESPONSE:
 }
 ```
 
+### Get DS Info
+
+Get the DS info for the signed primary zone to help with updating DS records at the parent zone.
+
+URL:\
+`http://localhost:5380/api/zones/dnssec/viewDS?token=x&zone=example.com
+
+PERMISSIONS:\
+Zones: View\
+Zone: View
+
+WHERE:
+- `token`: The session token generated by the `login` or the `createToken` call.
+- `zone`: The name of the signed primary zone.
+
+RESPONSE:
+```
+{
+	"response": {
+		"name": "example.com",
+		"type": "Primary",
+		"internal": false,
+		"disabled": false,
+		"dnssecStatus": "SignedWithNSEC",
+		"dsRecords": [
+			{
+				"keyTag": 47972,
+				"dnsKeyState": "Published",
+				"dnsKeyStateReadyBy": "2023-10-29T16:20:08.8007369Z",
+				"algorithm": "ECDSAP256SHA256",
+				"publicKey": "TK5a8pXPMspDwuh4Z3evOfNZm9kkc8IzwZDiCgIX6imxwkbpY9FTvhoI/ttZiLWZ5hvLbvrpsbd0liqSwqNmPg==",
+				"digests": [
+					{
+						"digestType": "SHA256",
+						"digest": "D59EBB413C88576B519B2980DF50493689A4A260383D0CB2F260251D5CA2E144"
+					},
+					{
+						"digestType": "SHA384",
+						"digest": "F8235EEAB1AEBCFAD28096DF8DCF820F25C685041562AAB63E1A3E1AC89D2FC3836E97114A64EC0E057DCA234451E50C"
+					}
+				]
+			}
+		]
+	},
+	"status": "ok"
+}
+```
+
 ### Get DNSSEC Properties
 
 Get the DNSSEC properties for the primary zone.
@@ -2475,7 +2629,7 @@ WHERE:
 - `protocol` (optional): This parameter is required for adding the `FWD` record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `Quic`].
 - `forwarder` (optional): The forwarder address. A special value of `this-server` can be used to directly forward requests internally to the DNS server. This parameter is required for adding the `FWD` record.
 - `dnssecValidation` (optional): Set this boolean value to indicate if DNSSEC validation must be done. This optional parameter is to be used with FWD records. Default value is `false`.
-- `proxyType` (optional): The type of proxy that must be used for conditional forwarding. This optional parameter is to be used with FWD records. Valid values are [`None`, `Http`, `Socks5`]. Default value `None` is used when this parameter is missing.
+- `proxyType` (optional): The type of proxy that must be used for conditional forwarding. This optional parameter is to be used with FWD records. Valid values are [`NoProxy`, `DefaultProxy`, `Http`, `Socks5`]. Default value `DefaultProxy` is used when this parameter is missing.
 - `proxyAddress` (optional): The proxy server address to use when `proxyType` is configured. This optional parameter is to be used with FWD records.
 - `proxyPort` (optional): The proxy server port to use when `proxyType` is configured. This optional parameter is to be used with FWD records.
 - `proxyUsername` (optional): The proxy server username to use when `proxyType` is configured. This optional parameter is to be used with FWD records.
@@ -3155,7 +3309,7 @@ WHERE:
 - `forwarder` (optional): The current forwarder address. This parameter is required when updating the `FWD` record.
 - `newForwarder` (optional): The new forwarder address. This parameter is required when updating the `FWD` record.
 - `dnssecValidation` (optional): Set this boolean value to indicate if DNSSEC validation must be done. This optional parameter is to be used with FWD records. Default value is `false`.
-- `proxyType` (optional): The type of proxy that must be used for conditional forwarding. This optional parameter is to be used with FWD records. Valid values are [`None`, `Http`, `Socks5`]. Default value `None` is used when this parameter is missing.
+- `proxyType` (optional): The type of proxy that must be used for conditional forwarding. This optional parameter is to be used with FWD records. Valid values are [`NoProxy`, `DefaultProxy`, `Http`, `Socks5`]. Default value `DefaultProxy` is used when this parameter is missing.
 - `proxyAddress` (optional): The proxy server address to use when `proxyType` is configured. This optional parameter is to be used with FWD records.
 - `proxyPort` (optional): The proxy server port to use when `proxyType` is configured. This optional parameter is to be used with FWD records.
 - `proxyUsername` (optional): The proxy server username to use when `proxyType` is configured. This optional parameter is to be used with FWD records.
@@ -3744,7 +3898,9 @@ RESPONSE:
 						"isAppRecordRequestHandler": false,
 						"isRequestController": false,
 						"isAuthoritativeRequestHandler": false,
-						"isQueryLogger": false
+						"isRequestBlockingHandler": false,
+						"isQueryLogger": false,
+						"isPostProcessor": false
 					}
 				]
 			},
@@ -3759,7 +3915,9 @@ RESPONSE:
 						"recordDataTemplate": null,
 						"isRequestController": false,
 						"isAuthoritativeRequestHandler": false,
-						"isQueryLogger": false
+						"isRequestBlockingHandler": false,
+						"isQueryLogger": false,
+						"isPostProcessor": false
 					}
 				]
 			}
@@ -3867,7 +4025,9 @@ RESPONSE:
 					"recordDataTemplate": null,
 					"isRequestController": false,
 					"isAuthoritativeRequestHandler": false,
-					"isQueryLogger": false
+					"isRequestBlockingHandler": false,
+					"isQueryLogger": false,
+					"isPostProcessor": false
 				}
 			]
 		}
@@ -3906,7 +4066,9 @@ RESPONSE:
 					"recordDataTemplate": null,
 					"isRequestController": false,
 					"isAuthoritativeRequestHandler": false,
-					"isQueryLogger": false
+					"isRequestBlockingHandler": false,
+					"isQueryLogger": false,
+					"isPostProcessor": false
 				}
 			]
 		}
@@ -3946,7 +4108,9 @@ RESPONSE:
 					"recordDataTemplate": null,
 					"isRequestController": false,
 					"isAuthoritativeRequestHandler": false,
-					"isQueryLogger": false
+					"isRequestBlockingHandler": false,
+					"isQueryLogger": false,
+					"isPostProcessor": false
 				}
 			]
 		}
@@ -3986,7 +4150,9 @@ RESPONSE:
 					"recordDataTemplate": null,
 					"isRequestController": false,
 					"isAuthoritativeRequestHandler": false,
-					"isQueryLogger": false
+					"isRequestBlockingHandler": false,
+					"isQueryLogger": false,
+					"isPostProcessor": false
 				}
 			]
 		}
@@ -4175,7 +4341,7 @@ RESPONSE:
 ```
 {
 	"response": {
-		"version": "11.4",
+		"version": "11.5",
 		"uptimestamp": "2023-07-29T08:01:31.1117463Z",
 		"dnsServerDomain": "server1",
 		"dnsServerLocalEndPoints": [
@@ -4183,6 +4349,8 @@ RESPONSE:
 			"[::]:53"
 		],
 		"defaultRecordTtl": 3600,
+		"useSoaSerialDateScheme": false,
+		"zoneTransferAllowedNetworks": [],
 		"dnsAppsEnableAutomaticUpdate": true,
 		"preferIPv6": false,
 		"udpPayloadSize": 1232,
@@ -4206,6 +4374,7 @@ RESPONSE:
 		],
 		"webServiceHttpPort": 5380,
 		"webServiceEnableTls": false,
+		"webServiceEnableHttp3": false,
 		"webServiceHttpToTlsRedirect": false,
 		"webServiceUseSelfSignedTlsCertificate": false,
 		"webServiceTlsPort": 53443,
@@ -4249,6 +4418,7 @@ RESPONSE:
 		"cachePrefetchSampleEligibilityHitsPerHour": 30,
 		"enableBlocking": true,
 		"allowTxtBlockingReport": true,
+		"blockingBypassList": [],
 		"blockingType": "AnyAddress",
 		"customBlockingAddresses": [],
 		"blockListUrls": null,
@@ -4260,6 +4430,7 @@ RESPONSE:
 		"forwarderTimeout": 2000,
 		"forwarderConcurrency": 2,
 		"enableLogging": true,
+		"ignoreResolverLogs": false,
 		"logQueries": false,
 		"useLocalTime": false,
 		"logFolder": "logs",
@@ -4288,6 +4459,8 @@ WHERE:
 - `dnsServerDomain` (optional): The primary domain name used by this DNS Server to identify itself.
 - `dnsServerLocalEndPoints` (optional): Local end points are the network interface IP addresses and ports you want the DNS Server to listen for requests. 
 - `defaultRecordTtl` (optional): The default TTL value to use if not specified when adding or updating records in a Zone.
+- `useSoaSerialDateScheme` (optional): The default SOA Serial option to use if not specified when adding a Primary Zone.
+- `zoneTransferAllowedNetworks` (optional): A comma separated list of IP addresses or network addresses that are allowed to perform zone transfer for all zones without any TSIG authentication.
 - `dnsAppsEnableAutomaticUpdate` (optional): Set to `true` to allow DNS server to automatically update the DNS Apps from the DNS App Store. The DNS Server will check for updates every 24 hrs when this option is enabled.
 - `preferIPv6` (optional): DNS Server will use IPv6 for querying whenever possible with this option enabled. Initial value is `false`.
 - `udpPayloadSize` (optional): The maximum EDNS UDP payload size that can be used to avoid IP fragmentation. Valid range is 512-4096 bytes. Initial value is `1232`.
@@ -4309,6 +4482,8 @@ WHERE:
 - `webServiceLocalAddresses` (optional): Local addresses are the network interface IP addresses you want the web service to listen for requests. 
 - `webServiceHttpPort` (optional): Specify the TCP port number for the web console and this API web service. Initial value is `5380`.
 - `webServiceEnableTls` (optional): Set this to `true` to start the HTTPS service to access web service.
+- `webServiceEnableHttp3` (optional): Set this to `true` to enable HTTP/3 protocol for the web service.
+- `webServiceHttpToTlsRedirect` (optional): Set this option to `true` to enable HTTP to HTTPS Redirection.
 - `webServiceTlsPort` (optional): Specified the TCP port number for the web console for HTTPS access.
 - `webServiceUseSelfSignedTlsCertificate` (optional): Set `true` for the web service to use an automatically generated self signed certificate when TLS certificate path is not specified.
 - `webServiceTlsCertificatePath` (optional): Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key. This certificate is used by the web console for HTTPS access.
@@ -4350,6 +4525,7 @@ WHERE:
 - `cachePrefetchSampleEligibilityHitsPerHour` (optional): Minimum required hits per hour for a domain name to be eligible for auto prefetch.
 - `enableBlocking` (optional): Sets the DNS server to block domain names using Blocked Zone and Block List Zone.
 - `allowTxtBlockingReport` (optional): Specifies if the DNS Server should respond with TXT records containing a blocked domain report for TXT type requests.
+- `blockingBypassList` (optional): A comma separated list of IP addresses or network addresses that are allowed to bypass blocking.
 - `blockingType` (optional): Sets how the DNS server should respond to a blocked domain request. Valid values are [`AnyAddress`, `NxDomain`, `CustomAddress`] where `AnyAddress` is default which response with `0.0.0.0` and `::` IP addresses for blocked domains. Using `NxDomain` will respond with `NX Domain` response. `CustomAddress` will return the specified custom blocking addresses.
 - `customBlockingAddresses` (optional): Set the custom blocking addresses to be used for blocked domain response. These addresses are returned only when `blockingType` is set to `CustomAddress`.
 - `blockListUrls` (optional): A comma separated list of block list URLs that this server must automatically download and use with the block lists zone. DNS Server will use the data returned by the block list URLs to update the block list zone automatically every 24 hours. The expected file format is standard hosts file format or plain text file containing list of domains to block. Set this parameter to `false` to remove existing values.
@@ -4366,6 +4542,7 @@ WHERE:
 - `forwarderTimeout` (optional): The timeout value in milliseconds for the forwarder DNS client.
 - `forwarderConcurrency` (optional): The number of concurrent requests that the forwarder DNS client should do.
 - `enableLogging` (optional): Enable this option to log error and audit logs into the log file. Initial value is `true`.
+- `ignoreResolverLogs` (optional): Enable this option to stop logging domain name resolution errors into the log file.
 - `logQueries` (optional): Enable this option to log every query received by this DNS Server and the corresponding response answers into the log file.  Initial value is `false`.
 - `useLocalTime` (optional): Enable this option to use local time instead of UTC for logging.  Initial value is `false`.
 - `logFolder` (optional): The folder path on the server where the log files should be saved. The path can be relative to the DNS server config folder. Initial value is `logs`.
