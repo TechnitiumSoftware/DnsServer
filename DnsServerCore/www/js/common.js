@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ function htmlDecode(value) {
     return $('<div/>').html(value).text();
 }
 
-function HTTPRequest(url, method, data, isTextResponse, success, error, invalidToken, objAlertPlaceholder, objLoaderPlaceholder, processData, dataContentType, dontHideAlert, showInnerError) {
+function HTTPRequest(url, method, data, isTextResponse, success, error, invalidToken, objAlertPlaceholder, objLoaderPlaceholder, processData, contentType, dontHideAlert, showInnerError) {
     var finalUrl;
 
     if ((url != null) && (url.url != null))
@@ -86,8 +86,8 @@ function HTTPRequest(url, method, data, isTextResponse, success, error, invalidT
     if (processData == null)
         processData = arguments[0].processData;
 
-    if (dataContentType == null)
-        dataContentType = arguments[0].dataContentType;
+    if (contentType == null)
+        contentType = arguments[0].contentType;
 
     if (objLoaderPlaceholder != null)
         objLoaderPlaceholder.html("<div style='width: 64px; height: inherit; margin: auto;'><div style='height: inherit; display: table-cell; vertical-align: middle;'><img src='/img/loader.gif'/></div></div>");
@@ -102,7 +102,7 @@ function HTTPRequest(url, method, data, isTextResponse, success, error, invalidT
         async: async,
         cache: false,
         processData: processData,
-        contentType: dataContentType,
+        contentType: contentType,
         success: function (response, status, jqXHR) {
             if (objLoaderPlaceholder != null)
                 objLoaderPlaceholder.html("");
