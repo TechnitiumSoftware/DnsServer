@@ -127,8 +127,8 @@ namespace DnsServerCore
 
             jsonWriter.WriteString("domain", domain);
 
-            if (domain.Contains("xn--", StringComparison.OrdinalIgnoreCase))
-                jsonWriter.WriteString("domainIdn", DnsClient.ConvertDomainNameToUnicode(domain));
+            if (DnsClient.TryConvertDomainNameToUnicode(domain, out string idn))
+                jsonWriter.WriteString("domainIdn", idn);
 
             jsonWriter.WritePropertyName("zones");
             jsonWriter.WriteStartArray();
@@ -140,8 +140,8 @@ namespace DnsServerCore
             {
                 string zone = subZone + domain;
 
-                if (zone.Contains("xn--", StringComparison.OrdinalIgnoreCase))
-                    zone = DnsClient.ConvertDomainNameToUnicode(zone);
+                if (DnsClient.TryConvertDomainNameToUnicode(zone, out string zoneIdn))
+                    zone = zoneIdn;
 
                 jsonWriter.WriteStringValue(zone);
             }
@@ -233,8 +233,8 @@ namespace DnsServerCore
 
             jsonWriter.WriteString("domain", domain);
 
-            if (domain.Contains("xn--", StringComparison.OrdinalIgnoreCase))
-                jsonWriter.WriteString("domainIdn", DnsClient.ConvertDomainNameToUnicode(domain));
+            if (DnsClient.TryConvertDomainNameToUnicode(domain, out string idn))
+                jsonWriter.WriteString("domainIdn", idn);
 
             jsonWriter.WritePropertyName("zones");
             jsonWriter.WriteStartArray();
@@ -246,8 +246,8 @@ namespace DnsServerCore
             {
                 string zone = subZone + domain;
 
-                if (zone.Contains("xn--", StringComparison.OrdinalIgnoreCase))
-                    zone = DnsClient.ConvertDomainNameToUnicode(zone);
+                if (DnsClient.TryConvertDomainNameToUnicode(zone, out string zoneIdn))
+                    zone = zoneIdn;
 
                 jsonWriter.WriteStringValue(zone);
             }
@@ -422,8 +422,8 @@ namespace DnsServerCore
 
             jsonWriter.WriteString("domain", domain);
 
-            if (domain.Contains("xn--", StringComparison.OrdinalIgnoreCase))
-                jsonWriter.WriteString("domainIdn", DnsClient.ConvertDomainNameToUnicode(domain));
+            if (DnsClient.TryConvertDomainNameToUnicode(domain, out string idn))
+                jsonWriter.WriteString("domainIdn", idn);
 
             jsonWriter.WritePropertyName("zones");
             jsonWriter.WriteStartArray();
@@ -435,8 +435,8 @@ namespace DnsServerCore
             {
                 string zone = subZone + domain;
 
-                if (zone.Contains("xn--", StringComparison.OrdinalIgnoreCase))
-                    zone = DnsClient.ConvertDomainNameToUnicode(zone);
+                if (DnsClient.TryConvertDomainNameToUnicode(zone, out string zoneIdn))
+                    zone = zoneIdn;
 
                 jsonWriter.WriteStringValue(zone);
             }
