@@ -70,6 +70,8 @@ namespace DnsServerCore
                 jsonWriter.WriteString("uptimestamp", _dnsWebService._uptimestamp);
                 jsonWriter.WriteString("dnsServerDomain", _dnsWebService.DnsServer.ServerDomain);
                 jsonWriter.WriteNumber("defaultRecordTtl", _dnsWebService._zonesApi.DefaultRecordTtl);
+                jsonWriter.WriteBoolean("useSoaSerialDateScheme", _dnsWebService.DnsServer.AuthZoneManager.UseSoaSerialDateScheme);
+                jsonWriter.WriteBoolean("dnssecValidation", _dnsWebService.DnsServer.DnssecValidation);
 
                 jsonWriter.WritePropertyName("permissions");
                 jsonWriter.WriteStartObject();
