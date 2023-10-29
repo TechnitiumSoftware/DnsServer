@@ -79,7 +79,7 @@ namespace Failover
                             switch (response.Status)
                             {
                                 case HealthStatus.Unknown:
-                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, 30, new DnsARecordData(address)));
+                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, 10, new DnsARecordData(address)));
                                     break;
 
                                 case HealthStatus.Healthy:
@@ -101,7 +101,7 @@ namespace Failover
                             switch (response.Status)
                             {
                                 case HealthStatus.Unknown:
-                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, 30, new DnsAAAARecordData(address)));
+                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, 10, new DnsAAAARecordData(address)));
                                     break;
 
                                 case HealthStatus.Healthy:

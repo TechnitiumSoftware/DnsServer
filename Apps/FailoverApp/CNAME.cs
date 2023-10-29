@@ -63,9 +63,9 @@ namespace Failover
             {
                 case HealthStatus.Unknown:
                     if (question.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
-                        return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.ANAME, DnsClass.IN, 30, new DnsANAMERecordData(domain)) }; //use ANAME
+                        return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.ANAME, DnsClass.IN, 10, new DnsANAMERecordData(domain)) }; //use ANAME
                     else
-                        return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, DnsClass.IN, 30, new DnsCNAMERecordData(domain)) };
+                        return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, DnsClass.IN, 10, new DnsCNAMERecordData(domain)) };
 
                 case HealthStatus.Healthy:
                     if (question.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
