@@ -102,41 +102,48 @@ namespace DnsServerCore.Dns.Zones
             DnsDatagram soaResponse;
             NameServerAddress[] primaryNameServers = null;
 
-            if (string.IsNullOrEmpty(primaryNameServerAddresses))
+            try
             {
-                soaResponse = await secondaryZone._dnsServer.DirectQueryAsync(soaQuestion);
-            }
-            else
-            {
-                primaryNameServers = primaryNameServerAddresses.Split(delegate (string address)
+                if (string.IsNullOrEmpty(primaryNameServerAddresses))
                 {
-                    NameServerAddress nameServer = NameServerAddress.Parse(address);
-
-                    if (nameServer.Protocol != zoneTransferProtocol)
-                        nameServer = nameServer.ChangeProtocol(zoneTransferProtocol);
-
-                    return nameServer;
-                }, ',');
-
-                DnsClient dnsClient = new DnsClient(primaryNameServers);
-
-                foreach (NameServerAddress nameServerAddress in dnsClient.Servers)
-                {
-                    if (nameServerAddress.IsIPEndPointStale)
-                        await nameServerAddress.ResolveIPAddressAsync(secondaryZone._dnsServer, secondaryZone._dnsServer.PreferIPv6);
+                    soaResponse = await secondaryZone._dnsServer.DirectQueryAsync(soaQuestion);
                 }
-
-                dnsClient.Proxy = secondaryZone._dnsServer.Proxy;
-                dnsClient.PreferIPv6 = secondaryZone._dnsServer.PreferIPv6;
-
-                DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { soaQuestion }, null, null, null, dnsServer.UdpPayloadSize);
-
-                if (string.IsNullOrEmpty(tsigKeyName))
-                    soaResponse = await dnsClient.ResolveAsync(soaRequest);
-                else if ((dnsServer.TsigKeys is not null) && dnsServer.TsigKeys.TryGetValue(tsigKeyName, out TsigKey key))
-                    soaResponse = await dnsClient.ResolveAsync(soaRequest, key, REFRESH_TSIG_FUDGE);
                 else
-                    throw new DnsServerException("No such TSIG key was found configured: " + tsigKeyName);
+                {
+                    primaryNameServers = primaryNameServerAddresses.Split(delegate (string address)
+                    {
+                        NameServerAddress nameServer = NameServerAddress.Parse(address);
+
+                        if (nameServer.Protocol != zoneTransferProtocol)
+                            nameServer = nameServer.ChangeProtocol(zoneTransferProtocol);
+
+                        return nameServer;
+                    }, ',');
+
+                    DnsClient dnsClient = new DnsClient(primaryNameServers);
+
+                    foreach (NameServerAddress nameServerAddress in dnsClient.Servers)
+                    {
+                        if (nameServerAddress.IsIPEndPointStale)
+                            await nameServerAddress.ResolveIPAddressAsync(secondaryZone._dnsServer, secondaryZone._dnsServer.PreferIPv6);
+                    }
+
+                    dnsClient.Proxy = secondaryZone._dnsServer.Proxy;
+                    dnsClient.PreferIPv6 = secondaryZone._dnsServer.PreferIPv6;
+
+                    DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { soaQuestion }, null, null, null, dnsServer.UdpPayloadSize);
+
+                    if (string.IsNullOrEmpty(tsigKeyName))
+                        soaResponse = await dnsClient.ResolveAsync(soaRequest);
+                    else if ((dnsServer.TsigKeys is not null) && dnsServer.TsigKeys.TryGetValue(tsigKeyName, out TsigKey key))
+                        soaResponse = await dnsClient.ResolveAsync(soaRequest, key, REFRESH_TSIG_FUDGE);
+                    else
+                        throw new DnsServerException("No such TSIG key was found configured: " + tsigKeyName);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new DnsServerException("DNS Server failed to find SOA record for: " + name, ex);
             }
 
             if ((soaResponse.Answer.Count == 0) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA))
