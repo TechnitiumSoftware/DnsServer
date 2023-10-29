@@ -18,8 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.ApplicationCommon;
-using DnsServerCore.Dns.Applications;
-using DnsServerCore.Dns.ZoneManagers;
 using System;
 using System.Net;
 using TechnitiumLibrary;
@@ -32,22 +30,16 @@ namespace DnsServerCore.Dns
     {
         #region variables
 
-        readonly DnsApplicationManager _dnsApplicationManager;
-        readonly AuthZoneManager _authZoneManager;
-        readonly CacheZoneManager _cacheZoneManager;
-        readonly LogManager _log;
+        readonly DnsServer _dnsServer;
         readonly bool _skipDnsAppAuthoritativeRequestHandlers;
 
         #endregion
 
         #region constructor
 
-        public ResolverDnsCache(DnsApplicationManager dnsApplicationManager, AuthZoneManager authZoneManager, CacheZoneManager cacheZoneManager, LogManager log, bool skipDnsAppAuthoritativeRequestHandlers)
+        public ResolverDnsCache(DnsServer dnsServer, bool skipDnsAppAuthoritativeRequestHandlers)
         {
-            _dnsApplicationManager = dnsApplicationManager;
-            _authZoneManager = authZoneManager;
-            _cacheZoneManager = cacheZoneManager;
-            _log = log;
+            _dnsServer = dnsServer;
             _skipDnsAppAuthoritativeRequestHandlers = skipDnsAppAuthoritativeRequestHandlers;
         }
 
@@ -57,7 +49,7 @@ namespace DnsServerCore.Dns
 
         private DnsDatagram DnsApplicationQueryClosestDelegation(DnsDatagram request)
         {
-            if (_skipDnsAppAuthoritativeRequestHandlers || (_dnsApplicationManager.DnsAuthoritativeRequestHandlers.Count < 1) || (request.Question.Count != 1))
+            if (_skipDnsAppAuthoritativeRequestHandlers || (_dnsServer.DnsApplicationManager.DnsAuthoritativeRequestHandlers.Count < 1) || (request.Question.Count != 1))
                 return null;
 
             IPEndPoint localEP = new IPEndPoint(IPAddress.Any, 0);
@@ -68,7 +60,7 @@ namespace DnsServerCore.Dns
             {
                 DnsDatagram nsRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(currentDomain, DnsResourceRecordType.NS, DnsClass.IN) });
 
-                foreach (IDnsAuthoritativeRequestHandler requestHandler in _dnsApplicationManager.DnsAuthoritativeRequestHandlers)
+                foreach (IDnsAuthoritativeRequestHandler requestHandler in _dnsServer.DnsApplicationManager.DnsAuthoritativeRequestHandlers)
                 {
                     try
                     {
@@ -81,10 +73,13 @@ namespace DnsServerCore.Dns
                                 return new DnsDatagram(request.Identifier, true, nsResponse.OPCODE, nsResponse.AuthoritativeAnswer, nsResponse.Truncation, nsResponse.RecursionDesired, nsResponse.RecursionAvailable, nsResponse.AuthenticData, nsResponse.CheckingDisabled, nsResponse.RCODE, request.Question, null, nsResponse.Authority, nsResponse.Additional);
                         }
                     }
+                    catch (DnsClientException ex)
+                    {
+                        _dnsServer.ResolverLogManager?.Write(ex);
+                    }
                     catch (Exception ex)
                     {
-                        if (_log is not null)
-                            _log.Write(ex);
+                        _dnsServer.LogManager?.Write(ex);
                     }
                 }
 
@@ -107,9 +102,9 @@ namespace DnsServerCore.Dns
         {
             DnsDatagram authResponse = DnsApplicationQueryClosestDelegation(request);
             if (authResponse is null)
-                authResponse = _authZoneManager.QueryClosestDelegation(request);
+                authResponse = _dnsServer.AuthZoneManager.QueryClosestDelegation(request);
 
-            DnsDatagram cacheResponse = _cacheZoneManager.QueryClosestDelegation(request);
+            DnsDatagram cacheResponse = _dnsServer.CacheZoneManager.QueryClosestDelegation(request);
 
             if ((authResponse is not null) && (authResponse.Authority.Count > 0))
             {
@@ -136,7 +131,7 @@ namespace DnsServerCore.Dns
 
             if (!_skipDnsAppAuthoritativeRequestHandlers)
             {
-                foreach (IDnsAuthoritativeRequestHandler requestHandler in _dnsApplicationManager.DnsAuthoritativeRequestHandlers)
+                foreach (IDnsAuthoritativeRequestHandler requestHandler in _dnsServer.DnsApplicationManager.DnsAuthoritativeRequestHandlers)
                 {
                     try
                     {
@@ -147,17 +142,20 @@ namespace DnsServerCore.Dns
                                 return authResponse;
                         }
                     }
+                    catch (DnsClientException ex)
+                    {
+                        _dnsServer.ResolverLogManager?.Write(ex);
+                    }
                     catch (Exception ex)
                     {
-                        if (_log is not null)
-                            _log.Write(ex);
+                        _dnsServer.LogManager?.Write(ex);
                     }
                 }
             }
 
             if (authResponse is null)
             {
-                authResponse = _authZoneManager.Query(request, true);
+                authResponse = _dnsServer.AuthZoneManager.Query(request, true);
                 if (authResponse is not null)
                 {
                     if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || authResponse.IsFirstAuthoritySOA())
@@ -165,7 +163,7 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            DnsDatagram cacheResponse = _cacheZoneManager.Query(request, serveStaleAndResetExpiry, findClosestNameServers);
+            DnsDatagram cacheResponse = _dnsServer.CacheZoneManager.Query(request, serveStaleAndResetExpiry, findClosestNameServers);
             if (cacheResponse is not null)
             {
                 if ((cacheResponse.RCODE != DnsResponseCode.NoError) || (cacheResponse.Answer.Count > 0) || (cacheResponse.Authority.Count == 0) || cacheResponse.IsFirstAuthoritySOA())
@@ -193,7 +191,7 @@ namespace DnsServerCore.Dns
 
         public void CacheResponse(DnsDatagram response, bool isDnssecBadCache = false, string zoneCut = null)
         {
-            _cacheZoneManager.CacheResponse(response, isDnssecBadCache, zoneCut);
+            _dnsServer.CacheZoneManager.CacheResponse(response, isDnssecBadCache, zoneCut);
         }
 
         #endregion
