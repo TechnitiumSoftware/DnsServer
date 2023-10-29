@@ -23,6 +23,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -59,11 +60,11 @@ namespace DnsServerCore.Dns.Zones
         #region variables
 
         protected AuthZoneTransfer _zoneTransfer;
-        protected IReadOnlyCollection<IPAddress> _zoneTransferNameServers;
+        protected IReadOnlyCollection<NetworkAddress> _zoneTransferNameServers;
         protected AuthZoneNotify _notify;
         protected IReadOnlyCollection<IPAddress> _notifyNameServers;
         protected AuthZoneUpdate _update;
-        protected IReadOnlyCollection<IPAddress> _updateIpAddresses;
+        protected IReadOnlyCollection<NetworkAddress> _updateIpAddresses;
         protected DateTime _lastModified;
         protected List<DnsResourceRecord> _zoneHistory; //for IXFR support
         protected IReadOnlyDictionary<string, object> _zoneTransferTsigKeyNames;
@@ -389,7 +390,7 @@ namespace DnsServerCore.Dns.Zones
 
                             LogManager log = dnsServer.LogManager;
                             if (log is not null)
-                                log.Write("DNS Server failed to notify name server '" + nameServerHost + "' (RCODE=" + response.RCODE.ToString() + ") for zone : " + (_name == "" ? "<root>" : _name));
+                                log.Write("DNS Server failed to notify name server '" + nameServerHost + "' (RCODE=" + response.RCODE.ToString() + ") for zone: " + (_name == "" ? "<root>" : _name));
                         }
                         break;
                 }
@@ -604,7 +605,7 @@ namespace DnsServerCore.Dns.Zones
             set { _zoneTransfer = value; }
         }
 
-        public IReadOnlyCollection<IPAddress> ZoneTransferNameServers
+        public IReadOnlyCollection<NetworkAddress> ZoneTransferNameServers
         {
             get { return _zoneTransferNameServers; }
             set
@@ -659,7 +660,7 @@ namespace DnsServerCore.Dns.Zones
             set { _update = value; }
         }
 
-        public IReadOnlyCollection<IPAddress> UpdateIpAddresses
+        public IReadOnlyCollection<NetworkAddress> UpdateIpAddresses
         {
             get { return _updateIpAddresses; }
             set
