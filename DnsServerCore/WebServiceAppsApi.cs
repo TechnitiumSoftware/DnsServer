@@ -304,6 +304,7 @@ namespace DnsServerCore
 
                     jsonWriter.WriteBoolean("isRequestController", dnsApp.Value is IDnsRequestController);
                     jsonWriter.WriteBoolean("isAuthoritativeRequestHandler", dnsApp.Value is IDnsAuthoritativeRequestHandler);
+                    jsonWriter.WriteBoolean("isRequestBlockingHandler", dnsApp.Value is IDnsRequestBlockingHandler);
                     jsonWriter.WriteBoolean("isQueryLogger", dnsApp.Value is IDnsQueryLogger);
                     jsonWriter.WriteBoolean("isPostProcessor", dnsApp.Value is IDnsPostProcessor);
 
