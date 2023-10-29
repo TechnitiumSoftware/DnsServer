@@ -37,7 +37,9 @@ $(function () {
                 $("#lblAboutVersion").text(sessionData.info.version);
                 $("#lblAboutUptime").text(moment(sessionData.info.uptimestamp).local().format("lll") + " (" + moment(sessionData.info.uptimestamp).fromNow() + ")");
                 $("#lblDnsServerDomain").text(" - " + sessionData.info.dnsServerDomain);
+                $("#chkUseSoaSerialDateScheme").prop("checked", sessionData.info.useSoaSerialDateScheme);
                 $("#txtAddEditRecordTtl").attr("placeholder", sessionData.info.defaultRecordTtl);
+                $("#chkDnssecValidation").prop("checked", sessionData.info.dnssecValidation);
 
                 showPageMain();
             },
