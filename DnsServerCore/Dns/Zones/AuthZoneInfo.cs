@@ -23,6 +23,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
@@ -50,11 +51,11 @@ namespace DnsServerCore.Dns.Zones
         readonly AuthZoneType _type;
         readonly bool _disabled;
         readonly AuthZoneTransfer _zoneTransfer;
-        readonly IReadOnlyCollection<IPAddress> _zoneTransferNameServers;
+        readonly IReadOnlyCollection<NetworkAddress> _zoneTransferNameServers;
         readonly AuthZoneNotify _notify;
         readonly IReadOnlyCollection<IPAddress> _notifyNameServers;
         readonly AuthZoneUpdate _update;
-        readonly IReadOnlyCollection<IPAddress> _updateIpAddresses;
+        readonly IReadOnlyCollection<NetworkAddress> _updateIpAddresses;
         readonly DateTime _lastModified;
         readonly DateTime _expiry;
         readonly IReadOnlyList<DnsResourceRecord> _zoneHistory; //for IXFR support
@@ -101,6 +102,7 @@ namespace DnsServerCore.Dns.Zones
                 case 6:
                 case 7:
                 case 8:
+                case 9:
                     _name = bR.ReadShortString();
                     _type = (AuthZoneType)bR.ReadByte();
                     _disabled = bR.ReadBoolean();
@@ -113,12 +115,36 @@ namespace DnsServerCore.Dns.Zones
                             int count = bR.ReadByte();
                             if (count > 0)
                             {
-                                IPAddress[] nameServers = new IPAddress[count];
+                                NetworkAddress[] networks = new NetworkAddress[count];
 
-                                for (int i = 0; i < count; i++)
-                                    nameServers[i] = IPAddressExtensions.ReadFrom(bR);
+                                if (version >= 9)
+                                {
+                                    for (int i = 0; i < count; i++)
+                                        networks[i] = NetworkAddress.ReadFrom(bR);
+                                }
+                                else
+                                {
+                                    for (int i = 0; i < count; i++)
+                                    {
+                                        IPAddress address = IPAddressExtensions.ReadFrom(bR);
 
-                                _zoneTransferNameServers = nameServers;
+                                        switch (address.AddressFamily)
+                                        {
+                                            case AddressFamily.InterNetwork:
+                                                networks[i] = new NetworkAddress(address, 32);
+                                                break;
+
+                                            case AddressFamily.InterNetworkV6:
+                                                networks[i] = new NetworkAddress(address, 128);
+                                                break;
+
+                                            default:
+                                                throw new InvalidOperationException();
+                                        }
+                                    }
+                                }
+
+                                _zoneTransferNameServers = networks;
                             }
                         }
 
@@ -144,12 +170,36 @@ namespace DnsServerCore.Dns.Zones
                             int count = bR.ReadByte();
                             if (count > 0)
                             {
-                                IPAddress[] ipAddresses = new IPAddress[count];
+                                NetworkAddress[] networks = new NetworkAddress[count];
 
-                                for (int i = 0; i < count; i++)
-                                    ipAddresses[i] = IPAddressExtensions.ReadFrom(bR);
+                                if (version >= 9)
+                                {
+                                    for (int i = 0; i < count; i++)
+                                        networks[i] = NetworkAddress.ReadFrom(bR);
+                                }
+                                else
+                                {
+                                    for (int i = 0; i < count; i++)
+                                    {
+                                        IPAddress address = IPAddressExtensions.ReadFrom(bR);
 
-                                _updateIpAddresses = ipAddresses;
+                                        switch (address.AddressFamily)
+                                        {
+                                            case AddressFamily.InterNetwork:
+                                                networks[i] = new NetworkAddress(address, 32);
+                                                break;
+
+                                            case AddressFamily.InterNetworkV6:
+                                                networks[i] = new NetworkAddress(address, 128);
+                                                break;
+
+                                            default:
+                                                throw new InvalidOperationException();
+                                        }
+                                    }
+                                }
+
+                                _updateIpAddresses = networks;
                             }
                         }
                     }
@@ -466,7 +516,7 @@ namespace DnsServerCore.Dns.Zones
             if (_apexZone is null)
                 throw new InvalidOperationException();
 
-            bW.Write((byte)8); //version
+            bW.Write((byte)9); //version
 
             bW.WriteShortString(_name);
             bW.Write((byte)_type);
@@ -480,8 +530,8 @@ namespace DnsServerCore.Dns.Zones
             else
             {
                 bW.Write(Convert.ToByte(_zoneTransferNameServers.Count));
-                foreach (IPAddress nameServer in _zoneTransferNameServers)
-                    nameServer.WriteTo(bW);
+                foreach (NetworkAddress networkAddress in _zoneTransferNameServers)
+                    networkAddress.WriteTo(bW);
             }
 
             bW.Write((byte)_notify);
@@ -506,8 +556,8 @@ namespace DnsServerCore.Dns.Zones
             else
             {
                 bW.Write(Convert.ToByte(_updateIpAddresses.Count));
-                foreach (IPAddress ipAddress in _updateIpAddresses)
-                    ipAddress.WriteTo(bW);
+                foreach (NetworkAddress networkAddress in _updateIpAddresses)
+                    networkAddress.WriteTo(bW);
             }
 
             bW.Write(_lastModified);
@@ -700,7 +750,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public IReadOnlyCollection<IPAddress> ZoneTransferNameServers
+        public IReadOnlyCollection<NetworkAddress> ZoneTransferNameServers
         {
             get
             {
@@ -772,7 +822,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public IReadOnlyCollection<IPAddress> UpdateIpAddresses
+        public IReadOnlyCollection<NetworkAddress> UpdateIpAddresses
         {
             get
             {
