@@ -342,7 +342,24 @@ namespace Failover
                     else
                         enabled = true;
 
-                    _underMaintenance.TryAdd(NetworkAddress.Parse(network), enabled);
+                    NetworkAddress umNetwork = NetworkAddress.Parse(network);
+
+                    if (_underMaintenance.TryAdd(umNetwork, enabled))
+                    {
+                        if (enabled)
+                        {
+                            foreach (KeyValuePair<string, HealthMonitor> healthMonitor in _healthMonitors)
+                            {
+                                HealthMonitor monitor = healthMonitor.Value;
+
+                                if (monitor.Address is null)
+                                    continue;
+
+                                if (umNetwork.Contains(monitor.Address))
+                                    monitor.SetUnderMaintenance();
+                            }
+                        }
+                    }
                 }
             }
         }
