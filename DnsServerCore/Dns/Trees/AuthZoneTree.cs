@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -654,7 +654,24 @@ namespace DnsServerCore.Dns.Trees
                     authority = closestAuthority;
                 }
 
-                hasSubDomains = false; //since zone is found, it does not matter if subdomain exists or not
+                if (zone.Disabled)
+                {
+                    if ((closestSubDomainNode is not null) && !closestSubDomainNode.HasChildren)
+                    {
+                        //closest sub domain node does not have any children so no sub domains
+                        hasSubDomains = false;
+                    }
+                    else
+                    {
+                        //check if current node has sub domains
+                        hasSubDomains = SubDomainExists(key, currentNode);
+                    }
+                }
+                else
+                {
+                    //since zone is found, it does not matter if subdomain exists or not
+                    hasSubDomains = false;
+                }
 
                 return zone;
             }
