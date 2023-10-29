@@ -410,7 +410,7 @@ namespace DnsServerCore
                         }
                     }
 
-                    _dnsWebService.DnsServer.AuthZoneManager.ImportRecords(zoneInfo.Name, importRecords);
+                    _dnsWebService.DnsServer.AuthZoneManager.ImportRecords(zoneInfo.Name, importRecords, true);
                 }
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS Client imported record(s) for authoritative zone {server: " + server + "; zone: " + zoneInfo.Name + "; type: " + type + ";}");
