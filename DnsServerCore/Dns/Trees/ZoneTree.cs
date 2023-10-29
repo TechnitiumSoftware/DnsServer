@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -105,19 +105,7 @@ namespace DnsServerCore.Dns.Trees
                     if (mainKey[i] == 1) //[*]
                     {
                         if (i == mainKey.Length - 2)
-                            return true;
-
-                        //skip j to next label
-                        while (j < testKey.Length)
-                        {
-                            if (testKey[j] == 0) //[.]
-                                break;
-
-                            j++;
-                        }
-
-                        i++;
-                        continue;
+                            return true; //last label valid wildcard
                     }
 
                     if (mainKey[i] != testKey[j])
@@ -164,17 +152,8 @@ namespace DnsServerCore.Dns.Trees
                 {
                     if (mainKey[i] == 1) //[*]
                     {
-                        //skip j to next label
-                        while (j < testKey.Length)
-                        {
-                            if (testKey[j] == 0) //[.]
-                                break;
-
-                            j++;
-                        }
-
-                        i++;
-                        continue;
+                        if (i == mainKey.Length - 2)
+                            return true; //last label valid wildcard
                     }
 
                     if (mainKey[i] != testKey[j])
@@ -276,16 +255,7 @@ namespace DnsServerCore.Dns.Trees
                         return null; //no child or wildcard found
 
                     //use wildcard node
-                    //skip to next label
-                    while (++i < key.Length)
-                    {
-                        if (key[i] == 0) //[.]
-                            break;
-                    }
-
-                    currentNode = wildcard;
-                    wildcard = null;
-                    continue;
+                    break;
                 }
 
                 currentNode = child;
