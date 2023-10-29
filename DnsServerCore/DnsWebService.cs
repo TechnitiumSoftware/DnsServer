@@ -90,6 +90,7 @@ namespace DnsServerCore
         internal int _webServiceHttpPort = 5380;
         internal int _webServiceTlsPort = 53443;
         internal bool _webServiceEnableTls;
+        internal bool _webServiceEnableHttp3;
         internal bool _webServiceHttpToTlsRedirect;
         internal bool _webServiceUseSelfSignedTlsCertificate;
         internal string _webServiceTlsCertificatePath;
@@ -304,7 +305,7 @@ namespace DnsServerCore
                     {
                         serverOptions.Listen(webServiceLocalAddress, webServiceTlsPort, delegate (ListenOptions listenOptions)
                         {
-                            listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
+                            listenOptions.Protocols = _webServiceEnableHttp3 ? HttpProtocols.Http1AndHttp2AndHttp3 : HttpProtocols.Http1AndHttp2;
                             listenOptions.UseHttps(delegate (SslStream stream, SslClientHelloInfo clientHelloInfo, object state, CancellationToken cancellationToken)
                             {
                                 return ValueTask.FromResult(_webServiceSslServerAuthenticationOptions);
@@ -408,6 +409,8 @@ namespace DnsServerCore
             //zones
             _webService.MapGetAndPost("/api/zones/list", _zonesApi.ListZones);
             _webService.MapGetAndPost("/api/zones/create", _zonesApi.CreateZoneAsync);
+            _webService.MapGetAndPost("/api/zones/import", _zonesApi.ImportZoneAsync);
+            _webService.MapGetAndPost("/api/zones/export", _zonesApi.ExportZoneAsync);
             _webService.MapGetAndPost("/api/zones/clone", _zonesApi.CloneZone);
             _webService.MapGetAndPost("/api/zones/convert", _zonesApi.ConvertZone);
             _webService.MapGetAndPost("/api/zones/enable", _zonesApi.EnableZone);
@@ -420,6 +423,7 @@ namespace DnsServerCore
             _webService.MapGetAndPost("/api/zones/permissions/set", delegate (HttpContext context) { _authApi.SetPermissionsDetails(context, PermissionSection.Zones); });
             _webService.MapGetAndPost("/api/zones/dnssec/sign", _zonesApi.SignPrimaryZone);
             _webService.MapGetAndPost("/api/zones/dnssec/unsign", _zonesApi.UnsignPrimaryZone);
+            _webService.MapGetAndPost("/api/zones/dnssec/viewDS", _zonesApi.GetPrimaryZoneDsRecords);
             _webService.MapGetAndPost("/api/zones/dnssec/properties/get", _zonesApi.GetPrimaryZoneDnssecProperties);
             _webService.MapGetAndPost("/api/zones/dnssec/properties/convertToNSEC", _zonesApi.ConvertPrimaryZoneToNSEC);
             _webService.MapGetAndPost("/api/zones/dnssec/properties/convertToNSEC3", _zonesApi.ConvertPrimaryZoneToNSEC3);
@@ -543,6 +547,7 @@ namespace DnsServerCore
                     }
                     break;
 
+                case "/api/zones/export":
                 case "/api/allowed/export":
                 case "/api/blocked/export":
                 case "/api/settings/backup":
@@ -818,13 +823,24 @@ namespace DnsServerCore
 
         #region quic
 
-        internal static void ValidateQuicSupport()
+        internal static void ValidateQuicSupport(string protocolName = "DNS-over-QUIC")
         {
 #pragma warning disable CA2252 // This API requires opting into preview features
 #pragma warning disable CA1416 // Validate platform compatibility
 
             if (!QuicConnection.IsSupported)
-                throw new DnsWebServiceException("DNS-over-QUIC is supported only on Windows 11, Windows Server 2022, and Linux. On Linux, you must install 'libmsquic' and OpenSSL v1.1.1 manually.");
+                throw new DnsWebServiceException(protocolName + " is supported only on Windows 11, Windows Server 2022, and Linux. On Linux, you must install 'libmsquic' manually.");
+
+#pragma warning restore CA1416 // Validate platform compatibility
+#pragma warning restore CA2252 // This API requires opting into preview features
+        }
+
+        internal static bool IsQuicSupported()
+        {
+#pragma warning disable CA2252 // This API requires opting into preview features
+#pragma warning disable CA1416 // Validate platform compatibility
+
+            return QuicConnection.IsSupported;
 
 #pragma warning restore CA1416 // Validate platform compatibility
 #pragma warning restore CA2252 // This API requires opting into preview features
@@ -1076,7 +1092,7 @@ namespace DnsServerCore
 
             int version = bR.ReadByte();
 
-            if ((version >= 28) && (version <= 32))
+            if ((version >= 28) && (version <= 33))
             {
                 ReadConfigFrom(bR, version);
             }
@@ -1085,6 +1101,11 @@ namespace DnsServerCore
                 ReadOldConfigFrom(bR, version);
 
                 //new default settings
+                _webServiceEnableHttp3 = _webServiceEnableTls && IsQuicSupported();
+                _dnsServer.AuthZoneManager.UseSoaSerialDateScheme = false;
+                _dnsServer.ZoneTransferAllowedNetworks = null;
+                _dnsServer.BlockingBypassList = null;
+                _dnsServer.ResolverLogManager = _log;
                 _appsApi.EnableAutomaticUpdate = true;
             }
             else
@@ -1120,6 +1141,12 @@ namespace DnsServerCore
                 }
 
                 _webServiceEnableTls = bR.ReadBoolean();
+
+                if (version >= 33)
+                    _webServiceEnableHttp3 = bR.ReadBoolean();
+                else
+                    _webServiceEnableHttp3 = _webServiceEnableTls && IsQuicSupported();
+
                 _webServiceHttpToTlsRedirect = bR.ReadBoolean();
                 _webServiceUseSelfSignedTlsCertificate = bR.ReadBoolean();
 
@@ -1171,6 +1198,32 @@ namespace DnsServerCore
                 }
 
                 _zonesApi.DefaultRecordTtl = bR.ReadUInt32();
+
+                if (version >= 33)
+                {
+                    _dnsServer.AuthZoneManager.UseSoaSerialDateScheme = bR.ReadBoolean();
+
+                    int count = bR.ReadByte();
+                    if (count > 0)
+                    {
+                        NetworkAddress[] networks = new NetworkAddress[count];
+
+                        for (int i = 0; i < count; i++)
+                            networks[i] = NetworkAddress.ReadFrom(bR);
+
+                        _dnsServer.ZoneTransferAllowedNetworks = networks;
+                    }
+                    else
+                    {
+                        _dnsServer.ZoneTransferAllowedNetworks = null;
+                    }
+                }
+                else
+                {
+                    _dnsServer.AuthZoneManager.UseSoaSerialDateScheme = false;
+                    _dnsServer.ZoneTransferAllowedNetworks = null;
+                }
+
                 _appsApi.EnableAutomaticUpdate = bR.ReadBoolean();
 
                 _dnsServer.PreferIPv6 = bR.ReadBoolean();
@@ -1393,6 +1446,28 @@ namespace DnsServerCore
                 _dnsServer.EnableBlocking = bR.ReadBoolean();
                 _dnsServer.AllowTxtBlockingReport = bR.ReadBoolean();
 
+                if (version >= 33)
+                {
+                    int count = bR.ReadByte();
+                    if (count > 0)
+                    {
+                        NetworkAddress[] networks = new NetworkAddress[count];
+
+                        for (int i = 0; i < count; i++)
+                            networks[i] = NetworkAddress.ReadFrom(bR);
+
+                        _dnsServer.BlockingBypassList = networks;
+                    }
+                    else
+                    {
+                        _dnsServer.BlockingBypassList = null;
+                    }
+                }
+                else
+                {
+                    _dnsServer.BlockingBypassList = null;
+                }
+
                 _dnsServer.BlockingType = (DnsServerBlockingType)bR.ReadByte();
 
                 {
@@ -1503,6 +1578,18 @@ namespace DnsServerCore
                 _dnsServer.ForwarderConcurrency = bR.ReadInt32();
 
                 //logging
+                if (version >= 33)
+                {
+                    if (bR.ReadBoolean()) //ignore resolver logs
+                        _dnsServer.ResolverLogManager = null;
+                    else
+                        _dnsServer.ResolverLogManager = _log;
+                }
+                else
+                {
+                    _dnsServer.ResolverLogManager = _log;
+                }
+
                 if (bR.ReadBoolean()) //log all queries
                     _dnsServer.QueryLogManager = _log;
                 else
@@ -2112,7 +2199,7 @@ namespace DnsServerCore
         private void WriteConfigTo(BinaryWriter bW)
         {
             bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-            bW.Write((byte)32); //version
+            bW.Write((byte)33); //version
 
             //web service
             {
@@ -2127,6 +2214,7 @@ namespace DnsServerCore
                 }
 
                 bW.Write(_webServiceEnableTls);
+                bW.Write(_webServiceEnableHttp3);
                 bW.Write(_webServiceHttpToTlsRedirect);
                 bW.Write(_webServiceUseSelfSignedTlsCertificate);
 
@@ -2154,6 +2242,20 @@ namespace DnsServerCore
                 }
 
                 bW.Write(_zonesApi.DefaultRecordTtl);
+                bW.Write(_dnsServer.AuthZoneManager.UseSoaSerialDateScheme);
+
+                if (_dnsServer.ZoneTransferAllowedNetworks is null)
+                {
+                    bW.Write((byte)0);
+                }
+                else
+                {
+                    bW.Write(Convert.ToByte(_dnsServer.ZoneTransferAllowedNetworks.Count));
+
+                    foreach (NetworkAddress network in _dnsServer.ZoneTransferAllowedNetworks)
+                        network.WriteTo(bW);
+                }
+
                 bW.Write(_appsApi.EnableAutomaticUpdate);
 
                 bW.Write(_dnsServer.PreferIPv6);
@@ -2272,6 +2374,18 @@ namespace DnsServerCore
                 bW.Write(_dnsServer.EnableBlocking);
                 bW.Write(_dnsServer.AllowTxtBlockingReport);
 
+                if (_dnsServer.BlockingBypassList is null)
+                {
+                    bW.Write((byte)0);
+                }
+                else
+                {
+                    bW.Write(Convert.ToByte(_dnsServer.BlockingBypassList.Count));
+
+                    foreach (NetworkAddress network in _dnsServer.BlockingBypassList)
+                        network.WriteTo(bW);
+                }
+
                 bW.Write((byte)_dnsServer.BlockingType);
 
                 {
@@ -2347,6 +2461,7 @@ namespace DnsServerCore
                 bW.Write(_dnsServer.ForwarderConcurrency);
 
                 //logging
+                bW.Write(_dnsServer.ResolverLogManager is null); //ignore resolver logs
                 bW.Write(_dnsServer.QueryLogManager is not null); //log all queries
                 bW.Write(_dnsServer.StatsManager.MaxStatFileDays);
             }
