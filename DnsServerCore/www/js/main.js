@@ -299,6 +299,7 @@ $(function () {
 
     $("#chkWebServiceEnableTls").click(function () {
         var webServiceEnableTls = $("#chkWebServiceEnableTls").prop("checked");
+        $("#chkWebServiceEnableHttp3").prop("disabled", !webServiceEnableTls);
         $("#chkWebServiceHttpToTlsRedirect").prop("disabled", !webServiceEnableTls);
         $("#chkWebServiceUseSelfSignedTlsCertificate").prop("disabled", !webServiceEnableTls);
         $("#txtWebServiceTlsPort").prop("disabled", !webServiceEnableTls);
@@ -356,6 +357,7 @@ $(function () {
 
     $("#chkEnableLogging").click(function () {
         var enableLogging = $("#chkEnableLogging").prop("checked");
+        $("#chkIgnoreResolverLogs").prop("disabled", !enableLogging);
         $("#chkLogQueries").prop("disabled", !enableLogging);
         $("#chkUseLocalTime").prop("disabled", !enableLogging);
         $("#txtLogFolderPath").prop("disabled", !enableLogging);
@@ -959,6 +961,18 @@ function loadDnsSettings(responseJSON) {
 
     $("#txtDefaultRecordTtl").val(responseJSON.response.defaultRecordTtl);
     $("#txtAddEditRecordTtl").attr("placeholder", responseJSON.response.defaultRecordTtl);
+
+    $("#chkUseSoaSerialDateScheme").prop("checked", responseJSON.response.useSoaSerialDateScheme);
+
+    {
+        var value = "";
+
+        for (var i = 0; i < responseJSON.response.zoneTransferAllowedNetworks.length; i++)
+            value += responseJSON.response.zoneTransferAllowedNetworks[i] + "\r\n";
+
+        $("#txtZoneTransferAllowedNetworks").val(value);
+    }
+
     $("#chkDnsAppsEnableAutomaticUpdate").prop("checked", responseJSON.response.dnsAppsEnableAutomaticUpdate);
 
     $("#chkPreferIPv6").prop("checked", responseJSON.response.preferIPv6);
@@ -999,12 +1013,15 @@ function loadDnsSettings(responseJSON) {
     $("#txtWebServiceHttpPort").val(responseJSON.response.webServiceHttpPort);
 
     $("#chkWebServiceEnableTls").prop("checked", responseJSON.response.webServiceEnableTls);
+
+    $("#chkWebServiceEnableHttp3").prop("disabled", !responseJSON.response.webServiceEnableTls);
     $("#chkWebServiceHttpToTlsRedirect").prop("disabled", !responseJSON.response.webServiceEnableTls);
     $("#chkWebServiceUseSelfSignedTlsCertificate").prop("disabled", !responseJSON.response.webServiceEnableTls);
     $("#txtWebServiceTlsPort").prop("disabled", !responseJSON.response.webServiceEnableTls);
     $("#txtWebServiceTlsCertificatePath").prop("disabled", !responseJSON.response.webServiceEnableTls);
     $("#txtWebServiceTlsCertificatePassword").prop("disabled", !responseJSON.response.webServiceEnableTls);
 
+    $("#chkWebServiceEnableHttp3").prop("checked", responseJSON.response.webServiceEnableHttp3);
     $("#chkWebServiceHttpToTlsRedirect").prop("checked", responseJSON.response.webServiceHttpToTlsRedirect);
     $("#chkWebServiceUseSelfSignedTlsCertificate").prop("checked", responseJSON.response.webServiceUseSelfSignedTlsCertificate);
     $("#txtWebServiceTlsPort").val(responseJSON.response.webServiceTlsPort);
@@ -1142,6 +1159,15 @@ function loadDnsSettings(responseJSON) {
     $("#txtTemporaryDisableBlockingMinutes").val("");
 
     $("#txtCustomBlockingAddresses").prop("disabled", true);
+
+    {
+        var value = "";
+
+        for (var i = 0; i < responseJSON.response.blockingBypassList.length; i++)
+            value += responseJSON.response.blockingBypassList[i] + "\r\n";
+
+        $("#txtBlockingBypassList").val(value);
+    }
 
     switch (responseJSON.response.blockingType) {
         case "NxDomain":
@@ -1303,10 +1329,13 @@ function loadDnsSettings(responseJSON) {
 
     //logging
     $("#chkEnableLogging").prop("checked", responseJSON.response.enableLogging);
+
+    $("#chkIgnoreResolverLogs").prop("disabled", !responseJSON.response.enableLogging);
     $("#chkLogQueries").prop("disabled", !responseJSON.response.enableLogging);
     $("#chkUseLocalTime").prop("disabled", !responseJSON.response.enableLogging);
     $("#txtLogFolderPath").prop("disabled", !responseJSON.response.enableLogging);
 
+    $("#chkIgnoreResolverLogs").prop("checked", responseJSON.response.ignoreResolverLogs);
     $("#chkLogQueries").prop("checked", responseJSON.response.logQueries);
     $("#chkUseLocalTime").prop("checked", responseJSON.response.useLocalTime);
     $("#txtLogFolderPath").val(responseJSON.response.logFolder);
@@ -1332,6 +1361,14 @@ function saveDnsSettings() {
         $("#txtDnsServerLocalEndPoints").val(dnsServerLocalEndPoints.replace(/,/g, "\n"));
 
     var defaultRecordTtl = $("#txtDefaultRecordTtl").val();
+    var useSoaSerialDateScheme = $("#chkUseSoaSerialDateScheme").prop("checked");
+
+    var zoneTransferAllowedNetworks = cleanTextList($("#txtZoneTransferAllowedNetworks").val());
+    if ((zoneTransferAllowedNetworks.length == 0) || (zoneTransferAllowedNetworks === ","))
+        zoneTransferAllowedNetworks = false;
+    else
+        $("#txtZoneTransferAllowedNetworks").val(zoneTransferAllowedNetworks.replace(/,/g, "\n") + "\n");
+
     var dnsAppsEnableAutomaticUpdate = $("#chkDnsAppsEnableAutomaticUpdate").prop('checked');
     var preferIPv6 = $("#chkPreferIPv6").prop('checked');
     var udpPayloadSize = $("#txtEdnsUdpPayloadSize").val();
@@ -1444,6 +1481,7 @@ function saveDnsSettings() {
         webServiceHttpPort = 5380;
 
     var webServiceEnableTls = $("#chkWebServiceEnableTls").prop("checked");
+    var webServiceEnableHttp3 = $("#chkWebServiceEnableHttp3").prop("checked");
     var webServiceHttpToTlsRedirect = $("#chkWebServiceHttpToTlsRedirect").prop("checked");
     var webServiceUseSelfSignedTlsCertificate = $("#chkWebServiceUseSelfSignedTlsCertificate").prop("checked");
     var webServiceTlsPort = $("#txtWebServiceTlsPort").val();
@@ -1626,6 +1664,12 @@ function saveDnsSettings() {
     var enableBlocking = $("#chkEnableBlocking").prop("checked");
     var allowTxtBlockingReport = $("#chkAllowTxtBlockingReport").prop("checked");
 
+    var blockingBypassList = cleanTextList($("#txtBlockingBypassList").val());
+    if ((blockingBypassList.length == 0) || (blockingBypassList === ","))
+        blockingBypassList = false;
+    else
+        $("#txtBlockingBypassList").val(blockingBypassList.replace(/,/g, "\n") + "\n");
+
     var blockingType = $("input[name=rdBlockingType]:checked").val();
 
     var customBlockingAddresses = cleanTextList($("#txtCustomBlockingAddresses").val());
@@ -1708,6 +1752,7 @@ function saveDnsSettings() {
 
     //logging
     var enableLogging = $("#chkEnableLogging").prop('checked');
+    var ignoreResolverLogs = $("#chkIgnoreResolverLogs").prop('checked');
     var logQueries = $("#chkLogQueries").prop('checked');
     var useLocalTime = $("#chkUseLocalTime").prop('checked');
     var logFolder = $("#txtLogFolderPath").val();
@@ -1721,19 +1766,20 @@ function saveDnsSettings() {
         url: "/api/settings/set",
         method: "POST",
         data: "token=" + sessionData.token + "&dnsServerDomain=" + dnsServerDomain + "&dnsServerLocalEndPoints=" + encodeURIComponent(dnsServerLocalEndPoints)
-            + "&defaultRecordTtl=" + defaultRecordTtl + "&dnsAppsEnableAutomaticUpdate=" + dnsAppsEnableAutomaticUpdate + "&preferIPv6=" + preferIPv6 + "&udpPayloadSize=" + udpPayloadSize + "&dnssecValidation=" + dnssecValidation
+            + "&defaultRecordTtl=" + defaultRecordTtl + "&useSoaSerialDateScheme=" + useSoaSerialDateScheme + "&zoneTransferAllowedNetworks=" + encodeURIComponent(zoneTransferAllowedNetworks) + "&dnsAppsEnableAutomaticUpdate=" + dnsAppsEnableAutomaticUpdate + "&preferIPv6=" + preferIPv6 + "&udpPayloadSize=" + udpPayloadSize + "&dnssecValidation=" + dnssecValidation
             + "&eDnsClientSubnet=" + eDnsClientSubnet + "&eDnsClientSubnetIPv4PrefixLength=" + eDnsClientSubnetIPv4PrefixLength + "&eDnsClientSubnetIPv6PrefixLength=" + eDnsClientSubnetIPv6PrefixLength
             + "&qpmLimitRequests=" + qpmLimitRequests + "&qpmLimitErrors=" + qpmLimitErrors + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitIPv4PrefixLength=" + qpmLimitIPv4PrefixLength + "&qpmLimitIPv6PrefixLength=" + qpmLimitIPv6PrefixLength
             + "&clientTimeout=" + clientTimeout + "&tcpSendTimeout=" + tcpSendTimeout + "&tcpReceiveTimeout=" + tcpReceiveTimeout + "&quicIdleTimeout=" + quicIdleTimeout + "&quicMaxInboundStreams=" + quicMaxInboundStreams + "&listenBacklog=" + listenBacklog
-            + "&webServiceLocalAddresses=" + encodeURIComponent(webServiceLocalAddresses) + "&webServiceHttpPort=" + webServiceHttpPort + "&webServiceEnableTls=" + webServiceEnableTls + "&webServiceHttpToTlsRedirect=" + webServiceHttpToTlsRedirect + "&webServiceUseSelfSignedTlsCertificate=" + webServiceUseSelfSignedTlsCertificate + "&webServiceTlsPort=" + webServiceTlsPort + "&webServiceTlsCertificatePath=" + encodeURIComponent(webServiceTlsCertificatePath) + "&webServiceTlsCertificatePassword=" + encodeURIComponent(webServiceTlsCertificatePassword)
+            + "&webServiceLocalAddresses=" + encodeURIComponent(webServiceLocalAddresses) + "&webServiceHttpPort=" + webServiceHttpPort + "&webServiceEnableTls=" + webServiceEnableTls + "&webServiceEnableHttp3=" + webServiceEnableHttp3 + "&webServiceHttpToTlsRedirect=" + webServiceHttpToTlsRedirect + "&webServiceUseSelfSignedTlsCertificate=" + webServiceUseSelfSignedTlsCertificate + "&webServiceTlsPort=" + webServiceTlsPort + "&webServiceTlsCertificatePath=" + encodeURIComponent(webServiceTlsCertificatePath) + "&webServiceTlsCertificatePassword=" + encodeURIComponent(webServiceTlsCertificatePassword)
             + "&enableDnsOverUdpProxy=" + enableDnsOverUdpProxy + "&enableDnsOverTcpProxy=" + enableDnsOverTcpProxy + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&enableDnsOverQuic=" + enableDnsOverQuic + "&dnsOverUdpProxyPort=" + dnsOverUdpProxyPort + "&dnsOverTcpProxyPort=" + dnsOverTcpProxyPort + "&dnsOverHttpPort=" + dnsOverHttpPort + "&dnsOverTlsPort=" + dnsOverTlsPort + "&dnsOverHttpsPort=" + dnsOverHttpsPort + "&dnsOverQuicPort=" + dnsOverQuicPort + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword)
             + "&tsigKeys=" + encodeURIComponent(tsigKeys)
             + "&recursion=" + recursion + "&recursionDeniedNetworks=" + encodeURIComponent(recursionDeniedNetworks) + "&recursionAllowedNetworks=" + encodeURIComponent(recursionAllowedNetworks) + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization + "&nsRevalidation=" + nsRevalidation + "&resolverRetries=" + resolverRetries + "&resolverTimeout=" + resolverTimeout + "&resolverMaxStackCount=" + resolverMaxStackCount
             + "&saveCache=" + saveCache + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cacheMaximumEntries=" + cacheMaximumEntries + "&cacheMinimumRecordTtl=" + cacheMinimumRecordTtl + "&cacheMaximumRecordTtl=" + cacheMaximumRecordTtl + "&cacheNegativeRecordTtl=" + cacheNegativeRecordTtl + "&cacheFailureRecordTtl=" + cacheFailureRecordTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
-            + "&enableBlocking=" + enableBlocking + "&allowTxtBlockingReport=" + allowTxtBlockingReport + "&blockingType=" + blockingType + "&customBlockingAddresses=" + encodeURIComponent(customBlockingAddresses) + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours
+            + "&enableBlocking=" + enableBlocking + "&allowTxtBlockingReport=" + allowTxtBlockingReport + "&blockingBypassList=" + encodeURIComponent(blockingBypassList) + "&blockingType=" + blockingType + "&customBlockingAddresses=" + encodeURIComponent(customBlockingAddresses) + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours
             + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&forwarderRetries=" + forwarderRetries + "&forwarderTimeout=" + forwarderTimeout + "&forwarderConcurrency=" + forwarderConcurrency
-            + "&enableLogging=" + enableLogging + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&maxStatFileDays=" + maxStatFileDays,
+            + "&enableLogging=" + enableLogging + "&ignoreResolverLogs=" + ignoreResolverLogs + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&maxStatFileDays=" + maxStatFileDays,
         processData: false,
+        showInnerError: true,
         success: function (responseJSON) {
             loadDnsSettings(responseJSON);
 
@@ -2142,7 +2188,7 @@ function refreshDashboard(hideLoader) {
                     tableHtmlRows = "";
 
                     for (var i = 0; i < topClients.length; i++) {
-                        tableHtmlRows += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(topClients[i].name) + "<br />" + htmlEncode(topClients[i].domain == "" ? "." : topClients[i].domain) + "</td><td>" + topClients[i].hits.toLocaleString();
+                        tableHtmlRows += "<tr" + (topClients[i].rateLimited ? " style=\"color: orange;\"" : "") + "><td style=\"word-wrap: anywhere;\">" + htmlEncode(topClients[i].name) + (topClients[i].rateLimited ? " (limited)" : "") + "<br />" + htmlEncode(topClients[i].domain == "" ? "." : topClients[i].domain) + "</td><td>" + topClients[i].hits.toLocaleString();
                         tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnDashboardTopClientsRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
                         tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" onclick=\"showQueryLogs(null, '" + topClients[i].name + "'); return false;\">Show Query Logs</a></li>";
                         tableHtmlRows += "</ul></div></td></tr>";
@@ -2283,7 +2329,7 @@ function showTopStats(statsType, limit) {
                     tableHtmlRows = "";
 
                     for (var i = 0; i < topClients.length; i++) {
-                        tableHtmlRows += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(topClients[i].name) + "<br />" + htmlEncode(topClients[i].domain == "" ? "." : topClients[i].domain) + "</td><td>" + topClients[i].hits.toLocaleString();
+                        tableHtmlRows += "<tr" + (topClients[i].rateLimited ? " style=\"color: orange;\"" : "") + "><td style=\"word-wrap: anywhere;\">" + htmlEncode(topClients[i].name) + (topClients[i].rateLimited ? " (limited)" : "") + "<br />" + htmlEncode(topClients[i].domain == "" ? "." : topClients[i].domain) + "</td><td>" + topClients[i].hits.toLocaleString();
                         tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnDashboardTopClientsRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
                         tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" onclick=\"showQueryLogs(null, '" + topClients[i].name + "'); return false;\">Show Query Logs</a></li>";
                         tableHtmlRows += "</ul></div></td></tr>";
@@ -2612,7 +2658,7 @@ function restoreSettings() {
         url: "/api/settings/restore?token=" + sessionData.token + "&blockLists=" + blockLists + "&logs=" + logs + "&scopes=" + scopes + "&apps=" + apps + "&stats=" + stats + "&zones=" + zones + "&allowedZones=" + allowedZones + "&blockedZones=" + blockedZones + "&dnsSettings=" + dnsSettings + "&authConfig=" + authConfig + "&logSettings=" + logSettings + "&deleteExistingFiles=" + deleteExistingFiles,
         method: "POST",
         data: formData,
-        dataContentType: false,
+        contentType: false,
         processData: false,
         success: function (responseJSON) {
             loadDnsSettings(responseJSON);
