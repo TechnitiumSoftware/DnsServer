@@ -86,6 +86,9 @@ function getAppRowHtml(app) {
 
             if (app.dnsApps[j].isAuthoritativeRequestHandler)
                 labels += "<span class=\"label label-info\" style=\"margin-right: 4px;\">Authoritative</span>";
+                
+            if (app.dnsApps[j].isRequestBlockingHandler)
+                labels += "<span class=\"label label-info\" style=\"margin-right: 4px;\">Blocking</span>";
 
             if (app.dnsApps[j].isQueryLogger)
                 labels += "<span class=\"label label-info\" style=\"margin-right: 4px;\">Query Logs</span>";
@@ -344,7 +347,7 @@ function installApp() {
         url: "/api/apps/install?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
         method: "POST",
         data: formData,
-        dataContentType: false,
+        contentType: false,
         processData: false,
         success: function (responseJSON) {
             $("#modalInstallApp").modal("hide");
@@ -386,7 +389,7 @@ function updateApp() {
         url: "/api/apps/update?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
         method: "POST",
         data: formData,
-        dataContentType: false,
+        contentType: false,
         processData: false,
         success: function (responseJSON) {
             $("#modalUpdateApp").modal("hide");
