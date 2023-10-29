@@ -128,6 +128,25 @@ namespace DnsServerCore.Dns.Zones
 
         internal bool TrySetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records, out IReadOnlyList<DnsResourceRecord> deletedRecords)
         {
+            switch (type)
+            {
+                case DnsResourceRecordType.CNAME:
+                    if ((_entries.Count > 0) && !_entries.ContainsKey(DnsResourceRecordType.CNAME))
+                        throw new InvalidOperationException("Cannot add record: a CNAME record cannot exists with other record types for the same name.");
+
+                    break;
+
+                case DnsResourceRecordType.NSEC:
+                case DnsResourceRecordType.RRSIG:
+                    break; //ignore
+
+                default:
+                    if (_entries.ContainsKey(DnsResourceRecordType.CNAME))
+                        throw new InvalidOperationException("Cannot add record: a CNAME record cannot exists with other record types for the same name.");
+
+                    break;
+            }
+
             if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
             {
                 deletedRecords = existingRecords;
@@ -290,7 +309,13 @@ namespace DnsServerCore.Dns.Zones
                 case DnsResourceRecordType.CNAME:
                 case DnsResourceRecordType.DNAME:
                 case DnsResourceRecordType.SOA:
-                    throw new InvalidOperationException("Cannot add record: use SetRecords() for " + record.Type.ToString() + " record");
+                    throw new InvalidOperationException("Cannot add record: use SetRecords() for " + record.Type.ToString() + " record.");
+
+                default:
+                    if (_entries.ContainsKey(DnsResourceRecordType.CNAME))
+                        throw new InvalidOperationException("Cannot add record: a CNAME record cannot exists with other record types for the same name.");
+
+                    break;
             }
 
             List<DnsResourceRecord> added = new List<DnsResourceRecord>();
@@ -753,6 +778,25 @@ namespace DnsServerCore.Dns.Zones
 
         public virtual void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
         {
+            switch (type)
+            {
+                case DnsResourceRecordType.CNAME:
+                    if ((_entries.Count > 0) && !_entries.ContainsKey(DnsResourceRecordType.CNAME))
+                        throw new InvalidOperationException("Cannot add record: a CNAME record cannot exists with other record types for the same name.");
+
+                    break;
+
+                case DnsResourceRecordType.NSEC:
+                case DnsResourceRecordType.RRSIG:
+                    break; //ignore
+
+                default:
+                    if (_entries.ContainsKey(DnsResourceRecordType.CNAME))
+                        throw new InvalidOperationException("Cannot add record: a CNAME record cannot exists with other record types for the same name.");
+
+                    break;
+            }
+
             _entries[type] = records;
         }
 
@@ -865,6 +909,21 @@ namespace DnsServerCore.Dns.Zones
                                 //check for ANAME
                                 if (_entries.TryGetValue(DnsResourceRecordType.ANAME, out IReadOnlyList<DnsResourceRecord> anameRecords))
                                     return FilterDisabledRecords(type, anameRecords);
+
+                                //check for ALIAS
+                                if (_entries.TryGetValue(DnsResourceRecordType.ALIAS, out IReadOnlyList<DnsResourceRecord> aliasRecords))
+                                {
+                                    List<DnsResourceRecord> newAliasRecords = new List<DnsResourceRecord>(aliasRecords.Count);
+
+                                    foreach (DnsResourceRecord aliasRecord in aliasRecords)
+                                    {
+                                        if ((aliasRecord.RDATA is DnsALIASRecordData alias) && (alias.Type == type))
+                                            newAliasRecords.Add(aliasRecord);
+                                    }
+
+                                    if (newAliasRecords.Count > 0)
+                                        return FilterDisabledRecords(type, newAliasRecords);
+                                }
 
                                 break;
                         }
