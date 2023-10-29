@@ -79,7 +79,7 @@ namespace DnsServerCore.Dns.Zones
             InitNotify(_dnsServer);
         }
 
-        public PrimaryZone(DnsServer dnsServer, string name, string primaryNameServer, bool @internal)
+        public PrimaryZone(DnsServer dnsServer, string name, string primaryNameServer, bool @internal, bool useSoaSerialDateScheme)
             : base(name)
         {
             _dnsServer = dnsServer;
@@ -100,9 +100,13 @@ namespace DnsServerCore.Dns.Zones
                 InitNotify(_dnsServer);
             }
 
-            DnsSOARecordData soa = new DnsSOARecordData(primaryNameServer, _name.Length == 0 ? "hostadmin@localhost" : "hostadmin@" + _name, 1, 900, 300, 604800, 900);
+            uint serial = GetNewSerial(0, 0, useSoaSerialDateScheme);
+            DnsSOARecordData soa = new DnsSOARecordData(primaryNameServer, _name.Length == 0 ? "hostadmin@localhost" : "hostadmin@" + _name, serial, 900, 300, 604800, 900);
+            DnsResourceRecord soaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Minimum, soa);
 
-            _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Minimum, soa) };
+            soaRecord.GetAuthRecordInfo().UseSoaSerialDateScheme = useSoaSerialDateScheme;
+
+            _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { soaRecord };
             _entries[DnsResourceRecordType.NS] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, 3600, new DnsNSRecordData(soa.PrimaryNameServer)) };
         }
 
