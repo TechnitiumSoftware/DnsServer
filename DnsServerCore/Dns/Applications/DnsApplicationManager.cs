@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@ namespace DnsServerCore.Dns.Applications
 
         IReadOnlyList<IDnsRequestController> _dnsRequestControllers = Array.Empty<IDnsRequestController>();
         IReadOnlyList<IDnsAuthoritativeRequestHandler> _dnsAuthoritativeRequestHandlers = Array.Empty<IDnsAuthoritativeRequestHandler>();
+        IReadOnlyList<IDnsRequestBlockingHandler> _dnsRequestBlockingHandlers = Array.Empty<IDnsRequestBlockingHandler>();
         IReadOnlyList<IDnsQueryLogger> _dnsQueryLoggers = Array.Empty<IDnsQueryLogger>();
         IReadOnlyList<IDnsPostProcessor> _dnsPostProcessors = Array.Empty<IDnsPostProcessor>();
 
@@ -120,6 +121,7 @@ namespace DnsServerCore.Dns.Applications
         {
             List<IDnsRequestController> dnsRequestControllers = new List<IDnsRequestController>(1);
             List<IDnsAuthoritativeRequestHandler> dnsAuthoritativeRequestHandlers = new List<IDnsAuthoritativeRequestHandler>(1);
+            List<IDnsRequestBlockingHandler> dnsRequestBlockingHandlers = new List<IDnsRequestBlockingHandler>(1);
             List<IDnsQueryLogger> dnsQueryLoggers = new List<IDnsQueryLogger>(1);
             List<IDnsPostProcessor> dnsPostProcessors = new List<IDnsPostProcessor>(1);
 
@@ -131,6 +133,9 @@ namespace DnsServerCore.Dns.Applications
                 foreach (KeyValuePair<string, IDnsAuthoritativeRequestHandler> handler in application.Value.DnsAuthoritativeRequestHandlers)
                     dnsAuthoritativeRequestHandlers.Add(handler.Value);
 
+                foreach (KeyValuePair<string, IDnsRequestBlockingHandler> blocker in application.Value.DnsRequestBlockingHandler)
+                    dnsRequestBlockingHandlers.Add(blocker.Value);
+
                 foreach (KeyValuePair<string, IDnsQueryLogger> logger in application.Value.DnsQueryLoggers)
                     dnsQueryLoggers.Add(logger.Value);
 
@@ -140,6 +145,7 @@ namespace DnsServerCore.Dns.Applications
 
             _dnsRequestControllers = dnsRequestControllers;
             _dnsAuthoritativeRequestHandlers = dnsAuthoritativeRequestHandlers;
+            _dnsRequestBlockingHandlers = dnsRequestBlockingHandlers;
             _dnsQueryLoggers = dnsQueryLoggers;
             _dnsPostProcessors = dnsPostProcessors;
         }
@@ -167,6 +173,7 @@ namespace DnsServerCore.Dns.Applications
             _applications.Clear();
             _dnsRequestControllers = Array.Empty<IDnsRequestController>();
             _dnsAuthoritativeRequestHandlers = Array.Empty<IDnsAuthoritativeRequestHandler>();
+            _dnsRequestBlockingHandlers = Array.Empty<IDnsRequestBlockingHandler>();
             _dnsQueryLoggers = Array.Empty<IDnsQueryLogger>();
             _dnsPostProcessors = Array.Empty<IDnsPostProcessor>();
         }
@@ -289,6 +296,9 @@ namespace DnsServerCore.Dns.Applications
 
         public IReadOnlyList<IDnsAuthoritativeRequestHandler> DnsAuthoritativeRequestHandlers
         { get { return _dnsAuthoritativeRequestHandlers; } }
+
+        public IReadOnlyList<IDnsRequestBlockingHandler> DnsRequestBlockingHandlers
+        { get { return _dnsRequestBlockingHandlers; } }
 
         public IReadOnlyList<IDnsQueryLogger> DnsQueryLoggers
         { get { return _dnsQueryLoggers; } }
