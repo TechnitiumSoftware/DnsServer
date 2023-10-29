@@ -442,6 +442,7 @@ namespace DnsServerCore
                         jsonWriter.WriteString("domain", clientDomain);
 
                     jsonWriter.WriteNumber("hits", item.Value);
+                    jsonWriter.WriteBoolean("rateLimited", _dnsWebService.DnsServer.IsQpmLimitCrossed(IPAddress.Parse(item.Key)));
 
                     jsonWriter.WriteEndObject();
                 }
@@ -462,8 +463,8 @@ namespace DnsServerCore
 
                     jsonWriter.WriteString("name", item.Key);
 
-                    if (item.Key.Contains("xn--", StringComparison.OrdinalIgnoreCase))
-                        jsonWriter.WriteString("nameIdn", DnsClient.ConvertDomainNameToUnicode(item.Key));
+                    if (DnsClient.TryConvertDomainNameToUnicode(item.Key, out string idn))
+                        jsonWriter.WriteString("nameIdn", idn);
 
                     jsonWriter.WriteNumber("hits", item.Value);
 
@@ -486,8 +487,8 @@ namespace DnsServerCore
 
                     jsonWriter.WriteString("name", item.Key);
 
-                    if (item.Key.Contains("xn--", StringComparison.OrdinalIgnoreCase))
-                        jsonWriter.WriteString("nameIdn", DnsClient.ConvertDomainNameToUnicode(item.Key));
+                    if (DnsClient.TryConvertDomainNameToUnicode(item.Key, out string idn))
+                        jsonWriter.WriteString("nameIdn", idn);
 
                     jsonWriter.WriteNumber("hits", item.Value);
 
@@ -578,6 +579,7 @@ namespace DnsServerCore
                                 jsonWriter.WriteString("domain", clientDomain);
 
                             jsonWriter.WriteNumber("hits", item.Value);
+                            jsonWriter.WriteBoolean("rateLimited", _dnsWebService.DnsServer.IsQpmLimitCrossed(IPAddress.Parse(item.Key)));
 
                             jsonWriter.WriteEndObject();
                         }
@@ -597,8 +599,8 @@ namespace DnsServerCore
 
                             jsonWriter.WriteString("name", item.Key);
 
-                            if (item.Key.Contains("xn--", StringComparison.OrdinalIgnoreCase))
-                                jsonWriter.WriteString("nameIdn", DnsClient.ConvertDomainNameToUnicode(item.Key));
+                            if (DnsClient.TryConvertDomainNameToUnicode(item.Key, out string idn))
+                                jsonWriter.WriteString("nameIdn", idn);
 
                             jsonWriter.WriteNumber("hits", item.Value);
 
@@ -620,8 +622,8 @@ namespace DnsServerCore
 
                             jsonWriter.WriteString("name", item.Key);
 
-                            if (item.Key.Contains("xn--", StringComparison.OrdinalIgnoreCase))
-                                jsonWriter.WriteString("nameIdn", DnsClient.ConvertDomainNameToUnicode(item.Key));
+                            if (DnsClient.TryConvertDomainNameToUnicode(item.Key, out string idn))
+                                jsonWriter.WriteString("nameIdn", idn);
 
                             jsonWriter.WriteNumber("hits", item.Value);
 
