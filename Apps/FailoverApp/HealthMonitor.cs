@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -301,9 +301,17 @@ namespace Failover
             return DateTime.UtcNow > _lastHealthStatusCheckedOn.AddMilliseconds(MONITOR_EXPIRY);
         }
 
+        public void SetUnderMaintenance()
+        {
+            _lastHealthCheckResponse = new HealthCheckResponse(HealthStatus.Maintenance);
+        }
+
         #endregion
 
         #region properties
+
+        public IPAddress Address
+        { get { return _address; } }
 
         public HealthCheckResponse LastHealthCheckResponse
         {
