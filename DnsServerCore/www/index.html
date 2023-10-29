@@ -267,9 +267,11 @@
 
                                             <div style="float: right; width: 50%; padding-left: 7px;">
                                                 <div class="panel panel-default" style="margin-bottom: 0px;">
-                                                    <div class="panel-heading">
-                                                        <div class="pull-left">Top Clients</div>
-                                                        <div class="pull-right"><a href="#" onclick="showTopStats('TopClients', 1000); return false;">[more]</a></div>
+                                                    <div class="panel-heading" style="height: 41px; padding: 4px 6px;">
+                                                        <div class="pull-left" style="padding: 6px 8px;">Top Clients</div>
+                                                        <div class="pull-right">
+                                                            <button type="button" class="btn btn-default" data-loading-text="More" onclick="showTopStats('TopClients', 1000);" style="font-size: 12px; padding: 4px 14px; margin: 2px 0px;">More</button>
+                                                        </div>
                                                         <div class="clearfix"></div>
                                                     </div>
                                                     <table class="table table-hover">
@@ -292,9 +294,11 @@
                                         <div style="margin-top: 15px;">
                                             <div style="float: left; width: 50%; padding-right: 7px;">
                                                 <div class="panel panel-default" style="margin-bottom: 0px;">
-                                                    <div class="panel-heading">
-                                                        <div class="pull-left">Top Domains</div>
-                                                        <div class="pull-right"><a href="#" onclick="showTopStats('TopDomains', 1000); return false;">[more]</a></div>
+                                                    <div class="panel-heading" style="height: 41px; padding: 4px 6px;">
+                                                        <div class="pull-left" style="padding: 6px 8px;">Top Domains</div>
+                                                        <div class="pull-right">
+                                                            <button type="button" class="btn btn-default" data-loading-text="More" onclick="showTopStats('TopDomains', 1000);" style="font-size: 12px; padding: 4px 14px; margin: 2px 0px;">More</button>
+                                                        </div>
                                                         <div class="clearfix"></div>
                                                     </div>
                                                     <table class="table table-hover">
@@ -313,9 +317,11 @@
 
                                             <div style="float: right; width: 50%; padding-left: 7px;">
                                                 <div class="panel panel-default" style="margin-bottom: 0px;">
-                                                    <div class="panel-heading">
-                                                        <div class="pull-left">Top Blocked Domains</div>
-                                                        <div class="pull-right"><a href="#" onclick="showTopStats('TopBlockedDomains', 1000); return false;">[more]</a></div>
+                                                    <div class="panel-heading" style="height: 41px; padding: 4px 6px;">
+                                                        <div class="pull-left" style="padding: 6px 8px;">Top Blocked Domains</div>
+                                                        <div class="pull-right">
+                                                            <button type="button" class="btn btn-default" data-loading-text="More" onclick="showTopStats('TopBlockedDomains', 1000);" style="font-size: 12px; padding: 4px 14px; margin: 2px 0px;">More</button>
+                                                        </div>
                                                         <div class="clearfix"></div>
                                                     </div>
                                                     <table class="table table-hover">
@@ -450,11 +456,13 @@
                                                 <button id="btnDisableZoneEditZone" type="button" class="btn btn-warning" style="padding: 2px 0px; width: 100px;" onclick="disableZone(this);">Disable Zone</button>
                                                 <button id="btnEditZoneDeleteZone" type="button" class="btn btn-danger" style="padding: 2px 0px; width: 100px;" onclick="deleteZone(this);">Delete Zone</button>
                                                 <button id="btnZoneResync" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="resyncZone(this, $('#titleEditZone').attr('data-zone'));" data-loading-text="Resyncing...">Resync</button>
-                                                <div id="divZoneOptions" class="btn-group">
+                                                <div id="divOptionsMenu" class="btn-group">
                                                     <button type="button" class="btn btn-primary dropdown-toggle" style="padding: 2px 0px; width: 100px;" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                                         Options <span class="caret"></span>
                                                     </button>
                                                     <ul class="dropdown-menu">
+                                                        <li id="lnkImportZone"><a href="#" onclick="showImportZoneModal($('#titleEditZone').attr('data-zone')); return false;">Import Zone</a></li>
+                                                        <li id="lnkExportZone"><a href="#" onclick="exportZone($('#titleEditZone').attr('data-zone')); return false;">Export Zone</a></li>
                                                         <li id="lnkZoneConvert"><a href="#" onclick="showConvertZoneModal($('#titleEditZone').attr('data-zone'), $('#titleEditZone').attr('data-zone-type')); return false;">Convert Zone</a></li>
                                                         <li id="lnkZoneOptions"><a href="#" onclick="showZoneOptionsModal($('#titleEditZone').attr('data-zone')); return false;">Zone Options</a></li>
                                                     </ul>
@@ -468,6 +476,7 @@
                                                         <li id="lnkZoneDnssecSignZone"><a href="#" onclick="showSignZoneModal($('#titleEditZone').attr('data-zone')); return false;">Sign Zone</a></li>
                                                         <li id="lnkZoneDnssecHideRecords"><a href="#" onclick="toggleHideDnssecRecords(true); return false;">Hide DNSSEC Records</a></li>
                                                         <li id="lnkZoneDnssecShowRecords"><a href="#" onclick="toggleHideDnssecRecords(false); return false;">Show DNSSEC Records</a></li>
+                                                        <li id="lnkZoneDnssecViewDsRecords"><a href="#" onclick="showViewDsModal($('#titleEditZone').attr('data-zone')); return false;">View DS Info</a></li>
                                                         <li id="lnkZoneDnssecProperties"><a href="#" onclick="showDnssecPropertiesModal($('#titleEditZone').attr('data-zone')); return false;">Properties</a></li>
                                                         <li id="lnkZoneDnssecUnsignZone"><a href="#" onclick="showUnsignZoneModal($('#titleEditZone').attr('data-zone')); return false;">Unsign Zone</a></li>
                                                     </ul>
@@ -911,6 +920,28 @@
                                                         </div>
 
                                                         <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Zone Defaults</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkUseSoaSerialDateScheme" type="checkbox"> Use SOA Serial Date Scheme
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">The default SOA Serial option to use if not specified when adding a Primary Zone.</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Zone Transfer Allowed Networks</label>
+                                                            <div class="col-sm-6">
+                                                                <textarea id="txtZoneTransferAllowedNetworks" class="form-control" rows="3" spellcheck="false"></textarea>
+                                                                <div style="margin-top: 10px;">Enter IP addresses or network addresses that are allowed to perform zone transfer for all zones without any TSIG authentication.</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
                                                             <label for="txtDefaultRecordTtl" class="col-sm-3 control-label">DNS Apps</label>
                                                             <div class="col-sm-8">
                                                                 <div class="checkbox">
@@ -1054,7 +1085,7 @@
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv6 prefix length to define the client subnet.</div>
                                                         </div>
 
-                                                        <div>Note! Queries Per Minute (QPM) feature will limit requests from a client subnet based on its IP address and the specified subnet prefix lengths. The QPM limit configured will be compared with the average count from the sample size which means a client may exceed the QPM limit for a given minute but won't exceed for the given sample size in minutes.</div>
+                                                        <div>Note! Queries Per Minute (QPM) feature will limit requests from a client subnet based on its IP address and the specified subnet prefix lengths. The QPM limit configured will be compared with the average count from the sample size which means a client may exceed the QPM limit for a given minute but won't exceed for the given sample size in minutes. Rate limited clients will be listed in orange color on the dashboard top clients table.</div>
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
@@ -1139,6 +1170,12 @@
                                                                 <div class="checkbox">
                                                                     <label>
                                                                         <input id="chkWebServiceEnableTls" type="checkbox"> Enable HTTPS
+                                                                    </label>
+                                                                </div>
+
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkWebServiceEnableHttp3" type="checkbox"> Enable HTTP/3
                                                                     </label>
                                                                 </div>
 
@@ -1619,6 +1656,14 @@
                                                         </div>
 
                                                         <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Blocking Bypass List</label>
+                                                            <div class="col-sm-6">
+                                                                <textarea id="txtBlockingBypassList" class="form-control" rows="3" spellcheck="false"></textarea>
+                                                                <div style="margin-top: 10px;">Enter IP addresses or network addresses that are allowed to bypass blocking.</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
                                                             <label class="col-sm-3 control-label">Blocking Type</label>
                                                             <div class="col-sm-8">
                                                                 <div class="radio">
@@ -1951,6 +1996,13 @@
                                                                     </label>
                                                                 </div>
                                                                 <div style="padding-top: 5px; padding-left: 20px;">Enable this option to log error and audit logs into the log file.</div>
+
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkIgnoreResolverLogs" type="checkbox"> Ignore Resolver Error Logs
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to stop logging domain name resolution errors into the log file.</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
@@ -3156,6 +3208,18 @@
                             </div>
 
 
+                            <div class="form-group" id="divAddZoneUseSoaSerialDateScheme">
+                                <label class="col-sm-4 control-label">Zone Serial</label>
+                                <div class="col-sm-7">
+                                    <div class="checkbox">
+                                        <label>
+                                            <input id="chkAddZoneUseSoaSerialDateScheme" type="checkbox"> Use SOA Serial Date Scheme
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+
                             <div class="form-group" id="divAddZonePrimaryNameServerAddresses">
                                 <label for="txtAddZonePrimaryNameServerAddresses" class="col-sm-4 control-label">Primary Name Server Addresses (Optional)</label>
                                 <div class="col-sm-7">
@@ -3960,6 +4024,42 @@ MII...
         </form>
     </div>
 
+    <div id="modalImportZone" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document" style="width: 780px;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">Import - <span id="lblImportZoneName"></span></h4>
+                </div>
+                <div class="modal-body">
+                    <div id="divImportZoneAlert"></div>
+
+                    <p>Enter the records to be imported below in standard zone file format:</p>
+
+                    <div class="form-group">
+                        <label for="txtImportZoneFile" class="control-label">Zone File</label>
+                        <textarea id="txtImportZoneFile" class="form-control" rows="15" spellcheck="false"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="checkbox">
+                            <label>
+                                <input id="chkImportZoneOverwrite" type="checkbox"> Overwrite existing records
+                            </label>
+                            <div style="padding-top: 5px; padding-left: 20px;">Enable this option to overwrite existing records for the record types being imported.</div>
+                        </div>
+                    </div>
+
+                    <p>Note: The <code>$ORIGIN</code> and <code>$TTL</code> values will be automatically set if not specified.</p>
+                </div>
+                <div class="modal-footer">
+                    <button id="btnImportZone" type="submit" class="btn btn-primary" data-loading-text="Importing..." onclick="importZone(); return false;">Import</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="modalCloneZone" class="modal fade" tabindex="-1" role="dialog">
         <form>
             <div class="modal-dialog" role="document">
@@ -4100,7 +4200,7 @@ MII...
                                             <label for="txtZoneTransferNameServers" class="col-sm-3 control-label">Specified Name Servers</label>
                                             <div class="col-sm-8">
                                                 <textarea id="txtZoneTransferNameServers" class="form-control" rows="5" spellcheck="false"></textarea>
-                                                <div>Note: Enter only the IP addresses of the name servers above.</div>
+                                                <div>Note: Enter the IP addresses of the name servers above. Network addresses are also accepted.</div>
                                             </div>
                                         </div>
 
@@ -4225,6 +4325,7 @@ MII...
                                             <label for="txtDynamicUpdateIpAddresses" class="col-sm-3 control-label">Specified IP Addresses</label>
                                             <div class="col-sm-8">
                                                 <textarea id="txtDynamicUpdateIpAddresses" class="form-control" rows="5" spellcheck="false"></textarea>
+                                                <div>Note: Enter the IP addresses of the dynamic update clients above. Network addresses are also accepted.</div>
                                             </div>
                                         </div>
 
@@ -4453,6 +4554,50 @@ MII...
                 </div>
                 <div class="modal-footer">
                     <button id="btnDnssecUnsignZone" type="submit" class="btn btn-danger" data-loading-text="Unsigning..." onclick="unsignPrimaryZone(); return false;">Unsign Zone</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalDnssecViewDs" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document" style="width: 940px;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">View DS Records - <span id="lblDnssecViewDsZoneName"></span></h4>
+                </div>
+                <div class="modal-body">
+                    <div id="divDnssecViewDsAlert"></div>
+
+                    <div id="divDnssecViewDsLoader" style="height: 500px;"></div>
+
+                    <div id="divDnssecViewDs" style="max-height: 500px; overflow-y: auto; padding: 0 6px; overflow-x: hidden;">
+                        <p>
+                            Use the DNS Key data given below to add DS records for your zone. Before adding the DS records, you must read and understand the following points:
+                            <ul>
+                                <li>The Key State for a newly published DNS Key must be <code>Ready</code> before you can add a DS record for it. Adding DS record for a DNS Key with <code>Published</code> Key State may cause DNSSEC validation to fail for some DNS resolvers. A "ready by" timestamp is displayed to let you know when a DS record can be added for a DNS Key that is not "Ready" yet.</li>
+                                <li>You should add only one DS record for each Key Tag. That is, do not create multiple DS records for each Digest Type, instead use the Digest Type that is supported by your Domain Registrar.</li>
+                                <li>Use the provided Public Key if the Domain Registrar requires it instead of the Digest.</li>
+                            </ul>
+                        </p>
+
+                        <table class="table well well-sm">
+                            <thead>
+                                <tr>
+                                    <th><a>Key Tag</a></th>
+                                    <th><a>Key State</a></th>
+                                    <th><a>Algorithm</a></th>
+                                    <th><a>Digest Type</a></th>
+                                    <th><a>Digest</a></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableDnssecViewDsBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                 </div>
             </div>
@@ -4827,12 +4972,12 @@ MII...
             <div class="modal-content">
                 <div class="modal-header">
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                    <h4 class="modal-title">App Config</h4>
+                    <h4 class="modal-title">App Config - <span id="lblAppConfigName"></span></h4>
                 </div>
                 <div class="modal-body">
                     <div id="divAppConfigAlert"></div>
 
-                    <p>Edit the <code>dnsApp.config</code> config file below as required by the DNS application: <span id="lblAppConfigName" style="font-weight: bold;"></span></p>
+                    <p>Edit the <code>dnsApp.config</code> config file below as required by the DNS application.</p>
 
                     <div class="form-group">
                         <label for="txtAppConfig" class="control-label">Config File</label>
