@@ -26,6 +26,7 @@ using DnsServerCore.Dns.Zones;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
@@ -120,8 +121,10 @@ namespace DnsServerCore.Dns
         readonly DnsApplicationManager _dnsApplicationManager;
 
         readonly ResolverDnsCache _dnsCache;
+        readonly ResolverDnsCache _dnsCacheSkipDnsApps; //to prevent request reaching apps again
         readonly StatsManager _stats;
 
+        IReadOnlyCollection<NetworkAddress> _zoneTransferAllowedNetworks;
         bool _preferIPv6;
         ushort _udpPayloadSize = DnsDatagram.EDNS_DEFAULT_UDP_PAYLOAD_SIZE;
         bool _dnssecValidation = true;
@@ -181,6 +184,7 @@ namespace DnsServerCore.Dns
 
         bool _enableBlocking = true;
         bool _allowTxtBlockingReport = true;
+        IReadOnlyCollection<NetworkAddress> _blockingBypassList;
         DnsServerBlockingType _blockingType = DnsServerBlockingType.NxDomain;
         IReadOnlyCollection<DnsARecordData> _customBlockingARecords = Array.Empty<DnsARecordData>();
         IReadOnlyCollection<DnsAAAARecordData> _customBlockingAAAARecords = Array.Empty<DnsAAAARecordData>();
@@ -191,6 +195,7 @@ namespace DnsServerCore.Dns
         int _forwarderTimeout = 2000;
         int _forwarderConcurrency = 2;
 
+        LogManager _resolverLog;
         LogManager _queryLog;
 
         Timer _cachePrefetchSamplingTimer;
@@ -266,7 +271,8 @@ namespace DnsServerCore.Dns
             _cacheZoneManager = new CacheZoneManager(this);
             _dnsApplicationManager = new DnsApplicationManager(this);
 
-            _dnsCache = new ResolverDnsCache(_dnsApplicationManager, _authZoneManager, _cacheZoneManager, _log, false);
+            _dnsCache = new ResolverDnsCache(this, false);
+            _dnsCacheSkipDnsApps = new ResolverDnsCache(this, true); //to prevent request reaching apps again
 
             //init stats
             _stats = new StatsManager(this);
@@ -323,6 +329,7 @@ namespace DnsServerCore.Dns
 
             try
             {
+                int localPort = (udpListener.LocalEndPoint as IPEndPoint).Port;
                 EndPoint epAny;
 
                 switch (udpListener.AddressFamily)
@@ -339,7 +346,7 @@ namespace DnsServerCore.Dns
                         throw new NotSupportedException("AddressFamily not supported.");
                 }
 
-                SocketReceiveFromResult result;
+                SocketReceiveMessageFromResult result;
 
                 while (true)
                 {
@@ -347,7 +354,7 @@ namespace DnsServerCore.Dns
 
                     try
                     {
-                        result = await udpListener.ReceiveFromAsync(recvBuffer, SocketFlags.None, epAny);
+                        result = await udpListener.ReceiveMessageFromAsync(recvBuffer, SocketFlags.None, epAny);
                     }
                     catch (SocketException ex)
                     {
@@ -395,6 +402,7 @@ namespace DnsServerCore.Dns
                                 continue;
 
                             DnsDatagram request = DnsDatagram.ReadFrom(recvBufferStream);
+                            request.SetMetadata(new NameServerAddress(new IPEndPoint(result.PacketInformation.Address, localPort), DnsTransportProtocol.Udp));
 
                             _ = ProcessUdpRequestAsync(udpListener, remoteEP, returnEP, protocol, request);
                         }
@@ -572,14 +580,14 @@ namespace DnsServerCore.Dns
                 switch (protocol)
                 {
                     case DnsTransportProtocol.Tcp:
-                        await ReadStreamRequestAsync(new NetworkStream(socket), remoteEP, protocol);
+                        await ReadStreamRequestAsync(new NetworkStream(socket), remoteEP, new NameServerAddress(socket.LocalEndPoint, DnsTransportProtocol.Tcp), protocol);
                         break;
 
                     case DnsTransportProtocol.Tls:
                         SslStream tlsStream = new SslStream(new NetworkStream(socket));
                         await tlsStream.AuthenticateAsServerAsync(_sslServerAuthenticationOptions).WithTimeout(_tcpReceiveTimeout);
 
-                        await ReadStreamRequestAsync(tlsStream, remoteEP, protocol);
+                        await ReadStreamRequestAsync(tlsStream, remoteEP, new NameServerAddress(socket.LocalEndPoint, DnsTransportProtocol.Tls), protocol);
                         break;
 
                     case DnsTransportProtocol.TcpProxy:
@@ -593,7 +601,7 @@ namespace DnsServerCore.Dns
                         ProxyProtocolStream proxyStream = await ProxyProtocolStream.CreateAsServerAsync(new NetworkStream(socket)).WithTimeout(_tcpReceiveTimeout);
                         remoteEP = new IPEndPoint(proxyStream.SourceAddress, proxyStream.SourcePort);
 
-                        await ReadStreamRequestAsync(proxyStream, remoteEP, protocol);
+                        await ReadStreamRequestAsync(proxyStream, remoteEP, new NameServerAddress(socket.LocalEndPoint, DnsTransportProtocol.Tcp), protocol);
                         break;
 
                     default:
@@ -618,7 +626,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task ReadStreamRequestAsync(Stream stream, IPEndPoint remoteEP, DnsTransportProtocol protocol)
+        private async Task ReadStreamRequestAsync(Stream stream, IPEndPoint remoteEP, NameServerAddress dnsEP, DnsTransportProtocol protocol)
         {
             try
             {
@@ -648,6 +656,7 @@ namespace DnsServerCore.Dns
                         cancellationTokenSource.Cancel(); //cancel delay task
 
                         request = await task;
+                        request.SetMetadata(dnsEP);
                     }
 
                     //process request async
@@ -740,6 +749,8 @@ namespace DnsServerCore.Dns
         {
             try
             {
+                NameServerAddress dnsEP = new NameServerAddress(quicConnection.LocalEndPoint, DnsTransportProtocol.Quic);
+
                 while (true)
                 {
                     if (IsQpmLimitCrossed(quicConnection.RemoteEndPoint.Address))
@@ -747,7 +758,7 @@ namespace DnsServerCore.Dns
 
                     QuicStream quicStream = await quicConnection.AcceptInboundStreamAsync();
 
-                    _ = ProcessQuicStreamRequestAsync(quicStream, quicConnection.RemoteEndPoint);
+                    _ = ProcessQuicStreamRequestAsync(quicStream, quicConnection.RemoteEndPoint, dnsEP);
                 }
             }
             catch (QuicException ex)
@@ -774,7 +785,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task ProcessQuicStreamRequestAsync(QuicStream quicStream, IPEndPoint remoteEP)
+        private async Task ProcessQuicStreamRequestAsync(QuicStream quicStream, IPEndPoint remoteEP, NameServerAddress dnsEP)
         {
             MemoryStream sharedBuffer = new MemoryStream(512);
             DnsDatagram request = null;
@@ -796,6 +807,7 @@ namespace DnsServerCore.Dns
                     cancellationTokenSource.Cancel(); //cancel delay task
 
                     request = await task;
+                    request.SetMetadata(dnsEP);
                 }
 
                 //process request async
@@ -907,6 +919,7 @@ namespace DnsServerCore.Dns
                         using (MemoryStream mS = new MemoryStream(Convert.FromBase64String(dnsRequestBase64Url)))
                         {
                             dnsRequest = DnsDatagram.ReadFrom(mS);
+                            dnsRequest.SetMetadata(new NameServerAddress(new Uri(context.Request.GetDisplayUrl()), context.GetLocalIpAddress(), DnsTransportProtocol.Https));
                         }
 
                         break;
@@ -925,6 +938,7 @@ namespace DnsServerCore.Dns
 
                             mS.Position = 0;
                             dnsRequest = DnsDatagram.ReadFrom(mS);
+                            dnsRequest.SetMetadata(new NameServerAddress(new Uri(context.Request.GetDisplayUrl()), context.GetLocalIpAddress(), DnsTransportProtocol.Https));
                         }
 
                         break;
@@ -1267,12 +1281,12 @@ namespace DnsServerCore.Dns
             bool IsSpecifiedIpAddressAllowed()
             {
                 IPAddress remoteAddress = remoteEP.Address;
-                IReadOnlyCollection<IPAddress> specifiedIpAddresses = authZoneInfo.UpdateIpAddresses;
+                IReadOnlyCollection<NetworkAddress> specifiedIpAddresses = authZoneInfo.UpdateIpAddresses;
                 if (specifiedIpAddresses is not null)
                 {
-                    foreach (IPAddress specifiedIpAddress in specifiedIpAddresses)
+                    foreach (NetworkAddress networkAddress in specifiedIpAddresses)
                     {
-                        if (specifiedIpAddress.Equals(remoteAddress))
+                        if (networkAddress.Equals(remoteAddress))
                             return true;
                     }
                 }
@@ -1852,12 +1866,12 @@ namespace DnsServerCore.Dns
             bool IsSpecifiedNameServerAllowed()
             {
                 IPAddress remoteAddress = remoteEP.Address;
-                IReadOnlyCollection<IPAddress> specifiedNameServers = authZoneInfo.ZoneTransferNameServers;
+                IReadOnlyCollection<NetworkAddress> specifiedNameServers = authZoneInfo.ZoneTransferNameServers;
                 if (specifiedNameServers is not null)
                 {
-                    foreach (IPAddress specifiedNameServer in specifiedNameServers)
+                    foreach (NetworkAddress specifiedNetwork in specifiedNameServers)
                     {
-                        if (specifiedNameServer.Equals(remoteAddress))
+                        if (specifiedNetwork.Contains(remoteAddress))
                             return true;
                     }
                 }
@@ -1865,44 +1879,63 @@ namespace DnsServerCore.Dns
                 return false;
             }
 
-            bool isZoneTransferAllowed = false;
+            bool isInZoneTransferAllowedList = false;
 
-            switch (authZoneInfo.ZoneTransfer)
+            if (_zoneTransferAllowedNetworks is not null)
             {
-                case AuthZoneTransfer.Deny:
-                    break;
+                IPAddress remoteAddress = remoteEP.Address;
 
-                case AuthZoneTransfer.Allow:
-                    isZoneTransferAllowed = true;
-                    break;
-
-                case AuthZoneTransfer.AllowOnlyZoneNameServers:
-                    isZoneTransferAllowed = await IsZoneNameServerAllowedAsync();
-                    break;
-
-                case AuthZoneTransfer.AllowOnlySpecifiedNameServers:
-                    isZoneTransferAllowed = IsSpecifiedNameServerAllowed();
-                    break;
-
-                case AuthZoneTransfer.AllowBothZoneAndSpecifiedNameServers:
-                    isZoneTransferAllowed = IsSpecifiedNameServerAllowed() || await IsZoneNameServerAllowedAsync();
-                    break;
-            }
-
-            if (!isZoneTransferAllowed)
-            {
-                _log?.Write(remoteEP, protocol, "DNS Server refused a zone transfer request since the request IP address is not allowed by the zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
-
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
-            }
-
-            if ((authZoneInfo.ZoneTransferTsigKeyNames is not null) && (authZoneInfo.ZoneTransferTsigKeyNames.Count > 0))
-            {
-                if ((tsigAuthenticatedKeyName is null) || !authZoneInfo.ZoneTransferTsigKeyNames.ContainsKey(tsigAuthenticatedKeyName.ToLower()))
+                foreach (NetworkAddress networkAddress in _zoneTransferAllowedNetworks)
                 {
-                    _log?.Write(remoteEP, protocol, "DNS Server refused a zone transfer request since the request is missing TSIG auth required by the zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
+                    if (networkAddress.Contains(remoteAddress))
+                    {
+                        isInZoneTransferAllowedList = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!isInZoneTransferAllowedList)
+            {
+                bool isZoneTransferAllowed = false;
+
+                switch (authZoneInfo.ZoneTransfer)
+                {
+                    case AuthZoneTransfer.Deny:
+                        break;
+
+                    case AuthZoneTransfer.Allow:
+                        isZoneTransferAllowed = true;
+                        break;
+
+                    case AuthZoneTransfer.AllowOnlyZoneNameServers:
+                        isZoneTransferAllowed = await IsZoneNameServerAllowedAsync();
+                        break;
+
+                    case AuthZoneTransfer.AllowOnlySpecifiedNameServers:
+                        isZoneTransferAllowed = IsSpecifiedNameServerAllowed();
+                        break;
+
+                    case AuthZoneTransfer.AllowBothZoneAndSpecifiedNameServers:
+                        isZoneTransferAllowed = IsSpecifiedNameServerAllowed() || await IsZoneNameServerAllowedAsync();
+                        break;
+                }
+
+                if (!isZoneTransferAllowed)
+                {
+                    _log?.Write(remoteEP, protocol, "DNS Server refused a zone transfer request since the request IP address is not allowed by the zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
 
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                }
+
+                if ((authZoneInfo.ZoneTransferTsigKeyNames is not null) && (authZoneInfo.ZoneTransferTsigKeyNames.Count > 0))
+                {
+                    if ((tsigAuthenticatedKeyName is null) || !authZoneInfo.ZoneTransferTsigKeyNames.ContainsKey(tsigAuthenticatedKeyName.ToLower()))
+                    {
+                        _log?.Write(remoteEP, protocol, "DNS Server refused a zone transfer request since the request is missing TSIG auth required by the zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
+
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                    }
                 }
             }
 
@@ -1954,6 +1987,7 @@ namespace DnsServerCore.Dns
                                     return await ProcessCNAMEAsync(request, remoteEP, response, isRecursionAllowed, protocol, false, skipDnsAppAuthoritativeRequestHandlers);
 
                                 case DnsResourceRecordType.ANAME:
+                                case DnsResourceRecordType.ALIAS:
                                     return await ProcessANAMEAsync(request, remoteEP, response, isRecursionAllowed, protocol, skipDnsAppAuthoritativeRequestHandlers);
                             }
                         }
@@ -2164,7 +2198,7 @@ namespace DnsServerCore.Dns
                         break;
                     }
                 }
-                else if ((newResponse.Answer.Count > 0) && (newResponse.GetLastAnswerRecord().Type == DnsResourceRecordType.ANAME))
+                else if ((newResponse.Answer.Count > 0) && (newResponse.GetLastAnswerRecord() is DnsResourceRecord lastAnswer) && ((lastAnswer.Type == DnsResourceRecordType.ANAME) || (lastAnswer.Type == DnsResourceRecordType.ALIAS)))
                 {
                     newResponse = await ProcessANAMEAsync(request, remoteEP, newResponse, isRecursionAllowed, protocol, skipDnsAppAuthoritativeRequestHandlers);
                 }
@@ -2221,10 +2255,10 @@ namespace DnsServerCore.Dns
                     }
                 }
 
+                newAnswer.AddRange(newResponse.Answer);
+
                 if (foundRepeat)
                     break; //loop detected
-
-                newAnswer.AddRange(newResponse.Answer);
 
                 lastResponse = newResponse;
             }
@@ -2351,31 +2385,33 @@ namespace DnsServerCore.Dns
                         return answers;
                     }
 
-                    if (lastRR.Type == DnsResourceRecordType.ANAME)
+                    switch (lastRR.Type)
                     {
-                        if (newResponse.Answer.Count == 1)
-                        {
-                            lastDomain = (lastRR.RDATA as DnsANAMERecordData).Domain;
-                        }
-                        else
-                        {
-                            //resolve multiple ANAME records async
-                            queryCount++; //increment since one query was done already
+                        case DnsResourceRecordType.ANAME:
+                        case DnsResourceRecordType.ALIAS:
+                            if (newResponse.Answer.Count == 1)
+                            {
+                                lastDomain = (lastRR.RDATA as DnsANAMERecordData).Domain;
+                            }
+                            else
+                            {
+                                //resolve multiple ANAME records async
+                                queryCount++; //increment since one query was done already
 
-                            foreach (DnsResourceRecord newAnswer in newResponse.Answer)
-                                resolveQueue.Enqueue(ResolveANAMEAsync(newAnswer, queryCount));
+                                foreach (DnsResourceRecord newAnswer in newResponse.Answer)
+                                    resolveQueue.Enqueue(ResolveANAMEAsync(newAnswer, queryCount));
 
+                                return Array.Empty<DnsResourceRecord>();
+                            }
+                            break;
+
+                        case DnsResourceRecordType.CNAME:
+                            lastDomain = (lastRR.RDATA as DnsCNAMERecordData).Domain;
+                            break;
+
+                        default:
+                            //aname/cname was resolved, but no answer found
                             return Array.Empty<DnsResourceRecord>();
-                        }
-                    }
-                    else if (lastRR.Type == DnsResourceRecordType.CNAME)
-                    {
-                        lastDomain = (lastRR.RDATA as DnsCNAMERecordData).Domain;
-                    }
-                    else
-                    {
-                        //aname/cname was resolved, but no answer found
-                        return Array.Empty<DnsResourceRecord>();
                     }
                 }
                 while (++queryCount < MAX_CNAME_HOPS);
@@ -2388,14 +2424,18 @@ namespace DnsServerCore.Dns
 
             foreach (DnsResourceRecord answer in response.Answer)
             {
-                if (answer.Type == DnsResourceRecordType.ANAME)
+                switch (answer.Type)
                 {
-                    resolveQueue.Enqueue(ResolveANAMEAsync(answer));
-                }
-                else
-                {
-                    if (resolveQueue.Count == 0)
-                        responseAnswer.Add(answer);
+                    case DnsResourceRecordType.ANAME:
+                    case DnsResourceRecordType.ALIAS:
+                        resolveQueue.Enqueue(ResolveANAMEAsync(answer));
+                        break;
+
+                    default:
+                        if (resolveQueue.Count == 0)
+                            responseAnswer.Add(answer);
+
+                        break;
                 }
             }
 
@@ -2434,7 +2474,7 @@ namespace DnsServerCore.Dns
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, rcode, request.Question, responseAnswer, authority, null) { Tag = response.Tag };
         }
 
-        private DnsDatagram ProcessBlockedQuery(DnsDatagram request)
+        private DnsDatagram ProcessBlocked(DnsDatagram request)
         {
             DnsDatagram response = _blockedZoneManager.Query(request);
             if (response is null)
@@ -2549,27 +2589,88 @@ namespace DnsServerCore.Dns
             }
         }
 
+        private async Task<bool> IsAllowedAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol)
+        {
+            if (_enableBlocking)
+            {
+                if (_blockingBypassList is not null)
+                {
+                    IPAddress remoteIP = remoteEP.Address;
+
+                    foreach (NetworkAddress network in _blockingBypassList)
+                    {
+                        if (network.Contains(remoteIP))
+                            return true;
+                    }
+                }
+
+                if (_allowedZoneManager.IsAllowed(request) || _blockListZoneManager.IsAllowed(request))
+                    return true;
+            }
+
+            foreach (IDnsRequestBlockingHandler blockingHandler in _dnsApplicationManager.DnsRequestBlockingHandlers)
+            {
+                try
+                {
+                    if (await blockingHandler.IsAllowedAsync(request, remoteEP))
+                        return true;
+                }
+                catch (Exception ex)
+                {
+                    _log?.Write(remoteEP, protocol, ex);
+                }
+            }
+
+            return false;
+        }
+
+        private async Task<DnsDatagram> ProcessBlockedQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol)
+        {
+            if (_enableBlocking)
+            {
+                DnsDatagram blockedResponse = ProcessBlocked(request);
+                if (blockedResponse is not null)
+                    return blockedResponse;
+            }
+
+            foreach (IDnsRequestBlockingHandler blockingHandler in _dnsApplicationManager.DnsRequestBlockingHandlers)
+            {
+                try
+                {
+                    DnsDatagram appBlockedResponse = await blockingHandler.ProcessRequestAsync(request, remoteEP);
+                    if (appBlockedResponse is not null)
+                    {
+                        if (appBlockedResponse.Tag is null)
+                            appBlockedResponse.Tag = DnsServerResponseType.Blocked;
+
+                        return appBlockedResponse;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _log?.Write(remoteEP, protocol, ex);
+                }
+            }
+
+            return null;
+        }
+
         private async Task<DnsDatagram> ProcessRecursiveQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool dnssecValidation, bool cacheRefreshOperation, bool skipDnsAppAuthoritativeRequestHandlers)
         {
-            bool inAllowedZone;
+            bool isAllowed;
 
             if (cacheRefreshOperation)
             {
                 //cache refresh operation should be able to refresh all the records in cache
                 //this is since a blocked CNAME record could still be used by an allowed domain name and so must resolve
-                inAllowedZone = true;
-            }
-            else if (!_enableBlocking)
-            {
-                inAllowedZone = true;
+                isAllowed = true;
             }
             else
             {
-                inAllowedZone = _allowedZoneManager.IsAllowed(request) || _blockListZoneManager.IsAllowed(request);
-                if (!inAllowedZone)
+                isAllowed = await IsAllowedAsync(request, remoteEP, protocol);
+                if (!isAllowed)
                 {
-                    //check in blocked zone and block list zone
-                    DnsDatagram blockedResponse = ProcessBlockedQuery(request);
+                    DnsDatagram blockedResponse = await ProcessBlockedQueryAsync(request, remoteEP, protocol);
                     if (blockedResponse is not null)
                         return blockedResponse;
                 }
@@ -2585,7 +2686,7 @@ namespace DnsServerCore.Dns
                 if ((lastRR.Type != questionType) && (lastRR.Type == DnsResourceRecordType.CNAME) && (questionType != DnsResourceRecordType.ANY))
                     response = await ProcessCNAMEAsync(request, remoteEP, response, true, protocol, cacheRefreshOperation, skipDnsAppAuthoritativeRequestHandlers);
 
-                if (!inAllowedZone)
+                if (!isAllowed)
                 {
                     //check for CNAME cloaking
                     for (int i = 0; i < response.Answer.Count; i++)
@@ -2597,13 +2698,16 @@ namespace DnsServerCore.Dns
 
                         DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord((record.RDATA as DnsCNAMERecordData).Domain, request.Question[0].Type, request.Question[0].Class) }, null, null, null, _udpPayloadSize);
 
+                        if (request.Metadata is not null)
+                            newRequest.SetMetadata(request.Metadata.NameServer);
+
                         //check allowed zone
-                        inAllowedZone = _allowedZoneManager.IsAllowed(newRequest) || _blockListZoneManager.IsAllowed(newRequest);
-                        if (inAllowedZone)
+                        isAllowed = await IsAllowedAsync(newRequest, remoteEP, protocol);
+                        if (isAllowed)
                             break; //CNAME is in allowed zone
 
                         //check blocked zone and block list zone
-                        DnsDatagram blockedResponse = ProcessBlockedQuery(newRequest);
+                        DnsDatagram blockedResponse = await ProcessBlockedQueryAsync(newRequest, remoteEP, protocol);
                         if (blockedResponse is not null)
                         {
                             //found cname cloaking
@@ -2810,9 +2914,9 @@ namespace DnsServerCore.Dns
                 IDnsCache dnsCache;
 
                 if (cachePrefetchOperation || cacheRefreshOperation)
-                    dnsCache = new ResolverPrefetchDnsCache(_dnsApplicationManager, _authZoneManager, _cacheZoneManager, _log, skipDnsAppAuthoritativeRequestHandlers, question);
+                    dnsCache = new ResolverPrefetchDnsCache(this, skipDnsAppAuthoritativeRequestHandlers, question);
                 else if (skipDnsAppAuthoritativeRequestHandlers || conditionalForwardingClientSubnet)
-                    dnsCache = new ResolverDnsCache(_dnsApplicationManager, _authZoneManager, _cacheZoneManager, _log, true); //to prevent request reaching apps again
+                    dnsCache = _dnsCacheSkipDnsApps; //to prevent request reaching apps again
                 else
                     dnsCache = _dnsCache;
 
@@ -2981,7 +3085,7 @@ namespace DnsServerCore.Dns
             }
             catch (Exception ex)
             {
-                if (_log is not null)
+                if (_resolverLog is not null)
                 {
                     string strForwarders = null;
 
@@ -3008,7 +3112,7 @@ namespace DnsServerCore.Dns
                         }
                     }
 
-                    _log.Write("DNS Server failed to resolve the request '" + question.ToString() + "'" + (strForwarders is null ? "" : " using forwarders: " + strForwarders) + ".\r\n" + ex.ToString());
+                    _resolverLog.Write("DNS Server failed to resolve the request '" + question.ToString() + "'" + (strForwarders is null ? "" : " using forwarders: " + strForwarders) + ".\r\n" + ex.ToString());
                 }
 
                 if (_serveStale)
@@ -3415,7 +3519,7 @@ namespace DnsServerCore.Dns
             }
             catch (Exception ex)
             {
-                _log?.Write(ex);
+                _resolverLog?.Write(ex);
             }
         }
 
@@ -3445,7 +3549,7 @@ namespace DnsServerCore.Dns
             }
             catch (Exception ex)
             {
-                _log?.Write(ex);
+                _resolverLog?.Write(ex);
 
                 cacheRefreshSampleList[sampleQuestionIndex] = sample; //put back into sample list to allow refreshing it again
             }
@@ -3684,7 +3788,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private bool IsQpmLimitCrossed(IPAddress remoteIP)
+        internal bool IsQpmLimitCrossed(IPAddress remoteIP)
         {
             if ((_qpmLimitRequests < 1) && (_qpmLimitErrors < 1))
                 return false;
@@ -4444,6 +4548,12 @@ namespace DnsServerCore.Dns
         public StatsManager StatsManager
         { get { return _stats; } }
 
+        public IReadOnlyCollection<NetworkAddress> ZoneTransferAllowedNetworks
+        {
+            get { return _zoneTransferAllowedNetworks; }
+            set { _zoneTransferAllowedNetworks = value; }
+        }
+
         public bool PreferIPv6
         {
             get { return _preferIPv6; }
@@ -4980,6 +5090,12 @@ namespace DnsServerCore.Dns
             set { _allowTxtBlockingReport = value; }
         }
 
+        public IReadOnlyCollection<NetworkAddress> BlockingBypassList
+        {
+            get { return _blockingBypassList; }
+            set { _blockingBypassList = value; }
+        }
+
         public DnsServerBlockingType BlockingType
         {
             get { return _blockingType; }
@@ -5056,6 +5172,12 @@ namespace DnsServerCore.Dns
 
                 _forwarderConcurrency = value;
             }
+        }
+
+        public LogManager ResolverLogManager
+        {
+            get { return _resolverLog; }
+            set { _resolverLog = value; }
         }
 
         public LogManager QueryLogManager
