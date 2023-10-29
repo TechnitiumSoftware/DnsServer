@@ -233,6 +233,19 @@ namespace DnsServerCore
             jsonWriter.WriteEndArray();
 
             jsonWriter.WriteNumber("defaultRecordTtl", _dnsWebService._zonesApi.DefaultRecordTtl);
+            jsonWriter.WriteBoolean("useSoaSerialDateScheme", _dnsWebService.DnsServer.AuthZoneManager.UseSoaSerialDateScheme);
+
+            jsonWriter.WritePropertyName("zoneTransferAllowedNetworks");
+            jsonWriter.WriteStartArray();
+
+            if (_dnsWebService.DnsServer.ZoneTransferAllowedNetworks is not null)
+            {
+                foreach (NetworkAddress network in _dnsWebService.DnsServer.ZoneTransferAllowedNetworks)
+                    jsonWriter.WriteStringValue(network.ToString());
+            }
+
+            jsonWriter.WriteEndArray();
+
             jsonWriter.WriteBoolean("dnsAppsEnableAutomaticUpdate", _dnsWebService._appsApi.EnableAutomaticUpdate);
 
             jsonWriter.WriteBoolean("preferIPv6", _dnsWebService.DnsServer.PreferIPv6);
@@ -274,6 +287,7 @@ namespace DnsServerCore
 
             jsonWriter.WriteNumber("webServiceHttpPort", _dnsWebService._webServiceHttpPort);
             jsonWriter.WriteBoolean("webServiceEnableTls", _dnsWebService._webServiceEnableTls);
+            jsonWriter.WriteBoolean("webServiceEnableHttp3", _dnsWebService._webServiceEnableHttp3);
             jsonWriter.WriteBoolean("webServiceHttpToTlsRedirect", _dnsWebService._webServiceHttpToTlsRedirect);
             jsonWriter.WriteBoolean("webServiceUseSelfSignedTlsCertificate", _dnsWebService._webServiceUseSelfSignedTlsCertificate);
             jsonWriter.WriteNumber("webServiceTlsPort", _dnsWebService._webServiceTlsPort);
@@ -374,6 +388,17 @@ namespace DnsServerCore
             //blocking
             jsonWriter.WriteBoolean("enableBlocking", _dnsWebService.DnsServer.EnableBlocking);
             jsonWriter.WriteBoolean("allowTxtBlockingReport", _dnsWebService.DnsServer.AllowTxtBlockingReport);
+
+            jsonWriter.WritePropertyName("blockingBypassList");
+            jsonWriter.WriteStartArray();
+
+            if (_dnsWebService.DnsServer.BlockingBypassList is not null)
+            {
+                foreach (NetworkAddress network in _dnsWebService.DnsServer.BlockingBypassList)
+                    jsonWriter.WriteStringValue(network.ToString());
+            }
+
+            jsonWriter.WriteEndArray();
 
             if (!_dnsWebService.DnsServer.EnableBlocking && (DateTime.UtcNow < _temporaryDisableBlockingTill))
                 jsonWriter.WriteString("temporaryDisableBlockingTill", _temporaryDisableBlockingTill);
@@ -481,6 +506,7 @@ namespace DnsServerCore
 
             //logging
             jsonWriter.WriteBoolean("enableLogging", _dnsWebService._log.EnableLogging);
+            jsonWriter.WriteBoolean("ignoreResolverLogs", _dnsWebService.DnsServer.ResolverLogManager == null);
             jsonWriter.WriteBoolean("logQueries", _dnsWebService.DnsServer.QueryLogManager != null);
             jsonWriter.WriteBoolean("useLocalTime", _dnsWebService._log.UseLocalTime);
             jsonWriter.WriteString("logFolder", _dnsWebService._log.LogFolder);
@@ -517,6 +543,7 @@ namespace DnsServerCore
             IReadOnlyList<IPAddress> oldWebServiceLocalAddresses = _dnsWebService._webServiceLocalAddresses;
             int oldWebServiceHttpPort = _dnsWebService._webServiceHttpPort;
             int oldWebServiceTlsPort = _dnsWebService._webServiceTlsPort;
+            bool _webServiceEnablingTls = false;
 
             HttpRequest request = context.Request;
 
@@ -567,6 +594,32 @@ namespace DnsServerCore
 
             if (request.TryGetQueryOrForm("defaultRecordTtl", uint.Parse, out uint defaultRecordTtl))
                 _dnsWebService._zonesApi.DefaultRecordTtl = defaultRecordTtl;
+
+            if (request.TryGetQueryOrForm("useSoaSerialDateScheme", bool.Parse, out bool useSoaSerialDateScheme))
+                _dnsWebService.DnsServer.AuthZoneManager.UseSoaSerialDateScheme = useSoaSerialDateScheme;
+
+            string zoneTransferAllowedNetworks = request.QueryOrForm("zoneTransferAllowedNetworks");
+            if (zoneTransferAllowedNetworks is not null)
+            {
+                if ((zoneTransferAllowedNetworks.Length == 0) || zoneTransferAllowedNetworks.Equals("false", StringComparison.OrdinalIgnoreCase))
+                {
+                    _dnsWebService.DnsServer.ZoneTransferAllowedNetworks = null;
+                }
+                else
+                {
+                    string[] strAddresses = zoneTransferAllowedNetworks.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+                    List<NetworkAddress> allowedNetworks = new List<NetworkAddress>(strAddresses.Length);
+
+                    foreach (string strAddress in strAddresses)
+                    {
+                        if (NetworkAddress.TryParse(strAddress, out NetworkAddress networkAddress))
+                            allowedNetworks.Add(networkAddress);
+                    }
+
+                    _dnsWebService.DnsServer.ZoneTransferAllowedNetworks = allowedNetworks;
+                }
+            }
 
             if (request.TryGetQueryOrForm("dnsAppsEnableAutomaticUpdate", bool.Parse, out bool dnsAppsEnableAutomaticUpdate))
                 _dnsWebService._appsApi.EnableAutomaticUpdate = dnsAppsEnableAutomaticUpdate;
@@ -666,6 +719,19 @@ namespace DnsServerCore
                 if (_dnsWebService._webServiceEnableTls != webServiceEnableTls)
                 {
                     _dnsWebService._webServiceEnableTls = webServiceEnableTls;
+                    _webServiceEnablingTls = webServiceEnableTls;
+                    restartWebService = true;
+                }
+            }
+
+            if (request.TryGetQueryOrForm("webServiceEnableHttp3", bool.Parse, out bool webServiceEnableHttp3))
+            {
+                if (_dnsWebService._webServiceEnableHttp3 != webServiceEnableHttp3)
+                {
+                    if (webServiceEnableHttp3)
+                        DnsWebService.ValidateQuicSupport("HTTP/3");
+
+                    _dnsWebService._webServiceEnableHttp3 = webServiceEnableHttp3;
                     restartWebService = true;
                 }
             }
@@ -989,6 +1055,29 @@ namespace DnsServerCore
             if (request.TryGetQueryOrForm("allowTxtBlockingReport", bool.Parse, out bool allowTxtBlockingReport))
                 _dnsWebService.DnsServer.AllowTxtBlockingReport = allowTxtBlockingReport;
 
+            string blockingBypassList = request.QueryOrForm("blockingBypassList");
+            if (blockingBypassList is not null)
+            {
+                if ((blockingBypassList.Length == 0) || blockingBypassList.Equals("false", StringComparison.OrdinalIgnoreCase))
+                {
+                    _dnsWebService.DnsServer.BlockingBypassList = null;
+                }
+                else
+                {
+                    string[] strAddresses = blockingBypassList.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+                    List<NetworkAddress> bypassList = new List<NetworkAddress>(strAddresses.Length);
+
+                    foreach (string strAddress in strAddresses)
+                    {
+                        if (NetworkAddress.TryParse(strAddress, out NetworkAddress networkAddress))
+                            bypassList.Add(networkAddress);
+                    }
+
+                    _dnsWebService.DnsServer.BlockingBypassList = bypassList;
+                }
+            }
+
             if (request.TryGetQueryOrFormEnum("blockingType", out DnsServerBlockingType blockingType))
                 _dnsWebService.DnsServer.BlockingType = blockingType;
 
@@ -1199,6 +1288,9 @@ namespace DnsServerCore
             if (request.TryGetQueryOrForm("enableLogging", bool.Parse, out bool enableLogging))
                 _dnsWebService._log.EnableLogging = enableLogging;
 
+            if (request.TryGetQueryOrForm("ignoreResolverLogs", bool.Parse, out bool ignoreResolverLogs))
+                _dnsWebService.DnsServer.ResolverLogManager = ignoreResolverLogs ? null : _dnsWebService._log;
+
             if (request.TryGetQueryOrForm("logQueries", bool.Parse, out bool logQueries))
                 _dnsWebService.DnsServer.QueryLogManager = logQueries ? _dnsWebService._log : null;
 
@@ -1238,6 +1330,105 @@ namespace DnsServerCore
             else
             {
                 StopBlockListUpdateTimer();
+            }
+
+            //test web service local end points
+            if (restartWebService)
+            {
+                List<IPEndPoint> testTcpEndPoints = new List<IPEndPoint>();
+                List<IPEndPoint> testUdpEndPoints = new List<IPEndPoint>();
+
+                if (_dnsWebService._webServiceHttpPort != oldWebServiceHttpPort)
+                {
+                    foreach (IPAddress address in _dnsWebService._webServiceLocalAddresses)
+                        testTcpEndPoints.Add(new IPEndPoint(address, _dnsWebService._webServiceHttpPort));
+                }
+
+                if (_dnsWebService._webServiceEnableTls && (_webServiceEnablingTls || (_dnsWebService._webServiceTlsPort != oldWebServiceTlsPort)))
+                {
+                    foreach (IPAddress address in _dnsWebService._webServiceLocalAddresses)
+                    {
+                        testTcpEndPoints.Add(new IPEndPoint(address, _dnsWebService._webServiceTlsPort));
+
+                        if (_dnsWebService._webServiceEnableHttp3)
+                        {
+                            if (Socket.OSSupportsIPv6)
+                                testUdpEndPoints.Add(new IPEndPoint(IPAddress.IPv6Any, _dnsWebService._webServiceTlsPort));
+                            else
+                                testUdpEndPoints.Add(new IPEndPoint(IPAddress.Any, _dnsWebService._webServiceTlsPort));
+                        }
+                    }
+                }
+
+                foreach (IPAddress address in _dnsWebService._webServiceLocalAddresses)
+                {
+                    if (!oldWebServiceLocalAddresses.Contains(address))
+                    {
+                        IPEndPoint httpEp = new IPEndPoint(address, _dnsWebService._webServiceHttpPort);
+                        if (!testTcpEndPoints.Contains(httpEp))
+                            testTcpEndPoints.Add(httpEp);
+
+                        if (_dnsWebService._webServiceEnableTls)
+                        {
+                            IPEndPoint tlsEp = new IPEndPoint(address, _dnsWebService._webServiceTlsPort);
+                            if (!testTcpEndPoints.Contains(tlsEp))
+                                testTcpEndPoints.Add(tlsEp);
+
+                            if (_dnsWebService._webServiceEnableHttp3)
+                            {
+                                IPEndPoint h3Ep;
+
+                                if (Socket.OSSupportsIPv6)
+                                    h3Ep = new IPEndPoint(IPAddress.IPv6Any, _dnsWebService._webServiceTlsPort);
+                                else
+                                    h3Ep = new IPEndPoint(IPAddress.Any, _dnsWebService._webServiceTlsPort);
+
+                                if (!testUdpEndPoints.Contains(h3Ep))
+                                    testUdpEndPoints.Add(h3Ep);
+                            }
+                        }
+                    }
+                }
+
+                foreach (IPEndPoint ep in testTcpEndPoints)
+                {
+                    try
+                    {
+                        using (Socket socket = new Socket(SocketType.Stream, ProtocolType.Tcp))
+                        {
+                            socket.Bind(ep);
+                        }
+                    }
+                    catch (SocketException ex)
+                    {
+                        //revert
+                        _dnsWebService._webServiceLocalAddresses = oldWebServiceLocalAddresses;
+                        _dnsWebService._webServiceHttpPort = oldWebServiceHttpPort;
+                        _dnsWebService._webServiceTlsPort = oldWebServiceTlsPort;
+
+                        throw new DnsWebServiceException("Failed to save settings: web service local end point '" + ep.ToString() + "' failed to bind (" + ex.SocketErrorCode.ToString() + ").", ex);
+                    }
+                }
+
+                foreach (IPEndPoint ep in testUdpEndPoints)
+                {
+                    try
+                    {
+                        using (Socket socket = new Socket(SocketType.Dgram, ProtocolType.Udp))
+                        {
+                            socket.Bind(ep);
+                        }
+                    }
+                    catch (SocketException ex)
+                    {
+                        //revert
+                        _dnsWebService._webServiceLocalAddresses = oldWebServiceLocalAddresses;
+                        _dnsWebService._webServiceHttpPort = oldWebServiceHttpPort;
+                        _dnsWebService._webServiceTlsPort = oldWebServiceTlsPort;
+
+                        throw new DnsWebServiceException("Failed to save settings: web service local end point '" + ep.ToString() + "' failed to bind (" + ex.SocketErrorCode.ToString() + ").", ex);
+                    }
+                }
             }
 
             //save config
