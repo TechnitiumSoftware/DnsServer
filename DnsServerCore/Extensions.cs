@@ -61,6 +61,25 @@ namespace DnsServerCore
             }
         }
 
+        public static IPAddress GetLocalIpAddress(this HttpContext context)
+        {
+            try
+            {
+                IPAddress localIP = context.Connection.LocalIpAddress;
+                if (localIP is null)
+                    return IPAddress.Any;
+
+                if (localIP.IsIPv4MappedToIPv6)
+                    localIP = localIP.MapToIPv4();
+
+                return localIP;
+            }
+            catch
+            {
+                return IPAddress.Any;
+            }
+        }
+
         public static UserSession GetCurrentSession(this HttpContext context)
         {
             if (context.Items["session"] is UserSession userSession)
