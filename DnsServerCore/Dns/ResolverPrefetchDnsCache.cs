@@ -17,8 +17,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using DnsServerCore.Dns.Applications;
-using DnsServerCore.Dns.ZoneManagers;
 using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns
@@ -33,8 +31,8 @@ namespace DnsServerCore.Dns
 
         #region constructor
 
-        public ResolverPrefetchDnsCache(DnsApplicationManager dnsApplicationManager, AuthZoneManager authZoneManager, CacheZoneManager cacheZoneManager, LogManager log, bool skipDnsAppAuthoritativeRequestHandlers, DnsQuestionRecord prefetchQuestion)
-            : base(dnsApplicationManager, authZoneManager, cacheZoneManager, log, skipDnsAppAuthoritativeRequestHandlers)
+        public ResolverPrefetchDnsCache(DnsServer dnsServer, bool skipDnsAppAuthoritativeRequestHandlers, DnsQuestionRecord prefetchQuestion)
+            : base(dnsServer, skipDnsAppAuthoritativeRequestHandlers)
         {
             _prefetchQuestion = prefetchQuestion;
         }
