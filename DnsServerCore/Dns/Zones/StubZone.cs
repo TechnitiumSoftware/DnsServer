@@ -84,36 +84,43 @@ namespace DnsServerCore.Dns.Zones
             DnsDatagram soaResponse;
             NameServerAddress[] primaryNameServers = null;
 
-            if (string.IsNullOrEmpty(primaryNameServerAddresses))
+            try
             {
-                soaResponse = await stubZone._dnsServer.DirectQueryAsync(soaQuestion);
-            }
-            else
-            {
-                primaryNameServers = primaryNameServerAddresses.Split(delegate (string address)
+                if (string.IsNullOrEmpty(primaryNameServerAddresses))
                 {
-                    NameServerAddress nameServer = NameServerAddress.Parse(address);
-
-                    if (nameServer.Protocol != DnsTransportProtocol.Udp)
-                        nameServer = nameServer.ChangeProtocol(DnsTransportProtocol.Udp);
-
-                    return nameServer;
-                }, ',');
-
-                DnsClient dnsClient = new DnsClient(primaryNameServers);
-
-                foreach (NameServerAddress nameServerAddress in dnsClient.Servers)
-                {
-                    if (nameServerAddress.IsIPEndPointStale)
-                        await nameServerAddress.ResolveIPAddressAsync(stubZone._dnsServer, stubZone._dnsServer.PreferIPv6);
+                    soaResponse = await stubZone._dnsServer.DirectQueryAsync(soaQuestion);
                 }
+                else
+                {
+                    primaryNameServers = primaryNameServerAddresses.Split(delegate (string address)
+                    {
+                        NameServerAddress nameServer = NameServerAddress.Parse(address);
 
-                dnsClient.Proxy = stubZone._dnsServer.Proxy;
-                dnsClient.PreferIPv6 = stubZone._dnsServer.PreferIPv6;
+                        if (nameServer.Protocol != DnsTransportProtocol.Udp)
+                            nameServer = nameServer.ChangeProtocol(DnsTransportProtocol.Udp);
 
-                DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { soaQuestion }, null, null, null, dnsServer.UdpPayloadSize);
+                        return nameServer;
+                    }, ',');
 
-                soaResponse = await dnsClient.ResolveAsync(soaRequest);
+                    DnsClient dnsClient = new DnsClient(primaryNameServers);
+
+                    foreach (NameServerAddress nameServerAddress in dnsClient.Servers)
+                    {
+                        if (nameServerAddress.IsIPEndPointStale)
+                            await nameServerAddress.ResolveIPAddressAsync(stubZone._dnsServer, stubZone._dnsServer.PreferIPv6);
+                    }
+
+                    dnsClient.Proxy = stubZone._dnsServer.Proxy;
+                    dnsClient.PreferIPv6 = stubZone._dnsServer.PreferIPv6;
+
+                    DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { soaQuestion }, null, null, null, dnsServer.UdpPayloadSize);
+
+                    soaResponse = await dnsClient.ResolveAsync(soaRequest);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new DnsServerException("DNS Server failed to find SOA record for: " + name, ex);
             }
 
             if ((soaResponse.Answer.Count == 0) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA))
