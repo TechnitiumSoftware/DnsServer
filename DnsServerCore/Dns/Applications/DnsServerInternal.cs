@@ -94,7 +94,7 @@ namespace DnsServerCore.Dns.Applications
             get
             {
                 if (_dnsCache is null)
-                    _dnsCache = new ResolverDnsCache(_dnsServer.DnsApplicationManager, _dnsServer.AuthZoneManager, _dnsServer.CacheZoneManager, _dnsServer.LogManager, true);
+                    _dnsCache = new ResolverDnsCache(_dnsServer, true);
 
                 return _dnsCache;
             }
