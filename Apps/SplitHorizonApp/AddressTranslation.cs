@@ -22,6 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Net.Sockets;
 using System.Text.Json;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
@@ -78,7 +79,7 @@ namespace SplitHorizon
             "enabled": true,
             "translateReverseLookups": true,
             "externalToInternalTranslation": {
-               "1.2.3.4": "10.0.0.4",
+               "1.2.3.0/24": "10.0.0.0/24",
                "5.6.7.8": "10.0.0.5"
             }
         },
@@ -132,7 +133,7 @@ namespace SplitHorizon
             "enabled": true,
             "translateReverseLookups": true,
             "externalToInternalTranslation": {
-               "1.2.3.4": "10.0.0.4",
+               "1.2.3.0/24": "10.0.0.0/24",
                "5.6.7.8": "10.0.0.5"
             }
         },
@@ -189,9 +190,6 @@ namespace SplitHorizon
             if (!_enableAddressTranslation)
                 return Task.FromResult(response);
 
-            if (request.DnssecOk)
-                return Task.FromResult(response);
-
             if (response.RCODE != DnsResponseCode.NoError)
                 return Task.FromResult(response);
 
@@ -236,7 +234,7 @@ namespace SplitHorizon
                         {
                             IPAddress externalIp = (answer.RDATA as DnsARecordData).Address;
 
-                            if (group.ExternalToInternalTranslation.TryGetValue(externalIp, out IPAddress internalIp))
+                            if (group.TryExternalToInternalTranslation(externalIp, out IPAddress internalIp))
                                 newAnswer.Add(new DnsResourceRecord(answer.Name, answer.Type, answer.Class, answer.TTL, new DnsARecordData(internalIp)));
                             else
                                 newAnswer.Add(answer);
@@ -247,7 +245,7 @@ namespace SplitHorizon
                         {
                             IPAddress externalIp = (answer.RDATA as DnsAAAARecordData).Address;
 
-                            if (group.ExternalToInternalTranslation.TryGetValue(externalIp, out IPAddress internalIp))
+                            if (group.TryExternalToInternalTranslation(externalIp, out IPAddress internalIp))
                                 newAnswer.Add(new DnsResourceRecord(answer.Name, answer.Type, answer.Class, answer.TTL, new DnsAAAARecordData(internalIp)));
                             else
                                 newAnswer.Add(answer);
@@ -266,9 +264,6 @@ namespace SplitHorizon
         public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed)
         {
             if (!_enableAddressTranslation)
-                return Task.FromResult<DnsDatagram>(null);
-
-            if (request.DnssecOk)
                 return Task.FromResult<DnsDatagram>(null);
 
             DnsQuestionRecord question = request.Question[0];
@@ -293,7 +288,7 @@ namespace SplitHorizon
 
             IPAddress ptrIpAddress = IPAddressExtensions.ParseReverseDomain(question.Name);
 
-            if (!group.InternalToExternalTranslation.TryGetValue(ptrIpAddress, out IPAddress externalIp))
+            if (!group.TryInternalToExternalTranslation(ptrIpAddress, out IPAddress externalIp))
                 return Task.FromResult<DnsDatagram>(null);
 
             IReadOnlyList<DnsResourceRecord> answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, question.Class, 600, new DnsCNAMERecordData(externalIp.GetReverseDomain())) };
@@ -319,6 +314,7 @@ namespace SplitHorizon
             readonly bool _translateReverseLookups;
             readonly IReadOnlyDictionary<IPAddress, IPAddress> _externalToInternalTranslation;
             readonly IReadOnlyDictionary<IPAddress, IPAddress> _internalToExternalTranslation;
+            readonly IReadOnlyList<KeyValuePair<NetworkAddress, NetworkAddress>> _externalToInternalNetworkTranslation;
 
             #endregion
 
@@ -332,43 +328,166 @@ namespace SplitHorizon
 
                 JsonElement jsonExternalToInternalTranslation = jsonGroup.GetProperty("externalToInternalTranslation");
 
+                Dictionary<IPAddress, IPAddress> externalToInternalIpTranslation = new Dictionary<IPAddress, IPAddress>();
+                Dictionary<IPAddress, IPAddress> internalToExternalIpTranslation = new Dictionary<IPAddress, IPAddress>();
+                List<KeyValuePair<NetworkAddress, NetworkAddress>> externalToInternalNetworkTranslation = new List<KeyValuePair<NetworkAddress, NetworkAddress>>();
+
+                foreach (JsonProperty jsonProperty in jsonExternalToInternalTranslation.EnumerateObject())
+                {
+                    string strExternal = jsonProperty.Name;
+                    string strInternal = jsonProperty.Value.GetString();
+
+                    NetworkAddress external = NetworkAddress.Parse(strExternal);
+                    NetworkAddress @internal = NetworkAddress.Parse(strInternal);
+
+                    if (external.AddressFamily != @internal.AddressFamily)
+                        throw new InvalidDataException("External to internal translation entries must have same address family: " + strExternal + " - " + strInternal);
+
+                    if (external.PrefixLength != @internal.PrefixLength)
+                        throw new InvalidDataException("External to internal translation entries must have same prefix length: " + strExternal + " - " + strInternal);
+
+                    if (
+                        ((external.AddressFamily == AddressFamily.InterNetwork) && (external.PrefixLength == 32)) ||
+                        ((external.AddressFamily == AddressFamily.InterNetworkV6) && (external.PrefixLength == 128))
+                       )
+                    {
+                        externalToInternalIpTranslation.TryAdd(external.Address, @internal.Address);
+
+                        if (_translateReverseLookups)
+                            internalToExternalIpTranslation.TryAdd(@internal.Address, external.Address);
+                    }
+                    else
+                    {
+                        externalToInternalNetworkTranslation.Add(new KeyValuePair<NetworkAddress, NetworkAddress>(external, @internal));
+                    }
+                }
+
+                _externalToInternalTranslation = externalToInternalIpTranslation;
+
                 if (_translateReverseLookups)
+                    _internalToExternalTranslation = internalToExternalIpTranslation;
+
+                _externalToInternalNetworkTranslation = externalToInternalNetworkTranslation;
+            }
+
+            #endregion
+
+            #region public
+
+            public bool TryExternalToInternalTranslation(IPAddress externalIp, out IPAddress internalIp)
+            {
+                if (_externalToInternalTranslation.TryGetValue(externalIp, out internalIp))
+                    return true;
+
+                foreach (KeyValuePair<NetworkAddress, NetworkAddress> networkEntry in _externalToInternalNetworkTranslation)
                 {
-                    Dictionary<IPAddress, IPAddress> externalToInternalTranslation = new Dictionary<IPAddress, IPAddress>();
-                    Dictionary<IPAddress, IPAddress> internalToExternalTranslation = new Dictionary<IPAddress, IPAddress>();
+                    NetworkAddress external = networkEntry.Key;
 
-                    foreach (JsonProperty jsonProperty in jsonExternalToInternalTranslation.EnumerateObject())
+                    if (external.AddressFamily != externalIp.AddressFamily)
+                        continue;
+
+                    if (external.Contains(externalIp))
                     {
-                        string strExternalIp = jsonProperty.Name;
-                        string strInternalIp = jsonProperty.Value.GetString();
+                        NetworkAddress @internal = networkEntry.Value;
 
-                        IPAddress externalIp = IPAddress.Parse(strExternalIp);
-                        IPAddress internalIp = IPAddress.Parse(strInternalIp);
+                        switch (external.AddressFamily)
+                        {
+                            case AddressFamily.InterNetwork:
+                                {
+                                    uint hostMask = ~(0xFFFFFFFFu << (32 - external.PrefixLength));
+                                    uint host = externalIp.ConvertIpToNumber() & hostMask;
+                                    uint addr = @internal.Address.ConvertIpToNumber();
+                                    uint internalAddr = addr | host;
 
-                        externalToInternalTranslation.TryAdd(externalIp, internalIp);
-                        internalToExternalTranslation.TryAdd(internalIp, externalIp);
+                                    internalIp = IPAddressExtensions.ConvertNumberToIp(internalAddr);
+                                    return true;
+                                }
+
+                            case AddressFamily.InterNetworkV6:
+                                {
+                                    byte[] externalIpBytes = externalIp.GetAddressBytes();
+                                    byte[] internalIpBytes = @internal.Address.GetAddressBytes();
+                                    int copyBytes = external.PrefixLength / 8;
+                                    int balanceBits = external.PrefixLength - (copyBytes * 8);
+
+                                    Buffer.BlockCopy(externalIpBytes, copyBytes + 1, internalIpBytes, copyBytes + 1, 16 - copyBytes - 1);
+
+                                    if (balanceBits > 0)
+                                    {
+                                        int mask = 0xFF << (8 - balanceBits);
+                                        internalIpBytes[copyBytes] = (byte)((internalIpBytes[copyBytes] & mask) | (externalIpBytes[copyBytes] & ~mask));
+                                    }
+
+                                    internalIp = new IPAddress(internalIpBytes);
+                                    return true;
+                                }
+
+                            default:
+                                throw new InvalidOperationException();
+                        }
                     }
-
-                    _externalToInternalTranslation = externalToInternalTranslation;
-                    _internalToExternalTranslation = internalToExternalTranslation;
                 }
-                else
+
+                internalIp = null;
+                return false;
+            }
+
+            public bool TryInternalToExternalTranslation(IPAddress internalIp, out IPAddress externalIp)
+            {
+                if (_internalToExternalTranslation.TryGetValue(internalIp, out externalIp))
+                    return true;
+
+                foreach (KeyValuePair<NetworkAddress, NetworkAddress> networkEntry in _externalToInternalNetworkTranslation)
                 {
-                    Dictionary<IPAddress, IPAddress> externalToInternalTranslation = new Dictionary<IPAddress, IPAddress>();
+                    NetworkAddress @internal = networkEntry.Value;
 
-                    foreach (JsonProperty jsonProperty in jsonExternalToInternalTranslation.EnumerateObject())
+                    if (@internal.AddressFamily != internalIp.AddressFamily)
+                        continue;
+
+                    if (@internal.Contains(internalIp))
                     {
-                        string strExternalIp = jsonProperty.Name;
-                        string strInternalIp = jsonProperty.Value.GetString();
+                        NetworkAddress external = networkEntry.Key;
 
-                        IPAddress externalIp = IPAddress.Parse(strExternalIp);
-                        IPAddress internalIp = IPAddress.Parse(strInternalIp);
+                        switch (@internal.AddressFamily)
+                        {
+                            case AddressFamily.InterNetwork:
+                                {
+                                    uint hostMask = ~(0xFFFFFFFFu << (32 - @internal.PrefixLength));
+                                    uint host = internalIp.ConvertIpToNumber() & hostMask;
+                                    uint addr = external.Address.ConvertIpToNumber();
+                                    uint externalAddr = addr | host;
 
-                        externalToInternalTranslation.TryAdd(externalIp, internalIp);
+                                    externalIp = IPAddressExtensions.ConvertNumberToIp(externalAddr);
+                                    return true;
+                                }
+
+                            case AddressFamily.InterNetworkV6:
+                                {
+                                    byte[] internalIpBytes = internalIp.GetAddressBytes();
+                                    byte[] externalIpBytes = external.Address.GetAddressBytes();
+                                    int copyBytes = @internal.PrefixLength / 8;
+                                    int balanceBits = @internal.PrefixLength - (copyBytes * 8);
+
+                                    Buffer.BlockCopy(internalIpBytes, copyBytes + 1, externalIpBytes, copyBytes + 1, 16 - copyBytes - 1);
+
+                                    if (balanceBits > 0)
+                                    {
+                                        int mask = 0xFF << (8 - balanceBits);
+                                        externalIpBytes[copyBytes] = (byte)((externalIpBytes[copyBytes] & mask) | (internalIpBytes[copyBytes] & ~mask));
+                                    }
+
+                                    externalIp = new IPAddress(externalIpBytes);
+                                    return true;
+                                }
+
+                            default:
+                                throw new InvalidOperationException();
+                        }
                     }
-
-                    _externalToInternalTranslation = externalToInternalTranslation;
                 }
+
+                externalIp = null;
+                return false;
             }
 
             #endregion
@@ -383,12 +502,6 @@ namespace SplitHorizon
 
             public bool TranslateReverseLookups
             { get { return _translateReverseLookups; } }
-
-            public IReadOnlyDictionary<IPAddress, IPAddress> ExternalToInternalTranslation
-            { get { return _externalToInternalTranslation; } }
-
-            public IReadOnlyDictionary<IPAddress, IPAddress> InternalToExternalTranslation
-            { get { return _internalToExternalTranslation; } }
 
             #endregion
         }
