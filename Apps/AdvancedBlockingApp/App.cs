@@ -403,7 +403,7 @@ namespace AdvancedBlocking
                 _dnsServer.WriteLog("Advanced Blocking app loaded all zones successfully for group: " + group.Key);
             }
 
-            await Task.Run(async delegate ()
+            _ = Task.Run(async delegate ()
             {
                 List<Task> loadTasks = new List<Task>();
 
