@@ -1,5 +1,11 @@
 # Technitium DNS Server Change Log
 
+## Version 11.5.1
+Release Date: 30 October 2023
+
+- Fixed bug in validation code for DNS-over-TLS library that caused failure when trying to use the protocol.
+- Advanced Blocking App: Fixed minor issue in initializing the app.
+
 ## Version 11.5
 Release Date: 29 October 2023
 
