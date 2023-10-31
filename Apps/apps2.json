@@ -536,6 +536,12 @@
 				"version": "4.0.2",
 				"url": "https://download.technitium.com/dns/apps/QueryLogsSqliteApp-v4.0.2.zip",
 				"size": "13.6 MB"
+			},
+			{
+				"serverVersion": "11.5.2",
+				"version": "4.0.3",
+				"url": "https://download.technitium.com/dns/apps/QueryLogsSqliteApp-v4.0.3.zip",
+				"size": "13.6 MB"
 			}
 		]
 	},
