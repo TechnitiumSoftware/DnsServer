@@ -1070,7 +1070,14 @@ namespace DnsServerCore.Dns
                     return errorResponse;
                 }
 
-                DnsDatagram unsignedResponse = await PostProcessQueryAsync(request, remoteEP, protocol, await ProcessQueryAsync(unsignedRequest, remoteEP, protocol, isRecursionAllowed, false, request.TsigKeyName));
+                DnsDatagram unsignedResponse = await ProcessQueryAsync(unsignedRequest, remoteEP, protocol, isRecursionAllowed, false, request.TsigKeyName);
+                if (unsignedResponse is null)
+                    return null;
+
+                unsignedResponse = await PostProcessQueryAsync(request, remoteEP, protocol, unsignedResponse);
+                if (unsignedResponse is null)
+                    return null;
+
                 return unsignedResponse.SignResponse(request, _tsigKeys);
             }
 
@@ -1080,7 +1087,11 @@ namespace DnsServerCore.Dns
                     return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.BADVERS, request.Question, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative };
             }
 
-            return await PostProcessQueryAsync(request, remoteEP, protocol, await ProcessQueryAsync(request, remoteEP, protocol, isRecursionAllowed, false, null));
+            DnsDatagram response = await ProcessQueryAsync(request, remoteEP, protocol, isRecursionAllowed, false, null);
+            if (response is null)
+                return null;
+
+            return await PostProcessQueryAsync(request, remoteEP, protocol, response);
         }
 
         private async Task<DnsDatagram> PostProcessQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
@@ -1090,6 +1101,8 @@ namespace DnsServerCore.Dns
                 try
                 {
                     response = await postProcessor.PostProcessAsync(request, remoteEP, protocol, response);
+                    if (response is null)
+                        return null;
                 }
                 catch (Exception ex)
                 {
@@ -1286,7 +1299,7 @@ namespace DnsServerCore.Dns
                 {
                     foreach (NetworkAddress networkAddress in specifiedIpAddresses)
                     {
-                        if (networkAddress.Equals(remoteAddress))
+                        if (networkAddress.Contains(remoteAddress))
                             return true;
                     }
                 }
