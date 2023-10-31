@@ -1,5 +1,10 @@
 # Technitium DNS Server Change Log
 
+## Version 11.5.2
+Release Date: 31 October 2023
+
+- Fixed bug in zone Dynamic Updates allowed IP/network addresses that caused failure to match with request IP address.
+
 ## Version 11.5.1
 Release Date: 30 October 2023
 
