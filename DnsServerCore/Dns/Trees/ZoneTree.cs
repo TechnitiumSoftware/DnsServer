@@ -105,7 +105,7 @@ namespace DnsServerCore.Dns.Trees
                     if (mainKey[i] == 1) //[*]
                     {
                         if (i == mainKey.Length - 2)
-                            return true; //last label valid wildcard
+                            return true; //last label, valid wildcard
                     }
 
                     if (mainKey[i] != testKey[j])
@@ -153,7 +153,7 @@ namespace DnsServerCore.Dns.Trees
                     if (mainKey[i] == 1) //[*]
                     {
                         if (i == mainKey.Length - 2)
-                            return true; //last label valid wildcard
+                            return false; //last label, valid wildcard; wildcard is sibling, cannot have subdomain
                     }
 
                     if (mainKey[i] != testKey[j])
@@ -295,19 +295,6 @@ namespace DnsServerCore.Dns.Trees
                         }
 
                         return value.Value; //found matching value
-                    }
-
-                    if (wildcard is not null)
-                    {
-                        NodeValue wildcardValue = wildcard.Value;
-                        if (wildcardValue is not null)
-                        {
-                            if (IsKeySubDomain(wildcardValue.Key, value.Key, matchWildcard))
-                            {
-                                //value is a subdomain of wildcard so wildcard is not valid
-                                wildcard = null;
-                            }
-                        }
                     }
                 }
             }
