@@ -1,5 +1,10 @@
 # Technitium DNS Server Change Log
 
+## Version 11.5.3
+Release Date: 7 November 2023
+
+- Fixed bug in authoritative zone wildcard matching which caused NXDOMAIN response for some subdomain name requests.
+
 ## Version 11.5.2
 Release Date: 31 October 2023
 
