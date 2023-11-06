@@ -6,7 +6,7 @@
 		<OutputType>Exe</OutputType>
 		<TargetFramework>net7.0</TargetFramework>
 		<ApplicationIcon>logo2.ico</ApplicationIcon>
-		<Version>11.5.2</Version>
+		<Version>11.5.3</Version>
 		<Company>Technitium</Company>
 		<Product>Technitium DNS Server</Product>
 		<Authors>Shreyas Zare</Authors>
