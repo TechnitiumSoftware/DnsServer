@@ -276,13 +276,6 @@ namespace DnsServerCore.Dns
 
             //init stats
             _stats = new StatsManager(this);
-
-            //init udp socket pool async for port randomization
-            ThreadPool.QueueUserWorkItem(delegate (object state)
-            {
-                if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-                    UdpClientConnection.CreateSocketPool(_preferIPv6);
-            });
         }
 
         #endregion
@@ -4398,6 +4391,15 @@ namespace DnsServerCore.Dns
             UpdateThisServer();
             ResetPrefetchTimers();
             ResetQpsLimitTimer();
+
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+            {
+                //init udp socket pool async for port randomization
+                ThreadPool.QueueUserWorkItem(delegate (object state)
+                {
+                    UdpClientConnection.CreateSocketPool(_preferIPv6);
+                });
+            }
         }
 
         public async Task StopAsync()
