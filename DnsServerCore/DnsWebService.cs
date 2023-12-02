@@ -51,6 +51,7 @@ using TechnitiumLibrary;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.ClientConnection;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 using TechnitiumLibrary.Net.Proxy;
 
@@ -994,6 +995,8 @@ namespace DnsServerCore
                 }
 
                 //logging
+                _dnsServer.ResolverLogManager = _log;
+
                 string strUseLocalTime = Environment.GetEnvironmentVariable("DNS_SERVER_LOG_USING_LOCAL_TIME");
                 if (!string.IsNullOrEmpty(strUseLocalTime))
                     _log.UseLocalTime = bool.Parse(strUseLocalTime);
@@ -1006,6 +1009,9 @@ namespace DnsServerCore
                 _log.Write("Note: You may try deleting the config file to fix this issue. However, you will lose DNS settings but, zone data wont be affected.");
                 throw;
             }
+
+            //exclude web service TLS port to prevent socket pool from occupying it
+            UdpClientConnection.SocketPoolExcludedPorts = new int[] { _webServiceTlsPort };
         }
 
         private void CreateForwarderZoneToDisableDnssecForNTP()
