@@ -55,6 +55,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ZoneAliasApp", "Apps\ZoneAl
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DefaultRecordsApp", "Apps\DefaultRecordsApp\DefaultRecordsApp.csproj", "{BCF0373F-540D-4E9E-A8AD-70CEE9B385A6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LanCacheApp", "Apps\LanCacheApp\LanCacheApp.csproj", "{6F3E5B6B-7EA7-483D-8736-41ED92404B88}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -161,6 +163,10 @@ Global
 		{BCF0373F-540D-4E9E-A8AD-70CEE9B385A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BCF0373F-540D-4E9E-A8AD-70CEE9B385A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BCF0373F-540D-4E9E-A8AD-70CEE9B385A6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6F3E5B6B-7EA7-483D-8736-41ED92404B88}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F3E5B6B-7EA7-483D-8736-41ED92404B88}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F3E5B6B-7EA7-483D-8736-41ED92404B88}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F3E5B6B-7EA7-483D-8736-41ED92404B88}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -186,6 +192,7 @@ Global
 		{29688452-F88A-49F5-9C98-BE7B2812C522} = {938BF8EF-74B9-4FE0-B46F-11EBB7A4B3D2}
 		{6FF8C5F7-C98E-41C1-8FCD-25AEA0057673} = {938BF8EF-74B9-4FE0-B46F-11EBB7A4B3D2}
 		{BCF0373F-540D-4E9E-A8AD-70CEE9B385A6} = {938BF8EF-74B9-4FE0-B46F-11EBB7A4B3D2}
+		{6F3E5B6B-7EA7-483D-8736-41ED92404B88} = {938BF8EF-74B9-4FE0-B46F-11EBB7A4B3D2}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6747BB6D-2826-4356-A213-805FBCCF9201}

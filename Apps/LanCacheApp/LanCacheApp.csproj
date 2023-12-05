@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net7.0</TargetFramework>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+        <Version>1.0.0</Version>
+        <Company>Technitium</Company>
+        <Product>Technitium DNS Server</Product>
+        <Authors>Shreyas Zare, Rui Fung Yip</Authors>
+        <AssemblyName>LanCacheApp</AssemblyName>
+        <RootNamespace>LanCache</RootNamespace>
+        <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
+        <Description>Implements the DNS logic for LanCache.NET</Description>
+        <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+        <OutputType>Library</OutputType>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Reference Include="TechnitiumLibrary">
+        <HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.dll</HintPath>
+      </Reference>
+      <Reference Include="TechnitiumLibrary.Net">
+        <HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
+      </Reference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="dnsApp.config">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+    
+</Project>
