@@ -539,14 +539,14 @@ namespace AdvancedBlocking
 
                 if (blockedRegex is null)
                 {
-                    if (blockListUrl is not null)
+                    if (blockListUrl.Uri is not null)
                         blockingReport += "; blockListUrl=" + blockListUrl.Uri.AbsoluteUri + "; domain=" + blockedDomain;
                     else
                         blockingReport += "; domain=" + blockedDomain;
                 }
                 else
                 {
-                    if (blockListUrl is not null)
+                    if (blockListUrl.Uri is not null)
                         blockingReport += "; regexBlockListUrl=" + blockListUrl.Uri.AbsoluteUri + "; regex=" + blockedRegex;
                     else
                         blockingReport += "; regex=" + blockedRegex;
@@ -673,6 +673,14 @@ namespace AdvancedBlocking
             #endregion
 
             #region constructor
+
+            public UrlEntry(Uri uri, Group group)
+            {
+                _uri = uri;
+                _blockAsNxDomain = group.BlockAsNxDomain;
+                _aRecords = group.ARecords;
+                _aaaaRecords = group.AAAARecords;
+            }
 
             public UrlEntry(JsonElement jsonUrl, Group group)
             {
@@ -980,7 +988,7 @@ namespace AdvancedBlocking
                     //found zone blocked
                     blockedDomain = foundZone1;
                     blockedRegex = null;
-                    listUrl = null;
+                    listUrl = new UrlEntry(null, this);
                     return true;
                 }
 
@@ -1000,7 +1008,7 @@ namespace AdvancedBlocking
                     //found pattern blocked
                     blockedDomain = null;
                     blockedRegex = blockedPattern1;
-                    listUrl = null;
+                    listUrl = new UrlEntry(null, this);
                     return true;
                 }
 
