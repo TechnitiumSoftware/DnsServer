@@ -46,7 +46,8 @@ namespace DnsRebindBlocking
 
         public Task<DnsDatagram> PostProcessAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
         {
-            if (!Config.Enabled)
+            // Do not filter authoritative responses. Because in this case any rebinding is intentional.
+            if (!Config.Enabled || response.AuthoritativeAnswer)
                 return Task.FromResult(response);
             
             var answers = response.Answer.Where(res => !IsFilteredRebind(res)).ToList();
