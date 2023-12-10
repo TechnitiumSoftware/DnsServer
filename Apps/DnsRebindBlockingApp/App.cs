@@ -61,13 +61,13 @@ namespace DnsRebindBlocking
             if (record.Type != DnsResourceRecordType.A && record.Type != DnsResourceRecordType.AAAA)
                 return false;
             IPAddress address;
-            switch (record.Type)
+            switch (record.RDATA)
             {
-                case DnsResourceRecordType.A:
-                    address = ((DnsARecordData)record.RDATA).Address;
+                case DnsARecordData data:
+                    address = data.Address;
                     break;
-                case DnsResourceRecordType.AAAA:
-                    address = ((DnsAAAARecordData)record.RDATA).Address;
+                case DnsAAAARecordData data:
+                    address = data.Address;
                     break;
                 default:
                     return false;
