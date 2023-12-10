@@ -32,8 +32,11 @@ namespace DnsRebindBlocking
             PrivateNetworks.Clear();
             foreach (var privateNetwork in Config.PrivateNetworks)
             {
-                var success = NetworkAddress.TryParse(privateNetwork, out NetworkAddress networkAddress);
-                PrivateNetworks.Add(networkAddress);
+                var success = NetworkAddress.TryParse(privateNetwork, out var networkAddress);
+                if (!success)
+                    DnsServer.WriteLog($"Invalid network address specified: {privateNetwork}");
+                else
+                    PrivateNetworks.Add(networkAddress);
             }
 
             // Add the ServerDomain to the PrivateDomains list so it doesn't block it's own.
