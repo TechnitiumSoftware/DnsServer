@@ -146,6 +146,12 @@
 				"version": "4.2",
 				"url": "https://download.technitium.com/dns/apps/BlockPageApp-v4.2.zip",
 				"size": "21.1 KB"
+			},
+			{
+				"serverVersion": "11.5.3",
+				"version": "4.3",
+				"url": "https://download.technitium.com/dns/apps/BlockPageApp-v4.3.zip",
+				"size": "23.6 KB"
 			}
 		]
 	},
