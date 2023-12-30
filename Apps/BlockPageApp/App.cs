@@ -55,445 +55,37 @@ namespace BlockPage
         const int TCP_SEND_TIMEOUT = 10000;
         const int TCP_RECV_TIMEOUT = 10000;
 
-        IDnsServer _dnsServer;
-
-        IReadOnlyList<IPAddress> _webServerLocalAddresses = Array.Empty<IPAddress>();
-        bool _webServerUseSelfSignedTlsCertificate;
-        string _webServerTlsCertificateFilePath;
-        string _webServerTlsCertificatePassword;
-        string _webServerRootPath;
-        bool _serveBlockPageFromWebServerRoot;
-
-        byte[] _blockPageContent;
-
-        readonly List<Socket> _httpListeners = new List<Socket>();
-        readonly List<Socket> _httpsListeners = new List<Socket>();
-
-        X509Certificate2Collection _webServerTlsCertificateCollection;
-        SslServerAuthenticationOptions _sslServerAuthenticationOptions;
-        DateTime _webServerTlsCertificateLastModifiedOn;
-
-        Timer _tlsCertificateUpdateTimer;
-        const int TLS_CERTIFICATE_UPDATE_TIMER_INITIAL_INTERVAL = 60000;
-        const int TLS_CERTIFICATE_UPDATE_TIMER_INTERVAL = 60000;
-
-        volatile ServiceState _state = ServiceState.Stopped;
+        IReadOnlyDictionary<string, WebServer> _webServers;
 
         #endregion
 
         #region IDisposable
 
+        bool _disposed;
+
         public void Dispose()
         {
-            StopTlsCertificateUpdateTimer();
-            StopWebServer();
+            if (_disposed)
+                return;
+
+            StopAllWebServers();
+
+            _disposed = true;
         }
 
         #endregion
 
         #region private
 
-        private void StartWebServer()
+        private void StopAllWebServers()
         {
-            if (_state != ServiceState.Stopped)
-                throw new InvalidOperationException("Web server is already running.");
-
-            _state = ServiceState.Starting;
-
-            //bind to local addresses
-            foreach (IPAddress localAddress in _webServerLocalAddresses)
+            if (_webServers is not null)
             {
-                //bind to HTTP port 80
-                {
-                    IPEndPoint httpEP = new IPEndPoint(localAddress, 80);
-                    Socket httpListener = null;
+                foreach (KeyValuePair<string, WebServer> webServerEntry in _webServers)
+                    webServerEntry.Value.Dispose();
 
-                    try
-                    {
-                        httpListener = new Socket(httpEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-
-                        httpListener.Bind(httpEP);
-                        httpListener.Listen(100);
-
-                        _httpListeners.Add(httpListener);
-
-                        _dnsServer.WriteLog("Web server was bound successfully: " + httpEP.ToString());
-                    }
-                    catch (Exception ex)
-                    {
-                        _dnsServer.WriteLog(ex);
-
-                        if (httpListener is not null)
-                            httpListener.Dispose();
-                    }
-                }
-
-                //bind to HTTPS port 443
-                if (_webServerTlsCertificateCollection is not null)
-                {
-                    IPEndPoint httpsEP = new IPEndPoint(localAddress, 443);
-                    Socket httpsListener = null;
-
-                    try
-                    {
-                        httpsListener = new Socket(httpsEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-
-                        httpsListener.Bind(httpsEP);
-                        httpsListener.Listen(100);
-
-                        _httpsListeners.Add(httpsListener);
-
-                        _dnsServer.WriteLog("Web server was bound successfully: " + httpsEP.ToString());
-                    }
-                    catch (Exception ex)
-                    {
-                        _dnsServer.WriteLog(ex);
-
-                        if (httpsListener is not null)
-                            httpsListener.Dispose();
-                    }
-                }
+                _webServers = null;
             }
-
-            //start reading requests
-            int listenerTaskCount = Math.Max(1, Environment.ProcessorCount);
-
-            foreach (Socket httpListener in _httpListeners)
-            {
-                for (int i = 0; i < listenerTaskCount; i++)
-                {
-                    _ = Task.Factory.StartNew(delegate ()
-                    {
-                        return AcceptConnectionAsync(httpListener, false);
-                    }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Current);
-                }
-            }
-
-            foreach (Socket httpsListener in _httpsListeners)
-            {
-                for (int i = 0; i < listenerTaskCount; i++)
-                {
-                    _ = Task.Factory.StartNew(delegate ()
-                    {
-                        return AcceptConnectionAsync(httpsListener, true);
-                    }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Current);
-                }
-            }
-
-            _state = ServiceState.Running;
-        }
-
-        private void StopWebServer()
-        {
-            if (_state != ServiceState.Running)
-                return;
-
-            _state = ServiceState.Stopping;
-
-            foreach (Socket httpListener in _httpListeners)
-                httpListener.Dispose();
-
-            foreach (Socket httpsListener in _httpsListeners)
-                httpsListener.Dispose();
-
-            _httpListeners.Clear();
-            _httpsListeners.Clear();
-
-            _state = ServiceState.Stopped;
-        }
-
-        private void LoadWebServiceTlsCertificate(string webServerTlsCertificateFilePath, string webServerTlsCertificatePassword)
-        {
-            FileInfo fileInfo = new FileInfo(webServerTlsCertificateFilePath);
-
-            if (!fileInfo.Exists)
-                throw new ArgumentException("Web server TLS certificate file does not exists: " + webServerTlsCertificateFilePath);
-
-            if (Path.GetExtension(webServerTlsCertificateFilePath) != ".pfx")
-                throw new ArgumentException("Web server TLS certificate file must be PKCS #12 formatted with .pfx extension: " + webServerTlsCertificateFilePath);
-
-            _webServerTlsCertificateCollection = new X509Certificate2Collection();
-            _webServerTlsCertificateCollection.Import(webServerTlsCertificateFilePath, webServerTlsCertificatePassword, X509KeyStorageFlags.PersistKeySet);
-
-            X509Certificate2 serverCertificate = null;
-
-            foreach (X509Certificate2 certificate in _webServerTlsCertificateCollection)
-            {
-                if (certificate.HasPrivateKey)
-                {
-                    serverCertificate = certificate;
-                    break;
-                }
-            }
-
-            if (serverCertificate is null)
-                throw new ArgumentException("Web server TLS certificate file must contain a certificate with private key.");
-
-            _sslServerAuthenticationOptions = new SslServerAuthenticationOptions()
-            {
-                ServerCertificateContext = SslStreamCertificateContext.Create(serverCertificate, _webServerTlsCertificateCollection, false)
-            };
-
-            _webServerTlsCertificateLastModifiedOn = fileInfo.LastWriteTimeUtc;
-
-            _dnsServer.WriteLog("Web server TLS certificate was loaded: " + webServerTlsCertificateFilePath);
-        }
-
-        private void StartTlsCertificateUpdateTimer()
-        {
-            if (_tlsCertificateUpdateTimer == null)
-            {
-                _tlsCertificateUpdateTimer = new Timer(delegate (object state)
-                {
-                    if (!string.IsNullOrEmpty(_webServerTlsCertificateFilePath))
-                    {
-                        try
-                        {
-                            FileInfo fileInfo = new FileInfo(_webServerTlsCertificateFilePath);
-
-                            if (fileInfo.Exists && (fileInfo.LastWriteTimeUtc != _webServerTlsCertificateLastModifiedOn))
-                                LoadWebServiceTlsCertificate(_webServerTlsCertificateFilePath, _webServerTlsCertificatePassword);
-                        }
-                        catch (Exception ex)
-                        {
-                            _dnsServer.WriteLog("Web server encountered an error while updating TLS Certificate: " + _webServerTlsCertificateFilePath + "\r\n" + ex.ToString());
-                        }
-                    }
-
-                }, null, TLS_CERTIFICATE_UPDATE_TIMER_INITIAL_INTERVAL, TLS_CERTIFICATE_UPDATE_TIMER_INTERVAL);
-            }
-        }
-
-        private void StopTlsCertificateUpdateTimer()
-        {
-            if (_tlsCertificateUpdateTimer != null)
-            {
-                _tlsCertificateUpdateTimer.Dispose();
-                _tlsCertificateUpdateTimer = null;
-            }
-        }
-
-        private async Task AcceptConnectionAsync(Socket tcpListener, bool usingHttps)
-        {
-            try
-            {
-                tcpListener.SendTimeout = TCP_SEND_TIMEOUT;
-                tcpListener.ReceiveTimeout = TCP_RECV_TIMEOUT;
-                tcpListener.NoDelay = true;
-
-                while (true)
-                {
-                    Socket socket = await tcpListener.AcceptAsync();
-
-                    _ = ProcessConnectionAsync(socket, usingHttps);
-                }
-            }
-            catch (SocketException ex)
-            {
-                if (ex.SocketErrorCode == SocketError.OperationAborted)
-                    return; //server stopping
-
-                _dnsServer.WriteLog(ex);
-            }
-            catch (ObjectDisposedException)
-            {
-                //server stopped
-            }
-            catch (Exception ex)
-            {
-                if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
-                    return; //server stopping
-
-                _dnsServer.WriteLog(ex);
-            }
-        }
-
-        private async Task ProcessConnectionAsync(Socket socket, bool usingHttps)
-        {
-            try
-            {
-                IPEndPoint remoteEP = socket.RemoteEndPoint as IPEndPoint;
-                Stream stream = new NetworkStream(socket);
-
-                if (usingHttps)
-                {
-                    SslStream httpsStream = new SslStream(stream);
-                    await httpsStream.AuthenticateAsServerAsync(_sslServerAuthenticationOptions).WithTimeout(TCP_RECV_TIMEOUT);
-
-                    stream = httpsStream;
-                }
-
-                await ProcessHttpRequestAsync(stream, remoteEP, usingHttps);
-            }
-            catch (TimeoutException)
-            {
-                //ignore timeout exception on TLS auth
-            }
-            catch (IOException)
-            {
-                //ignore IO exceptions
-            }
-            catch (Exception ex)
-            {
-                _dnsServer.WriteLog(ex);
-            }
-            finally
-            {
-                socket.Dispose();
-            }
-        }
-
-        private async Task ProcessHttpRequestAsync(Stream stream, IPEndPoint remoteEP, bool usingHttps)
-        {
-            try
-            {
-                while (true)
-                {
-                    bool isSocketRemoteIpPrivate = NetUtilities.IsPrivateIP(remoteEP.Address);
-                    HttpRequest httpRequest = await HttpRequest.ReadRequestAsync(stream, 512).WithTimeout(TCP_RECV_TIMEOUT);
-                    if (httpRequest is null)
-                        return; //connection closed gracefully by client
-
-                    string requestConnection = httpRequest.Headers[HttpRequestHeader.Connection];
-                    if (string.IsNullOrEmpty(requestConnection))
-                        requestConnection = "close";
-
-                    string path = httpRequest.RequestPath;
-
-                    if (!path.StartsWith("/") || path.Contains("/../") || path.Contains("/.../"))
-                    {
-                        await SendErrorAsync(stream, requestConnection, 404);
-                        break;
-                    }
-
-                    if (path == "/")
-                        path = "/index.html";
-
-                    string accept = httpRequest.Headers[HttpRequestHeader.Accept];
-                    if (string.IsNullOrEmpty(accept) || accept.Contains("text/html", StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (path.Equals("/index.html", StringComparison.OrdinalIgnoreCase))
-                        {
-                            //send block page
-                            if (_serveBlockPageFromWebServerRoot)
-                            {
-                                path = Path.GetFullPath(_webServerRootPath + path.Replace('/', Path.DirectorySeparatorChar));
-
-                                if (!path.StartsWith(_webServerRootPath) || !File.Exists(path))
-                                    await SendErrorAsync(stream, requestConnection, 404);
-                                else
-                                    await SendFileAsync(stream, requestConnection, path);
-                            }
-                            else
-                            {
-                                await SendContentAsync(stream, requestConnection, "text/html", _blockPageContent);
-                            }
-                        }
-                        else
-                        {
-                            //redirect to block page
-                            await RedirectAsync(stream, httpRequest.Protocol, requestConnection, (usingHttps ? "https://" : "http://") + httpRequest.Headers[HttpRequestHeader.Host]);
-                        }
-                    }
-                    else
-                    {
-                        if (_serveBlockPageFromWebServerRoot)
-                        {
-                            //serve files
-                            path = Path.GetFullPath(_webServerRootPath + path.Replace('/', Path.DirectorySeparatorChar));
-
-                            if (!path.StartsWith(_webServerRootPath) || !File.Exists(path))
-                                await SendErrorAsync(stream, requestConnection, 404);
-                            else
-                                await SendFileAsync(stream, requestConnection, path);
-                        }
-                        else
-                        {
-                            await SendErrorAsync(stream, requestConnection, 404);
-                        }
-                    }
-                }
-            }
-            catch (TimeoutException)
-            {
-                //ignore timeout exception
-            }
-            catch (IOException)
-            {
-                //ignore IO exceptions
-            }
-            catch (Exception ex)
-            {
-                _dnsServer.WriteLog(ex);
-            }
-        }
-
-        private static async Task SendContentAsync(Stream outputStream, string connection, string contentType, byte[] content)
-        {
-            byte[] bufferHeader = Encoding.UTF8.GetBytes("HTTP/1.1 200 OK\r\nDate: " + DateTime.UtcNow.ToString("r") + "\r\nContent-Type: " + contentType + "\r\nContent-Length: " + content.Length + "\r\nX-Robots-Tag: noindex, nofollow\r\nConnection: " + connection + "\r\n\r\n");
-
-            await outputStream.WriteAsync(bufferHeader);
-            await outputStream.WriteAsync(content);
-            await outputStream.FlushAsync();
-        }
-
-        private static async Task SendErrorAsync(Stream outputStream, string connection, int statusCode, string message = null)
-        {
-            try
-            {
-                string statusString = statusCode + " " + GetHttpStatusString((HttpStatusCode)statusCode);
-                byte[] bufferContent = Encoding.UTF8.GetBytes("<html><head><title>" + statusString + "</title></head><body><h1>" + statusString + "</h1>" + (message is null ? "" : "<p>" + message + "</p>") + "</body></html>");
-                byte[] bufferHeader = Encoding.UTF8.GetBytes("HTTP/1.1 " + statusString + "\r\nDate: " + DateTime.UtcNow.ToString("r") + "\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + bufferContent.Length + "\r\nX-Robots-Tag: noindex, nofollow\r\nConnection: " + connection + "\r\n\r\n");
-
-                await outputStream.WriteAsync(bufferHeader);
-                await outputStream.WriteAsync(bufferContent);
-                await outputStream.FlushAsync();
-            }
-            catch
-            { }
-        }
-
-        private static async Task RedirectAsync(Stream outputStream, string protocol, string connection, string location)
-        {
-            try
-            {
-                string statusString = "302 Found";
-                byte[] bufferContent = Encoding.UTF8.GetBytes("<html><head><title>" + statusString + "</title></head><body><h1>" + statusString + "</h1><p>Location: <a href=\"" + location + "\">" + location + "</a></p></body></html>");
-                byte[] bufferHeader = Encoding.UTF8.GetBytes(protocol + " " + statusString + "\r\nDate: " + DateTime.UtcNow.ToString("r") + "\r\nLocation: " + location + "\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + bufferContent.Length + "\r\nX-Robots-Tag: noindex, nofollow\r\nConnection: " + connection + "\r\n\r\n");
-
-                await outputStream.WriteAsync(bufferHeader);
-                await outputStream.WriteAsync(bufferContent);
-                await outputStream.FlushAsync();
-            }
-            catch
-            { }
-        }
-
-        private static async Task SendFileAsync(Stream outputStream, string connection, string filePath)
-        {
-            using (FileStream fS = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-            {
-                byte[] bufferHeader = Encoding.UTF8.GetBytes("HTTP/1.1 200 OK\r\nDate: " + DateTime.UtcNow.ToString("r") + "\r\nContent-Type: " + WebUtilities.GetContentType(filePath).MediaType + "\r\nContent-Length: " + fS.Length + "\r\nCache-Control: private, max-age=300\r\nX-Robots-Tag: noindex, nofollow\r\nConnection: " + connection + "\r\n\r\n");
-
-                await outputStream.WriteAsync(bufferHeader);
-                await fS.CopyToAsync(outputStream);
-                await outputStream.FlushAsync();
-            }
-        }
-
-        private static string GetHttpStatusString(HttpStatusCode statusCode)
-        {
-            StringBuilder sb = new StringBuilder();
-
-            foreach (char c in statusCode.ToString().ToCharArray())
-            {
-                if (char.IsUpper(c) && sb.Length > 0)
-                    sb.Append(' ');
-
-                sb.Append(c);
-            }
-
-            return sb.ToString();
         }
 
         #endregion
@@ -502,111 +94,48 @@ namespace BlockPage
 
         public async Task InitializeAsync(IDnsServer dnsServer, string config)
         {
-            _dnsServer = dnsServer;
-
             using JsonDocument jsonDocument = JsonDocument.Parse(config);
             JsonElement jsonConfig = jsonDocument.RootElement;
 
-            bool enableWebServer = jsonConfig.GetPropertyValue("enableWebServer", true);
-            if (!enableWebServer)
+            StopAllWebServers();
+
+            Dictionary<string, WebServer> webServers = new Dictionary<string, WebServer>(3);
+            _webServers = webServers;
+
+            if (jsonConfig.ValueKind == JsonValueKind.Array)
             {
-                StopWebServer();
-                return;
+                foreach (JsonElement jsonWebServerConfig in jsonConfig.EnumerateArray())
+                {
+                    string name = jsonWebServerConfig.GetPropertyValue("name", "default");
+
+                    if (!webServers.TryGetValue(name, out WebServer webServer))
+                    {
+                        webServer = new WebServer(dnsServer, name);
+
+                        if (!webServers.TryAdd(webServer.Name, webServer))
+                            throw new InvalidOperationException("Failed to update web server config. Please try again.");
+                    }
+
+                    await webServer.InitializeAsync(jsonWebServerConfig);
+                }
             }
-
-            _webServerLocalAddresses = jsonConfig.ReadArray("webServerLocalAddresses", IPAddress.Parse);
-
-            if (jsonConfig.TryGetProperty("webServerUseSelfSignedTlsCertificate", out JsonElement jsonWebServerUseSelfSignedTlsCertificate))
-                _webServerUseSelfSignedTlsCertificate = jsonWebServerUseSelfSignedTlsCertificate.GetBoolean();
             else
-                _webServerUseSelfSignedTlsCertificate = true;
-
-            _webServerTlsCertificateFilePath = jsonConfig.GetProperty("webServerTlsCertificateFilePath").GetString();
-            _webServerTlsCertificatePassword = jsonConfig.GetProperty("webServerTlsCertificatePassword").GetString();
-
-            _webServerRootPath = jsonConfig.GetProperty("webServerRootPath").GetString();
-
-            if (!Path.IsPathRooted(_webServerRootPath))
-                _webServerRootPath = Path.Combine(_dnsServer.ApplicationFolder, _webServerRootPath);
-
-            _serveBlockPageFromWebServerRoot = jsonConfig.GetProperty("serveBlockPageFromWebServerRoot").GetBoolean();
-
-            string blockPageTitle = jsonConfig.GetProperty("blockPageTitle").GetString();
-            string blockPageHeading = jsonConfig.GetProperty("blockPageHeading").GetString();
-            string blockPageMessage = jsonConfig.GetProperty("blockPageMessage").GetString();
-
-            string blockPageContent = @"<html>
-<head>
-  <title>" + (blockPageTitle is null ? "" : blockPageTitle) + @"</title>
-</head>
-<body>
-" + (blockPageHeading is null ? "" : "  <h1>" + blockPageHeading + "</h1>") + @"
-" + (blockPageMessage is null ? "" : "  <p>" + blockPageMessage + "</p>") + @"
-</body>
-</html>";
-
-            _blockPageContent = Encoding.UTF8.GetBytes(blockPageContent);
-
-            try
             {
-                StopWebServer();
+                WebServer webServer = new WebServer(dnsServer, "default");
+                webServers.Add(webServer.Name, webServer);
 
-                string selfSignedCertificateFilePath = Path.Combine(_dnsServer.ApplicationFolder, "cert.pfx");
+                await webServer.InitializeAsync(jsonConfig);
 
-                if (_webServerUseSelfSignedTlsCertificate)
-                {
-                    if (!File.Exists(selfSignedCertificateFilePath))
-                    {
-                        RSA rsa = RSA.Create(2048);
-                        CertificateRequest req = new CertificateRequest("cn=" + _dnsServer.ServerDomain, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-                        X509Certificate2 cert = req.CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddYears(5));
+                if (!jsonConfig.TryGetProperty("webServerUseSelfSignedTlsCertificate", out _))
+                    config = config.Replace("\"webServerTlsCertificateFilePath\"", "\"webServerUseSelfSignedTlsCertificate\": true,\r\n  \"webServerTlsCertificateFilePath\"");
 
-                        await File.WriteAllBytesAsync(selfSignedCertificateFilePath, cert.Export(X509ContentType.Pkcs12, null as string));
-                    }
-                }
-                else
-                {
-                    File.Delete(selfSignedCertificateFilePath);
-                }
+                if (!jsonConfig.TryGetProperty("enableWebServer", out _))
+                    config = config.Replace("\"webServerLocalAddresses\"", "\"enableWebServer\": true,\r\n  \"webServerLocalAddresses\"");
 
-                if (string.IsNullOrEmpty(_webServerTlsCertificateFilePath))
-                {
-                    StopTlsCertificateUpdateTimer();
+                if (!jsonConfig.TryGetProperty("name", out _))
+                    config = config.Replace("\"enableWebServer\"", "\"name\": \"default\",\r\n  \"enableWebServer\"");
 
-                    if (_webServerUseSelfSignedTlsCertificate)
-                    {
-                        LoadWebServiceTlsCertificate(selfSignedCertificateFilePath, null);
-                    }
-                    else
-                    {
-                        //disable HTTPS
-                        _webServerTlsCertificateCollection = null;
-                    }
-                }
-                else
-                {
-                    LoadWebServiceTlsCertificate(_webServerTlsCertificateFilePath, _webServerTlsCertificatePassword);
-                    StartTlsCertificateUpdateTimer();
-                }
-
-                StartWebServer();
-            }
-            catch (Exception ex)
-            {
-                _dnsServer.WriteLog(ex);
-            }
-
-            if (!jsonConfig.TryGetProperty("webServerUseSelfSignedTlsCertificate", out _))
-            {
-                config = config.Replace("\"webServerTlsCertificateFilePath\"", "\"webServerUseSelfSignedTlsCertificate\": true,\r\n  \"webServerTlsCertificateFilePath\"");
-
-                await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
-            }
-
-            if (!jsonConfig.TryGetProperty("enableWebServer", out _))
-            {
-                config = config.Replace("\"webServerLocalAddresses\"", "\"enableWebServer\": true,\r\n  \"webServerLocalAddresses\"");
-
+                config = "[\r\n  " + config.Replace("\n", "\n  ").TrimEnd() + "\r\n]";
                 await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
             }
         }
@@ -619,5 +148,574 @@ namespace BlockPage
         { get { return "Serves a block page from a built-in web server that can be displayed to the end user when a website is blocked by the DNS server.\n\nNote: You need to manually set the Blocking Type as Custom Address in the blocking settings and configure the current server's IP address as Custom Blocking Addresses for the block page to be served to the users. Use a PKCS #12 certificate (.pfx) for enabling HTTPS support. Enabling HTTPS support will show certificate error to the user which is expected and the user will have to proceed ignoring the certificate error to be able to see the block page."; } }
 
         #endregion
+
+        class WebServer : IDisposable
+        {
+            #region variables
+
+            readonly IDnsServer _dnsServer;
+            readonly string _name;
+
+            IReadOnlyList<IPAddress> _webServerLocalAddresses = Array.Empty<IPAddress>();
+            bool _webServerUseSelfSignedTlsCertificate;
+            string _webServerTlsCertificateFilePath;
+            string _webServerTlsCertificatePassword;
+            string _webServerRootPath;
+            bool _serveBlockPageFromWebServerRoot;
+
+            byte[] _blockPageContent;
+
+            readonly List<Socket> _httpListeners = new List<Socket>();
+            readonly List<Socket> _httpsListeners = new List<Socket>();
+
+            X509Certificate2Collection _webServerTlsCertificateCollection;
+            SslServerAuthenticationOptions _sslServerAuthenticationOptions;
+            DateTime _webServerTlsCertificateLastModifiedOn;
+
+            Timer _tlsCertificateUpdateTimer;
+            const int TLS_CERTIFICATE_UPDATE_TIMER_INITIAL_INTERVAL = 60000;
+            const int TLS_CERTIFICATE_UPDATE_TIMER_INTERVAL = 60000;
+
+            volatile ServiceState _state = ServiceState.Stopped;
+
+            #endregion
+
+            #region constructor
+
+            public WebServer(IDnsServer dnsServer, string name)
+            {
+                _dnsServer = dnsServer;
+                _name = name;
+            }
+
+            #endregion
+
+            #region IDisposable
+
+            bool _disposed;
+
+            public void Dispose()
+            {
+                if (_disposed)
+                    return;
+
+                StopTlsCertificateUpdateTimer();
+                StopWebServer();
+
+                _disposed = true;
+            }
+
+            #endregion
+
+            #region private
+
+            private void StartWebServer()
+            {
+                if (_state != ServiceState.Stopped)
+                    throw new InvalidOperationException("Web server '" + _name + "' is already running.");
+
+                _state = ServiceState.Starting;
+
+                //bind to local addresses
+                foreach (IPAddress localAddress in _webServerLocalAddresses)
+                {
+                    //bind to HTTP port 80
+                    {
+                        IPEndPoint httpEP = new IPEndPoint(localAddress, 80);
+                        Socket httpListener = null;
+
+                        try
+                        {
+                            httpListener = new Socket(httpEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+                            httpListener.Bind(httpEP);
+                            httpListener.Listen(100);
+
+                            _httpListeners.Add(httpListener);
+
+                            _dnsServer.WriteLog("Web server '" + _name + "' was bound successfully: " + httpEP.ToString());
+                        }
+                        catch (Exception ex)
+                        {
+                            _dnsServer.WriteLog("Web server '" + _name + "' failed to bind: " + httpEP.ToString() + "\r\n" + ex.ToString());
+
+                            if (httpListener is not null)
+                                httpListener.Dispose();
+                        }
+                    }
+
+                    //bind to HTTPS port 443
+                    if (_webServerTlsCertificateCollection is not null)
+                    {
+                        IPEndPoint httpsEP = new IPEndPoint(localAddress, 443);
+                        Socket httpsListener = null;
+
+                        try
+                        {
+                            httpsListener = new Socket(httpsEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+                            httpsListener.Bind(httpsEP);
+                            httpsListener.Listen(100);
+
+                            _httpsListeners.Add(httpsListener);
+
+                            _dnsServer.WriteLog("Web server '" + _name + "' was bound successfully: " + httpsEP.ToString());
+                        }
+                        catch (Exception ex)
+                        {
+                            _dnsServer.WriteLog("Web server '" + _name + "' failed to bind: " + httpsEP.ToString() + "\r\n" + ex.ToString());
+
+                            if (httpsListener is not null)
+                                httpsListener.Dispose();
+                        }
+                    }
+                }
+
+                //start reading requests
+                int listenerTaskCount = Math.Max(1, Environment.ProcessorCount);
+
+                foreach (Socket httpListener in _httpListeners)
+                {
+                    for (int i = 0; i < listenerTaskCount; i++)
+                    {
+                        _ = Task.Factory.StartNew(delegate ()
+                        {
+                            return AcceptConnectionAsync(httpListener, false);
+                        }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Current);
+                    }
+                }
+
+                foreach (Socket httpsListener in _httpsListeners)
+                {
+                    for (int i = 0; i < listenerTaskCount; i++)
+                    {
+                        _ = Task.Factory.StartNew(delegate ()
+                        {
+                            return AcceptConnectionAsync(httpsListener, true);
+                        }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Current);
+                    }
+                }
+
+                _state = ServiceState.Running;
+            }
+
+            private void StopWebServer()
+            {
+                if (_state != ServiceState.Running)
+                    return;
+
+                _state = ServiceState.Stopping;
+
+                foreach (Socket httpListener in _httpListeners)
+                    httpListener.Dispose();
+
+                foreach (Socket httpsListener in _httpsListeners)
+                    httpsListener.Dispose();
+
+                _httpListeners.Clear();
+                _httpsListeners.Clear();
+
+                _state = ServiceState.Stopped;
+            }
+
+            private void LoadWebServiceTlsCertificate(string webServerTlsCertificateFilePath, string webServerTlsCertificatePassword)
+            {
+                FileInfo fileInfo = new FileInfo(webServerTlsCertificateFilePath);
+
+                if (!fileInfo.Exists)
+                    throw new ArgumentException("Web server '" + _name + "' TLS certificate file does not exists: " + webServerTlsCertificateFilePath);
+
+                if (Path.GetExtension(webServerTlsCertificateFilePath) != ".pfx")
+                    throw new ArgumentException("Web server '" + _name + "' TLS certificate file must be PKCS #12 formatted with .pfx extension: " + webServerTlsCertificateFilePath);
+
+                _webServerTlsCertificateCollection = new X509Certificate2Collection();
+                _webServerTlsCertificateCollection.Import(webServerTlsCertificateFilePath, webServerTlsCertificatePassword, X509KeyStorageFlags.PersistKeySet);
+
+                X509Certificate2 serverCertificate = null;
+
+                foreach (X509Certificate2 certificate in _webServerTlsCertificateCollection)
+                {
+                    if (certificate.HasPrivateKey)
+                    {
+                        serverCertificate = certificate;
+                        break;
+                    }
+                }
+
+                if (serverCertificate is null)
+                    throw new ArgumentException("Web server '" + _name + "' TLS certificate file must contain a certificate with private key.");
+
+                _sslServerAuthenticationOptions = new SslServerAuthenticationOptions()
+                {
+                    ServerCertificateContext = SslStreamCertificateContext.Create(serverCertificate, _webServerTlsCertificateCollection, false)
+                };
+
+                _webServerTlsCertificateLastModifiedOn = fileInfo.LastWriteTimeUtc;
+
+                _dnsServer.WriteLog("Web server '" + _name + "' TLS certificate was loaded: " + webServerTlsCertificateFilePath);
+            }
+
+            private void StartTlsCertificateUpdateTimer()
+            {
+                if (_tlsCertificateUpdateTimer == null)
+                {
+                    _tlsCertificateUpdateTimer = new Timer(delegate (object state)
+                    {
+                        if (!string.IsNullOrEmpty(_webServerTlsCertificateFilePath))
+                        {
+                            try
+                            {
+                                FileInfo fileInfo = new FileInfo(_webServerTlsCertificateFilePath);
+
+                                if (fileInfo.Exists && (fileInfo.LastWriteTimeUtc != _webServerTlsCertificateLastModifiedOn))
+                                    LoadWebServiceTlsCertificate(_webServerTlsCertificateFilePath, _webServerTlsCertificatePassword);
+                            }
+                            catch (Exception ex)
+                            {
+                                _dnsServer.WriteLog("Web server '" + _name + "' encountered an error while updating TLS Certificate: " + _webServerTlsCertificateFilePath + "\r\n" + ex.ToString());
+                            }
+                        }
+
+                    }, null, TLS_CERTIFICATE_UPDATE_TIMER_INITIAL_INTERVAL, TLS_CERTIFICATE_UPDATE_TIMER_INTERVAL);
+                }
+            }
+
+            private void StopTlsCertificateUpdateTimer()
+            {
+                if (_tlsCertificateUpdateTimer != null)
+                {
+                    _tlsCertificateUpdateTimer.Dispose();
+                    _tlsCertificateUpdateTimer = null;
+                }
+            }
+
+            private async Task AcceptConnectionAsync(Socket tcpListener, bool usingHttps)
+            {
+                try
+                {
+                    tcpListener.SendTimeout = TCP_SEND_TIMEOUT;
+                    tcpListener.ReceiveTimeout = TCP_RECV_TIMEOUT;
+                    tcpListener.NoDelay = true;
+
+                    while (true)
+                    {
+                        Socket socket = await tcpListener.AcceptAsync();
+
+                        _ = ProcessConnectionAsync(socket, usingHttps);
+                    }
+                }
+                catch (SocketException ex)
+                {
+                    if (ex.SocketErrorCode == SocketError.OperationAborted)
+                        return; //server stopping
+
+                    _dnsServer.WriteLog(ex);
+                }
+                catch (ObjectDisposedException)
+                {
+                    //server stopped
+                }
+                catch (Exception ex)
+                {
+                    if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
+                        return; //server stopping
+
+                    _dnsServer.WriteLog(ex);
+                }
+            }
+
+            private async Task ProcessConnectionAsync(Socket socket, bool usingHttps)
+            {
+                try
+                {
+                    IPEndPoint remoteEP = socket.RemoteEndPoint as IPEndPoint;
+                    Stream stream = new NetworkStream(socket);
+
+                    if (usingHttps)
+                    {
+                        SslStream httpsStream = new SslStream(stream);
+                        await httpsStream.AuthenticateAsServerAsync(_sslServerAuthenticationOptions).WithTimeout(TCP_RECV_TIMEOUT);
+
+                        stream = httpsStream;
+                    }
+
+                    await ProcessHttpRequestAsync(stream, remoteEP, usingHttps);
+                }
+                catch (TimeoutException)
+                {
+                    //ignore timeout exception on TLS auth
+                }
+                catch (IOException)
+                {
+                    //ignore IO exceptions
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer.WriteLog(ex);
+                }
+                finally
+                {
+                    socket.Dispose();
+                }
+            }
+
+            private async Task ProcessHttpRequestAsync(Stream stream, IPEndPoint remoteEP, bool usingHttps)
+            {
+                try
+                {
+                    while (true)
+                    {
+                        bool isSocketRemoteIpPrivate = NetUtilities.IsPrivateIP(remoteEP.Address);
+                        HttpRequest httpRequest = await HttpRequest.ReadRequestAsync(stream, 512).WithTimeout(TCP_RECV_TIMEOUT);
+                        if (httpRequest is null)
+                            return; //connection closed gracefully by client
+
+                        string requestConnection = httpRequest.Headers[HttpRequestHeader.Connection];
+                        if (string.IsNullOrEmpty(requestConnection))
+                            requestConnection = "close";
+
+                        string path = httpRequest.RequestPath;
+
+                        if (!path.StartsWith("/") || path.Contains("/../") || path.Contains("/.../"))
+                        {
+                            await SendErrorAsync(stream, requestConnection, 404);
+                            break;
+                        }
+
+                        if (path == "/")
+                            path = "/index.html";
+
+                        string accept = httpRequest.Headers[HttpRequestHeader.Accept];
+                        if (string.IsNullOrEmpty(accept) || accept.Contains("text/html", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (path.Equals("/index.html", StringComparison.OrdinalIgnoreCase))
+                            {
+                                //send block page
+                                if (_serveBlockPageFromWebServerRoot)
+                                {
+                                    path = Path.GetFullPath(_webServerRootPath + path.Replace('/', Path.DirectorySeparatorChar));
+
+                                    if (!path.StartsWith(_webServerRootPath) || !File.Exists(path))
+                                        await SendErrorAsync(stream, requestConnection, 404);
+                                    else
+                                        await SendFileAsync(stream, requestConnection, path);
+                                }
+                                else
+                                {
+                                    await SendContentAsync(stream, requestConnection, "text/html", _blockPageContent);
+                                }
+                            }
+                            else
+                            {
+                                //redirect to block page
+                                await RedirectAsync(stream, httpRequest.Protocol, requestConnection, (usingHttps ? "https://" : "http://") + httpRequest.Headers[HttpRequestHeader.Host]);
+                            }
+                        }
+                        else
+                        {
+                            if (_serveBlockPageFromWebServerRoot)
+                            {
+                                //serve files
+                                path = Path.GetFullPath(_webServerRootPath + path.Replace('/', Path.DirectorySeparatorChar));
+
+                                if (!path.StartsWith(_webServerRootPath) || !File.Exists(path))
+                                    await SendErrorAsync(stream, requestConnection, 404);
+                                else
+                                    await SendFileAsync(stream, requestConnection, path);
+                            }
+                            else
+                            {
+                                await SendErrorAsync(stream, requestConnection, 404);
+                            }
+                        }
+                    }
+                }
+                catch (TimeoutException)
+                {
+                    //ignore timeout exception
+                }
+                catch (IOException)
+                {
+                    //ignore IO exceptions
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer.WriteLog(ex);
+                }
+            }
+
+            private static async Task SendContentAsync(Stream outputStream, string connection, string contentType, byte[] content)
+            {
+                byte[] bufferHeader = Encoding.UTF8.GetBytes("HTTP/1.1 200 OK\r\nDate: " + DateTime.UtcNow.ToString("r") + "\r\nContent-Type: " + contentType + "\r\nContent-Length: " + content.Length + "\r\nX-Robots-Tag: noindex, nofollow\r\nConnection: " + connection + "\r\n\r\n");
+
+                await outputStream.WriteAsync(bufferHeader);
+                await outputStream.WriteAsync(content);
+                await outputStream.FlushAsync();
+            }
+
+            private static async Task SendErrorAsync(Stream outputStream, string connection, int statusCode, string message = null)
+            {
+                try
+                {
+                    string statusString = statusCode + " " + GetHttpStatusString((HttpStatusCode)statusCode);
+                    byte[] bufferContent = Encoding.UTF8.GetBytes("<html><head><title>" + statusString + "</title></head><body><h1>" + statusString + "</h1>" + (message is null ? "" : "<p>" + message + "</p>") + "</body></html>");
+                    byte[] bufferHeader = Encoding.UTF8.GetBytes("HTTP/1.1 " + statusString + "\r\nDate: " + DateTime.UtcNow.ToString("r") + "\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + bufferContent.Length + "\r\nX-Robots-Tag: noindex, nofollow\r\nConnection: " + connection + "\r\n\r\n");
+
+                    await outputStream.WriteAsync(bufferHeader);
+                    await outputStream.WriteAsync(bufferContent);
+                    await outputStream.FlushAsync();
+                }
+                catch
+                { }
+            }
+
+            private static async Task RedirectAsync(Stream outputStream, string protocol, string connection, string location)
+            {
+                try
+                {
+                    string statusString = "302 Found";
+                    byte[] bufferContent = Encoding.UTF8.GetBytes("<html><head><title>" + statusString + "</title></head><body><h1>" + statusString + "</h1><p>Location: <a href=\"" + location + "\">" + location + "</a></p></body></html>");
+                    byte[] bufferHeader = Encoding.UTF8.GetBytes(protocol + " " + statusString + "\r\nDate: " + DateTime.UtcNow.ToString("r") + "\r\nLocation: " + location + "\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + bufferContent.Length + "\r\nX-Robots-Tag: noindex, nofollow\r\nConnection: " + connection + "\r\n\r\n");
+
+                    await outputStream.WriteAsync(bufferHeader);
+                    await outputStream.WriteAsync(bufferContent);
+                    await outputStream.FlushAsync();
+                }
+                catch
+                { }
+            }
+
+            private static async Task SendFileAsync(Stream outputStream, string connection, string filePath)
+            {
+                using (FileStream fS = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    byte[] bufferHeader = Encoding.UTF8.GetBytes("HTTP/1.1 200 OK\r\nDate: " + DateTime.UtcNow.ToString("r") + "\r\nContent-Type: " + WebUtilities.GetContentType(filePath).MediaType + "\r\nContent-Length: " + fS.Length + "\r\nCache-Control: private, max-age=300\r\nX-Robots-Tag: noindex, nofollow\r\nConnection: " + connection + "\r\n\r\n");
+
+                    await outputStream.WriteAsync(bufferHeader);
+                    await fS.CopyToAsync(outputStream);
+                    await outputStream.FlushAsync();
+                }
+            }
+
+            private static string GetHttpStatusString(HttpStatusCode statusCode)
+            {
+                StringBuilder sb = new StringBuilder();
+
+                foreach (char c in statusCode.ToString().ToCharArray())
+                {
+                    if (char.IsUpper(c) && sb.Length > 0)
+                        sb.Append(' ');
+
+                    sb.Append(c);
+                }
+
+                return sb.ToString();
+            }
+
+            #endregion
+
+            #region public
+
+            public async Task InitializeAsync(JsonElement jsonWebServerConfig)
+            {
+                bool enableWebServer = jsonWebServerConfig.GetPropertyValue("enableWebServer", true);
+                if (!enableWebServer)
+                {
+                    StopWebServer();
+                    return;
+                }
+
+                _webServerLocalAddresses = jsonWebServerConfig.ReadArray("webServerLocalAddresses", IPAddress.Parse);
+
+                if (jsonWebServerConfig.TryGetProperty("webServerUseSelfSignedTlsCertificate", out JsonElement jsonWebServerUseSelfSignedTlsCertificate))
+                    _webServerUseSelfSignedTlsCertificate = jsonWebServerUseSelfSignedTlsCertificate.GetBoolean();
+                else
+                    _webServerUseSelfSignedTlsCertificate = true;
+
+                _webServerTlsCertificateFilePath = jsonWebServerConfig.GetProperty("webServerTlsCertificateFilePath").GetString();
+                _webServerTlsCertificatePassword = jsonWebServerConfig.GetProperty("webServerTlsCertificatePassword").GetString();
+
+                _webServerRootPath = jsonWebServerConfig.GetProperty("webServerRootPath").GetString();
+
+                if (!Path.IsPathRooted(_webServerRootPath))
+                    _webServerRootPath = Path.Combine(_dnsServer.ApplicationFolder, _webServerRootPath);
+
+                _serveBlockPageFromWebServerRoot = jsonWebServerConfig.GetProperty("serveBlockPageFromWebServerRoot").GetBoolean();
+
+                string blockPageTitle = jsonWebServerConfig.GetProperty("blockPageTitle").GetString();
+                string blockPageHeading = jsonWebServerConfig.GetProperty("blockPageHeading").GetString();
+                string blockPageMessage = jsonWebServerConfig.GetProperty("blockPageMessage").GetString();
+
+                string blockPageContent = @"<html>
+<head>
+  <title>" + (blockPageTitle is null ? "" : blockPageTitle) + @"</title>
+</head>
+<body>
+" + (blockPageHeading is null ? "" : "  <h1>" + blockPageHeading + "</h1>") + @"
+" + (blockPageMessage is null ? "" : "  <p>" + blockPageMessage + "</p>") + @"
+</body>
+</html>";
+
+                _blockPageContent = Encoding.UTF8.GetBytes(blockPageContent);
+
+                try
+                {
+                    StopWebServer();
+
+                    string selfSignedCertificateFilePath = Path.Combine(_dnsServer.ApplicationFolder, "cert.pfx");
+
+                    if (_webServerUseSelfSignedTlsCertificate)
+                    {
+                        if (!File.Exists(selfSignedCertificateFilePath))
+                        {
+                            RSA rsa = RSA.Create(2048);
+                            CertificateRequest req = new CertificateRequest("cn=" + _dnsServer.ServerDomain, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                            X509Certificate2 cert = req.CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddYears(5));
+
+                            await File.WriteAllBytesAsync(selfSignedCertificateFilePath, cert.Export(X509ContentType.Pkcs12, null as string));
+                        }
+                    }
+                    else
+                    {
+                        File.Delete(selfSignedCertificateFilePath);
+                    }
+
+                    if (string.IsNullOrEmpty(_webServerTlsCertificateFilePath))
+                    {
+                        StopTlsCertificateUpdateTimer();
+
+                        if (_webServerUseSelfSignedTlsCertificate)
+                        {
+                            LoadWebServiceTlsCertificate(selfSignedCertificateFilePath, null);
+                        }
+                        else
+                        {
+                            //disable HTTPS
+                            _webServerTlsCertificateCollection = null;
+                        }
+                    }
+                    else
+                    {
+                        LoadWebServiceTlsCertificate(_webServerTlsCertificateFilePath, _webServerTlsCertificatePassword);
+                        StartTlsCertificateUpdateTimer();
+                    }
+
+                    StartWebServer();
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer.WriteLog(ex);
+                }
+            }
+
+            #endregion
+
+            #region properties
+
+            public string Name
+            { get { return _name; } }
+
+            #endregion
+        }
     }
 }
