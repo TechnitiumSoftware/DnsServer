@@ -55,6 +55,8 @@ namespace BlockPage
         const int TCP_SEND_TIMEOUT = 10000;
         const int TCP_RECV_TIMEOUT = 10000;
 
+        const int HTTP_REQUEST_MAX_CONTENT_LENGTH = 8192;
+
         IReadOnlyDictionary<string, WebServer> _webServers;
 
         #endregion
@@ -466,7 +468,7 @@ namespace BlockPage
                     while (true)
                     {
                         bool isSocketRemoteIpPrivate = NetUtilities.IsPrivateIP(remoteEP.Address);
-                        HttpRequest httpRequest = await HttpRequest.ReadRequestAsync(stream, 512).WithTimeout(TCP_RECV_TIMEOUT);
+                        HttpRequest httpRequest = await HttpRequest.ReadRequestAsync(stream, HTTP_REQUEST_MAX_CONTENT_LENGTH).WithTimeout(TCP_RECV_TIMEOUT);
                         if (httpRequest is null)
                             return; //connection closed gracefully by client
 
