@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.ApplicationCommon;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
@@ -123,22 +124,34 @@ namespace Dns64
             List<DnsResourceRecord> newAnswer = new List<DnsResourceRecord>(response.Answer.Count);
 
             bool synthesizeAAAA = true;
+            bool anyExclusions = group.ExcludedIpv6.Any();
 
             foreach (DnsResourceRecord answer in response.Answer)
             {
+                //If this isn't an AAAA, include it in the new answer as we don't need to mess with it
                 if (answer.Type != DnsResourceRecordType.AAAA)
                 {
                     newAnswer.Add(answer);
                     continue;
                 }
-
+                
+                //If there aren't any exclusions, and we have an AAAA already, we can just accept that AAAA and not synthesize anything
+                if (answer.Type == DnsResourceRecordType.AAAA && !anyExclusions)
+                {
+                    newAnswer.Add(answer);
+                    synthesizeAAAA = false;
+                    continue;
+                }
+                
+                //At this point, we have an AAAA and we have at least one exclusion. We need to check the AAAA against the exclusion list
+                
                 IPAddress ipv6Address = (answer.RDATA as DnsAAAARecordData).Address;
 
                 foreach (NetworkAddress excludedIpv6 in group.ExcludedIpv6)
                 {
                     if (!excludedIpv6.Contains(ipv6Address))
                     {
-                        //found non-excluded AAAA record so no need to synthesize AAAA
+                        //This AAAA is not excluded and so we can just accept it and not synthesize anything
                         newAnswer.Add(answer);
                         synthesizeAAAA = false;
                     }
