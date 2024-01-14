@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -372,12 +372,16 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             int count = 0;
 
-            while ((count++ < DnsServer.MAX_CNAME_HOPS) && _root.TryGet(domain, out AuthZoneNode zoneNode) && zoneNode.IsActive)
+            while (count++ < DnsServer.MAX_CNAME_HOPS)
             {
+                AuthZone zone = _root.FindZone(domain, out _, out _, out _, out _);
+                if ((zone is null) || !zone.IsActive)
+                    break;
+
                 if (((refRecord.Type == DnsResourceRecordType.SVCB) || (refRecord.Type == DnsResourceRecordType.HTTPS)) && ((refRecord.RDATA as DnsSVCBRecordData).SvcPriority == 0))
                 {
                     //resolve SVCB/HTTPS for Alias mode refRecord
-                    IReadOnlyList<DnsResourceRecord> records = zoneNode.QueryRecords(refRecord.Type, dnssecOk);
+                    IReadOnlyList<DnsResourceRecord> records = zone.QueryRecordsWildcard(refRecord.Type, dnssecOk, domain);
                     if ((records.Count > 0) && (records[0].Type == refRecord.Type) && (records[0].RDATA is DnsSVCBRecordData svcb))
                     {
                         additionalRecords.AddRange(records);
@@ -445,14 +449,14 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                 if (!hasA)
                 {
-                    IReadOnlyList<DnsResourceRecord> records = zoneNode.QueryRecords(DnsResourceRecordType.A, dnssecOk);
+                    IReadOnlyList<DnsResourceRecord> records = zone.QueryRecordsWildcard(DnsResourceRecordType.A, dnssecOk, domain);
                     if ((records.Count > 0) && (records[0].Type == DnsResourceRecordType.A))
                         additionalRecords.AddRange(records);
                 }
 
                 if (!hasAAAA)
                 {
-                    IReadOnlyList<DnsResourceRecord> records = zoneNode.QueryRecords(DnsResourceRecordType.AAAA, dnssecOk);
+                    IReadOnlyList<DnsResourceRecord> records = zone.QueryRecordsWildcard(DnsResourceRecordType.AAAA, dnssecOk, domain);
                     if ((records.Count > 0) && (records[0].Type == DnsResourceRecordType.AAAA))
                         additionalRecords.AddRange(records);
                 }
@@ -2487,137 +2491,161 @@ namespace DnsServerCore.Dns.ZoneManagers
                     return GetReferralResponse(request, dnssecOk, delegation, apexZone);
                 }
 
+                DnsResponseCode rCode = DnsResponseCode.NoError;
+                IReadOnlyList<DnsResourceRecord> answer = null;
                 IReadOnlyList<DnsResourceRecord> authority = null;
-                IReadOnlyList<DnsResourceRecord> additional;
+                IReadOnlyList<DnsResourceRecord> additional = null;
 
-                IReadOnlyList<DnsResourceRecord> answers = zone.QueryRecords(question.Type, dnssecOk);
-                if (answers.Count == 0)
+                if (closest is not null)
                 {
-                    //record type not found
-                    if (question.Type == DnsResourceRecordType.DS)
+                    answer = closest.QueryRecords(DnsResourceRecordType.DNAME, dnssecOk);
+                    if ((answer.Count > 0) && (answer[0].Type == DnsResourceRecordType.DNAME))
                     {
-                        //check for correct auth zone
-                        if (apexZone.Name.Equals(question.Name, StringComparison.OrdinalIgnoreCase))
-                        {
-                            //current auth zone is child side; find parent side auth zone for DS
-                            string parentZone = GetParentZone(question.Name);
-                            if (parentZone is null)
-                                parentZone = string.Empty;
+                        if (!DoDNAMESubstitution(question, dnssecOk, answer, out answer))
+                            rCode = DnsResponseCode.YXDomain;
+                    }
+                }
 
-                            _ = _root.FindZone(parentZone, out _, out _, out apexZone, out _);
-
-                            if ((apexZone is null) || !apexZone.IsActive)
-                                return null; //no authority for requested zone
-                        }
+                if ((answer is null) || (answer.Count == 0))
+                {
+                    answer = apexZone.QueryRecords(DnsResourceRecordType.DNAME, dnssecOk);
+                    if ((answer.Count > 0) && (answer[0].Type == DnsResourceRecordType.DNAME))
+                    {
+                        if (!DoDNAMESubstitution(question, dnssecOk, answer, out answer))
+                            rCode = DnsResponseCode.YXDomain;
                     }
                     else
                     {
-                        //check for delegation, stub & forwarder
-                        if ((delegation is not null) && delegation.IsActive && (delegation.Name.Length > apexZone.Name.Length))
-                            return GetReferralResponse(request, dnssecOk, delegation, apexZone);
-
-                        if (apexZone is StubZone)
-                            return GetReferralResponse(request, false, apexZone, apexZone);
-                    }
-
-                    authority = zone.QueryRecords(DnsResourceRecordType.APP, false);
-                    if (authority.Count == 0)
-                    {
-                        if (apexZone is ForwarderZone)
-                            return GetForwarderResponse(request, zone, closest, apexZone); //no APP record available so process FWD response
-
-                        authority = apexZone.QueryRecords(DnsResourceRecordType.SOA, dnssecOk);
-
-                        if (dnssecOk)
+                        answer = zone.QueryRecords(question.Type, dnssecOk);
+                        if (answer.Count == 0)
                         {
-                            //add proof of non existence (NODATA) to prove that no such type or record exists
-                            IReadOnlyList<DnsResourceRecord> nsecRecords;
-
-                            if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
-                                nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(zone, apexZone);
-                            else
-                                nsecRecords = _root.FindNSecProofOfNonExistenceNoData(zone);
-
-                            if (nsecRecords.Count > 0)
+                            //record type not found
+                            if (question.Type == DnsResourceRecordType.DS)
                             {
-                                List<DnsResourceRecord> newAuthority = new List<DnsResourceRecord>(authority.Count + nsecRecords.Count);
+                                //check for correct auth zone
+                                if (apexZone.Name.Equals(question.Name, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    //current auth zone is child side; find parent side auth zone for DS
+                                    string parentZone = GetParentZone(question.Name);
+                                    if (parentZone is null)
+                                        parentZone = string.Empty;
 
-                                newAuthority.AddRange(authority);
-                                newAuthority.AddRange(nsecRecords);
+                                    _ = _root.FindZone(parentZone, out _, out _, out apexZone, out _);
 
-                                authority = newAuthority;
+                                    if ((apexZone is null) || !apexZone.IsActive)
+                                        return null; //no authority for requested zone
+                                }
+                            }
+                            else
+                            {
+                                //check for delegation, stub & forwarder
+                                if ((delegation is not null) && delegation.IsActive && (delegation.Name.Length > apexZone.Name.Length))
+                                    return GetReferralResponse(request, dnssecOk, delegation, apexZone);
+
+                                if (apexZone is StubZone)
+                                    return GetReferralResponse(request, false, apexZone, apexZone);
+                            }
+
+                            authority = zone.QueryRecords(DnsResourceRecordType.APP, false);
+                            if (authority.Count == 0)
+                            {
+                                if (apexZone is ForwarderZone)
+                                    return GetForwarderResponse(request, zone, closest, apexZone); //no APP record available so process FWD response
+
+                                authority = apexZone.QueryRecords(DnsResourceRecordType.SOA, dnssecOk);
+
+                                if (dnssecOk)
+                                {
+                                    //add proof of non existence (NODATA) to prove that no such type or record exists
+                                    IReadOnlyList<DnsResourceRecord> nsecRecords;
+
+                                    if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
+                                        nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(zone, apexZone);
+                                    else
+                                        nsecRecords = _root.FindNSecProofOfNonExistenceNoData(zone);
+
+                                    if (nsecRecords.Count > 0)
+                                    {
+                                        List<DnsResourceRecord> newAuthority = new List<DnsResourceRecord>(authority.Count + nsecRecords.Count);
+
+                                        newAuthority.AddRange(authority);
+                                        newAuthority.AddRange(nsecRecords);
+
+                                        authority = newAuthority;
+                                    }
+                                }
+                            }
+
+                            additional = null;
+                        }
+                        else
+                        {
+                            //record type found
+                            if (zone.Name.StartsWith('*') && !zone.Name.Equals(question.Name, StringComparison.OrdinalIgnoreCase))
+                            {
+                                //wildcard zone; generate new answer records
+                                DnsResourceRecord[] wildcardAnswers = new DnsResourceRecord[answer.Count];
+
+                                for (int i = 0; i < answer.Count; i++)
+                                    wildcardAnswers[i] = new DnsResourceRecord(question.Name, answer[i].Type, answer[i].Class, answer[i].TTL, answer[i].RDATA) { Tag = answer[i].Tag };
+
+                                answer = wildcardAnswers;
+
+                                //add proof of non existence (WILDCARD) to prove that the wildcard expansion was legit and the qname actually does not exists
+                                if (dnssecOk)
+                                {
+                                    IReadOnlyList<DnsResourceRecord> nsecRecords;
+
+                                    if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
+                                        nsecRecords = _root.FindNSec3ProofOfNonExistenceNxDomain(question.Name, true);
+                                    else
+                                        nsecRecords = _root.FindNSecProofOfNonExistenceNxDomain(question.Name, true);
+
+                                    if (nsecRecords.Count > 0)
+                                        authority = nsecRecords;
+                                }
+                            }
+
+                            DnsResourceRecord lastRR = answer[answer.Count - 1];
+                            if ((lastRR.Type != question.Type) && (question.Type != DnsResourceRecordType.ANY))
+                            {
+                                switch (lastRR.Type)
+                                {
+                                    case DnsResourceRecordType.CNAME:
+                                        List<DnsResourceRecord> newAnswers = new List<DnsResourceRecord>(answer.Count + 1);
+                                        newAnswers.AddRange(answer);
+
+                                        ResolveCNAME(question, dnssecOk, lastRR, newAnswers);
+
+                                        answer = newAnswers;
+                                        break;
+
+                                    case DnsResourceRecordType.ANAME:
+                                    case DnsResourceRecordType.ALIAS:
+                                        authority = apexZone.GetRecords(DnsResourceRecordType.SOA); //adding SOA for use with NO DATA response
+                                        break;
+                                }
+                            }
+
+                            switch (question.Type)
+                            {
+                                case DnsResourceRecordType.NS:
+                                case DnsResourceRecordType.MX:
+                                case DnsResourceRecordType.SRV:
+                                case DnsResourceRecordType.SVCB:
+                                case DnsResourceRecordType.HTTPS:
+                                    additional = GetAdditionalRecords(answer, dnssecOk);
+                                    break;
+
+                                default:
+                                    additional = null;
+                                    break;
                             }
                         }
                     }
-
-                    additional = null;
-                }
-                else
-                {
-                    //record type found
-                    if (zone.Name.Contains('*') && !zone.Name.Equals(question.Name, StringComparison.OrdinalIgnoreCase))
-                    {
-                        //wildcard zone; generate new answer records
-                        DnsResourceRecord[] wildcardAnswers = new DnsResourceRecord[answers.Count];
-
-                        for (int i = 0; i < answers.Count; i++)
-                            wildcardAnswers[i] = new DnsResourceRecord(question.Name, answers[i].Type, answers[i].Class, answers[i].TTL, answers[i].RDATA) { Tag = answers[i].Tag };
-
-                        answers = wildcardAnswers;
-
-                        //add proof of non existence (WILDCARD) to prove that the wildcard expansion was legit and the qname actually does not exists
-                        if (dnssecOk)
-                        {
-                            IReadOnlyList<DnsResourceRecord> nsecRecords;
-
-                            if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
-                                nsecRecords = _root.FindNSec3ProofOfNonExistenceNxDomain(question.Name, true);
-                            else
-                                nsecRecords = _root.FindNSecProofOfNonExistenceNxDomain(question.Name, true);
-
-                            if (nsecRecords.Count > 0)
-                                authority = nsecRecords;
-                        }
-                    }
-
-                    DnsResourceRecord lastRR = answers[answers.Count - 1];
-                    if ((lastRR.Type != question.Type) && (question.Type != DnsResourceRecordType.ANY))
-                    {
-                        switch (lastRR.Type)
-                        {
-                            case DnsResourceRecordType.CNAME:
-                                List<DnsResourceRecord> newAnswers = new List<DnsResourceRecord>(answers.Count + 1);
-                                newAnswers.AddRange(answers);
-
-                                ResolveCNAME(question, dnssecOk, lastRR, newAnswers);
-
-                                answers = newAnswers;
-                                break;
-
-                            case DnsResourceRecordType.ANAME:
-                            case DnsResourceRecordType.ALIAS:
-                                authority = apexZone.GetRecords(DnsResourceRecordType.SOA); //adding SOA for use with NO DATA response
-                                break;
-                        }
-                    }
-
-                    switch (question.Type)
-                    {
-                        case DnsResourceRecordType.NS:
-                        case DnsResourceRecordType.MX:
-                        case DnsResourceRecordType.SRV:
-                        case DnsResourceRecordType.SVCB:
-                        case DnsResourceRecordType.HTTPS:
-                            additional = GetAdditionalRecords(answers, dnssecOk);
-                            break;
-
-                        default:
-                            additional = null;
-                            break;
-                    }
                 }
 
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers, authority, additional);
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, rCode, request.Question, answer, authority, additional);
             }
         }
 
