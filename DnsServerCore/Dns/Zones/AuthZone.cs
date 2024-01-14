@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -932,6 +932,24 @@ namespace DnsServerCore.Dns.Zones
             }
 
             return Array.Empty<DnsResourceRecord>();
+        }
+
+        public IReadOnlyList<DnsResourceRecord> QueryRecordsWildcard(DnsResourceRecordType type, bool dnssecOk, string queryDomain)
+        {
+            IReadOnlyList<DnsResourceRecord> answers = QueryRecords(type, dnssecOk);
+
+            if ((answers.Count > 0) && _name.StartsWith('*') && !_name.Equals(queryDomain, StringComparison.OrdinalIgnoreCase))
+            {
+                //wildcard zone; generate new answer records
+                DnsResourceRecord[] wildcardAnswers = new DnsResourceRecord[answers.Count];
+
+                for (int i = 0; i < answers.Count; i++)
+                    wildcardAnswers[i] = new DnsResourceRecord(queryDomain, answers[i].Type, answers[i].Class, answers[i].TTL, answers[i].RDATA) { Tag = answers[i].Tag };
+
+                answers = wildcardAnswers;
+            }
+
+            return answers;
         }
 
         public IReadOnlyList<DnsResourceRecord> GetRecords(DnsResourceRecordType type)
