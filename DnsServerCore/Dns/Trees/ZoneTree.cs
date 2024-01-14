@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -133,6 +133,29 @@ namespace DnsServerCore.Dns.Trees
             }
         }
 
+        private void FindClosestValuesForZone(TNode zoneNode, Node currentNode, ref Node closestSubDomainNode, ref Node closestAuthorityNode, ref TSubDomainZone closestSubDomain, ref TSubDomainZone closestDelegation, ref TApexZone closestAuthority)
+        {
+            GetClosestValuesForZone(zoneNode, out TSubDomainZone subDomain, out TSubDomainZone delegation, out TApexZone authority);
+
+            if (subDomain is not null)
+            {
+                closestSubDomain = subDomain;
+                closestSubDomainNode = currentNode;
+            }
+
+            if (delegation is not null)
+                closestDelegation = delegation;
+
+            if (authority is not null)
+            {
+                closestAuthority = authority;
+                closestAuthorityNode = currentNode;
+
+                closestSubDomain = null; //clear previous closest sub domain
+                closestSubDomainNode = null;
+            }
+        }
+
         #endregion
 
         #region protected
@@ -152,8 +175,17 @@ namespace DnsServerCore.Dns.Trees
                 {
                     if (mainKey[i] == 1) //[*]
                     {
-                        if (i == mainKey.Length - 2)
-                            return false; //last label, valid wildcard; wildcard is sibling, cannot have subdomain
+                        //skip j to next label
+                        while (j < testKey.Length)
+                        {
+                            if (testKey[j] == 0) //[.]
+                                break;
+
+                            j++;
+                        }
+
+                        i++;
+                        continue;
                     }
 
                     if (mainKey[i] != testKey[j])
@@ -189,7 +221,7 @@ namespace DnsServerCore.Dns.Trees
             closestSubDomain = null;
             closestDelegation = null;
             closestAuthority = null;
-            Node wildcard = null;
+            Node wildcardNode = null;
             int i = 0;
 
             while (i <= key.Length)
@@ -201,33 +233,9 @@ namespace DnsServerCore.Dns.Trees
                     TNode zoneNode = value.Value;
                     if ((zoneNode is not null) && IsKeySubDomain(value.Key, key, matchWildcard))
                     {
-                        //find closest values
-                        GetClosestValuesForZone(zoneNode, out TSubDomainZone subDomain, out TSubDomainZone delegation, out TApexZone authority);
+                        FindClosestValuesForZone(zoneNode, currentNode, ref closestSubDomainNode, ref closestAuthorityNode, ref closestSubDomain, ref closestDelegation, ref closestAuthority);
 
-                        if (subDomain is not null)
-                        {
-                            closestSubDomain = subDomain;
-                            closestSubDomainNode = currentNode;
-
-                            wildcard = null; //clear previous wildcard node
-                        }
-
-                        if (delegation is not null)
-                        {
-                            closestDelegation = delegation;
-
-                            wildcard = null; //clear previous wildcard node
-                        }
-
-                        if (authority is not null)
-                        {
-                            closestAuthority = authority;
-                            closestAuthorityNode = currentNode;
-
-                            closestSubDomain = null; //clear previous closest sub domain
-                            closestSubDomainNode = null;
-                            wildcard = null; //clear previous wildcard node
-                        }
+                        wildcardNode = null; //clear previous wildcard node
                     }
                 }
 
@@ -238,27 +246,49 @@ namespace DnsServerCore.Dns.Trees
                 if (children is null)
                     break;
 
-                Node child;
+                Node childNode;
 
-                if (matchWildcard)
+                if (matchWildcard && (key[i] != 1)) //wildcard match only when key does not have '*' as literal char: RFC 4592 section 2.3
                 {
-                    child = Volatile.Read(ref children[1]); //[*]
-                    if (child is not null)
-                        wildcard = child;
+                    childNode = Volatile.Read(ref children[1]); //[*]
+                    if (childNode is not null)
+                    {
+                        NodeValue wValue = childNode.Value;
+                        if (wValue is null)
+                        {
+                            //find value from next [.] node
+                            Node[] wChildren = childNode.Children;
+                            if (wChildren is not null)
+                            {
+                                Node wChildNode = Volatile.Read(ref wChildren[0]); //[.]
+                                if (wChildNode is not null)
+                                {
+                                    wValue = wChildNode.Value;
+                                    if ((wValue is not null) && (wValue.Key.Length == wChildNode.Depth))
+                                        wildcardNode = wChildNode;
+                                }
+                            }
+                        }
+                        else if (wValue.Key.Length == childNode.Depth + 1)
+                        {
+                            wildcardNode = childNode;
+                        }
+                    }
                 }
 
-                child = Volatile.Read(ref children[key[i]]);
-                if (child is null)
+                childNode = Volatile.Read(ref children[key[i]]);
+                if (childNode is null)
                 {
                     //no child found
-                    if (wildcard is null)
+                    if (wildcardNode is null)
                         return null; //no child or wildcard found
 
                     //use wildcard node
+                    //currentNode = wildcardNode; //use wildcard node as current node
                     break;
                 }
 
-                currentNode = child;
+                currentNode = childNode;
                 i++;
             }
 
@@ -266,90 +296,24 @@ namespace DnsServerCore.Dns.Trees
                 NodeValue value = currentNode.Value;
                 if (value is not null)
                 {
-                    //match exact + wildcard keys
-                    if (KeysMatch(value.Key, key, matchWildcard))
+                    //match exact only
+                    if (KeysMatch(value.Key, key, false))
                     {
                         //find closest values since the matched zone may be apex zone
                         TNode zoneNode = value.Value;
                         if (zoneNode is not null)
-                        {
-                            GetClosestValuesForZone(zoneNode, out TSubDomainZone subDomain, out TSubDomainZone delegation, out TApexZone authority);
-
-                            if (subDomain is not null)
-                            {
-                                closestSubDomain = subDomain;
-                                closestSubDomainNode = currentNode;
-                            }
-
-                            if (delegation is not null)
-                                closestDelegation = delegation;
-
-                            if (authority is not null)
-                            {
-                                closestAuthority = authority;
-                                closestAuthorityNode = currentNode;
-
-                                closestSubDomain = null; //clear previous closest sub domain
-                                closestSubDomainNode = null;
-                            }
-                        }
+                            FindClosestValuesForZone(zoneNode, currentNode, ref closestSubDomainNode, ref closestAuthorityNode, ref closestSubDomain, ref closestDelegation, ref closestAuthority);
 
                         return value.Value; //found matching value
                     }
                 }
             }
 
-            if (wildcard is not null)
+            if (wildcardNode is not null)
             {
                 //inspect wildcard node value
-                NodeValue value = wildcard.Value;
-                if (value is null)
-                {
-                    //find value from next [.] node
-                    Node[] children = wildcard.Children;
-                    if (children is not null)
-                    {
-                        Node child = Volatile.Read(ref children[0]); //[.]
-                        if (child is not null)
-                        {
-                            value = child.Value;
-                            if (value is not null)
-                            {
-                                //match wildcard keys
-                                if (KeysMatch(value.Key, key, true))
-                                {
-                                    //find closest values
-                                    TNode zoneNode = value.Value;
-                                    if (zoneNode is not null)
-                                    {
-                                        GetClosestValuesForZone(zoneNode, out TSubDomainZone subDomain, out TSubDomainZone delegation, out TApexZone authority);
-
-                                        if (subDomain is not null)
-                                        {
-                                            closestSubDomain = subDomain;
-                                            closestSubDomainNode = currentNode;
-                                        }
-
-                                        if (delegation is not null)
-                                            closestDelegation = delegation;
-
-                                        if (authority is not null)
-                                        {
-                                            closestAuthority = authority;
-                                            closestAuthorityNode = currentNode;
-
-                                            closestSubDomain = null; //clear previous closest sub domain
-                                            closestSubDomainNode = null;
-                                        }
-                                    }
-
-                                    return value.Value; //found matching wildcard value
-                                }
-                            }
-                        }
-                    }
-                }
-                else
+                NodeValue value = wildcardNode.Value;
+                if (value is not null)
                 {
                     //match wildcard keys
                     if (KeysMatch(value.Key, key, true))
@@ -357,27 +321,7 @@ namespace DnsServerCore.Dns.Trees
                         //find closest values
                         TNode zoneNode = value.Value;
                         if (zoneNode is not null)
-                        {
-                            GetClosestValuesForZone(zoneNode, out TSubDomainZone subDomain, out TSubDomainZone delegation, out TApexZone authority);
-
-                            if (subDomain is not null)
-                            {
-                                closestSubDomain = subDomain;
-                                closestSubDomainNode = currentNode;
-                            }
-
-                            if (delegation is not null)
-                                closestDelegation = delegation;
-
-                            if (authority is not null)
-                            {
-                                closestAuthority = authority;
-                                closestAuthorityNode = currentNode;
-
-                                closestSubDomain = null; //clear previous closest sub domain
-                                closestSubDomainNode = null;
-                            }
-                        }
+                            FindClosestValuesForZone(zoneNode, currentNode, ref closestSubDomainNode, ref closestAuthorityNode, ref closestSubDomain, ref closestDelegation, ref closestAuthority);
 
                         return value.Value; //found matching wildcard value
                     }
