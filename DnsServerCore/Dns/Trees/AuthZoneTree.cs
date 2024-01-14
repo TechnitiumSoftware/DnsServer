@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -312,6 +312,14 @@ namespace DnsServerCore.Dns.Trees
 
         private static bool SubDomainExists(byte[] key, Node currentNode)
         {
+            Node[] children = currentNode.Children;
+            if (children is not null)
+            {
+                Node child = Volatile.Read(ref children[1]); //[*]
+                if (child is not null)
+                    return true; //wildcard exists so subdomain name exists: RFC 4592 section 4.9
+            }
+
             Node nextSubDomain = GetNextSubDomainZoneNode(key, currentNode, currentNode.Depth);
             if (nextSubDomain is null)
                 return false;
@@ -642,7 +650,11 @@ namespace DnsServerCore.Dns.Trees
                     SubDomainZone subDomainZone = authZoneNode.ParentSideZone;
 
                     zone = subDomainZone;
-                    closest = closestSubDomain;
+
+                    if (zone == closestSubDomain)
+                        closest = null;
+                    else
+                        closest = closestSubDomain;
 
                     if (closestDelegation is not null)
                         delegation = closestDelegation;
@@ -887,7 +899,7 @@ namespace DnsServerCore.Dns.Trees
             AuthZoneNode authZoneNode = FindZoneNode(key, isWildcardAnswer, out _, out _, out _, out SubDomainZone closestSubDomain, out _, out ApexZone closestAuthority);
             if (authZoneNode is not null)
             {
-                if (isWildcardAnswer && (closestSubDomain is not null) && closestSubDomain.Name.Contains('*'))
+                if (isWildcardAnswer && (closestSubDomain is not null) && closestSubDomain.Name.StartsWith('*'))
                 {
                     closestEncloser = closestSubDomain.Name.TrimStart(new char[] { '*', '.' });
                 }
