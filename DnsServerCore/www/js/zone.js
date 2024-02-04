@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -407,8 +407,12 @@ function refreshZones(checkDisplay, pageNumber) {
 
                 switch (zones[i].type) {
                     case "Primary":
-                    case "Secondary":
                         hideOptionsMenu = zones[i].internal;
+                        break;
+
+                    case "Secondary":
+                    case "Forwarder":
+                        hideOptionsMenu = false;
                         break;
 
                     default:
@@ -956,114 +960,123 @@ function showZoneOptionsModal(zone) {
             $("#txtZoneNotifyNameServers").prop("disabled", true);
             $("#txtDynamicUpdateIpAddresses").prop("disabled", true);
 
-            //zone transfer
-            switch (responseJSON.response.zoneTransfer) {
-                case "Allow":
-                    $("#rdZoneTransferAllow").prop("checked", true);
-                    break;
+            if ((responseJSON.response.type == "Primary") || (responseJSON.response.type == "Secondary")) {
+                //zone transfer
+                switch (responseJSON.response.zoneTransfer) {
+                    case "Allow":
+                        $("#rdZoneTransferAllow").prop("checked", true);
+                        break;
 
-                case "AllowOnlyZoneNameServers":
-                    $("#rdZoneTransferAllowOnlyZoneNameServers").prop("checked", true);
-                    break;
+                    case "AllowOnlyZoneNameServers":
+                        $("#rdZoneTransferAllowOnlyZoneNameServers").prop("checked", true);
+                        break;
 
-                case "AllowOnlySpecifiedNameServers":
-                    $("#rdZoneTransferAllowOnlySpecifiedNameServers").prop("checked", true);
-                    $("#txtZoneTransferNameServers").prop("disabled", false);
-                    break;
+                    case "AllowOnlySpecifiedNameServers":
+                        $("#rdZoneTransferAllowOnlySpecifiedNameServers").prop("checked", true);
+                        $("#txtZoneTransferNameServers").prop("disabled", false);
+                        break;
 
-                case "AllowBothZoneAndSpecifiedNameServers":
-                    $("#rdZoneTransferAllowBothZoneAndSpecifiedNameServers").prop("checked", true);
-                    $("#txtZoneTransferNameServers").prop("disabled", false);
-                    break;
+                    case "AllowBothZoneAndSpecifiedNameServers":
+                        $("#rdZoneTransferAllowBothZoneAndSpecifiedNameServers").prop("checked", true);
+                        $("#txtZoneTransferNameServers").prop("disabled", false);
+                        break;
 
-                case "Deny":
-                default:
-                    $("#rdZoneTransferDeny").prop("checked", true);
-                    break;
-            }
+                    case "Deny":
+                    default:
+                        $("#rdZoneTransferDeny").prop("checked", true);
+                        break;
+                }
 
-            {
-                var value = "";
+                {
+                    var value = "";
 
-                for (var i = 0; i < responseJSON.response.zoneTransferNameServers.length; i++)
-                    value += responseJSON.response.zoneTransferNameServers[i] + "\r\n";
+                    for (var i = 0; i < responseJSON.response.zoneTransferNameServers.length; i++)
+                        value += responseJSON.response.zoneTransferNameServers[i] + "\r\n";
 
-                $("#txtZoneTransferNameServers").val(value);
-            }
+                    $("#txtZoneTransferNameServers").val(value);
+                }
 
-            {
-                var value = "";
+                {
+                    var value = "";
 
-                if (responseJSON.response.zoneTransferTsigKeyNames != null) {
-                    for (var i = 0; i < responseJSON.response.zoneTransferTsigKeyNames.length; i++) {
-                        value += responseJSON.response.zoneTransferTsigKeyNames[i] + "\r\n";
+                    if (responseJSON.response.zoneTransferTsigKeyNames != null) {
+                        for (var i = 0; i < responseJSON.response.zoneTransferTsigKeyNames.length; i++) {
+                            value += responseJSON.response.zoneTransferTsigKeyNames[i] + "\r\n";
+                        }
                     }
+
+                    $("#txtZoneOptionsZoneTransferTsigKeyNames").val(value);
                 }
 
-                $("#txtZoneOptionsZoneTransferTsigKeyNames").val(value);
-            }
+                {
+                    var options = "<option value=\"blank\" selected></option><option value=\"none\">None</option>";
 
-            {
-                var options = "<option value=\"blank\" selected></option><option value=\"none\">None</option>";
-
-                if (responseJSON.response.availableTsigKeyNames != null) {
-                    for (var i = 0; i < responseJSON.response.availableTsigKeyNames.length; i++) {
-                        options += "<option>" + htmlEncode(responseJSON.response.availableTsigKeyNames[i]) + "</option>";
+                    if (responseJSON.response.availableTsigKeyNames != null) {
+                        for (var i = 0; i < responseJSON.response.availableTsigKeyNames.length; i++) {
+                            options += "<option>" + htmlEncode(responseJSON.response.availableTsigKeyNames[i]) + "</option>";
+                        }
                     }
+
+                    $("#optZoneOptionsQuickTsigKeyNames").html(options);
                 }
 
-                $("#optZoneOptionsQuickTsigKeyNames").html(options);
-            }
+                //notify
+                switch (responseJSON.response.notify) {
+                    case "ZoneNameServers":
+                        $("#rdZoneNotifyZoneNameServers").prop("checked", true);
+                        break;
 
-            //notify
-            switch (responseJSON.response.notify) {
-                case "ZoneNameServers":
-                    $("#rdZoneNotifyZoneNameServers").prop("checked", true);
-                    break;
+                    case "SpecifiedNameServers":
+                        $("#rdZoneNotifySpecifiedNameServers").prop("checked", true);
+                        $("#txtZoneNotifyNameServers").prop("disabled", false);
+                        break;
 
-                case "SpecifiedNameServers":
-                    $("#rdZoneNotifySpecifiedNameServers").prop("checked", true);
-                    $("#txtZoneNotifyNameServers").prop("disabled", false);
-                    break;
+                    case "BothZoneAndSpecifiedNameServers":
+                        $("#rdZoneNotifyBothZoneAndSpecifiedNameServers").prop("checked", true);
+                        $("#txtZoneNotifyNameServers").prop("disabled", false);
+                        break;
 
-                case "BothZoneAndSpecifiedNameServers":
-                    $("#rdZoneNotifyBothZoneAndSpecifiedNameServers").prop("checked", true);
-                    $("#txtZoneNotifyNameServers").prop("disabled", false);
-                    break;
-
-                case "None":
-                default:
-                    $("#rdZoneNotifyNone").prop("checked", true);
-                    break;
-            }
-
-            {
-                var value = "";
-
-                for (var i = 0; i < responseJSON.response.notifyNameServers.length; i++)
-                    value += responseJSON.response.notifyNameServers[i] + "\r\n";
-
-                $("#txtZoneNotifyNameServers").val(value);
-            }
-
-            if (responseJSON.response.notifyFailed) {
-                var value = "";
-
-                for (var i = 0; i < responseJSON.response.notifyFailedFor.length; i++) {
-                    if (i == 0)
-                        value = responseJSON.response.notifyFailedFor[i];
-                    else
-                        value += ", " + responseJSON.response.notifyFailedFor[i];
+                    case "None":
+                    default:
+                        $("#rdZoneNotifyNone").prop("checked", true);
+                        break;
                 }
 
-                $("#divZoneNotifyFailedNameServers").show();
-                $("#lblZoneNotifyFailedNameServers").text(value);
+                {
+                    var value = "";
+
+                    for (var i = 0; i < responseJSON.response.notifyNameServers.length; i++)
+                        value += responseJSON.response.notifyNameServers[i] + "\r\n";
+
+                    $("#txtZoneNotifyNameServers").val(value);
+                }
+
+                if (responseJSON.response.notifyFailed) {
+                    var value = "";
+
+                    for (var i = 0; i < responseJSON.response.notifyFailedFor.length; i++) {
+                        if (i == 0)
+                            value = responseJSON.response.notifyFailedFor[i];
+                        else
+                            value += ", " + responseJSON.response.notifyFailedFor[i];
+                    }
+
+                    $("#divZoneNotifyFailedNameServers").show();
+                    $("#lblZoneNotifyFailedNameServers").text(value);
+                }
+                else {
+                    $("#divZoneNotifyFailedNameServers").hide();
+                }
+
+                $("#tabListZoneOptionsZoneTranfer").show();
+                $("#tabListZoneOptionsNotify").show();
             }
             else {
-                $("#divZoneNotifyFailedNameServers").hide();
+                $("#tabListZoneOptionsZoneTranfer").hide();
+                $("#tabListZoneOptionsNotify").hide();
             }
 
-            if (responseJSON.response.type == "Primary") {
+            if ((responseJSON.response.type == "Primary") || (responseJSON.response.type == "Forwarder")) {
                 //dynamic update
                 switch (responseJSON.response.update) {
                     case "Allow":
@@ -1109,6 +1122,15 @@ function showZoneOptionsModal(zone) {
                     }
                 }
 
+                if (responseJSON.response.type == "Forwarder") {
+                    $("#divDynamicUpdateAllowOnlyZoneNameServers").hide();
+                    $("#divDynamicUpdateAllowBothZoneNameServersAndSpecifiedIpAddresses").hide();
+                }
+                else {
+                    $("#divDynamicUpdateAllowOnlyZoneNameServers").show();
+                    $("#divDynamicUpdateAllowBothZoneNameServersAndSpecifiedIpAddresses").show();
+                }
+
                 $("#tabListZoneOptionsUpdate").show();
             }
             else {
@@ -1118,12 +1140,22 @@ function showZoneOptionsModal(zone) {
                 $("#tbodyDynamicUpdateSecurityPolicy").html("");
             }
 
-            $("#tabListZoneOptionsZoneTranfer").addClass("active");
-            $("#tabPaneZoneOptionsZoneTransfer").addClass("active");
-            $("#tabListZoneOptionsNotify").removeClass("active");
-            $("#tabPaneZoneOptionsNotify").removeClass("active");
-            $("#tabListZoneOptionsUpdate").removeClass("active");
-            $("#tabPaneZoneOptionsUpdate").removeClass("active");
+            if (responseJSON.response.type == "Forwarder") {
+                $("#tabListZoneOptionsZoneTranfer").removeClass("active");
+                $("#tabPaneZoneOptionsZoneTransfer").removeClass("active");
+                $("#tabListZoneOptionsNotify").removeClass("active");
+                $("#tabPaneZoneOptionsNotify").removeClass("active");
+                $("#tabListZoneOptionsUpdate").addClass("active");
+                $("#tabPaneZoneOptionsUpdate").addClass("active");
+            }
+            else {
+                $("#tabListZoneOptionsZoneTranfer").addClass("active");
+                $("#tabPaneZoneOptionsZoneTransfer").addClass("active");
+                $("#tabListZoneOptionsNotify").removeClass("active");
+                $("#tabPaneZoneOptionsNotify").removeClass("active");
+                $("#tabListZoneOptionsUpdate").removeClass("active");
+                $("#tabPaneZoneOptionsUpdate").removeClass("active");
+            }
 
             divZoneOptionsLoader.hide();
             divZoneOptions.show();
@@ -1805,6 +1837,7 @@ function showEditZone(zone, showPageNumber) {
             switch (zoneType) {
                 case "Primary":
                 case "Secondary":
+                case "Forwarder":
                     $("#lnkZoneOptions").show();
                     break;
 
