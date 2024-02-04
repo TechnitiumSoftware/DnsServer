@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -40,6 +40,10 @@ namespace DnsServerCore
     class WebServiceZonesApi
     {
         #region variables
+
+        static readonly char[] _commaSeparator = new char[] { ',' };
+        static readonly char[] _pipeSeparator = new char[] { '|' };
+        static readonly char[] _commaSpaceSeparator = new char[] { ',', ' ' };
 
         readonly DnsWebService _dnsWebService;
 
@@ -890,7 +894,7 @@ namespace DnsServerCore
                 if ((parts.Length == 2) && IPAddress.TryParse(parts[0], out ipAddress) && int.TryParse(parts[1], out int subnetMaskWidth))
                     zoneName = Zone.GetReverseZone(ipAddress, subnetMaskWidth);
             }
-            else if (zoneName.EndsWith("."))
+            else if (zoneName.EndsWith('.'))
             {
                 zoneName = zoneName.Substring(0, zoneName.Length - 1);
             }
@@ -2022,6 +2026,7 @@ namespace DnsServerCore
             switch (zoneInfo.Type)
             {
                 case AuthZoneType.Primary:
+                case AuthZoneType.Forwarder:
                     jsonWriter.WriteString("update", zoneInfo.Update.ToString());
 
                     jsonWriter.WritePropertyName("updateIpAddresses");
@@ -2139,7 +2144,7 @@ namespace DnsServerCore
                         }
                         else
                         {
-                            string[] strZoneTransferTsigKeyNamesParts = strZoneTransferTsigKeyNames.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                            string[] strZoneTransferTsigKeyNamesParts = strZoneTransferTsigKeyNames.Split(_commaSeparator, StringSplitOptions.RemoveEmptyEntries);
                             Dictionary<string, object> zoneTransferTsigKeyNames = new Dictionary<string, object>(strZoneTransferTsigKeyNamesParts.Length);
 
                             for (int i = 0; i < strZoneTransferTsigKeyNamesParts.Length; i++)
@@ -2166,6 +2171,7 @@ namespace DnsServerCore
             switch (zoneInfo.Type)
             {
                 case AuthZoneType.Primary:
+                case AuthZoneType.Forwarder:
                     if (request.TryGetQueryOrFormEnum("update", out AuthZoneUpdate update))
                         zoneInfo.Update = update;
 
@@ -2187,7 +2193,7 @@ namespace DnsServerCore
                         }
                         else
                         {
-                            string[] strUpdateSecurityPoliciesParts = strUpdateSecurityPolicies.Split(new char[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
+                            string[] strUpdateSecurityPoliciesParts = strUpdateSecurityPolicies.Split(_pipeSeparator, StringSplitOptions.RemoveEmptyEntries);
                             Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> updateSecurityPolicies = new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>>(strUpdateSecurityPoliciesParts.Length);
 
                             for (int i = 0; i < strUpdateSecurityPoliciesParts.Length; i += 3)
@@ -2211,7 +2217,7 @@ namespace DnsServerCore
                                     (policyMap as Dictionary<string, IReadOnlyList<DnsResourceRecordType>>).Add(domain, types);
                                 }
 
-                                foreach (string strType in strTypes.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+                                foreach (string strType in strTypes.Split(_commaSpaceSeparator, StringSplitOptions.RemoveEmptyEntries))
                                     (types as List<DnsResourceRecordType>).Add(Enum.Parse<DnsResourceRecordType>(strType, true));
                             }
 
