@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -37,13 +37,13 @@ namespace DnsBlockList
     //DNS Blacklists and Whitelists
     //https://www.rfc-editor.org/rfc/rfc5782
 
-    public class App : IDnsApplication, IDnsAppRecordRequestHandler
+    public sealed class App : IDnsApplication, IDnsAppRecordRequestHandler
     {
         #region variables
 
         IDnsServer _dnsServer;
 
-        IReadOnlyDictionary<string, BlockList> _dnsBlockLists;
+        Dictionary<string, BlockList> _dnsBlockLists;
 
         #endregion
 
@@ -77,7 +77,7 @@ namespace DnsBlockList
                 {
                     case 4:
                         {
-                            byte[] buffer = new byte[4];
+                            Span<byte> buffer = stackalloc byte[4];
 
                             for (int i = 0, j = parts.Length - 1; (i < 4) && (j > -1); i++, j--)
                                 buffer[i] = byte.Parse(parts[j]);
@@ -89,7 +89,7 @@ namespace DnsBlockList
 
                     case 32:
                         {
-                            byte[] buffer = new byte[16];
+                            Span<byte> buffer = stackalloc byte[16];
 
                             for (int i = 0, j = parts.Length - 1; (i < 16) && (j > 0); i++, j -= 2)
                                 buffer[i] = (byte)(byte.Parse(parts[j], NumberStyles.HexNumber) << 4 | byte.Parse(parts[j - 1], NumberStyles.HexNumber));
@@ -541,7 +541,7 @@ namespace DnsBlockList
                             if (line.Length == 0)
                                 continue; //skip empty line
 
-                            if (line.StartsWith("#"))
+                            if (line.StartsWith('#'))
                                 continue; //skip comment line
 
                             network = PopWord(ref line);
@@ -723,7 +723,7 @@ namespace DnsBlockList
                             if (line.Length == 0)
                                 continue; //skip empty line
 
-                            if (line.StartsWith("#"))
+                            if (line.StartsWith('#'))
                                 continue; //skip comment line
 
                             domain = PopWord(ref line);
