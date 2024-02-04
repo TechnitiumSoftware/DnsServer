@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -33,7 +33,8 @@ namespace DnsServerCore.ApplicationCommon
         Cached = 3,
         Blocked = 4,
         UpstreamBlocked = 5,
-        CacheBlocked = 6
+        CacheBlocked = 6,
+        Dropped = 7
     }
 
     /// <summary>
