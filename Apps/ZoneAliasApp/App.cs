@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -29,14 +29,14 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace ZoneAlias
 {
-    public class App : IDnsApplication, IDnsAuthoritativeRequestHandler
+    public sealed class App : IDnsApplication, IDnsAuthoritativeRequestHandler
     {
         #region variables
 
         IDnsServer _dnsServer;
 
         bool _enableAliasing;
-        IDictionary<string, string> _aliases;
+        Dictionary<string, string> _aliases;
 
         #endregion
 
