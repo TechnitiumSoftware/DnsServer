@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace AdvancedForwarding
 {
-    public class App : IDnsApplication, IDnsAuthoritativeRequestHandler
+    public sealed class App : IDnsApplication, IDnsAuthoritativeRequestHandler
     {
         #region variables
 
@@ -41,8 +41,8 @@ namespace AdvancedForwarding
         bool _enableForwarding;
         Dictionary<string, ConfigProxyServer> _configProxyServers;
         Dictionary<string, ConfigForwarder> _configForwarders;
-        IReadOnlyDictionary<NetworkAddress, string> _networkGroupMap;
-        IReadOnlyDictionary<string, Group> _groups;
+        Dictionary<NetworkAddress, string> _networkGroupMap;
+        Dictionary<string, Group> _groups;
 
         #endregion
 
@@ -61,7 +61,7 @@ namespace AdvancedForwarding
 
         #region private
 
-        private static IReadOnlyList<DnsForwarderRecordData> GetUpdatedForwarderRecords(IReadOnlyList<DnsForwarderRecordData> forwarderRecords, bool dnssecValidation, ConfigProxyServer configProxyServer)
+        private static List<DnsForwarderRecordData> GetUpdatedForwarderRecords(IReadOnlyList<DnsForwarderRecordData> forwarderRecords, bool dnssecValidation, ConfigProxyServer configProxyServer)
         {
             List<DnsForwarderRecordData> newForwarderRecords = new List<DnsForwarderRecordData>(forwarderRecords.Count);
 
@@ -90,10 +90,9 @@ namespace AdvancedForwarding
 
         private Tuple<string, Group> ReadGroup(JsonElement jsonGroup)
         {
-            Group group;
             string name = jsonGroup.GetProperty("name").GetString();
 
-            if ((_groups is not null) && _groups.TryGetValue(name, out group))
+            if ((_groups is not null) && _groups.TryGetValue(name, out Group group))
                 group.ReloadConfig(_configProxyServers, _configForwarders, jsonGroup);
             else
                 group = new Group(_dnsServer, _configProxyServers, _configForwarders, jsonGroup);
@@ -218,7 +217,7 @@ namespace AdvancedForwarding
             readonly string _name;
             bool _enableForwarding;
             IReadOnlyList<Forwarding> _forwardings;
-            IReadOnlyDictionary<string, AdGuardUpstream> _adguardUpstreams;
+            Dictionary<string, AdGuardUpstream> _adguardUpstreams;
 
             #endregion
 
@@ -254,10 +253,9 @@ namespace AdvancedForwarding
 
             private Tuple<string, AdGuardUpstream> ReadAdGuardUpstream(JsonElement jsonAdguardUpstream)
             {
-                AdGuardUpstream adGuardUpstream;
                 string name = jsonAdguardUpstream.GetProperty("configFile").GetString();
 
-                if ((_adguardUpstreams is not null) && _adguardUpstreams.TryGetValue(name, out adGuardUpstream))
+                if ((_adguardUpstreams is not null) && _adguardUpstreams.TryGetValue(name, out AdGuardUpstream adGuardUpstream))
                     adGuardUpstream.ReloadConfig(_configProxyServers, jsonAdguardUpstream);
                 else
                     adGuardUpstream = new AdGuardUpstream(_dnsServer, _configProxyServers, jsonAdguardUpstream);
@@ -344,7 +342,7 @@ namespace AdvancedForwarding
             #region variables
 
             IReadOnlyList<DnsForwarderRecordData> _forwarderRecords;
-            readonly IReadOnlyDictionary<string, object> _domainMap;
+            readonly Dictionary<string, object> _domainMap;
 
             #endregion
 
@@ -818,7 +816,7 @@ namespace AdvancedForwarding
             #region variables
 
             readonly string _name;
-            readonly IReadOnlyList<DnsForwarderRecordData> _forwarderRecords;
+            readonly DnsForwarderRecordData[] _forwarderRecords;
 
             #endregion
 
@@ -850,7 +848,7 @@ namespace AdvancedForwarding
             public string Name
             { get { return _name; } }
 
-            public IReadOnlyList<DnsForwarderRecordData> ForwarderRecords
+            public DnsForwarderRecordData[] ForwarderRecords
             { get { return _forwarderRecords; } }
 
             #endregion
