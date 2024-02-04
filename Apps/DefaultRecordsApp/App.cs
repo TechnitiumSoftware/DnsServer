@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DefaultRecords
 {
-    public class App : IDnsApplication, IDnsPostProcessor
+    public sealed class App : IDnsApplication, IDnsPostProcessor
     {
         #region variables
 
@@ -39,8 +39,8 @@ namespace DefaultRecords
 
         bool _enableDefaultRecords;
         uint _defaultTtl;
-        IReadOnlyDictionary<string, string[]> _zoneSetMap;
-        IReadOnlyDictionary<string, Set> _sets;
+        Dictionary<string, string[]> _zoneSetMap;
+        Dictionary<string, Set> _sets;
 
         #endregion
 
@@ -190,7 +190,7 @@ namespace DefaultRecords
                 return response;
 
             StringReader sR = new StringReader(sb.ToString());
-            IReadOnlyCollection<DnsResourceRecord> records = ZoneFile.ReadZoneFileFromAsync(sR, zone, _defaultTtl).Sync();
+            List<DnsResourceRecord> records = ZoneFile.ReadZoneFileFromAsync(sR, zone, _defaultTtl).Sync();
 
             List<DnsResourceRecord> newAnswer = new List<DnsResourceRecord>(response.Answer.Count + records.Count);
             string qname = question.Name;
@@ -242,7 +242,7 @@ namespace DefaultRecords
 
             readonly string _name;
             readonly bool _enable;
-            readonly IReadOnlyCollection<string> _records;
+            readonly string[] _records;
 
             #endregion
 
@@ -265,7 +265,7 @@ namespace DefaultRecords
             public bool Enable
             { get { return _enable; } }
 
-            public IReadOnlyCollection<string> Records
+            public string[] Records
             { get { return _records; } }
 
             #endregion
