@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -164,7 +164,7 @@ namespace DnsServerCore
 
             jsonWriter.WriteString("username", session.User.Username);
             jsonWriter.WriteBoolean("isCurrentSession", session.Equals(currentSession));
-            jsonWriter.WriteString("partialToken", session.Token.Substring(0, 16));
+            jsonWriter.WriteString("partialToken", session.Token.AsSpan(0, 16));
             jsonWriter.WriteString("type", session.Type.ToString());
             jsonWriter.WriteString("tokenName", session.TokenName);
             jsonWriter.WriteString("lastSeen", session.LastSeen);
