@@ -27,6 +27,12 @@ namespace DnsServerCore.Dns.Trees
 {
     class AuthZoneTree : ZoneTree<AuthZoneNode, SubDomainZone, ApexZone>
     {
+        #region variables
+
+        static readonly char[] _starPeriodTrimChars = new char[] { '*', '.' };
+
+        #endregion
+
         #region private
 
         private static Node GetPreviousSubDomainZoneNode(byte[] key, Node currentNode, int baseDepth)
@@ -901,7 +907,7 @@ namespace DnsServerCore.Dns.Trees
             {
                 if (isWildcardAnswer && (closestSubDomain is not null) && closestSubDomain.Name.StartsWith('*'))
                 {
-                    closestEncloser = closestSubDomain.Name.TrimStart(new char[] { '*', '.' });
+                    closestEncloser = closestSubDomain.Name.TrimStart(_starPeriodTrimChars);
                 }
                 else
                 {
@@ -989,7 +995,7 @@ namespace DnsServerCore.Dns.Trees
             return nsec3Records;
         }
 
-        public IReadOnlyList<DnsResourceRecord> FindNSecProofOfNonExistenceNoData(AuthZone zone)
+        public static IReadOnlyList<DnsResourceRecord> FindNSecProofOfNonExistenceNoData(AuthZone zone)
         {
             IReadOnlyList<DnsResourceRecord> nsecRecords = zone.QueryRecords(DnsResourceRecordType.NSEC, true);
             if (nsecRecords.Count == 0)
@@ -1017,7 +1023,7 @@ namespace DnsServerCore.Dns.Trees
             return FindNSec3ProofOfNonExistenceNoData(nsec3Zone);
         }
 
-        public IReadOnlyList<DnsResourceRecord> FindNSec3ProofOfNonExistenceNoData(AuthZone nsec3Zone)
+        public static IReadOnlyList<DnsResourceRecord> FindNSec3ProofOfNonExistenceNoData(AuthZone nsec3Zone)
         {
             IReadOnlyList<DnsResourceRecord> nsec3Records = nsec3Zone.QueryRecords(DnsResourceRecordType.NSEC3, true);
             if (nsec3Records.Count > 0)
