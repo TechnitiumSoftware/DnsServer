@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -420,16 +420,16 @@ namespace Failover
 
         #region properties
 
-        public IReadOnlyDictionary<string, HealthCheck> HealthChecks
+        public ConcurrentDictionary<string, HealthCheck> HealthChecks
         { get { return _healthChecks; } }
 
-        public IReadOnlyDictionary<string, EmailAlert> EmailAlerts
+        public ConcurrentDictionary<string, EmailAlert> EmailAlerts
         { get { return _emailAlerts; } }
 
-        public IReadOnlyDictionary<string, WebHook> WebHooks
+        public ConcurrentDictionary<string, WebHook> WebHooks
         { get { return _webHooks; } }
 
-        public IReadOnlyDictionary<NetworkAddress, bool> UnderMaintenance
+        public ConcurrentDictionary<NetworkAddress, bool> UnderMaintenance
         { get { return _underMaintenance; } }
 
         public IDnsServer DnsServer

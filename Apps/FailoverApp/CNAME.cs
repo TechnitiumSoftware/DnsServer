@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace Failover
 {
-    public class CNAME : IDnsApplication, IDnsAppRecordRequestHandler
+    public sealed class CNAME : IDnsApplication, IDnsAppRecordRequestHandler
     {
         #region variables
 
@@ -56,7 +56,7 @@ namespace Failover
 
         #region private
 
-        private IReadOnlyList<DnsResourceRecord> GetAnswers(string domain, DnsQuestionRecord question, string zoneName, uint appRecordTtl, string healthCheck, Uri healthCheckUrl)
+        private DnsResourceRecord[] GetAnswers(string domain, DnsQuestionRecord question, string zoneName, uint appRecordTtl, string healthCheck, Uri healthCheckUrl)
         {
             HealthCheckResponse response = _healthService.QueryStatus(domain, question.Type, healthCheck, healthCheckUrl, true);
             switch (response.Status)
