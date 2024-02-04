@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -167,7 +167,10 @@ namespace DnsServerCore.Dns.Zones
             base.UpdateDnssecStatus();
 
             if (_dnssecStatus != AuthZoneDnssecStatus.Unsigned)
-                _dnssecTimer = new Timer(DnssecTimerCallback, null, DNSSEC_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
+            {
+                if (_dnssecPrivateKeys is not null)
+                    _dnssecTimer = new Timer(DnssecTimerCallback, null, DNSSEC_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
+            }
         }
 
         private async void DnssecTimerCallback(object state)
@@ -668,11 +671,28 @@ namespace DnsServerCore.Dns.Zones
                 _dnssecStatus = AuthZoneDnssecStatus.Unsigned;
                 _dnssecPrivateKeys = null;
 
-                foreach (DnsResourceRecord addedRecord in addedRecords)
-                    TryDeleteRecord(addedRecord.Type, addedRecord.RDATA, out _);
+                Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> addedRecordGroups = DnsResourceRecord.GroupRecords(addedRecords);
 
-                foreach (DnsResourceRecord deletedRecord in deletedRecords)
-                    AddRecord(deletedRecord, out _, out _);
+                foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> addedRecordGroup in addedRecordGroups)
+                {
+                    AuthZone zone = _dnsServer.AuthZoneManager.GetAuthZone(_name, addedRecordGroup.Key);
+
+                    foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> addedRecordEntry in addedRecordGroup.Value)
+                        zone.TryDeleteRecords(addedRecordEntry.Key, addedRecordEntry.Value, out _);
+                }
+
+                Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> deletedRecordGroups = DnsResourceRecord.GroupRecords(deletedRecords);
+
+                foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> deletedRecordGroup in deletedRecordGroups)
+                {
+                    AuthZone zone = _dnsServer.AuthZoneManager.GetAuthZone(_name, deletedRecordGroup.Key);
+
+                    foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> deletedRecordEntry in deletedRecordGroup.Value)
+                    {
+                        foreach (DnsResourceRecord deletedRecord in deletedRecordEntry.Value)
+                            AddRecord(deletedRecord, out _, out _);
+                    }
+                }
 
                 throw;
             }
@@ -891,8 +911,7 @@ namespace DnsServerCore.Dns.Zones
             if (saltLength > 0)
             {
                 salt = new byte[saltLength];
-                using RandomNumberGenerator rng = RandomNumberGenerator.Create();
-                rng.GetBytes(salt);
+                RandomNumberGenerator.Fill(salt);
             }
             else
             {
