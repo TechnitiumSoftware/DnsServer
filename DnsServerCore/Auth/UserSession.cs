@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -37,8 +37,6 @@ namespace DnsServerCore.Auth
     {
         #region variables
 
-        static readonly RandomNumberGenerator _rng = RandomNumberGenerator.Create();
-
         readonly string _token;
         readonly UserSessionType _type;
         readonly string _tokenName;
@@ -59,8 +57,8 @@ namespace DnsServerCore.Auth
             if (remoteAddress.IsIPv4MappedToIPv6)
                 remoteAddress = remoteAddress.MapToIPv4();
 
-            byte[] tokenBytes = new byte[32];
-            _rng.GetBytes(tokenBytes);
+            Span<byte> tokenBytes = stackalloc byte[32];
+            RandomNumberGenerator.Fill(tokenBytes);
             _token = Convert.ToHexString(tokenBytes).ToLower();
 
             _type = type;
