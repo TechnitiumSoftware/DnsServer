@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace QueryLogsSqlite
 {
-    public class App : IDnsApplication, IDnsQueryLogger
+    public sealed class App : IDnsApplication, IDnsQueryLogger
     {
         #region variables
 
