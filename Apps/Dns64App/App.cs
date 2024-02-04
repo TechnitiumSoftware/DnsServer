@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.ApplicationCommon;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
@@ -35,15 +34,15 @@ namespace Dns64
     // DNS64: DNS Extensions for Network Address Translation from IPv6 Clients to IPv4 Servers
     // https://www.rfc-editor.org/rfc/rfc6147
 
-    public class App : IDnsApplication, IDnsPostProcessor, IDnsAuthoritativeRequestHandler
+    public sealed class App : IDnsApplication, IDnsPostProcessor, IDnsAuthoritativeRequestHandler
     {
         #region variables
 
         IDnsServer _dnsServer;
 
         bool _enableDns64;
-        IReadOnlyDictionary<NetworkAddress, string> _networkGroupMap;
-        IReadOnlyDictionary<string, Group> _groups;
+        Dictionary<NetworkAddress, string> _networkGroupMap;
+        Dictionary<string, Group> _groups;
 
         #endregion
 
@@ -124,36 +123,40 @@ namespace Dns64
             List<DnsResourceRecord> newAnswer = new List<DnsResourceRecord>(response.Answer.Count);
 
             bool synthesizeAAAA = true;
-            bool anyExclusions = group.ExcludedIpv6.Any();
 
-            foreach (DnsResourceRecord answer in response.Answer)
+            if (group.ExcludedIpv6.Length == 0)
             {
-                //If this isn't an AAAA, include it in the new answer as we don't need to mess with it
-                if (answer.Type != DnsResourceRecordType.AAAA)
+                //no exclusions configured
+                foreach (DnsResourceRecord answer in response.Answer)
                 {
                     newAnswer.Add(answer);
-                    continue;
-                }
-                
-                //If there aren't any exclusions, and we have an AAAA already, we can just accept that AAAA and not synthesize anything
-                if (answer.Type == DnsResourceRecordType.AAAA && !anyExclusions)
-                {
-                    newAnswer.Add(answer);
-                    synthesizeAAAA = false;
-                    continue;
-                }
-                
-                //At this point, we have an AAAA and we have at least one exclusion. We need to check the AAAA against the exclusion list
-                
-                IPAddress ipv6Address = (answer.RDATA as DnsAAAARecordData).Address;
 
-                foreach (NetworkAddress excludedIpv6 in group.ExcludedIpv6)
+                    if (answer.Type == DnsResourceRecordType.AAAA)
+                        synthesizeAAAA = false; //found an AAAA record so no need to synthesize AAAA
+                }
+            }
+            else
+            {
+                //check for exclusions
+                foreach (DnsResourceRecord answer in response.Answer)
                 {
-                    if (!excludedIpv6.Contains(ipv6Address))
+                    if (answer.Type != DnsResourceRecordType.AAAA)
                     {
-                        //This AAAA is not excluded and so we can just accept it and not synthesize anything
+                        //keep non-AAAA record, most probably a CNAME record, in answer list
                         newAnswer.Add(answer);
-                        synthesizeAAAA = false;
+                        continue;
+                    }
+
+                    IPAddress ipv6Address = (answer.RDATA as DnsAAAARecordData).Address;
+
+                    foreach (NetworkAddress excludedIpv6 in group.ExcludedIpv6)
+                    {
+                        if (!excludedIpv6.Contains(ipv6Address))
+                        {
+                            //found non-excluded AAAA record so no need to synthesize AAAA
+                            newAnswer.Add(answer);
+                            synthesizeAAAA = false;
+                        }
                     }
                 }
             }
@@ -268,8 +271,8 @@ namespace Dns64
 
             readonly string _name;
             readonly bool _enableDns64;
-            readonly IReadOnlyDictionary<NetworkAddress, NetworkAddress> _dns64PrefixMap;
-            readonly IReadOnlyCollection<NetworkAddress> _excludedIpv6;
+            readonly Dictionary<NetworkAddress, NetworkAddress> _dns64PrefixMap;
+            readonly NetworkAddress[] _excludedIpv6;
 
             #endregion
 
@@ -329,10 +332,10 @@ namespace Dns64
             public bool EnableDns64
             { get { return _enableDns64; } }
 
-            public IReadOnlyDictionary<NetworkAddress, NetworkAddress> Dns64PrefixMap
+            public Dictionary<NetworkAddress, NetworkAddress> Dns64PrefixMap
             { get { return _dns64PrefixMap; } }
 
-            public IReadOnlyCollection<NetworkAddress> ExcludedIpv6
+            public NetworkAddress[] ExcludedIpv6
             { get { return _excludedIpv6; } }
 
             #endregion
