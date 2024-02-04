@@ -1,5 +1,24 @@
 # Technitium DNS Server Change Log
 
+## Version 12.0
+Release Date: 4 February 2024
+
+- Upgraded codebase to use .NET 8 runtime. If you had manually installed the DNS Server or .NET 7 Runtime earlier then you must install .NET 8 Runtime manually before upgrading the DNS server.
+- Fixed pulsing DoS vulnerability reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) by updating the default configured values for the DNS server which mitigates the impact.
+- Added "Dropped" request stats on the Dashboard and main chart which shows the number of request that were dropped by the DNS server due to rate limiting or by the Drop Requests app.
+- Added transport protocol types chart on Dashboard which shows the protocol stats for the requests received by the DNS server.
+- Added feature to specify one or more source addresses for outbound DNS requests when the server is connected to two or more networks.
+- Added option to allow IP address or networks to allow accepting Notify requests from to avoid having to configure the same individually for each zone.
+- Added option to specify QPM bypass list to allow IP addresses or networks to bypass rate limiting restrictions.
+- Added feature to enable In-Memory stats such that only Last Hour data to be available on Dashboard and no stats data will be stored on disk.
+- Updated DNS-over-HTTPS implementation to work over SOCKS5 proxy when using HTTP/3 protocol (URL with `h3` scheme).
+- Added support for automatic initializing of DNS server root servers list with priming queries [RFC 8109](https://datatracker.ietf.org/doc/rfc8109/).
+- Conditional Forwarder Zones now support Dynamic Updates [RFC 2136](https://datatracker.ietf.org/doc/rfc2136/).
+- DNS Rebinding Protection App: A new app available that protects from DNS rebinding attacks using configured private domains and networks.
+- NX Domain Override App: New app to allow overriding NX Domain response to with custom A/AAAA record response for configured domain names.
+- Block Page App: Updated the app to use Kestrel web server and allow configuring multiple web servers that listen on different IP addresses.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 11.5.3
 Release Date: 7 November 2023
 
