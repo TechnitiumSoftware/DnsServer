@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -106,8 +106,7 @@ namespace DnsServerCore.Dhcp
             if (giaddr.AddressFamily != AddressFamily.InterNetwork)
                 throw new ArgumentException("Address family not supported.", nameof(giaddr));
 
-            if (clientHardwareAddress == null)
-                throw new ArgumentNullException(nameof(clientHardwareAddress));
+            ArgumentNullException.ThrowIfNull(clientHardwareAddress);
 
             if (clientHardwareAddress.Length > 16)
                 throw new ArgumentException("Client hardware address cannot exceed 16 bytes.", nameof(clientHardwareAddress));
@@ -175,47 +174,47 @@ namespace DnsServerCore.Dhcp
 
         public DhcpMessage(Stream s)
         {
-            byte[] buffer = new byte[4];
+            Span<byte> buffer = stackalloc byte[4];
 
-            s.ReadBytes(buffer, 0, 4);
+            s.ReadExactly(buffer);
             _op = (DhcpMessageOpCode)buffer[0];
             _htype = (DhcpMessageHardwareAddressType)buffer[1];
             _hlen = buffer[2];
             _hops = buffer[3];
 
-            _xid = s.ReadBytes(4);
+            _xid = s.ReadExactly(4);
 
-            s.ReadBytes(buffer, 0, 4);
+            s.ReadExactly(buffer);
             _secs = new byte[2];
-            Buffer.BlockCopy(buffer, 0, _secs, 0, 2);
-            Array.Reverse(buffer);
-            _flags = (DhcpMessageFlags)BitConverter.ToUInt16(buffer, 0);
+            buffer.Slice(0, 2).CopyTo(_secs);
+            buffer.Reverse();
+            _flags = (DhcpMessageFlags)BitConverter.ToUInt16(buffer);
 
-            s.ReadBytes(buffer, 0, 4);
+            s.ReadExactly(buffer);
             _ciaddr = new IPAddress(buffer);
 
-            s.ReadBytes(buffer, 0, 4);
+            s.ReadExactly(buffer);
             _yiaddr = new IPAddress(buffer);
 
-            s.ReadBytes(buffer, 0, 4);
+            s.ReadExactly(buffer);
             _siaddr = new IPAddress(buffer);
 
-            s.ReadBytes(buffer, 0, 4);
+            s.ReadExactly(buffer);
             _giaddr = new IPAddress(buffer);
 
-            _chaddr = s.ReadBytes(16);
+            _chaddr = s.ReadExactly(16);
             _clientHardwareAddress = new byte[_hlen];
             Buffer.BlockCopy(_chaddr, 0, _clientHardwareAddress, 0, _hlen);
 
-            _sname = s.ReadBytes(64);
-            _file = s.ReadBytes(128);
+            _sname = s.ReadExactly(64);
+            _file = s.ReadExactly(128);
 
             //read options
             List<DhcpOption> options = new List<DhcpOption>();
             _options = options;
 
-            s.ReadBytes(buffer, 0, 4);
-            uint magicCookie = BitConverter.ToUInt32(buffer, 0);
+            s.ReadExactly(buffer);
+            uint magicCookie = BitConverter.ToUInt32(buffer);
 
             if (magicCookie == MAGIC_COOKIE)
             {
