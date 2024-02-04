@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -37,6 +37,8 @@ namespace DnsServerCore.Dhcp
     public class Lease : IComparable<Lease>
     {
         #region variables
+
+        static readonly char[] _hyphenColonSeparator = new char[] { '-', ':' };
 
         LeaseType _type;
         readonly ClientIdentifierOption _clientIdentifier;
@@ -112,7 +114,7 @@ namespace DnsServerCore.Dhcp
 
         internal static byte[] ParseHardwareAddress(string hardwareAddress)
         {
-            string[] parts = hardwareAddress.Split(new char[] { '-', ':' });
+            string[] parts = hardwareAddress.Split(_hyphenColonSeparator);
             byte[] address = new byte[parts.Length];
 
             for (int i = 0; i < parts.Length; i++)
