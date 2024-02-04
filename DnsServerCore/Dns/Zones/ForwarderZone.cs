@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -148,7 +148,17 @@ namespace DnsServerCore.Dns.Zones
         public override AuthZoneUpdate Update
         {
             get { return _update; }
-            set { throw new InvalidOperationException(); }
+            set
+            {
+                switch (value)
+                {
+                    case AuthZoneUpdate.AllowOnlyZoneNameServers:
+                    case AuthZoneUpdate.AllowBothZoneNameServersAndSpecifiedIpAddresses:
+                        throw new ArgumentException("The Dynamic Updates option is invalid for Conditional Forwarder zones: " + value.ToString(), nameof(Update));
+                }
+
+                _update = value;
+            }
         }
 
         #endregion
