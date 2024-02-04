@@ -314,7 +314,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        private IReadOnlyList<DnsResourceRecord> GetAdditionalRecords(IReadOnlyList<DnsResourceRecord> refRecords, bool dnssecOk)
+        private List<DnsResourceRecord> GetAdditionalRecords(IReadOnlyList<DnsResourceRecord> refRecords, bool dnssecOk)
         {
             List<DnsResourceRecord> additionalRecords = new List<DnsResourceRecord>(refRecords.Count);
 
@@ -503,7 +503,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
                             nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(delegationZone, apexZone);
                         else
-                            nsecRecords = _root.FindNSecProofOfNonExistenceNoData(delegationZone);
+                            nsecRecords = AuthZoneTree.FindNSecProofOfNonExistenceNoData(delegationZone);
 
                         if (nsecRecords.Count > 0)
                         {
@@ -523,7 +523,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, null, authority, additional);
         }
 
-        private DnsDatagram GetForwarderResponse(DnsDatagram request, AuthZone zone, AuthZone closestZone, ApexZone forwarderZone)
+        private DnsDatagram GetForwarderResponse(DnsDatagram request, AuthZone zone, SubDomainZone closestZone, ApexZone forwarderZone)
         {
             IReadOnlyList<DnsResourceRecord> authority = null;
 
@@ -568,7 +568,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        private static IReadOnlyList<DnsResourceRecord> CondenseIncrementalZoneTransferRecords(string zoneName, DnsResourceRecord currentSoaRecord, IReadOnlyList<DnsResourceRecord> xfrRecords)
+        private static List<DnsResourceRecord> CondenseIncrementalZoneTransferRecords(string zoneName, DnsResourceRecord currentSoaRecord, IReadOnlyList<DnsResourceRecord> xfrRecords)
         {
             DnsResourceRecord firstSoaRecord = xfrRecords[0];
             DnsResourceRecord lastSoaRecord = xfrRecords[xfrRecords.Count - 1];
@@ -611,17 +611,13 @@ namespace DnsServerCore.Dns.ZoneManagers
                         {
                             case DnsResourceRecordType.A:
                             case DnsResourceRecordType.AAAA:
-                                if (addedGlueRecords.Contains(record))
-                                    addedGlueRecords.Remove(record);
-                                else
+                                if (!addedGlueRecords.Remove(record))
                                     deletedGlueRecords.Add(record);
 
                                 break;
 
                             default:
-                                if (addedRecords.Contains(record))
-                                    addedRecords.Remove(record);
-                                else
+                                if (!addedRecords.Remove(record))
                                     deletedRecords.Add(record);
 
                                 break;
@@ -631,9 +627,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     {
                         if (record.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + zoneName, StringComparison.OrdinalIgnoreCase))
                         {
-                            if (addedRecords.Contains(record))
-                                addedRecords.Remove(record);
-                            else
+                            if (!addedRecords.Remove(record))
                                 deletedRecords.Add(record);
                         }
                         else
@@ -642,9 +636,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             {
                                 case DnsResourceRecordType.A:
                                 case DnsResourceRecordType.AAAA:
-                                    if (addedGlueRecords.Contains(record))
-                                        addedGlueRecords.Remove(record);
-                                    else
+                                    if (!addedGlueRecords.Remove(record))
                                         deletedGlueRecords.Add(record);
 
                                     break;
@@ -677,17 +669,13 @@ namespace DnsServerCore.Dns.ZoneManagers
                         {
                             case DnsResourceRecordType.A:
                             case DnsResourceRecordType.AAAA:
-                                if (deletedGlueRecords.Contains(record))
-                                    deletedGlueRecords.Remove(record);
-                                else
+                                if (!deletedGlueRecords.Remove(record))
                                     addedGlueRecords.Add(record);
 
                                 break;
 
                             default:
-                                if (deletedRecords.Contains(record))
-                                    deletedRecords.Remove(record);
-                                else
+                                if (!deletedRecords.Remove(record))
                                     addedRecords.Add(record);
 
                                 break;
@@ -697,9 +685,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     {
                         if (record.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + zoneName, StringComparison.OrdinalIgnoreCase))
                         {
-                            if (deletedRecords.Contains(record))
-                                deletedRecords.Remove(record);
-                            else
+                            if (!deletedRecords.Remove(record))
                                 addedRecords.Add(record);
                         }
                         else
@@ -708,9 +694,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             {
                                 case DnsResourceRecordType.A:
                                 case DnsResourceRecordType.AAAA:
-                                    if (deletedGlueRecords.Contains(record))
-                                        deletedGlueRecords.Remove(record);
-                                    else
+                                    if (!deletedGlueRecords.Remove(record))
                                         addedGlueRecords.Add(record);
 
                                     break;
@@ -1112,7 +1096,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         Dictionary<string, IReadOnlyList<DnsResourceRecordType>> policyMap = new Dictionary<string, IReadOnlyList<DnsResourceRecordType>>();
 
                         foreach (KeyValuePair<string, IReadOnlyList<DnsResourceRecordType>> sourcePolicyMap in sourceSecurityPolicy.Value)
-                            policyMap.Add(sourcePolicyMap.Key.Substring(0, sourcePolicyMap.Key.Length - sourceZoneName.Length) + zoneName, sourcePolicyMap.Value);
+                            policyMap.Add(string.Concat(sourcePolicyMap.Key.AsSpan(0, sourcePolicyMap.Key.Length - sourceZoneName.Length), zoneName), sourcePolicyMap.Value);
 
                         updateSecurityPolicies.Add(sourceSecurityPolicy.Key, policyMap);
                     }
@@ -1140,7 +1124,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         continue; //skip DNSSEC records
 
                     default:
-                        DnsResourceRecord newRecord = new DnsResourceRecord(sourceRecord.Name.Substring(0, sourceRecord.Name.Length - sourceZoneName.Length) + zoneName, sourceRecord.Type, sourceRecord.Class, sourceRecord.TTL, sourceRecord.RDATA);
+                        DnsResourceRecord newRecord = new DnsResourceRecord(string.Concat(sourceRecord.Name.AsSpan(0, sourceRecord.Name.Length - sourceZoneName.Length), zoneName), sourceRecord.Type, sourceRecord.Class, sourceRecord.TTL, sourceRecord.RDATA);
 
                         if (sourceRecord.Tag is AuthRecordInfo srInfo)
                         {
@@ -2562,7 +2546,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                                     if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
                                         nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(zone, apexZone);
                                     else
-                                        nsecRecords = _root.FindNSecProofOfNonExistenceNoData(zone);
+                                        nsecRecords = AuthZoneTree.FindNSecProofOfNonExistenceNoData(zone);
 
                                     if (nsecRecords.Count > 0)
                                     {
