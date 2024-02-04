@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -134,7 +134,7 @@ namespace DnsServerCore
             bool utcFormat = request.GetQueryOrForm("utc", bool.Parse, false);
 
             bool isLanguageEnUs = true;
-            string acceptLanguage = request.Headers["Accept-Language"];
+            string acceptLanguage = request.Headers.AcceptLanguage;
             if (!string.IsNullOrEmpty(acceptLanguage))
                 isLanguageEnUs = acceptLanguage.StartsWith("en-us", StringComparison.OrdinalIgnoreCase);
 
@@ -274,13 +274,14 @@ namespace DnsServerCore
                     WriteChartDataSet(jsonWriter, "Total", "rgba(102, 153, 255, 0.1)", "rgb(102, 153, 255)", data["totalQueriesPerInterval"]);
                     WriteChartDataSet(jsonWriter, "No Error", "rgba(92, 184, 92, 0.1)", "rgb(92, 184, 92)", data["totalNoErrorPerInterval"]);
                     WriteChartDataSet(jsonWriter, "Server Failure", "rgba(217, 83, 79, 0.1)", "rgb(217, 83, 79)", data["totalServerFailurePerInterval"]);
-                    WriteChartDataSet(jsonWriter, "NX Domain", "rgba(7, 7, 7, 0.1)", "rgb(7, 7, 7)", data["totalNxDomainPerInterval"]);
+                    WriteChartDataSet(jsonWriter, "NX Domain", "rgba(120, 120, 120, 0.1)", "rgb(120, 120, 120)", data["totalNxDomainPerInterval"]);
                     WriteChartDataSet(jsonWriter, "Refused", "rgba(91, 192, 222, 0.1)", "rgb(91, 192, 222)", data["totalRefusedPerInterval"]);
 
                     WriteChartDataSet(jsonWriter, "Authoritative", "rgba(150, 150, 0, 0.1)", "rgb(150, 150, 0)", data["totalAuthHitPerInterval"]);
                     WriteChartDataSet(jsonWriter, "Recursive", "rgba(23, 162, 184, 0.1)", "rgb(23, 162, 184)", data["totalRecursionsPerInterval"]);
                     WriteChartDataSet(jsonWriter, "Cached", "rgba(111, 84, 153, 0.1)", "rgb(111, 84, 153)", data["totalCacheHitPerInterval"]);
                     WriteChartDataSet(jsonWriter, "Blocked", "rgba(255, 165, 0, 0.1)", "rgb(255, 165, 0)", data["totalBlockedPerInterval"]);
+                    WriteChartDataSet(jsonWriter, "Dropped", "rgba(30, 30, 30, 0.1)", "rgb(30, 30, 30)", data["totalDroppedPerInterval"]);
 
                     WriteChartDataSet(jsonWriter, "Clients", "rgba(51, 122, 183, 0.1)", "rgb(51, 122, 183)", data["totalClientsPerInterval"]);
 
@@ -321,6 +322,10 @@ namespace DnsServerCore
                             case "totalBlocked":
                                 jsonWriter.WriteStringValue("Blocked");
                                 break;
+
+                            case "totalDropped":
+                                jsonWriter.WriteStringValue("Dropped");
+                                break;
                         }
                     }
 
@@ -345,6 +350,7 @@ namespace DnsServerCore
                             case "totalRecursive":
                             case "totalCached":
                             case "totalBlocked":
+                            case "totalDropped":
                                 jsonWriter.WriteNumberValue(item.Value);
                                 break;
                         }
@@ -358,6 +364,7 @@ namespace DnsServerCore
                     jsonWriter.WriteStringValue("rgba(23, 162, 184, 0.5)");
                     jsonWriter.WriteStringValue("rgba(111, 84, 153, 0.5)");
                     jsonWriter.WriteStringValue("rgba(255, 165, 0, 0.5)");
+                    jsonWriter.WriteStringValue("rgba(7, 7, 7, 0.5)");
                     jsonWriter.WriteEndArray();
 
                     jsonWriter.WriteEndObject();
@@ -413,6 +420,56 @@ namespace DnsServerCore
                     jsonWriter.WriteStringValue("rgba(255, 165, 0, 0.5)");
                     jsonWriter.WriteStringValue("rgba(51, 122, 183, 0.5)");
                     jsonWriter.WriteStringValue("rgba(150, 150, 150, 0.5)");
+                    jsonWriter.WriteEndArray();
+
+                    jsonWriter.WriteEndObject();
+
+                    jsonWriter.WriteEndArray();
+                }
+
+                jsonWriter.WriteEndObject();
+            }
+
+            //protocol type chart
+            {
+                jsonWriter.WritePropertyName("protocolTypeChartData");
+                jsonWriter.WriteStartObject();
+
+                List<KeyValuePair<string, long>> protocolTypes = data["protocolTypes"];
+
+                //labels
+                {
+                    jsonWriter.WritePropertyName("labels");
+                    jsonWriter.WriteStartArray();
+
+                    foreach (KeyValuePair<string, long> item in protocolTypes)
+                        jsonWriter.WriteStringValue(item.Key);
+
+                    jsonWriter.WriteEndArray();
+                }
+
+                //datasets
+                {
+                    jsonWriter.WritePropertyName("datasets");
+                    jsonWriter.WriteStartArray();
+
+                    jsonWriter.WriteStartObject();
+
+                    jsonWriter.WritePropertyName("data");
+                    jsonWriter.WriteStartArray();
+
+                    foreach (KeyValuePair<string, long> item in protocolTypes)
+                        jsonWriter.WriteNumberValue(item.Value);
+
+                    jsonWriter.WriteEndArray();
+
+                    jsonWriter.WritePropertyName("backgroundColor");
+                    jsonWriter.WriteStartArray();
+                    jsonWriter.WriteStringValue("rgba(111, 84, 153, 0.5)");
+                    jsonWriter.WriteStringValue("rgba(150, 150, 0, 0.5)");
+                    jsonWriter.WriteStringValue("rgba(23, 162, 184, 0.5)"); ;
+                    jsonWriter.WriteStringValue("rgba(255, 165, 0, 0.5)");
+                    jsonWriter.WriteStringValue("rgba(91, 192, 222, 0.5)");
                     jsonWriter.WriteEndArray();
 
                     jsonWriter.WriteEndObject();
