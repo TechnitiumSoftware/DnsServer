@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -666,7 +666,7 @@ namespace DnsServerCore.Dns.Zones
             set
             {
                 if ((value is not null) && (value.Count > byte.MaxValue))
-                    throw new ArgumentOutOfRangeException(nameof(ZoneTransferNameServers), "IP addresses cannot be more than 255.");
+                    throw new ArgumentOutOfRangeException(nameof(UpdateIpAddresses), "IP addresses cannot be more than 255.");
 
                 _updateIpAddresses = value;
             }
