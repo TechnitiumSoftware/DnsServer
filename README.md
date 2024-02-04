@@ -112,6 +112,7 @@ Make contribution to Technitium and help making new software, updates, and featu
 [Donate Now!](https://www.patreon.com/technitium)
 
 # Blog Posts
+- [Technitium Blog: Technitium DNS Server v12 Released!](https://blog.technitium.com/2024/02/technitium-dns-server-v12-released.html) (Feb 2024)
 - [Technitium Blog: For DNSSEC And Why DANE Is Needed](https://blog.technitium.com/2023/05/for-dnssec-and-why-dane-is-needed.html) (May 2023)
 - [Technitium Blog: How To Auto Renew SSL Certificates With Certbot Using DNS Challenge](https://blog.technitium.com/2023/03/how-to-auto-renew-ssl-certificates-with.html) (Mar 2023)
 - [Technitium Blog: Configuring DNS-over-QUIC and HTTPS/3 For Technitium DNS Server](https://blog.technitium.com/2023/02/configuring-dns-over-quic-and-https3.html) (Feb 2023)
