@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -123,8 +123,7 @@ namespace DnsServerCore.Dhcp
 
         public DhcpOption(DhcpOptionCode code, string hexValue)
         {
-            if (hexValue is null)
-                throw new ArgumentNullException(nameof(hexValue));
+            ArgumentNullException.ThrowIfNull(hexValue);
 
             _code = code;
 
@@ -136,8 +135,7 @@ namespace DnsServerCore.Dhcp
 
         public DhcpOption(DhcpOptionCode code, byte[] value)
         {
-            if (value is null)
-                throw new ArgumentNullException(nameof(value));
+            ArgumentNullException.ThrowIfNull(value);
 
             _code = code;
             _value = value;
@@ -151,7 +149,7 @@ namespace DnsServerCore.Dhcp
             if (len < 0)
                 throw new EndOfStreamException();
 
-            _value = s.ReadBytes(len);
+            _value = s.ReadExactly(len);
         }
 
         protected DhcpOption(DhcpOptionCode code)
