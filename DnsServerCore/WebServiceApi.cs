@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -41,13 +41,15 @@ namespace DnsServerCore
     {
         #region variables
 
+        static readonly char[] _domainTrimChars = new char[] { '\t', ' ', '.' };
+
         readonly DnsWebService _dnsWebService;
         readonly Uri _updateCheckUri;
 
         string _checkForUpdateJsonData;
         DateTime _checkForUpdateJsonDataUpdatedOn;
         const int CHECK_FOR_UPDATE_JSON_DATA_CACHE_TIME_SECONDS = 3600;
-
+        
         #endregion
 
         #region constructor
@@ -162,7 +164,7 @@ namespace DnsServerCore
             HttpRequest request = context.Request;
 
             string server = request.GetQueryOrForm("server");
-            string domain = request.GetQueryOrForm("domain").Trim(new char[] { '\t', ' ', '.' });
+            string domain = request.GetQueryOrForm("domain").Trim(_domainTrimChars);
             DnsResourceRecordType type = request.GetQueryOrFormEnum<DnsResourceRecordType>("type");
             DnsTransportProtocol protocol = request.GetQueryOrFormEnum("protocol", DnsTransportProtocol.Udp);
             bool dnssecValidation = request.GetQueryOrForm("dnssec", bool.Parse, false);
