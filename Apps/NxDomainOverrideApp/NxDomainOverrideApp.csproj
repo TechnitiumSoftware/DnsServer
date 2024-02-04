@@ -1,18 +1,17 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <Version>2.0</Version>
+    <Version>1.0</Version>
     <Company>Technitium</Company>
     <Product>Technitium DNS Server</Product>
     <Authors>Shreyas Zare</Authors>
-    <AssemblyName>DefaultRecordsApp</AssemblyName>
-    <RootNamespace>DefaultRecords</RootNamespace>
+    <AssemblyName>NxDomainOverrideApp</AssemblyName>
+    <RootNamespace>NxDomainOverride</RootNamespace>
     <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-    <Description>Allows setting one or more default records for configured local zones.</Description>
+    <Description>Overrides NX Domain response with custom A/AAAA record response for configured domain names.</Description>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <OutputType>Library</OutputType>
   </PropertyGroup>

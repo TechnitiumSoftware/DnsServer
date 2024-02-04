@@ -3,16 +3,15 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <Version>2.0</Version>
+    <Version>1.1</Version>
     <Company>Technitium</Company>
     <Product>Technitium DNS Server</Product>
-    <Authors>Shreyas Zare</Authors>
-    <AssemblyName>DefaultRecordsApp</AssemblyName>
-    <RootNamespace>DefaultRecords</RootNamespace>
+    <Authors>Shreyas Zare, Rui Fung Yip</Authors>
+    <AssemblyName>DnsRebindingProtectionApp</AssemblyName>
+    <RootNamespace>DnsRebindingProtection</RootNamespace>
     <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-    <Description>Allows setting one or more default records for configured local zones.</Description>
+    <Description>Protects from DNS rebinding attacks using configured private domains and networks.</Description>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <OutputType>Library</OutputType>
   </PropertyGroup>
