@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -51,17 +51,17 @@ namespace AdvancedBlocking
         bool _enableBlocking;
         int _blockListUrlUpdateIntervalHours;
 
-        IReadOnlyDictionary<IPEndPoint, string> _localEndPointGroupMap;
-        IReadOnlyDictionary<NetworkAddress, string> _networkGroupMap;
-        IReadOnlyDictionary<string, Group> _groups;
+        Dictionary<IPEndPoint, string> _localEndPointGroupMap;
+        Dictionary<NetworkAddress, string> _networkGroupMap;
+        Dictionary<string, Group> _groups;
 
-        IReadOnlyDictionary<Uri, BlockList> _allAllowListZones = new Dictionary<Uri, BlockList>(0);
-        IReadOnlyDictionary<Uri, BlockList> _allBlockListZones = new Dictionary<Uri, BlockList>(0);
+        Dictionary<Uri, BlockList> _allAllowListZones = new Dictionary<Uri, BlockList>(0);
+        Dictionary<Uri, BlockList> _allBlockListZones = new Dictionary<Uri, BlockList>(0);
 
-        IReadOnlyDictionary<Uri, RegexList> _allRegexAllowListZones = new Dictionary<Uri, RegexList>(0);
-        IReadOnlyDictionary<Uri, RegexList> _allRegexBlockListZones = new Dictionary<Uri, RegexList>(0);
+        Dictionary<Uri, RegexList> _allRegexAllowListZones = new Dictionary<Uri, RegexList>(0);
+        Dictionary<Uri, RegexList> _allRegexBlockListZones = new Dictionary<Uri, RegexList>(0);
 
-        IReadOnlyDictionary<Uri, AdBlockList> _allAdBlockListZones = new Dictionary<Uri, AdBlockList>(0);
+        Dictionary<Uri, AdBlockList> _allAdBlockListZones = new Dictionary<Uri, AdBlockList>(0);
 
         Timer _blockListUrlUpdateTimer;
         DateTime _blockListUrlLastUpdatedOn;
@@ -145,7 +145,7 @@ namespace AdvancedBlocking
             return null;
         }
 
-        private static bool IsZoneFound(IReadOnlyDictionary<string, object> domains, string domain, out string foundZone)
+        private static bool IsZoneFound(Dictionary<string, object> domains, string domain, out string foundZone)
         {
             do
             {
@@ -163,7 +163,7 @@ namespace AdvancedBlocking
             return false;
         }
 
-        private static bool IsZoneFound(IReadOnlyDictionary<Uri, BlockList> listZones, string domain, out string foundZone, out Uri listUri)
+        private static bool IsZoneFound(Dictionary<Uri, BlockList> listZones, string domain, out string foundZone, out Uri listUri)
         {
             foreach (KeyValuePair<Uri, BlockList> listZone in listZones)
             {
@@ -179,7 +179,7 @@ namespace AdvancedBlocking
             return false;
         }
 
-        private static bool IsZoneFound(IReadOnlyDictionary<Uri, ListZoneEntry<BlockList>> listZones, string domain, out string foundZone, out UrlEntry listUri)
+        private static bool IsZoneFound(Dictionary<Uri, ListZoneEntry<BlockList>> listZones, string domain, out string foundZone, out UrlEntry listUri)
         {
             foreach (KeyValuePair<Uri, ListZoneEntry<BlockList>> listZone in listZones)
             {
@@ -195,7 +195,7 @@ namespace AdvancedBlocking
             return false;
         }
 
-        private static bool IsZoneAllowed(IReadOnlyDictionary<Uri, ListZoneEntry<AdBlockList>> listZones, string domain, out string foundZone, out UrlEntry listUri)
+        private static bool IsZoneAllowed(Dictionary<Uri, ListZoneEntry<AdBlockList>> listZones, string domain, out string foundZone, out UrlEntry listUri)
         {
             foreach (KeyValuePair<Uri, ListZoneEntry<AdBlockList>> listZone in listZones)
             {
@@ -211,7 +211,7 @@ namespace AdvancedBlocking
             return false;
         }
 
-        private static bool IsZoneBlocked(IReadOnlyDictionary<Uri, ListZoneEntry<AdBlockList>> listZones, string domain, out string foundZone, out UrlEntry listUri)
+        private static bool IsZoneBlocked(Dictionary<Uri, ListZoneEntry<AdBlockList>> listZones, string domain, out string foundZone, out UrlEntry listUri)
         {
             foreach (KeyValuePair<Uri, ListZoneEntry<AdBlockList>> listZone in listZones)
             {
@@ -227,7 +227,7 @@ namespace AdvancedBlocking
             return false;
         }
 
-        private static bool IsMatchFound(IReadOnlyList<Regex> regices, string domain, out string matchingPattern)
+        private static bool IsMatchFound(Regex[] regices, string domain, out string matchingPattern)
         {
             foreach (Regex regex in regices)
             {
@@ -243,7 +243,7 @@ namespace AdvancedBlocking
             return false;
         }
 
-        private static bool IsMatchFound(IReadOnlyDictionary<Uri, RegexList> regexListZones, string domain, out string matchingPattern, out Uri listUri)
+        private static bool IsMatchFound(Dictionary<Uri, RegexList> regexListZones, string domain, out string matchingPattern, out Uri listUri)
         {
             foreach (KeyValuePair<Uri, RegexList> regexListZone in regexListZones)
             {
@@ -259,7 +259,7 @@ namespace AdvancedBlocking
             return false;
         }
 
-        private static bool IsMatchFound(IReadOnlyDictionary<Uri, ListZoneEntry<RegexList>> regexListZones, string domain, out string matchingPattern, out UrlEntry listUri)
+        private static bool IsMatchFound(Dictionary<Uri, ListZoneEntry<RegexList>> regexListZones, string domain, out string matchingPattern, out UrlEntry listUri)
         {
             foreach (KeyValuePair<Uri, ListZoneEntry<RegexList>> regexListZone in regexListZones)
             {
@@ -667,8 +667,8 @@ namespace AdvancedBlocking
             readonly Uri _uri;
             readonly bool _blockAsNxDomain;
 
-            readonly IReadOnlyCollection<DnsARecordData> _aRecords;
-            readonly IReadOnlyCollection<DnsAAAARecordData> _aaaaRecords;
+            readonly List<DnsARecordData> _aRecords;
+            readonly List<DnsAAAARecordData> _aaaaRecords;
 
             #endregion
 
@@ -752,10 +752,10 @@ namespace AdvancedBlocking
             public bool BlockAsNxDomain
             { get { return _blockAsNxDomain; } }
 
-            public IReadOnlyCollection<DnsARecordData> ARecords
+            public List<DnsARecordData> ARecords
             { get { return _aRecords; } }
 
-            public IReadOnlyCollection<DnsAAAARecordData> AAAARecords
+            public List<DnsAAAARecordData> AAAARecords
             { get { return _aaaaRecords; } }
 
             #endregion
@@ -802,28 +802,28 @@ namespace AdvancedBlocking
             readonly bool _allowTxtBlockingReport;
             readonly bool _blockAsNxDomain;
 
-            readonly IReadOnlyCollection<DnsARecordData> _aRecords;
-            readonly IReadOnlyCollection<DnsAAAARecordData> _aaaaRecords;
+            readonly List<DnsARecordData> _aRecords;
+            readonly List<DnsAAAARecordData> _aaaaRecords;
 
-            readonly IReadOnlyDictionary<string, object> _allowed;
-            readonly IReadOnlyDictionary<string, object> _blocked;
-            readonly IReadOnlyList<Uri> _allowListUrls;
-            readonly IReadOnlyList<UrlEntry> _blockListUrls;
+            readonly Dictionary<string, object> _allowed;
+            readonly Dictionary<string, object> _blocked;
+            readonly Uri[] _allowListUrls;
+            readonly UrlEntry[] _blockListUrls;
 
-            readonly IReadOnlyList<Regex> _allowedRegex;
-            readonly IReadOnlyList<Regex> _blockedRegex;
-            readonly IReadOnlyList<Uri> _regexAllowListUrls;
-            readonly IReadOnlyList<UrlEntry> _regexBlockListUrls;
+            readonly Regex[] _allowedRegex;
+            readonly Regex[] _blockedRegex;
+            readonly Uri[] _regexAllowListUrls;
+            readonly UrlEntry[] _regexBlockListUrls;
 
-            readonly IReadOnlyList<UrlEntry> _adblockListUrls;
+            readonly UrlEntry[] _adblockListUrls;
 
-            IReadOnlyDictionary<Uri, BlockList> _allowListZones = new Dictionary<Uri, BlockList>(0);
-            IReadOnlyDictionary<Uri, ListZoneEntry<BlockList>> _blockListZones = new Dictionary<Uri, ListZoneEntry<BlockList>>(0);
+            Dictionary<Uri, BlockList> _allowListZones = new Dictionary<Uri, BlockList>(0);
+            Dictionary<Uri, ListZoneEntry<BlockList>> _blockListZones = new Dictionary<Uri, ListZoneEntry<BlockList>>(0);
 
-            IReadOnlyDictionary<Uri, RegexList> _regexAllowListZones = new Dictionary<Uri, RegexList>(0);
-            IReadOnlyDictionary<Uri, ListZoneEntry<RegexList>> _regexBlockListZones = new Dictionary<Uri, ListZoneEntry<RegexList>>(0);
+            Dictionary<Uri, RegexList> _regexAllowListZones = new Dictionary<Uri, RegexList>(0);
+            Dictionary<Uri, ListZoneEntry<RegexList>> _regexBlockListZones = new Dictionary<Uri, ListZoneEntry<RegexList>>(0);
 
-            IReadOnlyDictionary<Uri, ListZoneEntry<AdBlockList>> _adBlockListZones = new Dictionary<Uri, ListZoneEntry<AdBlockList>>(0);
+            Dictionary<Uri, ListZoneEntry<AdBlockList>> _adBlockListZones = new Dictionary<Uri, ListZoneEntry<AdBlockList>>(0);
 
             #endregion
 
@@ -910,7 +910,7 @@ namespace AdvancedBlocking
             public void LoadListZones()
             {
                 {
-                    Dictionary<Uri, BlockList> allowListZones = new Dictionary<Uri, BlockList>(_allowListUrls.Count);
+                    Dictionary<Uri, BlockList> allowListZones = new Dictionary<Uri, BlockList>(_allowListUrls.Length);
 
                     foreach (Uri listUrl in _allowListUrls)
                     {
@@ -922,7 +922,7 @@ namespace AdvancedBlocking
                 }
 
                 {
-                    Dictionary<Uri, ListZoneEntry<BlockList>> blockListZones = new Dictionary<Uri, ListZoneEntry<BlockList>>(_blockListUrls.Count);
+                    Dictionary<Uri, ListZoneEntry<BlockList>> blockListZones = new Dictionary<Uri, ListZoneEntry<BlockList>>(_blockListUrls.Length);
 
                     foreach (UrlEntry listUrl in _blockListUrls)
                     {
@@ -934,7 +934,7 @@ namespace AdvancedBlocking
                 }
 
                 {
-                    Dictionary<Uri, RegexList> regexAllowListZones = new Dictionary<Uri, RegexList>(_regexAllowListUrls.Count);
+                    Dictionary<Uri, RegexList> regexAllowListZones = new Dictionary<Uri, RegexList>(_regexAllowListUrls.Length);
 
                     foreach (Uri listUrl in _regexAllowListUrls)
                     {
@@ -946,7 +946,7 @@ namespace AdvancedBlocking
                 }
 
                 {
-                    Dictionary<Uri, ListZoneEntry<RegexList>> regexBlockListZones = new Dictionary<Uri, ListZoneEntry<RegexList>>(_regexBlockListUrls.Count);
+                    Dictionary<Uri, ListZoneEntry<RegexList>> regexBlockListZones = new Dictionary<Uri, ListZoneEntry<RegexList>>(_regexBlockListUrls.Length);
 
                     foreach (UrlEntry listUrl in _regexBlockListUrls)
                     {
@@ -958,7 +958,7 @@ namespace AdvancedBlocking
                 }
 
                 {
-                    Dictionary<Uri, ListZoneEntry<AdBlockList>> adBlockListZones = new Dictionary<Uri, ListZoneEntry<AdBlockList>>(_adblockListUrls.Count);
+                    Dictionary<Uri, ListZoneEntry<AdBlockList>> adBlockListZones = new Dictionary<Uri, ListZoneEntry<AdBlockList>>(_adblockListUrls.Length);
 
                     foreach (UrlEntry listUrl in _adblockListUrls)
                     {
@@ -1054,25 +1054,25 @@ namespace AdvancedBlocking
             public bool BlockAsNxDomain
             { get { return _blockAsNxDomain; } }
 
-            public IReadOnlyCollection<DnsARecordData> ARecords
+            public List<DnsARecordData> ARecords
             { get { return _aRecords; } }
 
-            public IReadOnlyCollection<DnsAAAARecordData> AAAARecords
+            public List<DnsAAAARecordData> AAAARecords
             { get { return _aaaaRecords; } }
 
-            public IReadOnlyList<Uri> AllowListUrls
+            public Uri[] AllowListUrls
             { get { return _allowListUrls; } }
 
-            public IReadOnlyList<UrlEntry> BlockListUrls
+            public UrlEntry[] BlockListUrls
             { get { return _blockListUrls; } }
 
-            public IReadOnlyList<UrlEntry> RegexBlockListUrls
+            public UrlEntry[] RegexBlockListUrls
             { get { return _regexBlockListUrls; } }
 
-            public IReadOnlyList<Uri> RegexAllowListUrls
+            public Uri[] RegexAllowListUrls
             { get { return _regexAllowListUrls; } }
 
-            public IReadOnlyList<UrlEntry> AdblockListUrls
+            public UrlEntry[] AdblockListUrls
             { get { return _adblockListUrls; } }
 
             #endregion
@@ -1106,10 +1106,7 @@ namespace AdvancedBlocking
                 _isRegexList = isRegexList;
                 _isAdblockList = isAdblockList;
 
-                using (HashAlgorithm hash = SHA256.Create())
-                {
-                    _listFilePath = Path.Combine(Path.Combine(_dnsServer.ApplicationFolder, "blocklists"), Convert.ToHexString(hash.ComputeHash(Encoding.UTF8.GetBytes(_listUrl.AbsoluteUri))).ToLower());
-                }
+                _listFilePath = Path.Combine(Path.Combine(_dnsServer.ApplicationFolder, "blocklists"), Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(_listUrl.AbsoluteUri))).ToLower());
             }
 
             #endregion
@@ -1134,6 +1131,8 @@ namespace AdvancedBlocking
                         }
 
                         File.Copy(_listUrl.LocalPath, _listFilePath, true);
+                        _lastModified = File.GetLastWriteTimeUtc(_listFilePath);
+
                         _dnsServer.WriteLog("Advanced Blocking app successfully downloaded " + (_isAdblockList ? "adblock" : (_isRegexList ? "regex " : "") + (_isAllowList ? "allow" : "block")) + " list (" + WebUtilities.GetFormattedSize(new FileInfo(_listFilePath).Length) + "): " + _listUrl.AbsoluteUri);
                         return true;
                     }
@@ -1216,9 +1215,20 @@ namespace AdvancedBlocking
                 {
                     if (File.Exists(_listFilePath))
                     {
-                        if (!_listZoneLoaded)
+                        _lastModified = File.GetLastWriteTimeUtc(_listFilePath);
+
+                        if (_listUrl.IsFile && (File.GetLastWriteTimeUtc(_listUrl.LocalPath) > _lastModified))
                         {
+                            File.Copy(_listUrl.LocalPath, _listFilePath, true);
                             _lastModified = File.GetLastWriteTimeUtc(_listFilePath);
+
+                            _dnsServer.WriteLog("Advanced Blocking app successfully downloaded " + (_isAdblockList ? "adblock" : (_isRegexList ? "regex " : "") + (_isAllowList ? "allow" : "block")) + " list (" + WebUtilities.GetFormattedSize(new FileInfo(_listFilePath).Length) + "): " + _listUrl.AbsoluteUri);
+
+                            LoadListZone();
+                            _listZoneLoaded = true;
+                        }
+                        else if (!_listZoneLoaded)
+                        {
                             LoadListZone();
                             _listZoneLoaded = true;
                         }
@@ -1265,7 +1275,7 @@ namespace AdvancedBlocking
 
             readonly static char[] _popWordSeperator = new char[] { ' ', '\t' };
 
-            IReadOnlyDictionary<string, object> _listZone = new Dictionary<string, object>(0);
+            Dictionary<string, object> _listZone = new Dictionary<string, object>(0);
 
             #endregion
 
@@ -1421,7 +1431,7 @@ namespace AdvancedBlocking
         {
             #region variables
 
-            IReadOnlyList<Regex> _regexListZone = new List<Regex>();
+            Regex[] _regexListZone = Array.Empty<Regex>();
 
             #endregion
 
@@ -1499,7 +1509,7 @@ namespace AdvancedBlocking
                     }
                 }
 
-                _regexListZone = regexListZone;
+                _regexListZone = regexListZone.ToArray();
             }
 
             #endregion
@@ -1518,8 +1528,8 @@ namespace AdvancedBlocking
         {
             #region variables
 
-            IReadOnlyDictionary<string, object> _allowedListZone = new Dictionary<string, object>(0);
-            IReadOnlyDictionary<string, object> _blockedListZone = new Dictionary<string, object>(0);
+            Dictionary<string, object> _allowedListZone = new Dictionary<string, object>(0);
+            Dictionary<string, object> _blockedListZone = new Dictionary<string, object>(0);
 
             #endregion
 
