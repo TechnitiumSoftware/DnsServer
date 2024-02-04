@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -537,7 +537,7 @@ namespace DnsServerCore.Dhcp
             return false;
         }
 
-        private ClientFullyQualifiedDomainNameOption GetClientFullyQualifiedDomainNameOption(DhcpMessage request, string overrideClientDomainName)
+        private ClientFullyQualifiedDomainNameOption GetClientFullyQualifiedDomainNameOption(DhcpMessage request, string reservedLeaseHostName)
         {
             ClientFullyQualifiedDomainNameFlags responseFlags = ClientFullyQualifiedDomainNameFlags.None;
 
@@ -561,10 +561,10 @@ namespace DnsServerCore.Dhcp
 
             string clientDomainName;
 
-            if (!string.IsNullOrWhiteSpace(overrideClientDomainName))
+            if (!string.IsNullOrWhiteSpace(reservedLeaseHostName))
             {
                 //domain name override by server
-                clientDomainName = overrideClientDomainName;
+                clientDomainName = reservedLeaseHostName + "." + _domainName;
             }
             else if (string.IsNullOrWhiteSpace(request.ClientFullyQualifiedDomainName.DomainName))
             {
@@ -1031,7 +1031,7 @@ namespace DnsServerCore.Dhcp
             return null;
         }
 
-        internal async Task<List<DhcpOption>> GetOptionsAsync(DhcpMessage request, IPAddress serverIdentifierAddress, string overrideClientDomainName, DnsServer dnsServer)
+        internal async Task<List<DhcpOption>> GetOptionsAsync(DhcpMessage request, IPAddress serverIdentifierAddress, string reservedLeaseHostName, DnsServer dnsServer)
         {
             List<DhcpOption> options = new List<DhcpOption>();
 
@@ -1074,7 +1074,7 @@ namespace DnsServerCore.Dhcp
                     options.Add(new DomainNameOption(_domainName));
 
                     if (request.ClientFullyQualifiedDomainName != null)
-                        options.Add(GetClientFullyQualifiedDomainNameOption(request, overrideClientDomainName));
+                        options.Add(GetClientFullyQualifiedDomainNameOption(request, reservedLeaseHostName));
                 }
 
                 if (_domainSearchList is not null)
@@ -1106,13 +1106,19 @@ namespace DnsServerCore.Dhcp
                             options.Add(new BroadcastAddressOption(_broadcastAddress));
                             break;
 
+                        case DhcpOptionCode.HostName:
+                            if (!string.IsNullOrWhiteSpace(reservedLeaseHostName))
+                                options.Add(new HostNameOption(reservedLeaseHostName));
+
+                            break;
+
                         case DhcpOptionCode.DomainName:
                             if (!string.IsNullOrEmpty(_domainName))
                             {
                                 options.Add(new DomainNameOption(_domainName));
 
                                 if (request.ClientFullyQualifiedDomainName != null)
-                                    options.Add(GetClientFullyQualifiedDomainNameOption(request, overrideClientDomainName));
+                                    options.Add(GetClientFullyQualifiedDomainNameOption(request, reservedLeaseHostName));
                             }
 
                             break;
