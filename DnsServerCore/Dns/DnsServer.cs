@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -89,7 +90,7 @@ namespace DnsServerCore.Dns
         #region variables
 
         internal const int MAX_CNAME_HOPS = 16;
-        const int SERVE_STALE_WAIT_TIME = 1800;
+        const int SERVE_STALE_TIME_DIFFERENCE = 200; //200ms before client timeout as per RFC 8767
 
         static readonly IPEndPoint IPENDPOINT_ANY_0 = new IPEndPoint(IPAddress.Any, 0);
         static readonly IReadOnlyCollection<DnsARecordData> _aRecords = new DnsARecordData[] { new DnsARecordData(IPAddress.Any) };
@@ -125,6 +126,7 @@ namespace DnsServerCore.Dns
         readonly StatsManager _stats;
 
         IReadOnlyCollection<NetworkAddress> _zoneTransferAllowedNetworks;
+        IReadOnlyCollection<NetworkAddress> _notifyAllowedNetworks;
         bool _preferIPv6;
         ushort _udpPayloadSize = DnsDatagram.EDNS_DEFAULT_UDP_PAYLOAD_SIZE;
         bool _dnssecValidation = true;
@@ -133,13 +135,14 @@ namespace DnsServerCore.Dns
         byte _eDnsClientSubnetIPv4PrefixLength = 24;
         byte _eDnsClientSubnetIPv6PrefixLength = 56;
 
-        int _qpmLimitRequests = 0;
-        int _qpmLimitErrors = 0;
+        int _qpmLimitRequests = 6000; //100qps
+        int _qpmLimitErrors = 600; //10qps
         int _qpmLimitSampleMinutes = 5;
         int _qpmLimitIPv4PrefixLength = 24;
         int _qpmLimitIPv6PrefixLength = 56;
+        IReadOnlyCollection<NetworkAddress> _qpmLimitBypassList;
 
-        int _clientTimeout = 4000;
+        int _clientTimeout = 2000;
         int _tcpSendTimeout = 10000;
         int _tcpReceiveTimeout = 10000;
         int _quicIdleTimeout = 60000;
@@ -173,7 +176,7 @@ namespace DnsServerCore.Dns
         bool _nsRevalidation;
 
         int _resolverRetries = 2;
-        int _resolverTimeout = 2000;
+        int _resolverTimeout = 1500;
         int _resolverMaxStackCount = 16;
 
         bool _serveStale = true;
@@ -392,7 +395,10 @@ namespace DnsServerCore.Dns
                             }
 
                             if (IsQpmLimitCrossed(remoteEP.Address))
+                            {
+                                _stats.QueueUpdate(null, remoteEP, protocol, null);
                                 continue;
+                            }
 
                             DnsDatagram request = DnsDatagram.ReadFrom(recvBufferStream);
                             request.SetMetadata(new NameServerAddress(new IPEndPoint(result.PacketInformation.Address, localPort), DnsTransportProtocol.Udp));
@@ -441,23 +447,30 @@ namespace DnsServerCore.Dns
 
         private async Task ProcessUdpRequestAsync(Socket udpListener, IPEndPoint remoteEP, IPEndPoint returnEP, DnsTransportProtocol protocol, DnsDatagram request)
         {
+            byte[] sendBuffer = null;
+
             try
             {
                 DnsDatagram response = await PreProcessQueryAsync(request, remoteEP, protocol, IsRecursionAllowed(remoteEP.Address));
                 if (response is null)
+                {
+                    _stats.QueueUpdate(null, remoteEP, protocol, null);
                     return; //drop request
+                }
 
                 //send response
-                byte[] sendBuffer;
+                int sendBufferSize;
 
                 if (request.EDNS is null)
-                    sendBuffer = new byte[512];
+                    sendBufferSize = 512;
                 else if (request.EDNS.UdpPayloadSize > _udpPayloadSize)
-                    sendBuffer = new byte[_udpPayloadSize];
+                    sendBufferSize = _udpPayloadSize;
                 else
-                    sendBuffer = new byte[request.EDNS.UdpPayloadSize];
+                    sendBufferSize = request.EDNS.UdpPayloadSize;
 
-                using (MemoryStream sendBufferStream = new MemoryStream(sendBuffer))
+                sendBuffer = ArrayPool<byte>.Shared.Rent(sendBufferSize);
+
+                using (MemoryStream sendBufferStream = new MemoryStream(sendBuffer, 0, sendBufferSize))
                 {
                     try
                     {
@@ -522,6 +535,11 @@ namespace DnsServerCore.Dns
 
                 _queryLog?.Write(remoteEP, protocol, request, null);
                 _log?.Write(remoteEP, protocol, ex);
+            }
+            finally
+            {
+                if (sendBuffer is not null)
+                    ArrayPool<byte>.Shared.Return(sendBuffer);
             }
         }
 
@@ -630,7 +648,10 @@ namespace DnsServerCore.Dns
                 while (true)
                 {
                     if (IsQpmLimitCrossed(remoteEP.Address))
+                    {
+                        _stats.QueueUpdate(null, remoteEP, protocol, null);
                         break;
+                    }
 
                     DnsDatagram request;
 
@@ -678,6 +699,8 @@ namespace DnsServerCore.Dns
                 if (response is null)
                 {
                     await stream.DisposeAsync();
+
+                    _stats.QueueUpdate(null, remoteEP, protocol, null);
                     return; //drop request
                 }
 
@@ -747,7 +770,10 @@ namespace DnsServerCore.Dns
                 while (true)
                 {
                     if (IsQpmLimitCrossed(quicConnection.RemoteEndPoint.Address))
+                    {
+                        _stats.QueueUpdate(null, quicConnection.RemoteEndPoint, DnsTransportProtocol.Quic, null);
                         break;
+                    }
 
                     QuicStream quicStream = await quicConnection.AcceptInboundStreamAsync();
 
@@ -806,7 +832,10 @@ namespace DnsServerCore.Dns
                 //process request async
                 DnsDatagram response = await PreProcessQueryAsync(request, remoteEP, DnsTransportProtocol.Quic, IsRecursionAllowed(remoteEP.Address));
                 if (response is null)
+                {
+                    _stats.QueueUpdate(null, remoteEP, DnsTransportProtocol.Quic, null);
                     return; //drop request
+                }
 
                 //send response
                 await response.WriteToTcpAsync(quicStream, sharedBuffer);
@@ -844,6 +873,8 @@ namespace DnsServerCore.Dns
 
                 if (IsQpmLimitCrossed(remoteEP.Address))
                 {
+                    _stats.QueueUpdate(null, remoteEP, DnsTransportProtocol.Https, null);
+
                     response.StatusCode = 429;
                     await response.WriteAsync("Too Many Requests");
                     return;
@@ -869,7 +900,7 @@ namespace DnsServerCore.Dns
                     case "GET":
                         bool acceptsDoH = false;
 
-                        string requestAccept = request.Headers["Accept"];
+                        string requestAccept = request.Headers.Accept;
                         if (string.IsNullOrEmpty(requestAccept))
                         {
                             acceptsDoH = true;
@@ -888,7 +919,7 @@ namespace DnsServerCore.Dns
 
                         if (!acceptsDoH)
                         {
-                            response.Redirect((request.IsHttps ? "https://" : "http://") + request.Headers["Host"]);
+                            response.Redirect((request.IsHttps ? "https://" : "http://") + request.Headers.Host);
                             return;
                         }
 
@@ -912,13 +943,13 @@ namespace DnsServerCore.Dns
                         using (MemoryStream mS = new MemoryStream(Convert.FromBase64String(dnsRequestBase64Url)))
                         {
                             dnsRequest = DnsDatagram.ReadFrom(mS);
-                            dnsRequest.SetMetadata(new NameServerAddress(new Uri(context.Request.GetDisplayUrl()), context.GetLocalIpAddress(), DnsTransportProtocol.Https));
+                            dnsRequest.SetMetadata(new NameServerAddress(new Uri(context.Request.GetDisplayUrl()), context.GetLocalIpAddress()));
                         }
 
                         break;
 
                     case "POST":
-                        if (!string.Equals(request.Headers["Content-Type"], "application/dns-message", StringComparison.OrdinalIgnoreCase))
+                        if (!string.Equals(request.Headers.ContentType, "application/dns-message", StringComparison.OrdinalIgnoreCase))
                         {
                             response.StatusCode = 415;
                             await response.WriteAsync("Unsupported Media Type");
@@ -931,7 +962,7 @@ namespace DnsServerCore.Dns
 
                             mS.Position = 0;
                             dnsRequest = DnsDatagram.ReadFrom(mS);
-                            dnsRequest.SetMetadata(new NameServerAddress(new Uri(context.Request.GetDisplayUrl()), context.GetLocalIpAddress(), DnsTransportProtocol.Https));
+                            dnsRequest.SetMetadata(new NameServerAddress(new Uri(context.Request.GetDisplayUrl()), context.GetLocalIpAddress()));
                         }
 
                         break;
@@ -945,6 +976,8 @@ namespace DnsServerCore.Dns
                 {
                     //drop request
                     context.Connection.RequestClose();
+
+                    _stats.QueueUpdate(null, remoteEP, DnsTransportProtocol.Https, null);
                     return;
                 }
 
@@ -1034,7 +1067,7 @@ namespace DnsServerCore.Dns
                             return null; //drop request
 
                         case DnsRequestControllerAction.DropWithRefused:
-                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Question, null, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative }; //drop request with refused
+                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, DnsResponseCode.Refused, request.Question, null, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative }; //drop request with refused
                     }
                 }
                 catch (Exception ex)
@@ -1050,7 +1083,7 @@ namespace DnsServerCore.Dns
                     _log?.Write(remoteEP, protocol, request.ParsingException);
 
                 //format error response
-                return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.FormatError, request.Question, null, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative };
+                return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, DnsResponseCode.FormatError, request.Question, null, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative };
             }
 
             if (request.IsSigned)
@@ -1077,7 +1110,7 @@ namespace DnsServerCore.Dns
             if (request.EDNS is not null)
             {
                 if (request.EDNS.Version != 0)
-                    return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.BADVERS, request.Question, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative };
+                    return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, DnsResponseCode.BADVERS, request.Question, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative };
             }
 
             DnsDatagram response = await ProcessQueryAsync(request, remoteEP, protocol, isRecursionAllowed, false, null);
@@ -1145,10 +1178,10 @@ namespace DnsServerCore.Dns
             {
                 case DnsOpcode.StandardQuery:
                     if (request.Question.Count != 1)
-                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
 
                     if (request.Question[0].Class != DnsClass.IN)
-                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
 
                     try
                     {
@@ -1158,7 +1191,7 @@ namespace DnsServerCore.Dns
                         {
                             case DnsResourceRecordType.AXFR:
                                 if (protocol == DnsTransportProtocol.Udp)
-                                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, request.CheckingDisabled, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
 
                                 return await ProcessZoneTransferQueryAsync(request, remoteEP, protocol, tsigAuthenticatedKeyName);
 
@@ -1167,7 +1200,7 @@ namespace DnsServerCore.Dns
 
                             case DnsResourceRecordType.FWD:
                             case DnsResourceRecordType.APP:
-                                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
                         }
 
                         //query authoritative zone
@@ -1175,30 +1208,30 @@ namespace DnsServerCore.Dns
                         if (response is not null)
                         {
                             if ((question.Type == DnsResourceRecordType.ANY) && (protocol == DnsTransportProtocol.Udp)) //force TCP for ANY request
-                                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, true, request.RecursionDesired, isRecursionAllowed, false, false, response.RCODE, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, true, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, response.RCODE, request.Question) { Tag = DnsServerResponseType.Authoritative };
 
                             return response;
                         }
 
                         if (!request.RecursionDesired || !isRecursionAllowed)
-                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
 
                         //do recursive query
                         if ((question.Type == DnsResourceRecordType.ANY) && (protocol == DnsTransportProtocol.Udp)) //force TCP for ANY request
-                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, true, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, true, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, DnsResponseCode.NoError, request.Question) { Tag = DnsServerResponseType.Authoritative };
 
                         return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, null, _dnssecValidation, false, skipDnsAppAuthoritativeRequestHandlers);
                     }
                     catch (InvalidDomainNameException)
                     {
                         //format error response
-                        return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                        return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
                     }
                     catch (Exception ex)
                     {
                         _log?.Write(remoteEP, protocol, ex);
 
-                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.ServerFailure, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, DnsResponseCode.ServerFailure, request.Question) { Tag = DnsServerResponseType.Authoritative };
                     }
 
                 case DnsOpcode.Notify:
@@ -1208,7 +1241,7 @@ namespace DnsServerCore.Dns
                     return await ProcessUpdateQueryAsync(request, remoteEP, protocol, tsigAuthenticatedKeyName);
 
                 default:
-                    return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NotImplemented, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                    return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, DnsResponseCode.NotImplemented, request.Question) { Tag = DnsServerResponseType.Authoritative };
             }
         }
 
@@ -1218,21 +1251,29 @@ namespace DnsServerCore.Dns
             if ((authZoneInfo is null) || (authZoneInfo.Type != AuthZoneType.Secondary) || authZoneInfo.Disabled)
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.Notify, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
 
-            IPAddress remoteAddress = remoteEP.Address;
-            bool remoteVerified = false;
-
-            IReadOnlyList<NameServerAddress> primaryNameServers = await authZoneInfo.GetPrimaryNameServerAddressesAsync(this);
-
-            foreach (NameServerAddress primaryNameServer in primaryNameServers)
+            async Task<bool> RemoteVerifiedAsync(IPAddress remoteAddress)
             {
-                if (primaryNameServer.IPEndPoint.Address.Equals(remoteAddress))
+                if (_notifyAllowedNetworks is not null)
                 {
-                    remoteVerified = true;
-                    break;
+                    foreach (NetworkAddress notifyAllowedNetwork in _notifyAllowedNetworks)
+                    {
+                        if (notifyAllowedNetwork.Contains(remoteAddress))
+                            return true;
+                    }
                 }
+
+                IReadOnlyList<NameServerAddress> primaryNameServers = await authZoneInfo.GetPrimaryNameServerAddressesAsync(this);
+
+                foreach (NameServerAddress primaryNameServer in primaryNameServers)
+                {
+                    if (primaryNameServer.IPEndPoint.Address.Equals(remoteAddress))
+                        return true;
+                }
+
+                return false;
             }
 
-            if (!remoteVerified)
+            if (!await RemoteVerifiedAsync(remoteEP.Address))
             {
                 _log?.Write(remoteEP, protocol, "DNS Server refused a NOTIFY request since the request IP address was not recognized by the secondary zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
 
@@ -1264,7 +1305,7 @@ namespace DnsServerCore.Dns
             if (request.Question[0].Class != DnsClass.IN)
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NotAuth, request.Question) { Tag = DnsServerResponseType.Authoritative };
 
-            AuthZoneInfo authZoneInfo = _authZoneManager.GetAuthZoneInfo(request.Question[0].Name);
+            AuthZoneInfo authZoneInfo = _authZoneManager.FindAuthZoneInfo(request.Question[0].Name);
             if ((authZoneInfo is null) || authZoneInfo.Disabled)
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NotAuth, request.Question) { Tag = DnsServerResponseType.Authoritative };
 
@@ -1386,6 +1427,7 @@ namespace DnsServerCore.Dns
             switch (authZoneInfo.Type)
             {
                 case AuthZoneType.Primary:
+                case AuthZoneType.Forwarder:
                     //update
                     {
                         //process prerequisite section
@@ -2107,7 +2149,7 @@ namespace DnsServerCore.Dns
                             authority = zoneInfo.GetApexRecords(DnsResourceRecordType.SOA);
                         }
 
-                        return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, rcode, request.Question, null, authority) { Tag = DnsServerResponseType.Authoritative };
+                        return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, rcode, request.Question, null, authority) { Tag = DnsServerResponseType.Authoritative };
                     }
                     else
                     {
@@ -2132,7 +2174,7 @@ namespace DnsServerCore.Dns
                 AuthZoneInfo zoneInfo = _authZoneManager.FindAuthZoneInfo(request.Question[0].Name);
                 IReadOnlyList<DnsResourceRecord> authority = zoneInfo.GetApexRecords(DnsResourceRecordType.SOA);
 
-                return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.ServerFailure, request.Question, null, authority) { Tag = DnsServerResponseType.Authoritative };
+                return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, DnsResponseCode.ServerFailure, request.Question, null, authority) { Tag = DnsServerResponseType.Authoritative };
             }
         }
 
@@ -2185,7 +2227,7 @@ namespace DnsServerCore.Dns
                 if (lastRR.Name.Equals(cnameDomain, StringComparison.OrdinalIgnoreCase))
                     break; //loop detected
 
-                DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(cnameDomain, request.Question[0].Type, request.Question[0].Class) }, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, eDnsClientSubnetOption);
+                DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, request.CheckingDisabled, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(cnameDomain, request.Question[0].Type, request.Question[0].Class) }, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, eDnsClientSubnetOption);
 
                 //query authoritative zone first
                 newResponse = await AuthoritativeQueryAsync(newRequest, remoteEP, protocol, isRecursionAllowed, skipDnsAppAuthoritativeRequestHandlers);
@@ -2249,19 +2291,25 @@ namespace DnsServerCore.Dns
 
                 bool foundRepeat = false;
 
-                foreach (DnsResourceRecord answerRecord in newAnswer)
+                foreach (DnsResourceRecord newResponseAnswerRecord in newResponse.Answer)
                 {
-                    if (answerRecord.Type != DnsResourceRecordType.CNAME)
-                        continue;
-
-                    if (answerRecord.RDATA.Equals(lastRR.RDATA))
+                    if ((newResponseAnswerRecord.Type == DnsResourceRecordType.CNAME) || (newResponseAnswerRecord.Type == DnsResourceRecordType.DNAME))
                     {
-                        foundRepeat = true;
-                        break;
-                    }
-                }
+                        foreach (DnsResourceRecord answerRecord in newAnswer)
+                        {
+                            if (newResponseAnswerRecord.Equals(answerRecord))
+                            {
+                                foundRepeat = true;
+                                break;
+                            }
+                        }
 
-                newAnswer.AddRange(newResponse.Answer);
+                        if (foundRepeat)
+                            break;
+                    }
+
+                    newAnswer.Add(newResponseAnswerRecord);
+                }
 
                 if (foundRepeat)
                     break; //loop detected
@@ -2332,7 +2380,7 @@ namespace DnsServerCore.Dns
 
                 do
                 {
-                    DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(lastDomain, request.Question[0].Type, request.Question[0].Class) }, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, eDnsClientSubnetOption);
+                    DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, request.CheckingDisabled, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(lastDomain, request.Question[0].Type, request.Question[0].Class) }, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, eDnsClientSubnetOption);
 
                     //query authoritative zone first
                     DnsDatagram newResponse = await AuthoritativeQueryAsync(newRequest, remoteEP, protocol, isRecursionAllowed, skipDnsAppAuthoritativeRequestHandlers);
@@ -2477,7 +2525,7 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, rcode, request.Question, responseAnswer, authority, null) { Tag = response.Tag };
+            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, rcode, request.Question, responseAnswer, authority, null) { Tag = response.Tag };
         }
 
         private DnsDatagram ProcessBlocked(DnsDatagram request)
@@ -2781,7 +2829,7 @@ namespace DnsServerCore.Dns
                 }
                 else if ((requestECS.Family != EDnsClientSubnetAddressFamily.IPv4) && (requestECS.Family != EDnsClientSubnetAddressFamily.IPv6))
                 {
-                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, request.CheckingDisabled, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
                 }
                 else if (requestECS.ConditionalForwardingClientSubnet)
                 {
@@ -2865,51 +2913,66 @@ namespace DnsServerCore.Dns
             if (cachePrefetchOperation)
                 return null; //return null as prefetch worker thread does not need valid response and thus does not need to wait
 
-            DateTime resolverWaitStartTime = DateTime.UtcNow;
-
-            //wait till short timeout for response
-            if (await Task.WhenAny(resolverTask, Task.Delay(SERVE_STALE_WAIT_TIME)) == resolverTask) //1.8 sec wait as per draft-ietf-dnsop-serve-stale-04
+            if (_serveStale)
             {
-                //resolver signaled
-                RecursiveResolveResponse response = await resolverTask;
+                DateTime resolverWaitStartTime = DateTime.UtcNow;
 
-                if (response is not null)
-                    return PrepareRecursiveResolveResponse(request, response);
-
-                //resolver had exception and no stale record was found
-            }
-            else
-            {
-                //wait timed out
-
-                if (_serveStale)
+                //wait till short timeout for response
+                if (await Task.WhenAny(resolverTask, Task.Delay(_clientTimeout - SERVE_STALE_TIME_DIFFERENCE)) == resolverTask) //200ms before client timeout as per RFC 8767
                 {
-                    //query cache zone to return stale answer (if available) as per draft-ietf-dnsop-serve-stale-04
+                    //resolver signaled
+                    RecursiveResolveResponse response = await resolverTask;
+
+                    if (response is not null)
+                        return PrepareRecursiveResolveResponse(request, response);
+
+                    //resolver had exception
+                }
+                else
+                {
+                    //wait timed out
+
+                    //query cache zone to return stale answer (if available) as per RFC 8767
                     DnsDatagram staleResponse = QueryCache(request, true);
                     if (staleResponse is not null)
                         return staleResponse;
-                }
 
-                //wait till full timeout before responding as ServerFailure
-                int timeout = Convert.ToInt32(_clientTimeout - (DateTime.UtcNow - resolverWaitStartTime).TotalMilliseconds);
-                if (timeout > 0)
-                {
-                    if (await Task.WhenAny(resolverTask, Task.Delay(timeout)) == resolverTask)
+                    //no stale record was found
+                    //wait till full timeout before responding as ServerFailure
+                    int timeout = Convert.ToInt32(_clientTimeout - (DateTime.UtcNow - resolverWaitStartTime).TotalMilliseconds);
+                    if (timeout > 0)
                     {
-                        //resolver signaled
-                        RecursiveResolveResponse response = await resolverTask;
+                        if (await Task.WhenAny(resolverTask, Task.Delay(timeout)) == resolverTask)
+                        {
+                            //resolver signaled
+                            RecursiveResolveResponse response = await resolverTask;
 
-                        if (response is not null)
-                            return PrepareRecursiveResolveResponse(request, response);
+                            if (response is not null)
+                                return PrepareRecursiveResolveResponse(request, response);
+
+                            //resolver had exception
+                        }
                     }
+                }
+            }
+            else
+            {
+                //wait till full client timeout for response
+                if (await Task.WhenAny(resolverTask, Task.Delay(_clientTimeout)) == resolverTask)
+                {
+                    //resolver signaled
+                    RecursiveResolveResponse response = await resolverTask;
 
-                    //no response available from resolver or resolver had exception and no stale record was found
+                    if (response is not null)
+                        return PrepareRecursiveResolveResponse(request, response);
+
+                    //resolver had exception
                 }
             }
 
             //no response available; respond with ServerFailure
             EDnsOption[] options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Other, "Waiting for resolver")) };
-            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.ServerFailure, request.Question, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
+            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, request.CheckingDisabled, DnsResponseCode.ServerFailure, request.Question, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
         }
 
         private async Task RecursiveResolveAsync(DnsQuestionRecord question, NetworkAddress eDnsClientSubnet, bool conditionalForwardingClientSubnet, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool dnssecValidation, bool cachePrefetchOperation, bool cacheRefreshOperation, bool skipDnsAppAuthoritativeRequestHandlers, TaskCompletionSource<RecursiveResolveResponse> taskCompletionSource)
@@ -3278,7 +3341,41 @@ namespace DnsServerCore.Dns
             bool dnssecOk = request.DnssecOk;
 
             if (dnssecOk && request.CheckingDisabled)
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, resolveResponse.CheckingDisabledResponse.AuthenticData, resolveResponse.CheckingDisabledResponse.CheckingDisabled, resolveResponse.CheckingDisabledResponse.RCODE, request.Question, resolveResponse.CheckingDisabledResponse.Answer, resolveResponse.CheckingDisabledResponse.Authority, RemoveOPTFromAdditional(resolveResponse.CheckingDisabledResponse.Additional, true), _udpPayloadSize, EDnsHeaderFlags.DNSSEC_OK, resolveResponse.CheckingDisabledResponse.EDNS?.Options);
+            {
+                bool authenticData = false;
+
+                if (dnssecOk)
+                {
+                    if (resolveResponse.CheckingDisabledResponse.Answer.Count > 0)
+                    {
+                        authenticData = true;
+
+                        foreach (DnsResourceRecord record in resolveResponse.CheckingDisabledResponse.Answer)
+                        {
+                            if (record.DnssecStatus != DnssecStatus.Secure)
+                            {
+                                authenticData = false;
+                                break;
+                            }
+                        }
+                    }
+                    else if (resolveResponse.CheckingDisabledResponse.Authority.Count > 0)
+                    {
+                        authenticData = true;
+
+                        foreach (DnsResourceRecord record in resolveResponse.CheckingDisabledResponse.Authority)
+                        {
+                            if (record.DnssecStatus != DnssecStatus.Secure)
+                            {
+                                authenticData = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, authenticData, true, resolveResponse.CheckingDisabledResponse.RCODE, request.Question, resolveResponse.CheckingDisabledResponse.Answer, resolveResponse.CheckingDisabledResponse.Authority, RemoveOPTFromAdditional(resolveResponse.CheckingDisabledResponse.Additional, true), _udpPayloadSize, EDnsHeaderFlags.DNSSEC_OK, resolveResponse.CheckingDisabledResponse.EDNS?.Options);
+            }
 
             DnsDatagram response = resolveResponse.Response;
             IReadOnlyList<DnsResourceRecord> answer = response.Answer;
@@ -3459,7 +3556,41 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, response.AuthenticData, response.CheckingDisabled, response.RCODE, request.Question, answer, authority, additional);
+            {
+                bool authenticData = false;
+
+                if (dnssecOk)
+                {
+                    if (answer.Count > 0)
+                    {
+                        authenticData = true;
+
+                        foreach (DnsResourceRecord record in answer)
+                        {
+                            if (record.DnssecStatus != DnssecStatus.Secure)
+                            {
+                                authenticData = false;
+                                break;
+                            }
+                        }
+                    }
+                    else if (authority.Count > 0)
+                    {
+                        authenticData = true;
+
+                        foreach (DnsResourceRecord record in authority)
+                        {
+                            if (record.DnssecStatus != DnssecStatus.Secure)
+                            {
+                                authenticData = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, authenticData, request.CheckingDisabled, response.RCODE, request.Question, answer, authority, additional);
+            }
         }
 
         private static IReadOnlyList<DnsResourceRecord> RemoveOPTFromAdditional(IReadOnlyList<DnsResourceRecord> additional, bool dnssecOk)
@@ -3802,6 +3933,15 @@ namespace DnsServerCore.Dns
             if (IPAddress.IsLoopback(remoteIP))
                 return false;
 
+            if (_qpmLimitBypassList is not null)
+            {
+                foreach (NetworkAddress networkAddress in _qpmLimitBypassList)
+                {
+                    if (networkAddress.Contains(remoteIP))
+                        return false;
+                }
+            }
+
             IPAddress remoteSubnet;
 
             switch (remoteIP.AddressFamily)
@@ -3968,8 +4108,8 @@ namespace DnsServerCore.Dns
             {
                 OnPrepareResponse = delegate (StaticFileResponseContext ctx)
                 {
-                    ctx.Context.Response.Headers.Add("X-Robots-Tag", "noindex, nofollow");
-                    ctx.Context.Response.Headers.Add("Cache-Control", "private, max-age=300");
+                    ctx.Context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
+                    ctx.Context.Response.Headers.CacheControl = "private, max-age=300";
                 },
                 ServeUnknownFileTypes = true
             });
@@ -4113,7 +4253,7 @@ namespace DnsServerCore.Dns
         public async Task StartAsync()
         {
             if (_disposed)
-                throw new ObjectDisposedException("DnsServer");
+                ObjectDisposedException.ThrowIf(_disposed, this);
 
             if (_state != ServiceState.Stopped)
                 throw new InvalidOperationException("DNS Server is already running.");
@@ -4400,6 +4540,19 @@ namespace DnsServerCore.Dns
                     UdpClientConnection.CreateSocketPool(_preferIPv6);
                 });
             }
+
+            //update root servers list by priming query async
+            _ = Task.Run(async delegate ()
+            {
+                try
+                {
+                    await DnsClient.UpdateRootServersAsync(_proxy, _preferIPv6, _resolverRetries, _resolverTimeout);
+                }
+                catch (Exception ex)
+                {
+                    _log.Write("Error while updating root servers list by priming query: " + ex.ToString());
+                }
+            });
         }
 
         public async Task StopAsync()
@@ -4566,7 +4719,25 @@ namespace DnsServerCore.Dns
         public IReadOnlyCollection<NetworkAddress> ZoneTransferAllowedNetworks
         {
             get { return _zoneTransferAllowedNetworks; }
-            set { _zoneTransferAllowedNetworks = value; }
+            set
+            {
+                if ((value is not null) && (value.Count > byte.MaxValue))
+                    throw new ArgumentOutOfRangeException(nameof(ZoneTransferAllowedNetworks), "Networks cannot be more than 255.");
+
+                _zoneTransferAllowedNetworks = value;
+            }
+        }
+
+        public IReadOnlyCollection<NetworkAddress> NotifyAllowedNetworks
+        {
+            get { return _notifyAllowedNetworks; }
+            set
+            {
+                if ((value is not null) && (value.Count > byte.MaxValue))
+                    throw new ArgumentOutOfRangeException(nameof(NotifyAllowedNetworks), "Networks cannot be more than 255.");
+
+                _notifyAllowedNetworks = value;
+            }
         }
 
         public bool PreferIPv6
@@ -4738,6 +4909,18 @@ namespace DnsServerCore.Dns
                     throw new ArgumentOutOfRangeException(nameof(QpmLimitIPv6PrefixLength), "Valid range is between 0 and 64.");
 
                 _qpmLimitIPv6PrefixLength = value;
+            }
+        }
+
+        public IReadOnlyCollection<NetworkAddress> QpmLimitBypassList
+        {
+            get { return _qpmLimitBypassList; }
+            set
+            {
+                if ((value is not null) && (value.Count > byte.MaxValue))
+                    throw new ArgumentOutOfRangeException(nameof(QpmLimitBypassList), "Networks cannot be more than 255.");
+
+                _qpmLimitBypassList = value;
             }
         }
 
@@ -5108,7 +5291,13 @@ namespace DnsServerCore.Dns
         public IReadOnlyCollection<NetworkAddress> BlockingBypassList
         {
             get { return _blockingBypassList; }
-            set { _blockingBypassList = value; }
+            set
+            {
+                if ((value is not null) && (value.Count > byte.MaxValue))
+                    throw new ArgumentOutOfRangeException(nameof(BlockingBypassList), "Networks cannot be more than 255.");
+
+                _blockingBypassList = value;
+            }
         }
 
         public DnsServerBlockingType BlockingType
