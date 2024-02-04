@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace NxDomain
 {
-    public class App : IDnsApplication, IDnsAuthoritativeRequestHandler
+    public sealed class App : IDnsApplication, IDnsAuthoritativeRequestHandler
     {
         #region variables
 
@@ -38,7 +38,7 @@ namespace NxDomain
         bool _enableBlocking;
         bool _allowTxtBlockingReport;
 
-        IReadOnlyDictionary<string, object> _blockListZone;
+        Dictionary<string, object> _blockListZone;
 
         #endregion
 
