@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -103,6 +103,7 @@ namespace DnsServerCore.Dns.Zones
                 case 7:
                 case 8:
                 case 9:
+                case 10:
                     _name = bR.ReadShortString();
                     _type = (AuthZoneType)bR.ReadByte();
                     _disabled = bR.ReadBoolean();
@@ -364,6 +365,45 @@ namespace DnsServerCore.Dns.Zones
                         case AuthZoneType.Stub:
                             _expiry = bR.ReadDateTime();
                             break;
+
+                        case AuthZoneType.Forwarder:
+                            if (version >= 10)
+                            {
+                                int count = bR.ReadByte();
+                                Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> updateSecurityPolicies = new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>>(count);
+
+                                for (int i = 0; i < count; i++)
+                                {
+                                    string tsigKeyName = bR.ReadShortString().ToLower();
+
+                                    if (!updateSecurityPolicies.TryGetValue(tsigKeyName, out IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>> policyMap))
+                                    {
+                                        policyMap = new Dictionary<string, IReadOnlyList<DnsResourceRecordType>>();
+                                        updateSecurityPolicies.Add(tsigKeyName, policyMap);
+                                    }
+
+                                    int policyCount = bR.ReadByte();
+
+                                    for (int j = 0; j < policyCount; j++)
+                                    {
+                                        string domain = bR.ReadShortString().ToLower();
+
+                                        if (!policyMap.TryGetValue(domain, out IReadOnlyList<DnsResourceRecordType> types))
+                                        {
+                                            types = new List<DnsResourceRecordType>();
+                                            (policyMap as Dictionary<string, IReadOnlyList<DnsResourceRecordType>>).Add(domain, types);
+                                        }
+
+                                        int typeCount = bR.ReadByte();
+
+                                        for (int k = 0; k < typeCount; k++)
+                                            (types as List<DnsResourceRecordType>).Add((DnsResourceRecordType)bR.ReadUInt16());
+                                    }
+                                }
+
+                                _updateSecurityPolicies = updateSecurityPolicies;
+                            }
+                            break;
                     }
 
                     break;
@@ -404,9 +444,10 @@ namespace DnsServerCore.Dns.Zones
                 _type = AuthZoneType.Stub;
                 _expiry = stubZone.Expiry;
             }
-            else if (_apexZone is ForwarderZone)
+            else if (_apexZone is ForwarderZone forwarderZone)
             {
                 _type = AuthZoneType.Forwarder;
+                _updateSecurityPolicies = forwarderZone.UpdateSecurityPolicies;
             }
             else
             {
@@ -516,7 +557,7 @@ namespace DnsServerCore.Dns.Zones
             if (_apexZone is null)
                 throw new InvalidOperationException();
 
-            bW.Write((byte)9); //version
+            bW.Write((byte)10); //version
 
             bW.WriteShortString(_name);
             bW.Write((byte)_type);
@@ -671,6 +712,32 @@ namespace DnsServerCore.Dns.Zones
 
                 case AuthZoneType.Stub:
                     bW.Write(_expiry);
+                    break;
+
+                case AuthZoneType.Forwarder:
+                    if (_updateSecurityPolicies is null)
+                    {
+                        bW.Write((byte)0);
+                    }
+                    else
+                    {
+                        bW.Write(Convert.ToByte(_updateSecurityPolicies.Count));
+
+                        foreach (KeyValuePair<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> updateSecurityPolicy in _updateSecurityPolicies)
+                        {
+                            bW.WriteShortString(updateSecurityPolicy.Key);
+                            bW.Write(Convert.ToByte(updateSecurityPolicy.Value.Count));
+
+                            foreach (KeyValuePair<string, IReadOnlyList<DnsResourceRecordType>> policyMap in updateSecurityPolicy.Value)
+                            {
+                                bW.WriteShortString(policyMap.Key);
+                                bW.Write(Convert.ToByte(policyMap.Value.Count));
+
+                                foreach (DnsResourceRecordType type in policyMap.Value)
+                                    bW.Write((ushort)type);
+                            }
+                        }
+                    }
                     break;
             }
         }
@@ -927,6 +994,7 @@ namespace DnsServerCore.Dns.Zones
                 switch (_type)
                 {
                     case AuthZoneType.Primary:
+                    case AuthZoneType.Forwarder:
                         _apexZone.UpdateSecurityPolicies = value;
                         break;
 
