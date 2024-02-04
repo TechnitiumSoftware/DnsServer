@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -39,8 +39,6 @@ namespace DnsServerCore.Auth
     class User : IComparable<User>
     {
         #region variables
-
-        static readonly RandomNumberGenerator _rng = RandomNumberGenerator.Create();
 
         public const int DEFAULT_ITERATIONS = 100000;
 
@@ -152,7 +150,7 @@ namespace DnsServerCore.Auth
             _iterations = iterations;
 
             _salt = new byte[32];
-            _rng.GetBytes(_salt);
+            RandomNumberGenerator.Fill(_salt);
 
             _passwordHash = GetPasswordHashFor(newPassword);
         }
