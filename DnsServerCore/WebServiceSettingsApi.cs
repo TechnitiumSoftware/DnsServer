@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@ using System.Threading.Tasks;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.ClientConnection;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 using TechnitiumLibrary.Net.Proxy;
 
@@ -43,6 +44,8 @@ namespace DnsServerCore
     sealed class WebServiceSettingsApi : IDisposable
     {
         #region variables
+
+        static readonly char[] _commaSeparator = new char[] { ',' };
 
         readonly DnsWebService _dnsWebService;
 
@@ -88,11 +91,11 @@ namespace DnsServerCore
 
         #region block list
 
-        private void ForceUpdateBlockLists()
+        private void ForceUpdateBlockLists(bool forceReload)
         {
             Task.Run(async delegate ()
             {
-                if (await _dnsWebService.DnsServer.BlockListZoneManager.UpdateBlockListsAsync())
+                if (await _dnsWebService.DnsServer.BlockListZoneManager.UpdateBlockListsAsync(forceReload))
                 {
                     //block lists were updated
                     //save last updated on time
@@ -102,17 +105,20 @@ namespace DnsServerCore
             });
         }
 
-        public void StartBlockListUpdateTimer()
+        public void StartBlockListUpdateTimer(bool forceUpdateAndReload)
         {
             if (_blockListUpdateTimer is null)
             {
+                if (forceUpdateAndReload)
+                    _blockListLastUpdatedOn = default;
+
                 _blockListUpdateTimer = new Timer(async delegate (object state)
                 {
                     try
                     {
                         if (DateTime.UtcNow > _blockListLastUpdatedOn.AddHours(_blockListUpdateIntervalHours))
                         {
-                            if (await _dnsWebService.DnsServer.BlockListZoneManager.UpdateBlockListsAsync())
+                            if (await _dnsWebService.DnsServer.BlockListZoneManager.UpdateBlockListsAsync(_blockListLastUpdatedOn == default))
                             {
                                 //block lists were updated
                                 //save last updated on time
@@ -224,27 +230,17 @@ namespace DnsServerCore
             jsonWriter.WriteString("uptimestamp", _dnsWebService._uptimestamp);
             jsonWriter.WriteString("dnsServerDomain", _dnsWebService.DnsServer.ServerDomain);
 
-            jsonWriter.WritePropertyName("dnsServerLocalEndPoints");
-            jsonWriter.WriteStartArray();
+            jsonWriter.WriteStringArray("dnsServerLocalEndPoints", _dnsWebService.DnsServer.LocalEndPoints);
 
-            foreach (IPEndPoint localEP in _dnsWebService.DnsServer.LocalEndPoints)
-                jsonWriter.WriteStringValue(localEP.ToString());
-
-            jsonWriter.WriteEndArray();
+            jsonWriter.WriteStringArray("dnsServerIPv4SourceAddresses", DnsClientConnection.IPv4SourceAddresses);
+            jsonWriter.WriteStringArray("dnsServerIPv6SourceAddresses", DnsClientConnection.IPv6SourceAddresses);
 
             jsonWriter.WriteNumber("defaultRecordTtl", _dnsWebService._zonesApi.DefaultRecordTtl);
             jsonWriter.WriteBoolean("useSoaSerialDateScheme", _dnsWebService.DnsServer.AuthZoneManager.UseSoaSerialDateScheme);
 
-            jsonWriter.WritePropertyName("zoneTransferAllowedNetworks");
-            jsonWriter.WriteStartArray();
+            jsonWriter.WriteStringArray("zoneTransferAllowedNetworks", _dnsWebService.DnsServer.ZoneTransferAllowedNetworks);
 
-            if (_dnsWebService.DnsServer.ZoneTransferAllowedNetworks is not null)
-            {
-                foreach (NetworkAddress network in _dnsWebService.DnsServer.ZoneTransferAllowedNetworks)
-                    jsonWriter.WriteStringValue(network.ToString());
-            }
-
-            jsonWriter.WriteEndArray();
+            jsonWriter.WriteStringArray("notifyAllowedNetworks", _dnsWebService.DnsServer.NotifyAllowedNetworks);
 
             jsonWriter.WriteBoolean("dnsAppsEnableAutomaticUpdate", _dnsWebService._appsApi.EnableAutomaticUpdate);
 
@@ -263,6 +259,17 @@ namespace DnsServerCore
             jsonWriter.WriteNumber("qpmLimitSampleMinutes", _dnsWebService.DnsServer.QpmLimitSampleMinutes);
             jsonWriter.WriteNumber("qpmLimitIPv4PrefixLength", _dnsWebService.DnsServer.QpmLimitIPv4PrefixLength);
             jsonWriter.WriteNumber("qpmLimitIPv6PrefixLength", _dnsWebService.DnsServer.QpmLimitIPv6PrefixLength);
+
+            jsonWriter.WritePropertyName("qpmLimitBypassList");
+            jsonWriter.WriteStartArray();
+
+            if (_dnsWebService.DnsServer.QpmLimitBypassList is not null)
+            {
+                foreach (NetworkAddress network in _dnsWebService.DnsServer.QpmLimitBypassList)
+                    jsonWriter.WriteStringValue(network.ToString());
+            }
+
+            jsonWriter.WriteEndArray();
 
             jsonWriter.WriteNumber("clientTimeout", _dnsWebService.DnsServer.ClientTimeout);
             jsonWriter.WriteNumber("tcpSendTimeout", _dnsWebService.DnsServer.TcpSendTimeout);
@@ -511,7 +518,27 @@ namespace DnsServerCore
             jsonWriter.WriteBoolean("useLocalTime", _dnsWebService._log.UseLocalTime);
             jsonWriter.WriteString("logFolder", _dnsWebService._log.LogFolder);
             jsonWriter.WriteNumber("maxLogFileDays", _dnsWebService._log.MaxLogFileDays);
+
+            jsonWriter.WriteBoolean("enableInMemoryStats", _dnsWebService.DnsServer.StatsManager.EnableInMemoryStats);
             jsonWriter.WriteNumber("maxStatFileDays", _dnsWebService.DnsServer.StatsManager.MaxStatFileDays);
+        }
+
+        private static List<NetworkAddress> ParseNetworkAddresses(string networkAddresses)
+        {
+            if ((networkAddresses.Length == 0) || networkAddresses.Equals("false", StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            string[] addresses = networkAddresses.Split(_commaSeparator, StringSplitOptions.RemoveEmptyEntries);
+
+            List<NetworkAddress> networks = new List<NetworkAddress>(addresses.Length);
+
+            foreach (string address in addresses)
+            {
+                if (NetworkAddress.TryParse(address, out NetworkAddress networkAddress))
+                    networks.Add(networkAddress);
+            }
+
+            return networks;
         }
 
         #endregion
@@ -592,6 +619,14 @@ namespace DnsServerCore
                 }
             }
 
+            string dnsServerIPv4SourceAddresses = request.QueryOrForm("dnsServerIPv4SourceAddresses");
+            if (dnsServerIPv4SourceAddresses is not null)
+                DnsClientConnection.IPv4SourceAddresses = ParseNetworkAddresses(dnsServerIPv4SourceAddresses);
+
+            string dnsServerIPv6SourceAddresses = request.QueryOrForm("dnsServerIPv6SourceAddresses");
+            if (dnsServerIPv6SourceAddresses is not null)
+                DnsClientConnection.IPv6SourceAddresses = ParseNetworkAddresses(dnsServerIPv6SourceAddresses);
+
             if (request.TryGetQueryOrForm("defaultRecordTtl", uint.Parse, out uint defaultRecordTtl))
                 _dnsWebService._zonesApi.DefaultRecordTtl = defaultRecordTtl;
 
@@ -600,26 +635,11 @@ namespace DnsServerCore
 
             string zoneTransferAllowedNetworks = request.QueryOrForm("zoneTransferAllowedNetworks");
             if (zoneTransferAllowedNetworks is not null)
-            {
-                if ((zoneTransferAllowedNetworks.Length == 0) || zoneTransferAllowedNetworks.Equals("false", StringComparison.OrdinalIgnoreCase))
-                {
-                    _dnsWebService.DnsServer.ZoneTransferAllowedNetworks = null;
-                }
-                else
-                {
-                    string[] strAddresses = zoneTransferAllowedNetworks.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                _dnsWebService.DnsServer.ZoneTransferAllowedNetworks = ParseNetworkAddresses(zoneTransferAllowedNetworks);
 
-                    List<NetworkAddress> allowedNetworks = new List<NetworkAddress>(strAddresses.Length);
-
-                    foreach (string strAddress in strAddresses)
-                    {
-                        if (NetworkAddress.TryParse(strAddress, out NetworkAddress networkAddress))
-                            allowedNetworks.Add(networkAddress);
-                    }
-
-                    _dnsWebService.DnsServer.ZoneTransferAllowedNetworks = allowedNetworks;
-                }
-            }
+            string notifyAllowedNetworks = request.QueryOrForm("notifyAllowedNetworks");
+            if (notifyAllowedNetworks is not null)
+                _dnsWebService.DnsServer.NotifyAllowedNetworks = ParseNetworkAddresses(notifyAllowedNetworks);
 
             if (request.TryGetQueryOrForm("dnsAppsEnableAutomaticUpdate", bool.Parse, out bool dnsAppsEnableAutomaticUpdate))
                 _dnsWebService._appsApi.EnableAutomaticUpdate = dnsAppsEnableAutomaticUpdate;
@@ -656,6 +676,10 @@ namespace DnsServerCore
 
             if (request.TryGetQueryOrForm("qpmLimitIPv6PrefixLength", int.Parse, out int qpmLimitIPv6PrefixLength))
                 _dnsWebService.DnsServer.QpmLimitIPv6PrefixLength = qpmLimitIPv6PrefixLength;
+
+            string qpmLimitBypassList = request.QueryOrForm("qpmLimitBypassList");
+            if (qpmLimitBypassList is not null)
+                _dnsWebService.DnsServer.QpmLimitBypassList = ParseNetworkAddresses(qpmLimitBypassList);
 
             if (request.TryGetQueryOrForm("clientTimeout", int.Parse, out int clientTimeout))
                 _dnsWebService.DnsServer.ClientTimeout = clientTimeout;
@@ -1057,26 +1081,7 @@ namespace DnsServerCore
 
             string blockingBypassList = request.QueryOrForm("blockingBypassList");
             if (blockingBypassList is not null)
-            {
-                if ((blockingBypassList.Length == 0) || blockingBypassList.Equals("false", StringComparison.OrdinalIgnoreCase))
-                {
-                    _dnsWebService.DnsServer.BlockingBypassList = null;
-                }
-                else
-                {
-                    string[] strAddresses = blockingBypassList.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    List<NetworkAddress> bypassList = new List<NetworkAddress>(strAddresses.Length);
-
-                    foreach (string strAddress in strAddresses)
-                    {
-                        if (NetworkAddress.TryParse(strAddress, out NetworkAddress networkAddress))
-                            bypassList.Add(networkAddress);
-                    }
-
-                    _dnsWebService.DnsServer.BlockingBypassList = bypassList;
-                }
-            }
+                _dnsWebService.DnsServer.BlockingBypassList = ParseNetworkAddresses(blockingBypassList);
 
             if (request.TryGetQueryOrFormEnum("blockingType", out DnsServerBlockingType blockingType))
                 _dnsWebService.DnsServer.BlockingType = blockingType;
@@ -1091,7 +1096,7 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    string[] strAddresses = customBlockingAddresses.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    string[] strAddresses = customBlockingAddresses.Split(_commaSeparator, StringSplitOptions.RemoveEmptyEntries);
 
                     List<DnsARecordData> dnsARecords = new List<DnsARecordData>();
                     List<DnsAAAARecordData> dnsAAAARecords = new List<DnsAAAARecordData>();
@@ -1129,7 +1134,7 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    string[] blockListUrlList = blockListUrls.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    string[] blockListUrlList = blockListUrls.Split(_commaSeparator, StringSplitOptions.RemoveEmptyEntries);
 
                     if (oldWebServiceHttpPort != _dnsWebService._webServiceHttpPort)
                     {
@@ -1303,6 +1308,9 @@ namespace DnsServerCore
             if (request.TryGetQueryOrForm("maxLogFileDays", int.Parse, out int maxLogFileDays))
                 _dnsWebService._log.MaxLogFileDays = maxLogFileDays;
 
+            if (request.TryGetQueryOrForm("enableInMemoryStats", bool.Parse, out bool enableInMemoryStats))
+                _dnsWebService.DnsServer.StatsManager.EnableInMemoryStats = enableInMemoryStats;
+
             if (request.TryGetQueryOrForm("maxStatFileDays", int.Parse, out int maxStatFileDays))
                 _dnsWebService.DnsServer.StatsManager.MaxStatFileDays = maxStatFileDays;
 
@@ -1323,9 +1331,9 @@ namespace DnsServerCore
             if ((_blockListUpdateIntervalHours > 0) && ((_dnsWebService.DnsServer.BlockListZoneManager.AllowListUrls.Count + _dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Count) > 0))
             {
                 if (_blockListUpdateTimer is null)
-                    StartBlockListUpdateTimer();
+                    StartBlockListUpdateTimer(blockListUrlsUpdated);
                 else if (blockListUrlsUpdated)
-                    ForceUpdateBlockLists();
+                    ForceUpdateBlockLists(true);
             }
             else
             {
@@ -1661,11 +1669,6 @@ namespace DnsServerCore
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                _dnsWebService._log.Write(ex);
-                throw;
-            }
             finally
             {
                 try
@@ -1838,7 +1841,7 @@ namespace DnsServerCore
                                 });
 
                                 if (_blockListUpdateIntervalHours > 0)
-                                    StartBlockListUpdateTimer();
+                                    StartBlockListUpdateTimer(false);
                                 else
                                     StopBlockListUpdateTimer();
                             }
@@ -2012,11 +2015,6 @@ namespace DnsServerCore
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                _dnsWebService._log.Write(ex);
-                throw;
-            }
             finally
             {
                 try
@@ -2043,7 +2041,7 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Modify))
                 throw new DnsWebServiceException("Access was denied.");
 
-            ForceUpdateBlockLists();
+            ForceUpdateBlockLists(false);
             _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Block list update was triggered.");
         }
 
