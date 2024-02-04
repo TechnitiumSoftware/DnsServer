@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore.ApplicationCommon;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Text.Json;
@@ -31,15 +30,15 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DropRequests
 {
-    public class App : IDnsApplication, IDnsRequestController
+    public sealed class App : IDnsApplication, IDnsRequestController
     {
         #region variables
 
         bool _enableBlocking;
         bool _dropMalformedRequests;
-        IReadOnlyList<NetworkAddress> _allowedNetworks;
-        IReadOnlyList<NetworkAddress> _blockedNetworks;
-        IReadOnlyList<BlockedQuestion> _blockedQuestions;
+        NetworkAddress[] _allowedNetworks;
+        NetworkAddress[] _blockedNetworks;
+        BlockedQuestion[] _blockedQuestions;
 
         #endregion
 
