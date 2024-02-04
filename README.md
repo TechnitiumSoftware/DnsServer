@@ -34,6 +34,8 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Supports DNS over [PROXY protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) version 1 and 2 for both UDP and TCP transports.
 - Use public DNS resolvers like Cloudflare, Google, Quad9, and AdGuard with [DNS-over-TLS](https://www.rfc-editor.org/rfc/rfc7858.html), [DNS-over-HTTPS](https://www.rfc-editor.org/rfc/rfc8484.html), or [DNS-over-QUIC](https://www.ietf.org/rfc/rfc9250.html) protocols as forwarders.
 - Advanced caching with features like serve stale, prefetching and auto prefetching.
+- Persistent caching feature that saves cache to disk when DNS server restarts.
+- DNS rebinding attack protection feature available with DNS Rebinding Protection App.
 - Supports working as an authoritative as well as a recursive DNS server.
 - DNSSEC validation support with RSA & ECDSA algorithms for recursive resolver, forwarders, and conditional forwarders with NSEC and NSEC3 support.
 - DNSSEC support for all supported DNS transport protocols including encrypted DNS protocols.
@@ -76,7 +78,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Web console portal for easy configuration using any web browser.
 - Built in HTTP API to allow 3rd party apps to control and configure the DNS server.
 - Built-in system logging and query logging.
-- Open source cross-platform .NET 7 implementation hosted on [GitHub](https://github.com/TechnitiumSoftware/DnsServer).
+- Open source cross-platform .NET 8 implementation hosted on [GitHub](https://github.com/TechnitiumSoftware/DnsServer).
 
 # Planned Features
 - Clustering support to manage two or more DNS servers.
@@ -84,7 +86,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 # Installation
 - **Windows**: [Download setup installer](https://download.technitium.com/dns/DnsServerSetup.zip) for easy installation.
 - **Linux & Raspberry Pi**: Follow install instructions from [this blog post](https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html).
-- **Cross-Platform**: [Download portable app](https://download.technitium.com/dns/DnsServerPortable.tar.gz) to run on any platform that has .NET 7 installed.
+- **Cross-Platform**: [Download portable app](https://download.technitium.com/dns/DnsServerPortable.tar.gz) to run on any platform that has .NET 8 installed.
 - **Docker**: Pull the official image from [Docker Hub](https://hub.docker.com/r/technitium/dns-server). Use the [docker-compose.yml](https://github.com/TechnitiumSoftware/DnsServer/blob/master/docker-compose.yml) example to create a new container and edit it as required for your deployments. For more details and troubleshooting read the [install instructions](https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html).
 
 # Build Instructions
