@@ -36,9 +36,9 @@ sudo apt-add-repository https://packages.microsoft.com/debian/11/prod
 sudo apt update
 ```
 
-3. Install ASP.NET Core 7 SDK and `libmsquic` for DNS-over-QUIC support.
+3. Install ASP.NET Core 8 SDK and `libmsquic` for DNS-over-QUIC support.
 ```
-sudo apt install dotnet-sdk-7.0 libmsquic -y
+sudo apt install dotnet-sdk-8.0 libmsquic -y
 ```
 
 Note! If you do not plan to use DNS-over-QUIC or HTTP/3 support, or you intend to just build a docker image then you can skip installing `libmsquic`.
