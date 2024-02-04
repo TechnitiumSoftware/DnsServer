@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ namespace DnsServerCore.Dhcp.Options
             if (s.Length != 4)
                 throw new InvalidDataException();
 
-            _address = new IPAddress(s.ReadBytes(4));
+            _address = new IPAddress(s.ReadExactly(4));
         }
 
         protected override void WriteOptionValue(Stream s)

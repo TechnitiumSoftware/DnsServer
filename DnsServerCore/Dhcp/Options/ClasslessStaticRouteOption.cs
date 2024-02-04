@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -106,12 +106,12 @@ namespace DnsServerCore.Dhcp.Options
                     throw new EndOfStreamException();
 
                 byte[] destinationBuffer = new byte[4];
-                s.ReadBytes(destinationBuffer, 0, Convert.ToInt32(Math.Ceiling(Convert.ToDecimal(subnetMaskWidth) / 8)));
+                s.ReadExactly(destinationBuffer, 0, Convert.ToInt32(Math.Ceiling(Convert.ToDecimal(subnetMaskWidth) / 8)));
                 _destination = new IPAddress(destinationBuffer);
 
                 _subnetMask = IPAddressExtensions.GetSubnetMask(subnetMaskWidth);
 
-                _router = new IPAddress(s.ReadBytes(4));
+                _router = new IPAddress(s.ReadExactly(4));
             }
 
             #endregion

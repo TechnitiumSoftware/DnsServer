@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@ namespace DnsServerCore.Dhcp.Options
             IPAddress[] addresses = new IPAddress[s.Length / 4];
 
             for (int i = 0; i < addresses.Length; i++)
-                addresses[i] = new IPAddress(s.ReadBytes(4));
+                addresses[i] = new IPAddress(s.ReadExactly(4));
 
             _addresses = addresses;
         }

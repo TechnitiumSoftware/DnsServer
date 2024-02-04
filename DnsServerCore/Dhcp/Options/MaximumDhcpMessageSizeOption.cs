@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ namespace DnsServerCore.Dhcp.Options
             if (s.Length != 2)
                 throw new InvalidDataException();
 
-            byte[] buffer = s.ReadBytes(2);
+            byte[] buffer = s.ReadExactly(2);
             Array.Reverse(buffer);
             _length = BitConverter.ToUInt16(buffer, 0);
 

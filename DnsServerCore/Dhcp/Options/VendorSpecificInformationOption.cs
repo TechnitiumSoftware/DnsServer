@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@ namespace DnsServerCore.Dhcp.Options
 
         protected override void ParseOptionValue(Stream s)
         {
-            _information = s.ReadBytes((int)s.Length);
+            _information = s.ReadExactly((int)s.Length);
         }
 
         protected override void WriteOptionValue(Stream s)
