@@ -21,7 +21,7 @@ echo "==============================="
 echo "Technitium DNS Server Installer"
 echo "==============================="
 
-if dotnet --list-runtimes 2> /dev/null | grep -q "Microsoft.AspNetCore.App 7.0."; 
+if dotnet --list-runtimes 2> /dev/null | grep -q "Microsoft.AspNetCore.App 8.0."; 
 then
 	dotnetFound="yes"
 else
@@ -44,14 +44,14 @@ else
 		echo "Installing ASP.NET Core Runtime..."
 	fi
 
-	curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin -c 7.0 --runtime aspnetcore --no-path --install-dir $dotnetDir --verbose >> $installLog 2>&1
+	curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin -c 8.0 --runtime aspnetcore --no-path --install-dir $dotnetDir --verbose >> $installLog 2>&1
 
 	if [ ! -f "/usr/bin/dotnet" ]
 	then
 		ln -s $dotnetDir/dotnet /usr/bin >> $installLog 2>&1
 	fi
 
-	if dotnet --list-runtimes 2> /dev/null | grep -q "Microsoft.AspNetCore.App 7.0."; 
+	if dotnet --list-runtimes 2> /dev/null | grep -q "Microsoft.AspNetCore.App 8.0."; 
 	then
 		if [ "$dotnetUpdate" = "yes" ]
 		then
