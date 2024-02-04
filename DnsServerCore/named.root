@@ -9,8 +9,8 @@
 ;           on server           FTP.INTERNIC.NET
 ;       -OR-                    RS.INTERNIC.NET
 ;
-;       last update:     January 01, 2023
-;       related version of root zone:     2023010101
+;       last update:     December 20, 2023
+;       related version of root zone:     2023122001
 ; 
 ; FORMERLY NS.INTERNIC.NET 
 ;
@@ -21,8 +21,8 @@ A.ROOT-SERVERS.NET.      3600000      AAAA  2001:503:ba3e::2:30
 ; FORMERLY NS1.ISI.EDU 
 ;
 .                        3600000      NS    B.ROOT-SERVERS.NET.
-B.ROOT-SERVERS.NET.      3600000      A     199.9.14.201
-B.ROOT-SERVERS.NET.      3600000      AAAA  2001:500:200::b
+B.ROOT-SERVERS.NET.      3600000      A     170.247.170.2
+B.ROOT-SERVERS.NET.      3600000      AAAA  2801:1b8:10::b
 ; 
 ; FORMERLY C.PSI.NET 
 ;
