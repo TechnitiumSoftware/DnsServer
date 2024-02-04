@@ -131,7 +131,7 @@ namespace DnsServerCore.Dns.Zones
             switch (type)
             {
                 case DnsResourceRecordType.CNAME:
-                    if ((_entries.Count > 0) && !_entries.ContainsKey(DnsResourceRecordType.CNAME))
+                    if ((!_entries.IsEmpty) && !_entries.ContainsKey(DnsResourceRecordType.CNAME))
                         throw new InvalidOperationException("Cannot add record: a CNAME record cannot exists with other record types for the same name.");
 
                     break;
@@ -781,7 +781,7 @@ namespace DnsServerCore.Dns.Zones
             switch (type)
             {
                 case DnsResourceRecordType.CNAME:
-                    if ((_entries.Count > 0) && !_entries.ContainsKey(DnsResourceRecordType.CNAME))
+                    if ((!_entries.IsEmpty) && !_entries.ContainsKey(DnsResourceRecordType.CNAME))
                         throw new InvalidOperationException("Cannot add record: a CNAME record cannot exists with other record types for the same name.");
 
                     break;
