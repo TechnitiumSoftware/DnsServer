@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -45,8 +45,8 @@ namespace DnsServerCore.Dns.ZoneManagers
         readonly List<Uri> _allowListUrls = new List<Uri>();
         readonly List<Uri> _blockListUrls = new List<Uri>();
 
-        IReadOnlyDictionary<string, object> _allowListZone = new Dictionary<string, object>();
-        IReadOnlyDictionary<string, List<Uri>> _blockListZone = new Dictionary<string, List<Uri>>();
+        Dictionary<string, object> _allowListZone = new Dictionary<string, object>();
+        Dictionary<string, List<Uri>> _blockListZone = new Dictionary<string, List<Uri>>();
 
         DnsSOARecordData _soaRecord;
         DnsNSRecordData _nsRecord;
@@ -82,10 +82,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         private string GetBlockListFilePath(Uri blockListUrl)
         {
-            using (HashAlgorithm hash = SHA256.Create())
-            {
-                return Path.Combine(_localCacheFolder, Convert.ToHexString(hash.ComputeHash(Encoding.UTF8.GetBytes(blockListUrl.AbsoluteUri))).ToLower());
-            }
+            return Path.Combine(_localCacheFolder, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(blockListUrl.AbsoluteUri))).ToLower());
         }
 
         private static string PopWord(ref string line)
@@ -121,7 +118,19 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 _dnsServer.LogManager?.Write("DNS Server is reading " + (isAllowList ? "allow" : "block") + " list from: " + listUrl.AbsoluteUri);
 
-                using (FileStream fS = new FileStream(GetBlockListFilePath(listUrl), FileMode.Open, FileAccess.Read))
+                string listFilePath = GetBlockListFilePath(listUrl);
+
+                if (listUrl.IsFile)
+                {
+                    if (!File.Exists(listFilePath) || (File.GetLastWriteTimeUtc(listUrl.LocalPath) > File.GetLastWriteTimeUtc(listFilePath)))
+                    {
+                        File.Copy(listUrl.LocalPath, listFilePath, true);
+
+                        _dnsServer.LogManager?.Write("DNS Server successfully downloaded " + (isAllowList ? "allow" : "block") + " list (" + WebUtilities.GetFormattedSize(new FileInfo(listFilePath).Length) + "): " + listUrl.AbsoluteUri);
+                    }
+                }
+
+                using (FileStream fS = new FileStream(listFilePath, FileMode.Open, FileAccess.Read))
                 {
                     //parse hosts file and populate block zone
                     StreamReader sR = new StreamReader(fS, true);
@@ -145,7 +154,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         if (line.Length == 0)
                             continue; //skip empty line
 
-                        if (line.StartsWith('#') || line.StartsWith("!"))
+                        if (line.StartsWith('#') || line.StartsWith('!'))
                             continue; //skip comment line
 
                         if (line.StartsWith("||"))
@@ -373,80 +382,89 @@ namespace DnsServerCore.Dns.ZoneManagers
             _blockListZone = new Dictionary<string, List<Uri>>();
         }
 
-        public async Task<bool> UpdateBlockListsAsync()
+        public async Task<bool> UpdateBlockListsAsync(bool forceReload)
         {
             bool downloaded = false;
             bool notModified = false;
 
             async Task DownloadListUrlAsync(Uri listUrl, bool isAllowList)
             {
-                string listFilePath = GetBlockListFilePath(listUrl);
-                string listDownloadFilePath = listFilePath + ".downloading";
-
                 try
                 {
-                    if (File.Exists(listDownloadFilePath))
-                        File.Delete(listDownloadFilePath);
+                    _dnsServer.LogManager?.Write("DNS Server is downloading " + (isAllowList ? "allow" : "block") + " list: " + listUrl.AbsoluteUri);
 
-                    SocketsHttpHandler handler = new SocketsHttpHandler();
-                    handler.Proxy = _dnsServer.Proxy;
-                    handler.UseProxy = _dnsServer.Proxy is not null;
-                    handler.AutomaticDecompression = DecompressionMethods.All;
+                    string listFilePath = GetBlockListFilePath(listUrl);
 
-                    using (HttpClient http = new HttpClient(new HttpClientNetworkHandler(handler, _dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default, _dnsServer)))
+                    if (listUrl.IsFile)
                     {
                         if (File.Exists(listFilePath))
-                            http.DefaultRequestHeaders.IfModifiedSince = File.GetLastWriteTimeUtc(listFilePath);
-
-                        HttpResponseMessage httpResponse = await http.GetAsync(listUrl);
-                        switch (httpResponse.StatusCode)
                         {
-                            case HttpStatusCode.OK:
-                                {
-                                    using (FileStream fS = new FileStream(listDownloadFilePath, FileMode.Create, FileAccess.Write))
+                            if (File.GetLastWriteTimeUtc(listUrl.LocalPath) <= File.GetLastWriteTimeUtc(listFilePath))
+                            {
+                                notModified = true;
+                                _dnsServer.LogManager?.Write("DNS Server successfully checked for a new update of the " + (isAllowList ? "allow" : "block") + " list: " + listUrl.AbsoluteUri);
+                                return;
+                            }
+                        }
+
+                        File.Copy(listUrl.LocalPath, listFilePath, true);
+
+                        downloaded = true;
+                        _dnsServer.LogManager?.Write("DNS Server successfully downloaded " + (isAllowList ? "allow" : "block") + " list (" + WebUtilities.GetFormattedSize(new FileInfo(listFilePath).Length) + "): " + listUrl.AbsoluteUri);
+                    }
+                    else
+                    {
+                        SocketsHttpHandler handler = new SocketsHttpHandler();
+                        handler.Proxy = _dnsServer.Proxy;
+                        handler.UseProxy = _dnsServer.Proxy is not null;
+                        handler.AutomaticDecompression = DecompressionMethods.All;
+
+                        using (HttpClient http = new HttpClient(new HttpClientNetworkHandler(handler, _dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default, _dnsServer)))
+                        {
+                            if (File.Exists(listFilePath))
+                                http.DefaultRequestHeaders.IfModifiedSince = File.GetLastWriteTimeUtc(listFilePath);
+
+                            HttpResponseMessage httpResponse = await http.GetAsync(listUrl);
+                            switch (httpResponse.StatusCode)
+                            {
+                                case HttpStatusCode.OK:
                                     {
-                                        using (Stream httpStream = await httpResponse.Content.ReadAsStreamAsync())
+                                        string listDownloadFilePath = listFilePath + ".downloading";
+
+                                        using (FileStream fS = new FileStream(listDownloadFilePath, FileMode.Create, FileAccess.Write))
                                         {
-                                            await httpStream.CopyToAsync(fS);
+                                            using (Stream httpStream = await httpResponse.Content.ReadAsStreamAsync())
+                                            {
+                                                await httpStream.CopyToAsync(fS);
+                                            }
                                         }
+
+                                        File.Move(listDownloadFilePath, listFilePath, true);
+
+                                        if (httpResponse.Content.Headers.LastModified != null)
+                                            File.SetLastWriteTimeUtc(listFilePath, httpResponse.Content.Headers.LastModified.Value.UtcDateTime);
+
+                                        downloaded = true;
+                                        _dnsServer.LogManager?.Write("DNS Server successfully downloaded " + (isAllowList ? "allow" : "block") + " list (" + WebUtilities.GetFormattedSize(new FileInfo(listFilePath).Length) + "): " + listUrl.AbsoluteUri);
                                     }
+                                    break;
 
-                                    if (File.Exists(listFilePath))
-                                        File.Delete(listFilePath);
+                                case HttpStatusCode.NotModified:
+                                    {
+                                        notModified = true;
+                                        _dnsServer.LogManager?.Write("DNS Server successfully checked for a new update of the " + (isAllowList ? "allow" : "block") + " list: " + listUrl.AbsoluteUri);
+                                    }
+                                    break;
 
-                                    File.Move(listDownloadFilePath, listFilePath);
-
-                                    if (httpResponse.Content.Headers.LastModified != null)
-                                        File.SetLastWriteTimeUtc(listFilePath, httpResponse.Content.Headers.LastModified.Value.UtcDateTime);
-
-                                    downloaded = true;
-
-                                    LogManager log = _dnsServer.LogManager;
-                                    if (log != null)
-                                        log.Write("DNS Server successfully downloaded " + (isAllowList ? "allow" : "block") + " list (" + WebUtilities.GetFormattedSize(new FileInfo(listFilePath).Length) + "): " + listUrl.AbsoluteUri);
-                                }
-                                break;
-
-                            case HttpStatusCode.NotModified:
-                                {
-                                    notModified = true;
-
-                                    LogManager log = _dnsServer.LogManager;
-                                    if (log != null)
-                                        log.Write("DNS Server successfully checked for a new update of the " + (isAllowList ? "allow" : "block") + " list: " + listUrl.AbsoluteUri);
-                                }
-                                break;
-
-                            default:
-                                throw new HttpRequestException((int)httpResponse.StatusCode + " " + httpResponse.ReasonPhrase);
+                                default:
+                                    throw new HttpRequestException((int)httpResponse.StatusCode + " " + httpResponse.ReasonPhrase);
+                            }
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    LogManager log = _dnsServer.LogManager;
-                    if (log != null)
-                        log.Write("DNS Server failed to download " + (isAllowList ? "allow" : "block") + " list and will use previously downloaded file (if available): " + listUrl.AbsoluteUri + "\r\n" + ex.ToString());
+                    _dnsServer.LogManager?.Write("DNS Server failed to download " + (isAllowList ? "allow" : "block") + " list and will use previously downloaded file (if available): " + listUrl.AbsoluteUri + "\r\n" + ex.ToString());
                 }
             }
 
@@ -460,7 +478,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             await Task.WhenAll(tasks);
 
-            if (downloaded)
+            if (downloaded || forceReload)
             {
                 LoadBlockLists();
 
