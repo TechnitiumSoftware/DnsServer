@@ -8,7 +8,7 @@ LABEL github_url="https://github.com/TechnitiumSoftware/DnsServer"
 WORKDIR /opt/technitium/dns/
 
 RUN apt update; apt install curl -y; \
-curl https://packages.microsoft.com/config/debian/11/packages-microsoft-prod.deb --output packages-microsoft-prod.deb; \
+curl https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb --output packages-microsoft-prod.deb; \
 dpkg -i packages-microsoft-prod.deb; \
 rm packages-microsoft-prod.deb
 
