@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -26,9 +26,12 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace WildIp
 {
-    public class App : IDnsApplication, IDnsAppRecordRequestHandler
+    public sealed class App : IDnsApplication, IDnsAppRecordRequestHandler
     {
         #region variables
+
+        static readonly char[] aRecordSeparator = new char[] { '.', '-' };
+        static readonly char[] aaaaRecordSeparator = new char[] { '.' };
 
         IDnsServer _dnsServer;
 
@@ -66,7 +69,7 @@ namespace WildIp
                 case DnsResourceRecordType.A:
                     {
                         string subdomain = qname.Substring(0, qname.Length - appRecordName.Length);
-                        string[] parts = subdomain.Split(new char[] { '.', '-' }, StringSplitOptions.RemoveEmptyEntries);
+                        string[] parts = subdomain.Split(aRecordSeparator, StringSplitOptions.RemoveEmptyEntries);
                         byte[] rawIp = new byte[4];
                         int i = 0;
 
@@ -84,7 +87,7 @@ namespace WildIp
                 case DnsResourceRecordType.AAAA:
                     {
                         string subdomain = qname.Substring(0, qname.Length - appRecordName.Length - 1);
-                        string[] parts = subdomain.Split(new char[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
+                        string[] parts = subdomain.Split(aaaaRecordSeparator, StringSplitOptions.RemoveEmptyEntries);
                         IPAddress address = null;
 
                         foreach (string part in parts)
@@ -102,7 +105,7 @@ namespace WildIp
                                     if (addr is null)
                                         addr = part.Substring(i, 4);
                                     else
-                                        addr += ":" + part.Substring(i, 4);
+                                        addr += string.Concat(":", part.AsSpan(i, 4));
                                 }
 
                                 if (IPAddress.TryParse(addr, out address))
