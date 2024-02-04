@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -316,7 +316,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        private IReadOnlyList<DnsResourceRecord> GetAdditionalRecords(IReadOnlyList<DnsResourceRecord> refRecords, bool serveStale, bool dnssecOk, NetworkAddress eDnsClientSubnet, bool conditionalForwardingClientSubnet)
+        private List<DnsResourceRecord> GetAdditionalRecords(IReadOnlyList<DnsResourceRecord> refRecords, bool serveStale, bool dnssecOk, NetworkAddress eDnsClientSubnet, bool conditionalForwardingClientSubnet)
         {
             List<DnsResourceRecord> additionalRecords = new List<DnsResourceRecord>();
 
@@ -666,14 +666,14 @@ namespace DnsServerCore.Dns.ZoneManagers
                         {
                             closestAuthority = AddDSRecordsTo(delegation, false, closestAuthority, eDnsClientSubnet, conditionalForwardingClientSubnet);
 
-                            IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, false, request.DnssecOk, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                            IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, false, true, eDnsClientSubnet, conditionalForwardingClientSubnet);
 
                             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional);
                         }
                     }
                     else
                     {
-                        IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, false, request.DnssecOk, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                        IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, false, false, eDnsClientSubnet, conditionalForwardingClientSubnet);
 
                         return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional);
                     }
@@ -716,6 +716,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                     _ = _root.FindZone(question.Name, out closest, out _); //zone not found; attempt to find closest
             }
 
+            bool dnssecOk = request.DnssecOk;
+
             if (zone is not null)
             {
                 //zone found
@@ -727,7 +729,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                     if (firstRR.RDATA is DnsSpecialCacheRecordData dnsSpecialCacheRecord)
                     {
-                        if (request.DnssecOk)
+                        if (dnssecOk)
                         {
                             foreach (DnsResourceRecord originalAuthority in dnsSpecialCacheRecord.OriginalAuthority)
                             {
@@ -739,14 +741,14 @@ namespace DnsServerCore.Dns.ZoneManagers
                         if (serveStaleAndResetExpiry)
                         {
                             if (firstRR.IsStale)
-                                firstRR.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
+                                firstRR.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per RFC 8767
 
                             if (dnsSpecialCacheRecord.Authority is not null)
                             {
                                 foreach (DnsResourceRecord record in dnsSpecialCacheRecord.Authority)
                                 {
                                     if (record.IsStale)
-                                        record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
+                                        record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per RFC 8767
                                 }
                             }
                         }
@@ -798,7 +800,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             }
                         }
 
-                        if (request.DnssecOk)
+                        if (dnssecOk)
                         {
                             bool authenticData;
 
@@ -814,13 +816,13 @@ namespace DnsServerCore.Dns.ZoneManagers
                             }
 
                             if (request.CheckingDisabled)
-                                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, authenticData, request.CheckingDisabled, dnsSpecialCacheRecord.OriginalRCODE, request.Question, dnsSpecialCacheRecord.OriginalAnswer, dnsSpecialCacheRecord.OriginalAuthority, dnsSpecialCacheRecord.Additional, _dnsServer.UdpPayloadSize, EDnsHeaderFlags.DNSSEC_OK, specialOptions);
+                                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, authenticData, true, dnsSpecialCacheRecord.OriginalRCODE, request.Question, dnsSpecialCacheRecord.OriginalAnswer, dnsSpecialCacheRecord.OriginalAuthority, dnsSpecialCacheRecord.Additional, _dnsServer.UdpPayloadSize, EDnsHeaderFlags.DNSSEC_OK, specialOptions);
                             else
-                                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, authenticData, request.CheckingDisabled, dnsSpecialCacheRecord.RCODE, request.Question, null, dnsSpecialCacheRecord.Authority, null, _dnsServer.UdpPayloadSize, EDnsHeaderFlags.DNSSEC_OK, specialOptions);
+                                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, authenticData, false, dnsSpecialCacheRecord.RCODE, request.Question, null, dnsSpecialCacheRecord.Authority, null, _dnsServer.UdpPayloadSize, EDnsHeaderFlags.DNSSEC_OK, specialOptions);
                         }
                         else
                         {
-                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, dnsSpecialCacheRecord.RCODE, request.Question, null, dnsSpecialCacheRecord.NoDnssecAuthority, null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, specialOptions);
+                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, request.CheckingDisabled, dnsSpecialCacheRecord.RCODE, request.Question, null, dnsSpecialCacheRecord.NoDnssecAuthority, null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, specialOptions);
                         }
                     }
 
@@ -838,7 +840,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     IReadOnlyList<DnsResourceRecord> authority = null;
                     EDnsHeaderFlags ednsFlags = EDnsHeaderFlags.None;
 
-                    if (request.DnssecOk)
+                    if (dnssecOk)
                     {
                         //DNSSEC enabled
                         foreach (DnsResourceRecord record in answer)
@@ -862,7 +864,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         case DnsResourceRecordType.SRV:
                         case DnsResourceRecordType.SVCB:
                         case DnsResourceRecordType.HTTPS:
-                            additional = GetAdditionalRecords(answer, serveStaleAndResetExpiry, request.DnssecOk, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                            additional = GetAdditionalRecords(answer, serveStaleAndResetExpiry, dnssecOk, eDnsClientSubnet, conditionalForwardingClientSubnet);
                             break;
                     }
 
@@ -873,7 +875,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         foreach (DnsResourceRecord record in answer)
                         {
                             if (record.IsStale)
-                                record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
+                                record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per RFC 8767
                         }
 
                         if (additional is not null)
@@ -881,7 +883,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             foreach (DnsResourceRecord record in additional)
                             {
                                 if (record.IsStale)
-                                    record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
+                                    record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per RFC 8767
                             }
                         }
 
@@ -937,7 +939,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         }
                     }
 
-                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, answer[0].DnssecStatus == DnssecStatus.Secure, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, answer, authority, additional, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, ednsFlags, options);
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, dnssecOk && (answer[0].DnssecStatus == DnssecStatus.Secure), request.CheckingDisabled, DnsResponseCode.NoError, request.Question, answer, authority, additional, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, ednsFlags, options);
                 }
             }
             else
@@ -959,7 +961,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         IReadOnlyList<DnsResourceRecord> authority = null;
                         EDnsHeaderFlags ednsFlags = EDnsHeaderFlags.None;
 
-                        if (request.DnssecOk)
+                        if (dnssecOk)
                         {
                             //DNSSEC enabled
                             foreach (DnsResourceRecord record in answer)
@@ -981,7 +983,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             foreach (DnsResourceRecord record in answer)
                             {
                                 if (record.IsStale)
-                                    record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
+                                    record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per RFC 8767
                             }
 
                             options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.StaleAnswer, null)) };
@@ -998,7 +1000,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             }
                         }
 
-                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, answer[0].DnssecStatus == DnssecStatus.Secure, request.CheckingDisabled, rCode, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, ednsFlags, options);
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, dnssecOk && (answer[0].DnssecStatus == DnssecStatus.Secure), request.CheckingDisabled, rCode, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, ednsFlags, options);
                     }
                 }
             }
@@ -1027,22 +1029,22 @@ namespace DnsServerCore.Dns.ZoneManagers
                     IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS, serveStaleAndResetExpiry, true, eDnsClientSubnet, conditionalForwardingClientSubnet);
                     if ((closestAuthority.Count > 0) && (closestAuthority[0].Type == DnsResourceRecordType.NS) && (closestAuthority[0].Name.Length > 0)) //dont trust root name servers from cache!
                     {
-                        if (request.DnssecOk)
+                        if (dnssecOk)
                         {
                             if (closestAuthority[0].DnssecStatus != DnssecStatus.Disabled) //dont return records with disabled status
                             {
                                 closestAuthority = AddDSRecordsTo(delegation, serveStaleAndResetExpiry, closestAuthority, eDnsClientSubnet, conditionalForwardingClientSubnet);
 
-                                IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, serveStaleAndResetExpiry, request.DnssecOk, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                                IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, serveStaleAndResetExpiry, true, eDnsClientSubnet, conditionalForwardingClientSubnet);
 
                                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, closestAuthority[0].DnssecStatus == DnssecStatus.Secure, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional);
                             }
                         }
                         else
                         {
-                            IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, serveStaleAndResetExpiry, request.DnssecOk, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                            IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, serveStaleAndResetExpiry, false, eDnsClientSubnet, conditionalForwardingClientSubnet);
 
-                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, closestAuthority[0].DnssecStatus == DnssecStatus.Secure, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional);
+                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional);
                         }
                     }
 
