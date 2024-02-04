@@ -171,7 +171,7 @@
                                                 <div class="title">Server Failure</div>
                                             </div>
 
-                                            <div class="stats-item name-error">
+                                            <div class="stats-item nxdomain">
                                                 <div class="number" id="divDashboardStatsTotalNxDomain">5</div>
                                                 <div class="percentage" id="divDashboardStatsTotalNxDomainPercentage">0%</div>
                                                 <div class="title">NX Domain</div>
@@ -207,7 +207,13 @@
                                                 <div class="title">Blocked</div>
                                             </div>
 
-                                            <div class="stats-item clients">
+                                            <div class="stats-item dropped">
+                                                <div class="number" id="divDashboardStatsTotalDropped">5</div>
+                                                <div class="percentage" id="divDashboardStatsTotalDroppedPercentage">0%</div>
+                                                <div class="title">Dropped</div>
+                                            </div>
+
+                                            <div class="stats-item stats-last-item clients">
                                                 <div class="number" id="divDashboardStatsTotalClients">10</div>
                                                 <div class="percentage">&nbsp;</div>
                                                 <div class="title">Clients</div>
@@ -220,52 +226,60 @@
 
                                         <div style="margin-top: 15px;">
                                             <div style="float: left; width: 50%; padding-right: 7px;">
-                                                <div id="divPieCharts" class="panel panel-default" style="margin-bottom: 0px;">
-                                                    <div class="zone-stats-panel">
-                                                        <div class="stats-item">
-                                                            <div class="number" id="divDashboardStatsZones">10</div>
-                                                            <div class="title">Zones</div>
-                                                        </div>
-
-                                                        <div class="stats-item">
-                                                            <div class="number" id="divDashboardStatsCachedEntries">10</div>
-                                                            <div class="title">Cache</div>
-                                                        </div>
-
-                                                        <div class="stats-item">
-                                                            <div class="number" id="divDashboardStatsAllowedZones">10</div>
-                                                            <div class="title">Allowed</div>
-                                                        </div>
-
-                                                        <div class="stats-item">
-                                                            <div class="number" id="divDashboardStatsBlockedZones">10</div>
-                                                            <div class="title">Blocked</div>
-                                                        </div>
-
-                                                        <div class="stats-item">
-                                                            <div class="number" id="divDashboardStatsAllowListZones">10</div>
-                                                            <div class="title">Allow List</div>
-                                                        </div>
-
-                                                        <div class="stats-item">
-                                                            <div class="number" id="divDashboardStatsBlockListZones">10</div>
-                                                            <div class="title">Block List</div>
-                                                        </div>
+                                                <div class="panel panel-default" style="margin-bottom: 15px;">
+                                                    <div class="panel-body">
+                                                        <canvas id="canvasDashboardPie"></canvas>
                                                     </div>
+                                                </div>
 
-                                                    <div class="panel-body" style="padding-top: 0px;">
-                                                        <div style="margin-bottom: 20px;">
-                                                            <canvas id="canvasDashboardPie"></canvas>
-                                                        </div>
+                                                <div class="panel panel-default" style="margin-bottom: 15px;">
+                                                    <div class="panel-body">
+                                                        <canvas id="canvasDashboardPie2"></canvas>
+                                                    </div>
+                                                </div>
 
-                                                        <div>
-                                                            <canvas id="canvasDashboardPie2"></canvas>
-                                                        </div>
+                                                <div class="panel panel-default" style="margin-bottom: 0px;">
+                                                    <div class="panel-body">
+                                                        <canvas id="canvasDashboardPie3"></canvas>
                                                     </div>
                                                 </div>
                                             </div>
 
                                             <div style="float: right; width: 50%; padding-left: 7px;">
+                                                <div class="zone-stats-panel">
+                                                    <div class="stats-item">
+                                                        <div class="number" id="divDashboardStatsZones">10</div>
+                                                        <div class="title">Zones</div>
+                                                    </div>
+
+                                                    <div class="stats-item">
+                                                        <div class="number" id="divDashboardStatsCachedEntries">10</div>
+                                                        <div class="title">Cache</div>
+                                                    </div>
+
+                                                    <div class="stats-item">
+                                                        <div class="number" id="divDashboardStatsAllowedZones">10</div>
+                                                        <div class="title">Allowed</div>
+                                                    </div>
+
+                                                    <div class="stats-item">
+                                                        <div class="number" id="divDashboardStatsBlockedZones">10</div>
+                                                        <div class="title">Blocked</div>
+                                                    </div>
+
+                                                    <div class="stats-item">
+                                                        <div class="number" id="divDashboardStatsAllowListZones">10</div>
+                                                        <div class="title">Allow List</div>
+                                                    </div>
+
+                                                    <div class="stats-item stats-last-item">
+                                                        <div class="number" id="divDashboardStatsBlockListZones">10</div>
+                                                        <div class="title">Block List</div>
+                                                    </div>
+
+                                                    <div class="clearfix"></div>
+                                                </div>
+
                                                 <div class="panel panel-default" style="margin-bottom: 0px;">
                                                     <div class="panel-heading" style="height: 41px; padding: 4px 6px;">
                                                         <div class="pull-left" style="padding: 6px 8px;">Top Clients</div>
@@ -906,6 +920,22 @@
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local end points are the network interface IP addresses and ports you want the DNS Server to listen for requests. The default values work for Windows but on Linux when you have multiple network adapters, you must explicitly specify the network adapter IP addresses here as the local end points.</div>
                                                         </div>
 
+                                                        <div class="form-group">
+                                                            <label for="txtDnsServerIPv4SourceAddresses" class="col-sm-3 control-label">DNS Server IPv4 Source Addresses</label>
+                                                            <div class="col-sm-6">
+                                                                <textarea id="txtDnsServerIPv4SourceAddresses" class="form-control" rows="3" spellcheck="false"></textarea>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv4 source addresses that the DNS server must use for making all outbound DNS requests when the server is connected to two or more networks. Network addresses are also accepted. By default, the IPv4 address of the network with a default route will be used as the source address.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDnsServerIPv6SourceAddresses" class="col-sm-3 control-label">DNS Server IPv6 Source Addresses</label>
+                                                            <div class="col-sm-6">
+                                                                <textarea id="txtDnsServerIPv6SourceAddresses" class="form-control" rows="3" spellcheck="false"></textarea>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv6 source addresses that the DNS server must use for making all outbound DNS requests when the server is connected to two or more networks. Network addresses are also accepted. By default, the IPv6 address of the network with a default route will be used as the source address. Note that this option will be used only when <code>Prefer IPv6</code> option is enabled.</div>
+                                                        </div>
+
                                                         <div>Note! The DNS Server local end point changes will be automatically applied and so you do not need to manually restart the main service.</div>
                                                     </div>
 
@@ -936,6 +966,14 @@
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtZoneTransferAllowedNetworks" class="form-control" rows="3" spellcheck="false"></textarea>
                                                                 <div style="margin-top: 10px;">Enter IP addresses or network addresses one below another that are allowed to perform zone transfer for all zones without any TSIG authentication.</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Notify Allowed Networks</label>
+                                                            <div class="col-sm-6">
+                                                                <textarea id="txtNotifyAllowedNetworks" class="form-control" rows="3" spellcheck="false"></textarea>
+                                                                <div style="margin-top: 10px;">Enter IP addresses or network addresses one below another that are allowed to Notify all secondary zones.</div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1085,6 +1123,14 @@
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv6 prefix length to define the client subnet.</div>
                                                         </div>
 
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">QPM Limit Bypass List</label>
+                                                            <div class="col-sm-6">
+                                                                <textarea id="txtQpmLimitBypassList" class="form-control" rows="3" spellcheck="false"></textarea>
+                                                                <div style="margin-top: 10px;">Enter IP addresses or network addresses one below another that are allowed to bypass the QPM limit.</div>
+                                                            </div>
+                                                        </div>
+
                                                         <div>Note! Queries Per Minute (QPM) feature will limit requests from a client subnet based on its IP address and the specified subnet prefix lengths. The QPM limit configured will be compared with the average count from the sample size which means a client may exceed the QPM limit for a given minute but won't exceed for the given sample size in minutes. Rate limited clients will be listed in orange color on the dashboard top clients table.</div>
                                                     </div>
 
@@ -1093,7 +1139,7 @@
                                                             <label for="txtClientTimeout" class="col-sm-3 control-label">Client Timeout</label>
                                                             <div class="col-sm-7">
                                                                 <input type="number" class="form-control" id="txtClientTimeout" placeholder="timeout" style="width: 100px; display: inline;">
-                                                                <span>milliseconds (valid range 1000-10000; default 4000)</span>
+                                                                <span>milliseconds (valid range 1000-10000; default 2000)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The amount of time the DNS server must wait before responding with a <code>ServerFailure</code> response to a client request when no answer is available.</div>
                                                         </div>
@@ -1443,14 +1489,14 @@
                                                                         <input id="chkRandomizeName" type="checkbox"> Randomize Name
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enables <a href="https://datatracker.ietf.org/doc/html/draft-vixie-dnsext-dns0x20-00" target="_blank">QNAME case randomization</a> when using UDP as the transport protocol to improve security.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enables <a href="https://datatracker.ietf.org/doc/draft-vixie-dnsext-dns0x20/" target="_blank">QNAME case randomization</a> when using UDP as the transport protocol to improve security.</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
                                                                         <input id="chkQnameMinimization" type="checkbox"> QNAME Minimization
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enables <a href="https://datatracker.ietf.org/doc/html/draft-ietf-dnsop-rfc7816bis-04" target="_blank">QNAME minimization</a> for recursive resolution to improve privacy.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enables <a href="https://datatracker.ietf.org/doc/rfc9156/" target="_blank">QNAME minimization</a> for recursive resolution to improve privacy.</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
@@ -1476,7 +1522,7 @@
                                                             <label for="txtResolverTimeout" class="col-sm-3 control-label">Resolver Timeout</label>
                                                             <div class="col-sm-6">
                                                                 <input type="number" class="form-control" id="txtResolverTimeout" placeholder="timeout" style="width: 100px; display: inline;">
-                                                                <span>milliseconds (valid range 1000-10000; default 2000)</span>
+                                                                <span>milliseconds (valid range 1000-10000; default 1500)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The amount of time the recursive resolver must wait between retries.</div>
                                                         </div>
@@ -1727,10 +1773,14 @@
 
                                                                     <option value="https://big.oisd.nl/">OISD Big (Adblock Plus) (https://big.oisd.nl/)</option>
                                                                     <option value="https://nsfw.oisd.nl/">OISD NSFW (Adblock Plus) (https://nsfw.oisd.nl/)</option>
+
+                                                                    <option value="https://shreshtait.com/newly-registered-domains/nrd-1w">Shreshta IT - Newly Registered Domains (past week) Community Feed</option>
+                                                                    <option value="https://shreshtait.com/newly-registered-domains/nrd-1m">Shreshta IT - Newly Registered Domains (past month) Community Feed</option>
                                                                 </select>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">
                                                                 <p>Enter block list URL one below another in the above text field or use the Quick Add list to add known block list URLs.</p>
+                                                                <p>For directly using block list files saved on this server, use the <code>file://</code> formatted URL path. For example, on Linux the URL should look like <code>file:///home/folder/myblocklist.txt</code> and on Windows it should look like <code>file:///c:/folder/myblocklist.txt</code>.</p>
                                                                 <p>Add <code>!</code> character at the start of an URL to make it an allow list URL. This option must not be used with allow lists that use <code>Adblock Plus</code> format.</p>
                                                             </div>
                                                         </div>
@@ -2039,6 +2089,22 @@
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Max number of days to keep the log files. Log files older than the specified number of days will be deleted automatically.</div>
                                                         </div>
 
+                                                        <div>Warning! Enabling query logging will significantly increase the log file size and use up disk space.</div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Stats</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkEnableInMemoryStats" type="checkbox"> Enable In-Memory Stats
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">This option will enable in-memory stats and only Last Hour data will be available on Dashboard. No stats data will be stored on disk.</div>
+                                                            </div>
+                                                        </div>
+
                                                         <div class="form-group">
                                                             <label for="txtMaxStatFileDays" class="col-sm-3 control-label">Max Stat File Days</label>
                                                             <div class="col-sm-6">
@@ -2048,8 +2114,6 @@
 
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Max number of days to keep the dashboard stats. Stat files older than the specified number of days will be deleted automatically.</div>
                                                         </div>
-
-                                                        <div>Warning! Enabling query logging will significantly increase the log file size and use up disk space.</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -2855,7 +2919,7 @@
                                         <p>Version <span id="lblAboutVersion"></span></p>
                                         <p>Server up since <span id="lblAboutUptime"></span></p>
                                         <p style="max-width: 800px; margin: 0 auto 10px auto;">
-                                            Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)<br />
+                                            Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)<br />
                                             This program comes with ABSOLUTELY NO WARRANTY. This is free software, and you are welcome to redistribute it under certain conditions.<br />
                                         </p>
                                         <p>Source code available under <a href="https://go.technitium.com/?id=24" target="_blank">GNU General Public License v3.0</a> on <a href="https://github.com/TechnitiumSoftware/DnsServer" target="_blank"><i class="fa fa-github"></i>&nbsp;GitHub</a></p>
@@ -4297,12 +4361,12 @@ MII...
                                                     </label>
                                                     <div style="padding-top: 5px; padding-left: 20px;">Allows everyone to perform dynamic updates.</div>
                                                 </div>
-                                                <div class="radio">
+                                                <div class="radio" id="divDynamicUpdateAllowOnlyZoneNameServers">
                                                     <label>
                                                         <input type="radio" name="rdDynamicUpdate" id="rdDynamicUpdateAllowOnlyZoneNameServers" value="AllowOnlyZoneNameServers">
                                                         Allow Only Name Servers In Zone
                                                     </label>
-                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows only the name servers with an NS record in the zone to perform dynamic updates. Those name servers may have to be configured separately for accepting dynamic update requests for the zone.</div>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows only the name servers with an NS record in the zone to perform dynamic updates.</div>
                                                 </div>
                                                 <div class="radio">
                                                     <label>
@@ -4311,7 +4375,7 @@ MII...
                                                     </label>
                                                     <div style="padding-top: 5px; padding-left: 20px;">Allows only the specified IP addresses to perform dynamic updates.</div>
                                                 </div>
-                                                <div class="radio">
+                                                <div class="radio" id="divDynamicUpdateAllowBothZoneNameServersAndSpecifiedIpAddresses">
                                                     <label>
                                                         <input type="radio" name="rdDynamicUpdate" id="rdDynamicUpdateAllowBothZoneNameServersAndSpecifiedIpAddresses" value="AllowBothZoneNameServersAndSpecifiedIpAddresses">
                                                         Allow Both Zone Name Servers And Specified IP addresses
