@@ -145,10 +145,6 @@ th a {
     #header .title, .container, #footer .content {
         width: 1170px;
     }
-
-    .stats-panel .stats-item {
-        padding: 6px !important;
-    }
 }
 
 .form-inline .form-group {
@@ -225,8 +221,8 @@ th a {
         color: #ffffff;
     }
 
-    .stats-panel .name-error {
-        background-color: rgba(7, 7, 7, 0.7);
+    .stats-panel .nxdomain {
+        background-color: rgba(120, 120, 120, 0.7);
         color: #ffffff;
     }
 
@@ -250,6 +246,11 @@ th a {
         color: #ffffff;
     }
 
+    .stats-panel .dropped {
+        background-color: rgba(30, 30, 30, 0.7);
+        color: #ffffff;
+    }
+
     .stats-panel .recursions {
         background-color: rgba(23, 162, 184, 0.7);
         color: #ffffff;
@@ -260,8 +261,12 @@ th a {
         color: #ffffff;
     }
 
+    .stats-panel .stats-last-item {
+        margin-right: 0% !important;
+    }
+
     .stats-panel .stats-item {
-        width: 9.7%;
+        width: 8.818%;
         float: left;
         padding: 4px;
         margin-right: 0.3%;
@@ -283,13 +288,15 @@ th a {
         }
 
 .zone-stats-panel {
-    height: 70px;
-    padding: 6px 0 6px 4px;
-    margin-bottom: 10px;
+    margin-bottom: 15px;
 }
 
+    .zone-stats-panel .stats-last-item {
+        margin-right: 0% !important;
+    }
+
     .zone-stats-panel .stats-item {
-        width: 16%;
+        width: 16.125%;
         float: left;
         padding: 6px 4px;
         margin-right: 0.65%;
