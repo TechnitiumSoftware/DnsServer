@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -32,13 +32,13 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace SplitHorizon
 {
-    public class AddressTranslation : IDnsApplication, IDnsPostProcessor, IDnsAuthoritativeRequestHandler
+    public sealed class AddressTranslation : IDnsApplication, IDnsPostProcessor, IDnsAuthoritativeRequestHandler
     {
         #region variables
 
         bool _enableAddressTranslation;
-        IReadOnlyDictionary<NetworkAddress, string> _networkGroupMap;
-        IReadOnlyDictionary<string, Group> _groups;
+        Dictionary<NetworkAddress, string> _networkGroupMap;
+        Dictionary<string, Group> _groups;
 
         #endregion
 
@@ -312,9 +312,9 @@ namespace SplitHorizon
             readonly string _name;
             readonly bool _enabled;
             readonly bool _translateReverseLookups;
-            readonly IReadOnlyDictionary<IPAddress, IPAddress> _externalToInternalTranslation;
-            readonly IReadOnlyDictionary<IPAddress, IPAddress> _internalToExternalTranslation;
-            readonly IReadOnlyList<KeyValuePair<NetworkAddress, NetworkAddress>> _externalToInternalNetworkTranslation;
+            readonly Dictionary<IPAddress, IPAddress> _externalToInternalTranslation;
+            readonly Dictionary<IPAddress, IPAddress> _internalToExternalTranslation;
+            readonly List<KeyValuePair<NetworkAddress, NetworkAddress>> _externalToInternalNetworkTranslation;
 
             #endregion
 
