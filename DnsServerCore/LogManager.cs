@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -39,6 +39,8 @@ namespace DnsServerCore
     {
         #region variables
 
+        static readonly char[] commaSeparator = new char[] { ',' };
+
         readonly string _configFolder;
 
         bool _enableLogging;
@@ -57,7 +59,7 @@ namespace DnsServerCore
         Thread _consumerThread;
         readonly object _logFileLock = new object();
         readonly object _queueLock = new object();
-        readonly EventWaitHandle _queueWait = new AutoResetEvent(false);
+        readonly AutoResetEvent _queueWait = new AutoResetEvent(false);
         CancellationTokenSource _queueCancellationTokenSource = new CancellationTokenSource();
 
         readonly Timer _logCleanupTimer;
@@ -455,14 +457,14 @@ namespace DnsServerCore
                 HttpRequest request = context.Request;
                 Stream s;
 
-                string acceptEncoding = request.Headers["Accept-Encoding"];
+                string acceptEncoding = request.Headers.AcceptEncoding;
                 if (string.IsNullOrEmpty(acceptEncoding))
                 {
                     s = response.Body;
                 }
                 else
                 {
-                    string[] acceptEncodingParts = acceptEncoding.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    string[] acceptEncodingParts = acceptEncoding.Split(commaSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
                     if (acceptEncodingParts.Contains("br"))
                     {
