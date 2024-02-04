@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -176,7 +176,7 @@ namespace DnsServerCore.Dns.Trees
             if (length < 1)
                 return null;
 
-            byte[] domain = new byte[length];
+            Span<byte> domain = stackalloc byte[length];
             int i;
             int k;
 
@@ -189,7 +189,7 @@ namespace DnsServerCore.Dns.Trees
                 domain[i] = _reverseKeyMap[k];
             }
 
-            return Encoding.ASCII.GetString(domain, 0, i);
+            return Encoding.ASCII.GetString(domain.Slice(0, i));
         }
 
         #endregion
