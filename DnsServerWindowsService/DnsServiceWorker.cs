@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ using TechnitiumLibrary.Net.Firewall;
 
 namespace DnsServerWindowsService
 {
-    public class DnsServiceWorker : BackgroundService
+    public sealed class DnsServiceWorker : BackgroundService
     {
         readonly DnsWebService _service;
 
@@ -65,7 +65,7 @@ namespace DnsServerWindowsService
             return Task.CompletedTask;
         }
 
-        private void CheckFirewallEntries()
+        private static void CheckFirewallEntries()
         {
             string appPath = Assembly.GetEntryAssembly().Location;
 
@@ -76,7 +76,7 @@ namespace DnsServerWindowsService
                 AddWindowsFirewallEntry(appPath);
         }
 
-        private bool WindowsFirewallEntryExists(string appPath)
+        private static bool WindowsFirewallEntryExists(string appPath)
         {
             try
             {
@@ -88,7 +88,7 @@ namespace DnsServerWindowsService
             }
         }
 
-        private bool AddWindowsFirewallEntry(string appPath)
+        private static bool AddWindowsFirewallEntry(string appPath)
         {
             try
             {
