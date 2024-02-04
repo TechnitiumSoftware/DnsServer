@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -33,6 +33,8 @@ namespace DnsServerCore
     class WebServiceDhcpApi
     {
         #region variables
+
+        static readonly char[] _commaSeparator = new char[] { ',' };
 
         readonly DnsWebService _dnsWebService;
 
@@ -450,7 +452,7 @@ namespace DnsServerCore
                 if (domainSearchList.Length == 0)
                     scope.DomainSearchList = null;
                 else
-                    scope.DomainSearchList = domainSearchList.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    scope.DomainSearchList = domainSearchList.Split(_commaSeparator, StringSplitOptions.RemoveEmptyEntries);
             }
 
             if (request.TryGetQueryOrForm("dnsUpdates", bool.Parse, out bool dnsUpdates))
@@ -514,7 +516,7 @@ namespace DnsServerCore
                 if (ntpServerDomainNames.Length == 0)
                     scope.NtpServerDomainNames = null;
                 else
-                    scope.NtpServerDomainNames = ntpServerDomainNames.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    scope.NtpServerDomainNames = ntpServerDomainNames.Split(_commaSeparator, StringSplitOptions.RemoveEmptyEntries);
             }
 
             string strStaticRoutes = request.QueryOrForm("staticRoutes");
