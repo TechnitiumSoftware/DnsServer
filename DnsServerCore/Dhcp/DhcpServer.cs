@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -320,20 +320,17 @@ namespace DnsServerCore.Dhcp
                             return null; //no offer available, do nothing
 
                         IPAddress serverIdentifierAddress = scope.InterfaceAddress.Equals(IPAddress.Any) ? ipPacketInformation.Address : scope.InterfaceAddress;
-                        string overrideClientDomainName = null;
+                        string reservedLeaseHostName = null;
 
                         if (!string.IsNullOrWhiteSpace(scope.DomainName))
                         {
                             //get override host name from reserved lease
                             Lease reservedLease = scope.GetReservedLease(request);
-                            if (reservedLease != null)
-                            {
-                                if (!string.IsNullOrWhiteSpace(reservedLease.HostName))
-                                    overrideClientDomainName = reservedLease.HostName + "." + scope.DomainName;
-                            }
+                            if (reservedLease is not null)
+                                reservedLeaseHostName = reservedLease.HostName;
                         }
 
-                        List<DhcpOption> options = await scope.GetOptionsAsync(request, serverIdentifierAddress, overrideClientDomainName, _dnsServer);
+                        List<DhcpOption> options = await scope.GetOptionsAsync(request, serverIdentifierAddress, reservedLeaseHostName, _dnsServer);
                         if (options is null)
                             return null;
 
@@ -454,20 +451,17 @@ namespace DnsServerCore.Dhcp
                             }
                         }
 
-                        string overrideClientDomainName = null;
+                        string reservedLeaseHostName = null;
 
                         if (!string.IsNullOrWhiteSpace(scope.DomainName))
                         {
                             //get override host name from reserved lease
                             Lease reservedLease = scope.GetReservedLease(request);
-                            if (reservedLease != null)
-                            {
-                                if (!string.IsNullOrWhiteSpace(reservedLease.HostName))
-                                    overrideClientDomainName = reservedLease.HostName + "." + scope.DomainName;
-                            }
+                            if (reservedLease is not null)
+                                reservedLeaseHostName = reservedLease.HostName;
                         }
 
-                        List<DhcpOption> options = await scope.GetOptionsAsync(request, serverIdentifierAddress, overrideClientDomainName, _dnsServer);
+                        List<DhcpOption> options = await scope.GetOptionsAsync(request, serverIdentifierAddress, reservedLeaseHostName, _dnsServer);
                         if (options is null)
                             return null;
 
@@ -484,7 +478,10 @@ namespace DnsServerCore.Dhcp
                         else
                         {
                             //update dns
-                            string clientDomainName = overrideClientDomainName;
+                            string clientDomainName = null;
+
+                            if (!string.IsNullOrWhiteSpace(reservedLeaseHostName))
+                                clientDomainName = reservedLeaseHostName + "." + scope.DomainName;
 
                             if (string.IsNullOrWhiteSpace(clientDomainName))
                             {
@@ -1269,7 +1266,7 @@ namespace DnsServerCore.Dhcp
         public void Start()
         {
             if (_disposed)
-                throw new ObjectDisposedException("DhcpServer");
+                ObjectDisposedException.ThrowIf(_disposed, this);
 
             if (_state != ServiceState.Stopped)
                 throw new InvalidOperationException("DHCP Server is already running.");
