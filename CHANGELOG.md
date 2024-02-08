@@ -1,5 +1,11 @@
 # Technitium DNS Server Change Log
 
+## Version 12.0.1
+Release Date: 8 February 2024
+
+- Fixed bug in authoritative zone wildcard matching for empty non-terminal (ENT) records.
+- Fixed other minor issues.
+
 ## Version 12.0
 Release Date: 4 February 2024
 
