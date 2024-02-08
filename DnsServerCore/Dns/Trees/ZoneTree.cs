@@ -102,7 +102,7 @@ namespace DnsServerCore.Dns.Trees
 
                 while ((i < mainKey.Length) && (j < testKey.Length))
                 {
-                    if (mainKey[i] == 1) //[*]
+                    if ((mainKey[i] == 1) && (testKey[j] != 1)) //[*] wildcard match only when test key does not have '*' as literal char: RFC 4592 section 2.3
                     {
                         if (i == mainKey.Length - 2)
                             return true; //last label, valid wildcard
@@ -173,7 +173,7 @@ namespace DnsServerCore.Dns.Trees
 
                 while ((i < mainKey.Length) && (j < testKey.Length))
                 {
-                    if (mainKey[i] == 1) //[*]
+                    if ((mainKey[i] == 1) && (testKey[j] != 1)) //[*] wildcard match only when test key does not have '*' as literal char: RFC 4592 section 2.3
                     {
                         //skip j to next label
                         while (j < testKey.Length)
@@ -297,7 +297,7 @@ namespace DnsServerCore.Dns.Trees
                 if (value is not null)
                 {
                     //match exact only
-                    if (KeysMatch(value.Key, key, false))
+                    if (KeysMatch(value.Key, key, matchWildcard))
                     {
                         //find closest values since the matched zone may be apex zone
                         TNode zoneNode = value.Value;
@@ -306,6 +306,24 @@ namespace DnsServerCore.Dns.Trees
 
                         return value.Value; //found matching value
                     }
+
+                    if (wildcardNode is not null)
+                    {
+                        NodeValue wildcardValue = wildcardNode.Value;
+                        if (wildcardValue is not null)
+                        {
+                            if (IsKeySubDomain(wildcardValue.Key, value.Key, matchWildcard))
+                            {
+                                //value is a subdomain of an ENT so wildcard is not valid
+                                wildcardNode = null;
+                            }
+                        }
+                    }
+                }
+                else if ((wildcardNode is not null) && (currentNode.K == 0) && currentNode.HasChildren)
+                {
+                    //ENT node with children so wildcard is not valid
+                    wildcardNode = null;
                 }
             }
 
