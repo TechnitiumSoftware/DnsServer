@@ -99,7 +99,7 @@ namespace DnsServerCore.Dhcp
                 Directory.CreateDirectory(_scopesFolder);
 
                 //create default scope
-                Scope scope = new Scope("Default", false, IPAddress.Parse("192.168.1.1"), IPAddress.Parse("192.168.1.254"), IPAddress.Parse("255.255.255.0"), _log);
+                Scope scope = new Scope("Default", false, IPAddress.Parse("192.168.1.1"), IPAddress.Parse("192.168.1.254"), IPAddress.Parse("255.255.255.0"), _log, this);
                 scope.Exclusions = new Exclusion[] { new Exclusion(IPAddress.Parse("192.168.1.1"), IPAddress.Parse("192.168.1.10")) };
                 scope.RouterAddress = IPAddress.Parse("192.168.1.1");
                 scope.UseThisDnsServer = true;
@@ -1156,7 +1156,7 @@ namespace DnsServerCore.Dhcp
             {
                 using (FileStream fS = new FileStream(scopeFile, FileMode.Open, FileAccess.Read))
                 {
-                    await LoadScopeAsync(new Scope(new BinaryReader(fS), _log), true);
+                    await LoadScopeAsync(new Scope(new BinaryReader(fS), _log, this), true);
                 }
 
                 _log?.Write("DHCP Server successfully loaded scope file: " + scopeFile);
