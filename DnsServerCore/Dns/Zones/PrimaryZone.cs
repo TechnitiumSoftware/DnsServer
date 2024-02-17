@@ -2711,7 +2711,7 @@ namespace DnsServerCore.Dns.Zones
 
                 //end commit
 
-                CleanupHistory(_zoneHistory);
+                CleanupHistory();
             }
         }
 
@@ -2774,6 +2774,24 @@ namespace DnsServerCore.Dns.Zones
         #endregion
 
         #region public
+
+        public void SetSoaSerial(uint newSerial)
+        {
+            lock (_zoneHistory)
+            {
+                DnsResourceRecord oldSoaRecord = _entries[DnsResourceRecordType.SOA][0];
+                DnsSOARecordData oldSoa = oldSoaRecord.RDATA as DnsSOARecordData;
+
+                DnsResourceRecord newSoaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, oldSoaRecord.TTL, new DnsSOARecordData(oldSoa.PrimaryNameServer, oldSoa.ResponsiblePerson, newSerial, oldSoa.Refresh, oldSoa.Retry, oldSoa.Expire, oldSoa.Minimum)) { Tag = oldSoaRecord.Tag };
+                DnsResourceRecord[] newSoaRecords = [newSoaRecord];
+
+                //update SOA
+                _entries[DnsResourceRecordType.SOA] = newSoaRecords;
+
+                //clear history
+                _zoneHistory.Clear();
+            }
+        }
 
         public override void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
         {
