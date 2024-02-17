@@ -58,7 +58,14 @@ namespace Failover
 
         private DnsResourceRecord[] GetAnswers(string domain, DnsQuestionRecord question, string zoneName, uint appRecordTtl, string healthCheck, Uri healthCheckUrl)
         {
-            HealthCheckResponse response = _healthService.QueryStatus(domain, question.Type, healthCheck, healthCheckUrl, true);
+            DnsResourceRecordType healthCheckRecordType;
+
+            if (question.Type == DnsResourceRecordType.AAAA)
+                healthCheckRecordType = DnsResourceRecordType.AAAA;
+            else
+                healthCheckRecordType = DnsResourceRecordType.A;
+
+            HealthCheckResponse response = _healthService.QueryStatus(domain, healthCheckRecordType, healthCheck, healthCheckUrl, true);
             switch (response.Status)
             {
                 case HealthStatus.Unknown:
