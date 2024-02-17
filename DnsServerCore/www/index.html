@@ -4114,7 +4114,17 @@ MII...
                         </div>
                     </div>
 
+                    <div class="form-group">
+                        <div class="checkbox">
+                            <label>
+                                <input id="chkImportZoneOverwriteSoaSerial" type="checkbox"> Overwrite SOA Serial
+                            </label>
+                            <div style="padding-top: 5px; padding-left: 20px;">Enable this option to overwrite existing SOA record serial with the imported SOA record serial.</div>
+                        </div>
+                    </div>
+
                     <p>Note: The <code>$ORIGIN</code> and <code>$TTL</code> values will be automatically set if not specified.</p>
+                    <p>Warning! Overwrite SOA serial option when used to set a lower SOA serial value than the current SOA serial will cause secondary zones to fail to sync.</p>
                 </div>
                 <div class="modal-footer">
                     <button id="btnImportZone" type="submit" class="btn btn-primary" data-loading-text="Importing..." onclick="importZone(); return false;">Import</button>
