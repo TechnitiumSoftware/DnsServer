@@ -54,6 +54,7 @@ namespace DnsServerCore.Dhcp
         ushort _offerDelayTime;
 
         readonly LogManager _log;
+        readonly DhcpServer _dhcpServer;
 
         bool _pingCheckEnabled;
         ushort _pingCheckTimeout = 1000;
@@ -105,7 +106,7 @@ namespace DnsServerCore.Dhcp
 
         #region constructor
 
-        public Scope(string name, bool enabled, IPAddress startingAddress, IPAddress endingAddress, IPAddress subnetMask, LogManager log)
+        public Scope(string name, bool enabled, IPAddress startingAddress, IPAddress endingAddress, IPAddress subnetMask, LogManager log, DhcpServer dhcpServer)
         {
             ValidateScopeName(name);
 
@@ -115,12 +116,16 @@ namespace DnsServerCore.Dhcp
             ChangeNetwork(startingAddress, endingAddress, subnetMask);
 
             _log = log;
+            _dhcpServer = dhcpServer;
         }
 
-        public Scope(BinaryReader bR, LogManager log)
+        public Scope(BinaryReader bR, LogManager log, DhcpServer dhcpServer)
         {
             if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "SC")
                 throw new InvalidDataException("DhcpServer scope file format is invalid.");
+
+            _log = log;
+            _dhcpServer = dhcpServer;
 
             byte version = bR.ReadByte();
             switch (version)
@@ -386,8 +391,6 @@ namespace DnsServerCore.Dhcp
                 default:
                     throw new InvalidDataException("Scope data format version not supported.");
             }
-
-            _log = log;
         }
 
         #endregion
@@ -743,12 +746,61 @@ namespace DnsServerCore.Dhcp
 
         internal void FindThisDnsServerAddress()
         {
-            NetworkInterface[] networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
-
-            //find interface in current scope network range
             uint networkAddressNumber = _networkAddress.ConvertIpToNumber();
             uint subnetMaskNumber = _subnetMask.ConvertIpToNumber();
 
+            DnsServer dnsServer = _dhcpServer.DnsServer;
+            if (dnsServer is not null)
+            {
+                bool dnsOnAny = false;
+
+                foreach (IPEndPoint localEP in dnsServer.LocalEndPoints)
+                {
+                    if (localEP.Address.Equals(IPAddress.Any))
+                    {
+                        dnsOnAny = true;
+                        break;
+                    }
+                }
+
+                if (!dnsOnAny)
+                {
+                    //find local EP in scope network range
+                    foreach (IPEndPoint localEP in dnsServer.LocalEndPoints)
+                    {
+                        if (localEP.Address.AddressFamily == AddressFamily.InterNetwork)
+                        {
+                            uint addressNumber = localEP.Address.ConvertIpToNumber();
+
+                            if ((addressNumber & subnetMaskNumber) == networkAddressNumber)
+                            {
+                                //found address in this scope range to use as dns server
+                                _dnsServers = new IPAddress[] { localEP.Address };
+                                return;
+                            }
+                        }
+                    }
+
+                    //find any local EP available
+                    foreach (IPEndPoint localEP in dnsServer.LocalEndPoints)
+                    {
+                        if ((localEP.Address.AddressFamily == AddressFamily.InterNetwork) && !IPAddress.IsLoopback(localEP.Address))
+                        {
+                            //found address to use as dns server
+                            _dnsServers = new IPAddress[] { localEP.Address };
+                            return;
+                        }
+                    }
+
+                    //no useable address was found
+                    _dnsServers = null;
+                    return;
+                }
+            }
+
+            NetworkInterface[] networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
+
+            //find interface in current scope network range
             foreach (NetworkInterface nic in networkInterfaces)
             {
                 if (nic.OperationalStatus != OperationalStatus.Up)
