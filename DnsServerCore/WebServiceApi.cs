@@ -49,7 +49,7 @@ namespace DnsServerCore
         string _checkForUpdateJsonData;
         DateTime _checkForUpdateJsonDataUpdatedOn;
         const int CHECK_FOR_UPDATE_JSON_DATA_CACHE_TIME_SECONDS = 3600;
-        
+
         #endregion
 
         #region constructor
@@ -412,7 +412,7 @@ namespace DnsServerCore
                         }
                     }
 
-                    _dnsWebService.DnsServer.AuthZoneManager.ImportRecords(zoneInfo.Name, importRecords, true);
+                    _dnsWebService.DnsServer.AuthZoneManager.ImportRecords(zoneInfo.Name, importRecords, true, true);
                 }
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS Client imported record(s) for authoritative zone {server: " + server + "; zone: " + zoneInfo.Name + "; type: " + type + ";}");
