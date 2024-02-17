@@ -596,9 +596,22 @@ namespace DnsServerCore.Dns
 
                     case DnsTransportProtocol.Tls:
                         SslStream tlsStream = new SslStream(new NetworkStream(socket));
-                        await tlsStream.AuthenticateAsServerAsync(_sslServerAuthenticationOptions).WithTimeout(_tcpReceiveTimeout);
+                        string serverName = null;
 
-                        await ReadStreamRequestAsync(tlsStream, remoteEP, new NameServerAddress(socket.LocalEndPoint, DnsTransportProtocol.Tls), protocol);
+                        await tlsStream.AuthenticateAsServerAsync(delegate (SslStream stream, SslClientHelloInfo clientHelloInfo, object? state, CancellationToken cancellationToken)
+                        {
+                            serverName = clientHelloInfo.ServerName;
+                            return ValueTask.FromResult(_sslServerAuthenticationOptions);
+                        }, null, default).WithTimeout(_tcpReceiveTimeout);
+
+                        NameServerAddress dnsEP;
+
+                        if (string.IsNullOrEmpty(serverName))
+                            dnsEP = new NameServerAddress(socket.LocalEndPoint, DnsTransportProtocol.Tls);
+                        else
+                            dnsEP = new NameServerAddress(serverName, socket.LocalEndPoint as IPEndPoint, DnsTransportProtocol.Tls);
+
+                        await ReadStreamRequestAsync(tlsStream, remoteEP, dnsEP, protocol);
                         break;
 
                     case DnsTransportProtocol.TcpProxy:
@@ -765,7 +778,12 @@ namespace DnsServerCore.Dns
         {
             try
             {
-                NameServerAddress dnsEP = new NameServerAddress(quicConnection.LocalEndPoint, DnsTransportProtocol.Quic);
+                NameServerAddress dnsEP;
+
+                if (string.IsNullOrEmpty(quicConnection.TargetHostName))
+                    dnsEP = new NameServerAddress(quicConnection.LocalEndPoint, DnsTransportProtocol.Quic);
+                else
+                    dnsEP = new NameServerAddress(quicConnection.TargetHostName, quicConnection.LocalEndPoint, DnsTransportProtocol.Quic);
 
                 while (true)
                 {
