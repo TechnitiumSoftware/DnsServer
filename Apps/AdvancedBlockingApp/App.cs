@@ -51,7 +51,7 @@ namespace AdvancedBlocking
         bool _enableBlocking;
         int _blockListUrlUpdateIntervalHours;
 
-        Dictionary<IPEndPoint, string> _localEndPointGroupMap;
+        Dictionary<EndPoint, string> _localEndPointGroupMap;
         Dictionary<NetworkAddress, string> _networkGroupMap;
         Dictionary<string, Group> _groups;
 
@@ -279,16 +279,42 @@ namespace AdvancedBlocking
         {
             if ((request.Metadata is not null) && (request.Metadata.NameServer is not null))
             {
+                Uri requestLocalUriEP = request.Metadata.NameServer.DoHEndPoint;
+                if (requestLocalUriEP is not null)
+                {
+                    foreach (KeyValuePair<EndPoint, string> entry in _localEndPointGroupMap)
+                    {
+                        if (entry.Key is DomainEndPoint ep)
+                        {
+                            if (((ep.Port == 0) || (ep.Port == requestLocalUriEP.Port)) && ep.Address.Equals(requestLocalUriEP.Host, StringComparison.OrdinalIgnoreCase))
+                                return entry.Value;
+                        }
+                    }
+                }
+
+                DomainEndPoint requestLocalDomainEP = request.Metadata.NameServer.DomainEndPoint;
+                if (requestLocalDomainEP is not null)
+                {
+                    foreach (KeyValuePair<EndPoint, string> entry in _localEndPointGroupMap)
+                    {
+                        if (entry.Key is DomainEndPoint ep)
+                        {
+                            if (((ep.Port == 0) || (ep.Port == requestLocalDomainEP.Port)) && ep.Address.Equals(requestLocalDomainEP.Address, StringComparison.OrdinalIgnoreCase))
+                                return entry.Value;
+                        }
+                    }
+                }
+
                 IPEndPoint requestLocalEP = request.Metadata.NameServer.IPEndPoint;
                 if (requestLocalEP is not null)
                 {
-                    foreach (KeyValuePair<IPEndPoint, string> entry in _localEndPointGroupMap)
+                    foreach (KeyValuePair<EndPoint, string> entry in _localEndPointGroupMap)
                     {
-                        if ((entry.Key.Port == 0) && entry.Key.Address.Equals(requestLocalEP.Address))
-                            return entry.Value;
-
-                        if (entry.Key.Equals(requestLocalEP))
-                            return entry.Value;
+                        if (entry.Key is IPEndPoint ep)
+                        {
+                            if (((ep.Port == 0) || (ep.Port == requestLocalEP.Port)) && ep.Address.Equals(requestLocalEP.Address))
+                                return entry.Value;
+                        }
                     }
                 }
             }
@@ -331,12 +357,12 @@ namespace AdvancedBlocking
             if (jsonConfig.TryReadObjectAsMap("localEndPointGroupMap",
                 delegate (string localEP, JsonElement jsonGroup)
                 {
-                    if (!IPEndPoint.TryParse(localEP, out IPEndPoint ep))
+                    if (!EndPointExtensions.TryParse(localEP, out EndPoint ep))
                         throw new InvalidOperationException("Local end point group map contains an invalid end point: " + localEP);
 
-                    return new Tuple<IPEndPoint, string>(ep, jsonGroup.GetString());
+                    return new Tuple<EndPoint, string>(ep, jsonGroup.GetString());
                 },
-                out Dictionary<IPEndPoint, string> localEndPointGroupMap))
+                out Dictionary<EndPoint, string> localEndPointGroupMap))
             {
                 _localEndPointGroupMap = localEndPointGroupMap;
             }
