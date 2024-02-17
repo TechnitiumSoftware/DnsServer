@@ -2005,7 +2005,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             return historyRecords;
         }
 
-        internal void ImportRecords(string zoneName, IReadOnlyList<DnsResourceRecord> records, bool overwrite)
+        internal void ImportRecords(string zoneName, IReadOnlyList<DnsResourceRecord> records, bool overwrite, bool overwriteSoaSerial)
         {
             _ = _root.FindZone(zoneName, out _, out _, out ApexZone apexZone, out _);
             if ((apexZone is null) || !apexZone.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase))
@@ -2013,6 +2013,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             if ((apexZone is not PrimaryZone) && (apexZone is not ForwarderZone))
                 throw new DnsServerException("Zone must be a primary or forwarder type: " + zoneName);
+
+            List<DnsResourceRecord> soaRRSet = null;
 
             foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> zoneEntry in DnsResourceRecord.GroupRecords(records))
             {
@@ -2024,8 +2026,12 @@ namespace DnsServerCore.Dns.ZoneManagers
                         {
                             case DnsResourceRecordType.CNAME:
                             case DnsResourceRecordType.DNAME:
+                                apexZone.SetRecords(rrsetEntry.Key, rrsetEntry.Value);
+                                break;
+
                             case DnsResourceRecordType.SOA:
                                 apexZone.SetRecords(rrsetEntry.Key, rrsetEntry.Value);
+                                soaRRSet = rrsetEntry.Value;
                                 break;
 
                             default:
@@ -2076,6 +2082,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                         subDomainZone.AutoUpdateState();
                 }
             }
+
+            if (overwriteSoaSerial && (soaRRSet is not null) && (apexZone is PrimaryZone primaryZone))
+                primaryZone.SetSoaSerial((soaRRSet[0].RDATA as DnsSOARecordData).Serial);
         }
 
         internal void LoadRecords(ApexZone apexZone, IReadOnlyList<DnsResourceRecord> records)
