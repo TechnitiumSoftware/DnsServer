@@ -141,25 +141,25 @@ namespace DnsServerCore.Dns.Zones
 
         #region protected
 
-        protected void CleanupHistory(List<DnsResourceRecord> history)
+        protected void CleanupHistory()
         {
             DnsSOARecordData soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
             DateTime expiry = DateTime.UtcNow.AddSeconds(-soa.Expire);
             int index = 0;
 
-            while (index < history.Count)
+            while (index < _zoneHistory.Count)
             {
                 //check difference sequence
-                if (history[index].GetAuthRecordInfo().DeletedOn > expiry)
+                if (_zoneHistory[index].GetAuthRecordInfo().DeletedOn > expiry)
                     break; //found record to keep
 
                 //skip to next difference sequence
                 index++;
                 int soaCount = 1;
 
-                while (index < history.Count)
+                while (index < _zoneHistory.Count)
                 {
-                    if (history[index].Type == DnsResourceRecordType.SOA)
+                    if (_zoneHistory[index].Type == DnsResourceRecordType.SOA)
                     {
                         soaCount++;
 
@@ -171,15 +171,15 @@ namespace DnsServerCore.Dns.Zones
                 }
             }
 
-            if (index == history.Count)
+            if (index == _zoneHistory.Count)
             {
                 //delete entire history
-                history.Clear();
+                _zoneHistory.Clear();
                 return;
             }
 
             //remove expired records
-            history.RemoveRange(0, index);
+            _zoneHistory.RemoveRange(0, index);
         }
 
         protected void InitNotify(DnsServer dnsServer)
