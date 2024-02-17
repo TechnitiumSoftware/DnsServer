@@ -122,7 +122,7 @@ namespace Failover
             }
             catch (Exception ex)
             {
-                _service.DnsServer.WriteLog(ex);
+                _service.DnsServer.WriteLog("Failed to send email alert [" + _name + "].\r\n" + ex.ToString());
             }
         }
 
