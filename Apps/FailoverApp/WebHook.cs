@@ -168,7 +168,7 @@ namespace Failover
                 }
                 catch (Exception ex)
                 {
-                    _service.DnsServer.WriteLog(ex);
+                    _service.DnsServer.WriteLog("Webhook call failed for URL: " + url.AbsoluteUri + "\r\n" + ex.ToString());
                 }
             }
 
