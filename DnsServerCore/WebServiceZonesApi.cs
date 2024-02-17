@@ -1053,6 +1053,7 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Access was denied.");
 
             bool overwrite = request.GetQueryOrForm("overwrite", bool.Parse, true);
+            bool overwriteSoaSerial = request.GetQueryOrForm("overwriteSoaSerial", bool.Parse, false);
 
             TextReader textReader;
 
@@ -1104,7 +1105,7 @@ namespace DnsServerCore
                 }
             }
 
-            _dnsWebService.DnsServer.AuthZoneManager.ImportRecords(zoneInfo.Name, newRecords, overwrite);
+            _dnsWebService.DnsServer.AuthZoneManager.ImportRecords(zoneInfo.Name, newRecords, overwrite, overwriteSoaSerial);
 
             _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Total " + newRecords.Count + " record(s) were imported successfully into authoritative zone: " + zoneInfo.Name);
 
