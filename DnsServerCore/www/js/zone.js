@@ -725,6 +725,7 @@ function showImportZoneModal(zone) {
     $("#divImportZoneAlert").html("");
     $("#txtImportZoneFile").val("");
     $("#chkImportZoneOverwrite").prop("checked", true)
+    $("#chkImportZoneOverwriteSoaSerial").prop("checked", false)
     $("#btnImportZone").button("reset");
 
     $("#modalImportZone").modal("show");
@@ -739,12 +740,13 @@ function importZone() {
 
     var zone = $("#lblImportZoneName").text();
     var overwrite = $("#chkImportZoneOverwrite").prop("checked");
+    var overwriteSoaSerial = $("#chkImportZoneOverwriteSoaSerial").prop("checked");
     var records = $("#txtImportZoneFile").val();
 
     var btn = $("#btnImportZone").button("loading");
 
     HTTPRequest({
-        url: "/api/zones/import?token=" + sessionData.token + "&zone=" + zone + "&overwrite=" + overwrite,
+        url: "/api/zones/import?token=" + sessionData.token + "&zone=" + zone + "&overwrite=" + overwrite + "&overwriteSoaSerial=" + overwriteSoaSerial,
         method: "POST",
         contentType: "text/plain",
         data: records,
