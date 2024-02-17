@@ -547,6 +547,8 @@ namespace AdvancedForwarding
         {
             #region variables
 
+            static readonly char[] _popWordSeperator = new char[] { ' ' };
+
             readonly IDnsServer _dnsServer;
 
             readonly string _name;
@@ -666,7 +668,28 @@ namespace AdvancedForwarding
                                 }
                                 else
                                 {
-                                    forwardings.Add(new Forwarding(domains, NameServerAddress.Parse(forwarder), _dnssecValidation, _configProxyServer));
+                                    List<DnsForwarderRecordData> forwarderRecords = new List<DnsForwarderRecordData>();
+                                    string word = PopWord(ref forwarder);
+
+                                    while (word.Length > 0)
+                                    {
+                                        string nextWord = PopWord(ref forwarder);
+
+                                        if (nextWord.StartsWith('('))
+                                        {
+                                            word += " " + nextWord;
+                                            nextWord = PopWord(ref forwarder);
+                                        }
+
+                                        forwarderRecords.Add(GetForwarderRecord(NameServerAddress.Parse(word), _dnssecValidation, _configProxyServer));
+
+                                        word = nextWord;
+                                    }
+
+                                    if (forwarderRecords.Count == 0)
+                                        throw new FormatException("Invalid AdGuard Upstreams config file format: missing upstream servers.");
+
+                                    forwardings.Add(new Forwarding(forwarderRecords, domains));
                                 }
                             }
                             else
@@ -687,6 +710,30 @@ namespace AdvancedForwarding
                 {
                     _dnsServer.WriteLog("The app failed to read AdGuard Upstreams config file: " + _configFile + "\r\n" + ex.ToString());
                 }
+            }
+
+            private static string PopWord(ref string line)
+            {
+                if (line.Length == 0)
+                    return line;
+
+                line = line.TrimStart(_popWordSeperator);
+
+                int i = line.IndexOfAny(_popWordSeperator);
+                string word;
+
+                if (i < 0)
+                {
+                    word = line;
+                    line = "";
+                }
+                else
+                {
+                    word = line.Substring(0, i);
+                    line = line.Substring(i + 1);
+                }
+
+                return word;
             }
 
             #endregion
