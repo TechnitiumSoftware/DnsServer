@@ -4760,7 +4760,7 @@ WHERE:
 - `zones` (optional): Set to `true` to backup DNS zone files. Default value is `false`.
 - `allowedZones` (optional): Set to `true` to backup allowed zones file. Default value is `false`.
 - `blockedZones` (optional): Set to `true` to backup blocked zones file. Default value is `false`.
-- `dnsSettings` (optional): Set to `true` to backup DNS settings and certificate files. The Web Service or Optional Protocols TLS certificate (.pfx) files will be included in the backup only if they exists within the DNS server's config folder. Default value is `false`.
+- `dnsSettings` (optional): Set to `true` to backup DNS settings and certificate files. The Web Service or Optional Protocols TLS certificate (.pfx) files will be included in the backup only if they exist within the DNS server's config folder. Default value is `false`.
 - `logSettings` (optional): Set to `true` to backup log settings file. Default value is `false`.
 - `authConfig` (optional): Set to `true` to backup the authentication config file. Default value is `false`.
 
