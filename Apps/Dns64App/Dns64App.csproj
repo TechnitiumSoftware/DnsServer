@@ -11,7 +11,7 @@
 		<RootNamespace>Dns64</RootNamespace>
 		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-		<Description>Enables DNS64 function for both authoritative and recursive resolver responses for use by IPv6 only clients.</Description>
+		<Description>Enables DNS64 function for both authoritative and recursive resolver responses for use by IPv6 only clients.\n\nWarning! Installing DNS64 app without having NAT64 in place will cause connectivity issues for some websites.</Description>
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
 		<OutputType>Library</OutputType>
 	</PropertyGroup>
