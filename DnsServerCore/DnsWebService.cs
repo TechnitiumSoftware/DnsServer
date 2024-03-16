@@ -1116,7 +1116,7 @@ namespace DnsServerCore
 
             int version = bR.ReadByte();
 
-            if ((version >= 28) && (version <= 34))
+            if ((version >= 28) && (version <= 35))
             {
                 ReadConfigFrom(bR, version);
             }
@@ -1131,6 +1131,11 @@ namespace DnsServerCore
                 _dnsServer.AuthZoneManager.UseSoaSerialDateScheme = false;
                 _dnsServer.ZoneTransferAllowedNetworks = null;
                 _dnsServer.NotifyAllowedNetworks = null;
+                _dnsServer.EDnsClientSubnet = false;
+                _dnsServer.EDnsClientSubnetIPv4PrefixLength = 24;
+                _dnsServer.EDnsClientSubnetIPv6PrefixLength = 56;
+                _dnsServer.EDnsClientSubnetIpv4Override = null;
+                _dnsServer.EDnsClientSubnetIpv6Override = null;
                 _dnsServer.QpmLimitBypassList = null;
                 _dnsServer.BlockingBypassList = null;
                 _dnsServer.ResolverLogManager = _log;
@@ -1272,6 +1277,24 @@ namespace DnsServerCore
                     _dnsServer.EDnsClientSubnet = false;
                     _dnsServer.EDnsClientSubnetIPv4PrefixLength = 24;
                     _dnsServer.EDnsClientSubnetIPv6PrefixLength = 56;
+                }
+
+                if (version >= 35)
+                {
+                    if (bR.ReadBoolean())
+                        _dnsServer.EDnsClientSubnetIpv4Override = NetworkAddress.ReadFrom(bR);
+                    else
+                        _dnsServer.EDnsClientSubnetIpv4Override = null;
+
+                    if (bR.ReadBoolean())
+                        _dnsServer.EDnsClientSubnetIpv6Override = NetworkAddress.ReadFrom(bR);
+                    else
+                        _dnsServer.EDnsClientSubnetIpv6Override = null;
+                }
+                else
+                {
+                    _dnsServer.EDnsClientSubnetIpv4Override = null;
+                    _dnsServer.EDnsClientSubnetIpv6Override = null;
                 }
 
                 _dnsServer.QpmLimitRequests = bR.ReadInt32();
@@ -2201,7 +2224,7 @@ namespace DnsServerCore
         private void WriteConfigTo(BinaryWriter bW)
         {
             bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-            bW.Write((byte)34); //version
+            bW.Write((byte)35); //version
 
             //web service
             {
@@ -2261,6 +2284,26 @@ namespace DnsServerCore
                 bW.Write(_dnsServer.EDnsClientSubnet);
                 bW.Write(_dnsServer.EDnsClientSubnetIPv4PrefixLength);
                 bW.Write(_dnsServer.EDnsClientSubnetIPv6PrefixLength);
+
+                if (_dnsServer.EDnsClientSubnetIpv4Override is null)
+                {
+                    bW.Write(false);
+                }
+                else
+                {
+                    bW.Write(true);
+                    _dnsServer.EDnsClientSubnetIpv4Override.WriteTo(bW);
+                }
+
+                if (_dnsServer.EDnsClientSubnetIpv6Override is null)
+                {
+                    bW.Write(false);
+                }
+                else
+                {
+                    bW.Write(true);
+                    _dnsServer.EDnsClientSubnetIpv6Override.WriteTo(bW);
+                }
 
                 bW.Write(_dnsServer.QpmLimitRequests);
                 bW.Write(_dnsServer.QpmLimitErrors);
