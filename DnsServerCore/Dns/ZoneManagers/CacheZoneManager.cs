@@ -558,7 +558,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (minimumEntriesToRemove < 1)
                 return; //no need to remove
 
-            //remove stale records if they exists
+            //remove stale records if they exist
             if (serveStale)
                 minimumEntriesToRemove -= RemoveExpiredRecordsInternal(false, minimumEntriesToRemove);
 

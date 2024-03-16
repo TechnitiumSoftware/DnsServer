@@ -100,7 +100,7 @@ Release Date: 12 August 2023
 
 - Added support for DNS over [PROXY protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) version 1 and 2 for both UDP and TCP transports. This feature allows using a load balancer or reverse proxy in front of the DNS server such that the client's IP address information is passed to the DNS server. This can also be used to provide DNS-over-TLS service with a TLS terminating reverse proxy that forwards request to TCP-PROXY protocol port.
 - Updated TLS certificate implementation to allow the TLS handshake to always send the certificate chain.
-- Updated Backup and Restore feature to include Web Service and Optional Protocols certificate files when they exists within the DNS server's config folder.
+- Updated Backup and Restore feature to include Web Service and Optional Protocols certificate files when they exist within the DNS server's config folder.
 - Added DNS server uptime info in the About section.
 - Multiple other minor bug fixes and improvements.
 
