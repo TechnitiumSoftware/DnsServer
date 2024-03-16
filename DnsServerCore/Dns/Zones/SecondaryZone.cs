@@ -143,11 +143,11 @@ namespace DnsServerCore.Dns.Zones
             }
             catch (Exception ex)
             {
-                throw new DnsServerException("DNS Server failed to find SOA record for: " + name, ex);
+                throw new DnsServerException("DNS Server failed to find SOA record for: " + (name == "" ? "<root>" : name), ex);
             }
 
             if ((soaResponse.Answer.Count == 0) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA))
-                throw new DnsServerException("DNS Server failed to find SOA record for: " + name);
+                throw new DnsServerException("DNS Server failed to find SOA record for: " + (name == "" ? "<root>" : name));
 
             DnsSOARecordData receivedSoa = soaResponse.Answer[0].RDATA as DnsSOARecordData;
 
@@ -431,7 +431,7 @@ namespace DnsServerCore.Dns.Zones
                     else
                         xfrResponse = await xfrClient.ResolveAsync(xfrRequest, key, REFRESH_TSIG_FUDGE);
 
-                    if (doIXFR && (xfrResponse.RCODE == DnsResponseCode.NotImplemented))
+                    if (doIXFR && ((xfrResponse.RCODE == DnsResponseCode.NotImplemented) || (xfrResponse.RCODE == DnsResponseCode.Refused)))
                     {
                         doIXFR = false;
                         continue;
@@ -617,7 +617,17 @@ namespace DnsServerCore.Dns.Zones
         public override AuthZoneUpdate Update
         {
             get { return _update; }
-            set { throw new InvalidOperationException(); }
+            set
+            {
+                switch (value)
+                {
+                    case AuthZoneUpdate.AllowOnlyZoneNameServers:
+                    case AuthZoneUpdate.AllowBothZoneNameServersAndSpecifiedIpAddresses:
+                        throw new ArgumentException("The Dynamic Updates option is invalid for Secondary zones: " + value.ToString(), nameof(Update));
+                }
+
+                _update = value;
+            }
         }
 
         public DateTime Expiry
