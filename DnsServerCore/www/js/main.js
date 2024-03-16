@@ -70,9 +70,11 @@ function showPageMain() {
     $("#txtDnsClientDomain").val("");
     $("#optDnsClientType").val("A");
     $("#optDnsClientProtocol").val("UDP");
+    $("#txtDnsClientEDnsClientSubnet").val("");
+    $("#chkDnsClientDnssecValidation").prop("checked", false);
     $("#divDnsClientLoader").hide();
-    $("#divDnsClientOutput").text("");
-    $("#preDnsClientOutput").hide();
+    $("#preDnsClientFinalResponse").text("");
+    $("#divDnsClientOutputAccordion").hide();
 
     $("#divLogViewer").hide();
     $("#divQueryLogsTable").hide();
@@ -256,6 +258,17 @@ $(function () {
             }
         }
     });
+
+    $("#chkEDnsClientSubnet").click(function () {
+        var eDnsClientSubnet = $("#chkEDnsClientSubnet").prop("checked");
+
+        $("#txtEDnsClientSubnetIPv4PrefixLength").prop("disabled", !eDnsClientSubnet);
+        $("#txtEDnsClientSubnetIPv6PrefixLength").prop("disabled", !eDnsClientSubnet);
+        $("#txtEDnsClientSubnetIpv4Override").prop("disabled", !eDnsClientSubnet);
+        $("#txtEDnsClientSubnetIpv6Override").prop("disabled", !eDnsClientSubnet);
+    });
+
+    $("#chkEnableBlocking").click(updateBlockingState);
 
     $("input[type=radio][name=rdProxyType]").change(function () {
         var proxyType = $('input[name=rdProxyType]:checked').val().toLowerCase();
@@ -979,8 +992,15 @@ function loadDnsSettings(responseJSON) {
     $("#chkDnssecValidation").prop("checked", responseJSON.response.dnssecValidation);
 
     $("#chkEDnsClientSubnet").prop("checked", responseJSON.response.eDnsClientSubnet);
+    $("#txtEDnsClientSubnetIPv4PrefixLength").prop("disabled", !responseJSON.response.eDnsClientSubnet);
+    $("#txtEDnsClientSubnetIPv6PrefixLength").prop("disabled", !responseJSON.response.eDnsClientSubnet);
+    $("#txtEDnsClientSubnetIpv4Override").prop("disabled", !responseJSON.response.eDnsClientSubnet);
+    $("#txtEDnsClientSubnetIpv6Override").prop("disabled", !responseJSON.response.eDnsClientSubnet);
+
     $("#txtEDnsClientSubnetIPv4PrefixLength").val(responseJSON.response.eDnsClientSubnetIPv4PrefixLength);
     $("#txtEDnsClientSubnetIPv6PrefixLength").val(responseJSON.response.eDnsClientSubnetIPv6PrefixLength);
+    $("#txtEDnsClientSubnetIpv4Override").val(responseJSON.response.eDnsClientSubnetIpv4Override);
+    $("#txtEDnsClientSubnetIpv6Override").val(responseJSON.response.eDnsClientSubnetIpv6Override);
 
     $("#txtQpmLimitRequests").val(responseJSON.response.qpmLimitRequests);
     $("#txtQpmLimitErrors").val(responseJSON.response.qpmLimitErrors);
@@ -1127,6 +1147,18 @@ function loadDnsSettings(responseJSON) {
 
     //blocking
     $("#chkEnableBlocking").prop("checked", responseJSON.response.enableBlocking);
+
+    $("#chkAllowTxtBlockingReport").prop("disabled", !responseJSON.response.enableBlocking);
+    $("#txtTemporaryDisableBlockingMinutes").prop("disabled", !responseJSON.response.enableBlocking);
+    $("#btnTemporaryDisableBlockingNow").prop("disabled", !responseJSON.response.enableBlocking);
+    $("#txtBlockingBypassList").prop("disabled", !responseJSON.response.enableBlocking);
+    $("#rdBlockingTypeAnyAddress").prop("disabled", !responseJSON.response.enableBlocking);
+    $("#rdBlockingTypeNxDomain").prop("disabled", !responseJSON.response.enableBlocking);
+    $("#rdBlockingTypeCustomAddress").prop("disabled", !responseJSON.response.enableBlocking);
+    $("#txtBlockListUrls").prop("disabled", !responseJSON.response.enableBlocking);
+    $("#optQuickBlockList").prop("disabled", !responseJSON.response.enableBlocking);
+    $("#txtBlockListUpdateIntervalHours").prop("disabled", !responseJSON.response.enableBlocking);
+
     $("#chkAllowTxtBlockingReport").prop("checked", responseJSON.response.allowTxtBlockingReport);
 
     if (responseJSON.response.temporaryDisableBlockingTill == null)
@@ -1147,7 +1179,7 @@ function loadDnsSettings(responseJSON) {
 
         case "CustomAddress":
             $("#rdBlockingTypeCustomAddress").prop("checked", true);
-            $("#txtCustomBlockingAddresses").prop("disabled", false);
+            $("#txtCustomBlockingAddresses").prop("disabled", !responseJSON.response.enableBlocking);
             break;
 
         case "AnyAddress":
@@ -1165,7 +1197,7 @@ function loadDnsSettings(responseJSON) {
     }
     else {
         $("#txtBlockListUrls").val(getArrayAsString(blockListUrls));
-        $("#btnUpdateBlockListsNow").prop("disabled", false);
+        $("#btnUpdateBlockListsNow").prop("disabled", !responseJSON.response.enableBlocking);
     }
 
     $("#optQuickBlockList").val("blank");
@@ -1349,6 +1381,9 @@ function saveDnsSettings() {
         $("#txtEDnsClientSubnetIPv6PrefixLength").focus();
         return;
     }
+
+    var eDnsClientSubnetIpv4Override = $("#txtEDnsClientSubnetIpv4Override").val();
+    var eDnsClientSubnetIpv6Override = $("#txtEDnsClientSubnetIpv6Override").val();
 
     var qpmLimitRequests = $("#txtQpmLimitRequests").val();
     if ((qpmLimitRequests == null) || (qpmLimitRequests === "")) {
@@ -1735,7 +1770,7 @@ function saveDnsSettings() {
         method: "POST",
         data: "token=" + sessionData.token + "&dnsServerDomain=" + dnsServerDomain + "&dnsServerLocalEndPoints=" + encodeURIComponent(dnsServerLocalEndPoints) + "&dnsServerIPv4SourceAddresses=" + encodeURIComponent(dnsServerIPv4SourceAddresses) + "&dnsServerIPv6SourceAddresses=" + encodeURIComponent(dnsServerIPv6SourceAddresses)
             + "&defaultRecordTtl=" + defaultRecordTtl + "&useSoaSerialDateScheme=" + useSoaSerialDateScheme + "&zoneTransferAllowedNetworks=" + encodeURIComponent(zoneTransferAllowedNetworks) + "&notifyAllowedNetworks=" + encodeURIComponent(notifyAllowedNetworks) + "&dnsAppsEnableAutomaticUpdate=" + dnsAppsEnableAutomaticUpdate + "&preferIPv6=" + preferIPv6 + "&udpPayloadSize=" + udpPayloadSize + "&dnssecValidation=" + dnssecValidation
-            + "&eDnsClientSubnet=" + eDnsClientSubnet + "&eDnsClientSubnetIPv4PrefixLength=" + eDnsClientSubnetIPv4PrefixLength + "&eDnsClientSubnetIPv6PrefixLength=" + eDnsClientSubnetIPv6PrefixLength
+            + "&eDnsClientSubnet=" + eDnsClientSubnet + "&eDnsClientSubnetIPv4PrefixLength=" + eDnsClientSubnetIPv4PrefixLength + "&eDnsClientSubnetIPv6PrefixLength=" + eDnsClientSubnetIPv6PrefixLength + "&eDnsClientSubnetIpv4Override=" + encodeURIComponent(eDnsClientSubnetIpv4Override) + "&eDnsClientSubnetIpv6Override=" + encodeURIComponent(eDnsClientSubnetIpv6Override)
             + "&qpmLimitRequests=" + qpmLimitRequests + "&qpmLimitErrors=" + qpmLimitErrors + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitIPv4PrefixLength=" + qpmLimitIPv4PrefixLength + "&qpmLimitIPv6PrefixLength=" + qpmLimitIPv6PrefixLength + "&qpmLimitBypassList=" + encodeURIComponent(qpmLimitBypassList)
             + "&clientTimeout=" + clientTimeout + "&tcpSendTimeout=" + tcpSendTimeout + "&tcpReceiveTimeout=" + tcpReceiveTimeout + "&quicIdleTimeout=" + quicIdleTimeout + "&quicMaxInboundStreams=" + quicMaxInboundStreams + "&listenBacklog=" + listenBacklog
             + "&webServiceLocalAddresses=" + encodeURIComponent(webServiceLocalAddresses) + "&webServiceHttpPort=" + webServiceHttpPort + "&webServiceEnableTls=" + webServiceEnableTls + "&webServiceEnableHttp3=" + webServiceEnableHttp3 + "&webServiceHttpToTlsRedirect=" + webServiceHttpToTlsRedirect + "&webServiceUseSelfSignedTlsCertificate=" + webServiceUseSelfSignedTlsCertificate + "&webServiceTlsPort=" + webServiceTlsPort + "&webServiceTlsCertificatePath=" + encodeURIComponent(webServiceTlsCertificatePath) + "&webServiceTlsCertificatePassword=" + encodeURIComponent(webServiceTlsCertificatePassword)
@@ -1878,17 +1913,20 @@ function temporaryDisableBlockingNow() {
     if (!confirm("Are you sure to temporarily disable blocking for " + minutes + " minute(s)?"))
         return;
 
-    var btn = $("#btnTemporaryDisableBlockingNow").button('loading');
+    var btn = $("#btnTemporaryDisableBlockingNow").button("loading");
 
     HTTPRequest({
         url: "/api/settings/temporaryDisableBlocking?token=" + sessionData.token + "&minutes=" + minutes,
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
 
             $("#chkEnableBlocking").prop("checked", false);
             $("#lblTemporaryDisableBlockingTill").text(moment(responseJSON.response.temporaryDisableBlockingTill).local().format("YYYY-MM-DD HH:mm:ss"));
+            updateBlockingState();
 
             showAlert("success", "Blocking Disabled!", "Blocking was successfully disabled temporarily for " + htmlEncode(minutes) + " minute(s).");
+
+            setTimeout(updateBlockingState, 500);
         },
         error: function () {
             btn.button('reset');
@@ -1898,6 +1936,23 @@ function temporaryDisableBlockingNow() {
             showPageLogin();
         }
     });
+}
+
+function updateBlockingState() {
+    var enableBlocking = $("#chkEnableBlocking").prop("checked");
+
+    $("#chkAllowTxtBlockingReport").prop("disabled", !enableBlocking);
+    $("#txtTemporaryDisableBlockingMinutes").prop("disabled", !enableBlocking);
+    $("#btnTemporaryDisableBlockingNow").prop("disabled", !enableBlocking);
+    $("#txtBlockingBypassList").prop("disabled", !enableBlocking);
+    $("#rdBlockingTypeAnyAddress").prop("disabled", !enableBlocking);
+    $("#rdBlockingTypeNxDomain").prop("disabled", !enableBlocking);
+    $("#rdBlockingTypeCustomAddress").prop("disabled", !enableBlocking);
+    $("#txtCustomBlockingAddresses").prop("disabled", !enableBlocking || !$("#rdBlockingTypeCustomAddress").prop("checked"));
+    $("#txtBlockListUrls").prop("disabled", !enableBlocking);
+    $("#optQuickBlockList").prop("disabled", !enableBlocking);
+    $("#txtBlockListUpdateIntervalHours").prop("disabled", !enableBlocking);
+    $("#btnUpdateBlockListsNow").prop("disabled", !enableBlocking || ($("#txtBlockListUrls").val() == ""));
 }
 
 function updateChart(chart, data) {
@@ -2426,6 +2481,7 @@ function resolveQuery(importRecords) {
     var type = $("#optDnsClientType").val();
     var protocol = $("#optDnsClientProtocol").val();
     var dnssecValidation = $("#chkDnsClientDnssecValidation").prop("checked");
+    var ednsClientSubnet = $("#txtDnsClientEDnsClientSubnet").val();
 
     {
         var i = server.indexOf("{");
@@ -2471,25 +2527,44 @@ function resolveQuery(importRecords) {
             return;
     }
 
-    var btn = $(importRecords ? "#btnDnsClientImport" : "#btnDnsClientResolve").button('loading');
+    var btn = $(importRecords ? "#btnDnsClientImport" : "#btnDnsClientResolve").button("loading");
     var btnOther = $(importRecords ? "#btnDnsClientResolve" : "#btnDnsClientImport").prop("disabled", true);
 
     var divDnsClientLoader = $("#divDnsClientLoader");
-    var preDnsClientOutput = $("#preDnsClientOutput");
+    var divDnsClientOutputAccordion = $("#divDnsClientOutputAccordion");
 
-    preDnsClientOutput.hide();
+    divDnsClientOutputAccordion.hide();
     divDnsClientLoader.show();
 
     HTTPRequest({
-        url: "/api/dnsClient/resolve?token=" + sessionData.token + "&server=" + encodeURIComponent(server) + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&protocol=" + protocol + "&dnssec=" + dnssecValidation + (importRecords ? "&import=true" : ""),
+        url: "/api/dnsClient/resolve?token=" + sessionData.token + "&server=" + encodeURIComponent(server) + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&protocol=" + protocol + "&dnssec=" + dnssecValidation + "&ednsClientSubnet=" + encodeURIComponent(ednsClientSubnet) + (importRecords ? "&import=true" : ""),
         success: function (responseJSON) {
-            preDnsClientOutput.text(JSON.stringify(responseJSON.response.result, null, 2));
-
-            preDnsClientOutput.show();
             divDnsClientLoader.hide();
-
-            btn.button('reset');
+            btn.button("reset");
             btnOther.prop("disabled", false);
+
+            $("#preDnsClientFinalResponse").text(JSON.stringify(responseJSON.response.result, null, 2));
+            $("#divDnsClientFinalResponseCollapse").collapse("show");
+            $("#divDnsClientRawResponsesCollapse").collapse("hide");
+            divDnsClientOutputAccordion.show();
+
+            if ((responseJSON.response.rawResponses != null)) {
+                if (responseJSON.response.rawResponses.length == 0) {
+                    $("#divDnsClientRawResponsePanel").hide();
+                }
+                else {
+                    var rawListHtml = "";
+
+                    for (var i = 0; i < responseJSON.response.rawResponses.length; i++) {
+                        rawListHtml += "<li class=\"list-group-item\"><pre style=\"margin-top: 5px; margin-bottom: 5px;\">" + JSON.stringify(responseJSON.response.rawResponses[i], null, 2) + "</pre></li>";
+                    }
+
+                    $("#spanDnsClientRawResponsesCount").text(responseJSON.response.rawResponses.length);
+                    $("#ulDnsClientRawResponsesList").html(rawListHtml);
+                    $("#divDnsClientRawResponsesCollapse").collapse("hide");
+                    $("#divDnsClientRawResponsePanel").show();
+                }
+            }
 
             if (responseJSON.response.warningMessage != null) {
                 showAlert("warning", "Warning!", responseJSON.response.warningMessage);
@@ -2534,6 +2609,8 @@ function queryDnsServer(domain, type) {
     $("#txtDnsClientDomain").val(domain);
     $("#optDnsClientType").val(type);
     $("#optDnsClientProtocol").val("UDP");
+    $("#txtDnsClientEDnsClientSubnet").val("");
+    $("#chkDnsClientDnssecValidation").prop("checked", false);
 
     $("#mainPanelTabListDashboard").removeClass("active");
     $("#mainPanelTabPaneDashboard").removeClass("active");
