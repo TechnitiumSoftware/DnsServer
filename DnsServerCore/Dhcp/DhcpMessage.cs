@@ -81,6 +81,7 @@ namespace DnsServerCore.Dhcp
         DhcpMessageTypeOption _dhcpMessageType;
         VendorClassIdentifierOption _vendorClassIdentifier;
         ClientIdentifierOption _clientIdentifier;
+        ClientIdentifierOption _clientHardwareIdentifier;
         HostNameOption _hostName;
         ClientFullyQualifiedDomainNameOption _clientFullyQualifiedDomainName;
         ParameterRequestListOption _parameterRequestList;
@@ -269,9 +270,6 @@ namespace DnsServerCore.Dhcp
                     option.ParseOptionValue();
             }
 
-            if (_clientIdentifier == null)
-                _clientIdentifier = new ClientIdentifierOption((byte)_htype, _clientHardwareAddress);
-
             if (_maximumDhcpMessageSize != null)
                 _maximumDhcpMessageSize = new MaximumDhcpMessageSizeOption(576);
         }
@@ -398,6 +396,19 @@ namespace DnsServerCore.Dhcp
                 option.WriteTo(s);
         }
 
+        public ClientIdentifierOption GetClientIdentifier(bool ignoreClientIdentifierOption)
+        {
+            if (ignoreClientIdentifierOption || (_clientIdentifier is null))
+            {
+                if (_clientHardwareIdentifier is null)
+                    _clientHardwareIdentifier = new ClientIdentifierOption((byte)_htype, _clientHardwareAddress);
+
+                return _clientHardwareIdentifier;
+            }
+
+            return _clientIdentifier;
+        }
+
         public string GetClientFullIdentifier()
         {
             string hardwareAddress = BitConverter.ToString(_clientHardwareAddress);
@@ -465,9 +476,6 @@ namespace DnsServerCore.Dhcp
 
         public VendorClassIdentifierOption VendorClassIdentifier
         { get { return _vendorClassIdentifier; } }
-
-        public ClientIdentifierOption ClientIdentifier
-        { get { return _clientIdentifier; } }
 
         public HostNameOption HostName
         { get { return _hostName; } }
