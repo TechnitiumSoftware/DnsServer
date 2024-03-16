@@ -63,7 +63,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         #region protected
 
-        protected override void CacheRecords(IReadOnlyList<DnsResourceRecord> resourceRecords)
+        protected override void CacheRecords(IReadOnlyList<DnsResourceRecord> resourceRecords, NetworkAddress eDnsClientSubnet, DnsDatagramMetadata responseMetadata)
         {
             List<DnsResourceRecord> dnameRecords = null;
 
@@ -73,35 +73,32 @@ namespace DnsServerCore.Dns.ZoneManagers
                 IReadOnlyList<DnsResourceRecord> glueRecords = GetGlueRecordsFrom(resourceRecord);
                 IReadOnlyList<DnsResourceRecord> rrsigRecords = GetRRSIGRecordsFrom(resourceRecord);
                 IReadOnlyList<DnsResourceRecord> nsecRecords = GetNSECRecordsFrom(resourceRecord);
-                NetworkAddress eDnsClientSubnet = GetEDnsClientSubnetFrom(resourceRecord);
 
-                if ((glueRecords is not null) || (rrsigRecords is not null) || (nsecRecords is not null) || (eDnsClientSubnet is not null))
+                CacheRecordInfo rrInfo = resourceRecord.GetCacheRecordInfo();
+
+                rrInfo.GlueRecords = glueRecords;
+                rrInfo.RRSIGRecords = rrsigRecords;
+                rrInfo.NSECRecords = nsecRecords;
+                rrInfo.EDnsClientSubnet = eDnsClientSubnet;
+                rrInfo.ResponseMetadata = responseMetadata;
+
+                if (glueRecords is not null)
                 {
-                    CacheRecordInfo rrInfo = resourceRecord.GetCacheRecordInfo();
-
-                    rrInfo.GlueRecords = glueRecords;
-                    rrInfo.RRSIGRecords = rrsigRecords;
-                    rrInfo.NSECRecords = nsecRecords;
-                    rrInfo.EDnsClientSubnet = eDnsClientSubnet;
-
-                    if (glueRecords is not null)
+                    foreach (DnsResourceRecord glueRecord in glueRecords)
                     {
-                        foreach (DnsResourceRecord glueRecord in glueRecords)
-                        {
-                            IReadOnlyList<DnsResourceRecord> glueRRSIGRecords = GetRRSIGRecordsFrom(glueRecord);
-                            if (glueRRSIGRecords is not null)
-                                glueRecord.GetCacheRecordInfo().RRSIGRecords = glueRRSIGRecords;
-                        }
+                        IReadOnlyList<DnsResourceRecord> glueRRSIGRecords = GetRRSIGRecordsFrom(glueRecord);
+                        if (glueRRSIGRecords is not null)
+                            glueRecord.GetCacheRecordInfo().RRSIGRecords = glueRRSIGRecords;
                     }
+                }
 
-                    if (nsecRecords is not null)
+                if (nsecRecords is not null)
+                {
+                    foreach (DnsResourceRecord nsecRecord in nsecRecords)
                     {
-                        foreach (DnsResourceRecord nsecRecord in nsecRecords)
-                        {
-                            IReadOnlyList<DnsResourceRecord> nsecRRSIGRecords = GetRRSIGRecordsFrom(nsecRecord);
-                            if (nsecRRSIGRecords is not null)
-                                nsecRecord.GetCacheRecordInfo().RRSIGRecords = nsecRRSIGRecords;
-                        }
+                        IReadOnlyList<DnsResourceRecord> nsecRRSIGRecords = GetRRSIGRecordsFrom(nsecRecord);
+                        if (nsecRRSIGRecords is not null)
+                            nsecRecord.GetCacheRecordInfo().RRSIGRecords = nsecRRSIGRecords;
                     }
                 }
 
@@ -174,9 +171,9 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         #region private
 
-        private static IReadOnlyList<DnsResourceRecord> AddDSRecordsTo(CacheZone delegation, bool serveStale, IReadOnlyList<DnsResourceRecord> nsRecords, NetworkAddress eDnsClientSubnet, bool conditionalForwardingClientSubnet)
+        private static IReadOnlyList<DnsResourceRecord> AddDSRecordsTo(CacheZone delegation, bool serveStale, IReadOnlyList<DnsResourceRecord> nsRecords, NetworkAddress eDnsClientSubnet, bool advancedForwardingClientSubnet)
         {
-            IReadOnlyList<DnsResourceRecord> records = delegation.QueryRecords(DnsResourceRecordType.DS, serveStale, true, eDnsClientSubnet, conditionalForwardingClientSubnet);
+            IReadOnlyList<DnsResourceRecord> records = delegation.QueryRecords(DnsResourceRecordType.DS, serveStale, true, eDnsClientSubnet, advancedForwardingClientSubnet);
             if ((records.Count > 0) && (records[0].Type == DnsResourceRecordType.DS))
             {
                 List<DnsResourceRecord> newNSRecords = new List<DnsResourceRecord>(nsRecords.Count + records.Count);
@@ -210,6 +207,9 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             foreach (DnsResourceRecord record in answer)
             {
+                if (record.Type == DnsResourceRecordType.RRSIG)
+                    continue; //skip RRSIG to avoid duplicates
+
                 newAnswerList.Add(record);
 
                 CacheRecordInfo rrInfo = record.GetCacheRecordInfo();
@@ -248,7 +248,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             newAuthority = newAuthorityList;
         }
 
-        private void ResolveCNAME(DnsQuestionRecord question, DnsResourceRecord lastCNAME, bool serveStale, NetworkAddress eDnsClientSubnet, bool conditionalForwardingClientSubnet, List<DnsResourceRecord> answerRecords)
+        private void ResolveCNAME(DnsQuestionRecord question, DnsResourceRecord lastCNAME, bool serveStale, NetworkAddress eDnsClientSubnet, bool advancedForwardingClientSubnet, List<DnsResourceRecord> answerRecords)
         {
             int queryCount = 0;
 
@@ -261,7 +261,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 if (!_root.TryGet(cnameDomain, out CacheZone cacheZone))
                     break;
 
-                IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(question.Type, serveStale, true, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(question.Type, serveStale, true, eDnsClientSubnet, advancedForwardingClientSubnet);
                 if (records.Count < 1)
                     break;
 
@@ -288,7 +288,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             while (++queryCount < DnsServer.MAX_CNAME_HOPS);
         }
 
-        private bool DoDNAMESubstitution(DnsQuestionRecord question, IReadOnlyList<DnsResourceRecord> answer, bool serveStale, NetworkAddress eDnsClientSubnet, bool conditionalForwardingClientSubnet, out IReadOnlyList<DnsResourceRecord> newAnswer)
+        private bool DoDNAMESubstitution(DnsQuestionRecord question, IReadOnlyList<DnsResourceRecord> answer, bool serveStale, NetworkAddress eDnsClientSubnet, bool advancedForwardingClientSubnet, out IReadOnlyList<DnsResourceRecord> newAnswer)
         {
             DnsResourceRecord dnameRR = answer[0];
 
@@ -304,7 +304,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     cnameRR
                 };
 
-                ResolveCNAME(question, cnameRR, serveStale, eDnsClientSubnet, conditionalForwardingClientSubnet, list);
+                ResolveCNAME(question, cnameRR, serveStale, eDnsClientSubnet, advancedForwardingClientSubnet, list);
 
                 newAnswer = list;
                 return true;
@@ -316,7 +316,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        private List<DnsResourceRecord> GetAdditionalRecords(IReadOnlyList<DnsResourceRecord> refRecords, bool serveStale, bool dnssecOk, NetworkAddress eDnsClientSubnet, bool conditionalForwardingClientSubnet)
+        private List<DnsResourceRecord> GetAdditionalRecords(IReadOnlyList<DnsResourceRecord> refRecords, bool serveStale, bool dnssecOk, NetworkAddress eDnsClientSubnet, bool advancedForwardingClientSubnet)
         {
             List<DnsResourceRecord> additionalRecords = new List<DnsResourceRecord>();
 
@@ -326,19 +326,19 @@ namespace DnsServerCore.Dns.ZoneManagers
                 {
                     case DnsResourceRecordType.NS:
                         if (refRecord.RDATA is DnsNSRecordData ns)
-                            ResolveAdditionalRecords(refRecord, ns.NameServer, serveStale, dnssecOk, eDnsClientSubnet, conditionalForwardingClientSubnet, additionalRecords);
+                            ResolveAdditionalRecords(refRecord, ns.NameServer, serveStale, dnssecOk, eDnsClientSubnet, advancedForwardingClientSubnet, additionalRecords);
 
                         break;
 
                     case DnsResourceRecordType.MX:
                         if (refRecord.RDATA is DnsMXRecordData mx)
-                            ResolveAdditionalRecords(refRecord, mx.Exchange, serveStale, dnssecOk, eDnsClientSubnet, conditionalForwardingClientSubnet, additionalRecords);
+                            ResolveAdditionalRecords(refRecord, mx.Exchange, serveStale, dnssecOk, eDnsClientSubnet, advancedForwardingClientSubnet, additionalRecords);
 
                         break;
 
                     case DnsResourceRecordType.SRV:
                         if (refRecord.RDATA is DnsSRVRecordData srv)
-                            ResolveAdditionalRecords(refRecord, srv.Target, serveStale, dnssecOk, eDnsClientSubnet, conditionalForwardingClientSubnet, additionalRecords);
+                            ResolveAdditionalRecords(refRecord, srv.Target, serveStale, dnssecOk, eDnsClientSubnet, advancedForwardingClientSubnet, additionalRecords);
 
                         break;
 
@@ -361,7 +361,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                                     targetName = refRecord.Name;
                             }
 
-                            ResolveAdditionalRecords(refRecord, targetName, serveStale, dnssecOk, eDnsClientSubnet, conditionalForwardingClientSubnet, additionalRecords);
+                            ResolveAdditionalRecords(refRecord, targetName, serveStale, dnssecOk, eDnsClientSubnet, advancedForwardingClientSubnet, additionalRecords);
                         }
 
                         break;
@@ -371,7 +371,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             return additionalRecords;
         }
 
-        private void ResolveAdditionalRecords(DnsResourceRecord refRecord, string domain, bool serveStale, bool dnssecOk, NetworkAddress eDnsClientSubnet, bool conditionalForwardingClientSubnet, List<DnsResourceRecord> additionalRecords)
+        private void ResolveAdditionalRecords(DnsResourceRecord refRecord, string domain, bool serveStale, bool dnssecOk, NetworkAddress eDnsClientSubnet, bool advancedForwardingClientSubnet, List<DnsResourceRecord> additionalRecords)
         {
             IReadOnlyList<DnsResourceRecord> glueRecords = refRecord.GetCacheRecordInfo().GlueRecords;
             if (glueRecords is not null)
@@ -405,7 +405,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 if (((refRecord.Type == DnsResourceRecordType.SVCB) || (refRecord.Type == DnsResourceRecordType.HTTPS)) && ((refRecord.RDATA as DnsSVCBRecordData).SvcPriority == 0))
                 {
                     //resolve SVCB/HTTPS for Alias mode refRecord
-                    IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(refRecord.Type, serveStale, true, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                    IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(refRecord.Type, serveStale, true, eDnsClientSubnet, advancedForwardingClientSubnet);
                     if ((records.Count > 0) && (records[0].Type == refRecord.Type) && (records[0].RDATA is DnsSVCBRecordData svcb))
                     {
                         additionalRecords.AddRange(records);
@@ -473,14 +473,14 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                 if (!hasA)
                 {
-                    IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(DnsResourceRecordType.A, serveStale, true, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                    IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(DnsResourceRecordType.A, serveStale, true, eDnsClientSubnet, advancedForwardingClientSubnet);
                     if ((records.Count > 0) && (records[0].Type == DnsResourceRecordType.A))
                         additionalRecords.AddRange(records);
                 }
 
                 if (!hasAAAA)
                 {
-                    IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(DnsResourceRecordType.AAAA, serveStale, true, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                    IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(DnsResourceRecordType.AAAA, serveStale, true, eDnsClientSubnet, advancedForwardingClientSubnet);
                     if ((records.Count > 0) && (records[0].Type == DnsResourceRecordType.AAAA))
                         additionalRecords.AddRange(records);
                 }
@@ -640,13 +640,13 @@ namespace DnsServerCore.Dns.ZoneManagers
             string domain = request.Question[0].Name;
 
             NetworkAddress eDnsClientSubnet = null;
-            bool conditionalForwardingClientSubnet = false;
+            bool advancedForwardingClientSubnet = false;
             {
                 EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
                 if (requestECS is not null)
                 {
                     eDnsClientSubnet = new NetworkAddress(requestECS.Address, requestECS.SourcePrefixLength);
-                    conditionalForwardingClientSubnet = requestECS.ConditionalForwardingClientSubnet;
+                    advancedForwardingClientSubnet = requestECS.AdvancedForwardingClientSubnet;
                 }
             }
 
@@ -657,23 +657,23 @@ namespace DnsServerCore.Dns.ZoneManagers
                     return null;
 
                 //return closest name servers in delegation
-                IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS, false, true, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS, false, true, eDnsClientSubnet, advancedForwardingClientSubnet);
                 if ((closestAuthority.Count > 0) && (closestAuthority[0].Type == DnsResourceRecordType.NS) && (closestAuthority[0].Name.Length > 0)) //dont trust root name servers from cache!
                 {
                     if (request.DnssecOk)
                     {
                         if (closestAuthority[0].DnssecStatus != DnssecStatus.Disabled) //dont return records with disabled status
                         {
-                            closestAuthority = AddDSRecordsTo(delegation, false, closestAuthority, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                            closestAuthority = AddDSRecordsTo(delegation, false, closestAuthority, eDnsClientSubnet, advancedForwardingClientSubnet);
 
-                            IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, false, true, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                            IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, false, true, eDnsClientSubnet, advancedForwardingClientSubnet);
 
                             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional);
                         }
                     }
                     else
                     {
-                        IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, false, false, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                        IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, false, false, eDnsClientSubnet, advancedForwardingClientSubnet);
 
                         return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional);
                     }
@@ -692,13 +692,13 @@ namespace DnsServerCore.Dns.ZoneManagers
             DnsQuestionRecord question = request.Question[0];
 
             NetworkAddress eDnsClientSubnet = null;
-            bool conditionalForwardingClientSubnet = false;
+            bool advancedForwardingClientSubnet = false;
             {
                 EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
                 if (requestECS is not null)
                 {
                     eDnsClientSubnet = new NetworkAddress(requestECS.Address, requestECS.SourcePrefixLength);
-                    conditionalForwardingClientSubnet = requestECS.ConditionalForwardingClientSubnet;
+                    advancedForwardingClientSubnet = requestECS.AdvancedForwardingClientSubnet;
                 }
             }
 
@@ -721,7 +721,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (zone is not null)
             {
                 //zone found
-                IReadOnlyList<DnsResourceRecord> answer = zone.QueryRecords(question.Type, serveStaleAndResetExpiry, false, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                IReadOnlyList<DnsResourceRecord> answer = zone.QueryRecords(question.Type, serveStaleAndResetExpiry, false, eDnsClientSubnet, advancedForwardingClientSubnet);
                 if (answer.Count > 0)
                 {
                     //answer found in cache
@@ -832,7 +832,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         List<DnsResourceRecord> newAnswers = new List<DnsResourceRecord>(answer.Count + 3);
                         newAnswers.AddRange(answer);
 
-                        ResolveCNAME(question, lastRR, serveStaleAndResetExpiry, eDnsClientSubnet, conditionalForwardingClientSubnet, newAnswers);
+                        ResolveCNAME(question, lastRR, serveStaleAndResetExpiry, eDnsClientSubnet, advancedForwardingClientSubnet, newAnswers);
 
                         answer = newAnswers;
                     }
@@ -864,7 +864,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         case DnsResourceRecordType.SRV:
                         case DnsResourceRecordType.SVCB:
                         case DnsResourceRecordType.HTTPS:
-                            additional = GetAdditionalRecords(answer, serveStaleAndResetExpiry, dnssecOk, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                            additional = GetAdditionalRecords(answer, serveStaleAndResetExpiry, dnssecOk, eDnsClientSubnet, advancedForwardingClientSubnet);
                             break;
                     }
 
@@ -939,7 +939,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         }
                     }
 
-                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, dnssecOk && (answer[0].DnssecStatus == DnssecStatus.Secure), request.CheckingDisabled, DnsResponseCode.NoError, request.Question, answer, authority, additional, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, ednsFlags, options);
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, dnssecOk && (answer.Count > 0) && (answer[0].DnssecStatus == DnssecStatus.Secure), request.CheckingDisabled, DnsResponseCode.NoError, request.Question, answer, authority, additional, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, ednsFlags, options);
                 }
             }
             else
@@ -948,12 +948,12 @@ namespace DnsServerCore.Dns.ZoneManagers
                 //check for DNAME in closest zone
                 if (closest is not null)
                 {
-                    IReadOnlyList<DnsResourceRecord> answer = closest.QueryRecords(DnsResourceRecordType.DNAME, serveStaleAndResetExpiry, true, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                    IReadOnlyList<DnsResourceRecord> answer = closest.QueryRecords(DnsResourceRecordType.DNAME, serveStaleAndResetExpiry, true, eDnsClientSubnet, advancedForwardingClientSubnet);
                     if ((answer.Count > 0) && (answer[0].Type == DnsResourceRecordType.DNAME))
                     {
                         DnsResponseCode rCode;
 
-                        if (DoDNAMESubstitution(question, answer, serveStaleAndResetExpiry, eDnsClientSubnet, conditionalForwardingClientSubnet, out answer))
+                        if (DoDNAMESubstitution(question, answer, serveStaleAndResetExpiry, eDnsClientSubnet, advancedForwardingClientSubnet, out answer))
                             rCode = DnsResponseCode.NoError;
                         else
                             rCode = DnsResponseCode.YXDomain;
@@ -1000,7 +1000,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             }
                         }
 
-                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, dnssecOk && (answer[0].DnssecStatus == DnssecStatus.Secure), request.CheckingDisabled, rCode, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, ednsFlags, options);
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, dnssecOk && (answer.Count > 0) && (answer[0].DnssecStatus == DnssecStatus.Secure), request.CheckingDisabled, rCode, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, ednsFlags, options);
                     }
                 }
             }
@@ -1026,23 +1026,23 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                 while (true)
                 {
-                    IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS, serveStaleAndResetExpiry, true, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                    IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS, serveStaleAndResetExpiry, true, eDnsClientSubnet, advancedForwardingClientSubnet);
                     if ((closestAuthority.Count > 0) && (closestAuthority[0].Type == DnsResourceRecordType.NS) && (closestAuthority[0].Name.Length > 0)) //dont trust root name servers from cache!
                     {
                         if (dnssecOk)
                         {
                             if (closestAuthority[0].DnssecStatus != DnssecStatus.Disabled) //dont return records with disabled status
                             {
-                                closestAuthority = AddDSRecordsTo(delegation, serveStaleAndResetExpiry, closestAuthority, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                                closestAuthority = AddDSRecordsTo(delegation, serveStaleAndResetExpiry, closestAuthority, eDnsClientSubnet, advancedForwardingClientSubnet);
 
-                                IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, serveStaleAndResetExpiry, true, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                                IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, serveStaleAndResetExpiry, true, eDnsClientSubnet, advancedForwardingClientSubnet);
 
                                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, closestAuthority[0].DnssecStatus == DnssecStatus.Secure, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional);
                             }
                         }
                         else
                         {
-                            IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, serveStaleAndResetExpiry, false, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                            IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, serveStaleAndResetExpiry, false, eDnsClientSubnet, advancedForwardingClientSubnet);
 
                             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional);
                         }
