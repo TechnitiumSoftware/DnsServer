@@ -170,7 +170,7 @@ namespace DnsServerCore
             DnsTransportProtocol protocol = request.GetQueryOrFormEnum("protocol", DnsTransportProtocol.Udp);
             bool dnssecValidation = request.GetQueryOrForm("dnssec", bool.Parse, false);
 
-            NetworkAddress eDnsClientSubnet = request.GetQueryOrForm("ednsClientSubnet", NetworkAddress.Parse, null);
+            NetworkAddress eDnsClientSubnet = request.GetQueryOrForm("eDnsClientSubnet", NetworkAddress.Parse, null);
             if (eDnsClientSubnet is not null)
             {
                 switch (eDnsClientSubnet.AddressFamily)

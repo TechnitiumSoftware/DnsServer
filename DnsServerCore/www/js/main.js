@@ -2481,7 +2481,7 @@ function resolveQuery(importRecords) {
     var type = $("#optDnsClientType").val();
     var protocol = $("#optDnsClientProtocol").val();
     var dnssecValidation = $("#chkDnsClientDnssecValidation").prop("checked");
-    var ednsClientSubnet = $("#txtDnsClientEDnsClientSubnet").val();
+    var eDnsClientSubnet = $("#txtDnsClientEDnsClientSubnet").val();
 
     {
         var i = server.indexOf("{");
@@ -2537,7 +2537,7 @@ function resolveQuery(importRecords) {
     divDnsClientLoader.show();
 
     HTTPRequest({
-        url: "/api/dnsClient/resolve?token=" + sessionData.token + "&server=" + encodeURIComponent(server) + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&protocol=" + protocol + "&dnssec=" + dnssecValidation + "&ednsClientSubnet=" + encodeURIComponent(ednsClientSubnet) + (importRecords ? "&import=true" : ""),
+        url: "/api/dnsClient/resolve?token=" + sessionData.token + "&server=" + encodeURIComponent(server) + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&protocol=" + protocol + "&dnssec=" + dnssecValidation + "&eDnsClientSubnet=" + encodeURIComponent(eDnsClientSubnet) + (importRecords ? "&import=true" : ""),
         success: function (responseJSON) {
             divDnsClientLoader.hide();
             btn.button("reset");
