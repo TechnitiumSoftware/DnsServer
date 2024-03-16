@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -31,6 +31,8 @@ namespace GeoContinent
         static MaxMind _maxMind;
 
         readonly DatabaseReader _mmCountryReader;
+        readonly DatabaseReader _mmIspReader;
+        readonly DatabaseReader _mmAsnReader;
 
         #endregion
 
@@ -38,15 +40,26 @@ namespace GeoContinent
 
         private MaxMind(IDnsServer dnsServer)
         {
-            string mmFile = Path.Combine(dnsServer.ApplicationFolder, "GeoIP2-Country.mmdb");
+            string mmCountryFile = Path.Combine(dnsServer.ApplicationFolder, "GeoIP2-Country.mmdb");
 
-            if (!File.Exists(mmFile))
-                mmFile = Path.Combine(dnsServer.ApplicationFolder, "GeoLite2-Country.mmdb");
+            if (!File.Exists(mmCountryFile))
+                mmCountryFile = Path.Combine(dnsServer.ApplicationFolder, "GeoLite2-Country.mmdb");
 
-            if (!File.Exists(mmFile))
+            if (!File.Exists(mmCountryFile))
                 throw new FileNotFoundException("MaxMind Country file is missing!");
 
-            _mmCountryReader = new DatabaseReader(mmFile);
+            _mmCountryReader = new DatabaseReader(mmCountryFile);
+
+            string mmIspFile = Path.Combine(dnsServer.ApplicationFolder, "GeoIP2-ISP.mmdb");
+            if (File.Exists(mmIspFile))
+            {
+                _mmIspReader = new DatabaseReader(mmIspFile);
+                return;
+            }
+
+            string mmAsnFile = Path.Combine(dnsServer.ApplicationFolder, "GeoLite2-ASN.mmdb");
+            if (File.Exists(mmAsnFile))
+                _mmAsnReader = new DatabaseReader(mmAsnFile);
         }
 
         #endregion
@@ -62,8 +75,9 @@ namespace GeoContinent
 
             if (disposing)
             {
-                if (_mmCountryReader is not null)
-                    _mmCountryReader.Dispose();
+                _mmCountryReader?.Dispose();
+                _mmIspReader?.Dispose();
+                _mmAsnReader?.Dispose();
             }
 
             _disposed = true;
@@ -91,8 +105,14 @@ namespace GeoContinent
 
         #region properties
 
-        public DatabaseReader DatabaseReader
+        public DatabaseReader CountryReader
         { get { return _mmCountryReader; } }
+
+        public DatabaseReader IspReader
+        { get { return _mmIspReader; } }
+
+        public DatabaseReader AsnReader
+        { get { return _mmAsnReader; } }
 
         #endregion
     }
