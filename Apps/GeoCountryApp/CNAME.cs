@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -85,13 +85,19 @@ namespace GeoCountry
             JsonElement jsonAppRecordData = jsonDocument.RootElement;
             JsonElement jsonCountry = default;
 
-            bool ecsUsed = false;
+            byte scopePrefixLength = 0;
             EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
             if (requestECS is not null)
             {
-                if (_maxMind.DatabaseReader.TryCountry(requestECS.Address, out CountryResponse csResponse))
+                if ((_maxMind.IspReader is not null) && _maxMind.IspReader.TryIsp(requestECS.Address, out IspResponse csIsp) && (csIsp.Network is not null))
+                    scopePrefixLength = (byte)csIsp.Network.PrefixLength;
+                else if ((_maxMind.AsnReader is not null) && _maxMind.AsnReader.TryAsn(requestECS.Address, out AsnResponse csAsn) && (csAsn.Network is not null))
+                    scopePrefixLength = (byte)csAsn.Network.PrefixLength;
+                else
+                    scopePrefixLength = requestECS.SourcePrefixLength;
+
+                if (_maxMind.CountryReader.TryCountry(requestECS.Address, out CountryResponse csResponse))
                 {
-                    ecsUsed = true;
                     if (!jsonAppRecordData.TryGetProperty(csResponse.Country.IsoCode, out jsonCountry))
                         jsonAppRecordData.TryGetProperty("default", out jsonCountry);
                 }
@@ -99,7 +105,7 @@ namespace GeoCountry
 
             if (jsonCountry.ValueKind == JsonValueKind.Undefined)
             {
-                if (_maxMind.DatabaseReader.TryCountry(remoteEP.Address, out CountryResponse response))
+                if (_maxMind.CountryReader.TryCountry(remoteEP.Address, out CountryResponse response))
                 {
                     if (!jsonAppRecordData.TryGetProperty(response.Country.IsoCode, out jsonCountry))
                         jsonAppRecordData.TryGetProperty("default", out jsonCountry);
@@ -124,19 +130,10 @@ namespace GeoCountry
             else
                 answers = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, DnsClass.IN, appRecordTtl, new DnsCNAMERecordData(cname)) };
 
-            EDnsOption[] options;
+            EDnsOption[] options = null;
 
-            if (requestECS is null)
-            {
-                options = null;
-            }
-            else
-            {
-                if (ecsUsed)
-                    options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, requestECS.SourcePrefixLength, requestECS.Address);
-                else
-                    options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, 0, requestECS.Address);
-            }
+            if (requestECS is not null)
+                options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, scopePrefixLength, requestECS.Address);
 
             return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers, null, null, _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, options));
         }
