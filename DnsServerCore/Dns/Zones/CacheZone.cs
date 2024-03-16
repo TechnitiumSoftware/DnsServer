@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -373,7 +373,7 @@ namespace DnsServerCore.Dns.Zones
             return count;
         }
 
-        public IReadOnlyList<DnsResourceRecord> QueryRecords(DnsResourceRecordType type, bool serveStale, bool skipSpecialCacheRecord, NetworkAddress eDnsClientSubnet, bool conditionalForwardingClientSubnet)
+        public IReadOnlyList<DnsResourceRecord> QueryRecords(DnsResourceRecordType type, bool serveStale, bool skipSpecialCacheRecord, NetworkAddress eDnsClientSubnet, bool advancedForwardingClientSubnet)
         {
             ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entries;
 
@@ -396,7 +396,7 @@ namespace DnsServerCore.Dns.Zones
                     if (cacheSubnet.PrefixLength > eDnsClientSubnet.PrefixLength)
                         continue;
 
-                    if (cacheSubnet.Equals(eDnsClientSubnet) || (!conditionalForwardingClientSubnet && cacheSubnet.Contains(eDnsClientSubnet.Address)))
+                    if (cacheSubnet.Equals(eDnsClientSubnet) || (!advancedForwardingClientSubnet && cacheSubnet.Contains(eDnsClientSubnet.Address)))
                     {
                         if ((selectedNetwork is null) || (cacheSubnet.PrefixLength > selectedNetwork.PrefixLength))
                         {
