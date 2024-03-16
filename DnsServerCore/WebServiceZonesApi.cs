@@ -749,6 +749,20 @@ namespace DnsServerCore
                 if (eDnsClientSubnet is not null)
                     jsonWriter.WriteString("eDnsClientSubnet", eDnsClientSubnet.ToString());
 
+                DnsDatagramMetadata responseMetadata = cacheRecordInfo.ResponseMetadata;
+                if (responseMetadata is not null)
+                {
+                    jsonWriter.WritePropertyName("responseMetadata");
+                    jsonWriter.WriteStartObject();
+
+                    jsonWriter.WriteString("nameServer", responseMetadata.NameServer?.ToString());
+                    jsonWriter.WriteString("protocol", (responseMetadata.NameServer is null ? DnsTransportProtocol.Udp : responseMetadata.NameServer.Protocol).ToString());
+                    jsonWriter.WriteString("datagramSize", responseMetadata.DatagramSize + " bytes");
+                    jsonWriter.WriteString("roundTripTime", Math.Round(responseMetadata.RoundTripTime, 2) + " ms");
+
+                    jsonWriter.WriteEndObject();
+                }
+
                 jsonWriter.WriteString("lastUsedOn", cacheRecordInfo.LastUsedOn);
             }
 
@@ -2027,6 +2041,7 @@ namespace DnsServerCore
             switch (zoneInfo.Type)
             {
                 case AuthZoneType.Primary:
+                case AuthZoneType.Secondary:
                 case AuthZoneType.Forwarder:
                     jsonWriter.WriteString("update", zoneInfo.Update.ToString());
 
@@ -2042,7 +2057,13 @@ namespace DnsServerCore
 
                         jsonWriter.WriteEndArray();
                     }
+                    break;
+            }
 
+            switch (zoneInfo.Type)
+            {
+                case AuthZoneType.Primary:
+                case AuthZoneType.Forwarder:
                     jsonWriter.WritePropertyName("updateSecurityPolicies");
                     {
                         jsonWriter.WriteStartArray();
@@ -2172,6 +2193,7 @@ namespace DnsServerCore
             switch (zoneInfo.Type)
             {
                 case AuthZoneType.Primary:
+                case AuthZoneType.Secondary:
                 case AuthZoneType.Forwarder:
                     if (request.TryGetQueryOrFormEnum("update", out AuthZoneUpdate update))
                         zoneInfo.Update = update;
@@ -2184,7 +2206,13 @@ namespace DnsServerCore
                         else
                             zoneInfo.UpdateIpAddresses = strUpdateIpAddresses.Split(NetworkAddress.Parse, ',');
                     }
+                    break;
+            }
 
+            switch (zoneInfo.Type)
+            {
+                case AuthZoneType.Primary:
+                case AuthZoneType.Forwarder:
                     string strUpdateSecurityPolicies = request.QueryOrForm("updateSecurityPolicies");
                     if (strUpdateSecurityPolicies is not null)
                     {
@@ -3658,7 +3686,7 @@ namespace DnsServerCore
                         }
 
                         oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsForwarderRecordData(protocol, forwarder));
-                        newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsForwarderRecordData(newProtocol, newForwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword));
+                        newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, 0, new DnsForwarderRecordData(newProtocol, newForwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword));
 
                         if (disable)
                             newRecord.GetAuthRecordInfo().Disabled = true;
