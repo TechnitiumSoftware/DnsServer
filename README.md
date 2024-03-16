@@ -47,8 +47,8 @@ Be it a home network or an organization's network, having a locally running DNS 
 - QNAME minimization support in recursive resolver [RFC 9156](https://www.rfc-editor.org/rfc/rfc9156.html).
 - QNAME case randomization support for UDP transport protocol [draft-vixie-dnsext-dns0x20-00](https://datatracker.ietf.org/doc/html/draft-vixie-dnsext-dns0x20-00).
 - DNAME record [RFC 6672](https://datatracker.ietf.org/doc/html/rfc6672) support.
-- ANAME propriety record support to allow using CNAME like feature at zone apex (CNAME flattening). Supports multiple ANAME records at both zone apex and sub domains.
-- APP propriety record support that allows custom DNS Apps to directly handle DNS requests and return a custom DNS response based on any business logic.
+- ANAME proprietary record support to allow using CNAME like feature at zone apex (CNAME flattening). Supports multiple ANAME records at both zone apex and sub domains.
+- APP proprietary record support that allows custom DNS Apps to directly handle DNS requests and return a custom DNS response based on any business logic.
 - Support for features like Split Horizon and Geolocation based responses using DNS Apps feature.
 - Support for REGEX based block lists with different block lists for different client IP addresses or subnet using Advanced Blocking DNS App.
 - Primary, Secondary, Stub, and Conditional Forwarder zone support.
