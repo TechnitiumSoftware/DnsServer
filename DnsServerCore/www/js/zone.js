@@ -1078,7 +1078,7 @@ function showZoneOptionsModal(zone) {
                 $("#tabListZoneOptionsNotify").hide();
             }
 
-            if ((responseJSON.response.type == "Primary") || (responseJSON.response.type == "Forwarder")) {
+            if ((responseJSON.response.type == "Primary") || (responseJSON.response.type == "Secondary") || (responseJSON.response.type == "Forwarder")) {
                 //dynamic update
                 switch (responseJSON.response.update) {
                     case "Allow":
@@ -1114,8 +1114,9 @@ function showZoneOptionsModal(zone) {
                     $("#txtDynamicUpdateIpAddresses").val(value);
                 }
 
-                {
-                    $("#tbodyDynamicUpdateSecurityPolicy").html("");
+                $("#tbodyDynamicUpdateSecurityPolicy").html("");
+
+                if ((responseJSON.response.type == "Primary") || (responseJSON.response.type == "Forwarder")) {
                     zoneOptionsAvailableTsigKeyNames = responseJSON.response.availableTsigKeyNames;
 
                     if (responseJSON.response.updateSecurityPolicies != null) {
@@ -1124,7 +1125,7 @@ function showZoneOptionsModal(zone) {
                     }
                 }
 
-                if (responseJSON.response.type == "Forwarder") {
+                if ((responseJSON.response.type == "Secondary") || (responseJSON.response.type == "Forwarder")) {
                     $("#divDynamicUpdateAllowOnlyZoneNameServers").hide();
                     $("#divDynamicUpdateAllowBothZoneNameServersAndSpecifiedIpAddresses").hide();
                 }
@@ -1132,6 +1133,11 @@ function showZoneOptionsModal(zone) {
                     $("#divDynamicUpdateAllowOnlyZoneNameServers").show();
                     $("#divDynamicUpdateAllowBothZoneNameServersAndSpecifiedIpAddresses").show();
                 }
+
+                if (responseJSON.response.type == "Secondary")
+                    $("#divDynamicUpdateSecurityPolicy").hide();
+                else
+                    $("#divDynamicUpdateSecurityPolicy").show();
 
                 $("#tabListZoneOptionsUpdate").show();
             }
