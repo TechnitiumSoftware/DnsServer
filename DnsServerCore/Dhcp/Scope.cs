@@ -85,6 +85,7 @@ namespace DnsServerCore.Dhcp
         readonly ConcurrentDictionary<ClientIdentifierOption, Lease> _reservedLeases = new ConcurrentDictionary<ClientIdentifierOption, Lease>();
         bool _allowOnlyReservedLeases;
         bool _blockLocallyAdministeredMacAddresses;
+        bool _ignoreClientIdentifierOption;
 
         //leases
         readonly ConcurrentDictionary<ClientIdentifierOption, Lease> _leases = new ConcurrentDictionary<ClientIdentifierOption, Lease>();
@@ -138,6 +139,7 @@ namespace DnsServerCore.Dhcp
                 case 6:
                 case 7:
                 case 8:
+                case 9:
                     _name = bR.ReadShortString();
                     _enabled = bR.ReadBoolean();
 
@@ -372,6 +374,11 @@ namespace DnsServerCore.Dhcp
                         _blockLocallyAdministeredMacAddresses = bR.ReadBoolean();
                     else
                         _blockLocallyAdministeredMacAddresses = false;
+
+                    if (version >= 9)
+                        _ignoreClientIdentifierOption = bR.ReadBoolean();
+                    else
+                        _ignoreClientIdentifierOption = false;
 
                     {
                         int count = bR.ReadInt32();
@@ -910,7 +917,7 @@ namespace DnsServerCore.Dhcp
 
         internal Lease GetReservedLease(DhcpMessage request)
         {
-            return GetReservedLease(new ClientIdentifierOption((byte)request.HardwareAddressType, request.ClientHardwareAddress), request.ClientIdentifier);
+            return GetReservedLease(new ClientIdentifierOption((byte)request.HardwareAddressType, request.ClientHardwareAddress), request.GetClientIdentifier(_ignoreClientIdentifierOption));
         }
 
         private Lease GetReservedLease(ClientIdentifierOption reservedLeasesClientIdentifier, ClientIdentifierOption clientIdentifier)
@@ -936,7 +943,9 @@ namespace DnsServerCore.Dhcp
 
         internal async Task<Lease> GetOfferAsync(DhcpMessage request)
         {
-            if (_leases.TryGetValue(request.ClientIdentifier, out Lease existingLease))
+            ClientIdentifierOption clientIdentifier = request.GetClientIdentifier(_ignoreClientIdentifierOption);
+
+            if (_leases.TryGetValue(clientIdentifier, out Lease existingLease))
             {
                 //lease already exists
                 if (existingLease.Type == LeaseType.Reserved)
@@ -966,8 +975,8 @@ namespace DnsServerCore.Dhcp
             Lease reservedLease = GetReservedLease(request);
             if (reservedLease != null)
             {
-                Lease reservedOffer = new Lease(LeaseType.Reserved, request.ClientIdentifier, null, request.ClientHardwareAddress, reservedLease.Address, null, GetLeaseTime());
-                _offers[request.ClientIdentifier] = reservedOffer;
+                Lease reservedOffer = new Lease(LeaseType.Reserved, clientIdentifier, null, request.ClientHardwareAddress, reservedLease.Address, null, GetLeaseTime());
+                _offers[clientIdentifier] = reservedOffer;
                 return reservedOffer;
             }
 
@@ -991,7 +1000,7 @@ namespace DnsServerCore.Dhcp
             }
 
             Lease dummyOffer = new Lease(LeaseType.None, null, null, null, null, null, 0);
-            Lease existingOffer = _offers.GetOrAdd(request.ClientIdentifier, dummyOffer);
+            Lease existingOffer = _offers.GetOrAdd(clientIdentifier, dummyOffer);
 
             if (dummyOffer != existingOffer)
             {
@@ -1067,17 +1076,19 @@ namespace DnsServerCore.Dhcp
                 }
             }
 
-            Lease offerLease = new Lease(LeaseType.Dynamic, request.ClientIdentifier, null, request.ClientHardwareAddress, offerAddress, null, GetLeaseTime());
-            return _offers[request.ClientIdentifier] = offerLease;
+            Lease offerLease = new Lease(LeaseType.Dynamic, clientIdentifier, null, request.ClientHardwareAddress, offerAddress, null, GetLeaseTime());
+            return _offers[clientIdentifier] = offerLease;
         }
 
         internal Lease GetExistingLeaseOrOffer(DhcpMessage request)
         {
+            ClientIdentifierOption clientIdentifier = request.GetClientIdentifier(_ignoreClientIdentifierOption);
+
             //check for lease offer first since it may have a different IP address to offer
-            if (_offers.TryGetValue(request.ClientIdentifier, out Lease existingOffer))
+            if (_offers.TryGetValue(clientIdentifier, out Lease existingOffer))
                 return existingOffer;
 
-            if (_leases.TryGetValue(request.ClientIdentifier, out Lease existingLease))
+            if (_leases.TryGetValue(clientIdentifier, out Lease existingLease))
                 return existingLease;
 
             return null;
@@ -1545,7 +1556,7 @@ namespace DnsServerCore.Dhcp
         public void WriteTo(BinaryWriter bW)
         {
             bW.Write(Encoding.ASCII.GetBytes("SC"));
-            bW.Write((byte)8); //version
+            bW.Write((byte)9); //version
 
             bW.WriteShortString(_name);
             bW.Write(_enabled);
@@ -1742,6 +1753,7 @@ namespace DnsServerCore.Dhcp
 
             bW.Write(_allowOnlyReservedLeases);
             bW.Write(_blockLocallyAdministeredMacAddresses);
+            bW.Write(_ignoreClientIdentifierOption);
 
             {
                 bW.Write(_leases.Count);
@@ -2127,6 +2139,12 @@ namespace DnsServerCore.Dhcp
         {
             get { return _blockLocallyAdministeredMacAddresses; }
             set { _blockLocallyAdministeredMacAddresses = value; }
+        }
+
+        public bool IgnoreClientIdentifierOption
+        {
+            get { return _ignoreClientIdentifierOption; }
+            set { _ignoreClientIdentifierOption = value; }
         }
 
         public IReadOnlyDictionary<ClientIdentifierOption, Lease> Leases
