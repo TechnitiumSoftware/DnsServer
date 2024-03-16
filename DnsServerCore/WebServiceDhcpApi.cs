@@ -365,6 +365,7 @@ namespace DnsServerCore
 
             jsonWriter.WriteBoolean("allowOnlyReservedLeases", scope.AllowOnlyReservedLeases);
             jsonWriter.WriteBoolean("blockLocallyAdministeredMacAddresses", scope.BlockLocallyAdministeredMacAddresses);
+            jsonWriter.WriteBoolean("ignoreClientIdentifierOption", scope.IgnoreClientIdentifierOption);
         }
 
         public async Task SetDhcpScopeAsync(HttpContext context)
@@ -397,6 +398,7 @@ namespace DnsServerCore
 
                 scopeExists = false;
                 scope = new Scope(scopeName, true, IPAddress.Parse(strStartingAddress), IPAddress.Parse(strEndingAddress), IPAddress.Parse(strSubnetMask), _dnsWebService._log, _dnsWebService.DhcpServer);
+                scope.IgnoreClientIdentifierOption = true;
             }
             else
             {
@@ -637,6 +639,9 @@ namespace DnsServerCore
 
             if (request.TryGetQueryOrForm("blockLocallyAdministeredMacAddresses", bool.Parse, out bool blockLocallyAdministeredMacAddresses))
                 scope.BlockLocallyAdministeredMacAddresses = blockLocallyAdministeredMacAddresses;
+
+            if (request.TryGetQueryOrForm("ignoreClientIdentifierOption", bool.Parse, out bool ignoreClientIdentifierOption))
+                scope.IgnoreClientIdentifierOption = ignoreClientIdentifierOption;
 
             if (scopeExists)
             {
