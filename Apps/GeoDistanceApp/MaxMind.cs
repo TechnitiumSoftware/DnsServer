@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -31,6 +31,8 @@ namespace GeoDistance
         static MaxMind _maxMind;
 
         readonly DatabaseReader _mmCityReader;
+        readonly DatabaseReader _mmIspReader;
+        readonly DatabaseReader _mmAsnReader;
 
         #endregion
 
@@ -38,15 +40,26 @@ namespace GeoDistance
 
         private MaxMind(IDnsServer dnsServer)
         {
-            string mmFile = Path.Combine(dnsServer.ApplicationFolder, "GeoIP2-City.mmdb");
+            string mmCityFile = Path.Combine(dnsServer.ApplicationFolder, "GeoIP2-City.mmdb");
 
-            if (!File.Exists(mmFile))
-                mmFile = Path.Combine(dnsServer.ApplicationFolder, "GeoLite2-City.mmdb");
+            if (!File.Exists(mmCityFile))
+                mmCityFile = Path.Combine(dnsServer.ApplicationFolder, "GeoLite2-City.mmdb");
 
-            if (!File.Exists(mmFile))
+            if (!File.Exists(mmCityFile))
                 throw new FileNotFoundException("MaxMind City file is missing!");
 
-            _mmCityReader = new DatabaseReader(mmFile);
+            _mmCityReader = new DatabaseReader(mmCityFile);
+
+            string mmIspFile = Path.Combine(dnsServer.ApplicationFolder, "GeoIP2-ISP.mmdb");
+            if (File.Exists(mmIspFile))
+            {
+                _mmIspReader = new DatabaseReader(mmIspFile);
+                return;
+            }
+
+            string mmAsnFile = Path.Combine(dnsServer.ApplicationFolder, "GeoLite2-ASN.mmdb");
+            if (File.Exists(mmAsnFile))
+                _mmAsnReader = new DatabaseReader(mmAsnFile);
         }
 
         #endregion
@@ -62,8 +75,9 @@ namespace GeoDistance
 
             if (disposing)
             {
-                if (_mmCityReader is not null)
-                    _mmCityReader.Dispose();
+                _mmCityReader?.Dispose();
+                _mmIspReader?.Dispose();
+                _mmAsnReader?.Dispose();
             }
 
             _disposed = true;
@@ -91,8 +105,14 @@ namespace GeoDistance
 
         #region properties
 
-        public DatabaseReader DatabaseReader
+        public DatabaseReader CityReader
         { get { return _mmCityReader; } }
+
+        public DatabaseReader IspReader
+        { get { return _mmIspReader; } }
+
+        public DatabaseReader AsnReader
+        { get { return _mmAsnReader; } }
 
         #endregion
     }
