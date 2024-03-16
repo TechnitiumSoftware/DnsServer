@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -319,6 +319,7 @@ function clearDhcpScopeForm() {
     $("#tableDhcpScopeReservedLeases").html("");
     $("#chkAllowOnlyReservedLeases").prop("checked", false);
     $("#chkBlockLocallyAdministeredMacAddresses").prop("checked", false);
+    $("#chkIgnoreClientIdentifierOption").prop("checked", true);
     $("#btnSaveDhcpScope").button('reset');
 }
 
@@ -436,6 +437,7 @@ function showEditDhcpScope(scopeName) {
 
             $("#chkAllowOnlyReservedLeases").prop("checked", responseJSON.response.allowOnlyReservedLeases);
             $("#chkBlockLocallyAdministeredMacAddresses").prop("checked", responseJSON.response.blockLocallyAdministeredMacAddresses);
+            $("#chkIgnoreClientIdentifierOption").prop("checked", responseJSON.response.ignoreClientIdentifierOption);
 
             divDhcpViewScopesLoader.hide();
             divDhcpEditScope.show();
@@ -512,6 +514,7 @@ function saveDhcpScope() {
 
     var allowOnlyReservedLeases = $("#chkAllowOnlyReservedLeases").prop('checked');
     var blockLocallyAdministeredMacAddresses = $("#chkBlockLocallyAdministeredMacAddresses").prop('checked');
+    var ignoreClientIdentifierOption = $("#chkIgnoreClientIdentifierOption").prop('checked');
 
     var btn = $("#btnSaveDhcpScope").button('loading');
 
@@ -522,7 +525,7 @@ function saveDhcpScope() {
             "&leaseTimeDays=" + leaseTimeDays + "&leaseTimeHours=" + leaseTimeHours + "&leaseTimeMinutes=" + leaseTimeMinutes + "&offerDelayTime=" + offerDelayTime + "&pingCheckEnabled=" + pingCheckEnabled + "&pingCheckTimeout=" + pingCheckTimeout + "&pingCheckRetries=" + pingCheckRetries +
             "&domainName=" + encodeURIComponent(domainName) + "&domainSearchList=" + encodeURIComponent(domainSearchList) + "&dnsUpdates=" + dnsUpdates + "&dnsTtl=" + dnsTtl + "&serverAddress=" + encodeURIComponent(serverAddress) + "&serverHostName=" + encodeURIComponent(serverHostName) + "&bootFileName=" + encodeURIComponent(bootFileName) +
             "&routerAddress=" + encodeURIComponent(routerAddress) + "&useThisDnsServer=" + useThisDnsServer + (useThisDnsServer ? "" : "&dnsServers=" + encodeURIComponent(dnsServers)) + "&winsServers=" + encodeURIComponent(winsServers) + "&ntpServers=" + encodeURIComponent(ntpServers) + "&ntpServerDomainNames=" + encodeURIComponent(ntpServerDomainNames) +
-            "&staticRoutes=" + encodeURIComponent(staticRoutes) + "&vendorInfo=" + encodeURIComponent(vendorInfo) + "&capwapAcIpAddresses=" + encodeURIComponent(capwapAcIpAddresses) + "&tftpServerAddresses=" + encodeURIComponent(tftpServerAddresses) + "&genericOptions=" + encodeURIComponent(genericOptions) + "&exclusions=" + encodeURIComponent(exclusions) + "&reservedLeases=" + encodeURIComponent(reservedLeases) + "&allowOnlyReservedLeases=" + allowOnlyReservedLeases + "&blockLocallyAdministeredMacAddresses=" + blockLocallyAdministeredMacAddresses,
+            "&staticRoutes=" + encodeURIComponent(staticRoutes) + "&vendorInfo=" + encodeURIComponent(vendorInfo) + "&capwapAcIpAddresses=" + encodeURIComponent(capwapAcIpAddresses) + "&tftpServerAddresses=" + encodeURIComponent(tftpServerAddresses) + "&genericOptions=" + encodeURIComponent(genericOptions) + "&exclusions=" + encodeURIComponent(exclusions) + "&reservedLeases=" + encodeURIComponent(reservedLeases) + "&allowOnlyReservedLeases=" + allowOnlyReservedLeases + "&blockLocallyAdministeredMacAddresses=" + blockLocallyAdministeredMacAddresses + "&ignoreClientIdentifierOption=" + ignoreClientIdentifierOption,
         processData: false,
         success: function (responseJSON) {
             refreshDhcpScopes();
