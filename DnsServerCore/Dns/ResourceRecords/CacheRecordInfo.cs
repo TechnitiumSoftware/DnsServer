@@ -21,6 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using TechnitiumLibrary.Net;
+using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.ResourceRecords
@@ -35,6 +36,7 @@ namespace DnsServerCore.Dns.ResourceRecords
         IReadOnlyList<DnsResourceRecord> _rrsigRecords;
         IReadOnlyList<DnsResourceRecord> _nsecRecords;
         NetworkAddress _eDnsClientSubnet;
+        DnsDatagramMetadata _responseMetadata;
 
         DateTime _lastUsedOn; //not serialized
 
@@ -51,12 +53,19 @@ namespace DnsServerCore.Dns.ResourceRecords
             switch (version)
             {
                 case 1:
+                case 2:
                     _glueRecords = ReadRecordsFrom(bR, true);
                     _rrsigRecords = ReadRecordsFrom(bR, false);
                     _nsecRecords = ReadRecordsFrom(bR, true);
 
                     if (bR.ReadBoolean())
                         _eDnsClientSubnet = NetworkAddress.ReadFrom(bR);
+
+                    if (version >= 2)
+                    {
+                        if (bR.ReadBoolean())
+                            _responseMetadata = new DnsDatagramMetadata(bR);
+                    }
 
                     break;
 
@@ -125,7 +134,7 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         public void WriteTo(BinaryWriter bW)
         {
-            bW.Write((byte)1); //version
+            bW.Write((byte)2); //version
 
             WriteRecordsTo(_glueRecords, bW, true);
             WriteRecordsTo(_rrsigRecords, bW, false);
@@ -139,6 +148,16 @@ namespace DnsServerCore.Dns.ResourceRecords
             {
                 bW.Write(true);
                 _eDnsClientSubnet.WriteTo(bW);
+            }
+
+            if (_responseMetadata is null)
+            {
+                bW.Write(false);
+            }
+            else
+            {
+                bW.Write(true);
+                _responseMetadata.WriteTo(bW);
             }
         }
 
@@ -186,6 +205,12 @@ namespace DnsServerCore.Dns.ResourceRecords
         {
             get { return _eDnsClientSubnet; }
             set { _eDnsClientSubnet = value; }
+        }
+
+        public DnsDatagramMetadata ResponseMetadata
+        {
+            get { return _responseMetadata; }
+            set { _responseMetadata = value; }
         }
 
         public DateTime LastUsedOn
