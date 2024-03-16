@@ -320,7 +320,7 @@ namespace DnsServerCore.Dns.Trees
                         }
                     }
                 }
-                else if ((wildcardNode is not null) && (currentNode.K == 0) && currentNode.HasChildren)
+                else if ((wildcardNode is not null) && (currentNode.K == 0) && currentNode.HasChildren && (currentNode != wildcardNode.Parent))
                 {
                     //ENT node with children so wildcard is not valid
                     wildcardNode = null;
