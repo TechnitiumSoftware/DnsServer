@@ -310,7 +310,7 @@ var
   ResultCode: Integer;
 begin
   Result := false;
-  Exec('cmd.exe', '/c dotnet --list-runtimes | find /n "Microsoft.AspNetCore.App 8.0.1"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('cmd.exe', '/c dotnet --list-runtimes | find /n "Microsoft.AspNetCore.App 8.0.3"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   if ResultCode = 0 then 
   begin 
     Result := true;
@@ -322,7 +322,7 @@ var
   ResultCode: Integer;
 begin
   Result := false;
-  Exec('cmd.exe', '/c dotnet --list-runtimes | find /n "Microsoft.WindowsDesktop.App 8.0.1"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('cmd.exe', '/c dotnet --list-runtimes | find /n "Microsoft.WindowsDesktop.App 8.0.3"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   if ResultCode = 0 then 
   begin 
     Result := true;
@@ -336,8 +336,8 @@ begin
   begin
     AddDependency('aspdotnet80' + GetArchitectureSuffix + '.exe',
       '/lcid ' + IntToStr(GetUILanguage) + ' /passive /norestart',
-      'ASP.NET Core Runtime 8.0.1' + GetArchitectureTitle,
-      GetString('https://download.visualstudio.microsoft.com/download/pr/054695b5-a7fd-43e9-8e7f-c8422e9766c4/78ff5d8a3ea0f03af996456dd260351e/aspnetcore-runtime-8.0.1-win-x86.exe', 'https://download.visualstudio.microsoft.com/download/pr/4b805b84-302c-42e3-b57e-665d0bb7b1f0/3a0965017f98303c7fe1ab1291728e07/aspnetcore-runtime-8.0.1-win-x64.exe'),
+      'ASP.NET Core Runtime 8.0.3' + GetArchitectureTitle,
+      GetString('https://download.visualstudio.microsoft.com/download/pr/6e92e2d6-32bb-4ff7-9424-78cd278076e8/7b23ff0e6bb04586ad90a0289b31d8d5/aspnetcore-runtime-8.0.3-win-x86.exe', 'https://download.visualstudio.microsoft.com/download/pr/e91876a9-1760-42cb-a6f4-97c57e9cca52/b433fcf4768929539f17e1908cb315bf/aspnetcore-runtime-8.0.3-win-x64.exe'),
       '', False, False, False);
   end;
 
@@ -345,8 +345,8 @@ begin
   begin
     AddDependency('dotnet80desktop' + GetArchitectureSuffix + '.exe',
       '/lcid ' + IntToStr(GetUILanguage) + ' /passive /norestart',
-      '.NET Desktop Runtime 8.0.1' + GetArchitectureTitle,
-      GetString('https://download.visualstudio.microsoft.com/download/pr/ca725693-6de7-4a4d-b8a4-4390b0387c66/ce13f2f016152d9b5f2d3c6537cc415b/windowsdesktop-runtime-8.0.1-win-x86.exe', 'https://download.visualstudio.microsoft.com/download/pr/f18288f6-1732-415b-b577-7fb46510479a/a98239f751a7aed31bc4aa12f348a9bf/windowsdesktop-runtime-8.0.1-win-x64.exe'),
+      '.NET Desktop Runtime 8.0.3' + GetArchitectureTitle,
+      GetString('https://download.visualstudio.microsoft.com/download/pr/c629f243-5125-4751-a5ff-e78fa45646b1/85777e3e3f58f863d884fd4b8a1453f2/windowsdesktop-runtime-8.0.3-win-x86.exe', 'https://download.visualstudio.microsoft.com/download/pr/51bc18ac-0594-412d-bd63-18ece4c91ac4/90b47b97c3bfe40a833791b166697e67/windowsdesktop-runtime-8.0.3-win-x64.exe'),
       '', False, False, False);
   end;
 end;
