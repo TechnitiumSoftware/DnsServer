@@ -105,6 +105,7 @@ namespace DnsServerCore.Dhcp
                 scope.UseThisDnsServer = true;
                 scope.DomainName = "home";
                 scope.LeaseTimeDays = 1;
+                scope.IgnoreClientIdentifierOption = true;
 
                 SaveScopeFile(scope);
             }
@@ -791,10 +792,12 @@ namespace DnsServerCore.Dhcp
                         {
                             foreach (DnsResourceRecord existingRecord in existingRecords)
                             {
-                                if (!(existingRecord.RDATA as DnsARecordData).Address.Equals(address))
+                                IPAddress existingAddress = (existingRecord.RDATA as DnsARecordData).Address;
+                                if (!existingAddress.Equals(address))
                                 {
                                     //a DNS record already exists for the specified domain name with a different address
                                     //do not change DNS record for this dynamic lease
+                                    _log?.Write("DHCP Server cannot update DNS: an A record already exists for '" + domain + "' with a different IP address [" + existingAddress.ToString() + "].");
                                     return;
                                 }
                             }
