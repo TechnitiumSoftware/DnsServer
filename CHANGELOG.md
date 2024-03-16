@@ -1,5 +1,32 @@
 # Technitium DNS Server Change Log
 
+## Version 12.1
+Release Date: 16 March 2024
+
+- Fixed [Key Trap](https://www.athene-center.de/en/keytrap) [vulnerability](https://www.athene-center.de/fileadmin/content/PDF/Technical_Report_KeyTrap.pdf) [CVE-2023-50387] that affected DNSSEC validation which can cause DoS affecting the DNS server's ability to resolve domain names. The mitigations will allow the DNS server to work even with high CPU usage.
+  - The mitigation now allows max 4 DNSKEY records with key tag collision.
+  - Limits cryptographic failures to max 16. 
+  - More that 8 RRSIG validation attempts per response will cause suspension of the task with max 16 suspensions allowed before the validation stops for the response.
+- Fixed vulnerability in NSEC3 closest encloser proof [CVE-2023-50868] that affected DNSSEC validation which can cause DoS affecting the DNS server's ability to resolve domain names. The mitigations will allow the DNS server to work even with high CPU usage.
+  - More than 8 NSEC3 hash calculation per response will cause suspension of the task.
+  - After 16 suspensions the the validation will stop for the response.
+- Fixed [Non-Responsive Delegation Attack](https://www.usenix.org/system/files/sec23fall-prepub-309-afek.pdf) (NRDelegation Attack) vulnerability [CVE-2022-3204].
+- Fixed [NXNSAttack](https://arxiv.org/abs/2005.09107) vulnerability [CVE-2020-12662].
+- Implemented NSEC3 iteration limit of 100. NSEC3 with iterations of more than 100 will be treated as No Proof.
+- Added EDNS Client Subnet (ECS) override feature to allow the DNS server to use the provided network subnet with ECS for all outbound requests.
+- Secondary zones now allow configuring Dynamic Updates permissions in Zone Options.
+- Import zone feature now supports option to overwrite SOA serial from SOA record being imported.
+- DNS Client now supports EDNS Client Subnet (ECS) option to allow testing ECS related issues with ease.
+- DNS cache entries now show request meta data to allow knowing the name server that provided the record data.
+- DHCP Scope now supports option to ignore Client Identifier option in requests to allow using the client's hardware address for lease management.
+- Advanced Blocking App: Updated implementation to support using domain names for local endpoint group map feature which will work with requests over DoT, DoH and DoQ protocols.
+- Advanced Forwarding App: Updated AdGuard upstream implementation to support multiple forwarders.
+- Geo Continent App: Updated app to support MaxMind ISP/ASN database to allow returning optimal ECS scope prefix in response.
+- Geo Country App: Updated app to support MaxMind ISP/ASN database to allow returning optimal ECS scope prefix in response.
+- Geo Distance App: Updated app to support MaxMind ISP/ASN database to allow returning optimal ECS scope prefix in response.
+- Fixed bug in authoritative zone wildcard matching.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 12.0.1
 Release Date: 8 February 2024
 
