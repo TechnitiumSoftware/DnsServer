@@ -253,6 +253,8 @@ namespace DnsServerCore
             jsonWriter.WriteBoolean("eDnsClientSubnet", _dnsWebService.DnsServer.EDnsClientSubnet);
             jsonWriter.WriteNumber("eDnsClientSubnetIPv4PrefixLength", _dnsWebService.DnsServer.EDnsClientSubnetIPv4PrefixLength);
             jsonWriter.WriteNumber("eDnsClientSubnetIPv6PrefixLength", _dnsWebService.DnsServer.EDnsClientSubnetIPv6PrefixLength);
+            jsonWriter.WriteString("eDnsClientSubnetIpv4Override", _dnsWebService.DnsServer.EDnsClientSubnetIpv4Override?.ToString());
+            jsonWriter.WriteString("eDnsClientSubnetIpv6Override", _dnsWebService.DnsServer.EDnsClientSubnetIpv6Override?.ToString());
 
             jsonWriter.WriteNumber("qpmLimitRequests", _dnsWebService.DnsServer.QpmLimitRequests);
             jsonWriter.WriteNumber("qpmLimitErrors", _dnsWebService.DnsServer.QpmLimitErrors);
@@ -661,6 +663,24 @@ namespace DnsServerCore
 
             if (request.TryGetQueryOrForm("eDnsClientSubnetIPv6PrefixLength", byte.Parse, out byte eDnsClientSubnetIPv6PrefixLength))
                 _dnsWebService.DnsServer.EDnsClientSubnetIPv6PrefixLength = eDnsClientSubnetIPv6PrefixLength;
+
+            string eDnsClientSubnetIpv4Override = request.QueryOrForm("eDnsClientSubnetIpv4Override");
+            if (eDnsClientSubnetIpv4Override is not null)
+            {
+                if (eDnsClientSubnetIpv4Override.Length == 0)
+                    _dnsWebService.DnsServer.EDnsClientSubnetIpv4Override = null;
+                else
+                    _dnsWebService.DnsServer.EDnsClientSubnetIpv4Override = NetworkAddress.Parse(eDnsClientSubnetIpv4Override);
+            }
+
+            string eDnsClientSubnetIpv6Override = request.QueryOrForm("eDnsClientSubnetIpv6Override");
+            if (eDnsClientSubnetIpv6Override is not null)
+            {
+                if (eDnsClientSubnetIpv6Override.Length == 0)
+                    _dnsWebService.DnsServer.EDnsClientSubnetIpv6Override = null;
+                else
+                    _dnsWebService.DnsServer.EDnsClientSubnetIpv6Override = NetworkAddress.Parse(eDnsClientSubnetIpv6Override);
+            }
 
             if (request.TryGetQueryOrForm("qpmLimitRequests", int.Parse, out int qpmLimitRequests))
                 _dnsWebService.DnsServer.QpmLimitRequests = qpmLimitRequests;
