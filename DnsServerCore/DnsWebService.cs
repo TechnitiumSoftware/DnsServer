@@ -893,6 +893,10 @@ namespace DnsServerCore
                 CreateForwarderZoneToDisableDnssecForNTP();
 
                 //web service
+                string strWebServiceLocalAddresses = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_LOCAL_ADDRESSES");
+                if (!string.IsNullOrEmpty(strWebServiceLocalAddresses))
+                    _webServiceLocalAddresses = strWebServiceLocalAddresses.Split(IPAddress.Parse, commaSeparator);
+
                 string strWebServiceHttpPort = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_HTTP_PORT");
                 if (!string.IsNullOrEmpty(strWebServiceHttpPort))
                     _webServiceHttpPort = int.Parse(strWebServiceHttpPort);
