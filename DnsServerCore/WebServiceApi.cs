@@ -26,6 +26,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Text.Json;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
@@ -168,6 +169,26 @@ namespace DnsServerCore
             DnsResourceRecordType type = request.GetQueryOrFormEnum<DnsResourceRecordType>("type");
             DnsTransportProtocol protocol = request.GetQueryOrFormEnum("protocol", DnsTransportProtocol.Udp);
             bool dnssecValidation = request.GetQueryOrForm("dnssec", bool.Parse, false);
+
+            NetworkAddress eDnsClientSubnet = request.GetQueryOrForm("ednsClientSubnet", NetworkAddress.Parse, null);
+            if (eDnsClientSubnet is not null)
+            {
+                switch (eDnsClientSubnet.AddressFamily)
+                {
+                    case AddressFamily.InterNetwork:
+                        if (eDnsClientSubnet.PrefixLength == 32)
+                            eDnsClientSubnet = new NetworkAddress(eDnsClientSubnet.Address, 24);
+
+                        break;
+
+                    case AddressFamily.InterNetworkV6:
+                        if (eDnsClientSubnet.PrefixLength == 128)
+                            eDnsClientSubnet = new NetworkAddress(eDnsClientSubnet.Address, 56);
+
+                        break;
+                }
+            }
+
             bool importResponse = request.GetQueryOrForm("import", bool.Parse, false);
             NetProxy proxy = _dnsWebService.DnsServer.Proxy;
             bool preferIPv6 = _dnsWebService.DnsServer.PreferIPv6;
@@ -178,6 +199,7 @@ namespace DnsServerCore
             const int TIMEOUT = 10000;
 
             DnsDatagram dnsResponse;
+            List<DnsDatagram> rawResponses = new List<DnsDatagram>();
             string dnssecErrorMessage = null;
 
             if (server.Equals("recursive-resolver", StringComparison.OrdinalIgnoreCase))
@@ -198,7 +220,7 @@ namespace DnsServerCore
 
                 try
                 {
-                    dnsResponse = await DnsClient.RecursiveResolveAsync(question, dnsCache, proxy, preferIPv6, udpPayloadSize, randomizeName, qnameMinimization, false, dnssecValidation, null, RETRIES, TIMEOUT);
+                    dnsResponse = await DnsClient.RecursiveResolveAsync(question, dnsCache, proxy, preferIPv6, udpPayloadSize, randomizeName, qnameMinimization, false, dnssecValidation, eDnsClientSubnet, RETRIES, TIMEOUT, rawResponses: rawResponses);
                 }
                 catch (DnsClientResponseDnssecValidationException ex)
                 {
@@ -218,6 +240,7 @@ namespace DnsServerCore
                 dnsClient.Timeout = TIMEOUT;
                 dnsClient.UdpPayloadSize = udpPayloadSize;
                 dnsClient.DnssecValidation = dnssecValidation;
+                dnsClient.EDnsClientSubnet = eDnsClientSubnet;
 
                 try
                 {
@@ -296,6 +319,7 @@ namespace DnsServerCore
                 dnsClient.Timeout = TIMEOUT;
                 dnsClient.UdpPayloadSize = udpPayloadSize;
                 dnsClient.DnssecValidation = dnssecValidation;
+                dnsClient.EDnsClientSubnet = eDnsClientSubnet;
 
                 if (dnssecValidation)
                 {
@@ -427,6 +451,14 @@ namespace DnsServerCore
 
             jsonWriter.WritePropertyName("result");
             dnsResponse.SerializeTo(jsonWriter);
+
+            jsonWriter.WritePropertyName("rawResponses");
+            jsonWriter.WriteStartArray();
+
+            for (int i = 0; i < rawResponses.Count; i++)
+                rawResponses[i].SerializeTo(jsonWriter);
+
+            jsonWriter.WriteEndArray();
         }
 
         #endregion
