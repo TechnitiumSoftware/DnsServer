@@ -1,7 +1,7 @@
 [
 	{
 		"name": "Advanced Blocking",
-		"description": "Blocks domain names using block lists and regex block lists. Supports creating groups based on client's IP address or subnet to enforce different block lists and regex block lists for each group.",
+		"description": "Blocks domain names using block lists and regex block lists. Supports creating groups based on client's IP address or subnet to enforce different block lists and regex block lists for each group.\n\nNote! This app works independent of the DNS server's built-in blocking feature. The options configured in DNS server Settings section does not apply to this app.",
 		"versions": [
 			{
 				"serverVersion": "9.0",
@@ -62,6 +62,12 @@
 				"version": "7.0",
 				"url": "https://download.technitium.com/dns/apps/AdvancedBlockingApp-v7.zip",
 				"size": "30.4 KB"
+			},
+			{
+				"serverVersion": "12.1",
+				"version": "7.1",
+				"url": "https://download.technitium.com/dns/apps/AdvancedBlockingApp-v7.1.zip",
+				"size": "30.8 KB"
 			}
 		]
 	},
@@ -98,6 +104,12 @@
 				"version": "2.0",
 				"url": "https://download.technitium.com/dns/apps/AdvancedForwardingApp-v2.zip",
 				"size": "20.1 KB"
+			},
+			{
+				"serverVersion": "12.1",
+				"version": "2.1",
+				"url": "https://download.technitium.com/dns/apps/AdvancedForwardingApp-v2.1.zip",
+				"size": "20.5 KB"
 			}
 		]
 	},
@@ -127,7 +139,7 @@
 	},
 	{
 		"name": "Block Page",
-		"description": "Serves a block page from a built-in web server that can be displayed to the end user when a website is blocked by the DNS server.\n\nNote: You need to manually set the Blocking Type as Custom Address in the blocking settings and configure the current server's IP address as Custom Blocking Addresses for the block page to be served to the users. Use a PKCS #12 certificate (.pfx) for enabling HTTPS support. Enabling HTTPS support will show certificate error to the user which is expected and the user will have to proceed ignoring the certificate error to be able to see the block page.",
+		"description": "Serves a block page from a built-in web server that can be displayed to the end user when a website is blocked by the DNS server.\n\nNote! You need to manually set the Blocking Type as Custom Address in the blocking settings and configure the current server's IP address as Custom Blocking Addresses for the block page to be served to the users. Use a PKCS #12 certificate (.pfx) for enabling HTTPS support. Enabling HTTPS support will show certificate error to the user which is expected and the user will have to proceed ignoring the certificate error to be able to see the block page.",
 		"versions": [
 			{
 				"serverVersion": "9.0",
@@ -205,7 +217,7 @@
 	},
 	{
 		"name": "DNS64",
-		"description": "Enables DNS64 function for both authoritative and recursive resolver responses for use by IPv6 only clients.",
+		"description": "Enables DNS64 function for both authoritative and recursive resolver responses for use by IPv6 only clients.\n\nWarning! Installing DNS64 app without having NAT64 in place will cause connectivity issues for some websites.",
 		"versions": [
 			{
 				"serverVersion": "10.0",
@@ -259,7 +271,7 @@
 	},
 	{
 		"name": "DNS Rebinding Protection",
-		"description": "Protects from DNS rebinding attacks using configured private domains and networks.",
+		"description": "Protects from DNS rebinding attacks using configured private domains and networks.\n\nWarning! The app will remove private IP addresses from response for domain names not hosted locally.",
 		"versions": [
 			{
 				"serverVersion": "12.0",
@@ -368,12 +380,18 @@
 				"version": "7.0",
 				"url": "https://download.technitium.com/dns/apps/FailoverApp-v7.zip",
 				"size": "49.7 KB"
+			},
+			{
+				"serverVersion": "12.1",
+				"version": "7.0.1",
+				"url": "https://download.technitium.com/dns/apps/FailoverApp-v7.0.1.zip",
+				"size": "49.8 KB"
 			}
 		]
 	},
 	{
 		"name": "Geo Continent",
-		"description": "Allows creating APP records in primary and forwarder zones that can return A or AAAA records, or CNAME record based on the continent the client queries from using MaxMind GeoIP2 Country database. Supports EDNS Client Subnet (ECS). This app requires MaxMind GeoIP2 database and includes the GeoLite2 version for trial. \n\nTo update the MaxMind GeoIP2 database for your app, download the GeoIP2-Country.mmdb file from MaxMind and zip it. Use the zip file with the manual Update option.",
+		"description": "Allows creating APP records in primary and forwarder zones that can return A or AAAA records, or CNAME record based on the continent the client queries from using MaxMind GeoIP2 Country database. Supports EDNS Client Subnet (ECS). This app requires MaxMind GeoIP2 database and includes the GeoLite2 version for trial. \n\nTo update the MaxMind GeoIP2 database for your app, download the GeoIP2-Country.mmdb file from MaxMind and zip it. Use the zip file with the manual Update option. The app optionally also uses MaxMind ISP/ASN database which can be updated the with same method.",
 		"versions": [
 			{
 				"serverVersion": "9.0",
@@ -422,12 +440,18 @@
 				"version": "7.0",
 				"url": "https://download.technitium.com/dns/apps/GeoContinentApp-v7.zip",
 				"size": "3.16 MB"
+			},
+			{
+				"serverVersion": "12.1",
+				"version": "7.1",
+				"url": "https://download.technitium.com/dns/apps/GeoContinentApp-v7.1.zip",
+				"size": "7.57 MB"
 			}
 		]
 	},
 	{
 		"name": "Geo Country",
-		"description": "Allows creating APP records in primary and forwarder zones that can return A or AAAA records, or CNAME record based on the country the client queries from using MaxMind GeoIP2 Country database. Supports EDNS Client Subnet (ECS). This app requires MaxMind GeoIP2 database and includes the GeoLite2 version for trial. \n\nTo update the MaxMind GeoIP2 database for your app, download the GeoIP2-Country.mmdb file from MaxMind and zip it. Use the zip file with the manual Update option.",
+		"description": "Allows creating APP records in primary and forwarder zones that can return A or AAAA records, or CNAME record based on the country the client queries from using MaxMind GeoIP2 Country database. Supports EDNS Client Subnet (ECS). This app requires MaxMind GeoIP2 database and includes the GeoLite2 version for trial. \n\nTo update the MaxMind GeoIP2 database for your app, download the GeoIP2-Country.mmdb file from MaxMind and zip it. Use the zip file with the manual Update option. The app optionally also uses MaxMind ISP/ASN database which can be updated the with same method.",
 		"versions": [
 			{
 				"serverVersion": "9.0",
@@ -476,12 +500,18 @@
 				"version": "7.0",
 				"url": "https://download.technitium.com/dns/apps/GeoCountryApp-v7.zip",
 				"size": "3.16 MB"
+			},
+			{
+				"serverVersion": "12.1",
+				"version": "7.1",
+				"url": "https://download.technitium.com/dns/apps/GeoCountryApp-v7.1.zip",
+				"size": "7.57 MB"
 			}
 		]
 	},
 	{
 		"name": "Geo Distance",
-		"description": "Allows creating APP records in primary and forwarder zones that can return A or AAAA records, or CNAME record of the server located geographically closest to the client using MaxMind GeoIP2 City database. Supports EDNS Client Subnet (ECS). This app requires MaxMind GeoIP2 database and includes the GeoLite2 version for trial. \n\nTo update the MaxMind GeoIP2 database for your app, download the GeoIP2-City.mmdb file from MaxMind and zip it. Use the zip file with the manual Update option.",
+		"description": "Allows creating APP records in primary and forwarder zones that can return A or AAAA records, or CNAME record of the server located geographically closest to the client using MaxMind GeoIP2 City database. Supports EDNS Client Subnet (ECS). This app requires MaxMind GeoIP2 database and includes the GeoLite2 version for trial. \n\nTo update the MaxMind GeoIP2 database for your app, download the GeoIP2-City.mmdb file from MaxMind and zip it. Use the zip file with the manual Update option. The app optionally also uses MaxMind ISP/ASN database which can be updated the with same method.",
 		"versions": [
 			{
 				"serverVersion": "9.0",
@@ -530,6 +560,12 @@
 				"version": "7.0",
 				"url": "https://download.technitium.com/dns/apps/GeoDistanceApp-v7.zip",
 				"size": "31.0 MB"
+			},
+			{
+				"serverVersion": "12.1",
+				"version": "7.1",
+				"url": "https://download.technitium.com/dns/apps/GeoDistanceApp-v7.1.zip",
+				"size": "35.4 MB"
 			}
 		]
 	},
@@ -679,6 +715,12 @@
 				"serverVersion": "12.0",
 				"version": "5.0",
 				"url": "https://download.technitium.com/dns/apps/QueryLogsSqliteApp-v5.zip",
+				"size": "12.2 MB"
+			},
+			{
+				"serverVersion": "12.1",
+				"version": "5.0.1",
+				"url": "https://download.technitium.com/dns/apps/QueryLogsSqliteApp-v5.0.1.zip",
 				"size": "12.2 MB"
 			}
 		]
