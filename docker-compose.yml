@@ -28,7 +28,7 @@ services:
           # The above is a list of IPv4/IPv6 addresses for the net adapters that the web ui will be accessible from.
           # - 172.17.0.1 listed above is the built in Docker bridge.
           # - 0.0.0.0 is the default value if this is left blank.
-          # - Recommended only for "host" network mode behind a reverse HTTP/HTTPS proxy.
+          # - Recommended only for "host" network mode. Intended for use with a reverse proxy.
       # - DNS_SERVER_WEB_SERVICE_HTTP_PORT=5380 #The TCP port number for the DNS web console over HTTP protocol.
       # - DNS_SERVER_WEB_SERVICE_HTTPS_PORT=53443 #The TCP port number for the DNS web console over HTTPS protocol.
       # - DNS_SERVER_WEB_SERVICE_ENABLE_HTTPS=false #Enables HTTPS for the DNS web console.
