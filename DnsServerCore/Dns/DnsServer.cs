@@ -37,6 +37,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Net.Mail;
 using System.Net.Quic;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -90,7 +91,7 @@ namespace DnsServerCore.Dns
         #region variables
 
         internal const int MAX_CNAME_HOPS = 16;
-        const int SERVE_STALE_MAX_WAIT_TIME = 1800; //max time to wait before serve stale [RFC 8767]
+        internal const int SERVE_STALE_MAX_WAIT_TIME = 1800; //max time to wait before serve stale [RFC 8767]
         const int SERVE_STALE_TIME_DIFFERENCE = 200; //200ms before client timeout [RFC 8767]
 
         static readonly IPEndPoint IPENDPOINT_ANY_0 = new IPEndPoint(IPAddress.Any, 0);
@@ -103,6 +104,9 @@ namespace DnsServerCore.Dns
         readonly string _dohwwwFolder;
         IReadOnlyList<IPEndPoint> _localEndPoints;
         LogManager _log;
+
+        MailAddress _responsiblePerson;
+        MailAddress _defaultResponsiblePerson;
 
         NameServerAddress _thisServer;
 
@@ -183,6 +187,7 @@ namespace DnsServerCore.Dns
         int _resolverMaxStackCount = 16;
 
         bool _serveStale = true;
+        int _serveStaleMaxWaitTime = SERVE_STALE_MAX_WAIT_TIME;
         int _cachePrefetchEligibility = 2;
         int _cachePrefetchTrigger = 9;
         int _cachePrefetchSampleIntervalInMinutes = 5;
@@ -299,6 +304,9 @@ namespace DnsServerCore.Dns
 
             _authZoneManager?.Dispose();
 
+            _allowedZoneManager?.Dispose();
+            _blockedZoneManager?.Dispose();
+
             _dnsApplicationManager?.Dispose();
 
             _stats?.Dispose();
@@ -399,7 +407,7 @@ namespace DnsServerCore.Dns
 
                             if (IsQpmLimitCrossed(remoteEP.Address))
                             {
-                                _stats.QueueUpdate(null, remoteEP, protocol, null);
+                                _stats.QueueUpdate(null, remoteEP, protocol, null, true);
                                 continue;
                             }
 
@@ -457,7 +465,7 @@ namespace DnsServerCore.Dns
                 DnsDatagram response = await PreProcessQueryAsync(request, remoteEP, protocol, IsRecursionAllowed(remoteEP.Address));
                 if (response is null)
                 {
-                    _stats.QueueUpdate(null, remoteEP, protocol, null);
+                    _stats.QueueUpdate(null, remoteEP, protocol, null, false);
                     return; //drop request
                 }
 
@@ -529,7 +537,7 @@ namespace DnsServerCore.Dns
                 }
 
                 _queryLog?.Write(remoteEP, protocol, request, response);
-                _stats.QueueUpdate(request, remoteEP, protocol, response);
+                _stats.QueueUpdate(request, remoteEP, protocol, response, false);
             }
             catch (Exception ex)
             {
@@ -665,7 +673,7 @@ namespace DnsServerCore.Dns
                 {
                     if (IsQpmLimitCrossed(remoteEP.Address))
                     {
-                        _stats.QueueUpdate(null, remoteEP, protocol, null);
+                        _stats.QueueUpdate(null, remoteEP, protocol, null, true);
                         break;
                     }
 
@@ -716,7 +724,7 @@ namespace DnsServerCore.Dns
                 {
                     await stream.DisposeAsync();
 
-                    _stats.QueueUpdate(null, remoteEP, protocol, null);
+                    _stats.QueueUpdate(null, remoteEP, protocol, null, false);
                     return; //drop request
                 }
 
@@ -734,7 +742,7 @@ namespace DnsServerCore.Dns
                 }
 
                 _queryLog?.Write(remoteEP, protocol, request, response);
-                _stats.QueueUpdate(request, remoteEP, protocol, response);
+                _stats.QueueUpdate(request, remoteEP, protocol, response, false);
             }
             catch (ObjectDisposedException)
             {
@@ -792,7 +800,7 @@ namespace DnsServerCore.Dns
                 {
                     if (IsQpmLimitCrossed(quicConnection.RemoteEndPoint.Address))
                     {
-                        _stats.QueueUpdate(null, quicConnection.RemoteEndPoint, DnsTransportProtocol.Quic, null);
+                        _stats.QueueUpdate(null, quicConnection.RemoteEndPoint, DnsTransportProtocol.Quic, null, true);
                         break;
                     }
 
@@ -854,7 +862,7 @@ namespace DnsServerCore.Dns
                 DnsDatagram response = await PreProcessQueryAsync(request, remoteEP, DnsTransportProtocol.Quic, IsRecursionAllowed(remoteEP.Address));
                 if (response is null)
                 {
-                    _stats.QueueUpdate(null, remoteEP, DnsTransportProtocol.Quic, null);
+                    _stats.QueueUpdate(null, remoteEP, DnsTransportProtocol.Quic, null, false);
                     return; //drop request
                 }
 
@@ -862,7 +870,7 @@ namespace DnsServerCore.Dns
                 await response.WriteToTcpAsync(quicStream, sharedBuffer);
 
                 _queryLog?.Write(remoteEP, DnsTransportProtocol.Quic, request, response);
-                _stats.QueueUpdate(request, remoteEP, DnsTransportProtocol.Quic, response);
+                _stats.QueueUpdate(request, remoteEP, DnsTransportProtocol.Quic, response, false);
             }
             catch (IOException)
             {
@@ -894,7 +902,7 @@ namespace DnsServerCore.Dns
 
                 if (IsQpmLimitCrossed(remoteEP.Address))
                 {
-                    _stats.QueueUpdate(null, remoteEP, DnsTransportProtocol.Https, null);
+                    _stats.QueueUpdate(null, remoteEP, DnsTransportProtocol.Https, null, true);
 
                     response.StatusCode = 429;
                     await response.WriteAsync("Too Many Requests");
@@ -998,7 +1006,7 @@ namespace DnsServerCore.Dns
                     //drop request
                     context.Connection.RequestClose();
 
-                    _stats.QueueUpdate(null, remoteEP, DnsTransportProtocol.Https, null);
+                    _stats.QueueUpdate(null, remoteEP, DnsTransportProtocol.Https, null, false);
                     return;
                 }
 
@@ -1017,7 +1025,7 @@ namespace DnsServerCore.Dns
                 }
 
                 _queryLog?.Write(remoteEP, DnsTransportProtocol.Https, dnsRequest, dnsResponse);
-                _stats.QueueUpdate(dnsRequest, remoteEP, DnsTransportProtocol.Https, dnsResponse);
+                _stats.QueueUpdate(dnsRequest, remoteEP, DnsTransportProtocol.Https, dnsResponse, false);
             }
             catch (Exception ex)
             {
@@ -1400,7 +1408,7 @@ namespace DnsServerCore.Dns
                 //check security policies
                 if ((authZoneInfo.UpdateSecurityPolicies is not null) && (authZoneInfo.UpdateSecurityPolicies.Count > 0))
                 {
-                    if ((tsigAuthenticatedKeyName is null) || !authZoneInfo.UpdateSecurityPolicies.TryGetValue(tsigAuthenticatedKeyName.ToLower(), out IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>> policyMap))
+                    if ((tsigAuthenticatedKeyName is null) || !authZoneInfo.UpdateSecurityPolicies.TryGetValue(tsigAuthenticatedKeyName.ToLowerInvariant(), out IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>> policyMap))
                     {
                         _log?.Write(remoteEP, protocol, "DNS Server refused a zone UPDATE request since the request is missing TSIG auth required by the zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
 
@@ -1506,7 +1514,7 @@ namespace DnsServerCore.Dns
                                 {
                                     //check if RRSet exists (value dependent)
                                     //add to temp for later comparison
-                                    string recordName = prRecord.Name.ToLower();
+                                    string recordName = prRecord.Name.ToLowerInvariant();
 
                                     if (!temp.TryGetValue(recordName, out Dictionary<DnsResourceRecordType, List<DnsResourceRecord>> rrsetEntry))
                                     {
@@ -2004,7 +2012,7 @@ namespace DnsServerCore.Dns
 
                 if ((authZoneInfo.ZoneTransferTsigKeyNames is not null) && (authZoneInfo.ZoneTransferTsigKeyNames.Count > 0))
                 {
-                    if ((tsigAuthenticatedKeyName is null) || !authZoneInfo.ZoneTransferTsigKeyNames.ContainsKey(tsigAuthenticatedKeyName.ToLower()))
+                    if ((tsigAuthenticatedKeyName is null) || !authZoneInfo.ZoneTransferTsigKeyNames.ContainsKey(tsigAuthenticatedKeyName.ToLowerInvariant()))
                     {
                         _log?.Write(remoteEP, protocol, "DNS Server refused a zone transfer request since the request is missing TSIG auth required by the zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
 
@@ -2926,7 +2934,7 @@ namespace DnsServerCore.Dns
             if (!cachePrefetchOperation && !cacheRefreshOperation)
             {
                 //query cache zone to see if answer available
-                DnsDatagram cacheResponse = QueryCache(request, false);
+                DnsDatagram cacheResponse = QueryCache(request, false, false);
                 if (cacheResponse is not null)
                 {
                     if (_cachePrefetchTrigger > 0)
@@ -2967,11 +2975,10 @@ namespace DnsServerCore.Dns
 
             if (_serveStale)
             {
-                DateTime resolverWaitStartTime = DateTime.UtcNow;
-                int waitTimeout = Math.Min(SERVE_STALE_MAX_WAIT_TIME, _clientTimeout - SERVE_STALE_TIME_DIFFERENCE); //200ms before client timeout or max 1800ms [RFC 8767]
+                int waitTimeout = Math.Min(_serveStaleMaxWaitTime, _clientTimeout - SERVE_STALE_TIME_DIFFERENCE); //200ms before client timeout or max 1800ms [RFC 8767]
 
                 //wait till short timeout for response
-                if (await Task.WhenAny(resolverTask, Task.Delay(waitTimeout)) == resolverTask)
+                if ((waitTimeout > 0) && (await Task.WhenAny(resolverTask, Task.Delay(waitTimeout)) == resolverTask))
                 {
                     //resolver signaled
                     RecursiveResolveResponse response = await resolverTask;
@@ -2986,25 +2993,23 @@ namespace DnsServerCore.Dns
                     //wait timed out
 
                     //query cache zone to return stale answer (if available) as per RFC 8767
-                    DnsDatagram staleResponse = QueryCache(request, true);
+                    DnsDatagram staleResponse = QueryCache(request, true, false);
                     if (staleResponse is not null)
                         return staleResponse;
 
                     //no stale record was found
                     //wait till full timeout before responding as ServerFailure
-                    int timeout = Convert.ToInt32(_clientTimeout - (DateTime.UtcNow - resolverWaitStartTime).TotalMilliseconds);
-                    if (timeout > 0)
+                    int timeout = _clientTimeout - waitTimeout;
+
+                    if (await Task.WhenAny(resolverTask, Task.Delay(timeout)) == resolverTask)
                     {
-                        if (await Task.WhenAny(resolverTask, Task.Delay(timeout)) == resolverTask)
-                        {
-                            //resolver signaled
-                            RecursiveResolveResponse response = await resolverTask;
+                        //resolver signaled
+                        RecursiveResolveResponse response = await resolverTask;
 
-                            if (response is not null)
-                                return PrepareRecursiveResolveResponse(request, response);
+                        if (response is not null)
+                            return PrepareRecursiveResolveResponse(request, response);
 
-                            //resolver had exception
-                        }
+                        //resolver had exception
                     }
                 }
             }
@@ -3239,9 +3244,9 @@ namespace DnsServerCore.Dns
 
                 if (_serveStale)
                 {
-                    //fetch stale record
+                    //fetch and reset stale records
                     DnsDatagram cacheRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, dnssecValidation, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(eDnsClientSubnet));
-                    DnsDatagram staleResponse = QueryCache(cacheRequest, true);
+                    DnsDatagram staleResponse = QueryCache(cacheRequest, true, true);
                     if (staleResponse is not null)
                     {
                         //signal stale response
@@ -3686,9 +3691,9 @@ namespace DnsServerCore.Dns
             return question.ToString() + " " + eDnsClientSubnet.ToString();
         }
 
-        private DnsDatagram QueryCache(DnsDatagram request, bool serveStaleAndResetExpiry)
+        private DnsDatagram QueryCache(DnsDatagram request, bool serveStale, bool resetExpiry)
         {
-            DnsDatagram cacheResponse = _cacheZoneManager.Query(request, serveStaleAndResetExpiry);
+            DnsDatagram cacheResponse = _cacheZoneManager.Query(request, serveStale, false, resetExpiry);
             if (cacheResponse is not null)
             {
                 if ((cacheResponse.RCODE != DnsResponseCode.NoError) || (cacheResponse.Answer.Count > 0) || (cacheResponse.Authority.Count == 0) || cacheResponse.IsFirstAuthoritySOA())
@@ -3752,7 +3757,7 @@ namespace DnsServerCore.Dns
 
             while (true)
             {
-                DnsDatagram cacheResponse = QueryCache(new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }), false);
+                DnsDatagram cacheResponse = QueryCache(new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }), false, false);
                 if (cacheResponse is null)
                     return question; //cache expired so refresh question
 
@@ -3785,7 +3790,7 @@ namespace DnsServerCore.Dns
 
         private bool IsCacheRefreshNeeded(DnsQuestionRecord question, int trigger)
         {
-            DnsDatagram cacheResponse = QueryCache(new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }), false);
+            DnsDatagram cacheResponse = QueryCache(new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }), false, false);
             if (cacheResponse is null)
                 return true; //cache expired so refresh needed
 
@@ -4716,12 +4721,13 @@ namespace DnsServerCore.Dns
                     if (IPAddress.TryParse(value, out _))
                         throw new DnsServerException("Invalid domain name [" + value + "]: IP address cannot be used for DNS server domain name.");
 
-                    _serverDomain = value.ToLower();
+                    _serverDomain = value.ToLowerInvariant();
+                    _defaultResponsiblePerson = new MailAddress("hostadmin@" + _serverDomain);
 
-                    _authZoneManager.ServerDomain = _serverDomain;
-                    _allowedZoneManager.ServerDomain = _serverDomain;
-                    _blockedZoneManager.ServerDomain = _serverDomain;
-                    _blockListZoneManager.ServerDomain = _serverDomain;
+                    _authZoneManager.UpdateServerDomain();
+                    _allowedZoneManager.UpdateServerDomain();
+                    _blockedZoneManager.UpdateServerDomain();
+                    _blockListZoneManager.UpdateServerDomain();
 
                     UpdateThisServer();
                 }
@@ -4741,6 +4747,26 @@ namespace DnsServerCore.Dns
         {
             get { return _log; }
             set { _log = value; }
+        }
+
+        internal MailAddress ResponsiblePersonInternal
+        {
+            get { return _responsiblePerson; }
+            set { _responsiblePerson = value; }
+        }
+
+        public MailAddress ResponsiblePerson
+        {
+            get
+            {
+                if (_responsiblePerson is not null)
+                    return _responsiblePerson;
+
+                if (_defaultResponsiblePerson is null)
+                    _defaultResponsiblePerson = new MailAddress("hostadmin@" + _serverDomain);
+
+                return _defaultResponsiblePerson;
+            }
         }
 
         public NameServerAddress ThisServer
@@ -5293,6 +5319,18 @@ namespace DnsServerCore.Dns
         {
             get { return _serveStale; }
             set { _serveStale = value; }
+        }
+
+        public int ServeStaleMaxWaitTime
+        {
+            get { return _serveStaleMaxWaitTime; }
+            set
+            {
+                if ((value < 0) || (value > 1800))
+                    throw new ArgumentOutOfRangeException(nameof(ServeStaleMaxWaitTime), "Serve stale max wait time valid range is 0 to 1800 milliseconds. Default value is 1800 milliseconds.");
+
+                _serveStaleMaxWaitTime = value;
+            }
         }
 
         public int CachePrefetchEligibility
