@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -125,7 +125,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        public virtual DnsDatagram Query(DnsDatagram request, bool serveStaleAndResetExpiry = false, bool findClosestNameServers = false)
+        public virtual DnsDatagram Query(DnsDatagram request, bool serveStale, bool findClosestNameServers = false, bool resetExpiry = false)
         {
             DnsDatagram authResponse = null;
 
@@ -163,7 +163,7 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            DnsDatagram cacheResponse = _dnsServer.CacheZoneManager.Query(request, serveStaleAndResetExpiry, findClosestNameServers);
+            DnsDatagram cacheResponse = _dnsServer.CacheZoneManager.Query(request, serveStale, findClosestNameServers, resetExpiry);
             if (cacheResponse is not null)
             {
                 if ((cacheResponse.RCODE != DnsResponseCode.NoError) || (cacheResponse.Answer.Count > 0) || (cacheResponse.Authority.Count == 0) || cacheResponse.IsFirstAuthoritySOA())
