@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using System;
+using System.Net.Mail;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Proxy;
@@ -73,6 +74,11 @@ namespace DnsServerCore.ApplicationCommon
         /// The primary domain name used by this DNS Server to identify itself.
         /// </summary>
         string ServerDomain { get; }
+
+        /// <summary>
+        /// The default responsible person email address for this DNS Server.
+        /// </summary>
+        MailAddress ResponsiblePerson { get; }
 
         /// <summary>
         /// The DNS cache object which provides direct access to the DNS server cache.
