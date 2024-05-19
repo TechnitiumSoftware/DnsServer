@@ -621,22 +621,33 @@ namespace DnsServerCore
             {
                 case TopStatsType.TopClients:
                     {
-                        IDictionary<string, string> clientIpMap = await ResolvePtrTopClientsAsync(topStatsData);
+                        bool noReverseLookup = request.GetQueryOrForm("noReverseLookup", bool.Parse, false);
+                        bool onlyRateLimitedClients = request.GetQueryOrForm("onlyRateLimitedClients", bool.Parse, false);
+
+                        IDictionary<string, string> clientIpMap = null;
+
+                        if (!noReverseLookup)
+                            clientIpMap = await ResolvePtrTopClientsAsync(topStatsData);
 
                         jsonWriter.WritePropertyName("topClients");
                         jsonWriter.WriteStartArray();
 
                         foreach (KeyValuePair<string, long> item in topStatsData)
                         {
+                            bool rateLimited = _dnsWebService.DnsServer.IsQpmLimitCrossed(IPAddress.Parse(item.Key));
+
+                            if (onlyRateLimitedClients && !rateLimited)
+                                continue;
+
                             jsonWriter.WriteStartObject();
 
                             jsonWriter.WriteString("name", item.Key);
 
-                            if (clientIpMap.TryGetValue(item.Key, out string clientDomain) && !string.IsNullOrEmpty(clientDomain))
+                            if ((clientIpMap is not null) && clientIpMap.TryGetValue(item.Key, out string clientDomain) && !string.IsNullOrEmpty(clientDomain))
                                 jsonWriter.WriteString("domain", clientDomain);
 
                             jsonWriter.WriteNumber("hits", item.Value);
-                            jsonWriter.WriteBoolean("rateLimited", _dnsWebService.DnsServer.IsQpmLimitCrossed(IPAddress.Parse(item.Key)));
+                            jsonWriter.WriteBoolean("rateLimited", rateLimited);
 
                             jsonWriter.WriteEndObject();
                         }
