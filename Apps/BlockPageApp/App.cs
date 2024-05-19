@@ -134,7 +134,7 @@ namespace BlockPage
         #region properties
 
         public string Description
-        { get { return "Serves a block page from a built-in web server that can be displayed to the end user when a website is blocked by the DNS server.\n\nNote: You need to manually set the Blocking Type as Custom Address in the blocking settings and configure the current server's IP address as Custom Blocking Addresses for the block page to be served to the users. Use a PKCS #12 certificate (.pfx) for enabling HTTPS support. Enabling HTTPS support will show certificate error to the user which is expected and the user will have to proceed ignoring the certificate error to be able to see the block page."; } }
+        { get { return "Serves a block page from a built-in web server that can be displayed to the end user when a website is blocked by the DNS server.\n\nNote: You need to manually set the Blocking Type as Custom Address in the blocking settings and configure the current server's IP address as Custom Blocking Addresses for the block page to be served to the users. Use a PKCS #12 certificate (.pfx or .p12) for enabling HTTPS support. Enabling HTTPS support will show certificate error to the user which is expected and the user will have to proceed ignoring the certificate error to be able to see the block page."; } }
 
         #endregion
 
@@ -304,8 +304,15 @@ namespace BlockPage
                 if (!fileInfo.Exists)
                     throw new ArgumentException("Web server '" + _name + "' TLS certificate file does not exists: " + webServerTlsCertificateFilePath);
 
-                if (Path.GetExtension(webServerTlsCertificateFilePath) != ".pfx")
-                    throw new ArgumentException("Web server '" + _name + "' TLS certificate file must be PKCS #12 formatted with .pfx extension: " + webServerTlsCertificateFilePath);
+                switch (Path.GetExtension(webServerTlsCertificateFilePath).ToLowerInvariant())
+                {
+                    case ".pfx":
+                    case ".p12":
+                        break;
+
+                    default:
+                        throw new ArgumentException("Web server '" + _name + "' TLS certificate file must be PKCS #12 formatted with .pfx or .p12 extension: " + webServerTlsCertificateFilePath);
+                }
 
                 _webServerTlsCertificateCollection = new X509Certificate2Collection();
                 _webServerTlsCertificateCollection.Import(webServerTlsCertificateFilePath, webServerTlsCertificatePassword, X509KeyStorageFlags.PersistKeySet);
@@ -439,10 +446,15 @@ namespace BlockPage
                 {
                     await StopWebServerAsync();
 
-                    string selfSignedCertificateFilePath = Path.Combine(_dnsServer.ApplicationFolder, "cert.pfx");
+                    string selfSignedCertificateFilePath = Path.Combine(_dnsServer.ApplicationFolder, "self-signed-cert.pfx");
 
                     if (_webServerUseSelfSignedTlsCertificate)
                     {
+                        string oldSelfSignedCertificateFilePath = Path.Combine(_dnsServer.ApplicationFolder, "cert.pfx");
+
+                        if (!oldSelfSignedCertificateFilePath.Equals(_webServerTlsCertificateFilePath, Environment.OSVersion.Platform == PlatformID.Win32NT ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) && File.Exists(oldSelfSignedCertificateFilePath) && !File.Exists(selfSignedCertificateFilePath))
+                            File.Move(oldSelfSignedCertificateFilePath, selfSignedCertificateFilePath);
+
                         if (!File.Exists(selfSignedCertificateFilePath))
                         {
                             RSA rsa = RSA.Create(2048);
