@@ -834,6 +834,7 @@
                                                     <option>TXT</option>
                                                     <option>AAAA</option>
                                                     <option>SRV</option>
+                                                    <option>NAPTR</option>
                                                     <option>DNAME</option>
                                                     <option>DS</option>
                                                     <option>SSHFP</option>
@@ -988,6 +989,14 @@
                                                         </div>
 
                                                         <div class="form-group">
+                                                            <label for="txtDefaultResponsiblePerson" class="col-sm-3 control-label">Default Responsible Person</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" class="form-control" id="txtDefaultResponsiblePerson" placeholder="email address">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The default SOA Responsible Person email address to use when adding a Primary Zone.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
                                                             <label class="col-sm-3 control-label">Zone Defaults</label>
                                                             <div class="col-sm-8">
                                                                 <div class="checkbox">
@@ -1011,7 +1020,7 @@
                                                             <label class="col-sm-3 control-label">Notify Allowed Networks</label>
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtNotifyAllowedNetworks" class="form-control" rows="3" spellcheck="false"></textarea>
-                                                                <div style="margin-top: 10px;">Enter IP addresses or network addresses one below another that are allowed to Notify all secondary zones.</div>
+                                                                <div style="margin-top: 10px;">Enter IP addresses or network addresses one below another that are allowed to Notify all Secondary Zones.</div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1307,7 +1316,7 @@
                                                             <div class="col-sm-6">
                                                                 <input type="text" class="form-control" id="txtWebServiceTlsCertificatePath" placeholder="Web Service TLS Certificate File Path On Server">
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx) file path on the server. The path can be relative to the DNS server's config folder. The certificate must contain private key.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx or .p12) file path on the server. The path can be relative to the DNS server's config folder. The certificate must contain private key.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1438,7 +1447,7 @@
                                                             <div class="col-sm-6">
                                                                 <input type="text" class="form-control" id="txtDnsTlsCertificatePath" placeholder="DNS Service TLS Certificate File Path On Server">
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx) file path on the server. The path can be relative to the DNS server's config folder. The certificate must contain private key.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx or .p12) file path on the server. The path can be relative to the DNS server's config folder. The certificate must contain private key.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1618,7 +1627,7 @@
                                                                         <input id="chkServeStale" type="checkbox"> Enable Serve Stale
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable the <a href="https://datatracker.ietf.org/doc/rfc8767/" target="_blank">Serve Stale</a> feature to improve resiliency by using expired or stale records in cache when the DNS server is unable to reach the upstream or authoritative name servers.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable the <a href="https://datatracker.ietf.org/doc/rfc8767/" target="_blank">Serve Stale</a> feature to improve resiliency by using expired or stale records in cache to respond when the DNS server is unable to reach the upstream or authoritative name servers to refresh the expired records before the Max Wait Time configured below.</div>
                                                             </div>
                                                         </div>
 
@@ -1629,6 +1638,33 @@
                                                                 <span>seconds (recommended 259200 i.e. 3 days)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value in seconds which should be used for cached records that are expired. When the serve stale TTL too expires for a stale record, it gets removed from the cache. Recommended value is between 1-3 days and maximum supported value is 7 days.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtServeStaleAnswerTtl" class="col-sm-3 control-label">Serve Stale Answer TTL</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtServeStaleAnswerTtl" placeholder="seconds" style="width: 100px; display: inline;">
+                                                                <span>seconds (valid range 0-300; recommended 30)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value in seconds which should be used for the records in a stale response. This is the TTL value that the client will be using to cache the stale records.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtServeStaleResetTtl" class="col-sm-3 control-label">Serve Stale Reset TTL</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtServeStaleResetTtl" placeholder="seconds" style="width: 100px; display: inline;">
+                                                                <span>seconds (valid range 10-900; recommended 30)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value in seconds which should be used to reset the stale record's TTL value in the cache when the resolver fails to refresh the data. The TTL reset causes the stale records to become valid again so that they can be used to serve requests normally. This reset effectively prevents the resolver from attempting to frequently update the stale records.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtServeStaleMaxWaitTime" class="col-sm-3 control-label">Serve Stale Max Wait Time</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtServeStaleMaxWaitTime" placeholder="milliseconds" style="width: 100px; display: inline;">
+                                                                <span>milliseconds (valid range 0-1800; default 1800)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The time in milliseconds that the DNS server must wait for the resolver before serving stale records from the cache. Lower value will ensure faster response at the expense of not getting updated data from the upstream. Setting value to 0 will instantly return stale answer without waiting for the resolver to fetch updates from the upstream.</div>
                                                         </div>
                                                     </div>
 
@@ -1806,8 +1842,6 @@
                                                                     <option value="none">None</option>
                                                                     <option value="default">Default</option>
 
-                                                                    <option id="optCustomLocalBlockList" value="http://localhost:5380/blocklist.txt">Custom Local Block List (http://localhost:5380/blocklist.txt)</option>
-
                                                                     <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts">Steven Black [adware + malware] (https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts)</option>
                                                                     <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews/hosts">Steven Black [adware + malware + fakenews] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews/hosts)</option>
                                                                     <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling/hosts">Steven Black [adware + malware + gambling] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling/hosts)</option>
@@ -1924,7 +1958,7 @@
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enter IP addresses, network addresses or domain names to never proxy.</div>
                                                         </div>
 
-                                                        <div style="margin-top: 10px;">When proxy server is configured, DNS Server will use it for all outbound network requests.</div>
+                                                        <div style="margin-top: 10px;">Note! When proxy server is configured, DNS Server will use it for all outbound network requests.</div>
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
@@ -2054,7 +2088,8 @@
                                                             </div>
                                                         </div>
 
-                                                        <div style="margin-top: 10px;">Forwarders are DNS servers which this DNS Server should use to resolve recursive queries. If no forwarders are configured then this DNS server will use preconfigured ROOT SERVERS to perform recursive resolution. To force DNS-over-HTTPS/3, use <code>h3</code> URL scheme instead of <code>https</code>.</div>
+                                                        <div style="margin-top: 10px;">Forwarders are upstream DNS servers which this DNS Server should use to resolve recursive queries. When more than one forwarders are configured, the DNS server will randomly select one or more forwarders (as per forwarder concurrency) to query and use the fastest response it receives from anyone of them. If none of the randomly selected forwarders respond in time then the ones left are tried before giving up. If no forwarders are configured then the DNS server will use preconfigured ROOT SERVERS to perform recursive resolution.</div>
+                                                        <div style="margin-top: 10px;">Note! To force DNS-over-HTTPS/3, use <code>h3</code> URL scheme instead of <code>https</code>.</div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/06/configuring-dns-server-for-privacy.html" target="_blank">Help: Configuring DNS Server For Privacy & Security</a></div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2023/02/configuring-dns-over-quic-and-https3.html" target="_blank">Help: Configuring DNS-over-QUIC and HTTPS/3 For Technitium DNS Server</a></div>
                                                     </div>
@@ -2988,7 +3023,7 @@
                                         <p>Source code available under <a href="https://go.technitium.com/?id=24" target="_blank">GNU General Public License v3.0</a> on <a href="https://github.com/TechnitiumSoftware/DnsServer" target="_blank"><i class="fa fa-github"></i>&nbsp;GitHub</a></p>
 
                                         <h3 style="margin-top: 40px;"><a style="color: rgb(51,51,51) !important;" href="https://go.technitium.com/?id=23" target="_blank">What's New?</a></h3>
-                                        <p>Read the <a href="https://go.technitium.com/?id=23" target="_blank">change log</a> to know whats new in this release.</p>
+                                        <p>Read the <a href="https://go.technitium.com/?id=23" target="_blank">change log</a> to know what's new in this release.</p>
 
                                         <h3 style="margin-top: 40px;"><a style="color: rgb(51,51,51) !important;" href="https://github.com/TechnitiumSoftware/DnsServer/blob/master/APIDOCS.md" target="_blank">API Documentation</a></h3>
                                         <p>The DNS server HTTP API allows any 3rd party app or script to configure the DNS server. The HTTP API is used by this web console and thus all the actions that this web console does can be performed via the API. Read the <a href="https://github.com/TechnitiumSoftware/DnsServer/blob/master/APIDOCS.md" target="_blank">HTTP API documentation</a> for complete details.</p>
@@ -3563,6 +3598,7 @@ ns1.example.com ([2001:db8::])
                                         <option>TXT</option>
                                         <option>AAAA</option>
                                         <option>SRV</option>
+                                        <option>NAPTR</option>
                                         <option>DNAME</option>
                                         <option id="optAddEditRecordTypeDs">DS</option>
                                         <option id="optAddEditRecordTypeSshfp">SSHFP</option>
@@ -3749,6 +3785,21 @@ ns1.example.com ([2001:db8::])
                             </div>
 
 
+                            <div id="divAddEditRecordDataTxt" style="display: none;">
+                                <div class="form-group">
+                                    <label for="txtAddEditRecordDataTxt" class="col-sm-4 control-label">Text Data</label>
+                                    <div class="col-sm-7">
+                                        <textarea id="txtAddEditRecordDataTxt" class="form-control" rows="5" spellcheck="false"></textarea>
+                                        <div class="checkbox">
+                                            <label>
+                                                <input id="chkAddEditRecordDataTxtSplitText" type="checkbox"> Use New Line To Split Text Into Multiple Character-Strings
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+
                             <div id="divAddEditRecordDataSrv" style="display: none;">
                                 <div class="form-group">
                                     <label for="txtAddEditRecordDataSrvPriority" class="col-sm-4 control-label">Priority</label>
@@ -3772,6 +3823,46 @@ ns1.example.com ([2001:db8::])
                                     <label for="txtAddEditRecordDataSrvTarget" class="col-sm-4 control-label">Target</label>
                                     <div class="col-sm-7">
                                         <input type="text" class="form-control" id="txtAddEditRecordDataSrvTarget">
+                                    </div>
+                                </div>
+                            </div>
+
+
+                            <div id="divAddEditRecordDataNaptr" style="display: none;">
+                                <div class="form-group">
+                                    <label for="txtAddEditRecordDataNaptrOrder" class="col-sm-4 control-label">Order</label>
+                                    <div class="col-sm-7">
+                                        <input type="number" class="form-control" id="txtAddEditRecordDataNaptrOrder" style="width: 100px;">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="txtAddEditRecordDataNaptrPreference" class="col-sm-4 control-label">Preference</label>
+                                    <div class="col-sm-7">
+                                        <input type="number" class="form-control" id="txtAddEditRecordDataNaptrPreference" style="width: 100px;">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="txtAddEditRecordDataNaptrFlags" class="col-sm-4 control-label">Flags</label>
+                                    <div class="col-sm-7">
+                                        <input type="text" class="form-control" id="txtAddEditRecordDataNaptrFlags">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="txtAddEditRecordDataNaptrServices" class="col-sm-4 control-label">Services</label>
+                                    <div class="col-sm-7">
+                                        <input type="text" class="form-control" id="txtAddEditRecordDataNaptrServices">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="txtAddEditRecordDataNaptrRegExp" class="col-sm-4 control-label">Regular Expression</label>
+                                    <div class="col-sm-7">
+                                        <input type="text" class="form-control" id="txtAddEditRecordDataNaptrRegExp">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="txtAddEditRecordDataNaptrReplacement" class="col-sm-4 control-label">Replacement</label>
+                                    <div class="col-sm-7">
+                                        <input type="text" class="form-control" id="txtAddEditRecordDataNaptrReplacement">
                                     </div>
                                 </div>
                             </div>
@@ -5155,7 +5246,7 @@ MII...
 
                                 <div class="checkbox">
                                     <label>
-                                        <input id="chkBackupDnsSettings" type="checkbox" checked> DNS Settings And Certificate Files (dns.config &amp; *.pfx)
+                                        <input id="chkBackupDnsSettings" type="checkbox" checked> DNS Settings And Certificate Files (dns.config, *.pfx, &amp; *.p12)
                                     </label>
                                 </div>
 
@@ -5216,7 +5307,7 @@ MII...
                         </div>
                     </div>
 
-                    <p><b>Note!</b> The Web Service or Optional Protocols TLS certificate (.pfx) files will be included in the backup only if they exist within the DNS server's config folder.</p>
+                    <p><b>Note!</b> The Web Service or Optional Protocols TLS certificate (.pfx or .p12) files will be included in the backup only if they exist within the DNS server's config folder.</p>
 
                     <p><b>Note!</b> It may take several minutes to generate the backup zip file if log files are selected to be backed up which will depend on the size of the log files on the disk.</p>
 
@@ -5259,7 +5350,7 @@ MII...
 
                                 <div class="checkbox">
                                     <label>
-                                        <input id="chkRestoreDnsSettings" type="checkbox" checked> DNS Settings And Certificate Files (dns.config &amp; *.pfx)
+                                        <input id="chkRestoreDnsSettings" type="checkbox" checked> DNS Settings And Certificate Files (dns.config, *.pfx, &amp; *.p12)
                                     </label>
                                 </div>
 
