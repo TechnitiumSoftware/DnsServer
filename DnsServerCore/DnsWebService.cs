@@ -37,6 +37,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Net.Mail;
 using System.Net.Quic;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -114,6 +115,11 @@ namespace DnsServerCore
 
         List<string> _configDisabledZones;
 
+        readonly object _saveLock = new object();
+        bool _pendingSave;
+        readonly Timer _saveTimer;
+        const int SAVE_TIMER_INITIAL_INTERVAL = 10000;
+
         #endregion
 
         #region constructor
@@ -145,6 +151,25 @@ namespace DnsServerCore
             _dhcpApi = new WebServiceDhcpApi(this);
             _authApi = new WebServiceAuthApi(this);
             _logsApi = new WebServiceLogsApi(this);
+
+            _saveTimer = new Timer(delegate (object state)
+            {
+                lock (_saveLock)
+                {
+                    try
+                    {
+                        SaveConfigFileInternal();
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Write(ex);
+                    }
+                    finally
+                    {
+                        _pendingSave = false;
+                    }
+                }
+            });
         }
 
         #endregion
@@ -157,6 +182,27 @@ namespace DnsServerCore
         {
             if (_disposed)
                 return;
+
+            _saveTimer?.Dispose();
+
+            lock (_saveLock)
+            {
+                if (_pendingSave)
+                {
+                    try
+                    {
+                        SaveConfigFileInternal();
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Write(ex);
+                    }
+                    finally
+                    {
+                        _pendingSave = false;
+                    }
+                }
+            }
 
             await StopAsync();
 
@@ -194,6 +240,9 @@ namespace DnsServerCore
 
         internal string ConvertToAbsolutePath(string path)
         {
+            if (path is null)
+                return null;
+
             if (Path.IsPathRooted(path))
                 return path;
 
@@ -250,7 +299,7 @@ namespace DnsServerCore
 
                 await StartWebServiceAsync(_webServiceLocalAddresses, _webServiceHttpPort, _webServiceTlsPort, false);
 
-                SaveConfigFile(); //save reverted changes
+                SaveConfigFileInternal(); //save reverted changes
                 return;
             }
             catch (Exception ex2)
@@ -331,7 +380,7 @@ namespace DnsServerCore
             _webService = builder.Build();
 
             if (_webServiceHttpToTlsRedirect && !safeMode && _webServiceEnableTls && (_webServiceCertificateCollection is not null))
-                _webService.UseHttpsRedirection();
+                _webService.Use(WebServiceHttpsRedirectionMiddleware);
 
             _webService.UseDefaultFiles();
             _webService.UseStaticFiles(new StaticFileOptions()
@@ -527,6 +576,15 @@ namespace DnsServerCore
             _webService.MapGetAndPost("/api/logs/query", _logsApi.QueryLogsAsync);
         }
 
+        private Task WebServiceHttpsRedirectionMiddleware(HttpContext context, RequestDelegate next)
+        {
+            if (context.Request.IsHttps)
+                return next(context);
+
+            context.Response.Redirect("https://" + (context.Request.Host.HasValue ? context.Request.Host.Host : _dnsServer.ServerDomain) + (_webServiceTlsPort == 443 ? "" : ":" + _webServiceTlsPort) + context.Request.Path + (context.Request.QueryString.HasValue ? context.Request.QueryString.Value : ""), false, true);
+            return Task.CompletedTask;
+        }
+
         private async Task WebServiceApiMiddleware(HttpContext context, RequestDelegate next)
         {
             bool needsJsonResponseObject;
@@ -648,7 +706,7 @@ namespace DnsServerCore
                         jsonWriter.WriteEndObject();
                     }
 
-                    _log.Write(ex);
+                    _log.Write(context.GetRemoteEndPoint(), ex);
                 }
             });
         }
@@ -737,8 +795,15 @@ namespace DnsServerCore
             if (!fileInfo.Exists)
                 throw new ArgumentException("Web Service TLS certificate file does not exists: " + tlsCertificatePath);
 
-            if (Path.GetExtension(tlsCertificatePath) != ".pfx")
-                throw new ArgumentException("Web Service TLS certificate file must be PKCS #12 formatted with .pfx extension: " + tlsCertificatePath);
+            switch (Path.GetExtension(tlsCertificatePath).ToLowerInvariant())
+            {
+                case ".pfx":
+                case ".p12":
+                    break;
+
+                default:
+                    throw new ArgumentException("Web Service TLS certificate file must be PKCS #12 formatted with .pfx or .p12 extension: " + tlsCertificatePath);
+            }
 
             X509Certificate2Collection certificateCollection = new X509Certificate2Collection();
             certificateCollection.Import(tlsCertificatePath, tlsCertificatePassword, X509KeyStorageFlags.PersistKeySet);
@@ -776,8 +841,15 @@ namespace DnsServerCore
             if (!fileInfo.Exists)
                 throw new ArgumentException("DNS Server TLS certificate file does not exists: " + tlsCertificatePath);
 
-            if (Path.GetExtension(tlsCertificatePath) != ".pfx")
-                throw new ArgumentException("DNS Server TLS certificate file must be PKCS #12 formatted with .pfx extension: " + tlsCertificatePath);
+            switch (Path.GetExtension(tlsCertificatePath).ToLowerInvariant())
+            {
+                case ".pfx":
+                case ".p12":
+                    break;
+
+                default:
+                    throw new ArgumentException("DNS Server TLS certificate file must be PKCS #12 formatted with .pfx or .p12 extension: " + tlsCertificatePath);
+            }
 
             X509Certificate2Collection certificateCollection = new X509Certificate2Collection();
             certificateCollection.Import(tlsCertificatePath, tlsCertificatePassword, X509KeyStorageFlags.PersistKeySet);
@@ -790,10 +862,15 @@ namespace DnsServerCore
 
         internal void SelfSignedCertCheck(bool generateNew, bool throwException)
         {
-            string selfSignedCertificateFilePath = Path.Combine(_configFolder, "cert.pfx");
+            string selfSignedCertificateFilePath = Path.Combine(_configFolder, "self-signed-cert.pfx");
 
             if (_webServiceUseSelfSignedTlsCertificate)
             {
+                string oldSelfSignedCertificateFilePath = Path.Combine(_configFolder, "cert.pfx");
+
+                if (!oldSelfSignedCertificateFilePath.Equals(ConvertToAbsolutePath(_webServiceTlsCertificatePath), Environment.OSVersion.Platform == PlatformID.Win32NT ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) && File.Exists(oldSelfSignedCertificateFilePath) && !File.Exists(selfSignedCertificateFilePath))
+                    File.Move(oldSelfSignedCertificateFilePath, selfSignedCertificateFilePath);
+
                 if (generateNew || !File.Exists(selfSignedCertificateFilePath))
                 {
                     RSA rsa = RSA.Create(2048);
@@ -871,7 +948,7 @@ namespace DnsServerCore
                 _log.Write("DNS Server config file was loaded: " + configFile);
 
                 if (version <= 27)
-                    SaveConfigFile(); //save as new config version to avoid loading old version next time
+                    SaveConfigFileInternal(); //save as new config version to avoid loading old version next time
             }
             catch (FileNotFoundException)
             {
@@ -935,7 +1012,7 @@ namespace DnsServerCore
 
                 _dnsServer.RandomizeName = true; //default true to enable security feature
                 _dnsServer.QnameMinimization = true; //default true to enable privacy feature
-                _dnsServer.NsRevalidation = true; //default true for security reasons
+                _dnsServer.NsRevalidation = false; //default false to allow resolving misconfigured zones
 
                 //cache
                 _dnsServer.CacheZoneManager.MaximumEntries = 10000;
@@ -1011,7 +1088,7 @@ namespace DnsServerCore
 
                 _dnsServer.StatsManager.EnableInMemoryStats = false;
 
-                SaveConfigFile();
+                SaveConfigFileInternal();
             }
             catch (Exception ex)
             {
@@ -1044,7 +1121,7 @@ namespace DnsServerCore
             }
         }
 
-        internal void SaveConfigFile()
+        private void SaveConfigFileInternal()
         {
             string configFile = Path.Combine(_configFolder, "dns.config");
 
@@ -1063,6 +1140,18 @@ namespace DnsServerCore
             }
 
             _log.Write("DNS Server config file was saved: " + configFile);
+        }
+
+        internal void SaveConfigFile()
+        {
+            lock (_saveLock)
+            {
+                if (_pendingSave)
+                    return;
+
+                _pendingSave = true;
+                _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
+            }
         }
 
         internal void InspectAndFixZonePermissions()
@@ -1116,7 +1205,7 @@ namespace DnsServerCore
 
             int version = bR.ReadByte();
 
-            if ((version >= 28) && (version <= 35))
+            if ((version >= 28) && (version <= 36))
             {
                 ReadConfigFrom(bR, version);
             }
@@ -1128,6 +1217,7 @@ namespace DnsServerCore
                 DnsClientConnection.IPv4SourceAddresses = null;
                 DnsClientConnection.IPv6SourceAddresses = null;
                 _webServiceEnableHttp3 = _webServiceEnableTls && IsQuicSupported();
+                _dnsServer.ResponsiblePersonInternal = null;
                 _dnsServer.AuthZoneManager.UseSoaSerialDateScheme = false;
                 _dnsServer.ZoneTransferAllowedNetworks = null;
                 _dnsServer.NotifyAllowedNetworks = null;
@@ -1138,6 +1228,9 @@ namespace DnsServerCore
                 _dnsServer.EDnsClientSubnetIpv6Override = null;
                 _dnsServer.QpmLimitBypassList = null;
                 _dnsServer.BlockingBypassList = null;
+                _dnsServer.CacheZoneManager.ServeStaleAnswerTtl = CacheZoneManager.SERVE_STALE_ANSWER_TTL;
+                _dnsServer.CacheZoneManager.ServeStaleResetTtl = CacheZoneManager.SERVE_STALE_RESET_TTL;
+                _dnsServer.ServeStaleMaxWaitTime = DnsServer.SERVE_STALE_MAX_WAIT_TIME;
                 _dnsServer.ResolverLogManager = _log;
                 _appsApi.EnableAutomaticUpdate = true;
                 _dnsServer.StatsManager.EnableInMemoryStats = false;
@@ -1243,6 +1336,19 @@ namespace DnsServerCore
                 }
 
                 _zonesApi.DefaultRecordTtl = bR.ReadUInt32();
+
+                if (version >= 36)
+                {
+                    string rp = bR.ReadString();
+                    if (rp.Length == 0)
+                        _dnsServer.ResponsiblePersonInternal = null;
+                    else
+                        _dnsServer.ResponsiblePersonInternal = new MailAddress(rp);
+                }
+                else
+                {
+                    _dnsServer.ResponsiblePersonInternal = null;
+                }
 
                 if (version >= 33)
                 {
@@ -1464,6 +1570,19 @@ namespace DnsServerCore
 
                 _dnsServer.ServeStale = bR.ReadBoolean();
                 _dnsServer.CacheZoneManager.ServeStaleTtl = bR.ReadUInt32();
+
+                if (version >= 36)
+                {
+                    _dnsServer.CacheZoneManager.ServeStaleAnswerTtl = bR.ReadUInt32();
+                    _dnsServer.CacheZoneManager.ServeStaleResetTtl = bR.ReadUInt32();
+                    _dnsServer.ServeStaleMaxWaitTime = bR.ReadInt32();
+                }
+                else
+                {
+                    _dnsServer.CacheZoneManager.ServeStaleAnswerTtl = CacheZoneManager.SERVE_STALE_ANSWER_TTL;
+                    _dnsServer.CacheZoneManager.ServeStaleResetTtl = CacheZoneManager.SERVE_STALE_RESET_TTL;
+                    _dnsServer.ServeStaleMaxWaitTime = DnsServer.SERVE_STALE_MAX_WAIT_TIME;
+                }
 
                 _dnsServer.CacheZoneManager.MaximumEntries = bR.ReadInt64();
                 _dnsServer.CacheZoneManager.MinimumRecordTtl = bR.ReadUInt32();
@@ -2149,7 +2268,7 @@ namespace DnsServerCore
             if (version >= 22)
                 _dnsServer.NsRevalidation = bR.ReadBoolean();
             else
-                _dnsServer.NsRevalidation = true; //default true for security reasons
+                _dnsServer.NsRevalidation = false; //default false to allow resolving misconfigured zones
 
             if (version >= 23)
             {
@@ -2224,7 +2343,7 @@ namespace DnsServerCore
         private void WriteConfigTo(BinaryWriter bW)
         {
             bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-            bW.Write((byte)35); //version
+            bW.Write((byte)36); //version
 
             //web service
             {
@@ -2270,6 +2389,12 @@ namespace DnsServerCore
                 WriteNetworkAddresses(DnsClientConnection.IPv6SourceAddresses, bW);
 
                 bW.Write(_zonesApi.DefaultRecordTtl);
+
+                if (_dnsServer.ResponsiblePersonInternal is null)
+                    bW.WriteShortString("");
+                else
+                    bW.WriteShortString(_dnsServer.ResponsiblePersonInternal.Address);
+
                 bW.Write(_dnsServer.AuthZoneManager.UseSoaSerialDateScheme);
 
                 WriteNetworkAddresses(_dnsServer.ZoneTransferAllowedNetworks, bW);
@@ -2380,6 +2505,9 @@ namespace DnsServerCore
                 bW.Write(_saveCache);
                 bW.Write(_dnsServer.ServeStale);
                 bW.Write(_dnsServer.CacheZoneManager.ServeStaleTtl);
+                bW.Write(_dnsServer.CacheZoneManager.ServeStaleAnswerTtl);
+                bW.Write(_dnsServer.CacheZoneManager.ServeStaleResetTtl);
+                bW.Write(_dnsServer.ServeStaleMaxWaitTime);
 
                 bW.Write(_dnsServer.CacheZoneManager.MaximumEntries);
                 bW.Write(_dnsServer.CacheZoneManager.MinimumRecordTtl);
@@ -2521,7 +2649,7 @@ namespace DnsServerCore
             try
             {
                 //get initial server domain
-                string dnsServerDomain = Environment.MachineName.ToLower();
+                string dnsServerDomain = Environment.MachineName.ToLowerInvariant();
                 if (!DnsClient.IsDomainNameValid(dnsServerDomain))
                     dnsServerDomain = "dns-server-1"; //use this name instead since machine name is not a valid domain name
 
