@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -277,7 +277,7 @@ namespace DnsServerCore.Dns.Dnssec
         internal void SetState(DnssecPrivateKeyState state)
         {
             if (_state >= state)
-                throw new InvalidOperationException();
+                return; //ignore; state cannot be updated to lower value
 
             _state = state;
             _stateChangedOn = DateTime.UtcNow;
