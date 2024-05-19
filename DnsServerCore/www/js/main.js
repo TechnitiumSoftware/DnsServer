@@ -980,6 +980,8 @@ function loadDnsSettings(responseJSON) {
     $("#txtDefaultRecordTtl").val(responseJSON.response.defaultRecordTtl);
     $("#txtAddEditRecordTtl").attr("placeholder", responseJSON.response.defaultRecordTtl);
 
+    $("#txtDefaultResponsiblePerson").val(responseJSON.response.defaultResponsiblePerson);
+
     $("#chkUseSoaSerialDateScheme").prop("checked", responseJSON.response.useSoaSerialDateScheme);
 
     $("#txtZoneTransferAllowedNetworks").val(getArrayAsString(responseJSON.response.zoneTransferAllowedNetworks));
@@ -1133,6 +1135,9 @@ function loadDnsSettings(responseJSON) {
     $("#chkServeStale").prop("checked", responseJSON.response.serveStale);
     $("#txtServeStaleTtl").prop("disabled", !responseJSON.response.serveStale);
     $("#txtServeStaleTtl").val(responseJSON.response.serveStaleTtl);
+    $("#txtServeStaleAnswerTtl").val(responseJSON.response.serveStaleAnswerTtl);
+    $("#txtServeStaleResetTtl").val(responseJSON.response.serveStaleResetTtl);
+    $("#txtServeStaleMaxWaitTime").val(responseJSON.response.serveStaleMaxWaitTime);
 
     $("#txtCacheMaximumEntries").val(responseJSON.response.cacheMaximumEntries);
     $("#txtCacheMinimumRecordTtl").val(responseJSON.response.cacheMinimumRecordTtl);
@@ -1201,14 +1206,6 @@ function loadDnsSettings(responseJSON) {
     }
 
     $("#optQuickBlockList").val("blank");
-
-    //fix custom block list url in case port changes
-    {
-        var optCustomLocalBlockList = $("#optCustomLocalBlockList");
-
-        optCustomLocalBlockList.attr("value", "http://localhost:" + responseJSON.response.webServiceHttpPort + "/blocklist.txt");
-        optCustomLocalBlockList.text("Custom Local Block List (http://localhost:" + responseJSON.response.webServiceHttpPort + "/blocklist.txt)");
-    }
 
     $("#txtBlockListUpdateIntervalHours").val(responseJSON.response.blockListUpdateIntervalHours);
 
@@ -1347,6 +1344,7 @@ function saveDnsSettings() {
         dnsServerIPv6SourceAddresses = false;
 
     var defaultRecordTtl = $("#txtDefaultRecordTtl").val();
+    var defaultResponsiblePerson = $("#txtDefaultResponsiblePerson").val();
     var useSoaSerialDateScheme = $("#chkUseSoaSerialDateScheme").prop("checked");
 
     var zoneTransferAllowedNetworks = cleanTextList($("#txtZoneTransferAllowedNetworks").val());
@@ -1597,6 +1595,9 @@ function saveDnsSettings() {
 
     var serveStale = $("#chkServeStale").prop("checked");
     var serveStaleTtl = $("#txtServeStaleTtl").val();
+    var serveStaleAnswerTtl = $("#txtServeStaleAnswerTtl").val();
+    var serveStaleResetTtl = $("#txtServeStaleResetTtl").val();
+    var serveStaleMaxWaitTime = $("#txtServeStaleMaxWaitTime").val();
 
     var cacheMaximumEntries = $("#txtCacheMaximumEntries").val();
     if ((cacheMaximumEntries === null) || (cacheMaximumEntries === "")) {
@@ -1769,7 +1770,7 @@ function saveDnsSettings() {
         url: "/api/settings/set",
         method: "POST",
         data: "token=" + sessionData.token + "&dnsServerDomain=" + dnsServerDomain + "&dnsServerLocalEndPoints=" + encodeURIComponent(dnsServerLocalEndPoints) + "&dnsServerIPv4SourceAddresses=" + encodeURIComponent(dnsServerIPv4SourceAddresses) + "&dnsServerIPv6SourceAddresses=" + encodeURIComponent(dnsServerIPv6SourceAddresses)
-            + "&defaultRecordTtl=" + defaultRecordTtl + "&useSoaSerialDateScheme=" + useSoaSerialDateScheme + "&zoneTransferAllowedNetworks=" + encodeURIComponent(zoneTransferAllowedNetworks) + "&notifyAllowedNetworks=" + encodeURIComponent(notifyAllowedNetworks) + "&dnsAppsEnableAutomaticUpdate=" + dnsAppsEnableAutomaticUpdate + "&preferIPv6=" + preferIPv6 + "&udpPayloadSize=" + udpPayloadSize + "&dnssecValidation=" + dnssecValidation
+            + "&defaultRecordTtl=" + defaultRecordTtl + "&defaultResponsiblePerson=" + encodeURIComponent(defaultResponsiblePerson) + "&useSoaSerialDateScheme=" + useSoaSerialDateScheme + "&zoneTransferAllowedNetworks=" + encodeURIComponent(zoneTransferAllowedNetworks) + "&notifyAllowedNetworks=" + encodeURIComponent(notifyAllowedNetworks) + "&dnsAppsEnableAutomaticUpdate=" + dnsAppsEnableAutomaticUpdate + "&preferIPv6=" + preferIPv6 + "&udpPayloadSize=" + udpPayloadSize + "&dnssecValidation=" + dnssecValidation
             + "&eDnsClientSubnet=" + eDnsClientSubnet + "&eDnsClientSubnetIPv4PrefixLength=" + eDnsClientSubnetIPv4PrefixLength + "&eDnsClientSubnetIPv6PrefixLength=" + eDnsClientSubnetIPv6PrefixLength + "&eDnsClientSubnetIpv4Override=" + encodeURIComponent(eDnsClientSubnetIpv4Override) + "&eDnsClientSubnetIpv6Override=" + encodeURIComponent(eDnsClientSubnetIpv6Override)
             + "&qpmLimitRequests=" + qpmLimitRequests + "&qpmLimitErrors=" + qpmLimitErrors + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitIPv4PrefixLength=" + qpmLimitIPv4PrefixLength + "&qpmLimitIPv6PrefixLength=" + qpmLimitIPv6PrefixLength + "&qpmLimitBypassList=" + encodeURIComponent(qpmLimitBypassList)
             + "&clientTimeout=" + clientTimeout + "&tcpSendTimeout=" + tcpSendTimeout + "&tcpReceiveTimeout=" + tcpReceiveTimeout + "&quicIdleTimeout=" + quicIdleTimeout + "&quicMaxInboundStreams=" + quicMaxInboundStreams + "&listenBacklog=" + listenBacklog
@@ -1777,7 +1778,7 @@ function saveDnsSettings() {
             + "&enableDnsOverUdpProxy=" + enableDnsOverUdpProxy + "&enableDnsOverTcpProxy=" + enableDnsOverTcpProxy + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&enableDnsOverQuic=" + enableDnsOverQuic + "&dnsOverUdpProxyPort=" + dnsOverUdpProxyPort + "&dnsOverTcpProxyPort=" + dnsOverTcpProxyPort + "&dnsOverHttpPort=" + dnsOverHttpPort + "&dnsOverTlsPort=" + dnsOverTlsPort + "&dnsOverHttpsPort=" + dnsOverHttpsPort + "&dnsOverQuicPort=" + dnsOverQuicPort + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword)
             + "&tsigKeys=" + encodeURIComponent(tsigKeys)
             + "&recursion=" + recursion + "&recursionDeniedNetworks=" + encodeURIComponent(recursionDeniedNetworks) + "&recursionAllowedNetworks=" + encodeURIComponent(recursionAllowedNetworks) + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization + "&nsRevalidation=" + nsRevalidation + "&resolverRetries=" + resolverRetries + "&resolverTimeout=" + resolverTimeout + "&resolverMaxStackCount=" + resolverMaxStackCount
-            + "&saveCache=" + saveCache + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cacheMaximumEntries=" + cacheMaximumEntries + "&cacheMinimumRecordTtl=" + cacheMinimumRecordTtl + "&cacheMaximumRecordTtl=" + cacheMaximumRecordTtl + "&cacheNegativeRecordTtl=" + cacheNegativeRecordTtl + "&cacheFailureRecordTtl=" + cacheFailureRecordTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
+            + "&saveCache=" + saveCache + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&serveStaleAnswerTtl=" + serveStaleAnswerTtl + "&serveStaleResetTtl=" + serveStaleResetTtl + "&serveStaleMaxWaitTime=" + serveStaleMaxWaitTime + "&cacheMaximumEntries=" + cacheMaximumEntries + "&cacheMinimumRecordTtl=" + cacheMinimumRecordTtl + "&cacheMaximumRecordTtl=" + cacheMaximumRecordTtl + "&cacheNegativeRecordTtl=" + cacheNegativeRecordTtl + "&cacheFailureRecordTtl=" + cacheFailureRecordTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
             + "&enableBlocking=" + enableBlocking + "&allowTxtBlockingReport=" + allowTxtBlockingReport + "&blockingBypassList=" + encodeURIComponent(blockingBypassList) + "&blockingType=" + blockingType + "&customBlockingAddresses=" + encodeURIComponent(customBlockingAddresses) + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours
             + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&forwarderRetries=" + forwarderRetries + "&forwarderTimeout=" + forwarderTimeout + "&forwarderConcurrency=" + forwarderConcurrency
             + "&enableLogging=" + enableLogging + "&ignoreResolverLogs=" + ignoreResolverLogs + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&enableInMemoryStats=" + enableInMemoryStats + "&maxStatFileDays=" + maxStatFileDays,
