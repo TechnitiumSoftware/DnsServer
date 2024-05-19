@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ namespace DnsServerCore.Dns
 
         #region public
 
-        public override DnsDatagram Query(DnsDatagram request, bool serveStaleAndResetExpiry = false, bool findClosestNameServers = false)
+        public override DnsDatagram Query(DnsDatagram request, bool serveStale = false, bool findClosestNameServers = false, bool resetExpiry = false)
         {
             if (_prefetchQuestion.Equals(request.Question[0]))
             {
@@ -54,7 +54,7 @@ namespace DnsServerCore.Dns
                 return QueryClosestDelegation(request);
             }
 
-            return base.Query(request, serveStaleAndResetExpiry, findClosestNameServers);
+            return base.Query(request, serveStale, findClosestNameServers, resetExpiry);
         }
 
         #endregion
