@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ namespace DnsServerCore.Auth
         readonly string _configFolder;
         readonly LogManager _log;
 
-        readonly object _lockObj = new object();
+        readonly object _saveLock = new object();
         bool _pendingSave;
         readonly Timer _saveTimer;
         const int SAVE_TIMER_INITIAL_INTERVAL = 10000;
@@ -62,7 +62,24 @@ namespace DnsServerCore.Auth
             _configFolder = configFolder;
             _log = log;
 
-            _saveTimer = new Timer(SaveTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
+            _saveTimer = new Timer(delegate (object state)
+            {
+                lock (_saveLock)
+                {
+                    try
+                    {
+                        SaveConfigFileInternal();
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Write(ex);
+                    }
+                    finally
+                    {
+                        _pendingSave = false;
+                    }
+                }
+            });
         }
 
         #endregion
@@ -76,12 +93,22 @@ namespace DnsServerCore.Auth
             if (_disposed)
                 return;
 
-            if (_saveTimer is not null)
-                _saveTimer.Dispose();
+            _saveTimer?.Dispose();
 
-            lock (_lockObj)
+            lock (_saveLock)
             {
-                SaveConfigFileInternal();
+                try
+                {
+                    SaveConfigFileInternal();
+                }
+                catch (Exception ex)
+                {
+                    _log.Write(ex);
+                }
+                finally
+                {
+                    _pendingSave = false;
+                }
             }
 
             _disposed = true;
@@ -90,22 +117,6 @@ namespace DnsServerCore.Auth
         #endregion
 
         #region private
-
-        private void SaveTimerCallback(object state)
-        {
-            try
-            {
-                lock (_lockObj)
-                {
-                    _pendingSave = false;
-                    SaveConfigFileInternal();
-                }
-            }
-            catch (Exception ex)
-            {
-                _log.Write(ex);
-            }
-        }
 
         private void CreateDefaultConfig()
         {
@@ -797,7 +808,7 @@ namespace DnsServerCore.Auth
             else
                 user.ChangePassword(password);
 
-            lock (_lockObj)
+            lock (_saveLock)
             {
                 SaveConfigFileInternal();
             }
@@ -805,7 +816,7 @@ namespace DnsServerCore.Auth
 
         public void LoadConfigFile(UserSession implantSession = null)
         {
-            lock (_lockObj)
+            lock (_saveLock)
             {
                 _groups.Clear();
                 _users.Clear();
@@ -818,7 +829,7 @@ namespace DnsServerCore.Auth
 
         public void SaveConfigFile()
         {
-            lock (_lockObj)
+            lock (_saveLock)
             {
                 if (_pendingSave)
                     return;
