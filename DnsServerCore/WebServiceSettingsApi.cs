@@ -27,6 +27,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Net.Mail;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
@@ -236,6 +237,7 @@ namespace DnsServerCore
             jsonWriter.WriteStringArray("dnsServerIPv6SourceAddresses", DnsClientConnection.IPv6SourceAddresses);
 
             jsonWriter.WriteNumber("defaultRecordTtl", _dnsWebService._zonesApi.DefaultRecordTtl);
+            jsonWriter.WriteString("defaultResponsiblePerson", _dnsWebService.DnsServer.ResponsiblePersonInternal?.Address);
             jsonWriter.WriteBoolean("useSoaSerialDateScheme", _dnsWebService.DnsServer.AuthZoneManager.UseSoaSerialDateScheme);
 
             jsonWriter.WriteStringArray("zoneTransferAllowedNetworks", _dnsWebService.DnsServer.ZoneTransferAllowedNetworks);
@@ -382,6 +384,9 @@ namespace DnsServerCore
             jsonWriter.WriteBoolean("saveCache", _dnsWebService._saveCache);
             jsonWriter.WriteBoolean("serveStale", _dnsWebService.DnsServer.ServeStale);
             jsonWriter.WriteNumber("serveStaleTtl", _dnsWebService.DnsServer.CacheZoneManager.ServeStaleTtl);
+            jsonWriter.WriteNumber("serveStaleAnswerTtl", _dnsWebService.DnsServer.CacheZoneManager.ServeStaleAnswerTtl);
+            jsonWriter.WriteNumber("serveStaleResetTtl", _dnsWebService.DnsServer.CacheZoneManager.ServeStaleResetTtl);
+            jsonWriter.WriteNumber("serveStaleMaxWaitTime", _dnsWebService.DnsServer.ServeStaleMaxWaitTime);
 
             jsonWriter.WriteNumber("cacheMaximumEntries", _dnsWebService.DnsServer.CacheZoneManager.MaximumEntries);
             jsonWriter.WriteNumber("cacheMinimumRecordTtl", _dnsWebService.DnsServer.CacheZoneManager.MinimumRecordTtl);
@@ -631,6 +636,15 @@ namespace DnsServerCore
 
             if (request.TryGetQueryOrForm("defaultRecordTtl", uint.Parse, out uint defaultRecordTtl))
                 _dnsWebService._zonesApi.DefaultRecordTtl = defaultRecordTtl;
+
+            string defaultResponsiblePerson = request.QueryOrForm("defaultResponsiblePerson");
+            if (defaultResponsiblePerson is not null)
+            {
+                if (defaultResponsiblePerson.Length == 0)
+                    _dnsWebService.DnsServer.ResponsiblePersonInternal = null;
+                else
+                    _dnsWebService.DnsServer.ResponsiblePersonInternal = new MailAddress(defaultResponsiblePerson);
+            }
 
             if (request.TryGetQueryOrForm("useSoaSerialDateScheme", bool.Parse, out bool useSoaSerialDateScheme))
                 _dnsWebService.DnsServer.AuthZoneManager.UseSoaSerialDateScheme = useSoaSerialDateScheme;
@@ -1058,6 +1072,15 @@ namespace DnsServerCore
             if (request.TryGetQueryOrForm("serveStaleTtl", uint.Parse, out uint serveStaleTtl))
                 _dnsWebService.DnsServer.CacheZoneManager.ServeStaleTtl = serveStaleTtl;
 
+            if (request.TryGetQueryOrForm("serveStaleAnswerTtl", uint.Parse, out uint serveStaleAnswerTtl))
+                _dnsWebService.DnsServer.CacheZoneManager.ServeStaleAnswerTtl = serveStaleAnswerTtl;
+
+            if (request.TryGetQueryOrForm("serveStaleResetTtl", uint.Parse, out uint serveStaleResetTtl))
+                _dnsWebService.DnsServer.CacheZoneManager.ServeStaleResetTtl = serveStaleResetTtl;
+
+            if (request.TryGetQueryOrForm("serveStaleMaxWaitTime", int.Parse, out int serveStaleMaxWaitTime))
+                _dnsWebService.DnsServer.ServeStaleMaxWaitTime = serveStaleMaxWaitTime;
+
             if (request.TryGetQueryOrForm("cacheMaximumEntries", long.Parse, out long cacheMaximumEntries))
                 _dnsWebService.DnsServer.CacheZoneManager.MaximumEntries = cacheMaximumEntries;
 
@@ -1461,7 +1484,7 @@ namespace DnsServerCore
 
             //save config
             _dnsWebService.SaveConfigFile();
-            _dnsWebService._log.Save();
+            _dnsWebService._log.SaveConfig();
 
             _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS Settings were updated successfully.");
 
@@ -1834,7 +1857,7 @@ namespace DnsServerCore
                                 if (certEntry.FullName.StartsWith("apps/"))
                                     continue;
 
-                                if (certEntry.FullName.EndsWith(".pfx", StringComparison.OrdinalIgnoreCase))
+                                if (certEntry.FullName.EndsWith(".pfx", StringComparison.OrdinalIgnoreCase) || certEntry.FullName.EndsWith(".p12", StringComparison.OrdinalIgnoreCase))
                                 {
                                     string certFile = Path.Combine(_dnsWebService._configFolder, certEntry.FullName);
                                     Directory.CreateDirectory(Path.GetDirectoryName(certFile));
