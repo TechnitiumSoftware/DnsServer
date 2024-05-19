@@ -66,6 +66,11 @@ namespace DnsServerCore
         const int LOG_CLEANUP_TIMER_INITIAL_INTERVAL = 60 * 1000;
         const int LOG_CLEANUP_TIMER_PERIODIC_INTERVAL = 60 * 60 * 1000;
 
+        readonly object _saveLock = new object();
+        bool _pendingSave;
+        readonly Timer _saveTimer;
+        const int SAVE_TIMER_INITIAL_INTERVAL = 10000;
+
         #endregion
 
         #region constructor
@@ -154,6 +159,25 @@ namespace DnsServerCore
 
             if (_enableLogging)
                 StartLogging();
+
+            _saveTimer = new Timer(delegate (object state)
+            {
+                lock (_saveLock)
+                {
+                    try
+                    {
+                        SaveConfigInternal();
+                    }
+                    catch (Exception ex)
+                    {
+                        Write(ex);
+                    }
+                    finally
+                    {
+                        _pendingSave = false;
+                    }
+                }
+            });
         }
 
         #endregion
@@ -164,6 +188,27 @@ namespace DnsServerCore
 
         private void Dispose(bool disposing)
         {
+            _saveTimer?.Dispose();
+
+            lock (_saveLock)
+            {
+                if (_pendingSave)
+                {
+                    try
+                    {
+                        SaveConfigFileInternal();
+                    }
+                    catch (Exception ex)
+                    {
+                        Write(ex);
+                    }
+                    finally
+                    {
+                        _pendingSave = false;
+                    }
+                }
+            }
+
             lock (_queueLock)
             {
                 try
@@ -329,12 +374,12 @@ namespace DnsServerCore
                 _maxLogFileDays = 0;
                 _useLocalTime = false;
 
-                SaveConfig();
+                SaveConfigFileInternal();
             }
             catch (Exception ex)
             {
                 Console.Write(ex.ToString());
-                SaveConfig();
+                SaveConfigFileInternal();
             }
 
             if (_maxLogFileDays == 0)
@@ -359,7 +404,7 @@ namespace DnsServerCore
             return Path.Combine(_configFolder, path);
         }
 
-        private void SaveConfig()
+        private void SaveConfigFileInternal()
         {
             string logConfigFile = Path.Combine(_configFolder, "log.config");
 
@@ -382,6 +427,32 @@ namespace DnsServerCore
                 using (FileStream fS = new FileStream(logConfigFile, FileMode.Create, FileAccess.Write))
                 {
                     mS.CopyTo(fS);
+                }
+            }
+        }
+
+        private void SaveConfigInternal()
+        {
+            SaveConfigFileInternal();
+
+            if (_logOut is null)
+            {
+                //stopped
+                if (_enableLogging)
+                    StartLogging();
+            }
+            else
+            {
+                //running
+                if (!_enableLogging)
+                {
+                    StopLogging();
+                }
+                else if (!_logFile.StartsWith(ConvertToAbsolutePath(_logFolder)))
+                {
+                    //log folder changed; restart logging to new folder
+                    StopLogging();
+                    StartLogging();
                 }
             }
         }
@@ -699,29 +770,15 @@ namespace DnsServerCore
             }
         }
 
-        public void Save()
+        public void SaveConfig()
         {
-            SaveConfig();
+            lock (_saveLock)
+            {
+                if (_pendingSave)
+                    return;
 
-            if (_logOut == null)
-            {
-                //stopped
-                if (_enableLogging)
-                    StartLogging();
-            }
-            else
-            {
-                //running
-                if (!_enableLogging)
-                {
-                    StopLogging();
-                }
-                else if (!_logFile.StartsWith(ConvertToAbsolutePath(_logFolder)))
-                {
-                    //log folder changed; restart logging to new folder
-                    StopLogging();
-                    StartLogging();
-                }
+                _pendingSave = true;
+                _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
             }
         }
 
