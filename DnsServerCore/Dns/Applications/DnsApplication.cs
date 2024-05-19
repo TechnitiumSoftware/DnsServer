@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
-using System.Runtime.Loader;
 using System.Threading.Tasks;
 
 namespace DnsServerCore.Dns.Applications
@@ -30,6 +29,8 @@ namespace DnsServerCore.Dns.Applications
     public sealed class DnsApplication : IDisposable
     {
         #region variables
+
+        readonly static Type _dnsApplicationInterface = typeof(IDnsApplication);
 
         readonly IDnsServer _dnsServer;
         readonly string _name;
@@ -55,70 +56,7 @@ namespace DnsServerCore.Dns.Applications
             _dnsServer = dnsServer;
             _name = name;
 
-            _appContext = new DnsApplicationAssemblyLoadContext(_dnsServer.ApplicationFolder);
-
-            //load app assemblies
-            IEnumerable<Assembly> loadedAssemblies = AssemblyLoadContext.Default.Assemblies;
-            List<Assembly> appAssemblies = new List<Assembly>();
-
-            foreach (string dllFile in Directory.GetFiles(_dnsServer.ApplicationFolder, "*.dll", SearchOption.TopDirectoryOnly))
-            {
-                string dllFileName = Path.GetFileNameWithoutExtension(dllFile);
-
-                bool isLoaded = false;
-
-                foreach (Assembly loadedAssembly in loadedAssemblies)
-                {
-                    if (!string.IsNullOrEmpty(loadedAssembly.Location))
-                    {
-                        if (Path.GetFileNameWithoutExtension(loadedAssembly.Location).Equals(dllFileName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            isLoaded = true;
-                            break;
-                        }
-                    }
-                    else
-                    {
-                        AssemblyName assemblyName = loadedAssembly.GetName();
-
-                        if ((assemblyName.Name != null) && assemblyName.Name.Equals(dllFileName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            isLoaded = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (isLoaded)
-                    continue;
-
-                try
-                {
-                    string pdbFile = Path.Combine(_dnsServer.ApplicationFolder, Path.GetFileNameWithoutExtension(dllFile) + ".pdb");
-
-                    if (File.Exists(pdbFile))
-                    {
-                        using (FileStream dllStream = new FileStream(dllFile, FileMode.Open, FileAccess.Read))
-                        {
-                            using (FileStream pdbStream = new FileStream(pdbFile, FileMode.Open, FileAccess.Read))
-                            {
-                                appAssemblies.Add(_appContext.LoadFromStream(dllStream, pdbStream));
-                            }
-                        }
-                    }
-                    else
-                    {
-                        using (FileStream dllStream = new FileStream(dllFile, FileMode.Open, FileAccess.Read))
-                        {
-                            appAssemblies.Add(_appContext.LoadFromStream(dllStream));
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _dnsServer.WriteLog(ex);
-                }
-            }
+            _appContext = new DnsApplicationAssemblyLoadContext(_dnsServer);
 
             //load apps
             Dictionary<string, IDnsApplication> dnsApplications = new Dictionary<string, IDnsApplication>();
@@ -129,9 +67,7 @@ namespace DnsServerCore.Dns.Applications
             Dictionary<string, IDnsQueryLogger> dnsQueryLoggers = new Dictionary<string, IDnsQueryLogger>(1);
             Dictionary<string, IDnsPostProcessor> dnsPostProcessors = new Dictionary<string, IDnsPostProcessor>(1);
 
-            Type dnsApplicationInterface = typeof(IDnsApplication);
-
-            foreach (Assembly appAssembly in appAssemblies)
+            foreach (Assembly appAssembly in _appContext.AppAssemblies)
             {
                 try
                 {
@@ -141,7 +77,7 @@ namespace DnsServerCore.Dns.Applications
 
                         foreach (Type interfaceType in classType.GetInterfaces())
                         {
-                            if (interfaceType == dnsApplicationInterface)
+                            if (interfaceType == _dnsApplicationInterface)
                             {
                                 isDnsApp = true;
                                 break;
