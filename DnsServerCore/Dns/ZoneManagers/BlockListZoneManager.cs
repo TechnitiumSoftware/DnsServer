@@ -67,17 +67,17 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (!Directory.Exists(_localCacheFolder))
                 Directory.CreateDirectory(_localCacheFolder);
 
-            UpdateServerDomain(_dnsServer.ServerDomain);
+            UpdateServerDomain();
         }
 
         #endregion
 
         #region private
 
-        private void UpdateServerDomain(string serverDomain)
+        internal void UpdateServerDomain()
         {
-            _soaRecord = new DnsSOARecordData(serverDomain, "hostadmin@" + serverDomain, 1, 14400, 3600, 604800, 60);
-            _nsRecord = new DnsNSRecordData(serverDomain);
+            _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, _dnsServer.ResponsiblePerson.Address, 1, 14400, 3600, 604800, 60);
+            _nsRecord = new DnsNSRecordData(_dnsServer.ServerDomain);
         }
 
         private string GetBlockListFilePath(Uri blockListUrl)
@@ -608,12 +608,6 @@ namespace DnsServerCore.Dns.ZoneManagers
         #endregion
 
         #region properties
-
-        public string ServerDomain
-        {
-            get { return _soaRecord.PrimaryNameServer; }
-            set { UpdateServerDomain(value); }
-        }
 
         public List<Uri> AllowListUrls
         { get { return _allowListUrls; } }
