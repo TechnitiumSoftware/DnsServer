@@ -48,6 +48,11 @@ namespace DnsServerCore.Dns.ZoneManagers
         readonly List<AuthZoneInfo> _zoneIndex = new List<AuthZoneInfo>(10);
         readonly ReaderWriterLockSlim _zoneIndexLock = new ReaderWriterLockSlim();
 
+        readonly object _saveLock = new object();
+        readonly Dictionary<string, object> _pendingSaveZones = new Dictionary<string, object>();
+        readonly Timer _saveTimer;
+        const int SAVE_TIMER_INITIAL_INTERVAL = 10000;
+
         #endregion
 
         #region constructor
@@ -57,6 +62,31 @@ namespace DnsServerCore.Dns.ZoneManagers
             _dnsServer = dnsServer;
 
             _serverDomain = _dnsServer.ServerDomain;
+
+            _saveTimer = new Timer(delegate (object state)
+            {
+                lock (_saveLock)
+                {
+                    try
+                    {
+                        foreach (KeyValuePair<string, object> pendingSaveZone in _pendingSaveZones)
+                        {
+                            try
+                            {
+                                SaveZoneFileInternal(pendingSaveZone.Key);
+                            }
+                            catch (Exception ex)
+                            {
+                                _dnsServer.LogManager.Write(ex);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        _pendingSaveZones.Clear();
+                    }
+                }
+            });
         }
 
         #endregion
@@ -72,6 +102,30 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             if (disposing)
             {
+                _saveTimer?.Dispose();
+
+                lock (_saveLock)
+                {
+                    try
+                    {
+                        foreach (KeyValuePair<string, object> pendingSaveZone in _pendingSaveZones)
+                        {
+                            try
+                            {
+                                SaveZoneFileInternal(pendingSaveZone.Key);
+                            }
+                            catch (Exception ex)
+                            {
+                                _dnsServer.LogManager.Write(ex);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        _pendingSaveZones.Clear();
+                    }
+                }
+
                 foreach (AuthZoneNode zoneNode in _root)
                     zoneNode.Dispose();
             }
@@ -88,10 +142,12 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         #region private
 
-        private void UpdateServerDomain(string serverDomain)
+        internal void UpdateServerDomain()
         {
             ThreadPool.QueueUserWorkItem(delegate (object state)
             {
+                string serverDomain = _dnsServer.ServerDomain;
+
                 //update authoritative zone SOA and NS records
                 try
                 {
@@ -107,11 +163,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                         if (soa.PrimaryNameServer.Equals(_serverDomain, StringComparison.OrdinalIgnoreCase))
                         {
-                            string responsiblePerson = soa.ResponsiblePerson;
-                            if (responsiblePerson.EndsWith(_serverDomain))
-                                responsiblePerson = responsiblePerson.Replace(_serverDomain, serverDomain);
-
-                            SetRecords(zone.Name, record.Name, record.Type, record.TTL, new DnsResourceRecordData[] { new DnsSOARecordData(serverDomain, responsiblePerson, soa.Serial, soa.Refresh, soa.Retry, soa.Expire, soa.Minimum) });
+                            SetRecords(zone.Name, record.Name, record.Type, record.TTL, [new DnsSOARecordData(serverDomain, soa.ResponsiblePerson, soa.Serial, soa.Refresh, soa.Retry, soa.Expire, soa.Minimum)]);
 
                             //update NS records
                             IReadOnlyList<DnsResourceRecord> nsResourceRecords = zone.GetApexRecords(DnsResourceRecordType.NS);
@@ -731,6 +783,27 @@ namespace DnsServerCore.Dns.ZoneManagers
             condensedRecords.Add(lastSoaRecord);
 
             return condensedRecords;
+        }
+
+        private void SaveZoneFileInternal(string zoneName)
+        {
+            zoneName = zoneName.ToLower();
+
+            using (MemoryStream mS = new MemoryStream())
+            {
+                //serialize zone
+                WriteZoneTo(zoneName, mS);
+
+                //write to zone file
+                mS.Position = 0;
+
+                using (FileStream fS = new FileStream(Path.Combine(_dnsServer.ConfigFolder, "zones", zoneName + ".zone"), FileMode.Create, FileAccess.Write))
+                {
+                    mS.CopyTo(fS);
+                }
+            }
+
+            _dnsServer.LogManager?.Write("Saved zone file for domain: " + (zoneName == "" ? "<root>" : zoneName));
         }
 
         #endregion
@@ -2318,7 +2391,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             _zoneIndexLock.EnterReadLock();
             try
             {
-                return new List<AuthZoneInfo>(_zoneIndex);
+                return _zoneIndex.ToArray();
             }
             finally
             {
@@ -2847,7 +2920,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             AuthZoneInfo zoneInfo = GetAuthZoneInfo(zoneName, true);
             if (zoneInfo is null)
-                throw new InvalidOperationException("Zone was not found: " + zoneName);
+                return;
 
             //serialize zone
             BinaryWriter bW = new BinaryWriter(s);
@@ -2880,23 +2953,16 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void SaveZoneFile(string zoneName)
         {
-            zoneName = zoneName.ToLower();
+            zoneName = zoneName.ToLowerInvariant();
 
-            using (MemoryStream mS = new MemoryStream())
+            lock (_saveLock)
             {
-                //serialize zone
-                WriteZoneTo(zoneName, mS);
+                if (!_pendingSaveZones.TryAdd(zoneName, null))
+                    return;
 
-                //write to zone file
-                mS.Position = 0;
-
-                using (FileStream fS = new FileStream(Path.Combine(_dnsServer.ConfigFolder, "zones", zoneName + ".zone"), FileMode.Create, FileAccess.Write))
-                {
-                    mS.CopyTo(fS);
-                }
+                if (_pendingSaveZones.Count == 1)
+                    _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
             }
-
-            _dnsServer.LogManager?.Write("Saved zone file for domain: " + (zoneName == "" ? "<root>" : zoneName));
         }
 
         public void DeleteZoneFile(string zoneName)
@@ -2911,12 +2977,6 @@ namespace DnsServerCore.Dns.ZoneManagers
         #endregion
 
         #region properties
-
-        public string ServerDomain
-        {
-            get { return _serverDomain; }
-            set { UpdateServerDomain(value); }
-        }
 
         public bool UseSoaSerialDateScheme
         {
