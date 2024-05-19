@@ -100,8 +100,15 @@ namespace DnsServerCore.Dns.Zones
                 InitNotify(_dnsServer);
             }
 
+            string rp;
+
+            if (_dnsServer.ResponsiblePersonInternal is null)
+                rp = _name.Length == 0 ? _dnsServer.ResponsiblePerson.Address : "hostadmin@" + _name;
+            else
+                rp = _dnsServer.ResponsiblePersonInternal.Address;
+
             uint serial = GetNewSerial(0, 0, useSoaSerialDateScheme);
-            DnsSOARecordData soa = new DnsSOARecordData(primaryNameServer, _name.Length == 0 ? "hostadmin@localhost" : "hostadmin@" + _name, serial, 900, 300, 604800, 900);
+            DnsSOARecordData soa = new DnsSOARecordData(primaryNameServer, rp, serial, 900, 300, 604800, 900);
             DnsResourceRecord soaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Minimum, soa);
 
             soaRecord.GetAuthRecordInfo().UseSoaSerialDateScheme = useSoaSerialDateScheme;
@@ -3046,7 +3053,7 @@ namespace DnsServerCore.Dns.Zones
                         throw new DnsServerException("Cannot update record: TTL cannot be greater than SOA EXPIRE.");
 
                     if (!TryDeleteRecord(oldRecord.Type, oldRecord.RDATA, out DnsResourceRecord deletedRecord))
-                        throw new InvalidOperationException("Cannot update record: the record does not exists to be updated.");
+                        throw new DnsServerException("Cannot update record: the record does not exists to be updated.");
 
                     AddRecord(newRecord, out IReadOnlyList<DnsResourceRecord> addedRecords, out IReadOnlyList<DnsResourceRecord> deletedRecords);
 
