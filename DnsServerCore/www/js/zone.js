@@ -206,6 +206,15 @@ $(function () {
         $("#chkAddEditRecordDataCreatePtrZone").prop('disabled', !addPtrRecord);
     });
 
+    $("#chkAddEditRecordDataTxtSplitText").click(function () {
+        var splitText = $("#chkAddEditRecordDataTxtSplitText").prop("checked");
+        if (!splitText) {
+            var text = $("#txtAddEditRecordDataTxt").val();
+            text = text.replace(/\n/g, "");
+            $("#txtAddEditRecordDataTxt").val(text);
+        }
+    });
+
     $("input[type=radio][name=rdAddEditRecordDataForwarderProtocol]").change(updateAddEditFormForwarderPlaceholder);
 
     $("input[type=radio][name=rdAddEditRecordDataForwarderProxyType]").change(updateAddEditFormForwarderProxyType);
@@ -2247,16 +2256,38 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
             break;
 
         case "TXT":
-            tableHtmlRow += "<td style=\"word-break: break-all;\">" + htmlEncode(record.rData.text);
+            tableHtmlRow += "<td style=\"word-break: break-all;\">";
 
-            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+            var text;
+
+            if (record.rData.splitText) {
+                for (var i = 0; i < record.rData.characterStrings.length; i++) {
+                    var characterString = record.rData.characterStrings[i].replace(/\\/g, "\\\\").replace(/\r/g, "\\r").replace(/\n/g, "\\n");
+
+                    tableHtmlRow += "\"" + htmlEncode(characterString.replace(/"/g, "\\\"")) + "\"<br />";
+
+                    if (text == null)
+                        text = characterString;
+                    else
+                        text += "\n" + characterString;
+                }
+            }
+            else {
+                var characterString = record.rData.text.replace(/\\/g, "\\\\").replace(/\r/g, "\\r").replace(/\n/g, "\\n");
+                tableHtmlRow += htmlEncode(characterString.replace(/"/g, "\\\"")) + "<br />";
+
+                text = record.rData.text;
+            }
+
+            tableHtmlRow += "<br /><b>Last Used:</b> " + lastUsedOn;
 
             if ((record.comments != null) && (record.comments.length > 0))
                 tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
 
             tableHtmlRow += "</td>";
 
-            additionalDataAttributes = "data-record-text=\"" + htmlEncode(record.rData.text) + "\" ";
+            additionalDataAttributes = "data-record-text=\"" + htmlEncode(text) + "\" " +
+                "data-record-split-text=\"" + htmlEncode(record.rData.splitText) + "\" ";
             break;
 
         case "SRV":
@@ -2276,6 +2307,29 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
                 "data-record-weight=\"" + htmlEncode(record.rData.weight) + "\" " +
                 "data-record-port=\"" + htmlEncode(record.rData.port) + "\" " +
                 "data-record-target=\"" + htmlEncode(record.rData.target) + "\" ";
+            break;
+
+        case "NAPTR":
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Order: </b> " + htmlEncode(record.rData.order) +
+                "<br /><b>Preference:</b> " + htmlEncode(record.rData.preference) +
+                "<br /><b>Flags:</b> " + htmlEncode(record.rData.flags) +
+                "<br /><b>Services:</b> " + htmlEncode(record.rData.services) +
+                "<br /><b>Regular Expression:</b> " + htmlEncode(record.rData.regexp) +
+                "<br /><b>Replacement:</b> " + htmlEncode(record.rData.replacement);
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "data-record-order=\"" + htmlEncode(record.rData.order) + "\" " +
+                "data-record-preference=\"" + htmlEncode(record.rData.preference) + "\" " +
+                "data-record-flags=\"" + htmlEncode(record.rData.flags) + "\" " +
+                "data-record-services=\"" + htmlEncode(record.rData.services) + "\" " +
+                "data-record-regexp=\"" + htmlEncode(record.rData.regexp) + "\" " +
+                "data-record-replacement=\"" + htmlEncode(record.rData.replacement) + "\" ";
             break;
 
         case "DNAME":
@@ -2754,11 +2808,23 @@ function clearAddEditRecordForm() {
     $("#txtAddEditRecordDataMxPreference").val("");
     $("#txtAddEditRecordDataMxExchange").val("");
 
+    $("#divAddEditRecordDataTxt").hide();
+    $("#txtAddEditRecordDataTxt").val("");
+    $("#chkAddEditRecordDataTxtSplitText").prop("checked", false);
+
     $("#divAddEditRecordDataSrv").hide();
     $("#txtAddEditRecordDataSrvPriority").val("");
     $("#txtAddEditRecordDataSrvWeight").val("");
     $("#txtAddEditRecordDataSrvPort").val("");
     $("#txtAddEditRecordDataSrvTarget").val("");
+
+    $("#divAddEditRecordDataNaptr").hide();
+    $("#txtAddEditRecordDataNaptrOrder").val("");
+    $("#txtAddEditRecordDataNaptrPreference").val("");
+    $("#txtAddEditRecordDataNaptrFlags").val("");
+    $("#txtAddEditRecordDataNaptrServices").val("");
+    $("#txtAddEditRecordDataNaptrRegExp").val("");
+    $("#txtAddEditRecordDataNaptrReplacement").val("");
 
     $("#divAddEditRecordDataDs").hide();
     $("#txtAddEditRecordDataDsKeyTag").val("");
@@ -2915,7 +2981,9 @@ function modifyAddRecordFormByType(addMode) {
     $("#divAddEditRecordDataNs").hide();
     $("#divEditRecordDataSoa").hide();
     $("#divAddEditRecordDataMx").hide();
+    $("#divAddEditRecordDataTxt").hide();
     $("#divAddEditRecordDataSrv").hide();
+    $("#divAddEditRecordDataNaptr").hide();
     $("#divAddEditRecordDataDs").hide();
     $("#divAddEditRecordDataSshfp").hide();
     $("#divAddEditRecordDataTlsa").hide();
@@ -2984,9 +3052,9 @@ function modifyAddRecordFormByType(addMode) {
             break;
 
         case "TXT":
-            $("#lblAddEditRecordDataValue").text("Text Data");
-            $("#txtAddEditRecordDataValue").val("");
-            $("#divAddEditRecordData").show();
+            $("#txtAddEditRecordDataTxt").val("");
+            $("#chkAddEditRecordDataTxtSplitText").prop("checked", false);
+            $("#divAddEditRecordDataTxt").show();
             break;
 
         case "SRV":
@@ -2996,6 +3064,16 @@ function modifyAddRecordFormByType(addMode) {
             $("#txtAddEditRecordDataSrvPort").val("");
             $("#txtAddEditRecordDataSrvTarget").val("");
             $("#divAddEditRecordDataSrv").show();
+            break;
+
+        case "NAPTR":
+            $("#txtAddEditRecordDataNaptrOrder").val("");
+            $("#txtAddEditRecordDataNaptrPreference").val("");
+            $("#txtAddEditRecordDataNaptrFlags").val("");
+            $("#txtAddEditRecordDataNaptrServices").val("");
+            $("#txtAddEditRecordDataNaptrRegExp").val("");
+            $("#txtAddEditRecordDataNaptrReplacement").val("");
+            $("#divAddEditRecordDataNaptr").show();
             break;
 
         case "DS":
@@ -3188,14 +3266,16 @@ function addRecord() {
             break;
 
         case "TXT":
-            var text = $("#txtAddEditRecordDataValue").val();
+            var text = $("#txtAddEditRecordDataTxt").val();
             if (text === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable value to add the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataValue").focus();
+                $("#txtAddEditRecordDataTxt").focus();
                 return;
             }
 
-            apiUrl += "&text=" + encodeURIComponent(text);
+            var splitText = $("#chkAddEditRecordDataTxtSplitText").prop("checked");
+
+            apiUrl += "&text=" + encodeURIComponent(text) + "&splitText=" + splitText;
             break;
 
         case "SRV":
@@ -3234,6 +3314,29 @@ function addRecord() {
             }
 
             apiUrl += "&priority=" + priority + "&weight=" + weight + "&port=" + port + "&target=" + encodeURIComponent(target);
+            break;
+
+        case "NAPTR":
+            var order = $("#txtAddEditRecordDataNaptrOrder").val();
+            if (order === "") {
+                showAlert("warning", "Missing!", "Please enter a suitable order.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataNaptrOrder").focus();
+                return;
+            }
+
+            var preference = $("#txtAddEditRecordDataNaptrPreference").val();
+            if (preference === "") {
+                showAlert("warning", "Missing!", "Please enter a suitable preference.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataNaptrPreference").focus();
+                return;
+            }
+
+            var flags = $("#txtAddEditRecordDataNaptrFlags").val();
+            var services = $("#txtAddEditRecordDataNaptrServices").val();
+            var regexp = $("#txtAddEditRecordDataNaptrRegExp").val();
+            var replacement = $("#txtAddEditRecordDataNaptrReplacement").val();
+
+            apiUrl += "&naptrOrder=" + order + "&naptrPreference=" + preference + "&naptrFlags=" + encodeURIComponent(flags) + "&naptrServices=" + encodeURIComponent(services) + "&naptrRegexp=" + encodeURIComponent(regexp) + "&naptrReplacement=" + encodeURIComponent(replacement);
             break;
 
         case "DNAME":
@@ -3783,7 +3886,8 @@ function showEditRecordModal(objBtn) {
             break;
 
         case "TXT":
-            $("#txtAddEditRecordDataValue").val(divData.attr("data-record-text"));
+            $("#txtAddEditRecordDataTxt").val(divData.attr("data-record-text"));
+            $("#chkAddEditRecordDataTxtSplitText").prop("checked", divData.attr("data-record-split-text") === "true");
             break;
 
         case "SRV":
@@ -3791,6 +3895,15 @@ function showEditRecordModal(objBtn) {
             $("#txtAddEditRecordDataSrvWeight").val(divData.attr("data-record-weight"));
             $("#txtAddEditRecordDataSrvPort").val(divData.attr("data-record-port"));
             $("#txtAddEditRecordDataSrvTarget").val(divData.attr("data-record-target"));
+            break;
+
+        case "NAPTR":
+            $("#txtAddEditRecordDataNaptrOrder").val(divData.attr("data-record-order"));
+            $("#txtAddEditRecordDataNaptrPreference").val(divData.attr("data-record-preference"));
+            $("#txtAddEditRecordDataNaptrFlags").val(divData.attr("data-record-flags"));
+            $("#txtAddEditRecordDataNaptrServices").val(divData.attr("data-record-services"));
+            $("#txtAddEditRecordDataNaptrRegExp").val(divData.attr("data-record-regexp"));
+            $("#txtAddEditRecordDataNaptrReplacement").val(divData.attr("data-record-replacement"));
             break;
 
         case "DNAME":
@@ -4110,14 +4223,17 @@ function updateRecord() {
         case "TXT":
             var text = divData.attr("data-record-text");
 
-            var newText = $("#txtAddEditRecordDataValue").val();
+            var newText = $("#txtAddEditRecordDataTxt").val();
             if (newText === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable value to update the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataValue").focus();
+                $("#txtAddEditRecordDataTxt").focus();
                 return;
             }
 
-            apiUrl += "&text=" + encodeURIComponent(text) + "&newText=" + encodeURIComponent(newText);
+            var splitText = divData.attr("data-record-split-text");
+            var newSplitText = $("#chkAddEditRecordDataTxtSplitText").prop("checked");
+
+            apiUrl += "&text=" + encodeURIComponent(text) + "&newText=" + encodeURIComponent(newText) + "&splitText=" + splitText + "&newSplitText=" + newSplitText;
             break;
 
         case "SRV":
@@ -4164,6 +4280,39 @@ function updateRecord() {
             }
 
             apiUrl += "&priority=" + priority + "&newPriority=" + newPriority + "&weight=" + weight + "&newWeight=" + newWeight + "&port=" + port + "&newPort=" + newPort + "&target=" + encodeURIComponent(target) + "&newTarget=" + encodeURIComponent(newTarget);
+            break;
+
+        case "NAPTR":
+            var order = divData.attr("data-record-order");
+            var preference = divData.attr("data-record-preference");
+            var flags = divData.attr("data-record-flags");
+            var services = divData.attr("data-record-services");
+            var regexp = divData.attr("data-record-regexp");
+            var replacement = divData.attr("data-record-replacement");
+
+            var newOrder = $("#txtAddEditRecordDataNaptrOrder").val();
+            if (newOrder === "") {
+                showAlert("warning", "Missing!", "Please enter a suitable order.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataNaptrOrder").focus();
+                return;
+            }
+
+            var newPreference = $("#txtAddEditRecordDataNaptrPreference").val();
+            if (newPreference === "") {
+                showAlert("warning", "Missing!", "Please enter a suitable preference.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataNaptrPreference").focus();
+                return;
+            }
+
+            var newFlags = $("#txtAddEditRecordDataNaptrFlags").val();
+            var newServices = $("#txtAddEditRecordDataNaptrServices").val();
+            var newRegexp = $("#txtAddEditRecordDataNaptrRegExp").val();
+            var newReplacement = $("#txtAddEditRecordDataNaptrReplacement").val();
+
+            if (newReplacement === "")
+                newReplacement = ".";
+
+            apiUrl += "&naptrOrder=" + order + "&naptrNewOrder=" + newOrder + "&naptrPreference=" + preference + "&naptrNewPreference=" + newPreference + "&naptrFlags=" + encodeURIComponent(flags) + "&naptrNewFlags=" + encodeURIComponent(newFlags) + "&naptrServices=" + encodeURIComponent(services) + "&naptrNewServices=" + encodeURIComponent(newServices) + "&naptrRegexp=" + encodeURIComponent(regexp) + "&naptrNewRegexp=" + encodeURIComponent(newRegexp) + "&naptrReplacement=" + encodeURIComponent(replacement) + "&naptrNewReplacement=" + encodeURIComponent(newReplacement);
             break;
 
         case "DNAME":
@@ -4543,11 +4692,15 @@ function updateRecordState(objBtn, disable) {
             break;
 
         case "TXT":
-            apiUrl += "&text=" + encodeURIComponent(divData.attr("data-record-text"));
+            apiUrl += "&text=" + encodeURIComponent(divData.attr("data-record-text")) + "&splitText=" + divData.attr("data-record-split-text");
             break;
 
         case "SRV":
             apiUrl += "&priority=" + divData.attr("data-record-priority") + "&weight=" + divData.attr("data-record-weight") + "&port=" + divData.attr("data-record-port") + "&target=" + encodeURIComponent(divData.attr("data-record-target"));
+            break;
+
+        case "NAPTR":
+            apiUrl += "&naptrOrder=" + divData.attr("data-record-order") + "&naptrPreference=" + divData.attr("data-record-preference") + "&naptrFlags=" + encodeURIComponent(divData.attr("data-record-flags")) + "&naptrServices=" + encodeURIComponent(divData.attr("data-record-services")) + "&naptrRegexp=" + encodeURIComponent(divData.attr("data-record-regexp")) + "&naptrReplacement=" + encodeURIComponent(divData.attr("data-record-replacement"));
             break;
 
         case "DNAME":
@@ -4695,11 +4848,15 @@ function deleteRecord(objBtn) {
             break;
 
         case "TXT":
-            apiUrl += "&text=" + encodeURIComponent(divData.attr("data-record-text"));
+            apiUrl += "&text=" + encodeURIComponent(divData.attr("data-record-text")) + "&splitText=" + divData.attr("data-record-split-text");
             break;
 
         case "SRV":
             apiUrl += "&priority=" + divData.attr("data-record-priority") + "&weight=" + divData.attr("data-record-weight") + "&port=" + divData.attr("data-record-port") + "&target=" + encodeURIComponent(divData.attr("data-record-target"));
+            break;
+
+        case "NAPTR":
+            apiUrl += "&naptrOrder=" + divData.attr("data-record-order") + "&naptrPreference=" + divData.attr("data-record-preference") + "&naptrFlags=" + encodeURIComponent(divData.attr("data-record-flags")) + "&naptrServices=" + encodeURIComponent(divData.attr("data-record-services")) + "&naptrRegexp=" + encodeURIComponent(divData.attr("data-record-regexp")) + "&naptrReplacement=" + encodeURIComponent(divData.attr("data-record-replacement"));
             break;
 
         case "DS":
