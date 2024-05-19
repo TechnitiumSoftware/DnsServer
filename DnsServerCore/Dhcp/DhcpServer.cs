@@ -72,10 +72,6 @@ namespace DnsServerCore.Dhcp
         DnsServer _dnsServer;
         AuthManager _authManager;
 
-        ConcurrentDictionary<string, object> _modifiedDnsAuthZones = new ConcurrentDictionary<string, object>();
-        readonly Timer _saveModifiedDnsAuthZonesTimer;
-        const int SAVE_MODIFIED_DNS_AUTH_ZONES_INTERVAL = 10000;
-
         volatile ServiceState _state = ServiceState.Stopped;
 
         readonly IPEndPoint _dhcpDefaultEP = new IPEndPoint(IPAddress.Any, 67);
@@ -109,11 +105,6 @@ namespace DnsServerCore.Dhcp
 
                 SaveScopeFile(scope);
             }
-
-            _saveModifiedDnsAuthZonesTimer = new Timer(delegate (object state)
-            {
-                SaveModifiedDnsAuthZones();
-            }, null, Timeout.Infinite, Timeout.Infinite);
         }
 
         #endregion
@@ -129,11 +120,9 @@ namespace DnsServerCore.Dhcp
 
             if (disposing)
             {
-                Stop();
-
-                _saveModifiedDnsAuthZonesTimer?.Dispose();
-
                 _maintenanceTimer?.Dispose();
+
+                Stop();
 
                 if (_scopes is not null)
                 {
@@ -884,42 +873,15 @@ namespace DnsServerCore.Dhcp
 
                 //save auth zone file
                 if (zoneName is not null)
-                    SaveDnsAuthZone(zoneName);
+                    _dnsServer?.AuthZoneManager.SaveZoneFile(zoneName);
 
                 //save reverse auth zone file
                 if (reverseZoneName is not null)
-                    SaveDnsAuthZone(reverseZoneName);
+                    _dnsServer?.AuthZoneManager.SaveZoneFile(reverseZoneName);
             }
             catch (Exception ex)
             {
                 _log?.Write(ex);
-            }
-        }
-
-        private void SaveDnsAuthZone(string zoneName)
-        {
-            if (_modifiedDnsAuthZones.TryAdd(zoneName, null))
-                _saveModifiedDnsAuthZonesTimer.Change(SAVE_MODIFIED_DNS_AUTH_ZONES_INTERVAL, Timeout.Infinite); //save dns auth zone files per interval
-        }
-
-        private void SaveModifiedDnsAuthZones()
-        {
-            if (_dnsServer is null)
-                return;
-
-            ConcurrentDictionary<string, object> modifiedDnsAuthZones = _modifiedDnsAuthZones;
-            _modifiedDnsAuthZones = new ConcurrentDictionary<string, object>();
-
-            foreach (KeyValuePair<string, object> authZone in modifiedDnsAuthZones)
-            {
-                try
-                {
-                    _dnsServer.AuthZoneManager.SaveZoneFile(authZone.Key);
-                }
-                catch (Exception ex)
-                {
-                    _log?.Write(ex);
-                }
             }
         }
 
@@ -1292,7 +1254,6 @@ namespace DnsServerCore.Dhcp
             StopMaintenanceTimer();
 
             SaveModifiedScopes();
-            SaveModifiedDnsAuthZones();
 
             foreach (KeyValuePair<string, Scope> scope in _scopes)
                 UnloadScope(scope.Value);
