@@ -345,7 +345,7 @@ namespace AdvancedBlocking
 
             Directory.CreateDirectory(Path.Combine(_dnsServer.ApplicationFolder, "blocklists"));
 
-            _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, "hostadmin@" + _dnsServer.ServerDomain, 1, 14400, 3600, 604800, 60);
+            _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, _dnsServer.ResponsiblePerson.Address, 1, 14400, 3600, 604800, 60);
             _nsRecord = new DnsNSRecordData(_dnsServer.ServerDomain);
 
             using JsonDocument jsonDocument = JsonDocument.Parse(config);
