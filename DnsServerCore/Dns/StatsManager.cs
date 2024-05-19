@@ -142,7 +142,7 @@ namespace DnsServerCore.Dns
                             else
                                 responseType = (DnsServerResponseType)item._response.Tag;
 
-                            statCounter.Update(query, item._response is null ? DnsResponseCode.NoError : item._response.RCODE, responseType, item._remoteEP.Address, item._protocol);
+                            statCounter.Update(query, item._response is null ? DnsResponseCode.NoError : item._response.RCODE, responseType, item._remoteEP.Address, item._protocol, item._rateLimited);
                         }
 
                         if ((item._request is null) || (item._response is null))
@@ -584,9 +584,9 @@ namespace DnsServerCore.Dns
             Flush();
         }
 
-        public void QueueUpdate(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
+        public void QueueUpdate(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response, bool rateLimited)
         {
-            _queue.Add(new StatsQueueItem(request, remoteEP, protocol, response));
+            _queue.Add(new StatsQueueItem(request, remoteEP, protocol, response, rateLimited));
         }
 
         public Dictionary<string, List<KeyValuePair<string, long>>> GetLastHourMinuteWiseStats(bool utcFormat)
@@ -1618,7 +1618,7 @@ namespace DnsServerCore.Dns
                 _locked = true;
             }
 
-            public void Update(DnsQuestionRecord query, DnsResponseCode responseCode, DnsServerResponseType responseType, IPAddress clientIpAddress, DnsTransportProtocol protocol)
+            public void Update(DnsQuestionRecord query, DnsResponseCode responseCode, DnsServerResponseType responseType, IPAddress clientIpAddress, DnsTransportProtocol protocol, bool rateLimited)
             {
                 if (_locked)
                     return;
@@ -1631,6 +1631,12 @@ namespace DnsServerCore.Dns
                 if (responseType == DnsServerResponseType.Dropped)
                 {
                     _totalDropped++;
+
+                    if (rateLimited)
+                    {
+                        _clientIpAddresses.GetOrAdd(clientIpAddress, GetNewCounter).Increment();
+                        _totalClients = _clientIpAddresses.Count;
+                    }
                 }
                 else
                 {
@@ -1648,7 +1654,7 @@ namespace DnsServerCore.Dns
                                         break;
 
                                     default:
-                                        _queryDomains.GetOrAdd(query.Name.ToLower(), GetNewCounter).Increment();
+                                        _queryDomains.GetOrAdd(query.Name.ToLowerInvariant(), GetNewCounter).Increment();
                                         _queries.GetOrAdd(query, GetNewCounter).Increment();
                                         break;
                                 }
@@ -1692,7 +1698,7 @@ namespace DnsServerCore.Dns
 
                         case DnsServerResponseType.Blocked:
                             if (query is not null)
-                                _queryBlockedDomains.GetOrAdd(query.Name.ToLower(), GetNewCounter).Increment();
+                                _queryBlockedDomains.GetOrAdd(query.Name.ToLowerInvariant(), GetNewCounter).Increment();
 
                             _totalBlocked++;
                             break;
@@ -1701,7 +1707,7 @@ namespace DnsServerCore.Dns
                             _totalRecursive++;
 
                             if (query is not null)
-                                _queryBlockedDomains.GetOrAdd(query.Name.ToLower(), GetNewCounter).Increment();
+                                _queryBlockedDomains.GetOrAdd(query.Name.ToLowerInvariant(), GetNewCounter).Increment();
 
                             _totalBlocked++;
                             break;
@@ -1710,7 +1716,7 @@ namespace DnsServerCore.Dns
                             _totalCached++;
 
                             if (query is not null)
-                                _queryBlockedDomains.GetOrAdd(query.Name.ToLower(), GetNewCounter).Increment();
+                                _queryBlockedDomains.GetOrAdd(query.Name.ToLowerInvariant(), GetNewCounter).Increment();
 
                             _totalBlocked++;
                             break;
@@ -1718,12 +1724,12 @@ namespace DnsServerCore.Dns
 
                     if (query is not null)
                         _queryTypes.GetOrAdd(query.Type, GetNewCounter).Increment();
+
+                    _clientIpAddresses.GetOrAdd(clientIpAddress, GetNewCounter).Increment();
+                    _totalClients = _clientIpAddresses.Count;
                 }
 
                 _protocolTypes.GetOrAdd(protocol, GetNewCounter).Increment();
-
-                _clientIpAddresses.GetOrAdd(clientIpAddress, GetNewCounter).Increment();
-                _totalClients = _clientIpAddresses.Count;
             }
 
             public void Merge(StatCounter statCounter, bool isDailyStatCounter = false, bool skipLock = false)
@@ -2229,12 +2235,13 @@ namespace DnsServerCore.Dns
             public readonly IPEndPoint _remoteEP;
             public readonly DnsTransportProtocol _protocol;
             public readonly DnsDatagram _response;
+            public readonly bool _rateLimited;
 
             #endregion
 
             #region constructor
 
-            public StatsQueueItem(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
+            public StatsQueueItem(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response, bool rateLimited)
             {
                 _timestamp = DateTime.UtcNow;
 
@@ -2242,6 +2249,7 @@ namespace DnsServerCore.Dns
                 _remoteEP = remoteEP;
                 _protocol = protocol;
                 _response = response;
+                _rateLimited = rateLimited;
             }
 
             #endregion
