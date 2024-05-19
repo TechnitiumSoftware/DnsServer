@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Win32;
 using System;
 using System.Reflection;
 using System.Threading;
@@ -67,13 +68,33 @@ namespace DnsServerWindowsService
 
         private static void CheckFirewallEntries()
         {
-            string appPath = Assembly.GetEntryAssembly().Location;
+            bool autoFirewallEntry = true;
 
-            if (appPath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-                appPath = appPath.Substring(0, appPath.Length - 4) + ".exe";
+            try
+            {
+#pragma warning disable CA1416 // Validate platform compatibility
 
-            if (!WindowsFirewallEntryExists(appPath))
-                AddWindowsFirewallEntry(appPath);
+                using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Technitium\DNS Server", false))
+                {
+                    if (key is not null)
+                        autoFirewallEntry = Convert.ToInt32(key.GetValue("AutoFirewallEntry", 1)) == 1;
+                }
+
+#pragma warning restore CA1416 // Validate platform compatibility
+            }
+            catch
+            { }
+
+            if (autoFirewallEntry)
+            {
+                string appPath = Assembly.GetEntryAssembly().Location;
+
+                if (appPath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+                    appPath = appPath.Substring(0, appPath.Length - 4) + ".exe";
+
+                if (!WindowsFirewallEntryExists(appPath))
+                    AddWindowsFirewallEntry(appPath);
+            }
         }
 
         private static bool WindowsFirewallEntryExists(string appPath)
