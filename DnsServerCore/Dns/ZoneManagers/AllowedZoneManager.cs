@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -22,13 +22,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.ZoneManagers
 {
-    public sealed class AllowedZoneManager
+    public sealed class AllowedZoneManager : IDisposable
     {
         #region variables
 
@@ -38,6 +39,11 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         DnsSOARecordData _soaRecord;
         DnsNSRecordData _nsRecord;
+
+        readonly object _saveLock = new object();
+        bool _pendingSave;
+        readonly Timer _saveTimer;
+        const int SAVE_TIMER_INITIAL_INTERVAL = 10000;
 
         #endregion
 
@@ -49,19 +55,95 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             _zoneManager = new AuthZoneManager(_dnsServer);
 
-            UpdateServerDomain(_dnsServer.ServerDomain);
+            UpdateServerDomain();
+
+            _saveTimer = new Timer(delegate (object state)
+            {
+                lock (_saveLock)
+                {
+                    try
+                    {
+                        SaveZoneFileInternal();
+                    }
+                    catch (Exception ex)
+                    {
+                        _dnsServer.LogManager.Write(ex);
+                    }
+                    finally
+                    {
+                        _pendingSave = false;
+                    }
+                }
+            });
+        }
+
+        #endregion
+
+        #region IDisposable
+
+        bool _disposed;
+
+        public void Dispose()
+        {
+            if (_disposed)
+                return;
+
+            _saveTimer?.Dispose();
+
+            lock (_saveLock)
+            {
+                if (_pendingSave)
+                {
+                    try
+                    {
+                        SaveZoneFileInternal();
+                    }
+                    catch (Exception ex)
+                    {
+                        _dnsServer.LogManager.Write(ex);
+                    }
+                    finally
+                    {
+                        _pendingSave = false;
+                    }
+                }
+            }
+
+            _disposed = true;
         }
 
         #endregion
 
         #region private
 
-        private void UpdateServerDomain(string serverDomain)
+        internal void UpdateServerDomain()
         {
-            _soaRecord = new DnsSOARecordData(serverDomain, "hostadmin@" + serverDomain, 1, 900, 300, 604800, 60);
-            _nsRecord = new DnsNSRecordData(serverDomain);
+            _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, _dnsServer.ResponsiblePerson.Address, 1, 900, 300, 604800, 60);
+            _nsRecord = new DnsNSRecordData(_dnsServer.ServerDomain);
 
-            _zoneManager.ServerDomain = serverDomain;
+            _zoneManager.UpdateServerDomain();
+        }
+
+        private void SaveZoneFileInternal()
+        {
+            IReadOnlyList<AuthZoneInfo> allowedZones = _dnsServer.AllowedZoneManager.GetAllZones();
+
+            string allowedZoneFile = Path.Combine(_dnsServer.ConfigFolder, "allowed.config");
+
+            using (FileStream fS = new FileStream(allowedZoneFile, FileMode.Create, FileAccess.Write))
+            {
+                BinaryWriter bW = new BinaryWriter(fS);
+
+                bW.Write(Encoding.ASCII.GetBytes("AZ")); //format
+                bW.Write((byte)1); //version
+
+                bW.Write(allowedZones.Count);
+
+                foreach (AuthZoneInfo zone in allowedZones)
+                    bW.WriteShortString(zone.Name);
+            }
+
+            _dnsServer.LogManager?.Write("DNS Server allowed zone file was saved: " + allowedZoneFile);
         }
 
         #endregion
@@ -160,24 +242,14 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void SaveZoneFile()
         {
-            IReadOnlyList<AuthZoneInfo> allowedZones = _dnsServer.AllowedZoneManager.GetAllZones();
-
-            string allowedZoneFile = Path.Combine(_dnsServer.ConfigFolder, "allowed.config");
-
-            using (FileStream fS = new FileStream(allowedZoneFile, FileMode.Create, FileAccess.Write))
+            lock (_saveLock)
             {
-                BinaryWriter bW = new BinaryWriter(fS);
+                if (_pendingSave)
+                    return;
 
-                bW.Write(Encoding.ASCII.GetBytes("AZ")); //format
-                bW.Write((byte)1); //version
-
-                bW.Write(allowedZones.Count);
-
-                foreach (AuthZoneInfo zone in allowedZones)
-                    bW.WriteShortString(zone.Name);
+                _pendingSave = true;
+                _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
             }
-
-            _dnsServer.LogManager?.Write("DNS Server allowed zone file was saved: " + allowedZoneFile);
         }
 
         public bool IsAllowed(DnsDatagram request)
@@ -191,12 +263,6 @@ namespace DnsServerCore.Dns.ZoneManagers
         #endregion
 
         #region properties
-
-        public string ServerDomain
-        {
-            get { return _soaRecord.PrimaryNameServer; }
-            set { UpdateServerDomain(value); }
-        }
 
         public int TotalZonesAllowed
         { get { return _zoneManager.TotalZones; } }
