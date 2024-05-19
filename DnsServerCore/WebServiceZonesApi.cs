@@ -28,6 +28,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
@@ -44,6 +45,7 @@ namespace DnsServerCore
         static readonly char[] _commaSeparator = new char[] { ',' };
         static readonly char[] _pipeSeparator = new char[] { '|' };
         static readonly char[] _commaSpaceSeparator = new char[] { ',', ' ' };
+        static readonly char[] _newLineSeparator = new char[] { '\r', '\n' };
 
         readonly DnsWebService _dnsWebService;
 
@@ -278,7 +280,15 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsTXTRecordData rdata)
                         {
-                            jsonWriter.WriteString("text", rdata.Text);
+                            jsonWriter.WriteString("text", rdata.GetText());
+                            jsonWriter.WriteBoolean("splitText", rdata.CharacterStrings.Count > 1);
+
+                            jsonWriter.WriteStartArray("characterStrings");
+
+                            foreach (string characterString in rdata.CharacterStrings)
+                                jsonWriter.WriteStringValue(characterString);
+
+                            jsonWriter.WriteEndArray();
                         }
                         else
                         {
@@ -313,6 +323,28 @@ namespace DnsServerCore
 
                             if (DnsClient.TryConvertDomainNameToUnicode(rdata.Target, out string targetIdn))
                                 jsonWriter.WriteString("targetIdn", targetIdn);
+                        }
+                        else
+                        {
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
+                        }
+                    }
+                    break;
+
+                case DnsResourceRecordType.NAPTR:
+                    {
+                        if (record.RDATA is DnsNAPTRRecordData rdata)
+                        {
+                            jsonWriter.WriteNumber("order", rdata.Order);
+                            jsonWriter.WriteNumber("preference", rdata.Preference);
+                            jsonWriter.WriteString("flags", rdata.Flags);
+                            jsonWriter.WriteString("services", rdata.Services);
+                            jsonWriter.WriteString("regexp", rdata.Regexp);
+                            jsonWriter.WriteString("replacement", rdata.Replacement.Length == 0 ? "." : rdata.Replacement);
+
+                            if (DnsClient.TryConvertDomainNameToUnicode(rdata.Replacement, out string replacementIdn))
+                                jsonWriter.WriteString("replacementIdn", replacementIdn);
                         }
                         else
                         {
@@ -838,6 +870,68 @@ namespace DnsServerCore
             jsonWriter.WriteBoolean("disabled", zoneInfo.Disabled);
 
             jsonWriter.WriteEndObject();
+        }
+
+        private static string[] DecodeCharacterStrings(string text)
+        {
+            string[] characterStrings = text.Split(_newLineSeparator, StringSplitOptions.RemoveEmptyEntries);
+
+            for (int i = 0; i < characterStrings.Length; i++)
+                characterStrings[i] = Unescape(characterStrings[i]);
+
+            return characterStrings;
+        }
+
+        private static string Unescape(string text)
+        {
+            StringBuilder sb = new StringBuilder(text.Length);
+
+            for (int i = 0, j; i < text.Length; i++)
+            {
+                char c = text[i];
+                if (c == '\\')
+                {
+                    j = i + 1;
+
+                    if (j == text.Length)
+                    {
+                        sb.Append(c);
+                        break;
+                    }
+
+                    char next = text[j];
+                    switch (next)
+                    {
+                        case 'n':
+                            sb.Append('\n');
+                            break;
+
+                        case 'r':
+                            sb.Append('\r');
+                            break;
+
+                        case 't':
+                            sb.Append('\t');
+                            break;
+
+                        case '\\':
+                            sb.Append('\\');
+                            break;
+
+                        default:
+                            sb.Append(c).Append(next);
+                            break;
+                    }
+
+                    i++;
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+            }
+
+            return sb.ToString();
         }
 
         #endregion
@@ -2474,8 +2568,9 @@ namespace DnsServerCore
                 case DnsResourceRecordType.TXT:
                     {
                         string text = request.GetQueryOrFormAlt("text", "value");
+                        bool splitText = request.GetQueryOrForm("splitText", bool.Parse, false);
 
-                        newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsTXTRecordData(text));
+                        newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, splitText ? new DnsTXTRecordData(DecodeCharacterStrings(text)) : new DnsTXTRecordData(text));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.GetAuthRecordInfo().Comments = comments;
@@ -2495,6 +2590,27 @@ namespace DnsServerCore
                         string target = request.GetQueryOrFormAlt("target", "value").TrimEnd('.');
 
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSRVRecordData(priority, weight, port, target));
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.GetAuthRecordInfo().Comments = comments;
+
+                        if (overwrite)
+                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                        else
+                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
+                    }
+                    break;
+
+                case DnsResourceRecordType.NAPTR:
+                    {
+                        ushort order = request.GetQueryOrForm("naptrOrder", ushort.Parse);
+                        ushort preference = request.GetQueryOrForm("naptrPreference", ushort.Parse);
+                        string flags = request.GetQueryOrForm("naptrFlags", "");
+                        string services = request.GetQueryOrForm("naptrServices", "");
+                        string regexp = request.GetQueryOrForm("naptrRegexp", "");
+                        string replacement = request.GetQueryOrForm("naptrReplacement", "").TrimEnd('.');
+
+                        newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsNAPTRRecordData(order, preference, flags, services, regexp, replacement));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.GetAuthRecordInfo().Comments = comments;
@@ -2927,8 +3043,9 @@ namespace DnsServerCore
                 case DnsResourceRecordType.TXT:
                     {
                         string text = request.GetQueryOrFormAlt("text", "value");
+                        bool splitText = request.GetQueryOrForm("splitText", bool.Parse, false);
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsTXTRecordData(text));
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, splitText ? new DnsTXTRecordData(DecodeCharacterStrings(text)) : new DnsTXTRecordData(text));
                     }
                     break;
 
@@ -2940,6 +3057,19 @@ namespace DnsServerCore
                         string target = request.GetQueryOrFormAlt("target", "value").TrimEnd('.');
 
                         _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSRVRecordData(priority, weight, port, target));
+                    }
+                    break;
+
+                case DnsResourceRecordType.NAPTR:
+                    {
+                        ushort order = request.GetQueryOrForm("naptrOrder", ushort.Parse);
+                        ushort preference = request.GetQueryOrForm("naptrPreference", ushort.Parse);
+                        string flags = request.GetQueryOrForm("naptrFlags", "");
+                        string services = request.GetQueryOrForm("naptrServices", "");
+                        string regexp = request.GetQueryOrForm("naptrRegexp", "");
+                        string replacement = request.GetQueryOrForm("naptrReplacement", "").TrimEnd('.');
+
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsNAPTRRecordData(order, preference, flags, services, regexp, replacement));
                     }
                     break;
 
@@ -3361,8 +3491,11 @@ namespace DnsServerCore
                         string text = request.GetQueryOrFormAlt("text", "value");
                         string newText = request.GetQueryOrFormAlt("newText", "newValue", text);
 
-                        oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsTXTRecordData(text));
-                        newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsTXTRecordData(newText));
+                        bool splitText = request.GetQueryOrForm("splitText", bool.Parse, false);
+                        bool newSplitText = request.GetQueryOrForm("newSplitText", bool.Parse, splitText);
+
+                        oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, splitText ? new DnsTXTRecordData(DecodeCharacterStrings(text)) : new DnsTXTRecordData(text));
+                        newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, newSplitText ? new DnsTXTRecordData(DecodeCharacterStrings(newText)) : new DnsTXTRecordData(newText));
 
                         if (disable)
                             newRecord.GetAuthRecordInfo().Disabled = true;
@@ -3390,6 +3523,39 @@ namespace DnsServerCore
 
                         oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsSRVRecordData(priority, weight, port, target));
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsSRVRecordData(newPriority, newWeight, newPort, newTarget));
+
+                        if (disable)
+                            newRecord.GetAuthRecordInfo().Disabled = true;
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.GetAuthRecordInfo().Comments = comments;
+
+                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+                    }
+                    break;
+
+                case DnsResourceRecordType.NAPTR:
+                    {
+                        ushort order = request.GetQueryOrForm("naptrOrder", ushort.Parse);
+                        ushort newOrder = request.GetQueryOrForm("naptrNewOrder", ushort.Parse, order);
+
+                        ushort preference = request.GetQueryOrForm("naptrPreference", ushort.Parse);
+                        ushort newPreference = request.GetQueryOrForm("naptrNewPreference", ushort.Parse, preference);
+
+                        string flags = request.GetQueryOrForm("naptrFlags", "");
+                        string newFlags = request.GetQueryOrForm("naptrNewFlags", flags);
+
+                        string services = request.GetQueryOrForm("naptrServices", "");
+                        string newServices = request.GetQueryOrForm("naptrNewServices", services);
+
+                        string regexp = request.GetQueryOrForm("naptrRegexp", "");
+                        string newRegexp = request.GetQueryOrForm("naptrNewRegexp", regexp);
+
+                        string replacement = request.GetQueryOrForm("naptrReplacement", "").TrimEnd('.');
+                        string newReplacement = request.GetQueryOrForm("naptrNewReplacement", replacement).TrimEnd('.');
+
+                        oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsNAPTRRecordData(order, preference, flags, services, regexp, replacement));
+                        newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsNAPTRRecordData(newOrder, newPreference, newFlags, newServices, newRegexp, newReplacement));
 
                         if (disable)
                             newRecord.GetAuthRecordInfo().Disabled = true;
