@@ -41,11 +41,17 @@ namespace DnsServerCore.Dns.ZoneManagers
         public const uint MINIMUM_RECORD_TTL = 10u;
         public const uint MAXIMUM_RECORD_TTL = 7 * 24 * 60 * 60;
         public const uint SERVE_STALE_TTL = 3 * 24 * 60 * 60; //3 days serve stale ttl as per https://www.rfc-editor.org/rfc/rfc8767.html suggestion
+        public const uint SERVE_STALE_ANSWER_TTL = 30; //as per https://www.rfc-editor.org/rfc/rfc8767.html suggestion
+        public const uint SERVE_STALE_RESET_TTL = 30; //as per https://www.rfc-editor.org/rfc/rfc8767.html suggestion
+
+        const uint SERVE_STALE_MIN_RESET_TTL = 10;
+        const uint SERVE_STALE_MAX_RESET_TTL = 900;
 
         readonly DnsServer _dnsServer;
 
         readonly CacheZoneTree _root = new CacheZoneTree();
 
+        uint _serveStaleResetTtl = SERVE_STALE_RESET_TTL;
         long _maximumEntries;
         long _totalEntries;
 
@@ -54,7 +60,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         #region constructor
 
         public CacheZoneManager(DnsServer dnsServer)
-            : base(FAILURE_RECORD_TTL, NEGATIVE_RECORD_TTL, MINIMUM_RECORD_TTL, MAXIMUM_RECORD_TTL, SERVE_STALE_TTL)
+            : base(FAILURE_RECORD_TTL, NEGATIVE_RECORD_TTL, MINIMUM_RECORD_TTL, MAXIMUM_RECORD_TTL, SERVE_STALE_TTL, SERVE_STALE_ANSWER_TTL)
         {
             _dnsServer = dnsServer;
         }
@@ -687,7 +693,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public override DnsDatagram Query(DnsDatagram request, bool serveStaleAndResetExpiry = false, bool findClosestNameServers = false)
+        public override DnsDatagram Query(DnsDatagram request, bool serveStale = false, bool findClosestNameServers = false, bool resetExpiry = false)
         {
             DnsQuestionRecord question = request.Question[0];
 
@@ -721,7 +727,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (zone is not null)
             {
                 //zone found
-                IReadOnlyList<DnsResourceRecord> answer = zone.QueryRecords(question.Type, serveStaleAndResetExpiry, false, eDnsClientSubnet, advancedForwardingClientSubnet);
+                IReadOnlyList<DnsResourceRecord> answer = zone.QueryRecords(question.Type, serveStale, false, eDnsClientSubnet, advancedForwardingClientSubnet);
                 if (answer.Count > 0)
                 {
                     //answer found in cache
@@ -738,24 +744,24 @@ namespace DnsServerCore.Dns.ZoneManagers
                             }
                         }
 
-                        if (serveStaleAndResetExpiry)
+                        if (resetExpiry)
                         {
                             if (firstRR.IsStale)
-                                firstRR.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per RFC 8767
+                                firstRR.ResetExpiry(_serveStaleResetTtl); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per RFC 8767
 
                             if (dnsSpecialCacheRecord.Authority is not null)
                             {
                                 foreach (DnsResourceRecord record in dnsSpecialCacheRecord.Authority)
                                 {
                                     if (record.IsStale)
-                                        record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per RFC 8767
+                                        record.ResetExpiry(_serveStaleResetTtl); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per RFC 8767
                                 }
                             }
                         }
 
                         IReadOnlyList<EDnsOption> specialOptions;
 
-                        if (firstRR.WasExpiryReset)
+                        if (firstRR.WasExpiryReset || firstRR.IsStale)
                         {
                             List<EDnsOption> newOptions = new List<EDnsOption>(dnsSpecialCacheRecord.EDnsOptions.Count + 1);
 
@@ -832,7 +838,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         List<DnsResourceRecord> newAnswers = new List<DnsResourceRecord>(answer.Count + 3);
                         newAnswers.AddRange(answer);
 
-                        ResolveCNAME(question, lastRR, serveStaleAndResetExpiry, eDnsClientSubnet, advancedForwardingClientSubnet, newAnswers);
+                        ResolveCNAME(question, lastRR, serveStale, eDnsClientSubnet, advancedForwardingClientSubnet, newAnswers);
 
                         answer = newAnswers;
                     }
@@ -864,18 +870,16 @@ namespace DnsServerCore.Dns.ZoneManagers
                         case DnsResourceRecordType.SRV:
                         case DnsResourceRecordType.SVCB:
                         case DnsResourceRecordType.HTTPS:
-                            additional = GetAdditionalRecords(answer, serveStaleAndResetExpiry, dnssecOk, eDnsClientSubnet, advancedForwardingClientSubnet);
+                            additional = GetAdditionalRecords(answer, serveStale, dnssecOk, eDnsClientSubnet, advancedForwardingClientSubnet);
                             break;
                     }
 
-                    IReadOnlyList<EDnsOption> options = null;
-
-                    if (serveStaleAndResetExpiry)
+                    if (resetExpiry)
                     {
                         foreach (DnsResourceRecord record in answer)
                         {
                             if (record.IsStale)
-                                record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per RFC 8767
+                                record.ResetExpiry(_serveStaleResetTtl); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per RFC 8767
                         }
 
                         if (additional is not null)
@@ -883,21 +887,19 @@ namespace DnsServerCore.Dns.ZoneManagers
                             foreach (DnsResourceRecord record in additional)
                             {
                                 if (record.IsStale)
-                                    record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per RFC 8767
+                                    record.ResetExpiry(_serveStaleResetTtl); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per RFC 8767
                             }
                         }
-
-                        options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.StaleAnswer, null)) };
                     }
-                    else
+
+                    IReadOnlyList<EDnsOption> options = null;
+
+                    foreach (DnsResourceRecord record in answer)
                     {
-                        foreach (DnsResourceRecord record in answer)
+                        if (record.WasExpiryReset || record.IsStale)
                         {
-                            if (record.WasExpiryReset)
-                            {
-                                options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.StaleAnswer, null)) };
-                                break;
-                            }
+                            options = [new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.StaleAnswer, null))];
+                            break;
                         }
                     }
 
@@ -948,12 +950,12 @@ namespace DnsServerCore.Dns.ZoneManagers
                 //check for DNAME in closest zone
                 if (closest is not null)
                 {
-                    IReadOnlyList<DnsResourceRecord> answer = closest.QueryRecords(DnsResourceRecordType.DNAME, serveStaleAndResetExpiry, true, eDnsClientSubnet, advancedForwardingClientSubnet);
+                    IReadOnlyList<DnsResourceRecord> answer = closest.QueryRecords(DnsResourceRecordType.DNAME, serveStale, true, eDnsClientSubnet, advancedForwardingClientSubnet);
                     if ((answer.Count > 0) && (answer[0].Type == DnsResourceRecordType.DNAME))
                     {
                         DnsResponseCode rCode;
 
-                        if (DoDNAMESubstitution(question, answer, serveStaleAndResetExpiry, eDnsClientSubnet, advancedForwardingClientSubnet, out answer))
+                        if (DoDNAMESubstitution(question, answer, serveStale, eDnsClientSubnet, advancedForwardingClientSubnet, out answer))
                             rCode = DnsResponseCode.NoError;
                         else
                             rCode = DnsResponseCode.YXDomain;
@@ -976,27 +978,23 @@ namespace DnsServerCore.Dns.ZoneManagers
                             ednsFlags = EDnsHeaderFlags.DNSSEC_OK;
                         }
 
-                        EDnsOption[] options = null;
-
-                        if (serveStaleAndResetExpiry)
+                        if (resetExpiry)
                         {
                             foreach (DnsResourceRecord record in answer)
                             {
                                 if (record.IsStale)
-                                    record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per RFC 8767
+                                    record.ResetExpiry(_serveStaleResetTtl); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per RFC 8767
                             }
-
-                            options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.StaleAnswer, null)) };
                         }
-                        else
+
+                        EDnsOption[] options = null;
+
+                        foreach (DnsResourceRecord record in answer)
                         {
-                            foreach (DnsResourceRecord record in answer)
+                            if (record.WasExpiryReset || record.IsStale)
                             {
-                                if (record.WasExpiryReset)
-                                {
-                                    options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.StaleAnswer, null)) };
-                                    break;
-                                }
+                                options = [new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.StaleAnswer, null))];
+                                break;
                             }
                         }
 
@@ -1026,23 +1024,23 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                 while (true)
                 {
-                    IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS, serveStaleAndResetExpiry, true, eDnsClientSubnet, advancedForwardingClientSubnet);
+                    IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS, serveStale, true, eDnsClientSubnet, advancedForwardingClientSubnet);
                     if ((closestAuthority.Count > 0) && (closestAuthority[0].Type == DnsResourceRecordType.NS) && (closestAuthority[0].Name.Length > 0)) //dont trust root name servers from cache!
                     {
                         if (dnssecOk)
                         {
                             if (closestAuthority[0].DnssecStatus != DnssecStatus.Disabled) //dont return records with disabled status
                             {
-                                closestAuthority = AddDSRecordsTo(delegation, serveStaleAndResetExpiry, closestAuthority, eDnsClientSubnet, advancedForwardingClientSubnet);
+                                closestAuthority = AddDSRecordsTo(delegation, serveStale, closestAuthority, eDnsClientSubnet, advancedForwardingClientSubnet);
 
-                                IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, serveStaleAndResetExpiry, true, eDnsClientSubnet, advancedForwardingClientSubnet);
+                                IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, serveStale, true, eDnsClientSubnet, advancedForwardingClientSubnet);
 
                                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, closestAuthority[0].DnssecStatus == DnssecStatus.Secure, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional);
                             }
                         }
                         else
                         {
-                            IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, serveStaleAndResetExpiry, false, eDnsClientSubnet, advancedForwardingClientSubnet);
+                            IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, serveStale, false, eDnsClientSubnet, advancedForwardingClientSubnet);
 
                             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional);
                         }
@@ -1144,6 +1142,18 @@ namespace DnsServerCore.Dns.ZoneManagers
         #endregion
 
         #region properties
+
+        public uint ServeStaleResetTtl
+        {
+            get { return _serveStaleResetTtl; }
+            set
+            {
+                if ((value < SERVE_STALE_MIN_RESET_TTL) || (value > SERVE_STALE_MAX_RESET_TTL))
+                    throw new ArgumentOutOfRangeException(nameof(ServeStaleResetTtl), "Serve stale reset TTL must be between " + SERVE_STALE_MIN_RESET_TTL + " and " + SERVE_STALE_MAX_RESET_TTL + " seconds. Recommended value is 30 seconds.");
+
+                _serveStaleResetTtl = value;
+            }
+        }
 
         public long MaximumEntries
         {
