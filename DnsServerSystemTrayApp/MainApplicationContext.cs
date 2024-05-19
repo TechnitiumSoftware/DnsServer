@@ -54,6 +54,7 @@ namespace DnsServerSystemTrayApp
         private ToolStripMenuItem StartServiceMenuItem;
         private ToolStripMenuItem RestartServiceMenuItem;
         private ToolStripMenuItem StopServiceMenuItem;
+        private ToolStripMenuItem FirewallMenuItem;
         private ToolStripMenuItem AboutMenuItem;
         private ToolStripMenuItem AutoStartMenuItem;
         private ToolStripMenuItem ExitMenuItem;
@@ -85,7 +86,7 @@ namespace DnsServerSystemTrayApp
                     case "--network-dns-item":
                         foreach (DnsProvider dnsProvider in _dnsProviders)
                         {
-                            if (dnsProvider.Name.Equals(args[1]))
+                            if ((args.Length > 1) && dnsProvider.Name.Equals(args[1]))
                             {
                                 NetworkDnsMenuSubItem_Click(new ToolStripMenuItem(dnsProvider.Name) { Tag = dnsProvider }, EventArgs.Empty);
                                 break;
@@ -107,6 +108,12 @@ namespace DnsServerSystemTrayApp
 
                     case "--service-stop":
                         StopServiceMenuItem_Click(this, EventArgs.Empty);
+                        break;
+
+                    case "--auto-firewall-entry":
+                        if (args.Length > 1)
+                            SetAutoFirewallEntry(bool.Parse(args[1]));
+
                         break;
 
                     case "--first-run":
@@ -225,6 +232,14 @@ namespace DnsServerSystemTrayApp
             });
 
             //
+            // FirewallMenuItem
+            //
+            FirewallMenuItem = new ToolStripMenuItem();
+            FirewallMenuItem.Name = "FirewallMenuItem";
+            FirewallMenuItem.Text = "Auto &Firewall Entry";
+            FirewallMenuItem.Click += FirewallMenuItem_Click;
+
+            //
             // AboutMenuItem
             //
             AboutMenuItem = new ToolStripMenuItem();
@@ -254,6 +269,7 @@ namespace DnsServerSystemTrayApp
                 new ToolStripSeparator(),
                 NetworkDnsMenuItem,
                 ServiceMenuItem,
+                FirewallMenuItem,
                 AboutMenuItem,
                 new ToolStripSeparator(),
                 AutoStartMenuItem,
@@ -438,8 +454,24 @@ namespace DnsServerSystemTrayApp
 
             using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters\Interfaces\" + nic.Id, true))
             {
-                if (key != null)
+                if (key is not null)
                     key.SetValue("NameServer", nameServer, RegistryValueKind.String);
+            }
+        }
+
+        private static void SetAutoFirewallEntry(bool value)
+        {
+            try
+            {
+                using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"SOFTWARE\Technitium\DNS Server", true))
+                {
+                    if (key is not null)
+                        key.SetValue("AutoFirewallEntry", value ? 1 : 0, RegistryValueKind.DWord);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error occured while setting auto firewall registry entry value. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -559,13 +591,32 @@ namespace DnsServerSystemTrayApp
 
                 #endregion
 
+                #region auto firewall
+
+                bool autoFirewallEntry = true;
+
+                try
+                {
+                    using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Technitium\DNS Server", false))
+                    {
+                        if (key is not null)
+                            autoFirewallEntry = Convert.ToInt32(key.GetValue("AutoFirewallEntry", 1)) == 1;
+                    }
+                }
+                catch
+                { }
+
+                FirewallMenuItem.Checked = autoFirewallEntry;
+
+                #endregion
+
                 #region auto start
 
                 try
                 {
-                    using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
+                    using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", false))
                     {
-                        if (key != null)
+                        if (key is not null)
                         {
                             string autoStartPath = key.GetValue("Technitium DNS System Tray") as string;
 
@@ -784,6 +835,17 @@ namespace DnsServerSystemTrayApp
             }
         }
 
+        private void FirewallMenuItem_Click(object sender, EventArgs e)
+        {
+            if (!Program.IsAdmin)
+            {
+                Program.RunAsAdmin("--auto-firewall-entry " + (!FirewallMenuItem.Checked).ToString());
+                return;
+            }
+
+            SetAutoFirewallEntry(!FirewallMenuItem.Checked);
+        }
+
         private void AboutMenuItem_Click(object sender, EventArgs e)
         {
             using (frmAbout frm = new frmAbout())
@@ -801,7 +863,7 @@ namespace DnsServerSystemTrayApp
                 {
                     using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
                     {
-                        if (key != null)
+                        if (key is not null)
                             key.DeleteValue("Technitium DNS System Tray", false);
                     }
                 }
@@ -817,7 +879,7 @@ namespace DnsServerSystemTrayApp
                 {
                     using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
                     {
-                        if (key != null)
+                        if (key is not null)
                             key.SetValue("Technitium DNS System Tray", "\"" + Program.APP_PATH + "\"", RegistryValueKind.String);
                     }
                 }
