@@ -111,7 +111,7 @@ namespace DnsServerCore
 
             if (authoritativeZoneRecords)
             {
-                AuthRecordInfo authRecordInfo = record.GetAuthRecordInfo();
+                GenericRecordInfo authRecordInfo = record.GetAuthGenericRecordInfo();
 
                 jsonWriter.WriteNumber("ttl", record.TTL);
                 jsonWriter.WriteBoolean("disabled", authRecordInfo.Disabled);
@@ -211,7 +211,7 @@ namespace DnsServerCore
 
                         if (authoritativeZoneRecords)
                         {
-                            AuthRecordInfo authRecordInfo = record.GetAuthRecordInfo();
+                            SOARecordInfo authRecordInfo = record.GetAuthSOARecordInfo();
 
                             if ((zoneInfo is not null) && (zoneInfo.Type == AuthZoneType.Primary))
                                 jsonWriter.WriteBoolean("useSerialDateScheme", authRecordInfo.UseSoaSerialDateScheme);
@@ -591,6 +591,13 @@ namespace DnsServerCore
 
                             jsonWriter.WriteEndObject();
 
+                            if (authoritativeZoneRecords)
+                            {
+                                SVCBRecordInfo rrInfo = record.GetAuthSVCBRecordInfo();
+
+                                jsonWriter.WriteBoolean("autoIpv4Hint", rrInfo.AutoIpv4Hint);
+                                jsonWriter.WriteBoolean("autoIpv6Hint", rrInfo.AutoIpv6Hint);
+                            }
                         }
                         else
                         {
@@ -722,18 +729,21 @@ namespace DnsServerCore
 
             if (authoritativeZoneRecords)
             {
-                AuthRecordInfo authRecordInfo = record.GetAuthRecordInfo();
+                GenericRecordInfo authRecordInfo = record.GetAuthGenericRecordInfo();
 
-                IReadOnlyList<DnsResourceRecord> glueRecords = authRecordInfo.GlueRecords;
-                if (glueRecords is not null)
+                if (authRecordInfo is NSRecordInfo nsRecordInfo)
                 {
-                    jsonWriter.WritePropertyName("glueRecords");
-                    jsonWriter.WriteStartArray();
+                    IReadOnlyList<DnsResourceRecord> glueRecords = nsRecordInfo.GlueRecords;
+                    if (glueRecords is not null)
+                    {
+                        jsonWriter.WritePropertyName("glueRecords");
+                        jsonWriter.WriteStartArray();
 
-                    foreach (DnsResourceRecord glueRecord in glueRecords)
-                        jsonWriter.WriteStringValue(glueRecord.RDATA.ToString());
+                        foreach (DnsResourceRecord glueRecord in glueRecords)
+                            jsonWriter.WriteStringValue(glueRecord.RDATA.ToString());
 
-                    jsonWriter.WriteEndArray();
+                        jsonWriter.WriteEndArray();
+                    }
                 }
 
                 jsonWriter.WriteString("lastUsedOn", authRecordInfo.LastUsedOn);
@@ -932,6 +942,131 @@ namespace DnsServerCore
             }
 
             return sb.ToString();
+        }
+
+        private static string GetSvcbTargetName(DnsResourceRecord svcbRecord)
+        {
+            DnsSVCBRecordData rData = svcbRecord.RDATA as DnsSVCBRecordData;
+
+            if (rData.TargetName.Length > 0)
+                return rData.TargetName;
+
+            if (rData.SvcPriority == 0) //alias mode
+                return null;
+
+            //service mode
+            return svcbRecord.Name;
+        }
+
+        private void ResolveSvcbAutoHints(string zoneName, DnsResourceRecord svcbRecord, bool resolveIpv4Hint, bool resolveIpv6Hint, Dictionary<DnsSvcParamKey, DnsSvcParamValue> svcParams, IReadOnlyCollection<DnsResourceRecord> importRecords = null)
+        {
+            string targetName = GetSvcbTargetName(svcbRecord);
+            if (targetName is not null)
+                ResolveSvcbAutoHints(zoneName, targetName, resolveIpv4Hint, resolveIpv6Hint, svcParams, importRecords);
+        }
+
+        private void ResolveSvcbAutoHints(string zoneName, string targetName, bool resolveIpv4Hint, bool resolveIpv6Hint, Dictionary<DnsSvcParamKey, DnsSvcParamValue> svcParams, IReadOnlyCollection<DnsResourceRecord> importRecords = null)
+        {
+            if (resolveIpv4Hint)
+            {
+                List<IPAddress> ipv4Hint = new List<IPAddress>();
+
+                IReadOnlyList<DnsResourceRecord> records = _dnsWebService.DnsServer.AuthZoneManager.GetRecords(zoneName, targetName, DnsResourceRecordType.A);
+
+                foreach (DnsResourceRecord record in records)
+                {
+                    if (record.GetAuthGenericRecordInfo().Disabled)
+                        continue;
+
+                    ipv4Hint.Add((record.RDATA as DnsARecordData).Address);
+                }
+
+                if (importRecords is not null)
+                {
+                    foreach (DnsResourceRecord record in importRecords)
+                    {
+                        if (record.Type != DnsResourceRecordType.A)
+                            continue;
+
+                        if (record.Name.Equals(targetName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            IPAddress address = (record.RDATA as DnsARecordData).Address;
+
+                            if (!ipv4Hint.Contains(address))
+                                ipv4Hint.Add(address);
+                        }
+                    }
+                }
+
+                if (ipv4Hint.Count > 0)
+                    svcParams[DnsSvcParamKey.IPv4Hint] = new DnsSvcIPv4HintParamValue(ipv4Hint);
+                else
+                    svcParams.Remove(DnsSvcParamKey.IPv4Hint);
+            }
+
+            if (resolveIpv6Hint)
+            {
+                List<IPAddress> ipv6Hint = new List<IPAddress>();
+
+                IReadOnlyList<DnsResourceRecord> records = _dnsWebService.DnsServer.AuthZoneManager.GetRecords(zoneName, targetName, DnsResourceRecordType.AAAA);
+
+                foreach (DnsResourceRecord record in records)
+                {
+                    if (record.GetAuthGenericRecordInfo().Disabled)
+                        continue;
+
+                    ipv6Hint.Add((record.RDATA as DnsAAAARecordData).Address);
+                }
+
+                if (importRecords is not null)
+                {
+                    foreach (DnsResourceRecord record in importRecords)
+                    {
+                        if (record.Type != DnsResourceRecordType.AAAA)
+                            continue;
+
+                        if (record.Name.Equals(targetName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            IPAddress address = (record.RDATA as DnsAAAARecordData).Address;
+
+                            if (!ipv6Hint.Contains(address))
+                                ipv6Hint.Add(address);
+                        }
+                    }
+                }
+
+                if (ipv6Hint.Count > 0)
+                    svcParams[DnsSvcParamKey.IPv6Hint] = new DnsSvcIPv6HintParamValue(ipv6Hint);
+                else
+                    svcParams.Remove(DnsSvcParamKey.IPv6Hint);
+            }
+        }
+
+        private void UpdateSvcbAutoHints(string zoneName, string targetName, bool resolveIpv4Hint, bool resolveIpv6Hint)
+        {
+            List<DnsResourceRecord> allSvcbRecords = new List<DnsResourceRecord>();
+            _dnsWebService.DnsServer.AuthZoneManager.ListAllZoneRecords(zoneName, [DnsResourceRecordType.SVCB, DnsResourceRecordType.HTTPS], allSvcbRecords);
+
+            foreach (DnsResourceRecord record in allSvcbRecords)
+            {
+                SVCBRecordInfo info = record.GetAuthSVCBRecordInfo();
+                if ((info.AutoIpv4Hint && resolveIpv4Hint) || (info.AutoIpv6Hint && resolveIpv6Hint))
+                {
+                    string scvbTargetName = GetSvcbTargetName(record);
+                    if (targetName.Equals(scvbTargetName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        DnsSVCBRecordData oldRData = record.RDATA as DnsSVCBRecordData;
+
+                        Dictionary<DnsSvcParamKey, DnsSvcParamValue> newSvcParams = new Dictionary<DnsSvcParamKey, DnsSvcParamValue>(oldRData.SvcParams);
+                        ResolveSvcbAutoHints(zoneName, targetName, resolveIpv4Hint, resolveIpv6Hint, newSvcParams);
+
+                        DnsSVCBRecordData newRData = new DnsSVCBRecordData(oldRData.SvcPriority, oldRData.TargetName, newSvcParams);
+                        DnsResourceRecord newRecord = new DnsResourceRecord(record.Name, record.Type, record.Class, record.TTL, newRData) { Tag = record.Tag };
+
+                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneName, record, newRecord);
+                    }
+                }
+            }
         }
 
         #endregion
@@ -1199,16 +1334,50 @@ namespace DnsServerCore
                     case DnsResourceRecordType.NSEC3PARAM:
                         continue; //skip DNSSEC records
 
-                    default:
-                        if (record.Tag is string comments)
+                    case DnsResourceRecordType.SVCB:
+                    case DnsResourceRecordType.HTTPS:
                         {
-                            AuthRecordInfo rrInfo = new AuthRecordInfo();
-                            rrInfo.Comments = comments;
+                            if (record.Tag is string comments)
+                            {
+                                SVCBRecordInfo rrInfo = new SVCBRecordInfo();
+                                rrInfo.Comments = comments;
 
-                            record.Tag = rrInfo;
+                                record.Tag = rrInfo;
+                            }
+
+                            if (record.RDATA is DnsSVCBRecordData rdata && (rdata.AutoIpv4Hint || rdata.AutoIpv6Hint))
+                            {
+                                if (rdata.AutoIpv4Hint)
+                                    record.GetAuthSVCBRecordInfo().AutoIpv4Hint = true;
+
+                                if (rdata.AutoIpv6Hint)
+                                    record.GetAuthSVCBRecordInfo().AutoIpv6Hint = true;
+
+                                Dictionary<DnsSvcParamKey, DnsSvcParamValue> svcParams = new Dictionary<DnsSvcParamKey, DnsSvcParamValue>(rdata.SvcParams);
+                                DnsResourceRecord newRecord = new DnsResourceRecord(record.Name, record.Type, record.Class, record.TTL, new DnsSVCBRecordData(rdata.SvcPriority, rdata.TargetName, svcParams)) { Tag = record.Tag };
+
+                                ResolveSvcbAutoHints(zoneInfo.Name, record, rdata.AutoIpv4Hint, rdata.AutoIpv6Hint, svcParams, records);
+
+                                newRecords.Add(newRecord);
+                                break;
+                            }
+
+                            newRecords.Add(record);
                         }
+                        break;
 
-                        newRecords.Add(record);
+                    default:
+                        {
+                            if (record.Tag is string comments)
+                            {
+                                GenericRecordInfo rrInfo = new GenericRecordInfo();
+                                rrInfo.Comments = comments;
+
+                                record.Tag = rrInfo;
+                            }
+
+                            newRecords.Add(record);
+                        }
                         break;
                 }
             }
@@ -1247,6 +1416,24 @@ namespace DnsServerCore
 
             _dnsWebService.DnsServer.AuthZoneManager.ListAllZoneRecords(zoneInfo.Name, records);
 
+            foreach (DnsResourceRecord record in records)
+            {
+                switch (record.Type)
+                {
+                    case DnsResourceRecordType.SVCB:
+                    case DnsResourceRecordType.HTTPS:
+                        SVCBRecordInfo info = record.GetAuthSVCBRecordInfo();
+
+                        if (info.AutoIpv4Hint)
+                            (record.RDATA as DnsSVCBRecordData).AutoIpv4Hint = true;
+
+                        if (info.AutoIpv6Hint)
+                            (record.RDATA as DnsSVCBRecordData).AutoIpv6Hint = true;
+
+                        break;
+                }
+            }
+
             HttpResponse response = context.Response;
 
             response.ContentType = "text/plain";
@@ -1259,7 +1446,7 @@ namespace DnsServerCore
                     if (record.Tag is null)
                         return null;
 
-                    return record.GetAuthRecordInfo().Comments;
+                    return record.GetAuthGenericRecordInfo().Comments;
                 });
             }
         }
@@ -2480,12 +2667,16 @@ namespace DnsServerCore
                             newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsAAAARecordData(ipAddress));
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         if (overwrite)
                             _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
                         else
                             _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
+
+                        bool updateSvcbHints = request.GetQueryOrForm("updateSvcbHints", bool.Parse, false);
+                        if (updateSvcbHints)
+                            UpdateSvcbAutoHints(zoneName, domain, type == DnsResourceRecordType.A, type == DnsResourceRecordType.AAAA);
                     }
                     break;
 
@@ -2500,7 +2691,7 @@ namespace DnsServerCore
                             newRecord.SetGlueRecords(glueAddresses);
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         if (overwrite)
                             _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
@@ -2526,7 +2717,7 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsCNAMERecordData(cname));
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
                     }
@@ -2539,7 +2730,7 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsPTRRecordData(ptrName));
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         if (overwrite)
                             _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
@@ -2556,7 +2747,7 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsMXRecordData(preference, exchange));
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         if (overwrite)
                             _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
@@ -2573,7 +2764,7 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, splitText ? new DnsTXTRecordData(DecodeCharacterStrings(text)) : new DnsTXTRecordData(text));
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         if (overwrite)
                             _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
@@ -2592,7 +2783,7 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSRVRecordData(priority, weight, port, target));
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         if (overwrite)
                             _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
@@ -2613,7 +2804,7 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsNAPTRRecordData(order, preference, flags, services, regexp, replacement));
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         if (overwrite)
                             _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
@@ -2642,7 +2833,7 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsDNAMERecordData(dname));
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
                     }
@@ -2658,7 +2849,7 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsDSRecordData(keyTag, algorithm, digestType, digest));
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         if (overwrite)
                             _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
@@ -2676,7 +2867,7 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSSHFPRecordData(sshfpAlgorithm, sshfpFingerprintType, sshfpFingerprint));
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         if (overwrite)
                             _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
@@ -2695,7 +2886,7 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsTLSARecordData(tlsaCertificateUsage, tlsaSelector, tlsaMatchingType, tlsaCertificateAssociationData));
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         if (overwrite)
                             _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
@@ -2710,6 +2901,8 @@ namespace DnsServerCore
                         ushort svcPriority = request.GetQueryOrForm("svcPriority", ushort.Parse);
                         string targetName = request.GetQueryOrForm("svcTargetName").TrimEnd('.');
                         string strSvcParams = request.GetQueryOrForm("svcParams");
+                        bool autoIpv4Hint = request.GetQueryOrForm("autoIpv4Hint", bool.Parse, false);
+                        bool autoIpv6Hint = request.GetQueryOrForm("autoIpv6Hint", bool.Parse, false);
 
                         Dictionary<DnsSvcParamKey, DnsSvcParamValue> svcParams;
 
@@ -2731,19 +2924,19 @@ namespace DnsServerCore
                             }
                         }
 
-                        switch (type)
-                        {
-                            case DnsResourceRecordType.HTTPS:
-                                newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsHTTPSRecordData(svcPriority, targetName, svcParams));
-                                break;
-
-                            default:
-                                newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSVCBRecordData(svcPriority, targetName, svcParams));
-                                break;
-                        }
+                        newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSVCBRecordData(svcPriority, targetName, svcParams));
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthSVCBRecordInfo().Comments = comments;
+
+                        if (autoIpv4Hint)
+                            newRecord.GetAuthSVCBRecordInfo().AutoIpv4Hint = true;
+
+                        if (autoIpv6Hint)
+                            newRecord.GetAuthSVCBRecordInfo().AutoIpv6Hint = true;
+
+                        if (autoIpv4Hint || autoIpv6Hint)
+                            ResolveSvcbAutoHints(zoneInfo.Name, newRecord, autoIpv4Hint, autoIpv6Hint, svcParams);
 
                         if (overwrite)
                             _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
@@ -2761,7 +2954,7 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsURIRecordData(priority, weight, uri));
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         if (overwrite)
                             _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
@@ -2779,7 +2972,7 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsCAARecordData(flags, tag, value));
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         if (overwrite)
                             _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
@@ -2795,7 +2988,7 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsANAMERecordData(aname));
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         if (overwrite)
                             _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
@@ -2834,7 +3027,7 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsForwarderRecordData(protocol, forwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword));
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         if (overwrite)
                             _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
@@ -2859,7 +3052,7 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsApplicationRecordData(appName, classPath, recordData));
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
                     }
@@ -2879,7 +3072,7 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, DnsResourceRecord.ReadRecordDataFrom(type, rdata));
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         if (overwrite)
                             _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
@@ -3008,6 +3201,10 @@ namespace DnsServerCore
                                 }
                             }
                         }
+
+                        bool updateSvcbHints = request.GetQueryOrForm("updateSvcbHints", bool.Parse, false);
+                        if (updateSvcbHints)
+                            UpdateSvcbAutoHints(zoneName, domain, type == DnsResourceRecordType.A, type == DnsResourceRecordType.AAAA);
                     }
                     break;
 
@@ -3136,16 +3333,7 @@ namespace DnsServerCore
                             }
                         }
 
-                        switch (type)
-                        {
-                            case DnsResourceRecordType.HTTPS:
-                                _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsHTTPSRecordData(svcPriority, targetName, svcParams));
-                                break;
-
-                            default:
-                                _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSVCBRecordData(svcPriority, targetName, svcParams));
-                                break;
-                        }
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSVCBRecordData(svcPriority, targetName, svcParams));
                     }
                     break;
 
@@ -3317,12 +3505,16 @@ namespace DnsServerCore
                         }
 
                         if (disable)
-                            newRecord.GetAuthRecordInfo().Disabled = true;
+                            newRecord.GetAuthGenericRecordInfo().Disabled = true;
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+
+                        bool updateSvcbHints = request.GetQueryOrForm("updateSvcbHints", bool.Parse, false);
+                        if (updateSvcbHints)
+                            UpdateSvcbAutoHints(zoneName, newDomain, type == DnsResourceRecordType.A, type == DnsResourceRecordType.AAAA);
                     }
                     break;
 
@@ -3335,10 +3527,10 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsNSRecordData(newNameServer));
 
                         if (disable)
-                            newRecord.GetAuthRecordInfo().Disabled = true;
+                            newRecord.GetAuthGenericRecordInfo().Disabled = true;
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         if (request.TryGetQueryOrForm("glue", out string glueAddresses))
                             newRecord.SetGlueRecords(glueAddresses);
@@ -3358,10 +3550,10 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsCNAMERecordData(cname));
 
                         if (disable)
-                            newRecord.GetAuthRecordInfo().Disabled = true;
+                            newRecord.GetAuthGenericRecordInfo().Disabled = true;
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
@@ -3383,7 +3575,7 @@ namespace DnsServerCore
                         {
                             case AuthZoneType.Primary:
                                 {
-                                    AuthRecordInfo recordInfo = newSOARecord.GetAuthRecordInfo();
+                                    SOARecordInfo recordInfo = newSOARecord.GetAuthSOARecordInfo();
 
                                     if (request.TryGetQueryOrForm("useSerialDateScheme", bool.Parse, out bool useSerialDateScheme))
                                         recordInfo.UseSoaSerialDateScheme = useSerialDateScheme;
@@ -3392,7 +3584,7 @@ namespace DnsServerCore
 
                             case AuthZoneType.Secondary:
                                 {
-                                    AuthRecordInfo recordInfo = newSOARecord.GetAuthRecordInfo();
+                                    SOARecordInfo recordInfo = newSOARecord.GetAuthSOARecordInfo();
 
                                     if (request.TryGetQueryOrFormEnum("zoneTransferProtocol", out DnsTransportProtocol zoneTransferProtocol))
                                     {
@@ -3424,7 +3616,7 @@ namespace DnsServerCore
                                 {
                                     if (request.TryGetQueryOrForm("primaryAddresses", out string primaryAddresses))
                                     {
-                                        newSOARecord.GetAuthRecordInfo().PrimaryNameServers = primaryAddresses.Split(delegate (string address)
+                                        newSOARecord.GetAuthSOARecordInfo().PrimaryNameServers = primaryAddresses.Split(delegate (string address)
                                         {
                                             NameServerAddress nameServer = NameServerAddress.Parse(address);
 
@@ -3439,7 +3631,7 @@ namespace DnsServerCore
                         }
 
                         if (!string.IsNullOrEmpty(comments))
-                            newSOARecord.GetAuthRecordInfo().Comments = comments;
+                            newSOARecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newSOARecord);
 
@@ -3456,10 +3648,10 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsPTRRecordData(newPtrName));
 
                         if (disable)
-                            newRecord.GetAuthRecordInfo().Disabled = true;
+                            newRecord.GetAuthGenericRecordInfo().Disabled = true;
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
@@ -3477,10 +3669,10 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsMXRecordData(newPreference, newExchange));
 
                         if (disable)
-                            newRecord.GetAuthRecordInfo().Disabled = true;
+                            newRecord.GetAuthGenericRecordInfo().Disabled = true;
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
@@ -3498,10 +3690,10 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, newSplitText ? new DnsTXTRecordData(DecodeCharacterStrings(newText)) : new DnsTXTRecordData(newText));
 
                         if (disable)
-                            newRecord.GetAuthRecordInfo().Disabled = true;
+                            newRecord.GetAuthGenericRecordInfo().Disabled = true;
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
@@ -3525,10 +3717,10 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsSRVRecordData(newPriority, newWeight, newPort, newTarget));
 
                         if (disable)
-                            newRecord.GetAuthRecordInfo().Disabled = true;
+                            newRecord.GetAuthGenericRecordInfo().Disabled = true;
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
@@ -3558,10 +3750,10 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsNAPTRRecordData(newOrder, newPreference, newFlags, newServices, newRegexp, newReplacement));
 
                         if (disable)
-                            newRecord.GetAuthRecordInfo().Disabled = true;
+                            newRecord.GetAuthGenericRecordInfo().Disabled = true;
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
@@ -3581,10 +3773,10 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsDNAMERecordData(dname));
 
                         if (disable)
-                            newRecord.GetAuthRecordInfo().Disabled = true;
+                            newRecord.GetAuthGenericRecordInfo().Disabled = true;
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
@@ -3608,10 +3800,10 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsDSRecordData(newKeyTag, newAlgorithm, newDigestType, newDigest));
 
                         if (disable)
-                            newRecord.GetAuthRecordInfo().Disabled = true;
+                            newRecord.GetAuthGenericRecordInfo().Disabled = true;
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
@@ -3632,10 +3824,10 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsSSHFPRecordData(newSshfpAlgorithm, newSshfpFingerprintType, newSshfpFingerprint));
 
                         if (disable)
-                            newRecord.GetAuthRecordInfo().Disabled = true;
+                            newRecord.GetAuthGenericRecordInfo().Disabled = true;
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
@@ -3659,10 +3851,10 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsTLSARecordData(newTlsaCertificateUsage, newTlsaSelector, newTlsaMatchingType, newTlsaCertificateAssociationData));
 
                         if (disable)
-                            newRecord.GetAuthRecordInfo().Disabled = true;
+                            newRecord.GetAuthGenericRecordInfo().Disabled = true;
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
@@ -3679,6 +3871,9 @@ namespace DnsServerCore
 
                         string strSvcParams = request.GetQueryOrForm("svcParams");
                         string strNewSvcParams = request.GetQueryOrForm("newSvcParams", strSvcParams);
+
+                        bool autoIpv4Hint = request.GetQueryOrForm("autoIpv4Hint", bool.Parse, false);
+                        bool autoIpv6Hint = request.GetQueryOrForm("autoIpv6Hint", bool.Parse, false);
 
                         Dictionary<DnsSvcParamKey, DnsSvcParamValue> svcParams;
 
@@ -3720,24 +3915,23 @@ namespace DnsServerCore
                             }
                         }
 
-                        switch (type)
-                        {
-                            case DnsResourceRecordType.HTTPS:
-                                oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsHTTPSRecordData(svcPriority, targetName, svcParams));
-                                newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsHTTPSRecordData(newSvcPriority, newTargetName, newSvcParams));
-                                break;
-
-                            default:
-                                oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsSVCBRecordData(svcPriority, targetName, svcParams));
-                                newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsSVCBRecordData(newSvcPriority, newTargetName, newSvcParams));
-                                break;
-                        }
+                        oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsSVCBRecordData(svcPriority, targetName, svcParams));
+                        newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsSVCBRecordData(newSvcPriority, newTargetName, newSvcParams));
 
                         if (disable)
-                            newRecord.GetAuthRecordInfo().Disabled = true;
+                            newRecord.GetAuthGenericRecordInfo().Disabled = true;
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
+
+                        if (autoIpv4Hint)
+                            newRecord.GetAuthSVCBRecordInfo().AutoIpv4Hint = true;
+
+                        if (autoIpv6Hint)
+                            newRecord.GetAuthSVCBRecordInfo().AutoIpv6Hint = true;
+
+                        if (autoIpv4Hint || autoIpv6Hint)
+                            ResolveSvcbAutoHints(zoneInfo.Name, newRecord, autoIpv4Hint, autoIpv6Hint, newSvcParams);
 
                         _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
@@ -3758,10 +3952,10 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsURIRecordData(newPriority, newWeight, newUri));
 
                         if (disable)
-                            newRecord.GetAuthRecordInfo().Disabled = true;
+                            newRecord.GetAuthGenericRecordInfo().Disabled = true;
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
@@ -3782,10 +3976,10 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsCAARecordData(newFlags, newTag, newValue));
 
                         if (disable)
-                            newRecord.GetAuthRecordInfo().Disabled = true;
+                            newRecord.GetAuthGenericRecordInfo().Disabled = true;
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
@@ -3800,10 +3994,10 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsANAMERecordData(newAName));
 
                         if (disable)
-                            newRecord.GetAuthRecordInfo().Disabled = true;
+                            newRecord.GetAuthGenericRecordInfo().Disabled = true;
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
@@ -3855,10 +4049,10 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, 0, new DnsForwarderRecordData(newProtocol, newForwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword));
 
                         if (disable)
-                            newRecord.GetAuthRecordInfo().Disabled = true;
+                            newRecord.GetAuthGenericRecordInfo().Disabled = true;
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
@@ -3874,10 +4068,10 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsApplicationRecordData(appName, classPath, recordData));
 
                         if (disable)
-                            newRecord.GetAuthRecordInfo().Disabled = true;
+                            newRecord.GetAuthGenericRecordInfo().Disabled = true;
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
@@ -3906,10 +4100,10 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsUnknownRecordData(newRData));
 
                         if (disable)
-                            newRecord.GetAuthRecordInfo().Disabled = true;
+                            newRecord.GetAuthGenericRecordInfo().Disabled = true;
 
                         if (!string.IsNullOrEmpty(comments))
-                            newRecord.GetAuthRecordInfo().Comments = comments;
+                            newRecord.GetAuthGenericRecordInfo().Comments = comments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
