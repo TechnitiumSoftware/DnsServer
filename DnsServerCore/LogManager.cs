@@ -164,17 +164,20 @@ namespace DnsServerCore
             {
                 lock (_saveLock)
                 {
-                    try
+                    if (_pendingSave)
                     {
-                        SaveConfigInternal();
-                    }
-                    catch (Exception ex)
-                    {
-                        Write(ex);
-                    }
-                    finally
-                    {
-                        _pendingSave = false;
+                        try
+                        {
+                            SaveConfigInternal();
+                            _pendingSave = false;
+                        }
+                        catch (Exception ex)
+                        {
+                            Write(ex);
+
+                            //set timer to retry again
+                            _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
+                        }
                     }
                 }
             });
@@ -188,10 +191,10 @@ namespace DnsServerCore
 
         private void Dispose(bool disposing)
         {
-            _saveTimer?.Dispose();
-
             lock (_saveLock)
             {
+                _saveTimer?.Dispose();
+
                 if (_pendingSave)
                 {
                     try
