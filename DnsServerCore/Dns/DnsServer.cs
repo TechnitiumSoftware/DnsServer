@@ -1835,7 +1835,7 @@ namespace DnsServerCore.Dns
                         IReadOnlyList<NameServerAddress> primaryNameServers = await authZoneInfo.GetPrimaryNameServerAddressesAsync(this);
 
                         DnsResourceRecord soaRecord = authZoneInfo.GetApexRecords(DnsResourceRecordType.SOA)[0];
-                        AuthRecordInfo recordInfo = soaRecord.GetAuthRecordInfo();
+                        SOARecordInfo recordInfo = soaRecord.GetAuthSOARecordInfo();
 
                         switch (recordInfo.ZoneTransferProtocol)
                         {
@@ -2555,7 +2555,7 @@ namespace DnsServerCore.Dns
                     DateTime utcNow = DateTime.UtcNow;
 
                     foreach (DnsResourceRecord record in authority)
-                        record.GetAuthRecordInfo().LastUsedOn = utcNow;
+                        record.GetAuthGenericRecordInfo().LastUsedOn = utcNow;
                 }
             }
 
@@ -4916,7 +4916,7 @@ namespace DnsServerCore.Dns
             set
             {
                 if ((value is not null) && (value.AddressFamily != AddressFamily.InterNetwork))
-                    throw new ArgumentException(nameof(EDnsClientSubnetIpv4Override), "EDNS Client Subnet IPv4 Override must be an IPv4 network address.");
+                    throw new ArgumentException("EDNS Client Subnet IPv4 Override must be an IPv4 network address.", nameof(EDnsClientSubnetIpv4Override));
 
                 _eDnsClientSubnetIpv4Override = value;
             }
@@ -4928,7 +4928,7 @@ namespace DnsServerCore.Dns
             set
             {
                 if ((value is not null) && (value.AddressFamily != AddressFamily.InterNetworkV6))
-                    throw new ArgumentException(nameof(EDnsClientSubnetIpv6Override), "EDNS Client Subnet IPv6 Override must be an IPv6 network address.");
+                    throw new ArgumentException("EDNS Client Subnet IPv6 Override must be an IPv6 network address.", nameof(EDnsClientSubnetIpv6Override));
 
                 _eDnsClientSubnetIpv6Override = value;
             }
