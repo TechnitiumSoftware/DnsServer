@@ -154,7 +154,7 @@ namespace DnsServerCore.Dns.Zones
             DnsSOARecordData soa = new DnsSOARecordData(receivedSoa.PrimaryNameServer, receivedSoa.ResponsiblePerson, 0u, receivedSoa.Refresh, receivedSoa.Retry, receivedSoa.Expire, receivedSoa.Minimum);
             DnsResourceRecord[] soaRR = new DnsResourceRecord[] { new DnsResourceRecord(secondaryZone._name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
 
-            AuthRecordInfo authRecordInfo = soaRR[0].GetAuthRecordInfo();
+            SOARecordInfo authRecordInfo = soaRR[0].GetAuthSOARecordInfo();
 
             authRecordInfo.PrimaryNameServers = primaryNameServers;
             authRecordInfo.ZoneTransferProtocol = zoneTransferProtocol;
@@ -232,7 +232,7 @@ namespace DnsServerCore.Dns.Zones
                     return;
                 }
 
-                AuthRecordInfo recordInfo = currentSoaRecord.GetAuthRecordInfo();
+                SOARecordInfo recordInfo = currentSoaRecord.GetAuthSOARecordInfo();
                 TsigKey key = null;
 
                 if (!string.IsNullOrEmpty(recordInfo.TsigKeyName) && ((_dnsServer.TsigKeys is null) || !_dnsServer.TsigKeys.TryGetValue(recordInfo.TsigKeyName, out key)))
@@ -527,7 +527,7 @@ namespace DnsServerCore.Dns.Zones
         {
             lock (_zoneHistory)
             {
-                historyRecords[0].GetAuthRecordInfo().DeletedOn = DateTime.UtcNow;
+                historyRecords[0].GetAuthHistoryRecordInfo().DeletedOn = DateTime.UtcNow;
 
                 //write history
                 _zoneHistory.AddRange(historyRecords);
