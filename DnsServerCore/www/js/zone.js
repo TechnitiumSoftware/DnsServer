@@ -2539,6 +2539,20 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
                     "<tbody>";
 
                 for (var paramKey in record.rData.svcParams) {
+                    switch (paramKey) {
+                        case "ipv4hint":
+                            if (record.rData.autoIpv4Hint)
+                                continue;
+
+                            break;
+
+                        case "ipv6hint":
+                            if (record.rData.autoIpv6Hint)
+                                continue;
+
+                            break;
+                    }
+
                     tableHtmlSvcParams += "<tr><td>" + htmlEncode(paramKey) + "</td><td>" + htmlEncode(record.rData.svcParams[paramKey]) + "</td></tr>";
                 }
 
@@ -2547,7 +2561,10 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
 
             tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Priority: </b> " + htmlEncode(record.rData.svcPriority) + (record.rData.svcPriority == 0 ? " (alias mode)" : " (service mode)") +
                 "<br /><b>Target Name: </b> " + (record.rData.svcTargetName == "" ? "." : htmlEncode(record.rData.svcTargetName)) +
-                tableHtmlSvcParams;
+                tableHtmlSvcParams +
+                "<br /><b>Use Automatic IPv4 Hint: </b> " + record.rData.autoIpv4Hint +
+                "<br /><b>Use Automatic IPv6 Hint: </b> " + record.rData.autoIpv6Hint +
+                "<br />";
 
             tableHtmlRow += "<br /><b>Last Used:</b> " + lastUsedOn;
 
@@ -2558,7 +2575,9 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
 
             additionalDataAttributes = "data-record-svc-priority=\"" + htmlEncode(record.rData.svcPriority) + "\"" +
                 "data-record-svc-target-name=\"" + (record.rData.svcTargetName == "" ? "." : htmlEncode(record.rData.svcTargetName)) + "\"" +
-                "data-record-svc-params=\"" + htmlEncode(JSON.stringify(record.rData.svcParams)) + "\"";
+                "data-record-svc-params=\"" + htmlEncode(JSON.stringify(record.rData.svcParams)) + "\"" +
+                "data-record-auto-ipv4hint=\"" + htmlEncode(record.rData.autoIpv4Hint) + "\"" +
+                "data-record-auto-ipv6hint=\"" + htmlEncode(record.rData.autoIpv6Hint) + "\"";
             break;
 
         case "URI":
@@ -2847,6 +2866,8 @@ function clearAddEditRecordForm() {
     $("#txtAddEditRecordDataSvcbPriority").val("");
     $("#txtAddEditRecordDataSvcbTargetName").val("");
     $("#tableAddEditRecordDataSvcbParams").html("");
+    $("#chkAddEditRecordDataSvcbAutoIpv4Hint").prop("checked", false);
+    $("#chkAddEditRecordDataSvcbAutoIpv6Hint").prop("checked", false);
 
     $("#divAddEditRecordDataUri").hide();
     $("#txtAddEditRecordDataUriPriority").val("");
@@ -3106,6 +3127,8 @@ function modifyAddRecordFormByType(addMode) {
             $("#txtAddEditRecordDataSvcbPriority").val("");
             $("#txtAddEditRecordDataSvcbTargetName").val("");
             $("#tableAddEditRecordDataSvcbParams").html("");
+            $("#chkAddEditRecordDataSvcbAutoIpv4Hint").prop("checked", false);
+            $("#chkAddEditRecordDataSvcbAutoIpv6Hint").prop("checked", false);
             $("#divAddEditRecordDataSvcb").show();
             break;
 
@@ -3167,6 +3190,24 @@ function modifyAddRecordFormByType(addMode) {
     }
 }
 
+function zoneHasSvcbAutoHint(ipv4, ipv6) {
+    if (editZoneRecords == null)
+        return true;
+
+    for (var i = 0; i < editZoneRecords.length; i++) {
+        switch (editZoneRecords[i].type) {
+            case "SVCB":
+            case "HTTPS":
+                if ((editZoneRecords[i].rData.autoIpv4Hint && ipv4) || (editZoneRecords[i].rData.autoIpv6Hint && ipv6))
+                    return true;
+
+                break;
+        }
+    }
+
+    return false;
+}
+
 function addRecord() {
     var btn = $("#btnAddEditRecord");
     var divAddEditRecordAlert = $("#divAddEditRecordAlert");
@@ -3205,7 +3246,9 @@ function addRecord() {
                 return;
             }
 
-            apiUrl += "&ipAddress=" + encodeURIComponent(ipAddress) + "&ptr=" + $("#chkAddEditRecordDataPtr").prop('checked') + "&createPtrZone=" + $("#chkAddEditRecordDataCreatePtrZone").prop('checked');
+            var updateSvcbHints = zoneHasSvcbAutoHint(type == "A", type == "AAAA");
+
+            apiUrl += "&ipAddress=" + encodeURIComponent(ipAddress) + "&ptr=" + $("#chkAddEditRecordDataPtr").prop('checked') + "&createPtrZone=" + $("#chkAddEditRecordDataCreatePtrZone").prop('checked') + "&updateSvcbHints=" + updateSvcbHints;
             break;
 
         case "NS":
@@ -3475,7 +3518,10 @@ function addRecord() {
             if (svcParams.length === 0)
                 svcParams = false;
 
-            apiUrl += "&svcPriority=" + svcPriority + "&svcTargetName=" + encodeURIComponent(svcTargetName) + "&svcParams=" + encodeURIComponent(svcParams);
+            var autoIpv4Hint = $("#chkAddEditRecordDataSvcbAutoIpv4Hint").prop("checked");
+            var autoIpv6Hint = $("#chkAddEditRecordDataSvcbAutoIpv6Hint").prop("checked");
+
+            apiUrl += "&svcPriority=" + svcPriority + "&svcTargetName=" + encodeURIComponent(svcTargetName) + "&svcParams=" + encodeURIComponent(svcParams) + "&autoIpv4Hint=" + autoIpv4Hint + "&autoIpv6Hint=" + autoIpv6Hint;
             break;
 
         case "URI":
@@ -3936,10 +3982,29 @@ function showEditRecordModal(objBtn) {
             $("#txtAddEditRecordDataSvcbTargetName").val(divData.attr("data-record-svc-target-name"));
 
             var svcParams = JSON.parse(divData.attr("data-record-svc-params"));
+            var autoIpv4Hint = divData.attr("data-record-auto-ipv4hint") === "true";
+            var autoIpv6Hint = divData.attr("data-record-auto-ipv6hint") === "true";
 
             for (var paramKey in svcParams) {
+                switch (paramKey) {
+                    case "ipv4hint":
+                        if (autoIpv4Hint)
+                            continue;
+
+                        break;
+
+                    case "ipv6hint":
+                        if (autoIpv6Hint)
+                            continue;
+
+                        break;
+                }
+
                 addSvcbRecordParamEditRow(paramKey, svcParams[paramKey]);
             }
+
+            $("#chkAddEditRecordDataSvcbAutoIpv4Hint").prop("checked", autoIpv4Hint);
+            $("#chkAddEditRecordDataSvcbAutoIpv6Hint").prop("checked", autoIpv6Hint);
             break;
 
         case "URI":
@@ -4083,7 +4148,9 @@ function updateRecord() {
                 return;
             }
 
-            apiUrl += "&ipAddress=" + encodeURIComponent(ipAddress) + "&newIpAddress=" + encodeURIComponent(newIpAddress) + "&ptr=" + $("#chkAddEditRecordDataPtr").prop('checked') + "&createPtrZone=" + $("#chkAddEditRecordDataCreatePtrZone").prop('checked');
+            var updateSvcbHints = zoneHasSvcbAutoHint(type == "A", type == "AAAA");
+
+            apiUrl += "&ipAddress=" + encodeURIComponent(ipAddress) + "&newIpAddress=" + encodeURIComponent(newIpAddress) + "&ptr=" + $("#chkAddEditRecordDataPtr").prop('checked') + "&createPtrZone=" + $("#chkAddEditRecordDataCreatePtrZone").prop('checked') + "&updateSvcbHints=" + updateSvcbHints;
             break;
 
         case "NS":
@@ -4477,7 +4544,10 @@ function updateRecord() {
             if (newSvcParams.length === 0)
                 newSvcParams = false;
 
-            apiUrl += "&svcPriority=" + svcPriority + "&newSvcPriority=" + newSvcPriority + "&svcTargetName=" + encodeURIComponent(svcTargetName) + "&newSvcTargetName=" + encodeURIComponent(newSvcTargetName) + "&svcParams=" + encodeURIComponent(svcParams) + "&newSvcParams=" + encodeURIComponent(newSvcParams);
+            var autoIpv4Hint = $("#chkAddEditRecordDataSvcbAutoIpv4Hint").prop("checked");
+            var autoIpv6Hint = $("#chkAddEditRecordDataSvcbAutoIpv6Hint").prop("checked");
+
+            apiUrl += "&svcPriority=" + svcPriority + "&newSvcPriority=" + newSvcPriority + "&svcTargetName=" + encodeURIComponent(svcTargetName) + "&newSvcTargetName=" + encodeURIComponent(newSvcTargetName) + "&svcParams=" + encodeURIComponent(svcParams) + "&newSvcParams=" + encodeURIComponent(newSvcParams) + "&autoIpv4Hint=" + autoIpv4Hint + "&autoIpv6Hint=" + autoIpv6Hint;
             break;
 
         case "URI":
@@ -4738,7 +4808,10 @@ function updateRecordState(objBtn, disable) {
                     svcParams = false;
             }
 
-            apiUrl += "&svcPriority=" + svcPriority + "&svcTargetName=" + encodeURIComponent(svcTargetName) + "&svcParams=" + encodeURIComponent(svcParams);
+            var autoIpv4Hint = divData.attr("data-record-auto-ipv4hint");
+            var autoIpv6Hint = divData.attr("data-record-auto-ipv6hint");
+
+            apiUrl += "&svcPriority=" + svcPriority + "&svcTargetName=" + encodeURIComponent(svcTargetName) + "&svcParams=" + encodeURIComponent(svcParams) + "&autoIpv4Hint=" + autoIpv4Hint + "&autoIpv6Hint=" + autoIpv6Hint;
             break;
 
         case "URI":
@@ -4832,7 +4905,9 @@ function deleteRecord(objBtn) {
     switch (type) {
         case "A":
         case "AAAA":
-            apiUrl += "&ipAddress=" + encodeURIComponent(divData.attr("data-record-ip-address"));
+            var updateSvcbHints = zoneHasSvcbAutoHint(type == "A", type == "AAAA");
+
+            apiUrl += "&ipAddress=" + encodeURIComponent(divData.attr("data-record-ip-address")) + "&updateSvcbHints=" + updateSvcbHints;
             break;
 
         case "NS":
