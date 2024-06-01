@@ -56,7 +56,7 @@ namespace DnsServerCore.Dns.Zones
 
             if (records.Count == 1)
             {
-                AuthRecordInfo authRecordInfo = records[0].GetAuthRecordInfo();
+                GenericRecordInfo authRecordInfo = records[0].GetAuthGenericRecordInfo();
 
                 if (authRecordInfo.Disabled)
                     return Array.Empty<DnsResourceRecord>(); //record disabled
@@ -72,7 +72,7 @@ namespace DnsServerCore.Dns.Zones
 
             foreach (DnsResourceRecord record in records)
             {
-                AuthRecordInfo authRecordInfo = record.GetAuthRecordInfo();
+                GenericRecordInfo authRecordInfo = record.GetAuthGenericRecordInfo();
 
                 if (authRecordInfo.Disabled)
                     continue; //record disabled
@@ -114,7 +114,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 if ((rrsigRecord.RDATA as DnsRRSIGRecordData).TypeCovered == type)
                 {
-                    rrsigRecord.GetAuthRecordInfo().LastUsedOn = utcNow;
+                    rrsigRecord.GetAuthGenericRecordInfo().LastUsedOn = utcNow;
                     newRecords.Add(rrsigRecord);
                 }
             }
@@ -972,7 +972,7 @@ namespace DnsServerCore.Dns.Zones
 
             foreach (DnsResourceRecord record in records)
             {
-                if (record.GetAuthRecordInfo().Disabled)
+                if (record.GetAuthGenericRecordInfo().Disabled)
                     continue;
 
                 return true;
