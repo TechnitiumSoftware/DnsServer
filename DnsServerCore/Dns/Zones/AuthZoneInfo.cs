@@ -104,6 +104,7 @@ namespace DnsServerCore.Dns.Zones
                 case 8:
                 case 9:
                 case 10:
+                case 11:
                     _name = bR.ReadShortString();
                     _type = (AuthZoneType)bR.ReadByte();
                     _disabled = bR.ReadBoolean();
@@ -235,10 +236,23 @@ namespace DnsServerCore.Dns.Zones
                                 int count = bR.ReadInt32();
                                 DnsResourceRecord[] zoneHistory = new DnsResourceRecord[count];
 
-                                for (int i = 0; i < count; i++)
+                                if (version >= 11)
                                 {
-                                    zoneHistory[i] = new DnsResourceRecord(bR.BaseStream);
-                                    zoneHistory[i].Tag = new AuthRecordInfo(bR, zoneHistory[i].Type == DnsResourceRecordType.SOA);
+                                    for (int i = 0; i < count; i++)
+                                    {
+                                        zoneHistory[i] = new DnsResourceRecord(bR.BaseStream);
+
+                                        if (bR.ReadBoolean())
+                                            zoneHistory[i].Tag = new HistoryRecordInfo(bR);
+                                    }
+                                }
+                                else
+                                {
+                                    for (int i = 0; i < count; i++)
+                                    {
+                                        zoneHistory[i] = new DnsResourceRecord(bR.BaseStream);
+                                        zoneHistory[i].Tag = new HistoryRecordInfo(bR);
+                                    }
                                 }
 
                                 _zoneHistory = zoneHistory;
@@ -330,10 +344,23 @@ namespace DnsServerCore.Dns.Zones
                                 int count = bR.ReadInt32();
                                 DnsResourceRecord[] zoneHistory = new DnsResourceRecord[count];
 
-                                for (int i = 0; i < count; i++)
+                                if (version >= 11)
                                 {
-                                    zoneHistory[i] = new DnsResourceRecord(bR.BaseStream);
-                                    zoneHistory[i].Tag = new AuthRecordInfo(bR, zoneHistory[i].Type == DnsResourceRecordType.SOA);
+                                    for (int i = 0; i < count; i++)
+                                    {
+                                        zoneHistory[i] = new DnsResourceRecord(bR.BaseStream);
+
+                                        if (bR.ReadBoolean())
+                                            zoneHistory[i].Tag = new HistoryRecordInfo(bR);
+                                    }
+                                }
+                                else
+                                {
+                                    for (int i = 0; i < count; i++)
+                                    {
+                                        zoneHistory[i] = new DnsResourceRecord(bR.BaseStream);
+                                        zoneHistory[i].Tag = new HistoryRecordInfo(bR);
+                                    }
                                 }
 
                                 _zoneHistory = zoneHistory;
@@ -557,7 +584,7 @@ namespace DnsServerCore.Dns.Zones
             if (_apexZone is null)
                 throw new InvalidOperationException();
 
-            bW.Write((byte)10); //version
+            bW.Write((byte)11); //version
 
             bW.WriteShortString(_name);
             bW.Write((byte)_type);
@@ -618,10 +645,15 @@ namespace DnsServerCore.Dns.Zones
                         {
                             record.WriteTo(bW.BaseStream);
 
-                            if (record.Tag is not AuthRecordInfo rrInfo)
-                                rrInfo = AuthRecordInfo.Default; //default info
-
-                            rrInfo.WriteTo(bW);
+                            if (record.Tag is HistoryRecordInfo rrInfo)
+                            {
+                                bW.Write(true);
+                                rrInfo.WriteTo(bW);
+                            }
+                            else
+                            {
+                                bW.Write(false);
+                            }
                         }
                     }
 
@@ -689,10 +721,15 @@ namespace DnsServerCore.Dns.Zones
                         {
                             record.WriteTo(bW.BaseStream);
 
-                            if (record.Tag is not AuthRecordInfo rrInfo)
-                                rrInfo = AuthRecordInfo.Default; //default info
-
-                            rrInfo.WriteTo(bW);
+                            if (record.Tag is HistoryRecordInfo rrInfo)
+                            {
+                                bW.Write(true);
+                                rrInfo.WriteTo(bW);
+                            }
+                            else
+                            {
+                                bW.Write(false);
+                            }
                         }
                     }
 
