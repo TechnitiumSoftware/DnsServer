@@ -67,24 +67,29 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 lock (_saveLock)
                 {
-                    try
+                    List<string> failedZones = new List<string>();
+
+                    foreach (KeyValuePair<string, object> pendingSaveZone in _pendingSaveZones)
                     {
-                        foreach (KeyValuePair<string, object> pendingSaveZone in _pendingSaveZones)
+                        try
                         {
-                            try
-                            {
-                                SaveZoneFileInternal(pendingSaveZone.Key);
-                            }
-                            catch (Exception ex)
-                            {
-                                _dnsServer.LogManager.Write(ex);
-                            }
+                            SaveZoneFileInternal(pendingSaveZone.Key);
+                        }
+                        catch (Exception ex)
+                        {
+                            _dnsServer.LogManager.Write(ex);
+
+                            failedZones.Add(pendingSaveZone.Key);
                         }
                     }
-                    finally
-                    {
-                        _pendingSaveZones.Clear();
-                    }
+
+                    _pendingSaveZones.Clear();
+
+                    foreach (string zoneName in failedZones)
+                        _pendingSaveZones.TryAdd(zoneName, null);
+
+                    if (_pendingSaveZones.Count > 0)
+                        _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
                 }
             });
         }
@@ -102,10 +107,10 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             if (disposing)
             {
-                _saveTimer?.Dispose();
-
                 lock (_saveLock)
                 {
+                    _saveTimer?.Dispose();
+
                     try
                     {
                         foreach (KeyValuePair<string, object> pendingSaveZone in _pendingSaveZones)
@@ -375,7 +380,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 switch (refRecord.Type)
                 {
                     case DnsResourceRecordType.NS:
-                        IReadOnlyList<DnsResourceRecord> glueRecords = refRecord.GetAuthRecordInfo().GlueRecords;
+                        IReadOnlyList<DnsResourceRecord> glueRecords = refRecord.GetAuthNSRecordInfo().GlueRecords;
                         if (glueRecords is not null)
                         {
                             additionalRecords.AddRange(glueRecords);
@@ -529,7 +534,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 DateTime utcNow = DateTime.UtcNow;
 
                 foreach (DnsResourceRecord record in authority)
-                    record.GetAuthRecordInfo().LastUsedOn = utcNow;
+                    record.GetAuthGenericRecordInfo().LastUsedOn = utcNow;
             }
             else
             {
@@ -1199,14 +1204,43 @@ namespace DnsServerCore.Dns.ZoneManagers
                     default:
                         DnsResourceRecord newRecord = new DnsResourceRecord(string.Concat(sourceRecord.Name.AsSpan(0, sourceRecord.Name.Length - sourceZoneName.Length), zoneName), sourceRecord.Type, sourceRecord.Class, sourceRecord.TTL, sourceRecord.RDATA);
 
-                        if (sourceRecord.Tag is AuthRecordInfo srInfo)
+                        if (sourceRecord.Tag is NSRecordInfo nsInfo)
                         {
-                            AuthRecordInfo nrInfo = new AuthRecordInfo();
+                            NSRecordInfo nrInfo = new NSRecordInfo();
+
+                            nrInfo.Disabled = nsInfo.Disabled;
+                            nrInfo.Comments = nsInfo.Comments;
+                            nrInfo.GlueRecords = nsInfo.GlueRecords;
+
+                            newRecord.Tag = nrInfo;
+                        }
+                        else if (sourceRecord.Tag is SOARecordInfo soaInfo)
+                        {
+                            SOARecordInfo nrInfo = new SOARecordInfo();
+
+                            nrInfo.Disabled = soaInfo.Disabled;
+                            nrInfo.Comments = soaInfo.Comments;
+                            nrInfo.UseSoaSerialDateScheme = soaInfo.UseSoaSerialDateScheme;
+
+                            newRecord.Tag = nrInfo;
+                        }
+                        else if (sourceRecord.Tag is SVCBRecordInfo svcbInfo)
+                        {
+                            SVCBRecordInfo nrInfo = new SVCBRecordInfo();
+
+                            nrInfo.Disabled = svcbInfo.Disabled;
+                            nrInfo.Comments = svcbInfo.Comments;
+                            nrInfo.AutoIpv4Hint = svcbInfo.AutoIpv4Hint;
+                            nrInfo.AutoIpv6Hint = svcbInfo.AutoIpv6Hint;
+
+                            newRecord.Tag = nrInfo;
+                        }
+                        else if (sourceRecord.Tag is GenericRecordInfo srInfo)
+                        {
+                            GenericRecordInfo nrInfo = new GenericRecordInfo();
 
                             nrInfo.Disabled = srInfo.Disabled;
-                            nrInfo.GlueRecords = srInfo.GlueRecords;
                             nrInfo.Comments = srInfo.Comments;
-                            nrInfo.UseSoaSerialDateScheme = srInfo.UseSoaSerialDateScheme;
 
                             newRecord.Tag = nrInfo;
                         }
@@ -1305,10 +1339,10 @@ namespace DnsServerCore.Dns.ZoneManagers
                                         {
                                             case DnsResourceRecordType.SOA:
                                                 {
-                                                    AuthRecordInfo recordInfo = record.GetAuthRecordInfo();
+                                                    GenericRecordInfo recordInfo = record.GetAuthGenericRecordInfo();
                                                     record.Tag = null;
 
-                                                    AuthRecordInfo newRecordInfo = record.GetAuthRecordInfo();
+                                                    GenericRecordInfo newRecordInfo = record.GetAuthGenericRecordInfo();
                                                     newRecordInfo.Comments = recordInfo.Comments;
                                                 }
                                                 break;
@@ -1628,6 +1662,15 @@ namespace DnsServerCore.Dns.ZoneManagers
                 zone.ListAllRecords(records);
         }
 
+        public void ListAllZoneRecords(string zoneName, DnsResourceRecordType[] types, List<DnsResourceRecord> records)
+        {
+            foreach (AuthZone zone in _root.GetZoneWithSubDomainZones(zoneName))
+            {
+                foreach (DnsResourceRecordType type in types)
+                    records.AddRange(zone.GetRecords(type));
+            }
+        }
+
         public void ListAllRecords(string zoneName, string domain, List<DnsResourceRecord> records)
         {
             ValidateZoneNameFor(zoneName, domain);
@@ -1679,7 +1722,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             foreach (DnsResourceRecord record in records)
             {
-                AuthRecordInfo authRecordInfo = record.GetAuthRecordInfo();
+                GenericRecordInfo authRecordInfo = record.GetAuthGenericRecordInfo();
                 if (authRecordInfo.Disabled)
                     continue;
 
@@ -1691,7 +1734,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     case DnsResourceRecordType.NS:
                         xfrRecords.Add(record);
 
-                        IReadOnlyList<DnsResourceRecord> glueRecords = authRecordInfo.GlueRecords;
+                        IReadOnlyList<DnsResourceRecord> glueRecords = (authRecordInfo as NSRecordInfo).GlueRecords;
                         if (glueRecords is not null)
                         {
                             foreach (DnsResourceRecord glueRecord in glueRecords)
@@ -2816,7 +2859,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         for (int i = 0; i < records.Length; i++)
                         {
                             records[i] = new DnsResourceRecord(s);
-                            records[i].Tag = new AuthRecordInfo(bR, records[i].Type == DnsResourceRecordType.SOA);
+                            records[i].Tag = AuthRecordInfo.ReadGenericRecordInfoFrom(bR, records[i].Type);
 
                             if (records[i].Type == DnsResourceRecordType.SOA)
                                 soaRecord = records[i];
@@ -2874,7 +2917,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             for (int i = 0; i < records.Length; i++)
                             {
                                 records[i] = new DnsResourceRecord(s);
-                                records[i].Tag = new AuthRecordInfo(bR, records[i].Type == DnsResourceRecordType.SOA);
+                                records[i].Tag = AuthRecordInfo.ReadGenericRecordInfoFrom(bR, records[i].Type);
                             }
 
                             try
@@ -2943,11 +2986,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             foreach (DnsResourceRecord record in records)
             {
                 record.WriteTo(s);
-
-                if (record.Tag is not AuthRecordInfo rrInfo)
-                    rrInfo = AuthRecordInfo.Default; //default info
-
-                rrInfo.WriteTo(bW);
+                record.GetAuthGenericRecordInfo().WriteTo(bW);
             }
         }
 
