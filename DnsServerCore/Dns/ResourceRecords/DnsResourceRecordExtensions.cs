@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ namespace DnsServerCore.Dns.ResourceRecords
                 }
             }
 
-            record.GetAuthRecordInfo().GlueRecords = glueRecords;
+            record.GetAuthNSRecordInfo().GlueRecords = glueRecords;
         }
 
         public static void SyncGlueRecords(this DnsResourceRecord record, IReadOnlyList<DnsResourceRecord> allGlueRecords)
@@ -78,7 +78,7 @@ namespace DnsServerCore.Dns.ResourceRecords
                 }
             }
 
-            record.GetAuthRecordInfo().GlueRecords = foundGlueRecords;
+            record.GetAuthNSRecordInfo().GlueRecords = foundGlueRecords;
         }
 
         public static void SyncGlueRecords(this DnsResourceRecord record, IReadOnlyCollection<DnsResourceRecord> deletedGlueRecords, IReadOnlyCollection<DnsResourceRecord> addedGlueRecords)
@@ -89,7 +89,7 @@ namespace DnsServerCore.Dns.ResourceRecords
             bool updated = false;
 
             List<DnsResourceRecord> updatedGlueRecords = new List<DnsResourceRecord>();
-            IReadOnlyList<DnsResourceRecord> existingGlueRecords = record.GetAuthRecordInfo().GlueRecords;
+            IReadOnlyList<DnsResourceRecord> existingGlueRecords = record.GetAuthNSRecordInfo().GlueRecords;
             if (existingGlueRecords is not null)
             {
                 foreach (DnsResourceRecord existingGlueRecord in existingGlueRecords)
@@ -119,18 +119,123 @@ namespace DnsServerCore.Dns.ResourceRecords
             }
 
             if (updated)
-                record.GetAuthRecordInfo().GlueRecords = updatedGlueRecords;
+                record.GetAuthNSRecordInfo().GlueRecords = updatedGlueRecords;
         }
 
-        public static AuthRecordInfo GetAuthRecordInfo(this DnsResourceRecord record)
+        public static GenericRecordInfo GetAuthGenericRecordInfo(this DnsResourceRecord record)
         {
-            if (record.Tag is not AuthRecordInfo rrInfo)
+            if (record.Tag is null)
             {
-                rrInfo = new AuthRecordInfo();
-                record.Tag = rrInfo;
-            }
+                GenericRecordInfo rrInfo;
 
-            return rrInfo;
+                switch (record.Type)
+                {
+                    case DnsResourceRecordType.NS:
+                        rrInfo = new NSRecordInfo();
+                        break;
+
+                    case DnsResourceRecordType.SOA:
+                        rrInfo = new SOARecordInfo();
+                        break;
+
+                    case DnsResourceRecordType.SVCB:
+                    case DnsResourceRecordType.HTTPS:
+                        rrInfo = new SVCBRecordInfo();
+                        break;
+
+                    default:
+                        rrInfo = new GenericRecordInfo();
+                        break;
+                }
+
+                record.Tag = rrInfo;
+
+                return rrInfo;
+            }
+            else if (record.Tag is GenericRecordInfo rrInfo)
+            {
+                return rrInfo;
+            }
+            else
+            {
+                throw new InvalidOperationException();
+            }
+        }
+
+        public static NSRecordInfo GetAuthNSRecordInfo(this DnsResourceRecord record)
+        {
+            if (record.Tag is null)
+            {
+                NSRecordInfo info = new NSRecordInfo();
+                record.Tag = info;
+
+                return info;
+            }
+            else if (record.Tag is NSRecordInfo nsInfo)
+            {
+                return nsInfo;
+            }
+            else
+            {
+                throw new InvalidOperationException();
+            }
+        }
+
+        public static SOARecordInfo GetAuthSOARecordInfo(this DnsResourceRecord record)
+        {
+            if (record.Tag is null)
+            {
+                SOARecordInfo info = new SOARecordInfo();
+                record.Tag = info;
+
+                return info;
+            }
+            else if (record.Tag is SOARecordInfo soaInfo)
+            {
+                return soaInfo;
+            }
+            else
+            {
+                throw new InvalidOperationException();
+            }
+        }
+
+        public static SVCBRecordInfo GetAuthSVCBRecordInfo(this DnsResourceRecord record)
+        {
+            if (record.Tag is null)
+            {
+                SVCBRecordInfo info = new SVCBRecordInfo();
+                record.Tag = info;
+
+                return info;
+            }
+            else if (record.Tag is SVCBRecordInfo svcbInfo)
+            {
+                return svcbInfo;
+            }
+            else
+            {
+                throw new InvalidOperationException();
+            }
+        }
+
+        public static HistoryRecordInfo GetAuthHistoryRecordInfo(this DnsResourceRecord record)
+        {
+            if (record.Tag is null)
+            {
+                HistoryRecordInfo info = new HistoryRecordInfo();
+                record.Tag = info;
+
+                return info;
+            }
+            else if (record.Tag is HistoryRecordInfo info)
+            {
+                return info;
+            }
+            else
+            {
+                throw new InvalidOperationException();
+            }
         }
 
         public static CacheRecordInfo GetCacheRecordInfo(this DnsResourceRecord record)

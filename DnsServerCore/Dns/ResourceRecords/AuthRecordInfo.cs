@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using TechnitiumLibrary.IO;
@@ -27,37 +26,60 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.ResourceRecords
 {
-    class AuthRecordInfo
+    abstract class AuthRecordInfo
     {
-        #region variables
+        #region constructor
 
-        public static readonly AuthRecordInfo Default = new AuthRecordInfo();
+        protected AuthRecordInfo()
+        { }
 
-        bool _disabled;
-        IReadOnlyList<DnsResourceRecord> _glueRecords;
-        string _comments;
-        DateTime _deletedOn;
-        IReadOnlyList<NameServerAddress> _primaryNameServers;
-        DnsTransportProtocol _zoneTransferProtocol;
-        string _tsigKeyName = string.Empty;
-        bool _useSoaSerialDateScheme;
-
-        DateTime _lastUsedOn; //not serialized
+        protected AuthRecordInfo(BinaryReader bR)
+        {
+            byte version = bR.ReadByte();
+            if (version >= 9)
+                ReadRecordInfoFrom(bR);
+            else
+                ReadOldFormatFrom(bR, version, this is SOARecordInfo);
+        }
 
         #endregion
 
-        #region constructor
+        #region static
 
-        public AuthRecordInfo()
-        { }
-
-        public AuthRecordInfo(BinaryReader bR, bool isSoa)
+        public static GenericRecordInfo ReadGenericRecordInfoFrom(BinaryReader bR, DnsResourceRecordType type)
         {
-            byte version = bR.ReadByte();
+            switch (type)
+            {
+                case DnsResourceRecordType.NS:
+                    return new NSRecordInfo(bR);
+
+                case DnsResourceRecordType.SOA:
+                    return new SOARecordInfo(bR);
+
+                case DnsResourceRecordType.SVCB:
+                case DnsResourceRecordType.HTTPS:
+                    return new SVCBRecordInfo(bR);
+
+                default:
+                    return new GenericRecordInfo(bR);
+            }
+        }
+
+        #endregion
+
+        #region private
+
+        private void ReadOldFormatFrom(BinaryReader bR, byte version, bool isSoa)
+        {
             switch (version)
             {
                 case 1:
-                    _disabled = bR.ReadBoolean();
+                    {
+                        bool disabled = bR.ReadBoolean();
+
+                        if (this is GenericRecordInfo info)
+                            info.Disabled = disabled;
+                    }
                     break;
 
                 case 2:
@@ -67,94 +89,134 @@ namespace DnsServerCore.Dns.ResourceRecords
                 case 6:
                 case 7:
                 case 8:
-                    _disabled = bR.ReadBoolean();
-
-                    if ((version < 5) && isSoa)
                     {
-                        //read old glue records as NameServerAddress in case of SOA record
-                        int count = bR.ReadByte();
-                        if (count > 0)
                         {
-                            NameServerAddress[] primaryNameServers = new NameServerAddress[count];
+                            bool disabled = bR.ReadBoolean();
 
-                            for (int i = 0; i < primaryNameServers.Length; i++)
+                            if (this is GenericRecordInfo info)
+                                info.Disabled = disabled;
+                        }
+
+                        if ((version < 5) && isSoa)
+                        {
+                            //read old glue records as NameServerAddress in case of SOA record
+                            int count = bR.ReadByte();
+                            if (count > 0)
                             {
-                                DnsResourceRecord glueRecord = new DnsResourceRecord(bR.BaseStream);
+                                NameServerAddress[] primaryNameServers = new NameServerAddress[count];
 
-                                IPAddress address;
-
-                                switch (glueRecord.Type)
+                                for (int i = 0; i < primaryNameServers.Length; i++)
                                 {
-                                    case DnsResourceRecordType.A:
-                                        address = (glueRecord.RDATA as DnsARecordData).Address;
-                                        break;
+                                    DnsResourceRecord glueRecord = new DnsResourceRecord(bR.BaseStream);
 
-                                    case DnsResourceRecordType.AAAA:
-                                        address = (glueRecord.RDATA as DnsAAAARecordData).Address;
-                                        break;
+                                    IPAddress address;
 
-                                    default:
-                                        continue;
+                                    switch (glueRecord.Type)
+                                    {
+                                        case DnsResourceRecordType.A:
+                                            address = (glueRecord.RDATA as DnsARecordData).Address;
+                                            break;
+
+                                        case DnsResourceRecordType.AAAA:
+                                            address = (glueRecord.RDATA as DnsAAAARecordData).Address;
+                                            break;
+
+                                        default:
+                                            continue;
+                                    }
+
+                                    primaryNameServers[i] = new NameServerAddress(address);
                                 }
 
-                                primaryNameServers[i] = new NameServerAddress(address);
+                                (this as SOARecordInfo).PrimaryNameServers = primaryNameServers;
                             }
-
-                            _primaryNameServers = primaryNameServers;
                         }
-                    }
-                    else
-                    {
-                        int count = bR.ReadByte();
-                        if (count > 0)
+                        else
                         {
-                            DnsResourceRecord[] glueRecords = new DnsResourceRecord[count];
+                            int count = bR.ReadByte();
+                            if (count > 0)
+                            {
+                                DnsResourceRecord[] glueRecords = new DnsResourceRecord[count];
 
-                            for (int i = 0; i < glueRecords.Length; i++)
-                                glueRecords[i] = new DnsResourceRecord(bR.BaseStream);
+                                for (int i = 0; i < glueRecords.Length; i++)
+                                    glueRecords[i] = new DnsResourceRecord(bR.BaseStream);
 
-                            _glueRecords = glueRecords;
+                                if (this is NSRecordInfo info)
+                                    info.GlueRecords = glueRecords;
+                            }
                         }
-                    }
 
-                    if (version >= 3)
-                        _comments = bR.ReadShortString();
-
-                    if (version >= 4)
-                        _deletedOn = bR.ReadDateTime();
-
-                    if (version >= 5)
-                    {
-                        int count = bR.ReadByte();
-                        if (count > 0)
+                        if (version >= 3)
                         {
-                            NameServerAddress[] primaryNameServers = new NameServerAddress[count];
+                            string comments = bR.ReadShortString();
 
-                            for (int i = 0; i < primaryNameServers.Length; i++)
-                                primaryNameServers[i] = new NameServerAddress(bR);
+                            if (this is GenericRecordInfo info)
+                                info.Comments = comments;
+                        }
 
-                            _primaryNameServers = primaryNameServers;
+                        if (version >= 4)
+                        {
+                            DateTime deletedOn = bR.ReadDateTime();
+
+                            if (this is HistoryRecordInfo info)
+                                info.DeletedOn = deletedOn;
+                        }
+
+                        if (version >= 5)
+                        {
+                            int count = bR.ReadByte();
+                            if (count > 0)
+                            {
+                                NameServerAddress[] primaryNameServers = new NameServerAddress[count];
+
+                                for (int i = 0; i < primaryNameServers.Length; i++)
+                                    primaryNameServers[i] = new NameServerAddress(bR);
+
+                                if (this is SOARecordInfo info)
+                                    info.PrimaryNameServers = primaryNameServers;
+                            }
+                        }
+
+                        if (version >= 7)
+                        {
+                            DnsTransportProtocol zoneTransferProtocol = (DnsTransportProtocol)bR.ReadByte();
+                            string tsigKeyName = bR.ReadShortString();
+
+                            if (this is SOARecordInfo info)
+                            {
+                                if (zoneTransferProtocol != DnsTransportProtocol.Udp)
+                                    info.ZoneTransferProtocol = zoneTransferProtocol;
+
+                                if (tsigKeyName.Length > 0)
+                                    info.TsigKeyName = tsigKeyName;
+                            }
+                        }
+                        else if (version >= 6)
+                        {
+                            DnsTransportProtocol zoneTransferProtocol = (DnsTransportProtocol)bR.ReadByte();
+
+                            string tsigKeyName = bR.ReadShortString();
+                            _ = bR.ReadShortString(); //_tsigSharedSecret (obsolete)
+                            _ = bR.ReadShortString(); //_tsigAlgorithm (obsolete)
+
+                            if (this is SOARecordInfo info)
+                            {
+                                if (zoneTransferProtocol != DnsTransportProtocol.Udp)
+                                    info.ZoneTransferProtocol = zoneTransferProtocol;
+
+                                if (tsigKeyName.Length > 0)
+                                    info.TsigKeyName = tsigKeyName;
+                            }
+                        }
+
+                        if (version >= 8)
+                        {
+                            bool useSoaSerialDateScheme = bR.ReadBoolean();
+
+                            if (this is SOARecordInfo info)
+                                info.UseSoaSerialDateScheme = useSoaSerialDateScheme;
                         }
                     }
-
-                    if (version >= 7)
-                    {
-                        _zoneTransferProtocol = (DnsTransportProtocol)bR.ReadByte();
-
-                        _tsigKeyName = bR.ReadShortString();
-                    }
-                    else if (version >= 6)
-                    {
-                        _zoneTransferProtocol = (DnsTransportProtocol)bR.ReadByte();
-
-                        _tsigKeyName = bR.ReadShortString();
-                        _ = bR.ReadShortString(); //_tsigSharedSecret (obsolete)
-                        _ = bR.ReadShortString(); //_tsigAlgorithm (obsolete)
-                    }
-
-                    if (version >= 8)
-                        _useSoaSerialDateScheme = bR.ReadBoolean();
-
                     break;
 
                 default:
@@ -164,144 +226,21 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         #endregion
 
+        #region protected
+
+        protected abstract void ReadRecordInfoFrom(BinaryReader bR);
+
+        protected abstract void WriteRecordInfoTo(BinaryWriter bW);
+
+        #endregion
+
         #region public
 
         public void WriteTo(BinaryWriter bW)
         {
-            bW.Write((byte)8); //version
-            bW.Write(_disabled);
+            bW.Write((byte)9); //version
 
-            if (_glueRecords is null)
-            {
-                bW.Write((byte)0);
-            }
-            else
-            {
-                bW.Write(Convert.ToByte(_glueRecords.Count));
-
-                foreach (DnsResourceRecord glueRecord in _glueRecords)
-                    glueRecord.WriteTo(bW.BaseStream);
-            }
-
-            if (string.IsNullOrEmpty(_comments))
-                bW.Write((byte)0);
-            else
-                bW.WriteShortString(_comments);
-
-            bW.Write(_deletedOn);
-
-            if (_primaryNameServers is null)
-            {
-                bW.Write((byte)0);
-            }
-            else
-            {
-                bW.Write(Convert.ToByte(_primaryNameServers.Count));
-
-                foreach (NameServerAddress nameServer in _primaryNameServers)
-                    nameServer.WriteTo(bW);
-            }
-
-            bW.Write((byte)_zoneTransferProtocol);
-
-            bW.WriteShortString(_tsigKeyName);
-
-            bW.Write(_useSoaSerialDateScheme);
-        }
-
-        #endregion
-
-        #region properties
-
-        public bool Disabled
-        {
-            get { return _disabled; }
-            set { _disabled = value; }
-        }
-
-        public IReadOnlyList<DnsResourceRecord> GlueRecords
-        {
-            get { return _glueRecords; }
-            set
-            {
-                if ((value is null) || (value.Count == 0))
-                    _glueRecords = null;
-                else
-                    _glueRecords = value;
-            }
-        }
-
-        public string Comments
-        {
-            get { return _comments; }
-            set
-            {
-                if ((value is not null) && (value.Length > 255))
-                    throw new ArgumentOutOfRangeException(nameof(Comments), "Resource record comment text cannot exceed 255 characters.");
-
-                _comments = value;
-            }
-        }
-
-        public DateTime DeletedOn
-        {
-            get { return _deletedOn; }
-            set { _deletedOn = value; }
-        }
-
-        public IReadOnlyList<NameServerAddress> PrimaryNameServers
-        {
-            get { return _primaryNameServers; }
-            set
-            {
-                if ((value is null) || (value.Count == 0))
-                    _primaryNameServers = null;
-                else
-                    _primaryNameServers = value;
-            }
-        }
-
-        public DnsTransportProtocol ZoneTransferProtocol
-        {
-            get { return _zoneTransferProtocol; }
-            set
-            {
-                switch (value)
-                {
-                    case DnsTransportProtocol.Tcp:
-                    case DnsTransportProtocol.Tls:
-                    case DnsTransportProtocol.Quic:
-                        _zoneTransferProtocol = value;
-                        break;
-
-                    default:
-                        throw new NotSupportedException("Zone transfer protocol is not supported: XFR-over-" + value.ToString().ToUpper());
-                }
-            }
-        }
-
-        public string TsigKeyName
-        {
-            get { return _tsigKeyName; }
-            set
-            {
-                if (value is null)
-                    _tsigKeyName = string.Empty;
-                else
-                    _tsigKeyName = value;
-            }
-        }
-
-        public bool UseSoaSerialDateScheme
-        {
-            get { return _useSoaSerialDateScheme; }
-            set { _useSoaSerialDateScheme = value; }
-        }
-
-        public DateTime LastUsedOn
-        {
-            get { return _lastUsedOn; }
-            set { _lastUsedOn = value; }
+            WriteRecordInfoTo(bW);
         }
 
         #endregion
