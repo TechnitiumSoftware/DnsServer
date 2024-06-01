@@ -51,7 +51,7 @@ namespace DnsServerCore.Dns.Zones
             DnsResourceRecord fwdRecord = new DnsResourceRecord(name, DnsResourceRecordType.FWD, DnsClass.IN, 0, new DnsForwarderRecordData(forwarderProtocol, forwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword));
 
             if (!string.IsNullOrEmpty(fwdRecordComments))
-                fwdRecord.GetAuthRecordInfo().Comments = fwdRecordComments;
+                fwdRecord.GetAuthGenericRecordInfo().Comments = fwdRecordComments;
 
             _entries[DnsResourceRecordType.FWD] = new DnsResourceRecord[] { fwdRecord };
         }
