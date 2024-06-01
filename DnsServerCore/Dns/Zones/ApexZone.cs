@@ -150,7 +150,7 @@ namespace DnsServerCore.Dns.Zones
             while (index < _zoneHistory.Count)
             {
                 //check difference sequence
-                if (_zoneHistory[index].GetAuthRecordInfo().DeletedOn > expiry)
+                if (_zoneHistory[index].GetAuthHistoryRecordInfo().DeletedOn > expiry)
                     break; //found record to keep
 
                 //skip to next difference sequence
@@ -215,7 +215,7 @@ namespace DnsServerCore.Dns.Zones
 
                 foreach (DnsResourceRecord nsRecord in nsRecords)
                 {
-                    if (nsRecord.GetAuthRecordInfo().Disabled)
+                    if (nsRecord.GetAuthGenericRecordInfo().Disabled)
                         continue;
 
                     string nameServerHost = (nsRecord.RDATA as DnsNSRecordData).NameServer;
@@ -450,7 +450,7 @@ namespace DnsServerCore.Dns.Zones
         {
             string nsDomain = (nsRecord.RDATA as DnsNSRecordData).NameServer;
 
-            IReadOnlyList<DnsResourceRecord> glueRecords = nsRecord.GetAuthRecordInfo().GlueRecords;
+            IReadOnlyList<DnsResourceRecord> glueRecords = nsRecord.GetAuthNSRecordInfo().GlueRecords;
             if (glueRecords is not null)
             {
                 foreach (DnsResourceRecord glueRecord in glueRecords)
@@ -534,7 +534,7 @@ namespace DnsServerCore.Dns.Zones
         {
             DnsResourceRecord soaRecord = _entries[DnsResourceRecordType.SOA][0];
 
-            IReadOnlyList<NameServerAddress> primaryNameServers = soaRecord.GetAuthRecordInfo().PrimaryNameServers;
+            IReadOnlyList<NameServerAddress> primaryNameServers = soaRecord.GetAuthSOARecordInfo().PrimaryNameServers;
             if (primaryNameServers is not null)
             {
                 List<NameServerAddress> resolvedNameServers = new List<NameServerAddress>(primaryNameServers.Count * 2);
@@ -557,7 +557,7 @@ namespace DnsServerCore.Dns.Zones
 
             foreach (DnsResourceRecord nsRecord in nsRecords)
             {
-                if (nsRecord.GetAuthRecordInfo().Disabled)
+                if (nsRecord.GetAuthGenericRecordInfo().Disabled)
                     continue;
 
                 if (primaryNameServer.Equals((nsRecord.RDATA as DnsNSRecordData).NameServer, StringComparison.OrdinalIgnoreCase))
@@ -583,7 +583,7 @@ namespace DnsServerCore.Dns.Zones
 
             foreach (DnsResourceRecord nsRecord in nsRecords)
             {
-                if (nsRecord.GetAuthRecordInfo().Disabled)
+                if (nsRecord.GetAuthGenericRecordInfo().Disabled)
                     continue;
 
                 if (primaryNameServer.Equals((nsRecord.RDATA as DnsNSRecordData).NameServer, StringComparison.OrdinalIgnoreCase))
