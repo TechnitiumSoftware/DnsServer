@@ -111,7 +111,7 @@ namespace DnsServerCore.Dns.Zones
             DnsSOARecordData soa = new DnsSOARecordData(primaryNameServer, rp, serial, 900, 300, 604800, 900);
             DnsResourceRecord soaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Minimum, soa);
 
-            soaRecord.GetAuthRecordInfo().UseSoaSerialDateScheme = useSoaSerialDateScheme;
+            soaRecord.GetAuthSOARecordInfo().UseSoaSerialDateScheme = useSoaSerialDateScheme;
 
             _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { soaRecord };
             _entries[DnsResourceRecordType.NS] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, 3600, new DnsNSRecordData(soa.PrimaryNameServer)) };
@@ -2634,20 +2634,20 @@ namespace DnsServerCore.Dns.Zones
                         DnsResourceRecord addSoaRecord = addedRecords[0];
                         DnsSOARecordData addSoa = addSoaRecord.RDATA as DnsSOARecordData;
 
-                        uint serial = GetNewSerial(oldSoa.Serial, addSoa.Serial, addSoaRecord.GetAuthRecordInfo().UseSoaSerialDateScheme);
+                        uint serial = GetNewSerial(oldSoa.Serial, addSoa.Serial, addSoaRecord.GetAuthSOARecordInfo().UseSoaSerialDateScheme);
 
                         newSoaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, addSoaRecord.TTL, new DnsSOARecordData(addSoa.PrimaryNameServer, addSoa.ResponsiblePerson, serial, addSoa.Refresh, addSoa.Retry, addSoa.Expire, addSoa.Minimum)) { Tag = addSoaRecord.Tag };
                         addedRecords = null;
                     }
                     else
                     {
-                        uint serial = GetNewSerial(oldSoa.Serial, 0, oldSoaRecord.GetAuthRecordInfo().UseSoaSerialDateScheme);
+                        uint serial = GetNewSerial(oldSoa.Serial, 0, oldSoaRecord.GetAuthSOARecordInfo().UseSoaSerialDateScheme);
 
                         newSoaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, oldSoaRecord.TTL, new DnsSOARecordData(oldSoa.PrimaryNameServer, oldSoa.ResponsiblePerson, serial, oldSoa.Refresh, oldSoa.Retry, oldSoa.Expire, oldSoa.Minimum)) { Tag = oldSoaRecord.Tag };
                     }
                 }
 
-                DnsResourceRecord[] newSoaRecords = new DnsResourceRecord[] { newSoaRecord };
+                DnsResourceRecord[] newSoaRecords = [newSoaRecord];
 
                 //update SOA
                 _entries[DnsResourceRecordType.SOA] = newSoaRecords;
@@ -2662,11 +2662,11 @@ namespace DnsServerCore.Dns.Zones
                     AddOrUpdateRRSigRecords(newRRSigRecords, out deletedRRSigRecords);
                 }
 
-                //remove RR info from old SOA to allow creating new RR info for it during SetDeletedOn()
+                //remove RR info from old SOA to allow creating new history RR info for setting DeletedOn
                 oldSoaRecord.Tag = null;
 
                 //start commit
-                oldSoaRecord.GetAuthRecordInfo().DeletedOn = DateTime.UtcNow;
+                oldSoaRecord.GetAuthHistoryRecordInfo().DeletedOn = DateTime.UtcNow;
 
                 //write removed
                 _zoneHistory.Add(oldSoaRecord);
@@ -2675,14 +2675,14 @@ namespace DnsServerCore.Dns.Zones
                 {
                     foreach (DnsResourceRecord deletedRecord in deletedRecords)
                     {
-                        if (deletedRecord.GetAuthRecordInfo().Disabled)
+                        if (deletedRecord.GetAuthGenericRecordInfo().Disabled)
                             continue;
 
                         _zoneHistory.Add(deletedRecord);
 
                         if (deletedRecord.Type == DnsResourceRecordType.NS)
                         {
-                            IReadOnlyList<DnsResourceRecord> glueRecords = deletedRecord.GetAuthRecordInfo().GlueRecords;
+                            IReadOnlyList<DnsResourceRecord> glueRecords = deletedRecord.GetAuthNSRecordInfo().GlueRecords;
                             if (glueRecords is not null)
                                 _zoneHistory.AddRange(glueRecords);
                         }
@@ -2699,14 +2699,14 @@ namespace DnsServerCore.Dns.Zones
                 {
                     foreach (DnsResourceRecord addedRecord in addedRecords)
                     {
-                        if (addedRecord.GetAuthRecordInfo().Disabled)
+                        if (addedRecord.GetAuthGenericRecordInfo().Disabled)
                             continue;
 
                         _zoneHistory.Add(addedRecord);
 
                         if (addedRecord.Type == DnsResourceRecordType.NS)
                         {
-                            IReadOnlyList<DnsResourceRecord> glueRecords = addedRecord.GetAuthRecordInfo().GlueRecords;
+                            IReadOnlyList<DnsResourceRecord> glueRecords = addedRecord.GetAuthNSRecordInfo().GlueRecords;
                             if (glueRecords is not null)
                                 _zoneHistory.AddRange(glueRecords);
                         }
@@ -2813,7 +2813,7 @@ namespace DnsServerCore.Dns.Zones
                     default:
                         foreach (DnsResourceRecord record in records)
                         {
-                            if (record.GetAuthRecordInfo().Disabled)
+                            if (record.GetAuthGenericRecordInfo().Disabled)
                                 throw new DnsServerException("Cannot set records: disabling records in a signed zones is not supported.");
                         }
 
@@ -2847,7 +2847,7 @@ namespace DnsServerCore.Dns.Zones
                     bool useSoaSerialDateScheme;
                     string comments;
                     {
-                        AuthRecordInfo recordInfo = newSoaRecord.GetAuthRecordInfo();
+                        SOARecordInfo recordInfo = newSoaRecord.GetAuthSOARecordInfo();
 
                         useSoaSerialDateScheme = recordInfo.UseSoaSerialDateScheme;
                         comments = recordInfo.Comments;
@@ -2856,7 +2856,7 @@ namespace DnsServerCore.Dns.Zones
                     newSoaRecord.Tag = null; //remove old record info
 
                     {
-                        AuthRecordInfo recordInfo = newSoaRecord.GetAuthRecordInfo();
+                        SOARecordInfo recordInfo = newSoaRecord.GetAuthSOARecordInfo();
 
                         recordInfo.UseSoaSerialDateScheme = useSoaSerialDateScheme;
                         recordInfo.Comments = comments;
@@ -2922,7 +2922,7 @@ namespace DnsServerCore.Dns.Zones
                         throw new DnsServerException("The record type is not supported by DNSSEC signed primary zones.");
 
                     default:
-                        if (record.GetAuthRecordInfo().Disabled)
+                        if (record.GetAuthGenericRecordInfo().Disabled)
                             throw new DnsServerException("Cannot add record: disabling records in a signed zones is not supported.");
 
                         break;
@@ -3046,7 +3046,7 @@ namespace DnsServerCore.Dns.Zones
                     if (oldRecord.Type != newRecord.Type)
                         throw new InvalidOperationException("Old and new record types do not match.");
 
-                    if ((_dnssecStatus != AuthZoneDnssecStatus.Unsigned) && newRecord.GetAuthRecordInfo().Disabled)
+                    if ((_dnssecStatus != AuthZoneDnssecStatus.Unsigned) && newRecord.GetAuthGenericRecordInfo().Disabled)
                         throw new DnsServerException("Cannot update record: disabling records in a signed zones is not supported.");
 
                     if (newRecord.OriginalTtlValue > GetZoneSoaExpire())
