@@ -61,17 +61,20 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 lock (_saveLock)
                 {
-                    try
+                    if (_pendingSave)
                     {
-                        SaveZoneFileInternal();
-                    }
-                    catch (Exception ex)
-                    {
-                        _dnsServer.LogManager.Write(ex);
-                    }
-                    finally
-                    {
-                        _pendingSave = false;
+                        try
+                        {
+                            SaveZoneFileInternal();
+                            _pendingSave = false;
+                        }
+                        catch (Exception ex)
+                        {
+                            _dnsServer.LogManager.Write(ex);
+
+                            //set timer to retry again
+                            _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
+                        }
                     }
                 }
             });
@@ -88,10 +91,10 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (_disposed)
                 return;
 
-            _saveTimer?.Dispose();
-
             lock (_saveLock)
             {
+                _saveTimer?.Dispose();
+
                 if (_pendingSave)
                 {
                     try
