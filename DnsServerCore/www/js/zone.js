@@ -2523,6 +2523,18 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
                 "data-record-certificate-association-data=\"" + htmlEncode(record.rData.certificateAssociationData) + "\" ";
             break;
 
+        case "ZONEMD":
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Serial: </b> " + htmlEncode(record.rData.serial) +
+                "<br /><b>Scheme: </b> " + htmlEncode(record.rData.scheme) +
+                "<br /><b>Hash Algorithm: </b> " + htmlEncode(record.rData.hashAlgorithm) +
+                "<br /><b>Digest:</b> " + record.rData.digest;
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "";
+            break;
+
         case "SVCB":
         case "HTTPS":
             var tableHtmlSvcParams;
@@ -2754,6 +2766,7 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
                 case "NSEC":
                 case "NSEC3":
                 case "NSEC3PARAM":
+                case "ZONEMD":
                     hideActionButtons = true;
                     break;
             }
