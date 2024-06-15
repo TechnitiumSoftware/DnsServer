@@ -8,6 +8,8 @@ The URL in the documentation uses `localhost` and port `5380`. You should use th
 
 Unless it is explicitly specified, all HTTP API requests can use both `GET` or `POST` methods. When using `POST` method to pass the API parameters as form data, the `Content-Type` header must be set to `application/x-www-form-urlencoded`. When the HTTP API call is used to upload files, the call must use `POST` method and the `Content-Type` header must be set to `multipart/form-data`.
 
+Note! The "set" type of API requests will overwrite any existing value managed by that call. The "add" type of API requests will append to existing value managed by the call.
+
 ## API Response Format
 
 The HTTP API returns a JSON formatted response for all requests. The JSON object returned contains `status` property which indicate if the request was successful. 
@@ -1553,6 +1555,8 @@ WHERE:
 - `type` (optional): The duration type for which valid values are: [`LastHour`, `LastDay`, `LastWeek`, `LastMonth`, `LastYear`]. Default value is `LastHour`.
 - `statsType`: The stats type for which valid values are : [`TopClients`, `TopDomains`, `TopBlockedDomains`]
 - `limit` (optional): The limit of records to return. Default value is `1000`.
+- `noReverseLookup` (optional): Set to `true` to disable reverse lookup for Top Clients list. This option is only applicable with `TopClients` stats type.
+- `onlyRateLimitedClients` (optional): Set to `true` to list only clients which are being rate limited in the Top Clients list. This option is only applicable with `TopClients` stats type.
 
 RESPONSE:
 The response json will include the object with definition same in the `getStats` response depending on the `statsType`. For example below is the response for `TopClients`:
@@ -2676,6 +2680,7 @@ WHERE:
 - `ipAddress` (optional): The IP address for adding `A` or `AAAA` record. A special value of `request-ip-address` can be used to set the record with the IP address of the API HTTP request to help with dynamic DNS update applications. This option is required and used only for `A` and `AAAA` records.
 - `ptr` (optional): Set this option to `true` to add a reverse PTR record for the IP address in the `A` or `AAAA` record. This option is used only for `A` and `AAAA` records.
 - `createPtrZone` (optional): Set this option to `true` to create a reverse zone for PTR record. This option is used for `A` and `AAAA` records.
+- `updateSvcbHints` (optional): Set this option to `true` to update any SVCB/HTTPS records in the zone that has Automatic Hints option enabled and matches its target name with the current record's domain name. This option is used for `A` and `AAAA` records.
 - `nameServer` (optional): The name server domain name. This option is required for adding `NS` record.
 - `glue` (optional): This is the glue address for the name server in the `NS` record. This optional parameter is used for adding `NS` record.
 - `cname` (optional): The CNAME domain name. This option is required for adding `CNAME` record.
@@ -2683,10 +2688,17 @@ WHERE:
 - `exchange` (optional): The exchange domain name. This option is required for adding `MX` record.
 - `preference` (optional): This is the preference value for `MX` record type. This option is required for adding `MX` record.
 - `text` (optional): The text data for `TXT` record. This option is required for adding `TXT` record.
+- `splitText` (optional): Set to `true` for using new line char to split text into multiple character-strings for adding `TXT` record.
 - `priority` (optional): This parameter is required for adding the `SRV` record.
 - `weight` (optional): This parameter is required for adding the `SRV` record.
 - `port` (optional): This parameter is required for adding the `SRV` record.
 - `target` (optional): This parameter is required for adding the `SRV` record.
+- `naptrOrder` (optional): This parameter is required for adding the `NAPTR` record.
+- `naptrPreference` (optional): This parameter is required for adding the `NAPTR` record.
+- `naptrFlags` (optional): This parameter is required for adding the `NAPTR` record.
+- `naptrServices` (optional): This parameter is required for adding the `NAPTR` record.
+- `naptrRegexp` (optional): This parameter is required for adding the `NAPTR` record.
+- `naptrReplacement` (optional): This parameter is required for adding the `NAPTR` record.
 - `dname` (optional): The DNAME domain name. This option is required for adding `DNAME` record.
 - `keyTag` (optional): This parameter is required for adding `DS` record.
 - `algorithm` (optional): Valid values are [`RSAMD5`, `DSA`, `RSASHA1`, `DSA-NSEC3-SHA1`, `RSASHA1-NSEC3-SHA1`, `RSASHA256`, `RSASHA512`, `ECC-GOST`, `ECDSAP256SHA256`, `ECDSAP384SHA384`, `ED25519`, `ED448`]. This parameter is required for adding `DS` record.
@@ -2702,6 +2714,8 @@ WHERE:
 - `svcPriority` (optional): The priority value for `SVCB` or `HTTPS` record. This parameter is required for adding `SCVB` or `HTTPS` record.
 - `svcTargetName` (optional): The target domain name for `SVCB` or `HTTPS` record. This parameter is required for adding `SCVB` or `HTTPS` record.
 - `svcParams` (optional): The service parameters for `SVCB` or `HTTPS` record which is a pipe separated list of key and value. For example, `alpn|h2,h3|port|53443`. To clear existing values, set it to `false`. This parameter is required for adding `SCVB` or `HTTPS` record.
+- `autoIpv4Hint` (optional): Set this option to `true` to enable Automatic Hints for the `ipv4hint` parameter in the `svcParams`. This option is valid only for `SVCB` and `HTTPS` records.
+- `autoIpv6Hint` (optional): Set this option to `true` to enable Automatic Hints for the `ipv6hint` parameter in the `svcParams`. This option is valid only for `SVCB` and `HTTPS` records.
 - `uriPriority` (optional): The priority value for adding the `URI` record.
 - `uriWeight` (optional): The weight value for adding the `URI` record.
 - `uri` (optional): The URI value for adding the `URI` record.
@@ -3315,6 +3329,7 @@ WHERE:
 - `newIpAddress` (optional): The new IP address in the `A` or `AAAA` record. This parameter when missing will use the current value in the record.
 - `ptr` (optional): Set this option to `true` to specify if the PTR record associated with the `A` or `AAAA` record must also be updated. This option is used only for `A` and `AAAA` records.
 - `createPtrZone` (optional): Set this option to `true` to create a reverse zone for PTR record. This option is used only for `A` and `AAAA` records.
+- `updateSvcbHints` (optional): Set this option to `true` to update any SVCB/HTTPS records in the zone that has Automatic Hints option enabled and matches its target name with the current record's domain name. This option is used for `A` and `AAAA` records.
 - `nameServer` (optional): The current name server domain name. This option is required for updating `NS` record.
 - `newNameServer` (optional): The new server domain name. This option is used for updating `NS` record.
 - `glue` (optional): The comma separated list of IP addresses set as glue for the NS record. This parameter is used only when updating `NS` record.
@@ -3337,6 +3352,8 @@ WHERE:
 - `newExchange` (optional): The new exchange domain name. This option is required for updating `MX` record.
 - `text` (optional): The current text value. This option is required for updating `TXT` record.
 - `newText` (optional): The new text value. This option is required for updating `TXT` record.
+- `splitText` (optional): The current split text value. This option is used for updating `TXT` record and is set to `false` when unspecified.
+- `newSplitText` (optional): The new split text value. This option is used for updating `TXT` record and is set to current split text value when unspecified.
 - `priority` (optional): This is the current priority in the SRV record. This parameter is required when updating the `SRV` record.
 - `newPriority` (optional): This is the new priority in the SRV record. This parameter when missing will use the old value. This parameter is used when updating the `SRV` record.
 - `weight` (optional): This is the current weight in the SRV record. This parameter is required when updating the `SRV` record.
@@ -3345,6 +3362,18 @@ WHERE:
 - `newPort` (optional): This is the new value of the port parameter in the SRV record. This parameter when missing will use the old value. This parameter is used to update the port parameter in the `SRV` record.
 - `target` (optional): The current target value. This parameter is required when updating the `SRV` record.
 - `newTarget` (optional): The new target value. This parameter when missing will use the old value. This parameter is required when updating the `SRV` record.
+- `naptrOrder` (optional): The current value in the NAPTR record. This parameter is required when updating the `NAPTR` record.
+- `naptrNewOrder` (optional): The new value in the NAPTR record. This parameter when missing will use the old value. This parameter is used when updating the `NAPTR` record.
+- `naptrPreference` (optional): The current value in the NAPTR record. This parameter is required when updating the `NAPTR` record.
+- `naptrNewPreference` (optional): The new value in the NAPTR record. This parameter when missing will use the old value. This parameter is used when updating the `NAPTR` record.
+- `naptrFlags` (optional): The current value in the NAPTR record. This parameter is required when updating the `NAPTR` record.
+- `naptrNewFlags` (optional): The new value in the NAPTR record. This parameter when missing will use the old value. This parameter is used when updating the `NAPTR` record.
+- `naptrServices` (optional): The current value in the NAPTR record. This parameter is required when updating the `NAPTR` record.
+- `naptrNewServices` (optional): The new value in the NAPTR record. This parameter when missing will use the old value. This parameter is used when updating the `NAPTR` record.
+- `naptrRegexp` (optional): The current value in the NAPTR record. This parameter is required when updating the `NAPTR` record.
+- `naptrNewRegexp` (optional): The new value in the NAPTR record. This parameter when missing will use the old value. This parameter is used when updating the `NAPTR` record.
+- `naptrReplacement` (optional): The current value in the NAPTR record. This parameter is required when updating the `NAPTR` record.
+- `naptrNewReplacement` (optional): The new value in the NAPTR record. This parameter when missing will use the old value. This parameter is used when updating the `NAPTR` record.
 - `dname` (optional): The DNAME domain name. This parameter is required when updating the `DNAME` record.
 - `keyTag` (optional): This parameter is required when updating `DS` record.
 - `newKeyTag` (optional): This parameter is required when updating `DS` record.
@@ -3374,6 +3403,8 @@ WHERE:
 - `newSvcTargetName` (optional): The new target domain name for `SVCB` or `HTTPS` record. This parameter when missing will use the old value. 
 - `svcParams` (optional): The service parameters for `SVCB` or `HTTPS` record which is a pipe separated list of key and value. For example, `alpn|h2,h3|port|53443`. To clear existing values, set it to `false`. This parameter is required for updating `SCVB` or `HTTPS` record.
 - `newSvcParams` (optional): The new service parameters for `SVCB` or `HTTPS` record which is a pipe separated list of key and value. To clear existing values, set it to `false`. This parameter when missing will use the old value. 
+- `autoIpv4Hint` (optional): Set this option to `true` to enable Automatic Hints for the `ipv4hint` parameter in the `newSvcParams`. This option is valid only for `SVCB` and `HTTPS` records.
+- `autoIpv6Hint` (optional): Set this option to `true` to enable Automatic Hints for the `ipv6hint` parameter in the `newSvcParams`. This option is valid only for `SVCB` and `HTTPS` records.
 - `uriPriority` (optional): The priority value for the `URI` record. This parameter is required for updating the `URI` record.
 - `newUriPriority` (optional): The new priority value for the `URI` record. This parameter when missing will use the old value.
 - `uriWeight` (optional): The weight value for the `URI` record. This parameter is required for updating the `URI` record.
@@ -3458,15 +3489,23 @@ WHERE:
 - `zone` (optional): The name of the authoritative zone into which the `domain` exists. When unspecified, the closest authoritative zone will be used.
 - `type`: The type of the resource record to delete.
 - `ipAddress` (optional): This parameter is required when deleting `A` or `AAAA` record.
+- `updateSvcbHints` (optional): Set this option to `true` to update any SVCB/HTTPS records in the zone that has Automatic Hints option enabled and matches its target name with the current record's domain name. This option is used for `A` and `AAAA` records.
 - `nameServer` (optional): This parameter is required when deleting `NS` record.
 - `ptrName` (optional): This parameter is required when deleting `PTR` record.
 - `preference` (optional): This parameter is required when deleting `MX` record.
 - `exchange` (optional): This parameter is required when deleting `MX` record.
 - `text` (optional): This parameter is required when deleting `TXT` record.
+- `splitText` (optional): This parameter is used when deleting `TXT` record. Default value is set to `false` when unspecified.
 - `priority` (optional): This parameter is required when deleting the `SRV` record.
 - `weight` (optional): This parameter is required when deleting the `SRV` record.
 - `port` (optional): This parameter is required when deleting the `SRV` record.
 - `target` (optional): This parameter is required when deleting the `SRV` record.
+- `naptrOrder` (optional): This parameter is required when deleting the `NAPTR` record.
+- `naptrPreference` (optional): This parameter is required when deleting the `NAPTR` record.
+- `naptrFlags` (optional): This parameter is required when deleting the `NAPTR` record.
+- `naptrServices` (optional): This parameter is required when deleting the `NAPTR` record.
+- `naptrRegexp` (optional): This parameter is required when deleting the `NAPTR` record.
+- `naptrReplacement` (optional): This parameter is required when deleting the `NAPTR` record.
 - `keyTag` (optional): This parameter is required when deleting `DS` record.
 - `algorithm` (optional): This parameter is required when deleting `DS` record.
 - `digestType` (optional): This parameter is required when deleting `DS` record.
@@ -4427,8 +4466,8 @@ RESPONSE:
 ```
 {
 	"response": {
-		"version": "12.1",
-		"uptimestamp": "2024-03-16T14:27:12.6654603Z",
+		"version": "12.2",
+		"uptimestamp": "2024-05-19T10:44:24.950017Z",
 		"dnsServerDomain": "server1",
 		"dnsServerLocalEndPoints": [
 			"0.0.0.0:53",
@@ -4441,6 +4480,7 @@ RESPONSE:
 			"::"
 		],
 		"defaultRecordTtl": 3600,
+		"defaultResponsiblePerson": null,
 		"useSoaSerialDateScheme": false,
 		"zoneTransferAllowedNetworks": [],
 		"notifyAllowedNetworks": [],
@@ -4502,13 +4542,16 @@ RESPONSE:
 		"recursionAllowedNetworks": [],
 		"randomizeName": true,
 		"qnameMinimization": true,
-		"nsRevalidation": true,
+		"nsRevalidation": false,
 		"resolverRetries": 2,
 		"resolverTimeout": 1500,
 		"resolverMaxStackCount": 16,
 		"saveCache": true,
 		"serveStale": true,
 		"serveStaleTtl": 259200,
+		"serveStaleAnswerTtl": 30,
+		"serveStaleResetTtl": 30,
+		"serveStaleMaxWaitTime": 1800,
 		"cacheMaximumEntries": 10000,
 		"cacheMinimumRecordTtl": 10,
 		"cacheMaximumRecordTtl": 604800,
@@ -4552,7 +4595,9 @@ RESPONSE:
 
 ### Set DNS Settings
 
-This call allows to change the DNS server settings.
+This call allows to change the DNS server settings. 
+
+Note! Any parameter passed with this API call will overwrite existing value for that parameter. If you wish to append new values instead then you should first call the Get DNS Settings API to get the existing value, append your new value to it, and then pass the updated value with this API call.
 
 URL:\
 `http://localhost:5380/api/settings/set?token=x&dnsServerDomain=server1&dnsServerLocalEndPoints=0.0.0.0:53,[::]:53&webServiceLocalAddresses=0.0.0.0,[::]&webServiceHttpPort=5380&webServiceEnableTls=false&webServiceTlsPort=53443&webServiceTlsCertificatePath=&webServiceTlsCertificatePassword=&enableDnsOverHttp=false&enableDnsOverTls=false&enableDnsOverHttps=false&dnsTlsCertificatePath=&dnsTlsCertificatePassword=&preferIPv6=false&logQueries=true&allowRecursion=true&allowRecursionOnlyForPrivateNetworks=true&randomizeName=true&cachePrefetchEligibility=2&cachePrefetchTrigger=9&cachePrefetchSampleIntervalInMinutes=5&cachePrefetchSampleEligibilityHitsPerHour=30&proxyType=socks5&proxyAddress=192.168.10.2&proxyPort=9050&proxyUsername=username&proxyPassword=password&proxyBypass=127.0.0.0/8,169.254.0.0/16,fe80::/10,::1,localhost&forwarders=192.168.10.2&forwarderProtocol=Udp&useNxDomainForBlocking=false&blockListUrls=https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts,https://mirror1.malwaredomains.com/files/justdomains,https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt,https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt`
@@ -4570,6 +4615,7 @@ WHERE:
 - `dnsServerIPv4SourceAddresses` (optional): A comma separated list of IPv4 source addresses that the DNS server must use for making all outbound DNS requests when the server is connected to two or more networks. Network addresses are also accepted. By default, the IPv4 address of the network with a default route will be used as the source address.
 - `dnsServerIPv6SourceAddresses` (optional): A comma separated list of IPv6 source addresses that the DNS server must use for making all outbound DNS requests when the server is connected to two or more networks. Network addresses are also accepted. By default, the IPv6 address of the network with a default route will be used as the source address. Note that this option will be used only when `Prefer IPv6` option is enabled.
 - `defaultRecordTtl` (optional): The default TTL value to use if not specified when adding or updating records in a Zone.
+- `defaultResponsiblePerson` (optional): The default SOA Responsible Person email address to use when adding a Primary Zone.
 - `useSoaSerialDateScheme` (optional): The default SOA Serial option to use if not specified when adding a Primary Zone.
 - `zoneTransferAllowedNetworks` (optional): A comma separated list of IP addresses or network addresses that are allowed to perform zone transfer for all zones without any TSIG authentication.
 - `notifyAllowedNetworks` (optional): A comma separated list of IP addresses or network addresses that are allowed to Notify all secondary zones.
@@ -4630,6 +4676,9 @@ WHERE:
 - `saveCache` (optional): Enable this option to save DNS cache on disk when the DNS server stops. The saved cache will be loaded next time the DNS server starts.
 - `serveStale` (optional): Enable the serve stale feature to improve resiliency by using expired or stale records in cache when the DNS server is unable to reach the upstream or authoritative name servers. Initial value is `true`.
 - `serveStaleTtl` (optional): The TTL value in seconds which should be used for cached records that are expired. When the serve stale TTL too expires for a stale record, it gets removed from the cache. Recommended value is between 1-3 days and maximum supported value is 7 days. Initial value is `259200`.
+- `serveStaleAnswerTtl` (optional): The TTL value in seconds which should be used for the records in a stale response. This is the TTL value that the client will be using to cache the stale records. The valid range is 0-300 seconds and recommended value is 30 seconds.
+- `serveStaleResetTtl` (optional): The TTL value in seconds which should be used to reset the stale record's TTL value in the cache when the resolver fails to refresh the data. The TTL reset causes the stale records to become valid again so that they can be used to serve requests normally. This reset effectively prevents the resolver from attempting to frequently update the stale records. The valid range is 10-900 seconds and recommended value is 30 seconds.
+- `serveStaleMaxWaitTime` (optional): The time in milliseconds that the DNS server must wait for the resolver before serving stale records from the cache. Lower value will ensure faster response at the expense of not getting updated data from the upstream. Setting value to 0 will instantly return stale answer without waiting for the resolver to fetch updates from the upstream. The valid range is 0-1800 milliseconds and default value is 1800 milliseconds.
 - `cacheMinimumRecordTtl` (optional): The minimum TTL value that a record can have in cache. Set a value to make sure that the records with TTL value than it stays in cache for a minimum duration. Initial value is `10`.
 - `cacheMaximumRecordTtl` (optional): The maximum TTL value that a record can have in cache. Set a lower value to allow the records to expire early. Initial value is `86400`.
 - `cacheNegativeRecordTtl` (optional): The negative TTL value to use when there is no SOA MINIMUM value available. Initial value is `300`.
@@ -5151,7 +5200,7 @@ RESPONSE:
 Adds a reserved lease entry to the specified scope.
 
 URL:\
-`http://localhost:5380/api/dhcp/scopes/addReservedLease?token=x&name=Default&hardwareAddress=00:00:00:00:00:00`
+`http://localhost:5380/api/dhcp/scopes/addReservedLease?token=x&name=Default&hardwareAddress=00:00:00:00:00:00&ipAddress=192.168.1.11`
 
 PERMISSIONS:\
 DhcpServer: Modify
