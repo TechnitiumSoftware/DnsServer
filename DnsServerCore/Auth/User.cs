@@ -241,7 +241,7 @@ namespace DnsServerCore.Auth
 
         public override int GetHashCode()
         {
-            return base.GetHashCode();
+            return HashCode.Combine(_username);
         }
 
         public override string ToString()
