@@ -1849,7 +1849,10 @@ function checkForWebConsoleRedirection(responseJSON) {
 
     if (location.protocol == "https:") {
         if (!responseJSON.response.webServiceEnableTls) {
-            window.open("http://" + window.location.hostname + ":" + responseJSON.response.webServiceHttpPort, "_self");
+            setTimeout(function () {
+                window.open("http://" + window.location.hostname + ":" + responseJSON.response.webServiceHttpPort, "_self");
+            }, 2500); //delay redirection to allow web server to restart
+
             return;
         }
 
@@ -1858,12 +1861,18 @@ function checkForWebConsoleRedirection(responseJSON) {
         if ((currentPort == 0) || (currentPort == ""))
             currentPort = 443;
 
-        if (currentPort != responseJSON.response.webServiceTlsPort)
-            window.open("https://" + window.location.hostname + ":" + responseJSON.response.webServiceTlsPort, "_self");
+        if (currentPort != responseJSON.response.webServiceTlsPort) {
+            setTimeout(function () {
+                window.open("https://" + window.location.hostname + ":" + responseJSON.response.webServiceTlsPort, "_self");
+            }, 2500); //delay redirection to allow web server to restart
+        }
     }
     else {
         if (responseJSON.response.webServiceEnableTls && responseJSON.response.webServiceHttpToTlsRedirect) {
-            window.open("https://" + window.location.hostname + ":" + responseJSON.response.webServiceTlsPort, "_self");
+            setTimeout(function () {
+                window.open("https://" + window.location.hostname + ":" + responseJSON.response.webServiceTlsPort, "_self");
+            }, 2500); //delay redirection to allow web server to restart
+
             return;
         }
 
@@ -1872,8 +1881,11 @@ function checkForWebConsoleRedirection(responseJSON) {
         if ((currentPort == 0) || (currentPort == ""))
             currentPort = 80;
 
-        if (currentPort != responseJSON.response.webServiceHttpPort)
-            window.open("http://" + window.location.hostname + ":" + responseJSON.response.webServiceHttpPort, "_self");
+        if (currentPort != responseJSON.response.webServiceHttpPort) {
+            setTimeout(function () {
+                window.open("http://" + window.location.hostname + ":" + responseJSON.response.webServiceHttpPort, "_self");
+            }, 2500); //delay redirection to allow web server to restart
+        }
     }
 }
 
