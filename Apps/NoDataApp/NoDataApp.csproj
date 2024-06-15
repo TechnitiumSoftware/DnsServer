@@ -1,38 +1,39 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-	<PropertyGroup>
-		<TargetFramework>net8.0</TargetFramework>
-		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-		<Version>3.0</Version>
-		<Company>Technitium</Company>
-		<Product>Technitium DNS Server</Product>
-		<Authors>Shreyas Zare</Authors>
-		<AssemblyName>NoDataApp</AssemblyName>
-		<RootNamespace>NoData</RootNamespace>
-		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
-		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-		<Description>Allows creating APP records in a conditional forwarder zone that can returns a NO DATA response for requests that match the configured query type (QTYPE) to allow blocking records.</Description>
-		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-		<OutputType>Library</OutputType>
-	</PropertyGroup>
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <Version>3.0</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Company>Technitium</Company>
+    <Product>Technitium DNS Server</Product>
+    <Authors>Shreyas Zare</Authors>
+    <AssemblyName>NoDataApp</AssemblyName>
+    <RootNamespace>NoData</RootNamespace>
+    <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
+    <Description>Allows creating APP records in a conditional forwarder zone that can returns a NO DATA response for requests that match the configured query type (QTYPE) to allow blocking records.</Description>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
 
-	<ItemGroup>
-		<ProjectReference Include="..\..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj">
-			<Private>false</Private>
-		</ProjectReference>
-	</ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj">
+      <Private>false</Private>
+    </ProjectReference>
+  </ItemGroup>
 
-	<ItemGroup>
-		<Reference Include="TechnitiumLibrary.Net">
-			<HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
-			<Private>false</Private>
-		</Reference>
-	</ItemGroup>
+  <ItemGroup>
+    <Reference Include="TechnitiumLibrary.Net">
+      <HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
 
-	<ItemGroup>
-		<None Update="dnsApp.config">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</None>
-	</ItemGroup>
+  <ItemGroup>
+    <None Update="dnsApp.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 
 </Project>
