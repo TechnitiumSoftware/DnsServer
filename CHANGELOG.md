@@ -1,5 +1,11 @@
 # Technitium DNS Server Change Log
 
+## Version 12.2.1
+Release Date: 15 June 2024
+
+- Fixed issue in DHCP server that caused failure to allocate lease due to hash code mismatch.
+- Fixed issue that may create empty zone files after the zone was deleted.
+
 ## Version 12.2
 Release Date: 15 June 2024
 
