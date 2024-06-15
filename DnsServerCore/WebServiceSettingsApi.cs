@@ -2070,11 +2070,11 @@ namespace DnsServerCore
                 }
             }
 
-            if (dnsSettings)
-                RestartService(true, true, oldWebServiceLocalAddresses, oldWebServiceHttpPort, oldWebServiceTlsPort);
-
             Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
             WriteDnsSettings(jsonWriter);
+
+            if (dnsSettings)
+                RestartService(true, true, oldWebServiceLocalAddresses, oldWebServiceHttpPort, oldWebServiceTlsPort);
         }
 
         public void ForceUpdateBlockLists(HttpContext context)
