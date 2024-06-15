@@ -115,10 +115,7 @@ namespace DnsServerCore.Dhcp.Options
 
         public override int GetHashCode()
         {
-            int hashCode = 937899003;
-            hashCode = hashCode * -1521134295 + _type.GetHashCode();
-            hashCode = hashCode * -1521134295 + BitConverter.ToInt32(_identifier, 0);
-            return hashCode;
+            return HashCode.Combine(_type, _identifier);
         }
 
         public override string ToString()
