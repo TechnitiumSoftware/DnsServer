@@ -60,7 +60,7 @@ else
 			echo "ASP.NET Core Runtime was installed successfully!"
 		fi
 	else
-		echo "Failed to install ASP.NET Core Runtime. Please try again."
+		echo "Failed to install ASP.NET Core Runtime. Please check '$installLog' for details."
 		exit 1
 	fi
 fi
