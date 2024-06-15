@@ -797,7 +797,7 @@ namespace DnsServerCore.Dns.Zones
 
         public override int GetHashCode()
         {
-            return _name.GetHashCode();
+            return HashCode.Combine(_name);
         }
 
         public override string ToString()
