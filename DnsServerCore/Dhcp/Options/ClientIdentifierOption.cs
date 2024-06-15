@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
 using System.IO;
+using TechnitiumLibrary;
 using TechnitiumLibrary.IO;
 
 namespace DnsServerCore.Dhcp.Options
@@ -115,7 +116,7 @@ namespace DnsServerCore.Dhcp.Options
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(_type, _identifier);
+            return HashCode.Combine(_type, _identifier.GetArrayHashCode());
         }
 
         public override string ToString()
