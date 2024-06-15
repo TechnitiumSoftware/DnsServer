@@ -575,6 +575,23 @@ namespace DnsServerCore
                     }
                     break;
 
+                case DnsResourceRecordType.ZONEMD:
+                    {
+                        if (record.RDATA is DnsZONEMDRecordData rdata)
+                        {
+                            jsonWriter.WriteNumber("serial", rdata.Serial);
+                            jsonWriter.WriteString("scheme", rdata.Scheme.ToString());
+                            jsonWriter.WriteString("hashAlgorithm", rdata.HashAlgorithm.ToString());
+                            jsonWriter.WriteString("digest", Convert.ToHexString(rdata.Digest));
+                        }
+                        else
+                        {
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
+                        }
+                    }
+                    break;
+
                 case DnsResourceRecordType.SVCB:
                 case DnsResourceRecordType.HTTPS:
                     {
