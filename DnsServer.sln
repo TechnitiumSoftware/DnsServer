@@ -59,6 +59,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DefaultRecordsApp", "Apps\D
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DnsRebindingProtectionApp", "Apps\DnsRebindingProtectionApp\DnsRebindingProtectionApp.csproj", "{159014D9-662B-429E-8006-495A9B99B902}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FilterAaaaApp", "Apps\FilterAaaaApp\FilterAaaaApp.csproj", "{0A9B7F39-80DA-4084-AD47-8707576927ED}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -173,6 +175,10 @@ Global
 		{159014D9-662B-429E-8006-495A9B99B902}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{159014D9-662B-429E-8006-495A9B99B902}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{159014D9-662B-429E-8006-495A9B99B902}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0A9B7F39-80DA-4084-AD47-8707576927ED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0A9B7F39-80DA-4084-AD47-8707576927ED}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0A9B7F39-80DA-4084-AD47-8707576927ED}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0A9B7F39-80DA-4084-AD47-8707576927ED}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -200,6 +206,7 @@ Global
 		{44B057A5-3BF6-412F-8B86-D1C854CB3973} = {938BF8EF-74B9-4FE0-B46F-11EBB7A4B3D2}
 		{BCA1D22A-058D-4817-8BFC-6125478C30BA} = {938BF8EF-74B9-4FE0-B46F-11EBB7A4B3D2}
 		{159014D9-662B-429E-8006-495A9B99B902} = {938BF8EF-74B9-4FE0-B46F-11EBB7A4B3D2}
+		{0A9B7F39-80DA-4084-AD47-8707576927ED} = {938BF8EF-74B9-4FE0-B46F-11EBB7A4B3D2}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6747BB6D-2826-4356-A213-805FBCCF9201}
