@@ -1,5 +1,21 @@
 # Technitium DNS Server Change Log
 
+## Version 12.2
+Release Date: 15 June 2024
+
+- Added support for NAPTR record type.
+- Added Default Responsible Person option in Settings to use when adding Primary Zones.
+- Updated Serve Stale implementation to allow configuring Answer TTL, Reset TTL, and Max Wait Time options in Settings.
+- Updated SVCB/HTTPS record implementation to add support for automatic IP address hints.
+- Updated TXT record implementation to allow preserving the character-strings for a given TXT record to allow support for [RFC 6763](https://www.rfc-editor.org/rfc/rfc6763).
+- Updated DNS Server's System Tray app on Windows with new context menu option to allow configuring Automatic Firewall entry feature.
+- Fixed issue with NSEC proof validation for wildcard empty non-terminal (ENT) cases.
+- Fixed issue with QNAME minimization implementation caused when NSEC3 unsupported iteration count event is encountered while resolving.
+- Added support for .p12 certificate file extension along with existing .pfx extension.
+- Filter AAAA App: Added new app that allows filtering AAAA records by returning NO DATA response when A records for the same domain name are available. This allows clients with dual-stack (IPv4 and IPv6) Internet connection to prefer using IPv4 to connect to websites and use IPv6 only when a website has no IPv4 support.
+- Query Logs (Sqlite) App: Fixed issue of failing to load the app on Alpine Linux.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 12.1
 Release Date: 16 March 2024
 
@@ -37,7 +53,7 @@ Release Date: 8 February 2024
 Release Date: 4 February 2024
 
 - Upgraded codebase to use .NET 8 runtime. If you had manually installed the DNS Server or .NET 7 Runtime earlier then you must install .NET 8 Runtime manually before upgrading the DNS server.
-- Fixed pulsing DoS vulnerability reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) by updating the default configured values for the DNS server which mitigates the impact.
+- Fixed pulsing DoS vulnerability [CVE-2024-33655] reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) by updating the default configured values for the DNS server which mitigates the impact.
 - Added "Dropped" request stats on the Dashboard and main chart which shows the number of request that were dropped by the DNS server due to rate limiting or by the Drop Requests app.
 - Added transport protocol types chart on Dashboard which shows the protocol stats for the requests received by the DNS server.
 - Added feature to specify one or more source addresses for outbound DNS requests when the server is connected to two or more networks.
