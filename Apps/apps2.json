@@ -68,6 +68,12 @@
 				"version": "7.1",
 				"url": "https://download.technitium.com/dns/apps/AdvancedBlockingApp-v7.1.zip",
 				"size": "30.8 KB"
+			},
+			{
+				"serverVersion": "12.2",
+				"version": "7.1.1",
+				"url": "https://download.technitium.com/dns/apps/AdvancedBlockingApp-v7.1.1.zip",
+				"size": "30.7 KB"
 			}
 		]
 	},
@@ -139,7 +145,7 @@
 	},
 	{
 		"name": "Block Page",
-		"description": "Serves a block page from a built-in web server that can be displayed to the end user when a website is blocked by the DNS server.\n\nNote! You need to manually set the Blocking Type as Custom Address in the blocking settings and configure the current server's IP address as Custom Blocking Addresses for the block page to be served to the users. Use a PKCS #12 certificate (.pfx) for enabling HTTPS support. Enabling HTTPS support will show certificate error to the user which is expected and the user will have to proceed ignoring the certificate error to be able to see the block page.",
+		"description": "Serves a block page from a built-in web server that can be displayed to the end user when a website is blocked by the DNS server.\n\nNote! You need to manually set the Blocking Type as Custom Address in the blocking settings and configure the current server's IP address as Custom Blocking Addresses for the block page to be served to the users. Use a PKCS #12 certificate (.pfx or .p12) for enabling HTTPS support. Enabling HTTPS support will show certificate error to the user which is expected and the user will have to proceed ignoring the certificate error to be able to see the block page.",
 		"versions": [
 			{
 				"serverVersion": "9.0",
@@ -194,6 +200,12 @@
 				"version": "5.0",
 				"url": "https://download.technitium.com/dns/apps/BlockPageApp-v5.zip",
 				"size": "25.1 KB"
+			},
+			{
+				"serverVersion": "12.2",
+				"version": "5.1",
+				"url": "https://download.technitium.com/dns/apps/BlockPageApp-v5.1.zip",
+				"size": "25.2 KB"
 			}
 		]
 	},
@@ -386,6 +398,18 @@
 				"version": "7.0.1",
 				"url": "https://download.technitium.com/dns/apps/FailoverApp-v7.0.1.zip",
 				"size": "49.8 KB"
+			}
+		]
+	},
+	{
+		"name": "Filter AAAA",
+		"description": "Allows filtering AAAA records by returning NO DATA response when A records for the same domain name are available. This allows clients with dual-stack (IPv4 and IPv6) Internet connection to prefer using IPv4 to connect to websites and use IPv6 only when a website has no IPv4 support.",
+		"versions": [
+			{
+				"serverVersion": "12.2",
+				"version": "1.0",
+				"url": "https://download.technitium.com/dns/apps/FilterAaaaApp-v1.zip",
+				"size": "12.9 KB"
 			}
 		]
 	},
@@ -644,6 +668,12 @@
 				"version": "5.0",
 				"url": "https://download.technitium.com/dns/apps/NxDomainApp-v5.zip",
 				"size": "11.5 KB"
+			},
+			{
+				"serverVersion": "12.2",
+				"version": "5.0.1",
+				"url": "https://download.technitium.com/dns/apps/NxDomainApp-v5.0.1.zip",
+				"size": "11.4 KB"
 			}
 		]
 	},
@@ -721,6 +751,12 @@
 				"serverVersion": "12.1",
 				"version": "5.0.1",
 				"url": "https://download.technitium.com/dns/apps/QueryLogsSqliteApp-v5.0.1.zip",
+				"size": "12.2 MB"
+			},
+			{
+				"serverVersion": "12.2",
+				"version": "5.0.2",
+				"url": "https://download.technitium.com/dns/apps/QueryLogsSqliteApp-v5.0.2.zip",
 				"size": "12.2 MB"
 			}
 		]
