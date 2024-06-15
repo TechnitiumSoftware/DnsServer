@@ -1846,7 +1846,16 @@ namespace DnsServerCore.Dns.Zones
             //delete any existing DS entries from cache to allow resolving latest ones
             _dnsServer.CacheZoneManager.DeleteZone(_name);
 
-            IReadOnlyList<DnsDSRecordData> dsRecords = DnsClient.ParseResponseDS(await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(_name, DnsResourceRecordType.DS, DnsClass.IN)));
+            IReadOnlyList<DnsDSRecordData> dsRecords;
+
+            try
+            {
+                dsRecords = DnsClient.ParseResponseDS(await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(_name, DnsResourceRecordType.DS, DnsClass.IN)));
+            }
+            catch (DnsClientNxDomainException)
+            {
+                return [];
+            }
 
             List<DnssecPrivateKey> activePrivateKeys = new List<DnssecPrivateKey>(dsRecords.Count);
 
