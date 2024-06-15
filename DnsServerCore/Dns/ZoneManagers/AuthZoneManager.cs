@@ -799,6 +799,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                 //serialize zone
                 WriteZoneTo(zoneName, mS);
 
+                if (mS.Position == 0)
+                    return; //zone was not found
+
                 //write to zone file
                 mS.Position = 0;
 
