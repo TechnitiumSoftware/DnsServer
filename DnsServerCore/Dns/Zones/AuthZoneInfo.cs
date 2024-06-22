@@ -58,6 +58,7 @@ namespace DnsServerCore.Dns.Zones
         readonly IReadOnlyCollection<NetworkAddress> _updateIpAddresses;
         readonly DateTime _lastModified;
         readonly DateTime _expiry;
+        readonly bool _validationFailed; //only for secondary zones
         readonly IReadOnlyList<DnsResourceRecord> _zoneHistory; //for IXFR support
         readonly IReadOnlyDictionary<string, object> _zoneTransferTsigKeyNames;
         readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> _updateSecurityPolicies;
@@ -105,6 +106,7 @@ namespace DnsServerCore.Dns.Zones
                 case 9:
                 case 10:
                 case 11:
+                case 12:
                     _name = bR.ReadShortString();
                     _type = (AuthZoneType)bR.ReadByte();
                     _disabled = bR.ReadBoolean();
@@ -339,6 +341,9 @@ namespace DnsServerCore.Dns.Zones
                         case AuthZoneType.Secondary:
                             _expiry = bR.ReadDateTime();
 
+                            if (version >= 12)
+                                _validationFailed = bR.ReadBoolean();
+
                             if (version >= 4)
                             {
                                 int count = bR.ReadInt32();
@@ -464,6 +469,7 @@ namespace DnsServerCore.Dns.Zones
                     _zoneHistory = secondaryZone.GetZoneHistory();
 
                 _expiry = secondaryZone.Expiry;
+                _validationFailed = secondaryZone.ValidationFailed;
                 _zoneTransferTsigKeyNames = secondaryZone.ZoneTransferTsigKeyNames;
             }
             else if (_apexZone is StubZone stubZone)
@@ -584,7 +590,7 @@ namespace DnsServerCore.Dns.Zones
             if (_apexZone is null)
                 throw new InvalidOperationException();
 
-            bW.Write((byte)11); //version
+            bW.Write((byte)12); //version
 
             bW.WriteShortString(_name);
             bW.Write((byte)_type);
@@ -633,145 +639,153 @@ namespace DnsServerCore.Dns.Zones
             switch (_type)
             {
                 case AuthZoneType.Primary:
-                    if (_zoneHistory is null)
                     {
-                        bW.Write(0);
-                    }
-                    else
-                    {
-                        bW.Write(_zoneHistory.Count);
-
-                        foreach (DnsResourceRecord record in _zoneHistory)
+                        if (_zoneHistory is null)
                         {
-                            record.WriteTo(bW.BaseStream);
+                            bW.Write(0);
+                        }
+                        else
+                        {
+                            bW.Write(_zoneHistory.Count);
 
-                            if (record.Tag is HistoryRecordInfo rrInfo)
+                            foreach (DnsResourceRecord record in _zoneHistory)
                             {
-                                bW.Write(true);
-                                rrInfo.WriteTo(bW);
-                            }
-                            else
-                            {
-                                bW.Write(false);
+                                record.WriteTo(bW.BaseStream);
+
+                                if (record.Tag is HistoryRecordInfo rrInfo)
+                                {
+                                    bW.Write(true);
+                                    rrInfo.WriteTo(bW);
+                                }
+                                else
+                                {
+                                    bW.Write(false);
+                                }
                             }
                         }
-                    }
 
-                    if (_zoneTransferTsigKeyNames is null)
-                    {
-                        bW.Write((byte)0);
-                    }
-                    else
-                    {
-                        bW.Write(Convert.ToByte(_zoneTransferTsigKeyNames.Count));
-
-                        foreach (KeyValuePair<string, object> tsigKeyName in _zoneTransferTsigKeyNames)
-                            bW.WriteShortString(tsigKeyName.Key);
-                    }
-
-                    if (_updateSecurityPolicies is null)
-                    {
-                        bW.Write((byte)0);
-                    }
-                    else
-                    {
-                        bW.Write(Convert.ToByte(_updateSecurityPolicies.Count));
-
-                        foreach (KeyValuePair<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> updateSecurityPolicy in _updateSecurityPolicies)
+                        if (_zoneTransferTsigKeyNames is null)
                         {
-                            bW.WriteShortString(updateSecurityPolicy.Key);
-                            bW.Write(Convert.ToByte(updateSecurityPolicy.Value.Count));
+                            bW.Write((byte)0);
+                        }
+                        else
+                        {
+                            bW.Write(Convert.ToByte(_zoneTransferTsigKeyNames.Count));
 
-                            foreach (KeyValuePair<string, IReadOnlyList<DnsResourceRecordType>> policyMap in updateSecurityPolicy.Value)
+                            foreach (KeyValuePair<string, object> tsigKeyName in _zoneTransferTsigKeyNames)
+                                bW.WriteShortString(tsigKeyName.Key);
+                        }
+
+                        if (_updateSecurityPolicies is null)
+                        {
+                            bW.Write((byte)0);
+                        }
+                        else
+                        {
+                            bW.Write(Convert.ToByte(_updateSecurityPolicies.Count));
+
+                            foreach (KeyValuePair<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> updateSecurityPolicy in _updateSecurityPolicies)
                             {
-                                bW.WriteShortString(policyMap.Key);
-                                bW.Write(Convert.ToByte(policyMap.Value.Count));
+                                bW.WriteShortString(updateSecurityPolicy.Key);
+                                bW.Write(Convert.ToByte(updateSecurityPolicy.Value.Count));
 
-                                foreach (DnsResourceRecordType type in policyMap.Value)
-                                    bW.Write((ushort)type);
+                                foreach (KeyValuePair<string, IReadOnlyList<DnsResourceRecordType>> policyMap in updateSecurityPolicy.Value)
+                                {
+                                    bW.WriteShortString(policyMap.Key);
+                                    bW.Write(Convert.ToByte(policyMap.Value.Count));
+
+                                    foreach (DnsResourceRecordType type in policyMap.Value)
+                                        bW.Write((ushort)type);
+                                }
                             }
                         }
-                    }
 
-                    if (_dnssecPrivateKeys is null)
-                    {
-                        bW.Write((byte)0);
-                    }
-                    else
-                    {
-                        bW.Write(Convert.ToByte(_dnssecPrivateKeys.Count));
+                        if (_dnssecPrivateKeys is null)
+                        {
+                            bW.Write((byte)0);
+                        }
+                        else
+                        {
+                            bW.Write(Convert.ToByte(_dnssecPrivateKeys.Count));
 
-                        foreach (DnssecPrivateKey dnssecPrivateKey in _dnssecPrivateKeys)
-                            dnssecPrivateKey.WriteTo(bW);
+                            foreach (DnssecPrivateKey dnssecPrivateKey in _dnssecPrivateKeys)
+                                dnssecPrivateKey.WriteTo(bW);
+                        }
                     }
                     break;
 
                 case AuthZoneType.Secondary:
-                    bW.Write(_expiry);
-
-                    if (_zoneHistory is null)
                     {
-                        bW.Write(0);
-                    }
-                    else
-                    {
-                        bW.Write(_zoneHistory.Count);
+                        bW.Write(_expiry);
+                        bW.Write(_validationFailed);
 
-                        foreach (DnsResourceRecord record in _zoneHistory)
+                        if (_zoneHistory is null)
                         {
-                            record.WriteTo(bW.BaseStream);
+                            bW.Write(0);
+                        }
+                        else
+                        {
+                            bW.Write(_zoneHistory.Count);
 
-                            if (record.Tag is HistoryRecordInfo rrInfo)
+                            foreach (DnsResourceRecord record in _zoneHistory)
                             {
-                                bW.Write(true);
-                                rrInfo.WriteTo(bW);
-                            }
-                            else
-                            {
-                                bW.Write(false);
+                                record.WriteTo(bW.BaseStream);
+
+                                if (record.Tag is HistoryRecordInfo rrInfo)
+                                {
+                                    bW.Write(true);
+                                    rrInfo.WriteTo(bW);
+                                }
+                                else
+                                {
+                                    bW.Write(false);
+                                }
                             }
                         }
-                    }
 
-                    if (_zoneTransferTsigKeyNames is null)
-                    {
-                        bW.Write((byte)0);
-                    }
-                    else
-                    {
-                        bW.Write(Convert.ToByte(_zoneTransferTsigKeyNames.Count));
+                        if (_zoneTransferTsigKeyNames is null)
+                        {
+                            bW.Write((byte)0);
+                        }
+                        else
+                        {
+                            bW.Write(Convert.ToByte(_zoneTransferTsigKeyNames.Count));
 
-                        foreach (KeyValuePair<string, object> tsigKeyName in _zoneTransferTsigKeyNames)
-                            bW.WriteShortString(tsigKeyName.Key);
+                            foreach (KeyValuePair<string, object> tsigKeyName in _zoneTransferTsigKeyNames)
+                                bW.WriteShortString(tsigKeyName.Key);
+                        }
                     }
-
                     break;
 
                 case AuthZoneType.Stub:
-                    bW.Write(_expiry);
+                    {
+                        bW.Write(_expiry);
+                    }
                     break;
 
                 case AuthZoneType.Forwarder:
-                    if (_updateSecurityPolicies is null)
                     {
-                        bW.Write((byte)0);
-                    }
-                    else
-                    {
-                        bW.Write(Convert.ToByte(_updateSecurityPolicies.Count));
-
-                        foreach (KeyValuePair<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> updateSecurityPolicy in _updateSecurityPolicies)
+                        if (_updateSecurityPolicies is null)
                         {
-                            bW.WriteShortString(updateSecurityPolicy.Key);
-                            bW.Write(Convert.ToByte(updateSecurityPolicy.Value.Count));
+                            bW.Write((byte)0);
+                        }
+                        else
+                        {
+                            bW.Write(Convert.ToByte(_updateSecurityPolicies.Count));
 
-                            foreach (KeyValuePair<string, IReadOnlyList<DnsResourceRecordType>> policyMap in updateSecurityPolicy.Value)
+                            foreach (KeyValuePair<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> updateSecurityPolicy in _updateSecurityPolicies)
                             {
-                                bW.WriteShortString(policyMap.Key);
-                                bW.Write(Convert.ToByte(policyMap.Value.Count));
+                                bW.WriteShortString(updateSecurityPolicy.Key);
+                                bW.Write(Convert.ToByte(updateSecurityPolicy.Value.Count));
 
-                                foreach (DnsResourceRecordType type in policyMap.Value)
-                                    bW.Write((ushort)type);
+                                foreach (KeyValuePair<string, IReadOnlyList<DnsResourceRecordType>> policyMap in updateSecurityPolicy.Value)
+                                {
+                                    bW.WriteShortString(policyMap.Key);
+                                    bW.Write(Convert.ToByte(policyMap.Value.Count));
+
+                                    foreach (DnsResourceRecordType type in policyMap.Value)
+                                        bW.Write((ushort)type);
+                                }
                             }
                         }
                     }
@@ -833,6 +847,17 @@ namespace DnsServerCore.Dns.Zones
                     throw new InvalidOperationException();
 
                 _apexZone.Disabled = value;
+            }
+        }
+
+        public bool IsActive
+        {
+            get
+            {
+                if (_apexZone is null)
+                    throw new InvalidOperationException();
+
+                return _apexZone.IsActive;
             }
         }
 
@@ -969,6 +994,24 @@ namespace DnsServerCore.Dns.Zones
 
                     case AuthZoneType.Stub:
                         return (_apexZone as StubZone).Expiry;
+
+                    default:
+                        throw new InvalidOperationException();
+                }
+            }
+        }
+
+        public bool ValidationFailed
+        {
+            get
+            {
+                if (_apexZone is null)
+                    return _validationFailed;
+
+                switch (_type)
+                {
+                    case AuthZoneType.Secondary:
+                        return (_apexZone as SecondaryZone).ValidationFailed;
 
                     default:
                         throw new InvalidOperationException();
