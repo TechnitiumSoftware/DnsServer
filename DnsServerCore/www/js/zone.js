@@ -27,6 +27,7 @@ $(function () {
         $("#divAddZonePrimaryNameServerAddresses").hide();
         $("#divAddZoneZoneTransferProtocol").hide();
         $("#divAddZoneTsigKeyName").hide();
+        $("#divAddZoneValidateZone").hide();
         $("#divAddZoneForwarderProtocol").hide();
         $("#divAddZoneForwarder").hide();
         $("#divAddZoneForwarderDnssecValidation").hide();
@@ -42,6 +43,7 @@ $(function () {
                 $("#divAddZonePrimaryNameServerAddresses").show();
                 $("#divAddZoneZoneTransferProtocol").show();
                 $("#divAddZoneTsigKeyName").show();
+                $("#divAddZoneValidateZone").show();
 
                 loadTsigKeyNames($("#optAddZoneTsigKeyName"), null, $("#divAddZoneAlert"));
                 break;
@@ -378,6 +380,8 @@ function refreshZones(checkDisplay, pageNumber) {
                     status = "<span id=\"tdZoneStatus" + id + "\" class=\"label label-warning\">Disabled</span>";
                 else if (zones[i].isExpired)
                     status = "<span id=\"tdZoneStatus" + id + "\" class=\"label label-danger\">Expired</span>";
+                else if (zones[i].validationFailed)
+                    status = "<span id=\"tdZoneStatus" + id + "\" class=\"label label-danger\">Validation Failed</span>";
                 else if (zones[i].syncFailed)
                     status = "<span id=\"tdZoneStatus" + id + "\" class=\"label label-warning\">Sync Failed</span>";
                 else if (zones[i].notifyFailed)
@@ -1445,6 +1449,7 @@ function showAddZoneModal() {
     $("#txtAddZonePrimaryNameServerAddresses").val("");
     $("#rdAddZoneZoneTransferProtocolTcp").prop("checked", true);
     $("#optAddZoneTsigKeyName").val("");
+    $("#chkAddZoneValidateZone").prop("checked", false);
     $("input[name=rdAddZoneForwarderProtocol]:radio").attr("disabled", false);
     $("#rdAddZoneForwarderProtocolUdp").prop("checked", true);
     $("#chkAddZoneForwarderThisServer").prop("checked", false);
@@ -1466,6 +1471,7 @@ function showAddZoneModal() {
     $("#divAddZonePrimaryNameServerAddresses").hide();
     $("#divAddZoneZoneTransferProtocol").hide();
     $("#divAddZoneTsigKeyName").hide();
+    $("#divAddZoneValidateZone").hide();
     $("#divAddZoneForwarderProtocol").hide();
     $("#divAddZoneForwarder").hide();
     $("#divAddZoneForwarderDnssecValidation").hide();
@@ -1568,10 +1574,12 @@ function addZone() {
 
         case "Secondary":
             var tsigKeyName = $("#optAddZoneTsigKeyName").val();
+            var validateZone = $("#chkAddZoneValidateZone").prop("checked");
 
             parameters = "&primaryNameServerAddresses=" + encodeURIComponent(cleanTextList($("#txtAddZonePrimaryNameServerAddresses").val()));
             parameters += "&zoneTransferProtocol=" + $("input[name=rdAddZoneZoneTransferProtocol]:checked").val();
             parameters += "&tsigKeyName=" + encodeURIComponent(tsigKeyName);
+            parameters += "&validateZone=" + validateZone;
             break;
 
         case "Stub":
@@ -1702,6 +1710,8 @@ function showEditZone(zone, showPageNumber) {
                 status = "Disabled";
             else if (responseJSON.response.zone.isExpired)
                 status = "Expired";
+            else if (responseJSON.response.zone.validationFailed)
+                status = "Validation Failed";
             else if (responseJSON.response.zone.syncFailed)
                 status = "Sync Failed";
             else if (responseJSON.response.zone.notifyFailed)
@@ -1732,10 +1742,11 @@ function showEditZone(zone, showPageNumber) {
                     break;
 
                 case "Expired":
+                case "Validation Failed":
                     $("#titleStatusEditZone").attr("class", "label label-danger");
                     break;
 
-                case "Enabled":
+                default:
                     $("#titleStatusEditZone").attr("class", "label label-success");
                     break;
             }
@@ -2209,6 +2220,15 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
                 additionalDataAttributes += "data-record-tsigkeyname=\"" + htmlEncode(record.rData.tsigKeyName) + "\" ";
             } else {
                 additionalDataAttributes += "data-record-tsigkeyname=\"\" ";
+            }
+
+            if (record.rData.validateZone != null) {
+                tableHtmlRow += "<br /><b>Use ZONEMD to Validate Zone:</b> " + record.rData.validateZone;
+
+                additionalDataAttributes += "data-record-validate-zone=\"" + htmlEncode(record.rData.validateZone) + "\" ";
+            }
+            else {
+                additionalDataAttributes += "data-record-validate-zone=\"false\" ";
             }
 
             tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
@@ -3820,6 +3840,7 @@ function showEditRecordModal(objBtn) {
     var hideSoaRecordUseSerialDateSchemeField = false;
     var hideSoaRecordPrimaryAddressesField = false;
     var hideSoaRecordXfrAndTsigFields = false;
+    var hideSoaRecordValidateZoneField = false;
 
     var zoneType = $("#titleEditZoneType").text();
     switch (zoneType) {
@@ -3828,6 +3849,7 @@ function showEditRecordModal(objBtn) {
                 case "SOA":
                     hideSoaRecordPrimaryAddressesField = true;
                     hideSoaRecordXfrAndTsigFields = true;
+                    hideSoaRecordValidateZoneField = true;
                     break;
             }
             break;
@@ -3847,6 +3869,7 @@ function showEditRecordModal(objBtn) {
                     disableSoaRecordModalFields = true;
                     hideSoaRecordUseSerialDateSchemeField = true;
                     hideSoaRecordXfrAndTsigFields = true;
+                    hideSoaRecordValidateZoneField = true
                     break;
             }
             break;
@@ -3882,6 +3905,7 @@ function showEditRecordModal(objBtn) {
             $("#txtEditRecordDataSoaMinimum").val(divData.attr("data-record-minimum"));
             $("#chkEditRecordDataSoaUseSerialDateScheme").prop("checked", divData.attr("data-record-serial-scheme") === "true");
             $("#txtEditRecordDataSoaPrimaryAddresses").val(divData.attr("data-record-paddresses").replace(/, /g, "\n"));
+            $("#chkEditRecordDataSoaValidateZone").prop("checked", divData.attr("data-record-validate-zone") === "true");
 
             switch (divData.attr("data-record-zonetransferprotocol").toLowerCase()) {
                 case "tls":
@@ -3932,6 +3956,11 @@ function showEditRecordModal(objBtn) {
 
                 loadTsigKeyNames($("#optEditRecordDataSoaTsigKeyName"), divData.attr("data-record-tsigkeyname"), $("#divAddEditRecordAlert"));
             }
+
+            if (hideSoaRecordValidateZoneField)
+                $("#divEditRecordDataSoaValidateZone").hide();
+            else
+                $("#divEditRecordDataSoaValidateZone").show();
 
             break;
 
@@ -4253,6 +4282,7 @@ function updateRecord() {
             var primaryAddresses = cleanTextList($("#txtEditRecordDataSoaPrimaryAddresses").val());
             var zoneTransferProtocol = $('input[name=rdEditRecordDataSoaZoneTransferProtocol]:checked').val();
             var tsigKeyName = $("#optEditRecordDataSoaTsigKeyName").val();
+            var validateZone = $("#chkEditRecordDataSoaValidateZone").prop("checked");
 
             apiUrl += "&primaryNameServer=" + encodeURIComponent(primaryNameServer) +
                 "&responsiblePerson=" + encodeURIComponent(responsiblePerson) +
@@ -4264,7 +4294,8 @@ function updateRecord() {
                 "&useSerialDateScheme=" + encodeURIComponent(useSerialDateScheme) +
                 "&primaryAddresses=" + encodeURIComponent(primaryAddresses) +
                 "&zoneTransferProtocol=" + encodeURIComponent(zoneTransferProtocol) +
-                "&tsigKeyName=" + encodeURIComponent(tsigKeyName);
+                "&tsigKeyName=" + encodeURIComponent(tsigKeyName) +
+                "&validateZone=" + validateZone;
 
             break;
 
@@ -4739,6 +4770,7 @@ function updateRecordState(objBtn, disable) {
     var index = Number(btn.attr("data-id"));
     var divData = $("#data" + index);
 
+    var zone = $("#titleEditZone").attr("data-zone");
     var type = divData.attr("data-record-type");
     var domain = divData.attr("data-record-name");
     var ttl = divData.attr("data-record-ttl");
@@ -4750,12 +4782,14 @@ function updateRecordState(objBtn, disable) {
     if (disable && !confirm("Are you sure to disable the " + type + " record '" + domain + "'?"))
         return;
 
-    var apiUrl = "/api/zones/records/update?token=" + sessionData.token + "&type=" + encodeURIComponent(type) + "&domain=" + encodeURIComponent(domain) + "&ttl=" + ttl + "&disable=" + disable + "&comments=" + encodeURIComponent(comments);
+    var apiUrl = "/api/zones/records/update?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&type=" + encodeURIComponent(type) + "&domain=" + encodeURIComponent(domain) + "&ttl=" + ttl + "&disable=" + disable + "&comments=" + encodeURIComponent(comments);
 
     switch (type) {
         case "A":
         case "AAAA":
-            apiUrl += "&ipAddress=" + encodeURIComponent(divData.attr("data-record-ip-address"));
+            var updateSvcbHints = zoneHasSvcbAutoHint(type == "A", type == "AAAA");
+
+            apiUrl += "&ipAddress=" + encodeURIComponent(divData.attr("data-record-ip-address")) + "&updateSvcbHints=" + updateSvcbHints;
             break;
 
         case "NS":
