@@ -1895,9 +1895,9 @@ namespace DnsServerCore.Dns
                         DnsDatagram newResponse;
 
                         if (key is null)
-                            newResponse = await dnsClient.ResolveAsync(newRequest);
+                            newResponse = await dnsClient.RawResolveAsync(newRequest);
                         else
-                            newResponse = await dnsClient.ResolveAsync(newRequest, key);
+                            newResponse = await dnsClient.TsigResolveAsync(newRequest, key);
 
                         newResponse.SetIdentifier(request.Identifier);
 
@@ -1912,9 +1912,9 @@ namespace DnsServerCore.Dns
         private async Task<DnsDatagram> ProcessZoneTransferQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, string tsigAuthenticatedKeyName)
         {
             AuthZoneInfo authZoneInfo = _authZoneManager.GetAuthZoneInfo(request.Question[0].Name);
-            if ((authZoneInfo is null) || authZoneInfo.Disabled || authZoneInfo.IsExpired)
+            if ((authZoneInfo is null) || !authZoneInfo.IsActive)
             {
-                _log?.Write(remoteEP, protocol, "DNS Server refused a zone transfer request due to zone not found, zone disabled, or zone expired reasons for zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
+                _log?.Write(remoteEP, protocol, "DNS Server refused a zone transfer request as the zone was not found or was inactive, for zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
 
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
             }
