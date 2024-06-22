@@ -213,8 +213,19 @@ namespace DnsServerCore
                         {
                             SOARecordInfo authRecordInfo = record.GetAuthSOARecordInfo();
 
-                            if ((zoneInfo is not null) && (zoneInfo.Type == AuthZoneType.Primary))
-                                jsonWriter.WriteBoolean("useSerialDateScheme", authRecordInfo.UseSoaSerialDateScheme);
+                            if (zoneInfo is not null)
+                            {
+                                switch (zoneInfo.Type)
+                                {
+                                    case AuthZoneType.Primary:
+                                        jsonWriter.WriteBoolean("useSerialDateScheme", authRecordInfo.UseSoaSerialDateScheme);
+                                        break;
+
+                                    case AuthZoneType.Secondary:
+                                        jsonWriter.WriteBoolean("validateZone", authRecordInfo.ValidateZone);
+                                        break;
+                                }
+                            }
 
                             IReadOnlyList<NameServerAddress> primaryNameServers = authRecordInfo.PrimaryNameServers;
                             if (primaryNameServers is not null)
@@ -868,6 +879,7 @@ namespace DnsServerCore
                     jsonWriter.WriteNumber("soaSerial", (zoneInfo.GetApexRecords(DnsResourceRecordType.SOA)[0].RDATA as DnsSOARecordData).Serial);
                     jsonWriter.WriteString("expiry", zoneInfo.Expiry);
                     jsonWriter.WriteBoolean("isExpired", zoneInfo.IsExpired);
+                    jsonWriter.WriteBoolean("validationFailed", zoneInfo.ValidationFailed);
                     jsonWriter.WriteBoolean("syncFailed", zoneInfo.SyncFailed);
 
                     {
@@ -1191,11 +1203,12 @@ namespace DnsServerCore
                         string primaryNameServerAddresses = request.GetQueryOrForm("primaryNameServerAddresses", null);
                         DnsTransportProtocol zoneTransferProtocol = request.GetQueryOrFormEnum("zoneTransferProtocol", DnsTransportProtocol.Tcp);
                         string tsigKeyName = request.GetQueryOrForm("tsigKeyName", null);
+                        bool validateZone = request.GetQueryOrForm("validateZone", bool.Parse, false);
 
                         if (zoneTransferProtocol == DnsTransportProtocol.Quic)
                             DnsWebService.ValidateQuicSupport();
 
-                        zoneInfo = await _dnsWebService.DnsServer.AuthZoneManager.CreateSecondaryZoneAsync(zoneName, primaryNameServerAddresses, zoneTransferProtocol, tsigKeyName);
+                        zoneInfo = await _dnsWebService.DnsServer.AuthZoneManager.CreateSecondaryZoneAsync(zoneName, primaryNameServerAddresses, zoneTransferProtocol, tsigKeyName, validateZone);
                         if (zoneInfo is null)
                             throw new DnsWebServiceException("Zone already exists: " + zoneName);
 
@@ -2693,7 +2706,7 @@ namespace DnsServerCore
 
                         bool updateSvcbHints = request.GetQueryOrForm("updateSvcbHints", bool.Parse, false);
                         if (updateSvcbHints)
-                            UpdateSvcbAutoHints(zoneName, domain, type == DnsResourceRecordType.A, type == DnsResourceRecordType.AAAA);
+                            UpdateSvcbAutoHints(zoneInfo.Name, domain, type == DnsResourceRecordType.A, type == DnsResourceRecordType.AAAA);
                     }
                     break;
 
@@ -3221,7 +3234,7 @@ namespace DnsServerCore
 
                         bool updateSvcbHints = request.GetQueryOrForm("updateSvcbHints", bool.Parse, false);
                         if (updateSvcbHints)
-                            UpdateSvcbAutoHints(zoneName, domain, type == DnsResourceRecordType.A, type == DnsResourceRecordType.AAAA);
+                            UpdateSvcbAutoHints(zoneInfo.Name, domain, type == DnsResourceRecordType.A, type == DnsResourceRecordType.AAAA);
                     }
                     break;
 
@@ -3531,7 +3544,7 @@ namespace DnsServerCore
 
                         bool updateSvcbHints = request.GetQueryOrForm("updateSvcbHints", bool.Parse, false);
                         if (updateSvcbHints)
-                            UpdateSvcbAutoHints(zoneName, newDomain, type == DnsResourceRecordType.A, type == DnsResourceRecordType.AAAA);
+                            UpdateSvcbAutoHints(zoneInfo.Name, newDomain, type == DnsResourceRecordType.A, type == DnsResourceRecordType.AAAA);
                     }
                     break;
 
@@ -3602,6 +3615,9 @@ namespace DnsServerCore
                             case AuthZoneType.Secondary:
                                 {
                                     SOARecordInfo recordInfo = newSOARecord.GetAuthSOARecordInfo();
+
+                                    if (request.TryGetQueryOrForm("validateZone", bool.Parse, out bool validateZone))
+                                        recordInfo.ValidateZone = validateZone;
 
                                     if (request.TryGetQueryOrFormEnum("zoneTransferProtocol", out DnsTransportProtocol zoneTransferProtocol))
                                     {
