@@ -1859,11 +1859,17 @@
                                                                     <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn-social/hosts">Steven Black [adware + malware + gambling + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn-social/hosts)</option>
                                                                     <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn-social/hosts">Steven Black [adware + malware + fakenews + gambling + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn-social/hosts)</option>
 
-                                                                    <option value="https://big.oisd.nl/">OISD Big (Adblock Plus) (https://big.oisd.nl/)</option>
-                                                                    <option value="https://nsfw.oisd.nl/">OISD NSFW (Adblock Plus) (https://nsfw.oisd.nl/)</option>
+                                                                    <option value="https://big.oisd.nl/">OISD Big [Adblock Plus] (https://big.oisd.nl/)</option>
+                                                                    <option value="https://nsfw.oisd.nl/">OISD NSFW [Adblock Plus] (https://nsfw.oisd.nl/)</option>
 
-                                                                    <option value="https://shreshtait.com/newly-registered-domains/nrd-1w">Shreshta - Newly Registered Domains (past week) Community Feed</option>
-                                                                    <option value="https://shreshtait.com/newly-registered-domains/nrd-1m">Shreshta - Newly Registered Domains (past month) Community Feed</option>
+                                                                    <option value="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/light-onlydomains.txt">Hagezi [Multi Light - Basic protection] (https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/light-onlydomains.txt)</option>
+                                                                    <option value="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/multi-onlydomains.txt">Hagezi [Multi Normal - All-round protection] (https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/multi-onlydomains.txt)</option>
+                                                                    <option value="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro-onlydomains.txt">Hagezi [Multi PRO - Extended protection] (https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro-onlydomains.txt)</option>
+                                                                    <option value="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro.plus-onlydomains.txt">Hagezi [Multi PRO++ - Maximum protection] (https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro.plus-onlydomains.txt)</option>
+                                                                    <option value="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/ultimate-onlydomains.txt">Hagezi [Multi ULTIMATE - Aggressive protection] (https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/ultimate-onlydomains.txt)</option>
+
+                                                                    <option value="https://shreshtait.com/newly-registered-domains/nrd-1w">Shreshta - Newly Registered Domains (past week) Community Feed (https://shreshtait.com/newly-registered-domains/nrd-1w)</option>
+                                                                    <option value="https://shreshtait.com/newly-registered-domains/nrd-1m">Shreshta - Newly Registered Domains (past month) Community Feed (https://shreshtait.com/newly-registered-domains/nrd-1m)</option>
                                                                 </select>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">
@@ -3426,6 +3432,18 @@ ns1.example.com ([2001:db8::])
                             </div>
 
 
+                            <div class="form-group" id="divAddZoneValidateZone">
+                                <label class="col-sm-4 control-label">Zone Validation</label>
+                                <div class="col-sm-7">
+                                    <div class="checkbox">
+                                        <label>
+                                            <input id="chkAddZoneValidateZone" type="checkbox"> Use <a href="https://datatracker.ietf.org/doc/rfc8976/" target="_blank">ZONEMD</a> to Validate Zone
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+
                             <div class="form-group" id="divAddZoneForwarderProtocol">
                                 <label class="col-sm-4 control-label">Protocol</label>
                                 <div class="col-sm-7">
@@ -3551,8 +3569,10 @@ ns1.example.com ([2001:db8::])
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <div class="pull-left" style="padding: 6px 0;">
+                        <div class="pull-left" style="text-align: left;">
                             <a href="https://blog.technitium.com/2022/06/how-to-self-host-your-own-domain-name.html" target="_blank">Help: How To Self Host Your Own Domain Name</a>
+                            <br>
+                            <a href="https://blog.technitium.com/2021/07/running-root-server-locally-on-your-dns.html" target="_blank">Help: Running A Root Server Locally On Your DNS Resolver</a>
                         </div>
                         <div class="pull-right">
                             <button id="btnAddZone" type="submit" class="btn btn-primary" data-loading-text="Adding..." onclick="addZone(); return false;">Add</button>
@@ -3766,6 +3786,16 @@ ns1.example.com ([2001:db8::])
                                     </div>
                                 </div>
 
+                                <div class="form-group" id="divEditRecordDataSoaValidateZone">
+                                    <label class="col-sm-4 control-label">Zone Validation</label>
+                                    <div class="col-sm-7">
+                                        <div class="checkbox">
+                                            <label>
+                                                <input id="chkEditRecordDataSoaValidateZone" type="checkbox"> Use <a href="https://datatracker.ietf.org/doc/rfc8976/" target="_blank">ZONEMD</a> to Validate Zone
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
 
