@@ -1028,9 +1028,9 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public async Task<AuthZoneInfo> CreateSecondaryZoneAsync(string zoneName, string primaryNameServerAddresses = null, DnsTransportProtocol zoneTransferProtocol = DnsTransportProtocol.Tcp, string tsigKeyName = null)
+        public async Task<AuthZoneInfo> CreateSecondaryZoneAsync(string zoneName, string primaryNameServerAddresses = null, DnsTransportProtocol zoneTransferProtocol = DnsTransportProtocol.Tcp, string tsigKeyName = null, bool validateZone = false)
         {
-            SecondaryZone apexZone = await SecondaryZone.CreateAsync(_dnsServer, zoneName, primaryNameServerAddresses, zoneTransferProtocol, tsigKeyName);
+            SecondaryZone apexZone = await SecondaryZone.CreateAsync(_dnsServer, zoneName, primaryNameServerAddresses, zoneTransferProtocol, tsigKeyName, validateZone);
 
             _zoneIndexLock.EnterWriteLock();
             try
