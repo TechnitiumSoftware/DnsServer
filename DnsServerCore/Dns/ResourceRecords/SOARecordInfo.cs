@@ -33,6 +33,7 @@ namespace DnsServerCore.Dns.ResourceRecords
         DnsTransportProtocol _zoneTransferProtocol;
         string _tsigKeyName = string.Empty;
         bool _useSoaSerialDateScheme;
+        bool _validateZone;
 
         #endregion
 
@@ -58,6 +59,7 @@ namespace DnsServerCore.Dns.ResourceRecords
                     break;
 
                 case 1:
+                case 2:
                     int count = bR.ReadByte();
                     if (count > 0)
                     {
@@ -72,6 +74,10 @@ namespace DnsServerCore.Dns.ResourceRecords
                     _zoneTransferProtocol = (DnsTransportProtocol)bR.ReadByte();
                     _tsigKeyName = bR.ReadShortString();
                     _useSoaSerialDateScheme = bR.ReadBoolean();
+
+                    if (version >= 2)
+                        _validateZone = bR.ReadBoolean();
+
                     break;
 
                 default:
@@ -81,7 +87,7 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         protected override void WriteExtendedRecordInfoTo(BinaryWriter bW)
         {
-            bW.Write((byte)1); //version
+            bW.Write((byte)2); //version
 
             if (_primaryNameServers is null)
             {
@@ -98,6 +104,7 @@ namespace DnsServerCore.Dns.ResourceRecords
             bW.Write((byte)_zoneTransferProtocol);
             bW.WriteShortString(_tsigKeyName);
             bW.Write(_useSoaSerialDateScheme);
+            bW.Write(_validateZone);
         }
 
         #endregion
@@ -151,6 +158,12 @@ namespace DnsServerCore.Dns.ResourceRecords
         {
             get { return _useSoaSerialDateScheme; }
             set { _useSoaSerialDateScheme = value; }
+        }
+
+        public bool ValidateZone
+        {
+            get { return _validateZone; }
+            set { _validateZone = value; }
         }
 
         #endregion
