@@ -360,7 +360,7 @@ namespace DnsServerCore.Dns.Zones
                 client.Retries = NOTIFY_RETRIES;
 
                 DnsDatagram notifyRequest = new DnsDatagram(0, false, DnsOpcode.Notify, true, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN) }, _entries[DnsResourceRecordType.SOA]);
-                DnsDatagram response = await client.ResolveAsync(notifyRequest);
+                DnsDatagram response = await client.RawResolveAsync(notifyRequest);
 
                 switch (response.RCODE)
                 {

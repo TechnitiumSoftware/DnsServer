@@ -115,7 +115,7 @@ namespace DnsServerCore.Dns.Zones
 
                     DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { soaQuestion }, null, null, null, dnsServer.UdpPayloadSize);
 
-                    soaResponse = await dnsClient.ResolveAsync(soaRequest);
+                    soaResponse = await dnsClient.RawResolveAsync(soaRequest);
                 }
             }
             catch (Exception ex)
@@ -268,7 +268,7 @@ namespace DnsServerCore.Dns.Zones
                 client.Concurrency = 1;
 
                 DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN) }, null, null, null, _dnsServer.UdpPayloadSize);
-                DnsDatagram soaResponse = await client.ResolveAsync(soaRequest);
+                DnsDatagram soaResponse = await client.RawResolveAsync(soaRequest);
 
                 if (soaResponse.RCODE != DnsResponseCode.NoError)
                 {
@@ -319,7 +319,7 @@ namespace DnsServerCore.Dns.Zones
                 client.Concurrency = 1;
 
                 DnsDatagram nsRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.NS, DnsClass.IN) });
-                DnsDatagram nsResponse = await client.ResolveAsync(nsRequest);
+                DnsDatagram nsResponse = await client.RawResolveAsync(nsRequest);
 
                 if (nsResponse.RCODE != DnsResponseCode.NoError)
                 {
