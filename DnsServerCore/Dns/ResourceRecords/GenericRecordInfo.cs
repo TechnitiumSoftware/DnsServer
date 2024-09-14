@@ -29,6 +29,8 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         bool _disabled;
         string _comments;
+        DateTime _lastModified;
+        uint _expiryTtl;
 
         DateTime _lastUsedOn; //not serialized
 
@@ -59,6 +61,16 @@ namespace DnsServerCore.Dns.ResourceRecords
                     ReadExtendedRecordInfoFrom(bR);
                     break;
 
+                case 2:
+                    _disabled = bR.ReadBoolean();
+                    _comments = bR.ReadShortString();
+
+                    _lastModified = bR.ReadDateTime();
+                    _expiryTtl = bR.ReadUInt32();
+
+                    ReadExtendedRecordInfoFrom(bR);
+                    break;
+
                 default:
                     throw new InvalidDataException("GenericRecordInfo format version not supported.");
             }
@@ -66,7 +78,7 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         protected sealed override void WriteRecordInfoTo(BinaryWriter bW)
         {
-            bW.Write((byte)1); //version
+            bW.Write((byte)2); //version
 
             bW.Write(_disabled);
 
@@ -74,6 +86,9 @@ namespace DnsServerCore.Dns.ResourceRecords
                 bW.Write((byte)0);
             else
                 bW.WriteShortString(_comments);
+
+            bW.Write(_lastModified);
+            bW.Write(_expiryTtl);
 
             WriteExtendedRecordInfoTo(bW);
         }
@@ -90,9 +105,22 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         #endregion
 
+        #region public
+
+        public uint GetPendingExpiryTtl()
+        {
+            uint elapsedSeconds = Convert.ToUInt32((DateTime.UtcNow - _lastModified).TotalSeconds);
+            if (elapsedSeconds < _expiryTtl)
+                return _expiryTtl - elapsedSeconds;
+
+            return 0u;
+        }
+
+        #endregion
+
         #region properties
 
-        public bool Disabled
+        public virtual bool Disabled
         {
             get { return _disabled; }
             set { _disabled = value; }
@@ -108,6 +136,18 @@ namespace DnsServerCore.Dns.ResourceRecords
 
                 _comments = value;
             }
+        }
+
+        public DateTime LastModified
+        {
+            get { return _lastModified; }
+            set { _lastModified = value; }
+        }
+
+        public virtual uint ExpiryTtl
+        {
+            get { return _expiryTtl; }
+            set { _expiryTtl = value; }
         }
 
         public DateTime LastUsedOn
