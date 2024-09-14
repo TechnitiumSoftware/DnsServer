@@ -606,18 +606,18 @@ namespace DnsServerCore
                     if (group is null)
                         throw new DnsWebServiceException("No such group exists: " + part);
 
-                    groups.Add(group.Name.ToLower(), group);
+                    groups.Add(group.Name.ToLowerInvariant(), group);
                 }
 
                 //ensure user is member of everyone group
                 Group everyone = _dnsWebService._authManager.GetGroup(Group.EVERYONE);
-                groups[everyone.Name.ToLower()] = everyone;
+                groups[everyone.Name.ToLowerInvariant()] = everyone;
 
                 if (session.User == user)
                 {
                     //ensure current admin user is member of administrators group to avoid self lockout
                     Group admins = _dnsWebService._authManager.GetGroup(Group.ADMINISTRATORS);
-                    groups[admins.Name.ToLower()] = admins;
+                    groups[admins.Name.ToLowerInvariant()] = admins;
                 }
 
                 user.SyncGroups(groups);
