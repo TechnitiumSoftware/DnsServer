@@ -17,7 +17,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using System;
 using System.Collections.Generic;
 using System.IO;
 using TechnitiumLibrary.IO;
@@ -29,11 +28,12 @@ namespace DnsServerCore.Dns.ResourceRecords
     {
         #region variables
 
-        IReadOnlyList<NameServerAddress> _primaryNameServers;
-        DnsTransportProtocol _zoneTransferProtocol;
-        string _tsigKeyName = string.Empty;
+        byte _version;
         bool _useSoaSerialDateScheme;
-        bool _validateZone;
+
+        IReadOnlyList<NameServerAddress> _primaryNameServers; //depricated
+        DnsTransportProtocol _zoneTransferProtocol; //depricated
+        string _tsigKeyName = string.Empty; //depricated
 
         #endregion
 
@@ -52,14 +52,13 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         protected override void ReadExtendedRecordInfoFrom(BinaryReader bR)
         {
-            byte version = bR.ReadByte();
-            switch (version)
+            _version = bR.ReadByte();
+            switch (_version)
             {
                 case 0: //no extended info
                     break;
 
                 case 1:
-                case 2:
                     int count = bR.ReadByte();
                     if (count > 0)
                     {
@@ -74,10 +73,10 @@ namespace DnsServerCore.Dns.ResourceRecords
                     _zoneTransferProtocol = (DnsTransportProtocol)bR.ReadByte();
                     _tsigKeyName = bR.ReadShortString();
                     _useSoaSerialDateScheme = bR.ReadBoolean();
+                    break;
 
-                    if (version >= 2)
-                        _validateZone = bR.ReadBoolean();
-
+                case 2:
+                    _useSoaSerialDateScheme = bR.ReadBoolean();
                     break;
 
                 default:
@@ -89,70 +88,33 @@ namespace DnsServerCore.Dns.ResourceRecords
         {
             bW.Write((byte)2); //version
 
-            if (_primaryNameServers is null)
-            {
-                bW.Write((byte)0);
-            }
-            else
-            {
-                bW.Write(Convert.ToByte(_primaryNameServers.Count));
-
-                foreach (NameServerAddress nameServer in _primaryNameServers)
-                    nameServer.WriteTo(bW);
-            }
-
-            bW.Write((byte)_zoneTransferProtocol);
-            bW.WriteShortString(_tsigKeyName);
             bW.Write(_useSoaSerialDateScheme);
-            bW.Write(_validateZone);
         }
 
         #endregion
 
         #region properties
 
-        public IReadOnlyList<NameServerAddress> PrimaryNameServers
+        public override bool Disabled
         {
-            get { return _primaryNameServers; }
+            get { return base.Disabled; }
             set
             {
-                if ((value is null) || (value.Count == 0))
-                    _primaryNameServers = null;
-                else
-                    _primaryNameServers = value;
+                //cannot disable SOA            
             }
         }
 
-        public DnsTransportProtocol ZoneTransferProtocol
+        public override uint ExpiryTtl
         {
-            get { return _zoneTransferProtocol; }
+            get { return base.ExpiryTtl; }
             set
             {
-                switch (value)
-                {
-                    case DnsTransportProtocol.Tcp:
-                    case DnsTransportProtocol.Tls:
-                    case DnsTransportProtocol.Quic:
-                        _zoneTransferProtocol = value;
-                        break;
-
-                    default:
-                        throw new NotSupportedException("Zone transfer protocol is not supported: XFR-over-" + value.ToString().ToUpper());
-                }
+                //cannot expire SOA
             }
         }
 
-        public string TsigKeyName
-        {
-            get { return _tsigKeyName; }
-            set
-            {
-                if (value is null)
-                    _tsigKeyName = string.Empty;
-                else
-                    _tsigKeyName = value;
-            }
-        }
+        public byte Version
+        { get { return _version; } }
 
         public bool UseSoaSerialDateScheme
         {
@@ -160,10 +122,22 @@ namespace DnsServerCore.Dns.ResourceRecords
             set { _useSoaSerialDateScheme = value; }
         }
 
-        public bool ValidateZone
+        public IReadOnlyList<NameServerAddress> PrimaryNameServers
         {
-            get { return _validateZone; }
-            set { _validateZone = value; }
+            get { return _primaryNameServers; }
+            set { _primaryNameServers = value; }
+        }
+
+        public DnsTransportProtocol ZoneTransferProtocol
+        {
+            get { return _zoneTransferProtocol; }
+            set { _zoneTransferProtocol = value; }
+        }
+
+        public string TsigKeyName
+        {
+            get { return _tsigKeyName; }
+            set { _tsigKeyName = value; }
         }
 
         #endregion
