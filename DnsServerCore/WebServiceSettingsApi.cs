@@ -311,6 +311,7 @@ namespace DnsServerCore
             jsonWriter.WriteBoolean("enableDnsOverHttp", _dnsWebService.DnsServer.EnableDnsOverHttp);
             jsonWriter.WriteBoolean("enableDnsOverTls", _dnsWebService.DnsServer.EnableDnsOverTls);
             jsonWriter.WriteBoolean("enableDnsOverHttps", _dnsWebService.DnsServer.EnableDnsOverHttps);
+            jsonWriter.WriteBoolean("enableDnsOverHttp3", _dnsWebService.DnsServer.EnableDnsOverHttp3);
             jsonWriter.WriteBoolean("enableDnsOverQuic", _dnsWebService.DnsServer.EnableDnsOverQuic);
             jsonWriter.WriteNumber("dnsOverUdpProxyPort", _dnsWebService.DnsServer.DnsOverUdpProxyPort);
             jsonWriter.WriteNumber("dnsOverTcpProxyPort", _dnsWebService.DnsServer.DnsOverTcpProxyPort);
@@ -346,27 +347,14 @@ namespace DnsServerCore
             //recursion
             jsonWriter.WriteString("recursion", _dnsWebService.DnsServer.Recursion.ToString());
 
-            jsonWriter.WritePropertyName("recursionDeniedNetworks");
+            jsonWriter.WritePropertyName("recursionNetworkACL");
             {
                 jsonWriter.WriteStartArray();
 
-                if (_dnsWebService.DnsServer.RecursionDeniedNetworks is not null)
+                if (_dnsWebService.DnsServer.RecursionNetworkACL is not null)
                 {
-                    foreach (NetworkAddress networkAddress in _dnsWebService.DnsServer.RecursionDeniedNetworks)
-                        jsonWriter.WriteStringValue(networkAddress.ToString());
-                }
-
-                jsonWriter.WriteEndArray();
-            }
-
-            jsonWriter.WritePropertyName("recursionAllowedNetworks");
-            {
-                jsonWriter.WriteStartArray();
-
-                if (_dnsWebService.DnsServer.RecursionAllowedNetworks is not null)
-                {
-                    foreach (NetworkAddress networkAddress in _dnsWebService.DnsServer.RecursionAllowedNetworks)
-                        jsonWriter.WriteStringValue(networkAddress.ToString());
+                    foreach (NetworkAccessControl nac in _dnsWebService.DnsServer.RecursionNetworkACL)
+                        jsonWriter.WriteStringValue(nac.ToString());
                 }
 
                 jsonWriter.WriteEndArray();
@@ -378,6 +366,7 @@ namespace DnsServerCore
 
             jsonWriter.WriteNumber("resolverRetries", _dnsWebService.DnsServer.ResolverRetries);
             jsonWriter.WriteNumber("resolverTimeout", _dnsWebService.DnsServer.ResolverTimeout);
+            jsonWriter.WriteNumber("resolverConcurrency", _dnsWebService.DnsServer.ResolverConcurrency);
             jsonWriter.WriteNumber("resolverMaxStackCount", _dnsWebService.DnsServer.ResolverMaxStackCount);
 
             //cache
@@ -513,6 +502,7 @@ namespace DnsServerCore
             }
 
             jsonWriter.WriteString("forwarderProtocol", forwarderProtocol.ToString());
+            jsonWriter.WriteBoolean("concurrentForwarding", _dnsWebService.DnsServer.ConcurrentForwarding);
 
             jsonWriter.WriteNumber("forwarderRetries", _dnsWebService.DnsServer.ForwarderRetries);
             jsonWriter.WriteNumber("forwarderTimeout", _dnsWebService.DnsServer.ForwarderTimeout);
@@ -584,6 +574,8 @@ namespace DnsServerCore
             //general
             if (request.TryGetQueryOrForm("dnsServerDomain", out string dnsServerDomain))
             {
+                dnsServerDomain = dnsServerDomain.TrimEnd('.');
+
                 if (!_dnsWebService.DnsServer.ServerDomain.Equals(dnsServerDomain, StringComparison.OrdinalIgnoreCase))
                 {
                     _dnsWebService.DnsServer.ServerDomain = dnsServerDomain;
@@ -888,6 +880,18 @@ namespace DnsServerCore
                 }
             }
 
+            if (request.TryGetQueryOrForm("enableDnsOverHttp3", bool.Parse, out bool enableDnsOverHttp3))
+            {
+                if (_dnsWebService.DnsServer.EnableDnsOverHttp3 != enableDnsOverHttp3)
+                {
+                    if (enableDnsOverHttp3)
+                        DnsWebService.ValidateQuicSupport("DNS-over-HTTP/3");
+
+                    _dnsWebService.DnsServer.EnableDnsOverHttp3 = enableDnsOverHttp3;
+                    restartDnsService = true;
+                }
+            }
+
             if (request.TryGetQueryOrForm("enableDnsOverQuic", bool.Parse, out bool enableDnsOverQuic))
             {
                 if (_dnsWebService.DnsServer.EnableDnsOverQuic != enableDnsOverQuic)
@@ -1003,9 +1007,14 @@ namespace DnsServerCore
 
                     for (int i = 0; i < strTsigKeyParts.Length; i += 3)
                     {
-                        string keyName = strTsigKeyParts[i + 0].ToLower();
+                        string keyName = strTsigKeyParts[i + 0].TrimEnd('.').ToLowerInvariant();
                         string sharedSecret = strTsigKeyParts[i + 1];
                         string algorithmName = strTsigKeyParts[i + 2];
+
+                        if (DnsClient.IsDomainNameUnicode(keyName))
+                            keyName = DnsClient.ConvertDomainNameToAscii(keyName);
+
+                        DnsClient.IsDomainNameValid(keyName, true);
 
                         if (sharedSecret.Length == 0)
                             tsigKeys.Add(keyName, new TsigKey(keyName, algorithmName));
@@ -1021,22 +1030,13 @@ namespace DnsServerCore
             if (request.TryGetQueryOrFormEnum("recursion", out DnsServerRecursion recursion))
                 _dnsWebService.DnsServer.Recursion = recursion;
 
-            string recursionDeniedNetworks = request.QueryOrForm("recursionDeniedNetworks");
-            if (recursionDeniedNetworks is not null)
+            string recursionNetworkACL = request.QueryOrForm("recursionNetworkACL");
+            if (recursionNetworkACL is not null)
             {
-                if ((recursionDeniedNetworks.Length == 0) || recursionDeniedNetworks.Equals("false", StringComparison.OrdinalIgnoreCase))
-                    _dnsWebService.DnsServer.RecursionDeniedNetworks = null;
+                if ((recursionNetworkACL.Length == 0) || recursionNetworkACL.Equals("false", StringComparison.OrdinalIgnoreCase))
+                    _dnsWebService.DnsServer.RecursionNetworkACL = null;
                 else
-                    _dnsWebService.DnsServer.RecursionDeniedNetworks = recursionDeniedNetworks.Split(NetworkAddress.Parse, ',');
-            }
-
-            string recursionAllowedNetworks = request.QueryOrForm("recursionAllowedNetworks");
-            if (recursionAllowedNetworks is not null)
-            {
-                if ((recursionAllowedNetworks.Length == 0) || recursionAllowedNetworks.Equals("false", StringComparison.OrdinalIgnoreCase))
-                    _dnsWebService.DnsServer.RecursionAllowedNetworks = null;
-                else
-                    _dnsWebService.DnsServer.RecursionAllowedNetworks = recursionAllowedNetworks.Split(NetworkAddress.Parse, ',');
+                    _dnsWebService.DnsServer.RecursionNetworkACL = recursionNetworkACL.Split(NetworkAccessControl.Parse, ',');
             }
 
             if (request.TryGetQueryOrForm("randomizeName", bool.Parse, out bool randomizeName))
@@ -1053,6 +1053,9 @@ namespace DnsServerCore
 
             if (request.TryGetQueryOrForm("resolverTimeout", int.Parse, out int resolverTimeout))
                 _dnsWebService.DnsServer.ResolverTimeout = resolverTimeout;
+
+            if (request.TryGetQueryOrForm("resolverConcurrency", int.Parse, out int resolverConcurrency))
+                _dnsWebService.DnsServer.ResolverConcurrency = resolverConcurrency;
 
             if (request.TryGetQueryOrForm("resolverMaxStackCount", int.Parse, out int resolverMaxStackCount))
                 _dnsWebService.DnsServer.ResolverMaxStackCount = resolverMaxStackCount;
@@ -1311,7 +1314,7 @@ namespace DnsServerCore
                             break;
                     }
 
-                    _dnsWebService.DnsServer.Forwarders = strForwarders.Split(delegate (string value)
+                    NameServerAddress[] forwarders = strForwarders.Split(delegate (string value)
                     {
                         NameServerAddress forwarder = NameServerAddress.Parse(value);
 
@@ -1320,8 +1323,14 @@ namespace DnsServerCore
 
                         return forwarder;
                     }, ',');
+
+                    if (!_dnsWebService.DnsServer.Forwarders.ListEquals(forwarders))
+                        _dnsWebService.DnsServer.Forwarders = forwarders;
                 }
             }
+
+            if (request.TryGetQueryOrForm("concurrentForwarding", bool.Parse, out bool concurrentForwarding))
+                _dnsWebService.DnsServer.ConcurrentForwarding = concurrentForwarding;
 
             if (request.TryGetQueryOrForm("forwarderRetries", int.Parse, out int forwarderRetries))
                 _dnsWebService.DnsServer.ForwarderRetries = forwarderRetries;
@@ -1381,105 +1390,6 @@ namespace DnsServerCore
             else
             {
                 StopBlockListUpdateTimer();
-            }
-
-            //test web service local end points
-            if (restartWebService)
-            {
-                List<IPEndPoint> testTcpEndPoints = new List<IPEndPoint>();
-                List<IPEndPoint> testUdpEndPoints = new List<IPEndPoint>();
-
-                if (_dnsWebService._webServiceHttpPort != oldWebServiceHttpPort)
-                {
-                    foreach (IPAddress address in _dnsWebService._webServiceLocalAddresses)
-                        testTcpEndPoints.Add(new IPEndPoint(address, _dnsWebService._webServiceHttpPort));
-                }
-
-                if (_dnsWebService._webServiceEnableTls && (_webServiceEnablingTls || (_dnsWebService._webServiceTlsPort != oldWebServiceTlsPort)))
-                {
-                    foreach (IPAddress address in _dnsWebService._webServiceLocalAddresses)
-                    {
-                        testTcpEndPoints.Add(new IPEndPoint(address, _dnsWebService._webServiceTlsPort));
-
-                        if (_dnsWebService._webServiceEnableHttp3)
-                        {
-                            if (Socket.OSSupportsIPv6)
-                                testUdpEndPoints.Add(new IPEndPoint(IPAddress.IPv6Any, _dnsWebService._webServiceTlsPort));
-                            else
-                                testUdpEndPoints.Add(new IPEndPoint(IPAddress.Any, _dnsWebService._webServiceTlsPort));
-                        }
-                    }
-                }
-
-                foreach (IPAddress address in _dnsWebService._webServiceLocalAddresses)
-                {
-                    if (!oldWebServiceLocalAddresses.Contains(address))
-                    {
-                        IPEndPoint httpEp = new IPEndPoint(address, _dnsWebService._webServiceHttpPort);
-                        if (!testTcpEndPoints.Contains(httpEp))
-                            testTcpEndPoints.Add(httpEp);
-
-                        if (_dnsWebService._webServiceEnableTls)
-                        {
-                            IPEndPoint tlsEp = new IPEndPoint(address, _dnsWebService._webServiceTlsPort);
-                            if (!testTcpEndPoints.Contains(tlsEp))
-                                testTcpEndPoints.Add(tlsEp);
-
-                            if (_dnsWebService._webServiceEnableHttp3)
-                            {
-                                IPEndPoint h3Ep;
-
-                                if (Socket.OSSupportsIPv6)
-                                    h3Ep = new IPEndPoint(IPAddress.IPv6Any, _dnsWebService._webServiceTlsPort);
-                                else
-                                    h3Ep = new IPEndPoint(IPAddress.Any, _dnsWebService._webServiceTlsPort);
-
-                                if (!testUdpEndPoints.Contains(h3Ep))
-                                    testUdpEndPoints.Add(h3Ep);
-                            }
-                        }
-                    }
-                }
-
-                foreach (IPEndPoint ep in testTcpEndPoints)
-                {
-                    try
-                    {
-                        using (Socket socket = new Socket(SocketType.Stream, ProtocolType.Tcp))
-                        {
-                            socket.Bind(ep);
-                        }
-                    }
-                    catch (SocketException ex)
-                    {
-                        //revert
-                        _dnsWebService._webServiceLocalAddresses = oldWebServiceLocalAddresses;
-                        _dnsWebService._webServiceHttpPort = oldWebServiceHttpPort;
-                        _dnsWebService._webServiceTlsPort = oldWebServiceTlsPort;
-
-                        throw new DnsWebServiceException("Failed to save settings: web service local end point '" + ep.ToString() + "' failed to bind (" + ex.SocketErrorCode.ToString() + ").", ex);
-                    }
-                }
-
-                foreach (IPEndPoint ep in testUdpEndPoints)
-                {
-                    try
-                    {
-                        using (Socket socket = new Socket(SocketType.Dgram, ProtocolType.Udp))
-                        {
-                            socket.Bind(ep);
-                        }
-                    }
-                    catch (SocketException ex)
-                    {
-                        //revert
-                        _dnsWebService._webServiceLocalAddresses = oldWebServiceLocalAddresses;
-                        _dnsWebService._webServiceHttpPort = oldWebServiceHttpPort;
-                        _dnsWebService._webServiceTlsPort = oldWebServiceTlsPort;
-
-                        throw new DnsWebServiceException("Failed to save settings: web service local end point '" + ep.ToString() + "' failed to bind (" + ex.SocketErrorCode.ToString() + ").", ex);
-                    }
-                }
             }
 
             //save config
