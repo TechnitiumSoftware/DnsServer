@@ -141,7 +141,7 @@ namespace DnsServerCore
             Dictionary<string, List<KeyValuePair<string, long>>> data;
             string labelFormat;
 
-            switch (strType.ToLower())
+            switch (strType.ToLowerInvariant())
             {
                 case "lasthour":
                     data = _dnsWebService.DnsServer.StatsManager.GetLastHourMinuteWiseStats(utcFormat);
@@ -569,7 +569,7 @@ namespace DnsServerCore
 
             List<KeyValuePair<string, long>> topStatsData;
 
-            switch (strType.ToLower())
+            switch (strType.ToLowerInvariant())
             {
                 case "lasthour":
                     topStatsData = _dnsWebService.DnsServer.StatsManager.GetLastHourTopStats(statsType, limit);
