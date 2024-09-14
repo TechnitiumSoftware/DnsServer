@@ -290,14 +290,8 @@ $(function () {
 
     $("input[type=radio][name=rdRecursion]").change(function () {
         var recursion = $('input[name=rdRecursion]:checked').val();
-        if (recursion === "UseSpecifiedNetworks") {
-            $("#txtRecursionDeniedNetworks").prop("disabled", false);
-            $("#txtRecursionAllowedNetworks").prop("disabled", false);
-        }
-        else {
-            $("#txtRecursionDeniedNetworks").prop("disabled", true);
-            $("#txtRecursionAllowedNetworks").prop("disabled", true);
-        }
+
+        $("#txtRecursionNetworkACL").prop("disabled", recursion !== "UseSpecifiedNetworkACL");
     });
 
     $("input[type=radio][name=rdBlockingType]").change(function () {
@@ -353,6 +347,7 @@ $(function () {
         var enableDnsOverHttps = $("#chkEnableDnsOverHttps").prop("checked");
         var enableDnsOverQuic = $("#chkEnableDnsOverQuic").prop("checked");
 
+        $("#chkEnableDnsOverHttp3").prop("disabled", !enableDnsOverHttps);
         $("#txtDnsOverHttpsPort").prop("disabled", !enableDnsOverHttps);
         $("#txtDnsTlsCertificatePath").prop("disabled", !enableDnsOverTls && !enableDnsOverHttps && !enableDnsOverQuic);
         $("#txtDnsTlsCertificatePassword").prop("disabled", !enableDnsOverTls && !enableDnsOverHttps && !enableDnsOverQuic);
@@ -366,6 +361,11 @@ $(function () {
         $("#txtDnsOverQuicPort").prop("disabled", !enableDnsOverQuic);
         $("#txtDnsTlsCertificatePath").prop("disabled", !enableDnsOverTls && !enableDnsOverHttps && !enableDnsOverQuic);
         $("#txtDnsTlsCertificatePassword").prop("disabled", !enableDnsOverTls && !enableDnsOverHttps && !enableDnsOverQuic);
+    });
+
+    $("#chkEnableConcurrentForwarding").click(function () {
+        var concurrentForwarding = $("#chkEnableConcurrentForwarding").prop("checked");
+        $("#txtForwarderConcurrency").prop("disabled", !concurrentForwarding)
     });
 
     $("#chkEnableLogging").click(function () {
@@ -1053,6 +1053,8 @@ function loadDnsSettings(responseJSON) {
     $("#chkEnableDnsOverHttp").prop("checked", responseJSON.response.enableDnsOverHttp);
     $("#chkEnableDnsOverTls").prop("checked", responseJSON.response.enableDnsOverTls);
     $("#chkEnableDnsOverHttps").prop("checked", responseJSON.response.enableDnsOverHttps);
+    $("#chkEnableDnsOverHttp3").prop("disabled", !responseJSON.response.enableDnsOverHttps);
+    $("#chkEnableDnsOverHttp3").prop("checked", responseJSON.response.enableDnsOverHttp3);
     $("#chkEnableDnsOverQuic").prop("checked", responseJSON.response.enableDnsOverQuic);
 
     $("#txtDnsOverUdpProxyPort").prop("disabled", !responseJSON.response.enableDnsOverUdpProxy);
@@ -1094,8 +1096,7 @@ function loadDnsSettings(responseJSON) {
     }
 
     //recursion
-    $("#txtRecursionDeniedNetworks").prop("disabled", true);
-    $("#txtRecursionAllowedNetworks").prop("disabled", true);
+    $("#txtRecursionNetworkACL").prop("disabled", true);
 
     switch (responseJSON.response.recursion) {
         case "Allow":
@@ -1106,10 +1107,9 @@ function loadDnsSettings(responseJSON) {
             $("#rdRecursionAllowOnlyForPrivateNetworks").prop("checked", true);
             break;
 
-        case "UseSpecifiedNetworks":
-            $("#rdRecursionUseSpecifiedNetworks").prop("checked", true);
-            $("#txtRecursionDeniedNetworks").prop("disabled", false);
-            $("#txtRecursionAllowedNetworks").prop("disabled", false);
+        case "UseSpecifiedNetworkACL":
+            $("#rdRecursionUseSpecifiedNetworkACL").prop("checked", true);
+            $("#txtRecursionNetworkACL").prop("disabled", false);
             break;
 
         case "Deny":
@@ -1118,8 +1118,7 @@ function loadDnsSettings(responseJSON) {
             break;
     }
 
-    $("#txtRecursionDeniedNetworks").val(getArrayAsString(responseJSON.response.recursionDeniedNetworks));
-    $("#txtRecursionAllowedNetworks").val(getArrayAsString(responseJSON.response.recursionAllowedNetworks));
+    $("#txtRecursionNetworkACL").val(getArrayAsString(responseJSON.response.recursionNetworkACL));
 
     $("#chkRandomizeName").prop("checked", responseJSON.response.randomizeName);
     $("#chkQnameMinimization").prop("checked", responseJSON.response.qnameMinimization);
@@ -1127,6 +1126,7 @@ function loadDnsSettings(responseJSON) {
 
     $("#txtResolverRetries").val(responseJSON.response.resolverRetries);
     $("#txtResolverTimeout").val(responseJSON.response.resolverTimeout);
+    $("#txtResolverConcurrency").val(responseJSON.response.resolverConcurrency);
     $("#txtResolverMaxStackCount").val(responseJSON.response.resolverMaxStackCount);
 
     //cache
@@ -1295,6 +1295,9 @@ function loadDnsSettings(responseJSON) {
             $("#rdForwarderProtocolUdp").prop("checked", true);
             break;
     }
+
+    $("#chkEnableConcurrentForwarding").prop("checked", responseJSON.response.concurrentForwarding);
+    $("#txtForwarderConcurrency").prop("disabled", !responseJSON.response.concurrentForwarding)
 
     $("#txtForwarderRetries").val(responseJSON.response.forwarderRetries);
     $("#txtForwarderTimeout").val(responseJSON.response.forwarderTimeout);
@@ -1493,6 +1496,7 @@ function saveDnsSettings() {
     var enableDnsOverHttp = $("#chkEnableDnsOverHttp").prop("checked");
     var enableDnsOverTls = $("#chkEnableDnsOverTls").prop("checked");
     var enableDnsOverHttps = $("#chkEnableDnsOverHttps").prop("checked");
+    var enableDnsOverHttp3 = $("#chkEnableDnsOverHttp3").prop("checked");
     var enableDnsOverQuic = $("#chkEnableDnsOverQuic").prop("checked");
 
     var dnsOverUdpProxyPort = $("#txtDnsOverUdpProxyPort").val();
@@ -1551,19 +1555,12 @@ function saveDnsSettings() {
     //recursion
     var recursion = $("input[name=rdRecursion]:checked").val();
 
-    var recursionDeniedNetworks = cleanTextList($("#txtRecursionDeniedNetworks").val());
+    var recursionNetworkACL = cleanTextList($("#txtRecursionNetworkACL").val());
 
-    if ((recursionDeniedNetworks.length === 0) || (recursionDeniedNetworks === ","))
-        recursionDeniedNetworks = false;
+    if ((recursionNetworkACL.length === 0) || (recursionNetworkACL === ","))
+        recursionNetworkACL = false;
     else
-        $("#txtRecursionDeniedNetworks").val(recursionDeniedNetworks.replace(/,/g, "\n"));
-
-    var recursionAllowedNetworks = cleanTextList($("#txtRecursionAllowedNetworks").val());
-
-    if ((recursionAllowedNetworks.length === 0) || (recursionAllowedNetworks === ","))
-        recursionAllowedNetworks = false;
-    else
-        $("#txtRecursionAllowedNetworks").val(recursionAllowedNetworks.replace(/,/g, "\n"));
+        $("#txtRecursionNetworkACL").val(recursionNetworkACL.replace(/,/g, "\n"));
 
     var randomizeName = $("#chkRandomizeName").prop('checked');
     var qnameMinimization = $("#chkQnameMinimization").prop('checked');
@@ -1580,6 +1577,13 @@ function saveDnsSettings() {
     if ((resolverTimeout == null) || (resolverTimeout === "")) {
         showAlert("warning", "Missing!", "Please enter a value for Resolver Timeout.");
         $("#txtResolverTimeout").focus();
+        return;
+    }
+
+    var resolverConcurrency = $("#txtResolverConcurrency").val();
+    if ((resolverConcurrency == null) || (resolverConcurrency === "")) {
+        showAlert("warning", "Missing!", "Please enter a value for Resolver Concurrency.");
+        $("#txtResolverConcurrency").focus();
         return;
     }
 
@@ -1731,6 +1735,8 @@ function saveDnsSettings() {
 
     var forwarderProtocol = $('input[name=rdForwarderProtocol]:checked').val();
 
+    var concurrentForwarding = $("#chkEnableConcurrentForwarding").prop("checked");
+
     var forwarderRetries = $("#txtForwarderRetries").val();
     if ((forwarderRetries == null) || (forwarderRetries === "")) {
         showAlert("warning", "Missing!", "Please enter a value for Forwarder Retries.");
@@ -1775,12 +1781,12 @@ function saveDnsSettings() {
             + "&qpmLimitRequests=" + qpmLimitRequests + "&qpmLimitErrors=" + qpmLimitErrors + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitIPv4PrefixLength=" + qpmLimitIPv4PrefixLength + "&qpmLimitIPv6PrefixLength=" + qpmLimitIPv6PrefixLength + "&qpmLimitBypassList=" + encodeURIComponent(qpmLimitBypassList)
             + "&clientTimeout=" + clientTimeout + "&tcpSendTimeout=" + tcpSendTimeout + "&tcpReceiveTimeout=" + tcpReceiveTimeout + "&quicIdleTimeout=" + quicIdleTimeout + "&quicMaxInboundStreams=" + quicMaxInboundStreams + "&listenBacklog=" + listenBacklog
             + "&webServiceLocalAddresses=" + encodeURIComponent(webServiceLocalAddresses) + "&webServiceHttpPort=" + webServiceHttpPort + "&webServiceEnableTls=" + webServiceEnableTls + "&webServiceEnableHttp3=" + webServiceEnableHttp3 + "&webServiceHttpToTlsRedirect=" + webServiceHttpToTlsRedirect + "&webServiceUseSelfSignedTlsCertificate=" + webServiceUseSelfSignedTlsCertificate + "&webServiceTlsPort=" + webServiceTlsPort + "&webServiceTlsCertificatePath=" + encodeURIComponent(webServiceTlsCertificatePath) + "&webServiceTlsCertificatePassword=" + encodeURIComponent(webServiceTlsCertificatePassword)
-            + "&enableDnsOverUdpProxy=" + enableDnsOverUdpProxy + "&enableDnsOverTcpProxy=" + enableDnsOverTcpProxy + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&enableDnsOverQuic=" + enableDnsOverQuic + "&dnsOverUdpProxyPort=" + dnsOverUdpProxyPort + "&dnsOverTcpProxyPort=" + dnsOverTcpProxyPort + "&dnsOverHttpPort=" + dnsOverHttpPort + "&dnsOverTlsPort=" + dnsOverTlsPort + "&dnsOverHttpsPort=" + dnsOverHttpsPort + "&dnsOverQuicPort=" + dnsOverQuicPort + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword)
+            + "&enableDnsOverUdpProxy=" + enableDnsOverUdpProxy + "&enableDnsOverTcpProxy=" + enableDnsOverTcpProxy + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&enableDnsOverHttp3=" + enableDnsOverHttp3 + "&enableDnsOverQuic=" + enableDnsOverQuic + "&dnsOverUdpProxyPort=" + dnsOverUdpProxyPort + "&dnsOverTcpProxyPort=" + dnsOverTcpProxyPort + "&dnsOverHttpPort=" + dnsOverHttpPort + "&dnsOverTlsPort=" + dnsOverTlsPort + "&dnsOverHttpsPort=" + dnsOverHttpsPort + "&dnsOverQuicPort=" + dnsOverQuicPort + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword)
             + "&tsigKeys=" + encodeURIComponent(tsigKeys)
-            + "&recursion=" + recursion + "&recursionDeniedNetworks=" + encodeURIComponent(recursionDeniedNetworks) + "&recursionAllowedNetworks=" + encodeURIComponent(recursionAllowedNetworks) + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization + "&nsRevalidation=" + nsRevalidation + "&resolverRetries=" + resolverRetries + "&resolverTimeout=" + resolverTimeout + "&resolverMaxStackCount=" + resolverMaxStackCount
+            + "&recursion=" + recursion + "&recursionNetworkACL=" + encodeURIComponent(recursionNetworkACL) + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization + "&nsRevalidation=" + nsRevalidation + "&resolverRetries=" + resolverRetries + "&resolverTimeout=" + resolverTimeout + "&resolverConcurrency=" + resolverConcurrency + "&resolverMaxStackCount=" + resolverMaxStackCount
             + "&saveCache=" + saveCache + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&serveStaleAnswerTtl=" + serveStaleAnswerTtl + "&serveStaleResetTtl=" + serveStaleResetTtl + "&serveStaleMaxWaitTime=" + serveStaleMaxWaitTime + "&cacheMaximumEntries=" + cacheMaximumEntries + "&cacheMinimumRecordTtl=" + cacheMinimumRecordTtl + "&cacheMaximumRecordTtl=" + cacheMaximumRecordTtl + "&cacheNegativeRecordTtl=" + cacheNegativeRecordTtl + "&cacheFailureRecordTtl=" + cacheFailureRecordTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
             + "&enableBlocking=" + enableBlocking + "&allowTxtBlockingReport=" + allowTxtBlockingReport + "&blockingBypassList=" + encodeURIComponent(blockingBypassList) + "&blockingType=" + blockingType + "&customBlockingAddresses=" + encodeURIComponent(customBlockingAddresses) + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours
-            + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&forwarderRetries=" + forwarderRetries + "&forwarderTimeout=" + forwarderTimeout + "&forwarderConcurrency=" + forwarderConcurrency
+            + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&concurrentForwarding=" + concurrentForwarding + "&forwarderRetries=" + forwarderRetries + "&forwarderTimeout=" + forwarderTimeout + "&forwarderConcurrency=" + forwarderConcurrency
             + "&enableLogging=" + enableLogging + "&ignoreResolverLogs=" + ignoreResolverLogs + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&enableInMemoryStats=" + enableInMemoryStats + "&maxStatFileDays=" + maxStatFileDays,
         processData: false,
         showInnerError: true,
@@ -2061,22 +2067,31 @@ function refreshDashboard(hideLoader) {
     var custom = "";
 
     if (type === "custom") {
-        var start = $("#dpCustomDayWiseStart").val();
-        if (start === null || (start === "")) {
+        var txtStart = $("#dpCustomDayWiseStart").val();
+        if (txtStart === null || (txtStart === "")) {
             showAlert("warning", "Missing!", "Please select a start date.");
             $("#dpCustomDayWiseStart").focus();
             return;
         }
 
-        var end = $("#dpCustomDayWiseEnd").val();
-        if (end === null || (end === "")) {
+        var txtEnd = $("#dpCustomDayWiseEnd").val();
+        if (txtEnd === null || (txtEnd === "")) {
             showAlert("warning", "Missing!", "Please select an end date.");
             $("#dpCustomDayWiseEnd").focus();
             return;
         }
 
-        start = moment(start, "YYYY-MM-DD").toISOString();
-        end = moment(end, "YYYY-MM-DD").toISOString();
+        var start = moment(txtStart, "YYYY-MM-DD");
+        var end = moment(txtEnd, "YYYY-MM-DD");
+
+        if ((end.diff(start, "days") + 1) > 7) {
+            start = moment.utc(txtStart, "YYYY-MM-DD").toISOString();
+            end = moment.utc(txtEnd, "YYYY-MM-DD").toISOString();
+        }
+        else {
+            start = start.toISOString();
+            end = end.toISOString();
+        }
 
         custom = "&start=" + encodeURIComponent(start) + "&end=" + encodeURIComponent(end);
     }
@@ -2247,7 +2262,7 @@ function refreshDashboard(hideLoader) {
                     tableHtmlRows = "";
 
                     for (var i = 0; i < topClients.length; i++) {
-                        tableHtmlRows += "<tr" + (topClients[i].rateLimited ? " style=\"color: orange;\"" : "") + "><td style=\"word-wrap: anywhere;\">" + htmlEncode(topClients[i].name) + (topClients[i].rateLimited ? " (limited)" : "") + "<br />" + htmlEncode(topClients[i].domain == "" ? "." : topClients[i].domain) + "</td><td>" + topClients[i].hits.toLocaleString();
+                        tableHtmlRows += "<tr" + (topClients[i].rateLimited ? " style=\"color: orange;\"" : "") + "><td style=\"word-wrap: anywhere;\">" + htmlEncode(topClients[i].name) + (topClients[i].rateLimited ? " (rate limited)" : "") + "<br />" + htmlEncode(topClients[i].domain == "" ? "." : topClients[i].domain) + "</td><td>" + topClients[i].hits.toLocaleString();
                         tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnDashboardTopClientsRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
                         tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" onclick=\"showQueryLogs(null, '" + topClients[i].name + "'); return false;\">Show Query Logs</a></li>";
                         tableHtmlRows += "</ul></div></td></tr>";
@@ -2388,7 +2403,7 @@ function showTopStats(statsType, limit) {
                     tableHtmlRows = "";
 
                     for (var i = 0; i < topClients.length; i++) {
-                        tableHtmlRows += "<tr" + (topClients[i].rateLimited ? " style=\"color: orange;\"" : "") + "><td style=\"word-wrap: anywhere;\">" + htmlEncode(topClients[i].name) + (topClients[i].rateLimited ? " (limited)" : "") + "<br />" + htmlEncode(topClients[i].domain == "" ? "." : topClients[i].domain) + "</td><td>" + topClients[i].hits.toLocaleString();
+                        tableHtmlRows += "<tr" + (topClients[i].rateLimited ? " style=\"color: orange;\"" : "") + "><td style=\"word-wrap: anywhere;\">" + htmlEncode(topClients[i].name) + (topClients[i].rateLimited ? " (rate limited)" : "") + "<br />" + htmlEncode(topClients[i].domain == "" ? "." : topClients[i].domain) + "</td><td>" + topClients[i].hits.toLocaleString();
                         tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnDashboardTopClientsRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
                         tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" onclick=\"showQueryLogs(null, '" + topClients[i].name + "'); return false;\">Show Query Logs</a></li>";
                         tableHtmlRows += "</ul></div></td></tr>";
