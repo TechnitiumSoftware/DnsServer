@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -28,6 +28,8 @@ namespace DnsServerSystemTrayApp
     public partial class frmManageDnsProviders : Form
     {
         #region variables
+
+        static readonly char[] commaSeparator = new char[] { ',' };
 
         readonly List<DnsProvider> _dnsProviders = new List<DnsProvider>();
 
@@ -106,7 +108,7 @@ namespace DnsServerSystemTrayApp
 
             List<IPAddress> addresses = new List<IPAddress>();
 
-            foreach (string item in txtIpv4Addresses.Text.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            foreach (string item in txtIpv4Addresses.Text.Split(commaSeparator, StringSplitOptions.RemoveEmptyEntries))
             {
                 if (IPAddress.TryParse(item.Trim(), out IPAddress address) && (address.AddressFamily == AddressFamily.InterNetwork))
                 {
@@ -119,7 +121,7 @@ namespace DnsServerSystemTrayApp
                 }
             }
 
-            foreach (string item in txtIpv6Addresses.Text.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            foreach (string item in txtIpv6Addresses.Text.Split(commaSeparator, StringSplitOptions.RemoveEmptyEntries))
             {
                 if (IPAddress.TryParse(item.Trim(), out IPAddress address) && (address.AddressFamily == AddressFamily.InterNetworkV6))
                 {
