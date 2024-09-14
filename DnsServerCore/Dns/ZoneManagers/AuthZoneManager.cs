@@ -243,8 +243,11 @@ namespace DnsServerCore.Dns.ZoneManagers
                     break;
 
                 case AuthZoneType.SecondaryCatalog:
-                    apexZone = new SecondaryCatalogZone(_dnsServer, zoneInfo);
-                    (apexZone as SecondaryCatalogZone).ZoneAdded += SecondaryCatalogZoneAdded;
+                    SecondaryCatalogZone secondaryCatalogZone = new SecondaryCatalogZone(_dnsServer, zoneInfo);
+                    secondaryCatalogZone.ZoneAdded += SecondaryCatalogZoneAdded;
+                    secondaryCatalogZone.ZoneRemoved += SecondaryCatalogZoneRemoved;
+
+                    apexZone = secondaryCatalogZone;
                     break;
 
                 default:
