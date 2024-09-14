@@ -664,7 +664,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                 //return closest name servers in delegation
                 IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS, false, true, eDnsClientSubnet, advancedForwardingClientSubnet);
-                if ((closestAuthority.Count > 0) && (closestAuthority[0].Type == DnsResourceRecordType.NS) && (closestAuthority[0].Name.Length > 0)) //dont trust root name servers from cache!
+                if ((closestAuthority.Count > 0) && (closestAuthority[0].Type == DnsResourceRecordType.NS))
                 {
                     if (request.DnssecOk)
                     {
@@ -768,9 +768,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                             newOptions.AddRange(dnsSpecialCacheRecord.EDnsOptions);
 
                             if (dnsSpecialCacheRecord.RCODE == DnsResponseCode.NxDomain)
-                                newOptions.Add(new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.StaleNxDomainAnswer, null)));
+                                newOptions.Add(new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.StaleNxDomainAnswer, firstRR.Name.ToLowerInvariant() + " " + firstRR.Type.ToString() + " " + firstRR.Class.ToString())));
                             else
-                                newOptions.Add(new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.StaleAnswer, null)));
+                                newOptions.Add(new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.StaleAnswer, firstRR.Name.ToLowerInvariant() + " " + firstRR.Type.ToString() + " " + firstRR.Class.ToString())));
 
                             specialOptions = newOptions;
                         }
@@ -897,10 +897,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     foreach (DnsResourceRecord record in answer)
                     {
                         if (record.WasExpiryReset || record.IsStale)
-                        {
-                            options = [new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.StaleAnswer, null))];
-                            break;
-                        }
+                            options = [new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.StaleAnswer, record.Name.ToLowerInvariant() + " " + record.Type.ToString() + " " + record.Class.ToString()))];
                     }
 
                     if (eDnsClientSubnet is not null)
@@ -992,10 +989,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         foreach (DnsResourceRecord record in answer)
                         {
                             if (record.WasExpiryReset || record.IsStale)
-                            {
-                                options = [new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.StaleAnswer, null))];
-                                break;
-                            }
+                                options = [new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.StaleAnswer, record.Name.ToLowerInvariant() + " " + record.Type.ToString() + " " + record.Class.ToString()))];
                         }
 
                         return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, dnssecOk && (answer.Count > 0) && (answer[0].DnssecStatus == DnssecStatus.Secure), request.CheckingDisabled, rCode, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, ednsFlags, options);
@@ -1025,7 +1019,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 while (true)
                 {
                     IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS, serveStale, true, eDnsClientSubnet, advancedForwardingClientSubnet);
-                    if ((closestAuthority.Count > 0) && (closestAuthority[0].Type == DnsResourceRecordType.NS) && (closestAuthority[0].Name.Length > 0)) //dont trust root name servers from cache!
+                    if ((closestAuthority.Count > 0) && (closestAuthority[0].Type == DnsResourceRecordType.NS))
                     {
                         if (dnssecOk)
                         {
