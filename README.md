@@ -59,6 +59,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Zone transfer with AXFR and IXFR [RFC 1995](https://www.rfc-editor.org/rfc/rfc1995.html) and DNS NOTIFY [RFC 1996](https://www.rfc-editor.org/rfc/rfc1996.html) support.
 - Zone transfer over TLS (XFR-over-TLS) [RFC 9103](https://www.rfc-editor.org/rfc/rfc9103.html) support.
 - Zone transfer over QUIC (XFR-over-QUIC) [RFC 9250](https://www.ietf.org/rfc/rfc9250.html) support.
+- Support for zone validation using ZONEMD records [RFC 8976](https://datatracker.ietf.org/doc/rfc8976/) for Secondary zones.
 - Dynamic DNS Updates [RFC 2136](https://www.rfc-editor.org/rfc/rfc2136) support with security policy.
 - Secret key transaction authentication (TSIG) [RFC 8945](https://datatracker.ietf.org/doc/html/rfc8945) support for zone transfers.
 - EDNS(0) [RFC6891](https://datatracker.ietf.org/doc/html/rfc6891) support.
