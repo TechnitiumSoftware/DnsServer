@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -182,7 +182,7 @@ function deleteAllStats() {
 
 var appsList;
 
-function refreshQueryLogsTab() {
+function refreshQueryLogsTab(doQueryLogs) {
     var frmQueryLogs = $("#frmQueryLogs");
     var divQueryLogsLoader = $("#divQueryLogsLoader");
 
@@ -253,6 +253,9 @@ function refreshQueryLogsTab() {
             }
 
             appsList = apps;
+
+            if (doQueryLogs)
+                queryLogs();
         },
         error: function () {
             if (appsList == null) {
@@ -412,6 +415,7 @@ function queryLogs(pageNumber) {
             btn.button('reset');
         },
         invalidToken: function () {
+            btn.button('reset');
             showPageLogin();
         },
         objLoaderPlaceholder: divQueryLogsLoader
@@ -419,6 +423,8 @@ function queryLogs(pageNumber) {
 }
 
 function showQueryLogs(domain, clientIp) {
+    $("#frmQueryLogs").trigger("reset");
+
     if (domain != null)
         $("#txtQueryLogQName").val(domain);
 
@@ -439,5 +445,5 @@ function showQueryLogs(domain, clientIp) {
 
     $("#modalTopStats").modal("hide");
 
-    refreshQueryLogsTab();
+    refreshQueryLogsTab(true);
 }
