@@ -28,6 +28,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net;
@@ -220,7 +221,10 @@ namespace DnsServerCore
 
                 try
                 {
-                    dnsResponse = await DnsClient.RecursiveResolveAsync(question, dnsCache, proxy, preferIPv6, udpPayloadSize, randomizeName, qnameMinimization, false, dnssecValidation, eDnsClientSubnet, RETRIES, TIMEOUT, rawResponses: rawResponses);
+                    dnsResponse = await TechnitiumLibrary.TaskExtensions.TimeoutAsync(async delegate (CancellationToken cancellationToken1)
+                    {
+                        return await DnsClient.RecursiveResolveAsync(question, dnsCache, proxy, preferIPv6, udpPayloadSize, randomizeName, qnameMinimization, dnssecValidation, eDnsClientSubnet, RETRIES, TIMEOUT, rawResponses: rawResponses, cancellationToken: cancellationToken1);
+                    }, DnsServer.RECURSIVE_RESOLUTION_TIMEOUT);
                 }
                 catch (DnsClientResponseDnssecValidationException ex)
                 {
@@ -295,11 +299,9 @@ namespace DnsServerCore
                         nameServer = nameServer.ChangeProtocol(protocol);
 
                     if (nameServer.IsIPEndPointStale)
-                    {
-                        if (proxy is null)
-                            await nameServer.ResolveIPAddressAsync(_dnsWebService.DnsServer, _dnsWebService.DnsServer.PreferIPv6);
-                    }
-                    else if ((nameServer.DomainEndPoint is null) && ((protocol == DnsTransportProtocol.Udp) || (protocol == DnsTransportProtocol.Tcp)))
+                        await nameServer.ResolveIPAddressAsync(_dnsWebService.DnsServer, _dnsWebService.DnsServer.PreferIPv6);
+
+                    if ((nameServer.DomainEndPoint is null) && ((protocol == DnsTransportProtocol.Udp) || (protocol == DnsTransportProtocol.Tcp)))
                     {
                         try
                         {
@@ -373,7 +375,7 @@ namespace DnsServerCore
                     if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
                         throw new DnsWebServiceException("Access was denied.");
 
-                    zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.CreatePrimaryZone(domain, _dnsWebService.DnsServer.ServerDomain, false);
+                    zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.CreatePrimaryZone(domain);
                     if (zoneInfo is null)
                         throw new DnsServerException("Cannot import records: failed to create primary zone.");
 
@@ -439,9 +441,7 @@ namespace DnsServerCore
                     _dnsWebService.DnsServer.AuthZoneManager.ImportRecords(zoneInfo.Name, importRecords, true, true);
                 }
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS Client imported record(s) for authoritative zone {server: " + server + "; zone: " + zoneInfo.Name + "; type: " + type + ";}");
-
-                _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS Client imported record(s) for authoritative zone {server: " + server + "; zone: " + zoneInfo.DisplayName + "; type: " + type + ";}");
             }
 
             Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
