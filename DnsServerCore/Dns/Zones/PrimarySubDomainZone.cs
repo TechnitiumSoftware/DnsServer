@@ -197,7 +197,7 @@ namespace DnsServerCore.Dns.Zones
                 default:
                     if (TryDeleteRecord(type, rdata, out DnsResourceRecord deletedRecord))
                     {
-                        _primaryZone.CommitAndIncrementSerial(new DnsResourceRecord[] { deletedRecord });
+                        _primaryZone.CommitAndIncrementSerial([deletedRecord]);
 
                         if (_primaryZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned)
                             _primaryZone.UpdateDnssecRecordsFor(this, type);
@@ -216,7 +216,7 @@ namespace DnsServerCore.Dns.Zones
             switch (oldRecord.Type)
             {
                 case DnsResourceRecordType.SOA:
-                    throw new InvalidOperationException("Cannot update record: use SetRecords() for " + oldRecord.Type.ToString() + " record");
+                    throw new InvalidOperationException("Cannot update record: use SetRecords() for " + oldRecord.Type.ToString() + " record.");
 
                 case DnsResourceRecordType.DNSKEY:
                 case DnsResourceRecordType.RRSIG:
