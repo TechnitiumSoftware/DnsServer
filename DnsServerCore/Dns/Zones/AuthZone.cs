@@ -364,6 +364,23 @@ namespace DnsServerCore.Dns.Zones
 
         #endregion
 
+        #region catalog zones
+
+        protected IEnumerable<KeyValuePair<string, string>> EnumerateCatalogMemberZones(DnsServer dnsServer)
+        {
+            List<string> subDomains = new List<string>();
+            dnsServer.AuthZoneManager.ListSubDomains("zones." + _name, subDomains);
+
+            foreach (string subDomain in subDomains)
+            {
+                IReadOnlyList<DnsResourceRecord> ptrRecords = dnsServer.AuthZoneManager.GetRecords(_name, subDomain + ".zones." + _name, DnsResourceRecordType.PTR);
+                if (ptrRecords.Count > 0)
+                    yield return new KeyValuePair<string, string>((ptrRecords[0].RDATA as DnsPTRRecordData).Domain, ptrRecords[0].Name);
+            }
+        }
+
+        #endregion
+
         #region DNSSEC
 
         internal IReadOnlyList<DnsResourceRecord> SignAllRRSets()
@@ -960,11 +977,6 @@ namespace DnsServerCore.Dns.Zones
             return Array.Empty<DnsResourceRecord>();
         }
 
-        public IReadOnlyDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> GetAllRecords()
-        {
-            return _entries;
-        }
-
         public override bool ContainsNameServerRecords()
         {
             if (!_entries.TryGetValue(DnsResourceRecordType.NS, out IReadOnlyList<DnsResourceRecord> records))
@@ -984,6 +996,9 @@ namespace DnsServerCore.Dns.Zones
         #endregion
 
         #region properties
+
+        public IReadOnlyDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> Entries
+        { get { return _entries; } }
 
         public virtual bool Disabled
         {
