@@ -29,13 +29,23 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.Zones
 {
+    public enum AuthZoneQueryAccess : byte
+    {
+        Deny = 0,
+        Allow = 1,
+        AllowOnlyPrivateNetworks = 2,
+        AllowOnlyZoneNameServers = 3,
+        UseSpecifiedNetworkACL = 4,
+        AllowZoneNameServersAndUseSpecifiedNetworkACL = 5
+    }
+
     public enum AuthZoneTransfer : byte
     {
         Deny = 0,
         Allow = 1,
         AllowOnlyZoneNameServers = 2,
-        AllowOnlySpecifiedNameServers = 3,
-        AllowBothZoneAndSpecifiedNameServers = 4
+        UseSpecifiedNetworkACL = 3,
+        AllowZoneNameServersAndUseSpecifiedNetworkACL = 4
     }
 
     public enum AuthZoneNotify : byte
@@ -51,24 +61,37 @@ namespace DnsServerCore.Dns.Zones
         Deny = 0,
         Allow = 1,
         AllowOnlyZoneNameServers = 2,
-        AllowOnlySpecifiedIpAddresses = 3,
-        AllowBothZoneNameServersAndSpecifiedIpAddresses = 4
+        UseSpecifiedNetworkACL = 3,
+        AllowZoneNameServersAndUseSpecifiedNetworkACL = 4
     }
 
     abstract class ApexZone : AuthZone, IDisposable
     {
         #region variables
 
-        protected AuthZoneTransfer _zoneTransfer;
-        protected IReadOnlyCollection<NetworkAddress> _zoneTransferNameServers;
-        protected AuthZoneNotify _notify;
-        protected IReadOnlyCollection<IPAddress> _notifyNameServers;
-        protected AuthZoneUpdate _update;
-        protected IReadOnlyCollection<NetworkAddress> _updateIpAddresses;
+        protected readonly DnsServer _dnsServer;
         protected DateTime _lastModified;
-        protected List<DnsResourceRecord> _zoneHistory; //for IXFR support
-        protected IReadOnlyDictionary<string, object> _zoneTransferTsigKeyNames;
-        protected IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> _updateSecurityPolicies;
+
+        string _catalogZoneName;
+        bool _overrideCatalogQueryAccess;
+        bool _overrideCatalogZoneTransfer;
+        bool _overrideCatalogNotify;
+
+        AuthZoneQueryAccess _queryAccess;
+        IReadOnlyCollection<NetworkAccessControl> _queryAccessNetworkACL;
+
+        AuthZoneTransfer _zoneTransfer;
+        IReadOnlyCollection<NetworkAccessControl> _zoneTransferNetworkACL;
+        IReadOnlyDictionary<string, object> _zoneTransferTsigKeyNames;
+        readonly List<DnsResourceRecord> _zoneHistory; //for IXFR support
+
+        AuthZoneNotify _notify;
+        IReadOnlyCollection<IPAddress> _notifyNameServers;
+
+        AuthZoneUpdate _update;
+        IReadOnlyCollection<NetworkAccessControl> _updateNetworkACL;
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> _updateSecurityPolicies;
+
         protected AuthZoneDnssecStatus _dnssecStatus;
 
         Timer _notifyTimer;
@@ -81,19 +104,37 @@ namespace DnsServerCore.Dns.Zones
 
         protected bool _syncFailed;
 
+        Timer _recordExpiryTimer;
+        readonly object _recordExpiryTimerLock = new object();
+        DateTime _recordExpiryTimerStartedOn;
+        uint _recordExpiryTimerTtl;
+        bool _recordExpiryTimerRunning;
+
+        CatalogZone _catalogZone;
+        bool _isSecondaryCatalogMember;
+
         #endregion
 
         #region constructor
 
-        protected ApexZone(AuthZoneInfo zoneInfo)
+        protected ApexZone(DnsServer dnsServer, AuthZoneInfo zoneInfo)
             : base(zoneInfo)
         {
+            _dnsServer = dnsServer;
+
+            _catalogZoneName = zoneInfo.CatalogZoneName;
+            _overrideCatalogQueryAccess = zoneInfo.OverrideCatalogQueryAccess;
+            _overrideCatalogZoneTransfer = zoneInfo.OverrideCatalogZoneTransfer;
+            _overrideCatalogNotify = zoneInfo.OverrideCatalogNotify;
+
+            _queryAccess = zoneInfo.QueryAccess;
+            _queryAccessNetworkACL = zoneInfo.QueryAccessNetworkACL;
             _zoneTransfer = zoneInfo.ZoneTransfer;
-            _zoneTransferNameServers = zoneInfo.ZoneTransferNameServers;
+            _zoneTransferNetworkACL = zoneInfo.ZoneTransferNetworkACL;
             _notify = zoneInfo.Notify;
             _notifyNameServers = zoneInfo.NotifyNameServers;
             _update = zoneInfo.Update;
-            _updateIpAddresses = zoneInfo.UpdateIpAddresses;
+            _updateNetworkACL = zoneInfo.UpdateNetworkACL;
             _lastModified = zoneInfo.LastModified;
 
             if (zoneInfo.ZoneHistory is null)
@@ -105,9 +146,12 @@ namespace DnsServerCore.Dns.Zones
             _updateSecurityPolicies = zoneInfo.UpdateSecurityPolicies;
         }
 
-        protected ApexZone(string name)
+        protected ApexZone(DnsServer dnsServer, string name)
             : base(name)
         {
+            _dnsServer = dnsServer;
+
+            _queryAccess = AuthZoneQueryAccess.Allow;
             _lastModified = DateTime.UtcNow;
             _zoneHistory = new List<DnsResourceRecord>();
         }
@@ -125,8 +169,16 @@ namespace DnsServerCore.Dns.Zones
 
             if (disposing)
             {
-                if (_notifyTimer is not null)
-                    _notifyTimer.Dispose();
+                _notifyTimer?.Dispose();
+
+                lock (_recordExpiryTimerLock)
+                {
+                    if (_recordExpiryTimer is not null)
+                    {
+                        _recordExpiryTimer.Dispose();
+                        _recordExpiryTimer = null;
+                    }
+                }
             }
 
             _disposed = true;
@@ -139,52 +191,11 @@ namespace DnsServerCore.Dns.Zones
 
         #endregion
 
-        #region protected
+        #region notify
 
-        protected void CleanupHistory()
+        protected void InitNotify()
         {
-            DnsSOARecordData soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
-            DateTime expiry = DateTime.UtcNow.AddSeconds(-soa.Expire);
-            int index = 0;
-
-            while (index < _zoneHistory.Count)
-            {
-                //check difference sequence
-                if (_zoneHistory[index].GetAuthHistoryRecordInfo().DeletedOn > expiry)
-                    break; //found record to keep
-
-                //skip to next difference sequence
-                index++;
-                int soaCount = 1;
-
-                while (index < _zoneHistory.Count)
-                {
-                    if (_zoneHistory[index].Type == DnsResourceRecordType.SOA)
-                    {
-                        soaCount++;
-
-                        if (soaCount == 3)
-                            break;
-                    }
-
-                    index++;
-                }
-            }
-
-            if (index == _zoneHistory.Count)
-            {
-                //delete entire history
-                _zoneHistory.Clear();
-                return;
-            }
-
-            //remove expired records
-            _zoneHistory.RemoveRange(0, index);
-        }
-
-        protected void InitNotify(DnsServer dnsServer)
-        {
-            _notifyTimer = new Timer(NotifyTimerCallback, dnsServer, Timeout.Infinite, Timeout.Infinite);
+            _notifyTimer = new Timer(NotifyTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
             _notifyList = new List<string>();
             _notifyFailed = new List<string>();
         }
@@ -195,13 +206,12 @@ namespace DnsServerCore.Dns.Zones
                 _notifyTimer.Change(Timeout.Infinite, Timeout.Infinite);
         }
 
-        #endregion
-
-        #region private
-
         private async void NotifyTimerCallback(object state)
         {
-            DnsServer dnsServer = state as DnsServer;
+            ApexZone apexZone = this;
+
+            if ((apexZone.CatalogZone is not null) && !apexZone.OverrideCatalogNotify)
+                apexZone = apexZone.CatalogZone;
 
             List<string> notifiedNameServers = new List<string>();
 
@@ -235,11 +245,11 @@ namespace DnsServerCore.Dns.Zones
                     notifiedNameServers.Add(nameServerHost);
 
                     List<NameServerAddress> nameServers = new List<NameServerAddress>(2);
-                    await ResolveNameServerAddressesAsync(dnsServer, nsRecord, nameServers);
+                    await ResolveNameServerAddressesAsync(nsRecord, nameServers);
 
                     if (nameServers.Count > 0)
                     {
-                        tasks.Add(NotifyNameServerAsync(dnsServer, nameServerHost, nameServers));
+                        tasks.Add(NotifyNameServerAsync(nameServerHost, nameServers));
                     }
                     else
                     {
@@ -249,7 +259,7 @@ namespace DnsServerCore.Dns.Zones
                                 _notifyFailed.Add(nameServerHost);
                         }
 
-                        dnsServer.LogManager?.Write("DNS Server failed to notify name server '" + nameServerHost + "' due to failure in resolving its IP address for zone: " + (_name == "" ? "<root>" : _name));
+                        _dnsServer.LogManager?.Write("DNS Server failed to notify name server '" + nameServerHost + "' due to failure in resolving its IP address for zone: " + ToString());
                     }
                 }
 
@@ -258,7 +268,7 @@ namespace DnsServerCore.Dns.Zones
 
             async Task NotifySpecifiedNameServersAsync(bool onlyFailedNameServers)
             {
-                IReadOnlyCollection<IPAddress> specifiedNameServers = _notifyNameServers;
+                IReadOnlyCollection<IPAddress> specifiedNameServers = apexZone._notifyNameServers;
                 if (specifiedNameServers is not null)
                 {
                     List<Task> tasks = new List<Task>();
@@ -278,7 +288,7 @@ namespace DnsServerCore.Dns.Zones
 
                         notifiedNameServers.Add(nameServerHost);
 
-                        tasks.Add(NotifyNameServerAsync(dnsServer, nameServerHost, new NameServerAddress[] { new NameServerAddress(specifiedNameServer) }));
+                        tasks.Add(NotifyNameServerAsync(nameServerHost, new NameServerAddress[] { new NameServerAddress(specifiedNameServer) }));
                     }
 
                     await Task.WhenAll(tasks);
@@ -287,7 +297,7 @@ namespace DnsServerCore.Dns.Zones
 
             try
             {
-                switch (_notify)
+                switch (apexZone._notify)
                 {
                     case AuthZoneNotify.ZoneNameServers:
                         await NotifyZoneNameServersAsync(!_notifyTimerTriggered);
@@ -332,7 +342,7 @@ namespace DnsServerCore.Dns.Zones
             }
             catch (Exception ex)
             {
-                dnsServer.LogManager?.Write(ex);
+                _dnsServer.LogManager?.Write(ex);
             }
             finally
             {
@@ -340,7 +350,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        private async Task NotifyNameServerAsync(DnsServer dnsServer, string nameServerHost, IReadOnlyList<NameServerAddress> nameServers)
+        private async Task NotifyNameServerAsync(string nameServerHost, IReadOnlyList<NameServerAddress> nameServers)
         {
             //use notify list to prevent multiple threads from notifying the same name server
             lock (_notifyList)
@@ -355,7 +365,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 DnsClient client = new DnsClient(nameServers);
 
-                client.Proxy = dnsServer.Proxy;
+                client.Proxy = _dnsServer.Proxy;
                 client.Timeout = NOTIFY_TIMEOUT;
                 client.Retries = NOTIFY_RETRIES;
 
@@ -373,9 +383,7 @@ namespace DnsServerCore.Dns.Zones
                                 _notifyFailed.Remove(nameServerHost);
                             }
 
-                            LogManager log = dnsServer.LogManager;
-                            if (log is not null)
-                                log.Write("DNS Server successfully notified name server '" + nameServerHost + "' for zone: " + (_name == "" ? "<root>" : _name));
+                            _dnsServer.LogManager?.Write("DNS Server successfully notified name server '" + nameServerHost + "' for zone: " + ToString());
                         }
                         break;
 
@@ -388,9 +396,7 @@ namespace DnsServerCore.Dns.Zones
                                     _notifyFailed.Add(nameServerHost);
                             }
 
-                            LogManager log = dnsServer.LogManager;
-                            if (log is not null)
-                                log.Write("DNS Server failed to notify name server '" + nameServerHost + "' (RCODE=" + response.RCODE.ToString() + ") for zone: " + (_name == "" ? "<root>" : _name));
+                            _dnsServer.LogManager?.Write("DNS Server failed to notify name server '" + nameServerHost + "' (RCODE=" + response.RCODE.ToString() + ") for zone: " + ToString());
                         }
                         break;
                 }
@@ -403,7 +409,7 @@ namespace DnsServerCore.Dns.Zones
                         _notifyFailed.Add(nameServerHost);
                 }
 
-                dnsServer.LogManager?.Write("DNS Server failed to notify name server '" + nameServerHost + "' for zone: " + (_name == "" ? "<root>" : _name) + "\r\n" + ex.ToString());
+                _dnsServer.LogManager?.Write("DNS Server failed to notify name server '" + nameServerHost + "' for zone: " + ToString() + "\r\n" + ex.ToString());
             }
             finally
             {
@@ -414,97 +420,17 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        private static async Task ResolveNameServerAddressesAsync(DnsServer dnsServer, string nsDomain, int port, DnsTransportProtocol protocol, List<NameServerAddress> outNameServers)
-        {
-            try
-            {
-                DnsDatagram response = await dnsServer.DirectQueryAsync(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.A, DnsClass.IN));
-                if (response.Answer.Count > 0)
-                {
-                    IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseA(response);
-                    foreach (IPAddress address in addresses)
-                        outNameServers.Add(new NameServerAddress(nsDomain, new IPEndPoint(address, port), protocol));
-                }
-            }
-            catch
-            { }
-
-            if (dnsServer.PreferIPv6)
-            {
-                try
-                {
-                    DnsDatagram response = await dnsServer.DirectQueryAsync(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.AAAA, DnsClass.IN));
-                    if (response.Answer.Count > 0)
-                    {
-                        IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseAAAA(response);
-                        foreach (IPAddress address in addresses)
-                            outNameServers.Add(new NameServerAddress(nsDomain, new IPEndPoint(address, port), protocol));
-                    }
-                }
-                catch
-                { }
-            }
-        }
-
-        private static Task ResolveNameServerAddressesAsync(DnsServer dnsServer, DnsResourceRecord nsRecord, List<NameServerAddress> outNameServers)
-        {
-            string nsDomain = (nsRecord.RDATA as DnsNSRecordData).NameServer;
-
-            IReadOnlyList<DnsResourceRecord> glueRecords = nsRecord.GetAuthNSRecordInfo().GlueRecords;
-            if (glueRecords is not null)
-            {
-                foreach (DnsResourceRecord glueRecord in glueRecords)
-                {
-                    switch (glueRecord.Type)
-                    {
-                        case DnsResourceRecordType.A:
-                            outNameServers.Add(new NameServerAddress(nsDomain, (glueRecord.RDATA as DnsARecordData).Address));
-                            break;
-
-                        case DnsResourceRecordType.AAAA:
-                            if (dnsServer.PreferIPv6)
-                                outNameServers.Add(new NameServerAddress(nsDomain, (glueRecord.RDATA as DnsAAAARecordData).Address));
-
-                            break;
-                    }
-                }
-
-                return Task.CompletedTask;
-            }
-            else
-            {
-                return ResolveNameServerAddressesAsync(dnsServer, nsDomain, 53, DnsTransportProtocol.Udp, outNameServers);
-            }
-        }
-
-        internal virtual void UpdateDnssecStatus()
-        {
-            if (!_entries.ContainsKey(DnsResourceRecordType.DNSKEY))
-                _dnssecStatus = AuthZoneDnssecStatus.Unsigned;
-            else if (_entries.ContainsKey(DnsResourceRecordType.NSEC3PARAM))
-                _dnssecStatus = AuthZoneDnssecStatus.SignedWithNSEC3;
-            else
-                _dnssecStatus = AuthZoneDnssecStatus.SignedWithNSEC;
-        }
-
-        #endregion
-
-        #region public
-
-        public IReadOnlyList<DnsResourceRecord> GetZoneHistory()
-        {
-            lock (_zoneHistory)
-            {
-                return _zoneHistory.ToArray();
-            }
-        }
-
         public void TriggerNotify()
         {
             if (_disabled)
                 return;
 
-            if (_notify == AuthZoneNotify.None)
+            ApexZone apexZone = this;
+
+            if ((apexZone.CatalogZone is not null) && !apexZone.OverrideCatalogNotify)
+                apexZone = apexZone.CatalogZone;
+
+            if (apexZone._notify == AuthZoneNotify.None)
             {
                 if (_notifyFailed is not null)
                 {
@@ -530,26 +456,523 @@ namespace DnsServerCore.Dns.Zones
             _notifyTimerTriggered = true;
         }
 
-        public async Task<IReadOnlyList<NameServerAddress>> GetPrimaryNameServerAddressesAsync(DnsServer dnsServer)
+        #endregion
+
+        #region record expiry
+
+        protected void InitRecordExpiry()
         {
-            DnsResourceRecord soaRecord = _entries[DnsResourceRecordType.SOA][0];
+            _recordExpiryTimer = new Timer(RecordExpiryTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
+        }
 
-            IReadOnlyList<NameServerAddress> primaryNameServers = soaRecord.GetAuthSOARecordInfo().PrimaryNameServers;
-            if (primaryNameServers is not null)
+        private uint GetMinRecordExpiryTtl(uint minExpiryTtl)
+        {
+            if (!_recordExpiryTimerRunning)
+                return Math.Min(minExpiryTtl, uint.MaxValue / 1000);
+
+            uint elapsedSeconds = Convert.ToUInt32((DateTime.UtcNow - _recordExpiryTimerStartedOn).TotalSeconds);
+            if (elapsedSeconds >= _recordExpiryTimerTtl)
+                return 0u;
+
+            uint pendingExpiryTtl = _recordExpiryTimerTtl - elapsedSeconds;
+
+            return Math.Min(Math.Min(pendingExpiryTtl, minExpiryTtl), uint.MaxValue / 1000);
+        }
+
+        public void StartRecordExpiryTimer(uint minExpiryTtl)
+        {
+            lock (_recordExpiryTimerLock)
             {
-                List<NameServerAddress> resolvedNameServers = new List<NameServerAddress>(primaryNameServers.Count * 2);
-
-                foreach (NameServerAddress nameServer in primaryNameServers)
+                if (_recordExpiryTimer is not null)
                 {
-                    if (nameServer.IsIPEndPointStale)
-                        await ResolveNameServerAddressesAsync(dnsServer, nameServer.Host, nameServer.Port, nameServer.Protocol, resolvedNameServers);
-                    else
-                        resolvedNameServers.Add(nameServer);
+                    uint minTtl = GetMinRecordExpiryTtl(minExpiryTtl);
+
+                    _recordExpiryTimer.Change(minTtl * 1000, Timeout.Infinite);
+                    _recordExpiryTimerStartedOn = DateTime.UtcNow;
+                    _recordExpiryTimerTtl = minTtl;
+                    _recordExpiryTimerRunning = true;
+                }
+            }
+        }
+
+        private void RecordExpiryTimerCallback(object state)
+        {
+            _recordExpiryTimerRunning = false;
+            uint minExpiryTtl = 0u;
+
+            try
+            {
+                IReadOnlyList<AuthZone> authZones = _dnsServer.AuthZoneManager.GetApexZoneWithSubDomainZones(_name);
+                bool recordsDeleted = false;
+
+                foreach (AuthZone authZone in authZones)
+                {
+                    foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in authZone.Entries)
+                    {
+                        foreach (DnsResourceRecord record in entry.Value)
+                        {
+                            GenericRecordInfo recordInfo = record.GetAuthGenericRecordInfo();
+                            if (recordInfo.ExpiryTtl > 0u)
+                            {
+                                uint pendingExpiryTtl = recordInfo.GetPendingExpiryTtl();
+                                if (pendingExpiryTtl == 0u)
+                                {
+                                    if (_dnsServer.AuthZoneManager.DeleteRecord(_name, record))
+                                        recordsDeleted = true;
+                                }
+                                else
+                                {
+                                    if (minExpiryTtl == 0u)
+                                        minExpiryTtl = pendingExpiryTtl;
+                                    else
+                                        minExpiryTtl = Math.Min(minExpiryTtl, pendingExpiryTtl);
+                                }
+                            }
+                        }
+                    }
                 }
 
-                return resolvedNameServers;
+                if (recordsDeleted)
+                    _dnsServer.AuthZoneManager.SaveZoneFile(_name);
+            }
+            catch (Exception ex)
+            {
+                _dnsServer.LogManager?.Write(ex);
+            }
+            finally
+            {
+                if (minExpiryTtl > 0u)
+                    StartRecordExpiryTimer(minExpiryTtl);
+            }
+        }
+
+        #endregion
+
+        #region internal
+
+        internal virtual void UpdateDnssecStatus()
+        {
+            if (!_entries.ContainsKey(DnsResourceRecordType.DNSKEY))
+                _dnssecStatus = AuthZoneDnssecStatus.Unsigned;
+            else if (_entries.ContainsKey(DnsResourceRecordType.NSEC3PARAM))
+                _dnssecStatus = AuthZoneDnssecStatus.SignedWithNSEC3;
+            else
+                _dnssecStatus = AuthZoneDnssecStatus.SignedWithNSEC;
+        }
+
+        #endregion
+
+        #region versioning
+
+        internal virtual void CommitAndIncrementSerial(IReadOnlyList<DnsResourceRecord> deletedRecords = null, IReadOnlyList<DnsResourceRecord> addedRecords = null)
+        {
+            _lastModified = DateTime.UtcNow;
+
+            if (addedRecords is not null)
+            {
+                uint minExpiryTtl = 0u;
+
+                foreach (DnsResourceRecord addedRecord in addedRecords)
+                {
+                    uint expiryTtl = addedRecord.GetAuthGenericRecordInfo().ExpiryTtl;
+                    if (expiryTtl > 0u)
+                    {
+                        if (minExpiryTtl == 0u)
+                            minExpiryTtl = expiryTtl;
+                        else
+                            minExpiryTtl = Math.Min(minExpiryTtl, expiryTtl);
+                    }
+                }
+
+                if (minExpiryTtl > 0u)
+                    StartRecordExpiryTimer(minExpiryTtl);
             }
 
+            lock (_zoneHistory)
+            {
+                DnsResourceRecord oldSoaRecord = _entries[DnsResourceRecordType.SOA][0];
+                DnsResourceRecord newSoaRecord;
+                {
+                    DnsSOARecordData oldSoa = oldSoaRecord.RDATA as DnsSOARecordData;
+
+                    if ((addedRecords is not null) && (addedRecords.Count == 1) && (addedRecords[0].Type == DnsResourceRecordType.SOA))
+                    {
+                        DnsResourceRecord addSoaRecord = addedRecords[0];
+                        DnsSOARecordData addSoa = addSoaRecord.RDATA as DnsSOARecordData;
+
+                        uint serial = GetNewSerial(oldSoa.Serial, addSoa.Serial, addSoaRecord.GetAuthSOARecordInfo().UseSoaSerialDateScheme);
+
+                        newSoaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, addSoaRecord.TTL, new DnsSOARecordData(addSoa.PrimaryNameServer, addSoa.ResponsiblePerson, serial, addSoa.Refresh, addSoa.Retry, addSoa.Expire, addSoa.Minimum)) { Tag = addSoaRecord.Tag };
+                        addedRecords = null;
+                    }
+                    else
+                    {
+                        uint serial = GetNewSerial(oldSoa.Serial, 0, oldSoaRecord.GetAuthSOARecordInfo().UseSoaSerialDateScheme);
+
+                        newSoaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, oldSoaRecord.TTL, new DnsSOARecordData(oldSoa.PrimaryNameServer, oldSoa.ResponsiblePerson, serial, oldSoa.Refresh, oldSoa.Retry, oldSoa.Expire, oldSoa.Minimum)) { Tag = oldSoaRecord.Tag };
+                    }
+                }
+
+                DnsResourceRecord[] newSoaRecords = [newSoaRecord];
+
+                //update SOA
+                _entries[DnsResourceRecordType.SOA] = newSoaRecords;
+
+                IReadOnlyList<DnsResourceRecord> newRRSigRecords = null;
+                IReadOnlyList<DnsResourceRecord> deletedRRSigRecords = null;
+
+                if (_dnssecStatus != AuthZoneDnssecStatus.Unsigned)
+                {
+                    //sign SOA and update RRSig
+                    newRRSigRecords = SignRRSet(newSoaRecords);
+                    AddOrUpdateRRSigRecords(newRRSigRecords, out deletedRRSigRecords);
+                }
+
+                //remove RR info from old SOA to allow creating new history RR info for setting DeletedOn
+                oldSoaRecord.Tag = null;
+
+                //start commit
+                oldSoaRecord.GetAuthHistoryRecordInfo().DeletedOn = DateTime.UtcNow;
+
+                //write removed
+                _zoneHistory.Add(oldSoaRecord);
+
+                if (deletedRecords is not null)
+                {
+                    foreach (DnsResourceRecord deletedRecord in deletedRecords)
+                    {
+                        if (deletedRecord.GetAuthGenericRecordInfo().Disabled)
+                            continue;
+
+                        _zoneHistory.Add(deletedRecord);
+
+                        if (deletedRecord.Type == DnsResourceRecordType.NS)
+                        {
+                            IReadOnlyList<DnsResourceRecord> glueRecords = deletedRecord.GetAuthNSRecordInfo().GlueRecords;
+                            if (glueRecords is not null)
+                                _zoneHistory.AddRange(glueRecords);
+                        }
+                    }
+                }
+
+                if (deletedRRSigRecords is not null)
+                    _zoneHistory.AddRange(deletedRRSigRecords);
+
+                //write added
+                _zoneHistory.Add(newSoaRecord);
+
+                if (addedRecords is not null)
+                {
+                    foreach (DnsResourceRecord addedRecord in addedRecords)
+                    {
+                        if (addedRecord.GetAuthGenericRecordInfo().Disabled)
+                            continue;
+
+                        _zoneHistory.Add(addedRecord);
+
+                        if (addedRecord.Type == DnsResourceRecordType.NS)
+                        {
+                            IReadOnlyList<DnsResourceRecord> glueRecords = addedRecord.GetAuthNSRecordInfo().GlueRecords;
+                            if (glueRecords is not null)
+                                _zoneHistory.AddRange(glueRecords);
+                        }
+                    }
+                }
+
+                if (newRRSigRecords is not null)
+                    _zoneHistory.AddRange(newRRSigRecords);
+
+                //end commit
+
+                CleanupHistory();
+            }
+        }
+
+        protected static uint GetNewSerial(uint oldSerial, uint updateSerial, bool useSoaSerialDateScheme)
+        {
+            if (useSoaSerialDateScheme)
+            {
+                string strOldSerial = oldSerial.ToString();
+                string strOldSerialDate = null;
+                byte counter = 0;
+
+                if (strOldSerial.Length == 10)
+                {
+                    //parse old serial
+                    strOldSerialDate = strOldSerial.Substring(0, 8);
+                    counter = byte.Parse(strOldSerial.Substring(8));
+                }
+
+                string strSerialDate = DateTime.UtcNow.ToString("yyyyMMdd");
+
+                if (strOldSerialDate is null)
+                {
+                    //transitioning to date scheme
+                    return uint.Parse(strSerialDate + counter.ToString().PadLeft(2, '0'));
+                }
+                else if (strSerialDate.Equals(strOldSerialDate))
+                {
+                    //same date
+                    if (counter < 99)
+                    {
+                        counter++;
+                        return uint.Parse(strSerialDate + counter.ToString().PadLeft(2, '0'));
+                    }
+                    else
+                    {
+                        //more than 100 increments
+                        return uint.Parse(strSerialDate + counter.ToString().PadLeft(2, '0')) + 1;
+                    }
+                }
+                else if (uint.Parse(strSerialDate) > uint.Parse(strOldSerialDate))
+                {
+                    //later date
+                    return uint.Parse(strSerialDate + "00");
+                }
+            }
+
+            //default
+            uint serial = oldSerial;
+
+            if (updateSerial > serial)
+                serial = updateSerial;
+            else if (serial < uint.MaxValue)
+                serial++;
+            else
+                serial = 1;
+
+            return serial;
+        }
+
+        internal void SetSoaSerial(uint newSerial)
+        {
+            lock (_zoneHistory)
+            {
+                DnsResourceRecord oldSoaRecord = _entries[DnsResourceRecordType.SOA][0];
+                DnsSOARecordData oldSoa = oldSoaRecord.RDATA as DnsSOARecordData;
+
+                DnsResourceRecord newSoaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, oldSoaRecord.TTL, new DnsSOARecordData(oldSoa.PrimaryNameServer, oldSoa.ResponsiblePerson, newSerial, oldSoa.Refresh, oldSoa.Retry, oldSoa.Expire, oldSoa.Minimum)) { Tag = oldSoaRecord.Tag };
+                DnsResourceRecord[] newSoaRecords = [newSoaRecord];
+
+                //update SOA
+                _entries[DnsResourceRecordType.SOA] = newSoaRecords;
+
+                //clear history
+                _zoneHistory.Clear();
+            }
+        }
+
+        public IReadOnlyList<DnsResourceRecord> GetZoneHistory()
+        {
+            lock (_zoneHistory)
+            {
+                return _zoneHistory.ToArray();
+            }
+        }
+
+        protected void CleanupHistory()
+        {
+            DnsSOARecordData soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
+            DateTime expiry = DateTime.UtcNow.AddSeconds(-soa.Expire);
+            int index = 0;
+
+            while (index < _zoneHistory.Count)
+            {
+                //check difference sequence
+                if (_zoneHistory[index].GetAuthHistoryRecordInfo().DeletedOn > expiry)
+                    break; //found record to keep
+
+                //skip to next difference sequence
+                index++;
+                int soaCount = 1;
+
+                while (index < _zoneHistory.Count)
+                {
+                    if (_zoneHistory[index].Type == DnsResourceRecordType.SOA)
+                    {
+                        soaCount++;
+
+                        if (soaCount == 3)
+                            break;
+                    }
+
+                    index++;
+                }
+            }
+
+            if (index == _zoneHistory.Count)
+            {
+                //delete entire history
+                _zoneHistory.Clear();
+                return;
+            }
+
+            //remove expired records
+            _zoneHistory.RemoveRange(0, index);
+        }
+
+        protected void CommitZoneHistory(IReadOnlyList<DnsResourceRecord> historyRecords)
+        {
+            lock (_zoneHistory)
+            {
+                historyRecords[0].GetAuthHistoryRecordInfo().DeletedOn = DateTime.UtcNow;
+
+                //write history
+                _zoneHistory.AddRange(historyRecords);
+
+                CleanupHistory();
+            }
+        }
+
+        protected void ClearZoneHistory()
+        {
+            lock (_zoneHistory)
+            {
+                _zoneHistory.Clear();
+            }
+        }
+
+        #endregion
+
+        #region catalog zone
+
+        private IReadOnlyCollection<NetworkAccessControl> GetQueryAccessACL()
+        {
+            switch (_queryAccess)
+            {
+                case AuthZoneQueryAccess.Allow:
+                    return [
+                                new NetworkAccessControl(IPAddress.Any, 0),
+                                new NetworkAccessControl(IPAddress.IPv6Any, 0)
+                           ];
+
+                case AuthZoneQueryAccess.AllowOnlyPrivateNetworks:
+                    return [
+                                new NetworkAccessControl(IPAddress.Parse("127.0.0.0"), 8),
+                                new NetworkAccessControl(IPAddress.Parse("10.0.0.0"), 8),
+                                new NetworkAccessControl(IPAddress.Parse("100.64.0.0"), 10),
+                                new NetworkAccessControl(IPAddress.Parse("169.254.0.0"), 16),
+                                new NetworkAccessControl(IPAddress.Parse("172.16.0.0"), 12),
+                                new NetworkAccessControl(IPAddress.Parse("192.168.0.0"), 16),
+                                new NetworkAccessControl(IPAddress.Parse("2000::"), 3, true),
+                                new NetworkAccessControl(IPAddress.IPv6Any, 0)
+                           ];
+
+                case AuthZoneQueryAccess.AllowOnlyZoneNameServers:
+                    return [
+                                new NetworkAccessControl(IPAddress.Parse("224.0.0.0"), 32)
+                           ];
+
+                case AuthZoneQueryAccess.UseSpecifiedNetworkACL:
+                    return _queryAccessNetworkACL;
+
+                case AuthZoneQueryAccess.AllowZoneNameServersAndUseSpecifiedNetworkACL:
+                    if (_queryAccessNetworkACL is null)
+                    {
+                        return [
+                                    new NetworkAccessControl(IPAddress.Parse("224.0.0.0"), 32)
+                                ];
+                    }
+
+                    return [
+                                new NetworkAccessControl(IPAddress.Parse("224.0.0.0"), 32),
+                                .._queryAccessNetworkACL
+                           ];
+
+                case AuthZoneQueryAccess.Deny:
+                default:
+                    return [
+                                new NetworkAccessControl(IPAddress.Parse("127.0.0.0"), 8),
+                                new NetworkAccessControl(IPAddress.Parse("::1"), 128)
+                           ];
+            }
+        }
+
+        private IReadOnlyCollection<NetworkAccessControl> GetZoneTranferACL()
+        {
+            switch (_zoneTransfer)
+            {
+                case AuthZoneTransfer.Allow:
+                    return [
+                                new NetworkAccessControl(IPAddress.Any, 0),
+                                new NetworkAccessControl(IPAddress.IPv6Any, 0)
+                           ];
+
+                case AuthZoneTransfer.AllowOnlyZoneNameServers:
+                    return [
+                                new NetworkAccessControl(IPAddress.Parse("224.0.0.0"), 32)
+                           ];
+
+                case AuthZoneTransfer.UseSpecifiedNetworkACL:
+                    return _zoneTransferNetworkACL;
+
+                case AuthZoneTransfer.AllowZoneNameServersAndUseSpecifiedNetworkACL:
+                    if (_zoneTransferNetworkACL is null)
+                    {
+                        return [
+                                    new NetworkAccessControl(IPAddress.Parse("224.0.0.0"), 32)
+                                ];
+                    }
+
+                    return [
+                                new NetworkAccessControl(IPAddress.Parse("224.0.0.0"), 32),
+                                .._zoneTransferNetworkACL
+                           ];
+
+                case AuthZoneTransfer.Deny:
+                default:
+                    return [
+                                new NetworkAccessControl(IPAddress.Any, 0, true),
+                                new NetworkAccessControl(IPAddress.IPv6Any, 0, true)
+                           ];
+            }
+        }
+
+        #endregion
+
+        #region public
+
+        public uint GetZoneSoaMinimum()
+        {
+            return (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).Minimum;
+        }
+
+        public uint GetZoneSoaExpire()
+        {
+            return (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).Expire;
+        }
+
+        public uint GetZoneSoaSerial()
+        {
+            return (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).Serial;
+        }
+
+        public abstract string GetZoneTypeName();
+
+        public override string ToString()
+        {
+            return _name.Length == 0 ? "<root>" : _name;
+        }
+
+        #endregion
+
+        #region name server address resolution
+
+        public async Task<IReadOnlyList<NameServerAddress>> GetResolvedPrimaryNameServerAddressesAsync()
+        {
+            IReadOnlyList<NameServerAddress> primaryNameServers;
+
+            if (this is SecondaryZone secondary)
+                primaryNameServers = secondary.PrimaryNameServerAddresses;
+            else if (this is StubZone stub)
+                primaryNameServers = stub.PrimaryNameServerAddresses;
+            else
+                primaryNameServers = null;
+
+            if (primaryNameServers is not null)
+                return await GetResolvedNameServerAddressesAsync(primaryNameServers);
+
+            DnsResourceRecord soaRecord = _entries[DnsResourceRecordType.SOA][0];
             string primaryNameServer = (soaRecord.RDATA as DnsSOARecordData).PrimaryNameServer;
             IReadOnlyList<DnsResourceRecord> nsRecords = GetRecords(DnsResourceRecordType.NS); //stub zone has no authority so cant use QueryRecords
 
@@ -563,18 +986,18 @@ namespace DnsServerCore.Dns.Zones
                 if (primaryNameServer.Equals((nsRecord.RDATA as DnsNSRecordData).NameServer, StringComparison.OrdinalIgnoreCase))
                 {
                     //found primary NS
-                    await ResolveNameServerAddressesAsync(dnsServer, nsRecord, nameServers);
+                    await ResolveNameServerAddressesAsync(nsRecord, nameServers);
                     break;
                 }
             }
 
             if (nameServers.Count < 1)
-                await ResolveNameServerAddressesAsync(dnsServer, primaryNameServer, 53, DnsTransportProtocol.Udp, nameServers);
+                await ResolveNameServerAddressesAsync(primaryNameServer, 53, DnsTransportProtocol.Udp, nameServers);
 
             return nameServers;
         }
 
-        public async Task<IReadOnlyList<NameServerAddress>> GetSecondaryNameServerAddressesAsync(DnsServer dnsServer)
+        public async Task<IReadOnlyList<NameServerAddress>> GetResolvedSecondaryNameServerAddressesAsync()
         {
             string primaryNameServer = (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).PrimaryNameServer;
             IReadOnlyList<DnsResourceRecord> nsRecords = GetRecords(DnsResourceRecordType.NS); //stub zone has no authority so cant use QueryRecords
@@ -589,31 +1012,256 @@ namespace DnsServerCore.Dns.Zones
                 if (primaryNameServer.Equals((nsRecord.RDATA as DnsNSRecordData).NameServer, StringComparison.OrdinalIgnoreCase))
                     continue; //skip primary name server
 
-                await ResolveNameServerAddressesAsync(dnsServer, nsRecord, nameServers);
+                await ResolveNameServerAddressesAsync(nsRecord, nameServers);
             }
 
             return nameServers;
+        }
+
+        public async Task<IReadOnlyList<NameServerAddress>> GetAllResolvedNameServerAddressesAsync()
+        {
+            IReadOnlyList<DnsResourceRecord> nsRecords = GetRecords(DnsResourceRecordType.NS); //stub zone has no authority so cant use QueryRecords
+
+            List<NameServerAddress> nameServers = new List<NameServerAddress>(nsRecords.Count * 2);
+
+            foreach (DnsResourceRecord nsRecord in nsRecords)
+            {
+                if (nsRecord.GetAuthGenericRecordInfo().Disabled)
+                    continue;
+
+                await ResolveNameServerAddressesAsync(nsRecord, nameServers);
+            }
+
+            return nameServers;
+        }
+
+        public async Task<IReadOnlyList<NameServerAddress>> GetResolvedNameServerAddressesAsync(IReadOnlyList<NameServerAddress> nameServers)
+        {
+            List<NameServerAddress> resolvedNameServers = new List<NameServerAddress>(nameServers.Count * 2);
+
+            foreach (NameServerAddress nameServer in nameServers)
+            {
+                if (nameServer.IsIPEndPointStale)
+                    await ResolveNameServerAddressesAsync(nameServer.Host, nameServer.Port, nameServer.Protocol, resolvedNameServers);
+                else
+                    resolvedNameServers.Add(nameServer);
+            }
+
+            return resolvedNameServers;
+        }
+
+        private async Task ResolveNameServerAddressesAsync(string nsDomain, int port, DnsTransportProtocol protocol, List<NameServerAddress> outNameServers)
+        {
+            try
+            {
+                DnsDatagram response = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.A, DnsClass.IN));
+                if (response.Answer.Count > 0)
+                {
+                    IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseA(response);
+                    foreach (IPAddress address in addresses)
+                        outNameServers.Add(new NameServerAddress(nsDomain, new IPEndPoint(address, port), protocol));
+                }
+            }
+            catch
+            { }
+
+            if (_dnsServer.PreferIPv6)
+            {
+                try
+                {
+                    DnsDatagram response = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.AAAA, DnsClass.IN));
+                    if (response.Answer.Count > 0)
+                    {
+                        IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseAAAA(response);
+                        foreach (IPAddress address in addresses)
+                            outNameServers.Add(new NameServerAddress(nsDomain, new IPEndPoint(address, port), protocol));
+                    }
+                }
+                catch
+                { }
+            }
+        }
+
+        private Task ResolveNameServerAddressesAsync(DnsResourceRecord nsRecord, List<NameServerAddress> outNameServers)
+        {
+            string nsDomain = (nsRecord.RDATA as DnsNSRecordData).NameServer;
+
+            IReadOnlyList<DnsResourceRecord> glueRecords = nsRecord.GetAuthNSRecordInfo().GlueRecords;
+            if (glueRecords is not null)
+            {
+                foreach (DnsResourceRecord glueRecord in glueRecords)
+                {
+                    switch (glueRecord.Type)
+                    {
+                        case DnsResourceRecordType.A:
+                            outNameServers.Add(new NameServerAddress(nsDomain, (glueRecord.RDATA as DnsARecordData).Address));
+                            break;
+
+                        case DnsResourceRecordType.AAAA:
+                            if (_dnsServer.PreferIPv6)
+                                outNameServers.Add(new NameServerAddress(nsDomain, (glueRecord.RDATA as DnsAAAARecordData).Address));
+
+                            break;
+                    }
+                }
+
+                return Task.CompletedTask;
+            }
+            else
+            {
+                return ResolveNameServerAddressesAsync(nsDomain, 53, DnsTransportProtocol.Udp, outNameServers);
+            }
         }
 
         #endregion
 
         #region properties
 
-        public virtual AuthZoneTransfer ZoneTransfer
+        public DateTime LastModified
+        { get { return _lastModified; } }
+
+        public virtual string CatalogZoneName
         {
-            get { return _zoneTransfer; }
-            set { _zoneTransfer = value; }
+            get { return _catalogZoneName; }
+            set
+            {
+                if (string.IsNullOrEmpty(value))
+                    _catalogZoneName = null;
+                else
+                    _catalogZoneName = value;
+
+                //reset
+                _catalogZone = null;
+                _isSecondaryCatalogMember = false;
+            }
         }
 
-        public IReadOnlyCollection<NetworkAddress> ZoneTransferNameServers
+        public virtual bool OverrideCatalogQueryAccess
         {
-            get { return _zoneTransferNameServers; }
+            get { return _overrideCatalogQueryAccess; }
+            set { _overrideCatalogQueryAccess = value; }
+        }
+
+        public virtual bool OverrideCatalogZoneTransfer
+        {
+            get { return _overrideCatalogZoneTransfer; }
+            set { _overrideCatalogZoneTransfer = value; }
+        }
+
+        public virtual bool OverrideCatalogNotify
+        {
+            get { return _overrideCatalogNotify; }
+            set { _overrideCatalogNotify = value; }
+        }
+
+        public virtual AuthZoneQueryAccess QueryAccess
+        {
+            get { return _queryAccess; }
+            set
+            {
+                _queryAccess = value;
+
+                //update catalog zone property
+                if (this is CatalogZone thisCatalogZone)
+                {
+                    //update global property
+                    thisCatalogZone.SetAllowQueryProperty(GetQueryAccessACL());
+                }
+                else if ((this is PrimaryZone) || (this is StubZone) || (this is ForwarderZone))
+                {
+                    if (CatalogZone is not null)
+                    {
+                        if (_overrideCatalogQueryAccess)
+                            CatalogZone.SetAllowQueryProperty(GetQueryAccessACL(), _name); //update member zone property
+                        else
+                            CatalogZone.SetAllowQueryProperty(null, _name); //remove member zone property
+                    }
+                }
+            }
+        }
+
+        public IReadOnlyCollection<NetworkAccessControl> QueryAccessNetworkACL
+        {
+            get { return _queryAccessNetworkACL; }
             set
             {
                 if ((value is not null) && (value.Count > byte.MaxValue))
-                    throw new ArgumentOutOfRangeException(nameof(ZoneTransferNameServers), "Name server addresses cannot be more than 255.");
+                    throw new ArgumentOutOfRangeException(nameof(QueryAccessNetworkACL), "Network ACL cannot have more than 255 entries.");
 
-                _zoneTransferNameServers = value;
+                if ((value is null) || (value.Count == 0))
+                    _queryAccessNetworkACL = null;
+                else
+                    _queryAccessNetworkACL = value;
+            }
+        }
+
+        public virtual AuthZoneTransfer ZoneTransfer
+        {
+            get { return _zoneTransfer; }
+            set
+            {
+                _zoneTransfer = value;
+
+                //update catalog zone property
+                if (this is CatalogZone thisCatalogZone)
+                {
+                    //update global property
+                    thisCatalogZone.SetAllowTransferProperty(GetZoneTranferACL());
+                }
+                else if (this is PrimaryZone)
+                {
+                    if (CatalogZone is not null)
+                    {
+                        if (_overrideCatalogZoneTransfer)
+                            CatalogZone.SetAllowTransferProperty(GetZoneTranferACL(), _name); //update member zone property
+                        else
+                            CatalogZone.SetAllowTransferProperty(null, _name); //remove member zone property
+                    }
+                }
+            }
+        }
+
+        public IReadOnlyCollection<NetworkAccessControl> ZoneTransferNetworkACL
+        {
+            get { return _zoneTransferNetworkACL; }
+            set
+            {
+                if ((value is not null) && (value.Count > byte.MaxValue))
+                    throw new ArgumentOutOfRangeException(nameof(ZoneTransferNetworkACL), "Network ACL cannot have more than 255 entries.");
+
+                if ((value is null) || (value.Count == 0))
+                    _zoneTransferNetworkACL = null;
+                else
+                    _zoneTransferNetworkACL = value;
+            }
+        }
+
+        public IReadOnlyDictionary<string, object> ZoneTransferTsigKeyNames
+        {
+            get { return _zoneTransferTsigKeyNames; }
+            set
+            {
+                if ((value is null) || (value.Count == 0))
+                    _zoneTransferTsigKeyNames = null;
+                else
+                    _zoneTransferTsigKeyNames = value;
+
+                //update catalog zone property
+                if (this is CatalogZone thisCatalogZone)
+                {
+                    //update global property
+                    thisCatalogZone.SetZoneTransferTsigKeyNamesProperty(_zoneTransferTsigKeyNames);
+                }
+                else if (this is PrimaryZone)
+                {
+                    if (CatalogZone is not null)
+                    {
+                        if (_overrideCatalogZoneTransfer)
+                            CatalogZone.SetZoneTransferTsigKeyNamesProperty(_zoneTransferTsigKeyNames, _name); //update member zone property
+                        else
+                            CatalogZone.SetZoneTransferTsigKeyNamesProperty(null, _name); //remove member zone property
+                    }
+                }
             }
         }
 
@@ -660,25 +1308,19 @@ namespace DnsServerCore.Dns.Zones
             set { _update = value; }
         }
 
-        public IReadOnlyCollection<NetworkAddress> UpdateIpAddresses
+        public IReadOnlyCollection<NetworkAccessControl> UpdateNetworkACL
         {
-            get { return _updateIpAddresses; }
+            get { return _updateNetworkACL; }
             set
             {
                 if ((value is not null) && (value.Count > byte.MaxValue))
-                    throw new ArgumentOutOfRangeException(nameof(UpdateIpAddresses), "IP addresses cannot be more than 255.");
+                    throw new ArgumentOutOfRangeException(nameof(UpdateNetworkACL), "Network ACL cannot have more than 255 entries.");
 
-                _updateIpAddresses = value;
+                if ((value is null) || (value.Count == 0))
+                    _updateNetworkACL = null;
+                else
+                    _updateNetworkACL = value;
             }
-        }
-
-        public DateTime LastModified
-        { get { return _lastModified; } }
-
-        public IReadOnlyDictionary<string, object> ZoneTransferTsigKeyNames
-        {
-            get { return _zoneTransferTsigKeyNames; }
-            set { _zoneTransferTsigKeyNames = value; }
         }
 
         public IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> UpdateSecurityPolicies
@@ -686,6 +1328,9 @@ namespace DnsServerCore.Dns.Zones
             get { return _updateSecurityPolicies; }
             set { _updateSecurityPolicies = value; }
         }
+
+        public AuthZoneDnssecStatus DnssecStatus
+        { get { return _dnssecStatus; } }
 
         public string[] NotifyFailed
         {
@@ -707,8 +1352,35 @@ namespace DnsServerCore.Dns.Zones
         public bool SyncFailed
         { get { return _syncFailed; } }
 
-        public AuthZoneDnssecStatus DnssecStatus
-        { get { return _dnssecStatus; } }
+        public CatalogZone CatalogZone
+        {
+            get
+            {
+                if (_catalogZoneName is null)
+                    return null;
+
+                if (_isSecondaryCatalogMember)
+                    return null;
+
+                if (_catalogZone is null)
+                {
+                    if ((this is PrimaryZone) || (this is StubZone) || (this is ForwarderZone))
+                    {
+                        AuthZone authZone = _dnsServer.AuthZoneManager.GetAuthZone(_catalogZoneName, _catalogZoneName);
+                        if (authZone is CatalogZone catalogZone)
+                            _catalogZone = catalogZone;
+                        else if (this is StubZone)
+                            _isSecondaryCatalogMember = true;
+                    }
+                    else
+                    {
+                        _isSecondaryCatalogMember = true;
+                    }
+                }
+
+                return _catalogZone;
+            }
+        }
 
         #endregion
     }
