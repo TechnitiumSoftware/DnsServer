@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -131,7 +131,7 @@ namespace DnsServerCore.Auth
                             string subItemName = bR.ReadShortString();
                             Permission subItemPermission = new Permission(bR, authManager);
 
-                            _subItemPermissions.TryAdd(subItemName.ToLower(), subItemPermission);
+                            _subItemPermissions.TryAdd(subItemName.ToLowerInvariant(), subItemPermission);
                         }
                     }
 
@@ -167,7 +167,7 @@ namespace DnsServerCore.Auth
 
         public void SetSubItemPermission(string subItemName, User user, PermissionFlag flags)
         {
-            Permission subItemPermission = _subItemPermissions.GetOrAdd(subItemName.ToLower(), delegate (string key)
+            Permission subItemPermission = _subItemPermissions.GetOrAdd(subItemName.ToLowerInvariant(), delegate (string key)
             {
                 return new Permission(_section, key);
             });
@@ -196,7 +196,7 @@ namespace DnsServerCore.Auth
 
         public void SetSubItemPermission(string subItemName, Group group, PermissionFlag flags)
         {
-            Permission subItemPermission = _subItemPermissions.GetOrAdd(subItemName.ToLower(), delegate (string key)
+            Permission subItemPermission = _subItemPermissions.GetOrAdd(subItemName.ToLowerInvariant(), delegate (string key)
             {
                 return new Permission(_section, key);
             });
@@ -211,7 +211,7 @@ namespace DnsServerCore.Auth
 
         public bool RemoveSubItemPermission(string subItemName, User user)
         {
-            return _subItemPermissions.TryGetValue(subItemName.ToLower(), out Permission subItemPermission) && subItemPermission.RemovePermission(user);
+            return _subItemPermissions.TryGetValue(subItemName.ToLowerInvariant(), out Permission subItemPermission) && subItemPermission.RemovePermission(user);
         }
 
         public bool RemovePermission(Group group)
@@ -221,7 +221,7 @@ namespace DnsServerCore.Auth
 
         public bool RemoveSubItemPermission(string subItemName, Group group)
         {
-            return _subItemPermissions.TryGetValue(subItemName.ToLower(), out Permission subItemPermission) && subItemPermission.RemovePermission(group);
+            return _subItemPermissions.TryGetValue(subItemName.ToLowerInvariant(), out Permission subItemPermission) && subItemPermission.RemovePermission(group);
         }
 
         public bool RemoveAllSubItemPermissions(User user)
@@ -257,7 +257,7 @@ namespace DnsServerCore.Auth
 
         public Permission GetSubItemPermission(string subItemName)
         {
-            if (_subItemPermissions.TryGetValue(subItemName.ToLower(), out Permission subItemPermission))
+            if (_subItemPermissions.TryGetValue(subItemName.ToLowerInvariant(), out Permission subItemPermission))
                 return subItemPermission;
 
             return null;
@@ -279,7 +279,7 @@ namespace DnsServerCore.Auth
 
         public bool IsSubItemPermitted(string subItemName, User user, PermissionFlag flag)
         {
-            return _subItemPermissions.TryGetValue(subItemName.ToLower(), out Permission subItemPermission) && subItemPermission.IsPermitted(user, flag);
+            return _subItemPermissions.TryGetValue(subItemName.ToLowerInvariant(), out Permission subItemPermission) && subItemPermission.IsPermitted(user, flag);
         }
 
         public void WriteTo(BinaryWriter bW)

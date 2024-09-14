@@ -102,7 +102,7 @@ namespace DnsServerCore.Auth
                         {
                             Group group = authManager.GetGroup(bR.ReadShortString());
                             if (group is not null)
-                                _memberOfGroups.TryAdd(group.Name.ToLower(), group);
+                                _memberOfGroups.TryAdd(group.Name.ToLowerInvariant(), group);
                         }
                     }
                     break;
@@ -118,8 +118,8 @@ namespace DnsServerCore.Auth
 
         internal void RenameGroup(string oldName)
         {
-            if (_memberOfGroups.TryRemove(oldName.ToLower(), out Group renamedGroup))
-                _memberOfGroups.TryAdd(renamedGroup.Name.ToLower(), renamedGroup);
+            if (_memberOfGroups.TryRemove(oldName.ToLowerInvariant(), out Group renamedGroup))
+                _memberOfGroups.TryAdd(renamedGroup.Name.ToLowerInvariant(), renamedGroup);
         }
 
         #endregion
@@ -133,11 +133,11 @@ namespace DnsServerCore.Auth
                 case UserPasswordHashType.OldScheme:
                     using (HMAC hmac = new HMACSHA256(Encoding.UTF8.GetBytes(password)))
                     {
-                        return Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(_username))).ToLower();
+                        return Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(_username))).ToLowerInvariant();
                     }
 
                 case UserPasswordHashType.PBKDF2_SHA256:
-                    return Convert.ToHexString(Rfc2898DeriveBytes.Pbkdf2(Encoding.UTF8.GetBytes(password), _salt, _iterations, HashAlgorithmName.SHA256, 32)).ToLower();
+                    return Convert.ToHexString(Rfc2898DeriveBytes.Pbkdf2(Encoding.UTF8.GetBytes(password), _salt, _iterations, HashAlgorithmName.SHA256, 32)).ToLowerInvariant();
 
                 default:
                     throw new NotSupportedException();
@@ -178,7 +178,7 @@ namespace DnsServerCore.Auth
             if (_memberOfGroups.Count == 255)
                 throw new InvalidOperationException("Cannot add user to group: user can be member of max 255 groups.");
 
-            _memberOfGroups.TryAdd(group.Name.ToLower(), group);
+            _memberOfGroups.TryAdd(group.Name.ToLowerInvariant(), group);
         }
 
         public bool RemoveFromGroup(Group group)
@@ -186,7 +186,7 @@ namespace DnsServerCore.Auth
             if (group.Name.Equals("everyone", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Access was denied.");
 
-            return _memberOfGroups.TryRemove(group.Name.ToLower(), out _);
+            return _memberOfGroups.TryRemove(group.Name.ToLowerInvariant(), out _);
         }
 
         public void SyncGroups(IReadOnlyDictionary<string, Group> groups)
@@ -205,7 +205,7 @@ namespace DnsServerCore.Auth
 
         public bool IsMemberOfGroup(Group group)
         {
-            return _memberOfGroups.ContainsKey(group.Name.ToLower());
+            return _memberOfGroups.ContainsKey(group.Name.ToLowerInvariant());
         }
 
         public void WriteTo(BinaryWriter bW)
@@ -228,7 +228,7 @@ namespace DnsServerCore.Auth
             bW.Write(Convert.ToByte(_memberOfGroups.Count));
 
             foreach (KeyValuePair<string, Group> group in _memberOfGroups)
-                bW.WriteShortString(group.Value.Name.ToLower());
+                bW.WriteShortString(group.Value.Name.ToLowerInvariant());
         }
 
         public override bool Equals(object obj)
@@ -310,7 +310,7 @@ namespace DnsServerCore.Auth
                     throw new ArgumentException("Username can contain only alpha numeric, '-', '_', or '.' characters.", nameof(Username));
                 }
 
-                _username = value.ToLower();
+                _username = value.ToLowerInvariant();
             }
         }
 
