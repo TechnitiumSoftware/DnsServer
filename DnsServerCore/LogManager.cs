@@ -630,12 +630,20 @@ namespace DnsServerCore
             if (request.Question.Count > 0)
                 q = request.Question[0];
 
-            string question;
+            string requestInfo;
 
             if (q is null)
-                question = "MISSING QUESTION!";
+                requestInfo = "MISSING QUESTION!";
             else
-                question = "QNAME: " + q.Name + "; QTYPE: " + q.Type.ToString() + "; QCLASS: " + q.Class;
+                requestInfo = "QNAME: " + q.Name + "; QTYPE: " + q.Type.ToString() + "; QCLASS: " + q.Class;
+
+            if (request.Additional.Count > 0)
+            {
+                DnsResourceRecord lastRR = request.Additional[request.Additional.Count - 1];
+
+                if ((lastRR.Type == DnsResourceRecordType.TSIG) && (lastRR.RDATA is DnsTSIGRecordData tsig))
+                    requestInfo += "; TSIG KeyName: " + lastRR.Name.ToLowerInvariant() + "; TSIG Algo: " + tsig.AlgorithmName + "; TSIG Error: " + tsig.Error.ToString();
+            }
 
             string responseInfo;
 
@@ -646,12 +654,6 @@ namespace DnsServerCore
             else
             {
                 responseInfo = "; RCODE: " + response.RCODE.ToString();
-
-                if ((response.Additional.Count > 0) && (response.Additional[response.Additional.Count - 1].Type == DnsResourceRecordType.TSIG))
-                {
-                    if (response.Additional[response.Additional.Count - 1].RDATA is DnsTSIGRecordData tsig)
-                        responseInfo += "; TSIG: " + tsig.Error.ToString();
-                }
 
                 string answer;
 
@@ -718,7 +720,7 @@ namespace DnsServerCore
                 responseInfo += "; ANSWER: " + answer;
             }
 
-            Write(ep, protocol, question + responseInfo);
+            Write(ep, protocol, requestInfo + responseInfo);
         }
 
         public void Write(IPEndPoint ep, DnsTransportProtocol protocol, string message)
