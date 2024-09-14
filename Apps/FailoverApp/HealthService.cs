@@ -391,7 +391,7 @@ namespace Failover
 
         public HealthCheckResponse QueryStatus(string domain, DnsResourceRecordType type, string healthCheck, Uri healthCheckUrl, bool tryAdd)
         {
-            domain = domain.ToLower();
+            domain = domain.ToLowerInvariant();
 
             string healthMonitorKey = GetHealthMonitorKey(domain, type, healthCheck, healthCheckUrl);
 

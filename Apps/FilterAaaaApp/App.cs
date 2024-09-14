@@ -30,7 +30,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace FilterAaaa
 {
-    public class App : IDnsApplication, IDnsPostProcessor
+    public sealed class App : IDnsApplication, IDnsPostProcessor
     {
         #region variables
 

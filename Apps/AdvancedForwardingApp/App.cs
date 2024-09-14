@@ -81,9 +81,9 @@ namespace AdvancedForwarding
             DnsForwarderRecordData forwarderRecord;
 
             if (configProxyServer is null)
-                forwarderRecord = new DnsForwarderRecordData(protocol, forwarder, dnssecValidation, DnsForwarderRecordProxyType.DefaultProxy, null, 0, null, null);
+                forwarderRecord = new DnsForwarderRecordData(protocol, forwarder, dnssecValidation, DnsForwarderRecordProxyType.DefaultProxy, null, 0, null, null, 0);
             else
-                forwarderRecord = new DnsForwarderRecordData(protocol, forwarder, dnssecValidation, configProxyServer.Type, configProxyServer.ProxyAddress, configProxyServer.ProxyPort, configProxyServer.ProxyUsername, configProxyServer.ProxyPassword);
+                forwarderRecord = new DnsForwarderRecordData(protocol, forwarder, dnssecValidation, configProxyServer.Type, configProxyServer.ProxyAddress, configProxyServer.ProxyPort, configProxyServer.ProxyUsername, configProxyServer.ProxyPassword, 0);
 
             return forwarderRecord;
         }
@@ -306,7 +306,7 @@ namespace AdvancedForwarding
 
             public bool TryGetForwarderRecords(string domain, out IReadOnlyList<DnsForwarderRecordData> forwarderRecords)
             {
-                domain = domain.ToLower();
+                domain = domain.ToLowerInvariant();
 
                 if ((_forwardings is not null) && (_forwardings.Count > 0) && Forwarding.TryGetForwarderRecords(domain, _forwardings, out forwarderRecords))
                     return true;
@@ -367,7 +367,7 @@ namespace AdvancedForwarding
 
                 _domainMap = jsonForwarding.ReadArrayAsMap("domains", delegate (JsonElement jsonDomain)
                 {
-                    return new Tuple<string, object>(jsonDomain.GetString().ToLower(), null);
+                    return new Tuple<string, object>(jsonDomain.GetString().ToLowerInvariant(), null);
                 });
             }
 
@@ -384,7 +384,7 @@ namespace AdvancedForwarding
                 foreach (string domain in domains)
                 {
                     if (DnsClient.IsDomainNameValid(domain))
-                        domainMap.TryAdd(domain.ToLower(), null);
+                        domainMap.TryAdd(domain.ToLowerInvariant(), null);
                 }
 
                 _domainMap = domainMap;
