@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ using System.Net.Http;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net;
@@ -342,12 +343,18 @@ namespace Failover
                                 {
                                     using (Socket socket = new Socket(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp))
                                     {
-                                        await socket.ConnectAsync(address, _port).WithTimeout(_timeout);
+                                        await TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
+                                        {
+                                            return socket.ConnectAsync(address, _port, cancellationToken1).AsTask();
+                                        }, _timeout);
                                     }
                                 }
                                 else
                                 {
-                                    using (Socket socket = await proxy.ConnectAsync(new IPEndPoint(address, _port)).WithTimeout(_timeout))
+                                    using (Socket socket = await TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
+                                        {
+                                            return proxy.ConnectAsync(new IPEndPoint(address, _port), cancellationToken1);
+                                        }, _timeout))
                                     {
                                         //do nothing
                                     }
