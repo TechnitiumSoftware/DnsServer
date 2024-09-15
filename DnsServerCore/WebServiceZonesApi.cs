@@ -4325,9 +4325,7 @@ namespace DnsServerCore
 
             recordInfo.LastModified = DateTime.UtcNow;
             recordInfo.ExpiryTtl = expiryTtl;
-
-            if (disable)
-                recordInfo.Disabled = true;
+            recordInfo.Disabled = disable;
 
             if (!string.IsNullOrEmpty(comments))
                 recordInfo.Comments = comments;
@@ -4345,7 +4343,8 @@ namespace DnsServerCore
                         break;
                 }
 
-                newRecord = zoneInfo.ApexZone.GetRecords(DnsResourceRecordType.SOA)[0]; //get updated record to return json
+                //get updated record to return json
+                newRecord = zoneInfo.ApexZone.GetRecords(DnsResourceRecordType.SOA)[0];
             }
             else
             {
