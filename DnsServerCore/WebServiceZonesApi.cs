@@ -4326,9 +4326,7 @@ namespace DnsServerCore
             recordInfo.LastModified = DateTime.UtcNow;
             recordInfo.ExpiryTtl = expiryTtl;
             recordInfo.Disabled = disable;
-
-            if (!string.IsNullOrEmpty(comments))
-                recordInfo.Comments = comments;
+            recordInfo.Comments = comments;
 
             //update record
             if (type == DnsResourceRecordType.SOA)
