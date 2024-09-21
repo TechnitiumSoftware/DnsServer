@@ -51,13 +51,13 @@ namespace DnsServerCore.Dns.Zones
                 {
                     if (!record.GetAuthGenericRecordInfo().Disabled)
                     {
-                        _disabled = false;
+                        Disabled = false;
                         return;
                     }
                 }
             }
 
-            _disabled = true;
+            Disabled = true;
         }
 
         #endregion
