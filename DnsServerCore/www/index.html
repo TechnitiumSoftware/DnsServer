@@ -479,7 +479,7 @@
                                                         <li id="lnkImportZone"><a href="#" onclick="showImportZoneModal($('#titleEditZone').attr('data-zone')); return false;">Import Zone</a></li>
                                                         <li id="lnkExportZone"><a href="#" onclick="exportZone($('#titleEditZone').attr('data-zone')); return false;">Export Zone</a></li>
                                                         <li id="lnkZoneConvert"><a href="#" onclick="showConvertZoneModal($('#titleEditZone').attr('data-zone'), $('#titleEditZone').attr('data-zone-type')); return false;">Convert Zone</a></li>
-                                                        <li id="lnkZoneOptions"><a href="#" onclick="showZoneOptionsModal($('#titleEditZone').attr('data-zone')); return false;">Zone Options</a></li>
+                                                        <li id="lnkZoneOptions"><a href="#" onclick="$('#btnSaveZoneOptions').attr('data-zones-row-id', null); showZoneOptionsModal($('#titleEditZone').attr('data-zone')); return false;">Zone Options</a></li>
                                                     </ul>
                                                 </div>
                                                 <button id="btnZonePermissions" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showZonePermissionsModal($('#titleEditZone').attr('data-zone'));">Permissions</button>
@@ -1251,7 +1251,7 @@
                                                                 <input type="number" class="form-control" id="txtListenBacklog" placeholder="100" style="width: 100px; display: inline;">
                                                                 <span>(default 100)</span>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum number of pending connections. This option applies to TCP, TLS, and QUIC transport protocols.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum number of pending inbound connections. This option applies to TCP, TLS, and QUIC transport protocols.</div>
                                                         </div>
                                                     </div>
                                                 </div>
