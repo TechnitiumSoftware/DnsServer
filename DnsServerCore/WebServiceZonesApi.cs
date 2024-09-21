@@ -2327,10 +2327,9 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Access was denied.");
 
             zoneInfo.Disabled = false;
+            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
 
             _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] " + zoneInfo.TypeName + " zone was enabled: " + zoneInfo.DisplayName);
-
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
 
             //delete cache for this zone to allow rebuilding cache data as needed by stub or forwarder zones
             _dnsWebService.DnsServer.CacheZoneManager.DeleteZone(zoneInfo.Name);
@@ -2359,10 +2358,9 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Access was denied.");
 
             zoneInfo.Disabled = true;
+            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
 
             _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] " + zoneInfo.TypeName + " zone was disabled: " + zoneInfo.DisplayName);
-
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
         }
 
         public void GetZoneOptions(HttpContext context)
@@ -2458,15 +2456,8 @@ namespace DnsServerCore
 
                     if (zoneInfo.CatalogZoneName is not null)
                     {
-                        if (zoneInfo.ApexZone.CatalogZone is null)
-                        {
-                            jsonWriter.WriteBoolean("isSecondaryCatalogMember", true);
-                        }
-                        else
-                        {
-                            jsonWriter.WriteBoolean("isSecondaryCatalogMember", false);
-                            jsonWriter.WriteBoolean("overrideCatalogQueryAccess", zoneInfo.OverrideCatalogQueryAccess);
-                        }
+                        jsonWriter.WriteBoolean("isSecondaryCatalogMember", zoneInfo.ApexZone.SecondaryCatalogZone is not null);
+                        jsonWriter.WriteBoolean("overrideCatalogQueryAccess", zoneInfo.OverrideCatalogQueryAccess);
                     }
                     break;
 
@@ -2474,12 +2465,19 @@ namespace DnsServerCore
                     jsonWriter.WriteString("catalog", zoneInfo.CatalogZoneName);
 
                     if (zoneInfo.CatalogZoneName is not null)
+                    {
+                        jsonWriter.WriteBoolean("overrideCatalogQueryAccess", zoneInfo.OverrideCatalogQueryAccess);
+                        jsonWriter.WriteBoolean("overrideCatalogZoneTransfer", zoneInfo.OverrideCatalogZoneTransfer);
                         jsonWriter.WriteBoolean("overrideCatalogPrimaryNameServers", zoneInfo.OverrideCatalogPrimaryNameServers);
-
+                    }
                     break;
 
                 case AuthZoneType.SecondaryForwarder:
                     jsonWriter.WriteString("catalog", zoneInfo.CatalogZoneName);
+
+                    if (zoneInfo.CatalogZoneName is not null)
+                        jsonWriter.WriteBoolean("overrideCatalogQueryAccess", zoneInfo.OverrideCatalogQueryAccess);
+
                     break;
             }
 
@@ -2521,34 +2519,27 @@ namespace DnsServerCore
                 jsonWriter.WriteBoolean("validateZone", zoneInfo.ValidateZone);
 
             //query access
-            switch (zoneInfo.Type)
             {
-                case AuthZoneType.Primary:
-                case AuthZoneType.Secondary:
-                case AuthZoneType.Stub:
-                case AuthZoneType.Forwarder:
-                case AuthZoneType.SecondaryForwarder:
-                case AuthZoneType.Catalog:
-                    jsonWriter.WriteString("queryAccess", zoneInfo.QueryAccess.ToString());
-                    jsonWriter.WriteStartArray("queryAccessNetworkACL");
+                jsonWriter.WriteString("queryAccess", zoneInfo.QueryAccess.ToString());
+                jsonWriter.WriteStartArray("queryAccessNetworkACL");
 
-                    if (zoneInfo.QueryAccessNetworkACL is not null)
-                    {
-                        foreach (NetworkAccessControl nac in zoneInfo.QueryAccessNetworkACL)
-                            jsonWriter.WriteStringValue(nac.ToString());
-                    }
+                if (zoneInfo.QueryAccessNetworkACL is not null)
+                {
+                    foreach (NetworkAccessControl nac in zoneInfo.QueryAccessNetworkACL)
+                        jsonWriter.WriteStringValue(nac.ToString());
+                }
 
-                    jsonWriter.WriteEndArray();
-                    break;
+                jsonWriter.WriteEndArray();
             }
 
-            //zone transfer & notify
+            //zone transfer
             switch (zoneInfo.Type)
             {
                 case AuthZoneType.Primary:
                 case AuthZoneType.Secondary:
                 case AuthZoneType.Forwarder:
                 case AuthZoneType.Catalog:
+                case AuthZoneType.SecondaryCatalog:
                     jsonWriter.WriteString("zoneTransfer", zoneInfo.ZoneTransfer.ToString());
 
                     jsonWriter.WritePropertyName("zoneTransferNetworkACL");
@@ -2577,6 +2568,16 @@ namespace DnsServerCore
                         jsonWriter.WriteEndArray();
                     }
 
+                    break;
+            }
+
+            //notify
+            switch (zoneInfo.Type)
+            {
+                case AuthZoneType.Primary:
+                case AuthZoneType.Secondary:
+                case AuthZoneType.Forwarder:
+                case AuthZoneType.Catalog:
                     jsonWriter.WriteString("notify", zoneInfo.Notify.ToString());
 
                     jsonWriter.WritePropertyName("notifyNameServers");
@@ -2740,7 +2741,7 @@ namespace DnsServerCore
 
                 case AuthZoneType.Stub:
                     {
-                        if ((zoneInfo.CatalogZoneName is not null) && (zoneInfo.ApexZone.CatalogZone is null))
+                        if (zoneInfo.ApexZone.SecondaryCatalogZone is not null)
                             break; //cannot set option for Stub zone that is a member of Secondary Catalog Zone
 
                         if (request.TryGetQueryOrForm("overrideCatalogQueryAccess", bool.Parse, out bool overrideCatalogQueryAccess))
@@ -2756,8 +2757,8 @@ namespace DnsServerCore
                 case AuthZoneType.SecondaryForwarder:
                 case AuthZoneType.SecondaryCatalog:
                     {
-                        if ((zoneInfo.CatalogZoneName is not null) && (zoneInfo.ApexZone.CatalogZone is null))
-                            break; //cannot set option for Stub zone that is a member of Secondary Catalog Zone
+                        if (zoneInfo.ApexZone.SecondaryCatalogZone is not null)
+                            break; //cannot set option for zone that is a member of Secondary Catalog Zone
 
                         if (request.TryGetQueryOrFormEnum("primaryZoneTransferProtocol", out DnsTransportProtocol primaryZoneTransferProtocol))
                         {
@@ -2801,7 +2802,7 @@ namespace DnsServerCore
 
                 case AuthZoneType.Stub:
                     {
-                        if ((zoneInfo.CatalogZoneName is not null) && (zoneInfo.ApexZone.CatalogZone is null))
+                        if (zoneInfo.ApexZone.SecondaryCatalogZone is not null)
                             break; //cannot set option for Stub zone that is a member of Secondary Catalog Zone
 
                         string primaryNameServerAddresses = request.QueryOrForm("primaryNameServerAddresses");
@@ -2830,7 +2831,7 @@ namespace DnsServerCore
 
             if (zoneInfo.Type == AuthZoneType.Secondary)
             {
-                if ((zoneInfo.CatalogZoneName is not null) && (zoneInfo.ApexZone.CatalogZone is null))
+                if (zoneInfo.ApexZone.SecondaryCatalogZone is not null)
                 {
                     //cannot set option for zone that is a member of Secondary Catalog Zone
                 }
@@ -2849,7 +2850,7 @@ namespace DnsServerCore
                 case AuthZoneType.Forwarder:
                 case AuthZoneType.SecondaryForwarder:
                 case AuthZoneType.Catalog:
-                    if ((zoneInfo.CatalogZoneName is not null) && (zoneInfo.ApexZone.CatalogZone is null))
+                    if (zoneInfo.ApexZone.SecondaryCatalogZone is not null)
                         break; //cannot set option for zone that is a member of Secondary Catalog Zone
 
                     string queryAccessNetworkACL = request.QueryOrForm("queryAccessNetworkACL");
@@ -2874,7 +2875,7 @@ namespace DnsServerCore
                 case AuthZoneType.Secondary:
                 case AuthZoneType.Forwarder:
                 case AuthZoneType.Catalog:
-                    if ((zoneInfo.CatalogZoneName is not null) && (zoneInfo.ApexZone.CatalogZone is null))
+                    if (zoneInfo.ApexZone.SecondaryCatalogZone is not null)
                         break; //cannot set option for zone that is a member of Secondary Catalog Zone
 
                     string strZoneTransferNetworkACL = request.QueryOrForm("zoneTransferNetworkACL");
@@ -3007,7 +3008,7 @@ namespace DnsServerCore
                 case AuthZoneType.Primary:
                 case AuthZoneType.Stub:
                 case AuthZoneType.Forwarder:
-                    if ((zoneInfo.Type == AuthZoneType.Stub) && (zoneInfo.CatalogZoneName is not null) && (zoneInfo.ApexZone.CatalogZone is null))
+                    if (zoneInfo.ApexZone.SecondaryCatalogZone is not null)
                         break; //cannot set option for Stub zone that is a member of Secondary Catalog Zone
 
                     string catalogZoneName = request.QueryOrForm("catalog");
@@ -3028,6 +3029,9 @@ namespace DnsServerCore
                                 _dnsWebService.DnsServer.AuthZoneManager.ChangeCatalogMemberZoneOwnership(zoneInfo, catalogZoneName);
                         }
                     }
+
+                    if (zoneInfo.ApexZone.CatalogZone is not null)
+                        _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.ApexZone.CatalogZoneName);
 
                     break;
             }
