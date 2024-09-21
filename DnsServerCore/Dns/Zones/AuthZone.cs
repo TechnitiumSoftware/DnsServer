@@ -29,7 +29,7 @@ namespace DnsServerCore.Dns.Zones
     {
         #region variables
 
-        protected bool _disabled;
+        bool _disabled;
 
         #endregion
 
