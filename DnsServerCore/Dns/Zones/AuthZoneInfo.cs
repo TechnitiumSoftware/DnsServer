@@ -510,6 +510,8 @@ namespace DnsServerCore.Dns.Zones
                                 if (_catalogZoneName.Length == 0)
                                     _catalogZoneName = null;
 
+                                _overrideCatalogQueryAccess = bR.ReadBoolean();
+                                _overrideCatalogZoneTransfer = bR.ReadBoolean();
                                 _overrideCatalogPrimaryNameServers = bR.ReadBoolean();
 
                                 _queryAccess = (AuthZoneQueryAccess)bR.ReadByte();
@@ -582,6 +584,8 @@ namespace DnsServerCore.Dns.Zones
                                 if (_catalogZoneName.Length == 0)
                                     _catalogZoneName = null;
 
+                                _overrideCatalogQueryAccess = bR.ReadBoolean();
+
                                 _queryAccess = (AuthZoneQueryAccess)bR.ReadByte();
                                 _queryAccessNetworkACL = ReadNetworkACLFrom(bR);
 
@@ -611,6 +615,13 @@ namespace DnsServerCore.Dns.Zones
                                 break;
 
                             case AuthZoneType.SecondaryCatalog:
+                                _queryAccess = (AuthZoneQueryAccess)bR.ReadByte();
+                                _queryAccessNetworkACL = ReadNetworkACLFrom(bR);
+
+                                _zoneTransfer = (AuthZoneTransfer)bR.ReadByte();
+                                _zoneTransferNetworkACL = ReadNetworkACLFrom(bR);
+                                _zoneTransferTsigKeyNames = ReadZoneTransferTsigKeyNamesFrom(bR);
+
                                 _primaryNameServerAddresses = ReadNameServerAddressesFrom(bR);
                                 _primaryZoneTransferProtocol = (DnsTransportProtocol)bR.ReadByte();
                                 _primaryZoneTransferTsigKeyName = bR.ReadShortString();
@@ -667,6 +678,13 @@ namespace DnsServerCore.Dns.Zones
             {
                 _type = AuthZoneType.SecondaryCatalog;
 
+                _queryAccess = _apexZone.QueryAccess;
+                _queryAccessNetworkACL = _apexZone.QueryAccessNetworkACL;
+
+                _zoneTransfer = _apexZone.ZoneTransfer;
+                _zoneTransferNetworkACL = _apexZone.ZoneTransferNetworkACL;
+                _zoneTransferTsigKeyNames = _apexZone.ZoneTransferTsigKeyNames;
+
                 _primaryNameServerAddresses = secondaryCatalogZone.PrimaryNameServerAddresses;
                 _primaryZoneTransferProtocol = secondaryCatalogZone.PrimaryZoneTransferProtocol;
                 _primaryZoneTransferTsigKeyName = secondaryCatalogZone.PrimaryZoneTransferTsigKeyName;
@@ -678,6 +696,7 @@ namespace DnsServerCore.Dns.Zones
                 _type = AuthZoneType.SecondaryForwarder;
 
                 _catalogZoneName = _apexZone.CatalogZoneName;
+                _overrideCatalogQueryAccess = _apexZone.OverrideCatalogQueryAccess;
 
                 _queryAccess = _apexZone.QueryAccess;
                 _queryAccessNetworkACL = _apexZone.QueryAccessNetworkACL;
@@ -696,6 +715,8 @@ namespace DnsServerCore.Dns.Zones
                 _type = AuthZoneType.Secondary;
 
                 _catalogZoneName = _apexZone.CatalogZoneName;
+                _overrideCatalogQueryAccess = _apexZone.OverrideCatalogQueryAccess;
+                _overrideCatalogZoneTransfer = _apexZone.OverrideCatalogZoneTransfer;
                 _overrideCatalogPrimaryNameServers = secondaryZone.OverrideCatalogPrimaryNameServers;
 
                 _queryAccess = _apexZone.QueryAccess;
@@ -1196,6 +1217,8 @@ namespace DnsServerCore.Dns.Zones
 
                 case AuthZoneType.Secondary:
                     bW.Write(_catalogZoneName ?? "");
+                    bW.Write(_overrideCatalogQueryAccess);
+                    bW.Write(_overrideCatalogZoneTransfer);
                     bW.Write(_overrideCatalogPrimaryNameServers);
 
                     bW.Write((byte)_queryAccess);
@@ -1257,6 +1280,7 @@ namespace DnsServerCore.Dns.Zones
 
                 case AuthZoneType.SecondaryForwarder:
                     bW.Write(_catalogZoneName ?? "");
+                    bW.Write(_overrideCatalogQueryAccess);
 
                     bW.Write((byte)_queryAccess);
                     WriteNetworkACLTo(_queryAccessNetworkACL, bW);
@@ -1285,6 +1309,13 @@ namespace DnsServerCore.Dns.Zones
                     break;
 
                 case AuthZoneType.SecondaryCatalog:
+                    bW.Write((byte)_queryAccess);
+                    WriteNetworkACLTo(_queryAccessNetworkACL, bW);
+
+                    bW.Write((byte)_zoneTransfer);
+                    WriteNetworkACLTo(_zoneTransferNetworkACL, bW);
+                    WriteZoneTransferTsigKeyNamesTo(bW);
+
                     WriteNameServerAddressesTo(_primaryNameServerAddresses, bW);
                     bW.Write((byte)_primaryZoneTransferProtocol);
                     bW.Write(_primaryZoneTransferTsigKeyName ?? "");
