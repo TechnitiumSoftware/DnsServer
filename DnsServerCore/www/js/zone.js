@@ -568,17 +568,17 @@ function refreshZones(checkDisplay, pageNumber) {
                 var nameTags;
 
                 if (zones[i].catalog != null) {
-                    nameTags = "<div><span class=\"label label-default\">" + htmlEncode(zones[i].catalog) + "</span></div>";
+                    nameTags = "<div><span id=\"tagZoneCatalogName" + id + "\" class=\"label label-default\">" + htmlEncode(zones[i].catalog) + "</span></div>";
                 }
                 else {
                     switch (zones[i].type) {
                         case "Catalog":
                         case "SecondaryCatalog":
-                            nameTags = "<div><span class=\"label label-info\">" + htmlEncode(name) + "</span></div>";
+                            nameTags = "<div><span id=\"tagZoneCatalogName" + id + "\" class=\"label label-info\">" + htmlEncode(name) + "</span></div>";
                             break;
 
                         default:
-                            nameTags = "";
+                            nameTags = "<div><span id=\"tagZoneCatalogName" + id + "\" class=\"label label-default\" style=\"display: none;\"></span></div>";
                             break;
                     }
                 }
@@ -621,7 +621,7 @@ function refreshZones(checkDisplay, pageNumber) {
                 }
 
                 if (!hideOptionsMenu) {
-                    tableHtmlRows += "<li><a href=\"#\" onclick=\"showZoneOptionsModal('" + name + "'); return false;\">Zone Options</a></li>";
+                    tableHtmlRows += "<li><a href=\"#\" onclick=\"$('#btnSaveZoneOptions').attr('data-zones-row-id', " + id + "); showZoneOptionsModal('" + name + "'); return false;\">Zone Options</a></li>";
                 }
 
                 if (!zones[i].internal) {
@@ -1178,7 +1178,13 @@ function showZoneOptionsModal(zone) {
                         $("#optZoneOptionsCatalogZoneName").html("<option selected>" + htmlEncode(responseJSON.response.catalog) + "</option>");
                         $("#optZoneOptionsCatalogZoneName").prop("disabled", true);
 
-                        $("#divZoneOptionsCatalogOverrideOptions").hide();
+                        $("#chkZoneOptionsCatalogOverrideQueryAccess").prop("checked", responseJSON.response.overrideCatalogQueryAccess);
+                        $("#chkZoneOptionsCatalogOverrideQueryAccess").prop("disabled", true);
+
+                        $("#divZoneOptionsCatalogOverrideZoneTransfer").hide();
+                        $("#divZoneOptionsCatalogOverrideNotify").hide();
+
+                        $("#divZoneOptionsCatalogOverrideOptions").show();
                         $("#divZoneOptionsGeneralCatalogZone").show();
                         $("#tabListZoneOptionsGeneral").show();
                     } else {
@@ -1203,12 +1209,39 @@ function showZoneOptionsModal(zone) {
                     break;
 
                 case "Secondary":
+                    if (responseJSON.response.catalog != null) {
+                        $("#optZoneOptionsCatalogZoneName").html("<option selected>" + htmlEncode(responseJSON.response.catalog) + "</option>");
+                        $("#optZoneOptionsCatalogZoneName").prop("disabled", true);
+
+                        $("#chkZoneOptionsCatalogOverrideQueryAccess").prop("checked", responseJSON.response.overrideCatalogQueryAccess);
+                        $("#chkZoneOptionsCatalogOverrideZoneTransfer").prop("checked", responseJSON.response.overrideCatalogZoneTransfer);
+
+                        $("#chkZoneOptionsCatalogOverrideQueryAccess").prop("disabled", true);
+                        $("#chkZoneOptionsCatalogOverrideZoneTransfer").prop("disabled", true);
+
+                        $("#divZoneOptionsCatalogOverrideZoneTransfer").show();
+                        $("#divZoneOptionsCatalogOverrideNotify").hide();
+
+                        $("#divZoneOptionsCatalogOverrideOptions").show();
+                        $("#divZoneOptionsGeneralCatalogZone").show();
+                        $("#tabListZoneOptionsGeneral").show();
+                    } else {
+                        $("#divZoneOptionsGeneralCatalogZone").hide();
+                    }
+                    break;
+
                 case "SecondaryForwarder":
                     if (responseJSON.response.catalog != null) {
                         $("#optZoneOptionsCatalogZoneName").html("<option selected>" + htmlEncode(responseJSON.response.catalog) + "</option>");
                         $("#optZoneOptionsCatalogZoneName").prop("disabled", true);
 
-                        $("#divZoneOptionsCatalogOverrideOptions").hide();
+                        $("#chkZoneOptionsCatalogOverrideQueryAccess").prop("checked", responseJSON.response.overrideCatalogQueryAccess);
+                        $("#chkZoneOptionsCatalogOverrideQueryAccess").prop("disabled", true);
+
+                        $("#divZoneOptionsCatalogOverrideZoneTransfer").hide();
+                        $("#divZoneOptionsCatalogOverrideNotify").hide();
+
+                        $("#divZoneOptionsCatalogOverrideOptions").show();
                         $("#divZoneOptionsGeneralCatalogZone").show();
                         $("#tabListZoneOptionsGeneral").show();
                     } else {
@@ -1329,70 +1362,99 @@ function showZoneOptionsModal(zone) {
             }
 
             //query access
-            switch (responseJSON.response.type) {
-                case "Primary":
-                case "Stub":
-                case "Forwarder":
-                case "Secondary":
-                case "SecondaryForwarder":
-                case "Catalog":
-                    switch (responseJSON.response.queryAccess) {
-                        case "Allow":
-                            $("#rdQueryAccessAllow").prop("checked", true);
-                            break;
+            {
+                switch (responseJSON.response.queryAccess) {
+                    case "Allow":
+                        $("#rdQueryAccessAllow").prop("checked", true);
+                        break;
 
-                        case "AllowOnlyPrivateNetworks":
-                            $("#rdQueryAccessAllowOnlyPrivateNetworks").prop("checked", true);
-                            break;
+                    case "AllowOnlyPrivateNetworks":
+                        $("#rdQueryAccessAllowOnlyPrivateNetworks").prop("checked", true);
+                        break;
 
-                        case "AllowOnlyZoneNameServers":
-                            $("#rdQueryAccessAllowOnlyZoneNameServers").prop("checked", true);
-                            break;
+                    case "AllowOnlyZoneNameServers":
+                        $("#rdQueryAccessAllowOnlyZoneNameServers").prop("checked", true);
+                        break;
 
-                        case "UseSpecifiedNetworkACL":
-                            $("#rdQueryAccessUseSpecifiedNetworkACL").prop("checked", true);
-                            $("#txtQueryAccessNetworkACL").prop("disabled", false);
-                            break;
+                    case "UseSpecifiedNetworkACL":
+                        $("#rdQueryAccessUseSpecifiedNetworkACL").prop("checked", true);
+                        $("#txtQueryAccessNetworkACL").prop("disabled", false);
+                        break;
 
-                        case "AllowZoneNameServersAndUseSpecifiedNetworkACL":
-                            $("#rdQueryAccessAllowZoneNameServersAndUseSpecifiedNetworkACL").prop("checked", true);
-                            $("#txtQueryAccessNetworkACL").prop("disabled", false);
-                            break;
+                    case "AllowZoneNameServersAndUseSpecifiedNetworkACL":
+                        $("#rdQueryAccessAllowZoneNameServersAndUseSpecifiedNetworkACL").prop("checked", true);
+                        $("#txtQueryAccessNetworkACL").prop("disabled", false);
+                        break;
 
-                        case "Deny":
-                        default:
-                            $("#rdQueryAccessDeny").prop("checked", true);
-                            break;
-                    }
+                    case "Deny":
+                    default:
+                        $("#rdQueryAccessDeny").prop("checked", true);
+                        break;
+                }
 
-                    switch (responseJSON.response.type) {
-                        case "Stub":
-                        case "Forwarder":
-                        case "SecondaryForwarder":
-                        case "Catalog":
-                            $("#divQueryAccessAllowOnlyZoneNameServers").hide();
-                            $("#divQueryAccessAllowZoneNameServersAndUseSpecifiedNetworkACL").hide();
-                            break;
+                switch (responseJSON.response.type) {
+                    case "Stub":
+                    case "Forwarder":
+                    case "SecondaryForwarder":
+                    case "Catalog":
+                    case "SecondaryCatalog":
+                        $("#divQueryAccessAllowOnlyZoneNameServers").hide();
+                        $("#divQueryAccessAllowZoneNameServersAndUseSpecifiedNetworkACL").hide();
+                        break;
 
-                        default:
-                            $("#divQueryAccessAllowOnlyZoneNameServers").show();
-                            $("#divQueryAccessAllowZoneNameServersAndUseSpecifiedNetworkACL").show();
-                            break;
-                    }
+                    default:
+                        $("#divQueryAccessAllowOnlyZoneNameServers").show();
+                        $("#divQueryAccessAllowZoneNameServersAndUseSpecifiedNetworkACL").show();
+                        break;
+                }
 
-                    {
-                        var value = "";
+                {
+                    var value = "";
 
-                        for (var i = 0; i < responseJSON.response.queryAccessNetworkACL.length; i++)
-                            value += responseJSON.response.queryAccessNetworkACL[i] + "\r\n";
+                    for (var i = 0; i < responseJSON.response.queryAccessNetworkACL.length; i++)
+                        value += responseJSON.response.queryAccessNetworkACL[i] + "\r\n";
 
-                        $("#txtQueryAccessNetworkACL").val(value);
-                    }
+                    $("#txtQueryAccessNetworkACL").val(value);
+                }
 
-                    switch (responseJSON.response.type) {
-                        case "Primary":
-                        case "Forwarder":
-                        case "Catalog":
+                switch (responseJSON.response.type) {
+                    case "Primary":
+                    case "Forwarder":
+                    case "Catalog":
+                        if ((responseJSON.response.catalog == null) || responseJSON.response.overrideCatalogQueryAccess) {
+                            $("#rdQueryAccessDeny").prop("disabled", false);
+                            $("#rdQueryAccessAllow").prop("disabled", false);
+                            $("#rdQueryAccessAllowOnlyPrivateNetworks").prop("disabled", false);
+                            $("#rdQueryAccessAllowOnlyZoneNameServers").prop("disabled", false);
+                            $("#rdQueryAccessUseSpecifiedNetworkACL").prop("disabled", false);
+                            $("#rdQueryAccessAllowZoneNameServersAndUseSpecifiedNetworkACL").prop("disabled", false);
+
+                            $("#tabListZoneOptionsQueryAccess").show();
+                        }
+                        else {
+                            $("#tabListZoneOptionsQueryAccess").hide();
+                        }
+
+                        break;
+
+                    case "Stub":
+                        if ((responseJSON.response.catalog != null) && responseJSON.response.isSecondaryCatalogMember) {
+                            if (responseJSON.response.overrideCatalogQueryAccess) {
+                                $("#rdQueryAccessDeny").prop("disabled", true);
+                                $("#rdQueryAccessAllow").prop("disabled", true);
+                                $("#rdQueryAccessAllowOnlyPrivateNetworks").prop("disabled", true);
+                                $("#rdQueryAccessAllowOnlyZoneNameServers").prop("disabled", true);
+                                $("#rdQueryAccessUseSpecifiedNetworkACL").prop("disabled", true);
+                                $("#rdQueryAccessAllowZoneNameServersAndUseSpecifiedNetworkACL").prop("disabled", true);
+                                $("#txtQueryAccessNetworkACL").prop("disabled", true);
+
+                                $("#tabListZoneOptionsQueryAccess").show();
+                            }
+                            else {
+                                $("#tabListZoneOptionsQueryAccess").hide();
+                            }
+                        }
+                        else {
                             if ((responseJSON.response.catalog == null) || responseJSON.response.overrideCatalogQueryAccess) {
                                 $("#rdQueryAccessDeny").prop("disabled", false);
                                 $("#rdQueryAccessAllow").prop("disabled", false);
@@ -1406,31 +1468,13 @@ function showZoneOptionsModal(zone) {
                             else {
                                 $("#tabListZoneOptionsQueryAccess").hide();
                             }
+                        }
 
-                            break;
+                        break;
 
-                        case "Stub":
-                            if ((responseJSON.response.catalog == null) || responseJSON.response.isSecondaryCatalogMember || responseJSON.response.overrideCatalogQueryAccess) {
-                                $("#rdQueryAccessDeny").prop("disabled", responseJSON.response.isSecondaryCatalogMember == true);
-                                $("#rdQueryAccessAllow").prop("disabled", responseJSON.response.isSecondaryCatalogMember == true);
-                                $("#rdQueryAccessAllowOnlyPrivateNetworks").prop("disabled", responseJSON.response.isSecondaryCatalogMember == true);
-                                $("#rdQueryAccessAllowOnlyZoneNameServers").prop("disabled", responseJSON.response.isSecondaryCatalogMember == true);
-                                $("#rdQueryAccessUseSpecifiedNetworkACL").prop("disabled", responseJSON.response.isSecondaryCatalogMember == true);
-                                $("#rdQueryAccessAllowZoneNameServersAndUseSpecifiedNetworkACL").prop("disabled", responseJSON.response.isSecondaryCatalogMember == true);
-
-                                if (responseJSON.response.isSecondaryCatalogMember == true)
-                                    $("#txtQueryAccessNetworkACL").prop("disabled", true);
-
-                                $("#tabListZoneOptionsQueryAccess").show();
-                            }
-                            else {
-                                $("#tabListZoneOptionsQueryAccess").hide();
-                            }
-
-                            break;
-
-                        case "Secondary":
-                        case "SecondaryForwarder":
+                    case "Secondary":
+                    case "SecondaryForwarder":
+                        if ((responseJSON.response.catalog == null) || responseJSON.response.overrideCatalogQueryAccess) {
                             $("#rdQueryAccessDeny").prop("disabled", responseJSON.response.catalog != null);
                             $("#rdQueryAccessAllow").prop("disabled", responseJSON.response.catalog != null);
                             $("#rdQueryAccessAllowOnlyPrivateNetworks").prop("disabled", responseJSON.response.catalog != null);
@@ -1442,27 +1486,38 @@ function showZoneOptionsModal(zone) {
                                 $("#txtQueryAccessNetworkACL").prop("disabled", true);
 
                             $("#tabListZoneOptionsQueryAccess").show();
-                            break;
-
-                        default:
+                        }
+                        else {
                             $("#tabListZoneOptionsQueryAccess").hide();
-                            break;
-                    }
+                        }
 
-                    break;
+                        break;
 
-                default:
-                    $("#tabListZoneOptionsQueryAccess").hide();
-                    break;
+                    case "SecondaryCatalog":
+                        $("#rdQueryAccessDeny").prop("disabled", true);
+                        $("#rdQueryAccessAllow").prop("disabled", true);
+                        $("#rdQueryAccessAllowOnlyPrivateNetworks").prop("disabled", true);
+                        $("#rdQueryAccessAllowOnlyZoneNameServers").prop("disabled", true);
+                        $("#rdQueryAccessUseSpecifiedNetworkACL").prop("disabled", true);
+                        $("#rdQueryAccessAllowZoneNameServersAndUseSpecifiedNetworkACL").prop("disabled", true);
+                        $("#txtQueryAccessNetworkACL").prop("disabled", true);
+
+                        $("#tabListZoneOptionsQueryAccess").show();
+                        break;
+
+                    default:
+                        $("#tabListZoneOptionsQueryAccess").hide();
+                        break;
+                }
             }
 
-            //zone transfer & notify
+            //zone transfer
             switch (responseJSON.response.type) {
                 case "Primary":
                 case "Secondary":
                 case "Forwarder":
                 case "Catalog":
-                    //zone transfer
+                case "SecondaryCatalog":
                     switch (responseJSON.response.zoneTransfer) {
                         case "Allow":
                             $("#rdZoneTransferAllow").prop("checked", true);
@@ -1524,6 +1579,7 @@ function showZoneOptionsModal(zone) {
                     switch (responseJSON.response.type) {
                         case "Forwarder":
                         case "Catalog":
+                        case "SecondaryCatalog":
                             $("#divZoneTransferAllowOnlyZoneNameServers").hide();
                             $("#divZoneTransferAllowZoneNameServersAndUseSpecifiedNetworkACL").hide();
                             break;
@@ -1534,7 +1590,87 @@ function showZoneOptionsModal(zone) {
                             break;
                     }
 
-                    //notify
+                    switch (responseJSON.response.type) {
+                        case "Primary":
+                        case "Forwarder":
+                            if ((responseJSON.response.catalog == null) || responseJSON.response.overrideCatalogZoneTransfer) {
+                                $("#rdZoneTransferDeny").prop("disabled", false);
+                                $("#rdZoneTransferAllow").prop("disabled", false);
+                                $("#rdZoneTransferAllowOnlyZoneNameServers").prop("disabled", false);
+                                $("#rdZoneTransferUseSpecifiedNetworkACL").prop("disabled", false);
+                                $("#rdZoneTransferAllowZoneNameServersAndUseSpecifiedNetworkACL").prop("disabled", false);
+                                $("#txtZoneOptionsZoneTransferTsigKeyNames").prop("disabled", false);
+                                $("#optZoneOptionsQuickTsigKeyNames").prop("disabled", false);
+
+                                $("#tabListZoneOptionsZoneTranfer").show();
+                            }
+                            else {
+                                $("#tabListZoneOptionsZoneTranfer").hide();
+                            }
+
+                            break;
+
+                        case "Secondary":
+                            if ((responseJSON.response.catalog == null) || responseJSON.response.overrideCatalogZoneTransfer) {
+                                $("#rdZoneTransferDeny").prop("disabled", responseJSON.response.catalog != null);
+                                $("#rdZoneTransferAllow").prop("disabled", responseJSON.response.catalog != null);
+                                $("#rdZoneTransferAllowOnlyZoneNameServers").prop("disabled", responseJSON.response.catalog != null);
+                                $("#rdZoneTransferUseSpecifiedNetworkACL").prop("disabled", responseJSON.response.catalog != null);
+                                $("#rdZoneTransferAllowZoneNameServersAndUseSpecifiedNetworkACL").prop("disabled", responseJSON.response.catalog != null);
+
+                                if (responseJSON.response.catalog != null)
+                                    $("#txtZoneTransferNetworkACL").prop("disabled", true);
+
+                                $("#txtZoneOptionsZoneTransferTsigKeyNames").prop("disabled", responseJSON.response.catalog != null);
+                                $("#optZoneOptionsQuickTsigKeyNames").prop("disabled", responseJSON.response.catalog != null);
+
+                                $("#tabListZoneOptionsZoneTranfer").show();
+                            }
+                            else {
+                                $("#tabListZoneOptionsZoneTranfer").hide();
+                            }
+
+                            break;
+
+                        case "Catalog":
+                            $("#rdZoneTransferDeny").prop("disabled", false);
+                            $("#rdZoneTransferAllow").prop("disabled", false);
+                            $("#rdZoneTransferAllowOnlyZoneNameServers").prop("disabled", false);
+                            $("#rdZoneTransferUseSpecifiedNetworkACL").prop("disabled", false);
+                            $("#rdZoneTransferAllowZoneNameServersAndUseSpecifiedNetworkACL").prop("disabled", false);
+                            $("#txtZoneOptionsZoneTransferTsigKeyNames").prop("disabled", false);
+                            $("#optZoneOptionsQuickTsigKeyNames").prop("disabled", false);
+
+                            $("#tabListZoneOptionsZoneTranfer").show();
+                            break;
+
+                        case "SecondaryCatalog":
+                            $("#rdZoneTransferDeny").prop("disabled", true);
+                            $("#rdZoneTransferAllow").prop("disabled", true);
+                            $("#rdZoneTransferAllowOnlyZoneNameServers").prop("disabled", true);
+                            $("#rdZoneTransferUseSpecifiedNetworkACL").prop("disabled", true);
+                            $("#rdZoneTransferAllowZoneNameServersAndUseSpecifiedNetworkACL").prop("disabled", true);
+                            $("#txtZoneTransferNetworkACL").prop("disabled", true);
+                            $("#txtZoneOptionsZoneTransferTsigKeyNames").prop("disabled", true);
+                            $("#optZoneOptionsQuickTsigKeyNames").prop("disabled", true);
+
+                            $("#tabListZoneOptionsZoneTranfer").show();
+                            break;
+                    }
+
+                    break;
+
+                default:
+                    $("#tabListZoneOptionsZoneTranfer").hide();
+                    break;
+            }
+
+            //notify
+            switch (responseJSON.response.type) {
+                case "Primary":
+                case "Secondary":
+                case "Forwarder":
+                case "Catalog":
                     switch (responseJSON.response.notify) {
                         case "ZoneNameServers":
                             $("#rdZoneNotifyZoneNameServers").prop("checked", true);
@@ -1575,8 +1711,10 @@ function showZoneOptionsModal(zone) {
                                 value += ", " + responseJSON.response.notifyFailedFor[i];
                         }
 
-                        $("#divZoneOptionsCatalogNotifyFailedNameServers").show();
-                        $("#lblZoneOptionsCatalogNotifyFailedNameServers").text(value);
+                        if ((responseJSON.response.catalog != null) && !responseJSON.response.overrideCatalogNotify) {
+                            $("#divZoneOptionsCatalogNotifyFailedNameServers").show();
+                            $("#lblZoneOptionsCatalogNotifyFailedNameServers").text(value);
+                        }
 
                         $("#divZoneNotifyFailedNameServers").show();
                         $("#lblZoneNotifyFailedNameServers").text(value);
@@ -1601,21 +1739,6 @@ function showZoneOptionsModal(zone) {
                     switch (responseJSON.response.type) {
                         case "Primary":
                         case "Forwarder":
-                            if ((responseJSON.response.catalog == null) || responseJSON.response.overrideCatalogZoneTransfer) {
-                                $("#rdZoneTransferDeny").prop("disabled", false);
-                                $("#rdZoneTransferAllow").prop("disabled", false);
-                                $("#rdZoneTransferAllowOnlyZoneNameServers").prop("disabled", false);
-                                $("#rdZoneTransferUseSpecifiedNetworkACL").prop("disabled", false);
-                                $("#rdZoneTransferAllowZoneNameServersAndUseSpecifiedNetworkACL").prop("disabled", false);
-                                $("#txtZoneOptionsZoneTransferTsigKeyNames").prop("disabled", false);
-                                $("#optZoneOptionsQuickTsigKeyNames").prop("disabled", false);
-
-                                $("#tabListZoneOptionsZoneTranfer").show();
-                            }
-                            else {
-                                $("#tabListZoneOptionsZoneTranfer").hide();
-                            }
-
                             if ((responseJSON.response.catalog == null) || responseJSON.response.overrideCatalogNotify)
                                 $("#tabListZoneOptionsNotify").show();
                             else
@@ -1624,40 +1747,13 @@ function showZoneOptionsModal(zone) {
                             break;
 
                         case "Secondary":
-                            $("#rdZoneTransferDeny").prop("disabled", responseJSON.response.catalog != null);
-                            $("#rdZoneTransferAllow").prop("disabled", responseJSON.response.catalog != null);
-                            $("#rdZoneTransferAllowOnlyZoneNameServers").prop("disabled", responseJSON.response.catalog != null);
-                            $("#rdZoneTransferUseSpecifiedNetworkACL").prop("disabled", responseJSON.response.catalog != null);
-                            $("#rdZoneTransferAllowZoneNameServersAndUseSpecifiedNetworkACL").prop("disabled", responseJSON.response.catalog != null);
-
-                            if (responseJSON.response.catalog != null)
-                                $("#txtZoneTransferNetworkACL").prop("disabled", true);
-
-                            $("#txtZoneOptionsZoneTransferTsigKeyNames").prop("disabled", responseJSON.response.catalog != null);
-                            $("#optZoneOptionsQuickTsigKeyNames").prop("disabled", responseJSON.response.catalog != null);
-
-                            $("#tabListZoneOptionsZoneTranfer").show();
-                            $("#tabListZoneOptionsNotify").show();
-                            break;
-
                         case "Catalog":
-                            $("#rdZoneTransferDeny").prop("disabled", false);
-                            $("#rdZoneTransferAllow").prop("disabled", false);
-                            $("#rdZoneTransferAllowOnlyZoneNameServers").prop("disabled", false);
-                            $("#rdZoneTransferUseSpecifiedNetworkACL").prop("disabled", false);
-                            $("#rdZoneTransferAllowZoneNameServersAndUseSpecifiedNetworkACL").prop("disabled", false);
-                            $("#txtZoneOptionsZoneTransferTsigKeyNames").prop("disabled", false);
-                            $("#optZoneOptionsQuickTsigKeyNames").prop("disabled", false);
-
-                            $("#tabListZoneOptionsZoneTranfer").show();
                             $("#tabListZoneOptionsNotify").show();
                             break;
                     }
-
                     break;
 
                 default:
-                    $("#tabListZoneOptionsZoneTranfer").hide();
                     $("#tabListZoneOptionsNotify").hide();
                     break;
             }
@@ -1918,25 +2014,42 @@ function saveZoneOptions() {
             btn.button("reset");
             $("#modalZoneOptions").modal("hide");
 
-            switch (zoneType) {
-                case "Catalog":
-                case "SecondaryCatalog":
-                    $("#titleEditZoneCatalog").attr("class", "label label-info");
-                    $("#titleEditZoneCatalog").text(zone);
-                    $("#titleEditZoneCatalog").show();
-                    break;
+            var zonesRowId = $("#btnSaveZoneOptions").attr("data-zones-row-id");
+            if (zonesRowId == null) {
+                switch (zoneType) {
+                    case "Catalog":
+                    case "SecondaryCatalog":
+                        break;
 
-                default:
-                    if ((catalog == null) || (catalog == "")) {
-                        $("#titleEditZoneCatalog").hide();
-                    }
-                    else {
-                        $("#titleEditZoneCatalog").attr("class", "label label-default");
-                        $("#titleEditZoneCatalog").text(catalog);
-                        $("#titleEditZoneCatalog").show();
-                    }
+                    default:
+                        if ((catalog == null) || (catalog == "")) {
+                            $("#titleEditZoneCatalog").hide();
+                        }
+                        else {
+                            $("#titleEditZoneCatalog").attr("class", "label label-default");
+                            $("#titleEditZoneCatalog").text(catalog);
+                            $("#titleEditZoneCatalog").show();
+                        }
 
-                    break;
+                        break;
+                }
+            }
+            else {
+                switch (zoneType) {
+                    case "Catalog":
+                    case "SecondaryCatalog":
+                        break;
+
+                    default:
+                        if ((catalog == null) || (catalog == "")) {
+                            $("#tagZoneCatalogName" + zonesRowId).hide();
+                        }
+                        else {
+                            $("#tagZoneCatalogName" + zonesRowId).text(catalog);
+                            $("#tagZoneCatalogName" + zonesRowId).show();
+                        }
+                        break;
+                }
             }
 
             showAlert("success", "Options Saved!", "Zone options were saved successfully.");
