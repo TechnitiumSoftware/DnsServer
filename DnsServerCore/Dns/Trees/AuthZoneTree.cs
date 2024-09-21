@@ -661,6 +661,14 @@ namespace DnsServerCore.Dns.Trees
             return null;
         }
 
+        public ApexZone GetApexZone(string zoneName)
+        {
+            if (TryGet(zoneName, out AuthZoneNode authZoneNode))
+                return authZoneNode.ApexZone;
+
+            return null;
+        }
+
         public AuthZone FindZone(string domain, out SubDomainZone closest, out SubDomainZone delegation, out ApexZone authority, out bool hasSubDomains)
         {
             byte[] key = ConvertToByteKey(domain);
