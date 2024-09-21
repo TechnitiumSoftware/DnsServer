@@ -126,18 +126,7 @@ namespace DnsServerCore.Dns.Zones
 
         protected override async Task FinalizeZoneTransferAsync()
         {
-            //secondary catalog does not maintain zone history
-            await ReProvisionZonesAsync();
-        }
-
-        protected override async Task FinalizeIncrementalZoneTransferAsync(IReadOnlyList<DnsResourceRecord> historyRecords)
-        {
-            //secondary catalog does not maintain zone history
-            await ReProvisionZonesAsync();
-        }
-
-        private async Task ReProvisionZonesAsync()
-        {
+            //secondary catalog does not maintain zone history; no need to call base method
             string version = GetVersion();
             if ((version is null) || !version.Equals("2", StringComparison.OrdinalIgnoreCase))
             {
@@ -172,8 +161,8 @@ namespace DnsServerCore.Dns.Zones
             {
                 if (_membersIndex.TryGetValue(updatedMemberEntry.Key, out _))
                 {
-                    AuthZone authZone = _dnsServer.AuthZoneManager.GetAuthZone(updatedMemberEntry.Key, updatedMemberEntry.Key);
-                    if (authZone is ApexZone)
+                    ApexZone apexZone = _dnsServer.AuthZoneManager.GetApexZone(updatedMemberEntry.Key);
+                    if (apexZone is not null)
                         continue; //zone already exists; do nothing
                 }
 
@@ -181,11 +170,157 @@ namespace DnsServerCore.Dns.Zones
                 membersToAdd.TryAdd(updatedMemberEntry.Key, updatedMemberEntry.Value);
             }
 
+            //set global custom properties
+            UpdateGlobalAllowQueryProperty();
+            UpdateGlobalAllowTransferAndTsigKeyNamesProperties();
+
+            //add and remove member zones
+            if ((membersToRemove.Count > 0) || (membersToAdd.Count > 0))
+                await AddAndRemoveMemberZonesAsync(membersToRemove, membersToAdd);
+
+            //set member zone custom properties
+            if (updatedMembersIndex.Count > 0)
+                UpdateMemberZoneCustomProperties(updatedMembersIndex);
+
+            _membersIndex = updatedMembersIndex;
+
+            _dnsServer.AuthZoneManager.SaveZoneFile(_name);
+        }
+
+        protected override async Task FinalizeIncrementalZoneTransferAsync(IReadOnlyList<DnsResourceRecord> historyRecords)
+        {
+            //secondary catalog does not maintain zone history; no need to call base method
+            string version = GetVersion();
+            if ((version is null) || !version.Equals("2", StringComparison.OrdinalIgnoreCase))
+            {
+                _dnsServer.LogManager?.Write("Failed to provision Secondary Catalog zone '" + ToString() + "': catalog version not supported.");
+                return;
+            }
+
+            bool isAddHistoryRecord = false;
+            bool updateGlobalAllowQueryProperty = false;
+            bool updateGlobalAllowTransferAndTsigKeyNamesProperties = false;
+            Dictionary<string, object> membersToRemove = new Dictionary<string, object>();
+            Dictionary<string, string> membersToAdd = new Dictionary<string, string>();
+            Dictionary<string, string> membersToUpdate = new Dictionary<string, string>();
+
+            //inspect records in history
+            for (int i = 1; i < historyRecords.Count; i++)
+            {
+                DnsResourceRecord historyRecord = historyRecords[i];
+                if (historyRecord.Type == DnsResourceRecordType.SOA)
+                {
+                    isAddHistoryRecord = true; //removed records completed
+                    continue;
+                }
+
+                if (historyRecord.Name.Length == _name.Length)
+                    continue; //skip apex records
+
+                string subdomain = historyRecord.Name.Substring(0, historyRecord.Name.Length - _name.Length - 1).ToLowerInvariant();
+                string[] labels = subdomain.Split('.');
+                Array.Reverse(labels);
+
+                switch (labels[0])
+                {
+                    case "ext":
+                        if (labels.Length > 1)
+                        {
+                            switch (labels[1])
+                            {
+                                case "allow-query":
+                                    updateGlobalAllowQueryProperty = true;
+                                    break;
+
+                                case "allow-transfer":
+                                case "transfer-tsig-key-names":
+                                    updateGlobalAllowTransferAndTsigKeyNamesProperties = true;
+                                    break;
+                            }
+                        }
+                        break;
+
+                    case "zones":
+                        if (labels.Length == 2)
+                        {
+                            if (historyRecord.Type == DnsResourceRecordType.PTR)
+                            {
+                                string memberZoneName = (historyRecord.RDATA as DnsPTRRecordData).Domain.ToLowerInvariant();
+
+                                if (isAddHistoryRecord)
+                                {
+                                    string memberZoneDomain = subdomain + "." + _name;
+
+                                    membersToAdd.TryAdd(memberZoneName, memberZoneDomain);
+                                    membersToUpdate.TryAdd(memberZoneName, memberZoneDomain);
+                                }
+                                else
+                                {
+                                    membersToRemove.TryAdd(memberZoneName, null);
+                                }
+                            }
+                        }
+                        else if (labels.Length > 2)
+                        {
+                            switch (labels[2])
+                            {
+                                case "ext":
+                                case "coo":
+                                    string memberZoneDomain = labels[1] + "." + labels[0] + "." + _name;
+                                    DnsResourceRecord prevHistoryRecord = historyRecords[i - 1];
+
+                                    if (prevHistoryRecord.Name.EndsWith(memberZoneDomain))
+                                        break; //skip since its same member zone's custom property
+
+                                    IReadOnlyList<DnsResourceRecord> ptrRecords = _dnsServer.AuthZoneManager.GetRecords(_name, memberZoneDomain, DnsResourceRecordType.PTR);
+                                    if (ptrRecords.Count > 0)
+                                        membersToUpdate.TryAdd((ptrRecords[0].RDATA as DnsPTRRecordData).Domain.ToLowerInvariant(), memberZoneDomain);
+
+                                    break;
+                            }
+                        }
+
+                        break;
+                }
+            }
+
+            //apply changes
+            if (updateGlobalAllowQueryProperty)
+                UpdateGlobalAllowQueryProperty();
+
+            if (updateGlobalAllowTransferAndTsigKeyNamesProperties)
+                UpdateGlobalAllowTransferAndTsigKeyNamesProperties();
+
+            if ((membersToRemove.Count > 0) || (membersToAdd.Count > 0))
+                await AddAndRemoveMemberZonesAsync(membersToRemove, membersToAdd);
+
+            if (membersToUpdate.Count > 0)
+                UpdateMemberZoneCustomProperties(membersToUpdate);
+
+            if ((membersToRemove.Count > 0) || (membersToAdd.Count > 0))
+            {
+                //update members index
+                Dictionary<string, string> updatedMembersIndex = new Dictionary<string, string>(_membersIndex);
+
+                foreach (KeyValuePair<string, object> removedMember in membersToRemove)
+                    updatedMembersIndex.Remove(removedMember.Key);
+
+                foreach (KeyValuePair<string, string> addedMember in membersToAdd)
+                    updatedMembersIndex.TryAdd(addedMember.Key, addedMember.Value);
+
+                _membersIndex = updatedMembersIndex;
+            }
+
+            _dnsServer.AuthZoneManager.SaveZoneFile(_name);
+        }
+
+        private async Task AddAndRemoveMemberZonesAsync(Dictionary<string, object> membersToRemove, Dictionary<string, string> membersToAdd)
+        {
             //remove zones
             foreach (KeyValuePair<string, object> removeMember in membersToRemove)
             {
-                AuthZone authZone = _dnsServer.AuthZoneManager.GetAuthZone(removeMember.Key, removeMember.Key);
-                if ((authZone is ApexZone apexZone) && _name.Equals(apexZone.CatalogZoneName, StringComparison.OrdinalIgnoreCase))
+                ApexZone apexZone = _dnsServer.AuthZoneManager.GetApexZone(removeMember.Key);
+                if ((apexZone is not null) && _name.Equals(apexZone.CatalogZoneName, StringComparison.OrdinalIgnoreCase))
                     DeleteMemberZone(apexZone);
             }
 
@@ -194,8 +329,8 @@ namespace DnsServerCore.Dns.Zones
 
             foreach (KeyValuePair<string, string> addMember in membersToAdd)
             {
-                AuthZone authZone = _dnsServer.AuthZoneManager.GetAuthZone(addMember.Key, addMember.Key);
-                if (authZone is not ApexZone)
+                ApexZone apexZone = _dnsServer.AuthZoneManager.GetApexZone(addMember.Key);
+                if (apexZone is null)
                 {
                     //create zone
                     AuthZoneType zoneType = GetZoneTypeProperty(addMember.Value);
@@ -236,7 +371,7 @@ namespace DnsServerCore.Dns.Zones
                                 //create stub zone
                                 IReadOnlyList<NameServerAddress> primaryNameServerAddresses = GetPrimaryAddressesProperty(addMember.Value);
 
-                                addZoneTasks.Add(_dnsServer.AuthZoneManager.CreateStubZoneAsync(addMember.Key, primaryNameServerAddresses));
+                                addZoneTasks.Add(_dnsServer.AuthZoneManager.CreateStubZoneAsync(addMember.Key, primaryNameServerAddresses, true));
                             }
                             break;
 
@@ -273,133 +408,200 @@ namespace DnsServerCore.Dns.Zones
                     _dnsServer.LogManager?.Write(ex);
                 }
             }
+        }
 
-            //set properties for all members
-            foreach (KeyValuePair<string, string> updatedMemberEntry in updatedMembersIndex)
+        private void UpdateGlobalAllowQueryProperty()
+        {
+            //allow query global custom property
+            IReadOnlyCollection<NetworkAccessControl> globalAllowQueryACL = GetAllowQueryProperty(_name);
+            if (globalAllowQueryACL.Count > 0)
             {
-                AuthZone authZone = _dnsServer.AuthZoneManager.GetAuthZone(updatedMemberEntry.Key, updatedMemberEntry.Key);
-                if (authZone is ApexZone apexZone && _name.Equals(apexZone.CatalogZoneName, StringComparison.OrdinalIgnoreCase))
+                _queryAccess = GetQueryAccessType(globalAllowQueryACL);
+                switch (_queryAccess)
+                {
+                    case AuthZoneQueryAccess.UseSpecifiedNetworkACL:
+                        QueryAccessNetworkACL = globalAllowQueryACL;
+                        break;
+
+                    case AuthZoneQueryAccess.AllowZoneNameServersAndUseSpecifiedNetworkACL:
+                        QueryAccessNetworkACL = GetFilteredACL(globalAllowQueryACL);
+                        break;
+
+                    default:
+                        QueryAccessNetworkACL = null;
+                        break;
+                }
+            }
+            else
+            {
+                _queryAccess = AuthZoneQueryAccess.Allow;
+                QueryAccessNetworkACL = null;
+            }
+        }
+
+        private void UpdateGlobalAllowTransferAndTsigKeyNamesProperties()
+        {
+            //allow transfer global custom property
+            IReadOnlyCollection<NetworkAccessControl> globalAllowTransferACL = GetAllowTransferProperty(_name);
+            if (globalAllowTransferACL.Count > 0)
+            {
+                _zoneTransfer = GetZoneTransferType(globalAllowTransferACL);
+                switch (_zoneTransfer)
+                {
+                    case AuthZoneTransfer.UseSpecifiedNetworkACL:
+                        ZoneTransferNetworkACL = globalAllowTransferACL;
+                        break;
+
+                    case AuthZoneTransfer.AllowZoneNameServersAndUseSpecifiedNetworkACL:
+                        ZoneTransferNetworkACL = GetFilteredACL(globalAllowTransferACL);
+                        break;
+
+                    default:
+                        ZoneTransferNetworkACL = null;
+                        break;
+                }
+
+                //zone tranfer tsig key names global custom property
+                ZoneTransferTsigKeyNames = GetZoneTransferTsigKeyNamesProperty(_name);
+            }
+            else
+            {
+                _zoneTransfer = AuthZoneTransfer.Deny;
+                ZoneTransferNetworkACL = null;
+                ZoneTransferTsigKeyNames = null;
+            }
+        }
+
+        private void UpdateMemberZoneCustomProperties(Dictionary<string, string> membersToUpdate)
+        {
+            foreach (KeyValuePair<string, string> updatedMemberEntry in membersToUpdate)
+            {
+                ApexZone memberApexZone = _dnsServer.AuthZoneManager.GetApexZone(updatedMemberEntry.Key);
+                if ((memberApexZone is not null) && _name.Equals(memberApexZone.CatalogZoneName, StringComparison.OrdinalIgnoreCase))
                 {
                     //change of ownership property
                     {
                         string newCatalogZoneName = GetChangeOfOwnershipProperty(updatedMemberEntry.Value);
                         if (newCatalogZoneName is not null)
                         {
-                            AuthZone catalogAuthZone = _dnsServer.AuthZoneManager.GetAuthZone(newCatalogZoneName, newCatalogZoneName);
-                            if (catalogAuthZone is SecondaryCatalogZone secondaryCatalogZone)
+                            ApexZone catalogApexZone = _dnsServer.AuthZoneManager.GetApexZone(newCatalogZoneName);
+                            if (catalogApexZone is SecondaryCatalogZone secondaryCatalogZone)
                             {
                                 //found secondary catalog zone; transfer ownership to it
-                                apexZone.CatalogZoneName = secondaryCatalogZone._name;
+                                memberApexZone.CatalogZoneName = secondaryCatalogZone._name;
                             }
                             else
                             {
                                 //no such secondary catalog zone exists; delete member zone
-                                DeleteMemberZone(apexZone);
+                                DeleteMemberZone(memberApexZone);
                                 continue;
                             }
                         }
                     }
 
-                    //allow query property
+                    //allow query member zone custom property
                     {
                         IReadOnlyCollection<NetworkAccessControl> allowQueryACL = GetAllowQueryProperty(updatedMemberEntry.Value);
-                        if (allowQueryACL.Count == 0)
-                            allowQueryACL = GetAllowQueryProperty(_name);
-
-                        apexZone.QueryAccess = GetQueryAccessType(allowQueryACL);
-
-                        switch (apexZone.QueryAccess)
+                        if (allowQueryACL.Count > 0)
                         {
-                            case AuthZoneQueryAccess.UseSpecifiedNetworkACL:
-                                apexZone.QueryAccessNetworkACL = allowQueryACL;
-                                break;
+                            memberApexZone.QueryAccess = GetQueryAccessType(allowQueryACL);
 
-                            case AuthZoneQueryAccess.AllowZoneNameServersAndUseSpecifiedNetworkACL:
-                                apexZone.QueryAccessNetworkACL = GetFilteredACL(allowQueryACL);
-                                break;
-
-                            default:
-                                apexZone.QueryAccessNetworkACL = null;
-                                break;
-                        }
-                    }
-
-                    if (apexZone is StubZone stubZone)
-                    {
-                        //primary addresses property
-                        IReadOnlyList<NameServerAddress> primaryNameServerAddresses = GetPrimaryAddressesProperty(updatedMemberEntry.Value);
-
-                        stubZone.PrimaryNameServerAddresses = primaryNameServerAddresses;
-                    }
-                    else if (apexZone is SecondaryForwarderZone)
-                    {
-                        //do nothing
-                    }
-                    else if (apexZone is SecondaryZone secondaryZone)
-                    {
-                        //primaries property
-                        {
-                            IReadOnlyList<Tuple<IPAddress, string>> primaries = GetPrimariesProperty(updatedMemberEntry.Value);
-                            if (primaries.Count == 0)
-                                primaries = GetPrimariesProperty(_name);
-
-                            if (primaries.Count > 0)
+                            switch (memberApexZone.QueryAccess)
                             {
-                                Tuple<IPAddress, string> primary = primaries[0];
-
-                                secondaryZone.PrimaryNameServerAddresses = [new NameServerAddress(primary.Item1, DnsTransportProtocol.Tcp)];
-                                secondaryZone.PrimaryZoneTransferProtocol = DnsTransportProtocol.Tcp;
-                                secondaryZone.PrimaryZoneTransferTsigKeyName = primary.Item2;
-                                secondaryZone.OverrideCatalogPrimaryNameServers = true;
-                            }
-                            else
-                            {
-                                secondaryZone.OverrideCatalogPrimaryNameServers = false;
-                                secondaryZone.PrimaryNameServerAddresses = null;
-                                secondaryZone.PrimaryZoneTransferProtocol = DnsTransportProtocol.Tcp;
-                                secondaryZone.PrimaryZoneTransferTsigKeyName = null;
-                            }
-                        }
-
-                        //allow transfer property
-                        {
-                            IReadOnlyCollection<NetworkAccessControl> allowTransferACL = GetAllowTransferProperty(updatedMemberEntry.Value);
-                            if (allowTransferACL.Count == 0)
-                                allowTransferACL = GetAllowTransferProperty(_name);
-
-                            apexZone.ZoneTransfer = GetZoneTransferType(allowTransferACL);
-
-                            switch (apexZone.ZoneTransfer)
-                            {
-                                case AuthZoneTransfer.UseSpecifiedNetworkACL:
-                                    apexZone.ZoneTransferNetworkACL = allowTransferACL;
+                                case AuthZoneQueryAccess.UseSpecifiedNetworkACL:
+                                    memberApexZone.QueryAccessNetworkACL = allowQueryACL;
                                     break;
 
-                                case AuthZoneTransfer.AllowZoneNameServersAndUseSpecifiedNetworkACL:
-                                    apexZone.ZoneTransferNetworkACL = GetFilteredACL(allowTransferACL);
+                                case AuthZoneQueryAccess.AllowZoneNameServersAndUseSpecifiedNetworkACL:
+                                    memberApexZone.QueryAccessNetworkACL = GetFilteredACL(allowQueryACL);
                                     break;
 
                                 default:
-                                    apexZone.ZoneTransferNetworkACL = null;
+                                    memberApexZone.QueryAccessNetworkACL = null;
                                     break;
                             }
+
+                            memberApexZone.OverrideCatalogQueryAccess = true;
                         }
-
-                        //zone tranfer tsig key names property
+                        else
                         {
-                            IReadOnlyDictionary<string, object> tsigKeyNames = GetZoneTransferTsigKeyNamesProperty(updatedMemberEntry.Value);
-                            if (tsigKeyNames.Count == 0)
-                                tsigKeyNames = GetZoneTransferTsigKeyNamesProperty(_name);
-
-                            apexZone.ZoneTransferTsigKeyNames = tsigKeyNames;
+                            memberApexZone.OverrideCatalogQueryAccess = false;
+                            memberApexZone.QueryAccess = AuthZoneQueryAccess.Allow;
+                            memberApexZone.QueryAccessNetworkACL = null;
                         }
                     }
 
-                    _dnsServer.AuthZoneManager.SaveZoneFile(apexZone.Name);
+                    if (memberApexZone is StubZone stubZone)
+                    {
+                        //primary addresses property
+                        stubZone.PrimaryNameServerAddresses = GetPrimaryAddressesProperty(updatedMemberEntry.Value);
+                    }
+                    else if (memberApexZone is SecondaryForwarderZone)
+                    {
+                        //do nothing
+                    }
+                    else if (memberApexZone is SecondaryZone secondaryZone)
+                    {
+                        //primaries property
+                        IReadOnlyList<Tuple<IPAddress, string>> primaries = GetPrimariesProperty(updatedMemberEntry.Value);
+                        if (primaries.Count == 0)
+                            primaries = GetPrimariesProperty(_name);
+
+                        if (primaries.Count > 0)
+                        {
+                            Tuple<IPAddress, string> primary = primaries[0];
+
+                            secondaryZone.PrimaryNameServerAddresses = [new NameServerAddress(primary.Item1, DnsTransportProtocol.Tcp)];
+                            secondaryZone.PrimaryZoneTransferProtocol = DnsTransportProtocol.Tcp;
+                            secondaryZone.PrimaryZoneTransferTsigKeyName = primary.Item2;
+                            secondaryZone.OverrideCatalogPrimaryNameServers = true;
+                        }
+                        else
+                        {
+                            secondaryZone.OverrideCatalogPrimaryNameServers = false;
+                            secondaryZone.PrimaryNameServerAddresses = null;
+                            secondaryZone.PrimaryZoneTransferProtocol = DnsTransportProtocol.Tcp;
+                            secondaryZone.PrimaryZoneTransferTsigKeyName = null;
+                        }
+
+                        //allow transfer member zone custom property
+                        IReadOnlyCollection<NetworkAccessControl> allowTransferACL = GetAllowTransferProperty(updatedMemberEntry.Value);
+                        if (allowTransferACL.Count > 0)
+                        {
+                            memberApexZone.ZoneTransfer = GetZoneTransferType(allowTransferACL);
+
+                            switch (memberApexZone.ZoneTransfer)
+                            {
+                                case AuthZoneTransfer.UseSpecifiedNetworkACL:
+                                    memberApexZone.ZoneTransferNetworkACL = allowTransferACL;
+                                    break;
+
+                                case AuthZoneTransfer.AllowZoneNameServersAndUseSpecifiedNetworkACL:
+                                    memberApexZone.ZoneTransferNetworkACL = GetFilteredACL(allowTransferACL);
+                                    break;
+
+                                default:
+                                    memberApexZone.ZoneTransferNetworkACL = null;
+                                    break;
+                            }
+
+                            //zone tranfer tsig key names member zone custom property
+                            memberApexZone.ZoneTransferTsigKeyNames = GetZoneTransferTsigKeyNamesProperty(updatedMemberEntry.Value);
+
+                            memberApexZone.OverrideCatalogZoneTransfer = true;
+                        }
+                        else
+                        {
+                            memberApexZone.OverrideCatalogZoneTransfer = false;
+                            memberApexZone.ZoneTransfer = AuthZoneTransfer.Deny;
+                            memberApexZone.ZoneTransferNetworkACL = null;
+                            memberApexZone.ZoneTransferTsigKeyNames = null;
+                        }
+                    }
+
+                    _dnsServer.AuthZoneManager.SaveZoneFile(memberApexZone.Name);
                 }
             }
-
-            _membersIndex = updatedMembersIndex;
         }
 
         private void DeleteMemberZone(ApexZone apexZone)
@@ -610,9 +812,21 @@ namespace DnsServerCore.Dns.Zones
             set { throw new InvalidOperationException(); }
         }
 
+        public override bool OverrideCatalogQueryAccess
+        {
+            get { throw new InvalidOperationException(); }
+            set { throw new InvalidOperationException(); }
+        }
+
         public override AuthZoneQueryAccess QueryAccess
         {
-            get { return base.QueryAccess; }
+            get { return _queryAccess; }
+            set { throw new InvalidOperationException(); }
+        }
+
+        public override AuthZoneTransfer ZoneTransfer
+        {
+            get { return _zoneTransfer; }
             set { throw new InvalidOperationException(); }
         }
 
