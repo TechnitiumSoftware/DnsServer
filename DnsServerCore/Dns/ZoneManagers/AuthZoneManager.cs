@@ -292,6 +292,11 @@ namespace DnsServerCore.Dns.ZoneManagers
             return _root.GetAuthZone(zoneName, domain);
         }
 
+        internal ApexZone GetApexZone(string zoneName)
+        {
+            return _root.GetApexZone(zoneName);
+        }
+
         internal AuthZone FindPreviousSubDomainZone(string zoneName, string domain)
         {
             return _root.FindPreviousSubDomainZone(zoneName, domain);
@@ -1112,7 +1117,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public Task<AuthZoneInfo> CreateStubZoneAsync(string zoneName, string primaryNameServerAddresses = null)
+        public Task<AuthZoneInfo> CreateStubZoneAsync(string zoneName, string primaryNameServerAddresses = null, bool ignoreSoaFailure = false)
         {
             NameServerAddress[] primaryNameServers;
 
@@ -1121,12 +1126,12 @@ namespace DnsServerCore.Dns.ZoneManagers
             else
                 primaryNameServers = primaryNameServerAddresses.Split(NameServerAddress.Parse, ',');
 
-            return CreateStubZoneAsync(zoneName, primaryNameServers);
+            return CreateStubZoneAsync(zoneName, primaryNameServers, ignoreSoaFailure);
         }
 
-        public async Task<AuthZoneInfo> CreateStubZoneAsync(string zoneName, IReadOnlyList<NameServerAddress> primaryNameServerAddresses = null)
+        public async Task<AuthZoneInfo> CreateStubZoneAsync(string zoneName, IReadOnlyList<NameServerAddress> primaryNameServerAddresses = null, bool ignoreSoaFailure = false)
         {
-            StubZone apexZone = await StubZone.CreateAsync(_dnsServer, zoneName, primaryNameServerAddresses);
+            StubZone apexZone = await StubZone.CreateAsync(_dnsServer, zoneName, primaryNameServerAddresses, ignoreSoaFailure);
 
             _zoneIndexLock.EnterWriteLock();
             try
@@ -1317,23 +1322,28 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public void AddCatalogMemberZone(string catalogZoneName, AuthZoneInfo memberZoneInfo, bool force = false)
+        public void AddCatalogMemberZone(string catalogZoneName, AuthZoneInfo memberZoneInfo, bool ignoreValidationErrors = false)
         {
             switch (memberZoneInfo.Type)
             {
                 case AuthZoneType.Primary:
                 case AuthZoneType.Stub:
                 case AuthZoneType.Forwarder:
-                    if (!force)
+                    if (!ignoreValidationErrors)
                     {
                         string currentCatalogZoneName = memberZoneInfo.ApexZone.CatalogZoneName;
                         if (currentCatalogZoneName is not null)
                             throw new DnsServerException("The zone '" + memberZoneInfo.DisplayName + "' is already a member of Catalog zone '" + currentCatalogZoneName + "'.");
                     }
 
-                    AuthZone authZone = GetAuthZone(catalogZoneName, catalogZoneName);
-                    if (authZone is not CatalogZone catalogZone)
+                    ApexZone apexZone = _root.GetApexZone(catalogZoneName);
+                    if (apexZone is not CatalogZone catalogZone)
+                    {
+                        if (ignoreValidationErrors)
+                            return;
+
                         throw new DnsServerException("No such Catalog zone was found: " + catalogZoneName);
+                    }
 
                     catalogZone.AddMemberZone(memberZoneInfo.Name, memberZoneInfo.Type);
                     memberZoneInfo.ApexZone.CatalogZoneName = catalogZone.Name;
@@ -1400,8 +1410,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                     if (currentCatalogZoneName is null)
                         throw new DnsServerException("The zone '" + memberZoneInfo.DisplayName + "' is not a member of any Catalog zone.");
 
-                    AuthZone authZone = GetAuthZone(currentCatalogZoneName, currentCatalogZoneName);
-                    if (authZone is not CatalogZone currentCatalogZone)
+                    ApexZone apexZone = _root.GetApexZone(currentCatalogZoneName);
+                    if (apexZone is not CatalogZone currentCatalogZone)
                         throw new DnsServerException("No such Catalog zone was found: " + currentCatalogZoneName);
 
                     AddCatalogMemberZone(newCatalogZoneName, memberZoneInfo, true);
@@ -1435,7 +1445,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     break;
 
                 default:
-                    throw new DnsServerException("Cannot clone the zone: source zone must be a primary or conditional forwarder zone.");
+                    throw new DnsServerException("Cannot clone the zone: source zone must be a Primary or Conditional Forwarder zone.");
             }
 
             if (zoneInfo is null)
@@ -1623,7 +1633,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                         switch (currentZoneInfo.Type)
                         {
                             case AuthZoneType.Secondary:
-                            case AuthZoneType.SecondaryForwarder:
                                 {
                                     //reset SOA metadata and remove DNSSEC records
                                     List<DnsResourceRecord> updateRecords = new List<DnsResourceRecord>(allRecords.Count);
@@ -1658,6 +1667,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 break;
 
                             case AuthZoneType.Forwarder:
+                            case AuthZoneType.SecondaryForwarder:
                                 {
                                     //remove all FWD records
                                     List<DnsResourceRecord> updateRecords = new List<DnsResourceRecord>(allRecords.Count);
@@ -1682,6 +1692,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         switch (currentZoneInfo.Type)
                         {
                             case AuthZoneType.Primary:
+                            case AuthZoneType.SecondaryForwarder:
                                 {
                                     //remove SOA and NS records
                                     List<DnsResourceRecord> updateRecords = new List<DnsResourceRecord>(allRecords.Count);
@@ -1703,7 +1714,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 break;
 
                             case AuthZoneType.Secondary:
-                            case AuthZoneType.SecondaryForwarder:
                                 {
                                     //remove SOA, NS and DNSSEC records
                                     List<DnsResourceRecord> updateRecords = new List<DnsResourceRecord>(allRecords.Count);
@@ -2706,7 +2716,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 throw new DnsServerException("Cannot update record: use SetRecords() for updating SOA record.");
 
             if (!_root.TryGet(zoneName, oldRecord.Name, out AuthZone authZone))
-                throw new DnsServerException("Cannot update record: zone does not exists.");
+                throw new DnsServerException("Cannot update record: zone '" + zoneName + "' does not exists.");
 
             switch (oldRecord.Type)
             {
@@ -3200,8 +3210,20 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
 
             CatalogZone catalogZone = apexZone.CatalogZone;
-            if ((catalogZone is not null) && !apexZone.OverrideCatalogQueryAccess)
-                apexZone = catalogZone; //use catalog query access options
+            if (catalogZone is not null)
+            {
+                if (!apexZone.OverrideCatalogQueryAccess)
+                    apexZone = catalogZone; //use catalog query access options
+            }
+            else
+            {
+                SecondaryCatalogZone secondaryCatalogZone = apexZone.SecondaryCatalogZone;
+                if (secondaryCatalogZone is not null)
+                {
+                    if (!apexZone.OverrideCatalogQueryAccess)
+                        apexZone = secondaryCatalogZone; //use secondary query access options
+                }
+            }
 
             switch (apexZone.QueryAccess)
             {
