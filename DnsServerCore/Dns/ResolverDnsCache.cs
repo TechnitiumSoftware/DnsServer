@@ -100,9 +100,9 @@ namespace DnsServerCore.Dns
 
         public DnsDatagram QueryClosestDelegation(DnsDatagram request)
         {
-            DnsDatagram authResponse = DnsApplicationQueryClosestDelegation(request);
+            DnsDatagram authResponse = _dnsServer.AuthZoneManager.QueryClosestDelegation(request);
             if (authResponse is null)
-                authResponse = _dnsServer.AuthZoneManager.QueryClosestDelegation(request);
+                authResponse = DnsApplicationQueryClosestDelegation(request);
 
             DnsDatagram cacheResponse = _dnsServer.CacheZoneManager.QueryClosestDelegation(request);
 
@@ -127,9 +127,13 @@ namespace DnsServerCore.Dns
 
         public virtual DnsDatagram Query(DnsDatagram request, bool serveStale, bool findClosestNameServers = false, bool resetExpiry = false)
         {
-            DnsDatagram authResponse = null;
-
-            if (!_skipDnsAppAuthoritativeRequestHandlers)
+            DnsDatagram authResponse = _dnsServer.AuthZoneManager.Query(request, true);
+            if (authResponse is not null)
+            {
+                if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || authResponse.IsFirstAuthoritySOA())
+                    return authResponse;
+            }
+            else if (!_skipDnsAppAuthoritativeRequestHandlers)
             {
                 foreach (IDnsAuthoritativeRequestHandler requestHandler in _dnsServer.DnsApplicationManager.DnsAuthoritativeRequestHandlers)
                 {
@@ -150,16 +154,6 @@ namespace DnsServerCore.Dns
                     {
                         _dnsServer.LogManager?.Write(ex);
                     }
-                }
-            }
-
-            if (authResponse is null)
-            {
-                authResponse = _dnsServer.AuthZoneManager.Query(request, true);
-                if (authResponse is not null)
-                {
-                    if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || authResponse.IsFirstAuthoritySOA())
-                        return authResponse;
                 }
             }
 
