@@ -2126,18 +2126,15 @@ namespace DnsServerCore.Dns
                             case DnsResourceRecordType.NS:
                                 if (request.RecursionDesired && isRecursionAllowed)
                                 {
-                                    //do forced recursive resolution using empty conditional forwarders; name servers will be provided via ResolverDnsCache
-                                    response = await RecursiveResolveAsync(request, remoteEP, [], _dnssecValidation, false, false, skipDnsAppAuthoritativeRequestHandlers);
-                                    reprocessResponse = true;
+                                    //do forced recursive resolution (with blocking support) using empty conditional forwarders; name servers will be provided via ResolverDnsCache
+                                    return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, [], _dnssecValidation, false, skipDnsAppAuthoritativeRequestHandlers);
                                 }
 
                                 break;
 
                             case DnsResourceRecordType.FWD:
-                                //do conditional forwarding
-                                response = await RecursiveResolveAsync(request, remoteEP, response.Authority, _dnssecValidation, false, false, skipDnsAppAuthoritativeRequestHandlers);
-                                reprocessResponse = true;
-                                break;
+                                //do conditional forwarding (with blocking support)
+                                return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, response.Authority, _dnssecValidation, false, skipDnsAppAuthoritativeRequestHandlers);
 
                             case DnsResourceRecordType.APP:
                                 response = await ProcessAPPAsync(request, response, remoteEP, protocol, isRecursionAllowed, skipDnsAppAuthoritativeRequestHandlers);
