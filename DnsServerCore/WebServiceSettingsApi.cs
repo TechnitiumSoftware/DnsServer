@@ -1776,6 +1776,16 @@ namespace DnsServerCore
                                 }
                             }
 
+                            //flush zones to avoid UpdateServerDomain task for old zones and old allowed/blocked zones
+                            if (zones)
+                                _dnsWebService.DnsServer.AuthZoneManager.Flush();
+
+                            if (allowedZones)
+                                _dnsWebService.DnsServer.AllowedZoneManager.Flush();
+
+                            if (blockedZones)
+                                _dnsWebService.DnsServer.BlockedZoneManager.Flush();
+
                             //reload settings and block list zone
                             _dnsWebService.LoadConfigFile();
 
@@ -1891,7 +1901,7 @@ namespace DnsServerCore
                             ZipArchiveEntry entry = backupZip.GetEntry("blocked.config");
                             if (entry == null)
                             {
-                                string fileName = Path.Combine(_dnsWebService._configFolder, "allowed.config");
+                                string fileName = Path.Combine(_dnsWebService._configFolder, "blocked.config");
                                 if (File.Exists(fileName))
                                     File.Delete(fileName);
                             }
