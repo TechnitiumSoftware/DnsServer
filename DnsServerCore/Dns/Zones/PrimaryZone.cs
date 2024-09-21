@@ -2901,18 +2901,18 @@ namespace DnsServerCore.Dns.Zones
 
         public override bool Disabled
         {
-            get { return _disabled; }
+            get { return base.Disabled; }
             set
             {
-                if (_disabled != value)
-                {
-                    _disabled = value;
+                if (base.Disabled == value)
+                    return;
 
-                    if (_disabled)
-                        DisableNotifyTimer();
-                    else
-                        TriggerNotify();
-                }
+                base.Disabled = value; //set value early to be able to use it for notify
+
+                if (value)
+                    DisableNotifyTimer();
+                else
+                    TriggerNotify();
             }
         }
 
