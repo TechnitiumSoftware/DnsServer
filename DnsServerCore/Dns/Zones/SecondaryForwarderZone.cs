@@ -56,13 +56,13 @@ namespace DnsServerCore.Dns.Zones
 
         protected override Task FinalizeZoneTransferAsync()
         {
-            //secondary forwarder does not maintain zone history
+            //secondary forwarder does not maintain zone history; no need to call base method
             return Task.CompletedTask;
         }
 
         protected override Task FinalizeIncrementalZoneTransferAsync(IReadOnlyList<DnsResourceRecord> historyRecords)
         {
-            //secondary forwarder does not maintain zone history
+            //secondary forwarder does not maintain zone history; no need to call base method
             return Task.CompletedTask;
         }
 
@@ -86,6 +86,12 @@ namespace DnsServerCore.Dns.Zones
         #endregion
 
         #region properties
+
+        public override bool OverrideCatalogZoneTransfer
+        {
+            get { throw new InvalidOperationException(); }
+            set { throw new InvalidOperationException(); }
+        }
 
         public override bool OverrideCatalogPrimaryNameServers
         {
