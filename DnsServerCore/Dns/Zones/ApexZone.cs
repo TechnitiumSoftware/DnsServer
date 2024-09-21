@@ -77,10 +77,10 @@ namespace DnsServerCore.Dns.Zones
         bool _overrideCatalogZoneTransfer;
         bool _overrideCatalogNotify;
 
-        AuthZoneQueryAccess _queryAccess;
+        protected AuthZoneQueryAccess _queryAccess;
         IReadOnlyCollection<NetworkAccessControl> _queryAccessNetworkACL;
 
-        AuthZoneTransfer _zoneTransfer;
+        protected AuthZoneTransfer _zoneTransfer;
         IReadOnlyCollection<NetworkAccessControl> _zoneTransferNetworkACL;
         IReadOnlyDictionary<string, object> _zoneTransferTsigKeyNames;
         readonly List<DnsResourceRecord> _zoneHistory; //for IXFR support
@@ -111,7 +111,7 @@ namespace DnsServerCore.Dns.Zones
         bool _recordExpiryTimerRunning;
 
         CatalogZone _catalogZone;
-        bool _isSecondaryCatalogMember;
+        SecondaryCatalogZone _secondaryCatalogZone;
 
         #endregion
 
@@ -129,21 +129,24 @@ namespace DnsServerCore.Dns.Zones
 
             _queryAccess = zoneInfo.QueryAccess;
             _queryAccessNetworkACL = zoneInfo.QueryAccessNetworkACL;
+
             _zoneTransfer = zoneInfo.ZoneTransfer;
             _zoneTransferNetworkACL = zoneInfo.ZoneTransferNetworkACL;
-            _notify = zoneInfo.Notify;
-            _notifyNameServers = zoneInfo.NotifyNameServers;
-            _update = zoneInfo.Update;
-            _updateNetworkACL = zoneInfo.UpdateNetworkACL;
-            _lastModified = zoneInfo.LastModified;
+            _zoneTransferTsigKeyNames = zoneInfo.ZoneTransferTsigKeyNames;
 
             if (zoneInfo.ZoneHistory is null)
                 _zoneHistory = new List<DnsResourceRecord>();
             else
                 _zoneHistory = new List<DnsResourceRecord>(zoneInfo.ZoneHistory);
 
-            _zoneTransferTsigKeyNames = zoneInfo.ZoneTransferTsigKeyNames;
+            _notify = zoneInfo.Notify;
+            _notifyNameServers = zoneInfo.NotifyNameServers;
+
+            _update = zoneInfo.Update;
+            _updateNetworkACL = zoneInfo.UpdateNetworkACL;
             _updateSecurityPolicies = zoneInfo.UpdateSecurityPolicies;
+
+            _lastModified = zoneInfo.LastModified;
         }
 
         protected ApexZone(DnsServer dnsServer, string name)
@@ -152,8 +155,9 @@ namespace DnsServerCore.Dns.Zones
             _dnsServer = dnsServer;
 
             _queryAccess = AuthZoneQueryAccess.Allow;
-            _lastModified = DateTime.UtcNow;
             _zoneHistory = new List<DnsResourceRecord>();
+
+            _lastModified = DateTime.UtcNow;
         }
 
         #endregion
@@ -420,9 +424,26 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
+        internal void RemoveFromNotifyFailedList(NameServerAddress allowedZoneNameServer, IPAddress allowedIPAddress)
+        {
+            if (_notifyFailed is null)
+                return;
+
+            lock (_notifyFailed)
+            {
+                if (_notifyFailed.Count == 0)
+                    return;
+
+                if ((allowedZoneNameServer is not null) && (allowedZoneNameServer.DomainEndPoint is not null))
+                    _notifyFailed.Remove(allowedZoneNameServer.DomainEndPoint.Address);
+
+                _notifyFailed.Remove(allowedIPAddress.ToString());
+            }
+        }
+
         public void TriggerNotify()
         {
-            if (_disabled)
+            if (Disabled)
                 return;
 
             ApexZone apexZone = this;
@@ -1117,6 +1138,34 @@ namespace DnsServerCore.Dns.Zones
 
         #region properties
 
+        public override bool Disabled
+        {
+            get { return base.Disabled; }
+            set
+            {
+                if (base.Disabled == value)
+                    return;
+
+                base.Disabled = value; //set value early to be able to use it for setting catalog properties
+
+                CatalogZone catalogZone = CatalogZone;
+                if (catalogZone is not null)
+                {
+                    if (value)
+                    {
+                        //remove catalog zone membership without removing it from zone's options
+                        catalogZone.RemoveMemberZone(_name);
+                        _dnsServer.AuthZoneManager.SaveZoneFile(catalogZone._name);
+                    }
+                    else
+                    {
+                        //add catalog zone membership
+                        _dnsServer.AuthZoneManager.AddCatalogMemberZone(_catalogZoneName, new AuthZoneInfo(this), true);
+                    }
+                }
+            }
+        }
+
         public DateTime LastModified
         { get { return _lastModified; } }
 
@@ -1132,7 +1181,7 @@ namespace DnsServerCore.Dns.Zones
 
                 //reset
                 _catalogZone = null;
-                _isSecondaryCatalogMember = false;
+                _secondaryCatalogZone = null;
             }
         }
 
@@ -1164,17 +1213,18 @@ namespace DnsServerCore.Dns.Zones
                 //update catalog zone property
                 if (this is CatalogZone thisCatalogZone)
                 {
-                    //update global property
+                    //update global custom property
                     thisCatalogZone.SetAllowQueryProperty(GetQueryAccessACL());
                 }
-                else if ((this is PrimaryZone) || (this is StubZone) || (this is ForwarderZone))
+                else if (!Disabled && ((this is PrimaryZone) || (this is StubZone) || (this is ForwarderZone)))
                 {
-                    if (CatalogZone is not null)
+                    CatalogZone catalogZone = CatalogZone;
+                    if (catalogZone is not null)
                     {
                         if (_overrideCatalogQueryAccess)
-                            CatalogZone.SetAllowQueryProperty(GetQueryAccessACL(), _name); //update member zone property
+                            catalogZone.SetAllowQueryProperty(GetQueryAccessACL(), _name); //update member zone custom property
                         else
-                            CatalogZone.SetAllowQueryProperty(null, _name); //remove member zone property
+                            catalogZone.SetAllowQueryProperty(null, _name); //remove member zone custom property
                     }
                 }
             }
@@ -1185,11 +1235,10 @@ namespace DnsServerCore.Dns.Zones
             get { return _queryAccessNetworkACL; }
             set
             {
-                if ((value is not null) && (value.Count > byte.MaxValue))
-                    throw new ArgumentOutOfRangeException(nameof(QueryAccessNetworkACL), "Network ACL cannot have more than 255 entries.");
-
                 if ((value is null) || (value.Count == 0))
                     _queryAccessNetworkACL = null;
+                else if (value.Count > byte.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(QueryAccessNetworkACL), "Network ACL cannot have more than 255 entries.");
                 else
                     _queryAccessNetworkACL = value;
             }
@@ -1205,17 +1254,18 @@ namespace DnsServerCore.Dns.Zones
                 //update catalog zone property
                 if (this is CatalogZone thisCatalogZone)
                 {
-                    //update global property
+                    //update global custom property
                     thisCatalogZone.SetAllowTransferProperty(GetZoneTranferACL());
                 }
-                else if (this is PrimaryZone)
+                else if (!Disabled && (this is PrimaryZone))
                 {
-                    if (CatalogZone is not null)
+                    CatalogZone catalogZone = CatalogZone;
+                    if (catalogZone is not null)
                     {
                         if (_overrideCatalogZoneTransfer)
-                            CatalogZone.SetAllowTransferProperty(GetZoneTranferACL(), _name); //update member zone property
+                            catalogZone.SetAllowTransferProperty(GetZoneTranferACL(), _name); //update member zone custom property
                         else
-                            CatalogZone.SetAllowTransferProperty(null, _name); //remove member zone property
+                            catalogZone.SetAllowTransferProperty(null, _name); //remove member zone custom property
                     }
                 }
             }
@@ -1226,11 +1276,10 @@ namespace DnsServerCore.Dns.Zones
             get { return _zoneTransferNetworkACL; }
             set
             {
-                if ((value is not null) && (value.Count > byte.MaxValue))
-                    throw new ArgumentOutOfRangeException(nameof(ZoneTransferNetworkACL), "Network ACL cannot have more than 255 entries.");
-
                 if ((value is null) || (value.Count == 0))
                     _zoneTransferNetworkACL = null;
+                else if (value.Count > byte.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(ZoneTransferNetworkACL), "Network ACL cannot have more than 255 entries.");
                 else
                     _zoneTransferNetworkACL = value;
             }
@@ -1243,23 +1292,26 @@ namespace DnsServerCore.Dns.Zones
             {
                 if ((value is null) || (value.Count == 0))
                     _zoneTransferTsigKeyNames = null;
+                else if (value.Count > byte.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(ZoneTransferTsigKeyNames), "Zone transfer TSIG key names cannot have more than 255 entries.");
                 else
                     _zoneTransferTsigKeyNames = value;
 
                 //update catalog zone property
                 if (this is CatalogZone thisCatalogZone)
                 {
-                    //update global property
+                    //update global custom property
                     thisCatalogZone.SetZoneTransferTsigKeyNamesProperty(_zoneTransferTsigKeyNames);
                 }
-                else if (this is PrimaryZone)
+                else if (!Disabled && (this is PrimaryZone))
                 {
-                    if (CatalogZone is not null)
+                    CatalogZone catalogZone = CatalogZone;
+                    if (catalogZone is not null)
                     {
                         if (_overrideCatalogZoneTransfer)
-                            CatalogZone.SetZoneTransferTsigKeyNamesProperty(_zoneTransferTsigKeyNames, _name); //update member zone property
+                            catalogZone.SetZoneTransferTsigKeyNamesProperty(_zoneTransferTsigKeyNames, _name); //update member zone custom property
                         else
-                            CatalogZone.SetZoneTransferTsigKeyNamesProperty(null, _name); //remove member zone property
+                            catalogZone.SetZoneTransferTsigKeyNamesProperty(null, _name); //remove member zone custom property
                     }
                 }
             }
@@ -1270,14 +1322,11 @@ namespace DnsServerCore.Dns.Zones
             get { return _notify; }
             set
             {
-                if (_notify != value)
-                {
-                    _notify = value;
+                _notify = value;
 
-                    lock (_notifyFailed)
-                    {
-                        _notifyFailed.Clear();
-                    }
+                lock (_notifyFailed)
+                {
+                    _notifyFailed.Clear();
                 }
             }
         }
@@ -1287,17 +1336,16 @@ namespace DnsServerCore.Dns.Zones
             get { return _notifyNameServers; }
             set
             {
-                if ((value is not null) && (value.Count > byte.MaxValue))
-                    throw new ArgumentOutOfRangeException(nameof(NotifyNameServers), "Name server addresses cannot be more than 255.");
-
-                if (_notifyNameServers != value)
-                {
+                if ((value is null) || (value.Count == 0))
+                    _notifyNameServers = null;
+                else if (value.Count > byte.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(NotifyNameServers), "Name server addresses cannot have more than 255 entries.");
+                else
                     _notifyNameServers = value;
 
-                    lock (_notifyFailed)
-                    {
-                        _notifyFailed.Clear();
-                    }
+                lock (_notifyFailed)
+                {
+                    _notifyFailed.Clear();
                 }
             }
         }
@@ -1313,11 +1361,10 @@ namespace DnsServerCore.Dns.Zones
             get { return _updateNetworkACL; }
             set
             {
-                if ((value is not null) && (value.Count > byte.MaxValue))
-                    throw new ArgumentOutOfRangeException(nameof(UpdateNetworkACL), "Network ACL cannot have more than 255 entries.");
-
                 if ((value is null) || (value.Count == 0))
                     _updateNetworkACL = null;
+                else if (value.Count > byte.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(UpdateNetworkACL), "Network ACL cannot have more than 255 entries.");
                 else
                     _updateNetworkACL = value;
             }
@@ -1359,26 +1406,60 @@ namespace DnsServerCore.Dns.Zones
                 if (_catalogZoneName is null)
                     return null;
 
-                if (_isSecondaryCatalogMember)
+                if (_secondaryCatalogZone is not null)
                     return null;
 
                 if (_catalogZone is null)
                 {
-                    if ((this is PrimaryZone) || (this is StubZone) || (this is ForwarderZone))
+                    if ((this is PrimaryZone) || (this is ForwarderZone))
                     {
-                        AuthZone authZone = _dnsServer.AuthZoneManager.GetAuthZone(_catalogZoneName, _catalogZoneName);
-                        if (authZone is CatalogZone catalogZone)
+                        ApexZone apexZone = _dnsServer.AuthZoneManager.GetApexZone(_catalogZoneName);
+                        if (apexZone is CatalogZone catalogZone)
                             _catalogZone = catalogZone;
-                        else if (this is StubZone)
-                            _isSecondaryCatalogMember = true;
                     }
-                    else
+                    else if (this is StubZone)
                     {
-                        _isSecondaryCatalogMember = true;
+                        ApexZone apexZone = _dnsServer.AuthZoneManager.GetApexZone(_catalogZoneName);
+                        if (apexZone is CatalogZone catalogZone)
+                            _catalogZone = catalogZone;
+                        else if (apexZone is SecondaryCatalogZone secondaryCatalogZone)
+                            _secondaryCatalogZone = secondaryCatalogZone;
                     }
                 }
 
                 return _catalogZone;
+            }
+        }
+
+        public SecondaryCatalogZone SecondaryCatalogZone
+        {
+            get
+            {
+                if (_catalogZoneName is null)
+                    return null;
+
+                if (_catalogZone is not null)
+                    return null;
+
+                if (_secondaryCatalogZone is null)
+                {
+                    if (this is SecondaryZone)
+                    {
+                        ApexZone apexZone = _dnsServer.AuthZoneManager.GetApexZone(_catalogZoneName);
+                        if (apexZone is SecondaryCatalogZone secondaryCatalogZone)
+                            _secondaryCatalogZone = secondaryCatalogZone;
+                    }
+                    else if (this is StubZone)
+                    {
+                        ApexZone apexZone = _dnsServer.AuthZoneManager.GetApexZone(_catalogZoneName);
+                        if (apexZone is SecondaryCatalogZone secondaryCatalogZone)
+                            _secondaryCatalogZone = secondaryCatalogZone;
+                        else if (apexZone is CatalogZone catalogZone)
+                            _catalogZone = catalogZone;
+                    }
+                }
+
+                return _secondaryCatalogZone;
             }
         }
 
