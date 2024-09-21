@@ -62,9 +62,17 @@ namespace DnsServerCore.Dns.Zones
             _refreshTimer = new Timer(RefreshTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
         }
 
-        private StubZone(DnsServer dnsServer, string name)
+        private StubZone(DnsServer dnsServer, string name, IReadOnlyList<NameServerAddress> primaryNameServerAddresses)
             : base(dnsServer, name)
         {
+            PrimaryNameServerAddresses = primaryNameServerAddresses?.Convert(delegate (NameServerAddress nameServer)
+            {
+                if (nameServer.Protocol != DnsTransportProtocol.Udp)
+                    nameServer = nameServer.ChangeProtocol(DnsTransportProtocol.Udp);
+
+                return nameServer;
+            });
+
             _isExpired = true; //new stub zone is considered expired till it refreshes
 
             _refreshTimer = new Timer(RefreshTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
@@ -74,64 +82,68 @@ namespace DnsServerCore.Dns.Zones
 
         #region static
 
-        public static async Task<StubZone> CreateAsync(DnsServer dnsServer, string name, IReadOnlyList<NameServerAddress> primaryNameServerAddresses = null)
+        public static async Task<StubZone> CreateAsync(DnsServer dnsServer, string name, IReadOnlyList<NameServerAddress> primaryNameServerAddresses = null, bool ignoreSoaFailure = false)
         {
-            StubZone stubZone = new StubZone(dnsServer, name);
-
-            if (primaryNameServerAddresses is not null)
-            {
-                stubZone.PrimaryNameServerAddresses = primaryNameServerAddresses.Convert(delegate (NameServerAddress nameServer)
-                {
-                    if (nameServer.Protocol != DnsTransportProtocol.Udp)
-                        nameServer = nameServer.ChangeProtocol(DnsTransportProtocol.Udp);
-
-                    return nameServer;
-                });
-            }
-
-            DnsDatagram soaResponse;
+            StubZone stubZone = new StubZone(dnsServer, name, primaryNameServerAddresses);
 
             try
             {
-                DnsQuestionRecord soaQuestion = new DnsQuestionRecord(name, DnsResourceRecordType.SOA, DnsClass.IN);
+                DnsDatagram soaResponse;
 
-                if (stubZone.PrimaryNameServerAddresses is null)
+                try
                 {
-                    soaResponse = await stubZone._dnsServer.DirectQueryAsync(soaQuestion);
-                }
-                else
-                {
-                    DnsClient dnsClient = new DnsClient(stubZone.PrimaryNameServerAddresses);
+                    DnsQuestionRecord soaQuestion = new DnsQuestionRecord(name, DnsResourceRecordType.SOA, DnsClass.IN);
 
-                    foreach (NameServerAddress nameServerAddress in dnsClient.Servers)
+                    if (stubZone.PrimaryNameServerAddresses is null)
                     {
-                        if (nameServerAddress.IsIPEndPointStale)
-                            await nameServerAddress.ResolveIPAddressAsync(stubZone._dnsServer, stubZone._dnsServer.PreferIPv6);
+                        soaResponse = await stubZone._dnsServer.DirectQueryAsync(soaQuestion);
                     }
+                    else
+                    {
+                        DnsClient dnsClient = new DnsClient(stubZone.PrimaryNameServerAddresses);
 
-                    dnsClient.Proxy = stubZone._dnsServer.Proxy;
-                    dnsClient.PreferIPv6 = stubZone._dnsServer.PreferIPv6;
+                        foreach (NameServerAddress nameServerAddress in dnsClient.Servers)
+                        {
+                            if (nameServerAddress.IsIPEndPointStale)
+                                await nameServerAddress.ResolveIPAddressAsync(stubZone._dnsServer, stubZone._dnsServer.PreferIPv6);
+                        }
 
-                    DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, [soaQuestion], null, null, null, dnsServer.UdpPayloadSize);
+                        dnsClient.Proxy = stubZone._dnsServer.Proxy;
+                        dnsClient.PreferIPv6 = stubZone._dnsServer.PreferIPv6;
 
-                    soaResponse = await dnsClient.RawResolveAsync(soaRequest);
+                        DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, [soaQuestion], null, null, null, dnsServer.UdpPayloadSize);
+
+                        soaResponse = await dnsClient.RawResolveAsync(soaRequest);
+                    }
                 }
+                catch (Exception ex)
+                {
+                    throw new DnsServerException("DNS Server failed to find SOA record for: " + name, ex);
+                }
+
+                if ((soaResponse.Answer.Count == 0) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA))
+                    throw new DnsServerException("DNS Server failed to find SOA record for: " + name);
+
+                DnsResourceRecord receivedSoaRecord = soaResponse.Answer[0];
+                DnsSOARecordData receivedSoa = receivedSoaRecord.RDATA as DnsSOARecordData;
+
+                DnsSOARecordData soa = new DnsSOARecordData(receivedSoa.PrimaryNameServer, receivedSoa.ResponsiblePerson, 0u, receivedSoa.Refresh, receivedSoa.Retry, receivedSoa.Expire, receivedSoa.Minimum);
+                DnsResourceRecord soaRecord = new DnsResourceRecord(stubZone._name, DnsResourceRecordType.SOA, DnsClass.IN, receivedSoaRecord.TTL, soa);
+
+                stubZone._entries[DnsResourceRecordType.SOA] = [soaRecord];
             }
-            catch (Exception ex)
+            catch
             {
-                throw new DnsServerException("DNS Server failed to find SOA record for: " + name, ex);
+                if (!ignoreSoaFailure)
+                    throw;
+
+                //continue with dummy SOA
+                DnsSOARecordData soa = new DnsSOARecordData(stubZone._dnsServer.ServerDomain, "invalid", 0, 300, 60, 604800, 900);
+                DnsResourceRecord soaRecord = new DnsResourceRecord(stubZone._name, DnsResourceRecordType.SOA, DnsClass.IN, 0, soa);
+                soaRecord.GetAuthGenericRecordInfo().LastModified = DateTime.UtcNow;
+
+                stubZone._entries[DnsResourceRecordType.SOA] = [soaRecord];
             }
-
-            if ((soaResponse.Answer.Count == 0) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA))
-                throw new DnsServerException("DNS Server failed to find SOA record for: " + name);
-
-            DnsResourceRecord receivedSoaRecord = soaResponse.Answer[0];
-            DnsSOARecordData receivedSoa = receivedSoaRecord.RDATA as DnsSOARecordData;
-
-            DnsSOARecordData soa = new DnsSOARecordData(receivedSoa.PrimaryNameServer, receivedSoa.ResponsiblePerson, 0u, receivedSoa.Refresh, receivedSoa.Retry, receivedSoa.Expire, receivedSoa.Minimum);
-            DnsResourceRecord[] soaRR = [new DnsResourceRecord(stubZone._name, DnsResourceRecordType.SOA, DnsClass.IN, receivedSoaRecord.TTL, soa)];
-
-            stubZone._entries[DnsResourceRecordType.SOA] = soaRR;
 
             return stubZone;
         }
@@ -177,7 +189,7 @@ namespace DnsServerCore.Dns.Zones
         {
             try
             {
-                if (_disabled && !_resync)
+                if (Disabled && !_resync)
                     return;
 
                 _isExpired = DateTime.UtcNow > _expiry;
@@ -371,7 +383,7 @@ namespace DnsServerCore.Dns.Zones
 
         public void TriggerRefresh(int refreshInterval = REFRESH_TIMER_INTERVAL)
         {
-            if (_disabled)
+            if (Disabled)
                 return;
 
             if (_refreshTimerTriggered)
@@ -428,18 +440,18 @@ namespace DnsServerCore.Dns.Zones
 
         public override bool Disabled
         {
-            get { return _disabled; }
+            get { return base.Disabled; }
             set
             {
-                if (_disabled != value)
-                {
-                    _disabled = value;
+                if (base.Disabled == value)
+                    return;
 
-                    if (_disabled)
-                        ResetRefreshTimer(Timeout.Infinite);
-                    else
-                        TriggerRefresh();
-                }
+                base.Disabled = value; //set value early to be able to use it for refresh
+
+                if (value)
+                    ResetRefreshTimer(Timeout.Infinite);
+                else
+                    TriggerRefresh();
             }
         }
 
@@ -495,9 +507,23 @@ namespace DnsServerCore.Dns.Zones
             set
             {
                 if ((value is null) || (value.Count == 0))
+                {
                     _primaryNameServerAddresses = null;
+                }
+                else if (value.Count > byte.MaxValue)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(PrimaryNameServerAddresses), "Name server addresses cannot have more than 255 entries.");
+                }
                 else
+                {
+                    foreach (NameServerAddress nameServer in value)
+                    {
+                        if (nameServer.Port != 53)
+                            throw new ArgumentException("Name server address must use port 53 for Stub zones.", nameof(PrimaryNameServerAddresses));
+                    }
+
                     _primaryNameServerAddresses = value;
+                }
 
                 //update catalog zone property
                 CatalogZone?.SetPrimaryAddressesProperty(_primaryNameServerAddresses, _name);
@@ -512,7 +538,7 @@ namespace DnsServerCore.Dns.Zones
 
         public override bool IsActive
         {
-            get { return !_disabled && !_isExpired; }
+            get { return !Disabled && !_isExpired; }
         }
 
         #endregion
