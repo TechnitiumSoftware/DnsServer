@@ -1300,13 +1300,7 @@ namespace DnsServerCore.Dns
 
                 IReadOnlyList<NameServerAddress> primaryNameServerAddresses;
 
-                SecondaryCatalogZone secondaryCatalogZone = null;
-                if (zoneInfo.CatalogZoneName is not null)
-                {
-                    AuthZone authZone = _authZoneManager.GetAuthZone(zoneInfo.CatalogZoneName, zoneInfo.CatalogZoneName);
-                    if (authZone is SecondaryCatalogZone catalogZone)
-                        secondaryCatalogZone = catalogZone;
-                }
+                SecondaryCatalogZone secondaryCatalogZone = zoneInfo.ApexZone.SecondaryCatalogZone;
 
                 if ((secondaryCatalogZone is not null) && !zoneInfo.OverrideCatalogPrimaryNameServers)
                     primaryNameServerAddresses = await zoneInfo.ApexZone.GetResolvedNameServerAddressesAsync(secondaryCatalogZone.PrimaryNameServerAddresses);
@@ -1840,13 +1834,7 @@ namespace DnsServerCore.Dns
                         IReadOnlyList<NameServerAddress> primaryNameServerAddresses;
                         DnsTransportProtocol primaryZoneTransferProtocol;
 
-                        SecondaryCatalogZone secondaryCatalogZone = null;
-                        if (zoneInfo.CatalogZoneName is not null)
-                        {
-                            AuthZone authZone = _authZoneManager.GetAuthZone(zoneInfo.CatalogZoneName, zoneInfo.CatalogZoneName);
-                            if (authZone is SecondaryCatalogZone catalogZone)
-                                secondaryCatalogZone = catalogZone;
-                        }
+                        SecondaryCatalogZone secondaryCatalogZone = zoneInfo.ApexZone.SecondaryCatalogZone;
 
                         if ((secondaryCatalogZone is not null) && !zoneInfo.OverrideCatalogPrimaryNameServers)
                         {
@@ -1933,15 +1921,15 @@ namespace DnsServerCore.Dns
 
         private async Task<DnsDatagram> ProcessZoneTransferQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, string tsigAuthenticatedKeyName)
         {
-            AuthZoneInfo authZoneInfo = _authZoneManager.GetAuthZoneInfo(request.Question[0].Name);
-            if ((authZoneInfo is null) || !authZoneInfo.ApexZone.IsActive)
+            AuthZoneInfo zoneInfo = _authZoneManager.GetAuthZoneInfo(request.Question[0].Name);
+            if ((zoneInfo is null) || !zoneInfo.ApexZone.IsActive)
             {
-                _log?.Write(remoteEP, protocol, "DNS Server refused a zone transfer request as the zone was not found or was inactive, for zone: " + authZoneInfo.DisplayName);
+                _log?.Write(remoteEP, protocol, "DNS Server refused a zone transfer request as the zone was not found or was inactive, for zone: " + zoneInfo.DisplayName);
 
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
             }
 
-            switch (authZoneInfo.Type)
+            switch (zoneInfo.Type)
             {
                 case AuthZoneType.Primary:
                 case AuthZoneType.Secondary:
@@ -1950,7 +1938,7 @@ namespace DnsServerCore.Dns
                     break;
 
                 default:
-                    _log?.Write(remoteEP, protocol, "DNS Server refused a zone transfer request since the DNS server is not authoritative for zone: " + authZoneInfo.DisplayName);
+                    _log?.Write(remoteEP, protocol, "DNS Server refused a zone transfer request since the DNS server is not authoritative for zone: " + zoneInfo.DisplayName);
 
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
             }
@@ -2020,27 +2008,40 @@ namespace DnsServerCore.Dns
 
             if (!isInZoneTransferAllowedList)
             {
-                ApexZone apexZone = authZoneInfo.ApexZone;
+                ApexZone apexZone = zoneInfo.ApexZone;
 
-                if ((apexZone.CatalogZone is not null) && !apexZone.OverrideCatalogZoneTransfer)
-                    apexZone = apexZone.CatalogZone; //use catalog zone transfer options
+                CatalogZone catalogZone = apexZone.CatalogZone;
+                if (catalogZone is not null)
+                {
+                    if (!apexZone.OverrideCatalogZoneTransfer)
+                        apexZone = catalogZone; //use catalog zone transfer options
+                }
+                else
+                {
+                    SecondaryCatalogZone secondaryCatalogZone = apexZone.SecondaryCatalogZone;
+                    if (secondaryCatalogZone is not null)
+                    {
+                        if (!apexZone.OverrideCatalogZoneTransfer)
+                            apexZone = secondaryCatalogZone; //use secondary zone transfer options
+                    }
+                }
 
                 if (!await IsZoneTransferAllowed(apexZone))
                 {
-                    _log?.Write(remoteEP, protocol, "DNS Server refused a zone transfer request since the request IP address is not allowed by the zone: " + authZoneInfo.DisplayName);
+                    _log?.Write(remoteEP, protocol, "DNS Server refused a zone transfer request since the request IP address is not allowed by the zone: " + zoneInfo.DisplayName);
 
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
                 }
 
                 if (!IsTsigAuthenticated(apexZone))
                 {
-                    _log?.Write(remoteEP, protocol, "DNS Server refused a zone transfer request since the request is missing TSIG auth required by the zone: " + authZoneInfo.DisplayName);
+                    _log?.Write(remoteEP, protocol, "DNS Server refused a zone transfer request since the request is missing TSIG auth required by the zone: " + zoneInfo.DisplayName);
 
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
                 }
             }
 
-            _log?.Write(remoteEP, protocol, "DNS Server received zone transfer request for zone: " + authZoneInfo.DisplayName);
+            _log?.Write(remoteEP, protocol, "DNS Server received zone transfer request for zone: " + zoneInfo.DisplayName);
 
             IReadOnlyList<DnsResourceRecord> xfrRecords;
 
@@ -2058,6 +2059,30 @@ namespace DnsServerCore.Dns
 
             DnsDatagram xfrResponse = new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, xfrRecords) { Tag = DnsServerResponseType.Authoritative };
             xfrResponse = xfrResponse.Split();
+
+            //update notify failed list
+            NameServerAddress allowedZoneNameServer = null;
+
+            switch (zoneInfo.Notify)
+            {
+                case AuthZoneNotify.ZoneNameServers:
+                case AuthZoneNotify.BothZoneAndSpecifiedNameServers:
+                    IPAddress remoteAddress = remoteEP.Address;
+                    IReadOnlyList<NameServerAddress> secondaryNameServers = await zoneInfo.ApexZone.GetResolvedSecondaryNameServerAddressesAsync();
+
+                    foreach (NameServerAddress secondaryNameServer in secondaryNameServers)
+                    {
+                        if (secondaryNameServer.IPEndPoint.Address.Equals(remoteAddress))
+                        {
+                            allowedZoneNameServer = secondaryNameServer;
+                            break;
+                        }
+                    }
+
+                    break;
+            }
+
+            zoneInfo.ApexZone.RemoveFromNotifyFailedList(allowedZoneNameServer, remoteEP.Address);
 
             return xfrResponse;
         }
@@ -5072,10 +5097,12 @@ namespace DnsServerCore.Dns
             get { return _zoneTransferAllowedNetworks; }
             set
             {
-                if ((value is not null) && (value.Count > byte.MaxValue))
-                    throw new ArgumentOutOfRangeException(nameof(ZoneTransferAllowedNetworks), "Networks cannot be more than 255.");
-
-                _zoneTransferAllowedNetworks = value;
+                if ((value is null) || (value.Count == 0))
+                    _zoneTransferAllowedNetworks = null;
+                else if (value.Count > byte.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(ZoneTransferAllowedNetworks), "Networks cannot have more than 255 entries.");
+                else
+                    _zoneTransferAllowedNetworks = value;
             }
         }
 
@@ -5084,10 +5111,12 @@ namespace DnsServerCore.Dns
             get { return _notifyAllowedNetworks; }
             set
             {
-                if ((value is not null) && (value.Count > byte.MaxValue))
-                    throw new ArgumentOutOfRangeException(nameof(NotifyAllowedNetworks), "Networks cannot be more than 255.");
-
-                _notifyAllowedNetworks = value;
+                if ((value is null) || (value.Count == 0))
+                    _notifyAllowedNetworks = null;
+                else if (value.Count > byte.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(NotifyAllowedNetworks), "Networks cannot have more than 255 entries.");
+                else
+                    _notifyAllowedNetworks = value;
             }
         }
 
@@ -5304,10 +5333,12 @@ namespace DnsServerCore.Dns
             get { return _qpmLimitBypassList; }
             set
             {
-                if ((value is not null) && (value.Count > byte.MaxValue))
-                    throw new ArgumentOutOfRangeException(nameof(QpmLimitBypassList), "Networks cannot be more than 255.");
-
-                _qpmLimitBypassList = value;
+                if ((value is null) || (value.Count == 0))
+                    _qpmLimitBypassList = null;
+                else if (value.Count > byte.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(QpmLimitBypassList), "Networks cannot have more than 255 entries.");
+                else
+                    _qpmLimitBypassList = value;
             }
         }
 
@@ -5503,7 +5534,15 @@ namespace DnsServerCore.Dns
         public IReadOnlyDictionary<string, TsigKey> TsigKeys
         {
             get { return _tsigKeys; }
-            set { _tsigKeys = value; }
+            set
+            {
+                if ((value is null) || (value.Count == 0))
+                    _tsigKeys = null;
+                else if (value.Count > byte.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(TsigKeys), "TSIG keys cannot have more than 255 entries.");
+                else
+                    _tsigKeys = value;
+            }
         }
 
         public DnsServerRecursion Recursion
@@ -5531,10 +5570,12 @@ namespace DnsServerCore.Dns
             get { return _recursionNetworkACL; }
             set
             {
-                if ((value is not null) && (value.Count > byte.MaxValue))
+                if ((value is null) || (value.Count == 0))
+                    _recursionNetworkACL = null;
+                else if (value.Count > byte.MaxValue)
                     throw new ArgumentOutOfRangeException(nameof(RecursionNetworkACL), "Network Access Control List cannot have more than 255 entries.");
-
-                _recursionNetworkACL = value;
+                else
+                    _recursionNetworkACL = value;
             }
         }
 
@@ -5698,10 +5739,12 @@ namespace DnsServerCore.Dns
             get { return _blockingBypassList; }
             set
             {
-                if ((value is not null) && (value.Count > byte.MaxValue))
-                    throw new ArgumentOutOfRangeException(nameof(BlockingBypassList), "Networks cannot be more than 255.");
-
-                _blockingBypassList = value;
+                if ((value is null) || (value.Count == 0))
+                    _blockingBypassList = null;
+                else if (value.Count > byte.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(BlockingBypassList), "Networks cannot have more than 255 entries.");
+                else
+                    _blockingBypassList = value;
             }
         }
 
