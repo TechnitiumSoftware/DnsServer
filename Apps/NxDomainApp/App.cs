@@ -65,7 +65,7 @@ namespace NxDomain
 
         private bool IsZoneBlocked(string domain, out string blockedDomain)
         {
-            domain = domain.ToLower();
+            domain = domain.ToLowerInvariant();
 
             do
             {

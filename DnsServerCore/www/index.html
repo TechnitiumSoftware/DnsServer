@@ -460,9 +460,10 @@
                                             <h3 style="margin: 4px 0;"><span id="titleEditZone" style="margin-right: 10px;">example.com</span><a href="#" onclick="showEditZone($('#titleEditZone').attr('data-zone')); return false;"><span class="glyphicon glyphicon-refresh" style="font-size: 20px;" aria-hidden="true"></span></a></h3>
                                             <div style="float: left;">
                                                 <span id="titleEditZoneType" class="label label-default">Primary</span>
-                                                <span id="titleDnssecStatusEditZone" class="label label-default">DNSSEC</span>
-                                                <span id="titleStatusEditZone" class="label label-success">Enabled</span>
-                                                <span id="titleEditZoneExpiry" style="font-size: 10px; font-weight: bold;">Expiry: 01 Jan 2020 00:00:00</span>
+                                                <span id="titleEditZoneDnssecStatus" class="label label-default">DNSSEC</span>
+                                                <span id="titleEditZoneStatus" class="label label-success">Enabled</span>
+                                                <span id="titleEditZoneCatalog" class="label label-default">catalog</span>
+                                                <div id="titleEditZoneExpiry" style="padding-top: 4px; font-size: 10px; font-weight: bold;">Expiry: 01 Jan 2020 00:00:00</div>
                                             </div>
                                             <div style="float: right; padding: 2px 0px;">
                                                 <button id="btnEditZoneAddRecord" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showAddRecordModal();">Add Record</button>
@@ -478,7 +479,7 @@
                                                         <li id="lnkImportZone"><a href="#" onclick="showImportZoneModal($('#titleEditZone').attr('data-zone')); return false;">Import Zone</a></li>
                                                         <li id="lnkExportZone"><a href="#" onclick="exportZone($('#titleEditZone').attr('data-zone')); return false;">Export Zone</a></li>
                                                         <li id="lnkZoneConvert"><a href="#" onclick="showConvertZoneModal($('#titleEditZone').attr('data-zone'), $('#titleEditZone').attr('data-zone-type')); return false;">Convert Zone</a></li>
-                                                        <li id="lnkZoneOptions"><a href="#" onclick="showZoneOptionsModal($('#titleEditZone').attr('data-zone')); return false;">Zone Options</a></li>
+                                                        <li id="lnkZoneOptions"><a href="#" onclick="$('#btnSaveZoneOptions').attr('data-zones-row-id', null); showZoneOptionsModal($('#titleEditZone').attr('data-zone')); return false;">Zone Options</a></li>
                                                     </ul>
                                                 </div>
                                                 <button id="btnZonePermissions" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showZonePermissionsModal($('#titleEditZone').attr('data-zone'));">Permissions</button>
@@ -832,6 +833,7 @@
                                                     <option>PTR</option>
                                                     <option>MX</option>
                                                     <option>TXT</option>
+                                                    <option>RP</option>
                                                     <option>AAAA</option>
                                                     <option>SRV</option>
                                                     <option>NAPTR</option>
@@ -1012,7 +1014,7 @@
                                                             <label class="col-sm-3 control-label">Zone Transfer Allowed Networks</label>
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtZoneTransferAllowedNetworks" class="form-control" rows="3" spellcheck="false"></textarea>
-                                                                <div style="margin-top: 10px;">Enter IP addresses or network addresses one below another that are allowed to perform zone transfer for all zones without any TSIG authentication.</div>
+                                                                <div style="padding-top: 5px;">Enter IP addresses or network addresses one below another that are allowed to perform zone transfer for all zones without any TSIG authentication.</div>
                                                             </div>
                                                         </div>
 
@@ -1020,7 +1022,7 @@
                                                             <label class="col-sm-3 control-label">Notify Allowed Networks</label>
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtNotifyAllowedNetworks" class="form-control" rows="3" spellcheck="false"></textarea>
-                                                                <div style="margin-top: 10px;">Enter IP addresses or network addresses one below another that are allowed to Notify all Secondary Zones.</div>
+                                                                <div style="padding-top: 5px;">Enter IP addresses or network addresses one below another that are allowed to Notify all Secondary Zones.</div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1190,11 +1192,11 @@
                                                             <label class="col-sm-3 control-label">QPM Limit Bypass List</label>
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtQpmLimitBypassList" class="form-control" rows="3" spellcheck="false"></textarea>
-                                                                <div style="margin-top: 10px;">Enter IP addresses or network addresses one below another that are allowed to bypass the QPM limit.</div>
+                                                                <div style="padding-top: 5px;">Enter IP addresses or network addresses one below another that are allowed to bypass the QPM limit.</div>
                                                             </div>
                                                         </div>
 
-                                                        <div>Note! Queries Per Minute (QPM) feature will limit requests from a client subnet based on its IP address and the specified subnet prefix lengths. The QPM limit configured will be compared with the average count from the sample size which means a client may exceed the QPM limit for a given minute but won't exceed for the given sample size in minutes. Rate limited clients will be listed in orange color on the dashboard top clients table.</div>
+                                                        <div>Note! Queries Per Minute (QPM) feature will limit requests from a client subnet based on its IP address and the specified subnet prefix lengths except for loopback IP addresses. The QPM limit configured will be compared with the average count from the sample size which means a client may exceed the QPM limit for a given minute but won't exceed for the given sample size in minutes. Rate limited clients will be listed in orange color on the dashboard top clients table.</div>
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
@@ -1249,7 +1251,7 @@
                                                                 <input type="number" class="form-control" id="txtListenBacklog" placeholder="100" style="width: 100px; display: inline;">
                                                                 <span>(default 100)</span>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum number of pending connections. This option applies to TCP, TLS, and QUIC transport protocols.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum number of pending inbound connections. This option applies to TCP, TLS, and QUIC transport protocols.</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1331,6 +1333,7 @@
                                                             <p>Note! The web service port changes will be automatically applied and so you do not need to manually restart the main service. The TLS certificate too will be automatically reloaded when the certificate file's date modified property on disk changes. This web page will be automatically redirected to the new web console URL after saving settings. The HTTPS protocol will be enabled only when a TLS certificate is configured.</p>
                                                             <p>When using a reverse proxy with the Web Service, you need to add <code>X-Real-IP</code> header to the proxy request with the IP address of the client to allow the Web server to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code>proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
                                                             <p>The web service uses Kestral web server which supports both HTTP/2 and HTTP/3 protocols when TLS certificate is configured. HTTP/3 protocol support is not available on all platforms. On Windows, it is available only on Windows 11 (build 22000 or later) and Windows Server 2022. On Linux, it requires <code>libmsquic</code> to be installed.</p>
+                                                            <p>Note! The web service will always bind to <code>[::]</code> local address for HTTP/3 protocol since this is how the <code>libmsquic</code> library is designed to work.</p>
                                                             <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
                                                             <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "privkey.pem" -in "cert.pem" -certfile "chain.pem"</pre>
                                                         </div>
@@ -1378,6 +1381,13 @@
                                                                     </label>
                                                                 </div>
                                                                 <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTPS requests.</div>
+
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkEnableDnsOverHttp3" type="checkbox"> Enable DNS-over-HTTP/3
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTP/3 requests.</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
@@ -1464,6 +1474,7 @@
                                                             <p>For DNS-over-HTTP, use <code>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</code> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <code id="lblDoTHost">tls-certificate-domain:853</code>, for DNS-over-QUIC, use <code id="lblDoQHost">tls-certificate-domain:853</code>, and for DNS-over-HTTPS use <code>https://<span id="lblDoHsHost">tls-certificate-domain</span>/dns-query</code> to configure supported DNS clients.</p>
                                                             <p>When using a reverse proxy with the DNS-over-HTTP service, you need to add <code>X-Real-IP</code> header to the proxy request with the IP address of the client to allow the DNS server to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code>proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
                                                             <p>DNS-over-QUIC protocol support is not available on all platforms. On Windows, it is available only on Windows 11 (build 22000 or later) and Windows Server 2022. On Linux, it requires <code>libmsquic</code> to be installed.</p>
+                                                            <p>Note! The DNS-over-HTTP/3 protocol will always bind to <code>[::]</code> local address since this is how the <code>libmsquic</code> library is designed to work.</p>
                                                             <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
                                                             <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "privkey.pem" -in "cert.pem" -certfile "chain.pem"</pre>
                                                         </div>
@@ -1525,18 +1536,16 @@
                                                                 </div>
                                                                 <div class="radio">
                                                                     <label>
-                                                                        <input type="radio" name="rdRecursion" id="rdRecursionUseSpecifiedNetworks" value="UseSpecifiedNetworks">
-                                                                        Allow/Deny Recursion For Specified Networks
+                                                                        <input type="radio" name="rdRecursion" id="rdRecursionUseSpecifiedNetworkACL" value="UseSpecifiedNetworkACL">
+                                                                        Use Specified Network Access Control List (ACL)
                                                                     </label>
-                                                                    <div style="padding-top: 5px; padding-left: 20px;">Select this option to specify which networks (in CIDR form) must be allowed or denied. Denied networks are always matched first.</div>
+                                                                    <div style="padding-top: 5px; padding-left: 20px;">Select this option to specify networks that must be allowed or denied recursion.</div>
                                                                 </div>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-6">
-                                                                <label for="txtRecursionDeniedNetworks" class="control-label">Denied Networks (CIDR)</label>
-                                                                <textarea id="txtRecursionDeniedNetworks" class="form-control" rows="5" spellcheck="false"></textarea>
-
-                                                                <label for="txtRecursionAllowedNetworks" class="control-label">Allowed Networks (CIDR)</label>
-                                                                <textarea id="txtRecursionAllowedNetworks" class="form-control" rows="5" spellcheck="false"></textarea>
+                                                                <label for="txtRecursionNetworkACL" class="control-label">Network Access Control List (ACL)</label>
+                                                                <textarea id="txtRecursionNetworkACL" class="form-control" rows="5" spellcheck="false"></textarea>
+                                                                <div style="padding-top: 5px;">Enter IP addresses or network addresses one below another to allow access. Add <code>!</code> character at the start to deny access, e.g. <code>!0.0.0.0/0</code> will deny all. The ACL is processed in the same order its listed. If no networks match, the default policy is to deny all except loopback.</div>
                                                             </div>
                                                         </div>
 
@@ -1588,6 +1597,15 @@
                                                                 <span>milliseconds (valid range 1000-10000; default 1500)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The amount of time the recursive resolver must wait between retries.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtResolverConcurrency" class="col-sm-3 control-label">Resolver Concurrency</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtResolverConcurrency" placeholder="count" style="width: 100px; display: inline;">
+                                                                <span>(valid range 1-4; default 2)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The number of concurrent requests that should be sent by the recursive resolver to the name servers.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1795,7 +1813,7 @@
                                                             <label class="col-sm-3 control-label">Blocking Bypass List</label>
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtBlockingBypassList" class="form-control" rows="3" spellcheck="false"></textarea>
-                                                                <div style="margin-top: 10px;">Enter IP addresses or network addresses one below another that are allowed to bypass blocking.</div>
+                                                                <div style="padding-top: 5px;">Enter IP addresses or network addresses one below another that are allowed to bypass blocking.</div>
                                                             </div>
                                                         </div>
 
@@ -1859,11 +1877,17 @@
                                                                     <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn-social/hosts">Steven Black [adware + malware + gambling + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn-social/hosts)</option>
                                                                     <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn-social/hosts">Steven Black [adware + malware + fakenews + gambling + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn-social/hosts)</option>
 
-                                                                    <option value="https://big.oisd.nl/">OISD Big (Adblock Plus) (https://big.oisd.nl/)</option>
-                                                                    <option value="https://nsfw.oisd.nl/">OISD NSFW (Adblock Plus) (https://nsfw.oisd.nl/)</option>
+                                                                    <option value="https://big.oisd.nl/">OISD Big [Adblock Plus] (https://big.oisd.nl/)</option>
+                                                                    <option value="https://nsfw.oisd.nl/">OISD NSFW [Adblock Plus] (https://nsfw.oisd.nl/)</option>
 
-                                                                    <option value="https://shreshtait.com/newly-registered-domains/nrd-1w">Shreshta - Newly Registered Domains (past week) Community Feed</option>
-                                                                    <option value="https://shreshtait.com/newly-registered-domains/nrd-1m">Shreshta - Newly Registered Domains (past month) Community Feed</option>
+                                                                    <option value="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/light-onlydomains.txt">Hagezi [Multi Light - Basic protection] (https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/light-onlydomains.txt)</option>
+                                                                    <option value="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/multi-onlydomains.txt">Hagezi [Multi Normal - All-round protection] (https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/multi-onlydomains.txt)</option>
+                                                                    <option value="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro-onlydomains.txt">Hagezi [Multi PRO - Extended protection] (https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro-onlydomains.txt)</option>
+                                                                    <option value="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro.plus-onlydomains.txt">Hagezi [Multi PRO++ - Maximum protection] (https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro.plus-onlydomains.txt)</option>
+                                                                    <option value="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/ultimate-onlydomains.txt">Hagezi [Multi ULTIMATE - Aggressive protection] (https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/ultimate-onlydomains.txt)</option>
+
+                                                                    <option value="https://shreshtait.com/newly-registered-domains/nrd-1w">Shreshta - Newly Registered Domains (past week) Community Feed (https://shreshtait.com/newly-registered-domains/nrd-1w)</option>
+                                                                    <option value="https://shreshtait.com/newly-registered-domains/nrd-1m">Shreshta - Newly Registered Domains (past month) Community Feed (https://shreshtait.com/newly-registered-domains/nrd-1m)</option>
                                                                 </select>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">
@@ -2046,7 +2070,7 @@
                                                                     <option value="adguard-f-quic-ipv6">AdGuard Family Protection (DNS-over-QUIC IPv6)</option>
                                                                 </select>
 
-                                                                <div style="margin-top: 10px;">Enter forwarder DNS Server IP addresses or URLs one below another in above text field or use the Quick Select list to select desired forwarder.</div>
+                                                                <div style="padding-top: 5px;">Enter forwarder DNS Server IP addresses or URLs one below another in above text field or use the Quick Select list to select desired forwarder.</div>
                                                             </div>
                                                         </div>
 
@@ -2084,12 +2108,33 @@
                                                                     </label>
                                                                 </div>
 
-                                                                <div style="margin-top: 10px;">Select a protocol that this DNS server must use to query the forwarders specified above.</div>
+                                                                <div style="padding-top: 5px;">Select a protocol that this DNS server must use to query the forwarders specified above.</div>
                                                             </div>
                                                         </div>
 
-                                                        <div style="margin-top: 10px;">Forwarders are upstream DNS servers which this DNS Server should use to resolve recursive queries. When more than one forwarders are configured, the DNS server will randomly select one or more forwarders (as per forwarder concurrency) to query and use the fastest response it receives from anyone of them. If none of the randomly selected forwarders respond in time then the ones left are tried before giving up. If no forwarders are configured then the DNS server will use preconfigured ROOT SERVERS to perform recursive resolution.</div>
-                                                        <div style="margin-top: 10px;">Note! To force DNS-over-HTTPS/3, use <code>h3</code> URL scheme instead of <code>https</code>.</div>
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Concurrent Forwarding</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkEnableConcurrentForwarding" type="checkbox"> Enable Concurrent Forwarding
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to allow querying two or more forwarders concurrently instead of sequentially querying them in their given order. The DNS server will automatically select forwarders (based on their average latency) to query and use the fastest response it receives from any of them. If none of the selected forwarders respond in time, the DNS server will similarly select forwarders from the remaining ones and queries them till all are tried before giving up.</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtForwarderConcurrency" class="col-sm-3 control-label">Forwarder Concurrency</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtForwarderConcurrency" placeholder="count" style="width: 100px; display: inline;">
+                                                                <span>(valid range 1-10; default 2)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The number of concurrent requests that must be sent when Concurrent Forwarding is enabled for resolving a domain name.</div>
+                                                        </div>
+
+                                                        <div style="margin-top: 10px;">Note! Forwarders are upstream DNS servers which this DNS Server must use to resolve domain names. If no forwarders are configured then the DNS server will use preconfigured ROOT HINTS to perform recursive resolution to resolve domain names.</div>
+                                                        <div style="margin-top: 10px;">Note! The <code>https</code> URL scheme will attempt to make DNS-over-HTTPS/3 request and will fallback to DNS-over-HTTPS/2 (and later to DNS-over-HTTPS/1.1) if it fails to connect. To force DNS-over-HTTPS/3, use <code>h3</code> URL scheme instead of <code>https</code> but note that there wont be any protocol fallback if the connection attempt fails.</div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/06/configuring-dns-server-for-privacy.html" target="_blank">Help: Configuring DNS Server For Privacy & Security</a></div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2023/02/configuring-dns-over-quic-and-https3.html" target="_blank">Help: Configuring DNS-over-QUIC and HTTPS/3 For Technitium DNS Server</a></div>
                                                     </div>
@@ -2111,15 +2156,6 @@
                                                                 <span>milliseconds (valid range 1000-10000; default 2000)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The amount of time the forwarder or conditional forwarder resolver must wait between retries.</div>
-                                                        </div>
-
-                                                        <div class="form-group">
-                                                            <label for="txtForwarderConcurrency" class="col-sm-3 control-label">Forwarder Concurrency</label>
-                                                            <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtForwarderConcurrency" placeholder="count" style="width: 100px; display: inline;">
-                                                                <span>(valid range 1-10; default 2)</span>
-                                                            </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The number of concurrent requests that the forwarder or conditional forwarder resolver must send when resolving a domain name.</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -3274,7 +3310,7 @@
                     <p>If you are an administrator, follow these steps to reset the 'admin' user's password:</p>
                     <ol>
                         <li>Stop the DNS server.</li>
-                        <li>Find the DNS Server config folder and locate the <b>auth.config</b> file. The config folder will be found where the DNS Server is installed.</li>
+                        <li>Find the DNS Server config folder and locate the <b>auth.config</b> file. The config folder will be found where the DNS Server is installed on Windows or /etc/dns/ folder on Linux.</li>
                         <li>Rename the <b>auth.config</b> file as <b>resetadmin.config</b></li>
                         <li>Start the DNS Server to complete the password reset process.</li>
                         <li>Just refresh this web page in the web browser to auto login with default credentials and quickly change the password.</li>
@@ -3350,22 +3386,49 @@
                                     </div>
                                     <div class="radio">
                                         <label>
-                                            <input type="radio" name="rdAddZoneType" id="rdAddZoneTypeSecondary" value="Secondary">
+                                            <input type="radio" name="rdAddZoneType" value="Secondary">
                                             Secondary Zone
                                         </label>
                                     </div>
                                     <div class="radio">
                                         <label>
-                                            <input type="radio" name="rdAddZoneType" id="rdAddZoneTypeStub" value="Stub">
+                                            <input type="radio" name="rdAddZoneType" value="Stub">
                                             Stub Zone
                                         </label>
                                     </div>
                                     <div class="radio">
                                         <label>
-                                            <input type="radio" name="rdAddZoneType" id="rdAddZoneTypeForwarder" value="Forwarder">
+                                            <input type="radio" name="rdAddZoneType" value="Forwarder">
                                             Conditional Forwarder Zone
                                         </label>
                                     </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddZoneType" value="SecondaryForwarder">
+                                            Secondary Conditional Forwarder Zone
+                                        </label>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddZoneType" value="Catalog">
+                                            Catalog Zone
+                                        </label>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddZoneType" value="SecondaryCatalog">
+                                            Secondary Catalog Zone
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+
+                            <div class="form-group" id="divAddZoneCatalogZone">
+                                <label class="col-sm-4 control-label">Catalog Zone</label>
+                                <div class="col-sm-7">
+                                    <select id="optAddZoneCatalogZoneName" class="form-control"></select>
+                                    <div style="padding-top: 5px;">Select a Catalog zone to register as its member zone.</div>
                                 </div>
                             </div>
 
@@ -3383,13 +3446,14 @@
 
 
                             <div class="form-group" id="divAddZonePrimaryNameServerAddresses">
-                                <label for="txtAddZonePrimaryNameServerAddresses" class="col-sm-4 control-label">Primary Name Server Addresses (Optional)</label>
+                                <label id="lblAddZonePrimaryNameServerAddresses" for="txtAddZonePrimaryNameServerAddresses" class="col-sm-4 control-label">Primary Name Server Addresses (Optional)</label>
                                 <div class="col-sm-7">
                                     <textarea id="txtAddZonePrimaryNameServerAddresses" class="form-control" rows="3" spellcheck="false" placeholder="192.168.1.1
 2001:db8::
 ns1.example.com (192.168.1.1)
 ns1.example.com ([2001:db8::])
 "></textarea>
+                                    <div id="divAddZonePrimaryNameServerAddressesInfo" style="padding-top: 5px;">Enter the primary name server addresses to sync the zone from. When unspecified, the SOA Primary Name Server will be resolved and used.</div>
                                 </div>
                             </div>
 
@@ -3422,6 +3486,19 @@ ns1.example.com ([2001:db8::])
                                 <label for="optAddZoneTsigKeyName" class="col-sm-4 control-label">TSIG Key Name (Optional)</label>
                                 <div class="col-sm-7">
                                     <select id="optAddZoneTsigKeyName" class="form-control"></select>
+                                </div>
+                            </div>
+
+
+                            <div class="form-group" id="divAddZoneValidateZone">
+                                <label class="col-sm-4 control-label">Zone Validation</label>
+                                <div class="col-sm-7">
+                                    <div class="checkbox">
+                                        <label>
+                                            <input id="chkAddZoneValidateZone" type="checkbox"> Use <a href="https://datatracker.ietf.org/doc/rfc8976/" target="_blank">ZONEMD</a> to Validate Zone
+                                        </label>
+                                        <div style="padding-top: 5px; padding-left: 20px;">When enabled, the secondary zone will be validated using the ZONEMD record after every zone transfer. The zone will get disabled if the validation fails. The zone must be DNSSEC signed for the validation to work.</div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -3475,6 +3552,8 @@ ns1.example.com ([2001:db8::])
                                     </div>
 
                                     <input id="txtAddZoneForwarder" type="text" class="form-control" placeholder="8.8.8.8">
+
+                                    <div style="padding-top: 5px;">Enter a forwarder server address above. You can add more forwarders by adding FWD records after the zone is added.</div>
                                 </div>
                             </div>
 
@@ -3551,7 +3630,7 @@ ns1.example.com ([2001:db8::])
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <div class="pull-left" style="padding: 6px 0;">
+                        <div class="pull-left" style="text-align: left;">
                             <a href="https://blog.technitium.com/2022/06/how-to-self-host-your-own-domain-name.html" target="_blank">Help: How To Self Host Your Own Domain Name</a>
                         </div>
                         <div class="pull-right">
@@ -3596,6 +3675,7 @@ ns1.example.com ([2001:db8::])
                                         <option>PTR</option>
                                         <option>MX</option>
                                         <option>TXT</option>
+                                        <option>RP</option>
                                         <option>AAAA</option>
                                         <option>SRV</option>
                                         <option>NAPTR</option>
@@ -3615,10 +3695,11 @@ ns1.example.com ([2001:db8::])
                                 </div>
                             </div>
 
-                            <div class="form-group" id="divAddEditRecordTtl">
+                            <div class="form-group">
                                 <label for="txtAddEditRecordTtl" class="col-sm-4 control-label">TTL</label>
                                 <div class="col-sm-7">
-                                    <input id="txtAddEditRecordTtl" type="number" class="form-control" placeholder="3600" style="width: 100px;">
+                                    <input id="txtAddEditRecordTtl" type="number" class="form-control" placeholder="3600" style="width: 100px; display: inline;">
+                                    <span>seconds</span>
                                 </div>
                             </div>
 
@@ -3668,6 +3749,7 @@ ns1.example.com ([2001:db8::])
                                     <div class="col-sm-7">
                                         <textarea id="txtAddEditRecordDataNsGlue" class="form-control" rows="3" spellcheck="false" placeholder="192.168.1.1
 2001:db8::"></textarea>
+                                        <div style="padding-top: 5px;">Note! Glue addresses are required only for delegating a subdomain name where the name server's domain name belongs to the delegated subdomain zone.</div>
                                     </div>
                                 </div>
                             </div>
@@ -3683,7 +3765,7 @@ ns1.example.com ([2001:db8::])
                                 <div class="form-group">
                                     <label for="txtEditRecordDataSoaResponsiblePerson" class="col-sm-4 control-label">Responsible Person</label>
                                     <div class="col-sm-7">
-                                        <input id="txtEditRecordDataSoaResponsiblePerson" type="text" class="form-control">
+                                        <input id="txtEditRecordDataSoaResponsiblePerson" type="text" class="form-control" placeholder="email address">
                                     </div>
                                 </div>
                                 <div class="form-group">
@@ -3723,49 +3805,6 @@ ns1.example.com ([2001:db8::])
                                         <input id="txtEditRecordDataSoaMinimum" type="number" class="form-control" style="width: 100px;">
                                     </div>
                                 </div>
-
-                                <div class="form-group" id="divEditRecordDataSoaPrimaryAddresses">
-                                    <label for="txtEditRecordDataSoaPrimaryAddresses" class="col-sm-4 control-label">Primary Name Server Addresses</label>
-                                    <div class="col-sm-7">
-                                        <textarea id="txtEditRecordDataSoaPrimaryAddresses" class="form-control" rows="3" spellcheck="false" placeholder="192.168.1.1
-2001:db8::
-ns1.example.com (192.168.1.1)
-ns1.example.com ([2001:db8::])
-"></textarea>
-                                    </div>
-                                </div>
-
-                                <div class="form-group" id="divEditRecordDataSoaZoneTransferProtocol">
-                                    <label class="col-sm-4 control-label">Zone Transfer Protocol</label>
-                                    <div class="col-sm-7">
-                                        <div class="radio">
-                                            <label>
-                                                <input type="radio" name="rdEditRecordDataSoaZoneTransferProtocol" id="rdEditRecordDataSoaZoneTransferProtocolTcp" value="Tcp" checked>
-                                                XFR-over-TCP (default)
-                                            </label>
-                                        </div>
-                                        <div class="radio">
-                                            <label>
-                                                <input type="radio" name="rdEditRecordDataSoaZoneTransferProtocol" id="rdEditRecordDataSoaZoneTransferProtocolTls" value="Tls">
-                                                XFR-over-TLS
-                                            </label>
-                                        </div>
-                                        <div class="radio">
-                                            <label>
-                                                <input type="radio" name="rdEditRecordDataSoaZoneTransferProtocol" id="rdEditRecordDataSoaZoneTransferProtocolQuic" value="Quic">
-                                                XFR-over-QUIC
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="form-group" id="divEditRecordDataSoaTsigKeyName">
-                                    <label for="optEditRecordDataSoaTsigKeyName" class="col-sm-4 control-label">TSIG Key Name</label>
-                                    <div class="col-sm-7">
-                                        <select id="optEditRecordDataSoaTsigKeyName" class="form-control"></select>
-                                    </div>
-                                </div>
-
                             </div>
 
 
@@ -3795,6 +3834,22 @@ ns1.example.com ([2001:db8::])
                                                 <input id="chkAddEditRecordDataTxtSplitText" type="checkbox"> Use New Line To Split Text Into Multiple Character-Strings
                                             </label>
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+
+
+                            <div id="divAddEditRecordDataRp" style="display: none;">
+                                <div class="form-group">
+                                    <label for="txtAddEditRecordDataRpMailbox" class="col-sm-4 control-label">Mailbox</label>
+                                    <div class="col-sm-7">
+                                        <input id="txtAddEditRecordDataRpMailbox" type="text" class="form-control" placeholder="email address">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="txtAddEditRecordDataRpTxtDomain" class="col-sm-4 control-label">TXT Domain</label>
+                                    <div class="col-sm-7">
+                                        <input id="txtAddEditRecordDataRpTxtDomain" type="text" class="form-control" placeholder=".">
                                     </div>
                                 </div>
                             </div>
@@ -3980,7 +4035,7 @@ ns1.example.com ([2001:db8::])
 MII...
 -----END CERTIFICATE-----
 "></textarea>
-                                        <div>Note: Enter either a hash value that you have independently generated, OR enter the certificate in PEM format to automatically generate the association data based on the Selector and Matching Type values.</div>
+                                        <div style="padding-top: 5px;">Enter either a hash value that you have independently generated, OR enter the certificate in PEM format to automatically generate the association data based on the Selector and Matching Type values.</div>
                                     </div>
                                 </div>
                             </div>
@@ -4136,6 +4191,17 @@ MII...
                                 </div>
 
                                 <div class="form-group">
+                                    <label class="col-sm-4 control-label">Priority</label>
+                                    <div class="col-sm-7">
+                                        <input id="txtAddEditRecordDataForwarderPriority" type="number" class="form-control" placeholder="0" style="width: 100px; display: inline;">
+                                        <span>(valid range 0-255; default 0)</span>
+                                    </div>
+                                    <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
+                                        Forwarders with high priority (lower value) will be queried before trying for low priority forwarders. Forwarders with the same priority will be concurrently queried.
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
                                     <label class="col-sm-4 control-label">DNSSEC</label>
                                     <div class="col-sm-7">
                                         <div class="checkbox" style="margin-bottom: 6px;">
@@ -4231,6 +4297,7 @@ MII...
                                 </div>
                             </div>
 
+
                             <div id="divAddEditRecordOverwrite" class="form-group">
                                 <div class="col-sm-offset-4 col-sm-7">
                                     <div class="checkbox">
@@ -4246,6 +4313,15 @@ MII...
                                 <div class="col-sm-7">
                                     <textarea id="txtAddEditRecordComments" class="form-control" rows="3" maxlength="255"></textarea>
                                 </div>
+                            </div>
+
+                            <div class="form-group" id="divAddEditRecordExpiryTtl">
+                                <label for="txtAddEditRecordExpiryTtl" class="col-sm-4 control-label">Expiry TTL</label>
+                                <div class="col-sm-7">
+                                    <input id="txtAddEditRecordExpiryTtl" type="number" class="form-control" placeholder="0" style="width: 100px; display: inline;">
+                                    <span>seconds (set 0 to disable)</span>
+                                </div>
+                                <div class="col-sm-offset-4 col-sm-7" style="padding-top: 5px;">Set to automatically delete the record when the value in seconds elapses since the record’s last modified time.</div>
                             </div>
 
                         </div>
@@ -4392,13 +4468,179 @@ MII...
 
                         <div>
                             <ul class="nav nav-tabs" role="tablist">
-                                <li id="tabListZoneOptionsZoneTranfer" role="presentation" class="active"><a href="#tabPaneZoneOptionsZoneTransfer" aria-controls="tabPaneZoneOptionsZoneTransfer" role="tab" data-toggle="tab">Zone Transfer</a></li>
+                                <li id="tabListZoneOptionsGeneral" role="presentation" class="active"><a href="#tabPaneZoneOptionsGeneral" aria-controls="tabPaneZoneOptionsGeneral" role="tab" data-toggle="tab">General</a></li>
+                                <li id="tabListZoneOptionsQueryAccess" role="presentation"><a href="#tabPaneZoneOptionsQueryAccess" aria-controls="tabPaneZoneOptionsQueryAccess" role="tab" data-toggle="tab">Query Access</a></li>
+                                <li id="tabListZoneOptionsZoneTranfer" role="presentation"><a href="#tabPaneZoneOptionsZoneTransfer" aria-controls="tabPaneZoneOptionsZoneTransfer" role="tab" data-toggle="tab">Zone Transfer</a></li>
                                 <li id="tabListZoneOptionsNotify" role="presentation"><a href="#tabPaneZoneOptionsNotify" aria-controls="tabPaneZoneOptionsNotify" role="tab" data-toggle="tab">Notify</a></li>
                                 <li id="tabListZoneOptionsUpdate" role="presentation"><a href="#tabPaneZoneOptionsUpdate" aria-controls="tabPaneZoneOptionsUpdate" role="tab" data-toggle="tab">Dynamic Updates (RFC 2136)</a></li>
                             </ul>
 
                             <div class="tab-content">
-                                <div id="tabPaneZoneOptionsZoneTransfer" role="tabpanel" class="tab-pane active" style="padding: 0 6px 0 0; max-height: 450px; margin: 10px 0 0 0; overflow-y: auto; overflow-x: hidden;">
+                                <div id="tabPaneZoneOptionsGeneral" role="tabpanel" class="tab-pane active" style="padding: 0 6px 0 0; max-height: 450px; margin: 10px 0 0 0; overflow-y: auto; overflow-x: hidden;">
+                                    <div class="well well-sm form-horizontal" id="divZoneOptionsGeneralCatalogZone">
+                                        <div class="form-group">
+                                            <label for="optZoneOptionsCatalogZoneName" class="col-sm-4 control-label">Catalog Zone</label>
+                                            <div class="col-sm-7">
+                                                <select id="optZoneOptionsCatalogZoneName" class="form-control"></select>
+                                                <div style="padding-top: 5px;">Select a Catalog zone to register as its member zone.</div>
+                                            </div>
+                                        </div>
+
+                                        <div id="divZoneOptionsCatalogOverrideOptions" class="form-group">
+                                            <label class="col-sm-4 control-label">Override Options</label>
+                                            <div class="col-sm-7">
+                                                <div class="checkbox">
+                                                    <label>
+                                                        <input id="chkZoneOptionsCatalogOverrideQueryAccess" type="checkbox"> Override Query Access Option
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Enable to override Query Access option in the Catalog zone.</div>
+                                                </div>
+                                                <div class="checkbox" id="divZoneOptionsCatalogOverrideZoneTransfer">
+                                                    <label>
+                                                        <input id="chkZoneOptionsCatalogOverrideZoneTransfer" type="checkbox"> Override Zone Transfer Option
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Enable to override Zone Transfer option in the Catalog zone.</div>
+                                                </div>
+                                                <div class="checkbox" id="divZoneOptionsCatalogOverrideNotify">
+                                                    <label>
+                                                        <input id="chkZoneOptionsCatalogOverrideNotify" type="checkbox"> Override Notify Option
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Enable to override Notify option in the Catalog zone.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div id="divZoneOptionsCatalogNotifyFailedNameServers" class="form-group" style="display: none;">
+                                            <label class="col-sm-4 control-label">Notify Failed Name Servers</label>
+                                            <div class="col-sm-7">
+                                                <span id="lblZoneOptionsCatalogNotifyFailedNameServers" class="form-control" style="height: auto;"></span>
+                                            </div>
+                                        </div>
+
+                                        <div>Note! When a zone becomes a member of a Catalog zone, all of the Catalog zone's Options are inherited unless they are explicitly overridden using the Override Options.</div>
+                                    </div>
+
+                                    <div class="well well-sm form-horizontal" id="divZoneOptionsGeneralPrimaryServer">
+                                        <div class="form-group">
+                                            <label id="lblZoneOptionsPrimaryNameServerAddresses" for="txtZoneOptionsPrimaryNameServerAddresses" class="col-sm-4 control-label">Primary Name Server Addresses (Optional)</label>
+                                            <div class="col-sm-7">
+                                                <textarea id="txtZoneOptionsPrimaryNameServerAddresses" class="form-control" rows="3" spellcheck="false" placeholder="192.168.1.1
+2001:db8::
+ns1.example.com (192.168.1.1)
+ns1.example.com ([2001:db8::])
+"></textarea>
+                                                <div id="divZoneOptionsPrimaryNameServerAddressesInfo" style="padding-top: 5px;">Enter the primary name server addresses to sync the zone from. When unspecified, the SOA Primary Name Server will be resolved and used.</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group" id="divZoneOptionsPrimaryServerZoneTransferProtocol">
+                                            <label class="col-sm-4 control-label">Zone Transfer Protocol</label>
+                                            <div class="col-sm-7">
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdPrimaryZoneTransferProtocol" id="rdPrimaryZoneTransferProtocolTcp" value="Tcp" checked>
+                                                        XFR-over-TCP (default)
+                                                    </label>
+                                                </div>
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdPrimaryZoneTransferProtocol" id="rdPrimaryZoneTransferProtocolTls" value="Tls">
+                                                        XFR-over-TLS
+                                                    </label>
+                                                </div>
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdPrimaryZoneTransferProtocol" id="rdPrimaryZoneTransferProtocolQuic" value="Quic">
+                                                        XFR-over-QUIC
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group" id="divZoneOptionsPrimaryServerZoneTransferTsigKeyName">
+                                            <label for="optZoneOptionsPrimaryZoneTransferTsigKeyName" class="col-sm-4 control-label">TSIG Key Name (Optional)</label>
+                                            <div class="col-sm-7">
+                                                <select id="optZoneOptionsPrimaryZoneTransferTsigKeyName" class="form-control"></select>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group" id="divZoneOptionsPrimaryServerValidateZone">
+                                            <label class="col-sm-4 control-label">Zone Validation</label>
+                                            <div class="col-sm-7">
+                                                <div class="checkbox">
+                                                    <label>
+                                                        <input id="chkZoneOptionsValidateZone" type="checkbox"> Use <a href="https://datatracker.ietf.org/doc/rfc8976/" target="_blank">ZONEMD</a> to Validate Zone
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">When enabled, the secondary zone will be validated using the ZONEMD record after every zone transfer. The zone will get disabled if the validation fails. The zone must be DNSSEC signed for the validation to work.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="tabPaneZoneOptionsQueryAccess" role="tabpanel" class="tab-pane" style="padding: 0 6px 0 0; max-height: 450px; margin: 10px 0 0 0; overflow-y: auto; overflow-x: hidden;">
+                                    <div class="well well-sm form-horizontal">
+                                        <div class="form-group">
+                                            <label class="col-sm-3 control-label">Query Access</label>
+                                            <div class="col-sm-8">
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdQueryAccess" id="rdQueryAccessDeny" value="Deny">
+                                                        Deny
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Denies everyone from querying the zone by refusing the request.</div>
+                                                </div>
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdQueryAccess" id="rdQueryAccessAllow" value="Allow">
+                                                        Allow (default)
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows everyone to query the zone.</div>
+                                                </div>
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdQueryAccess" id="rdQueryAccessAllowOnlyPrivateNetworks" value="AllowOnlyPrivateNetworks">
+                                                        Allow Only Private Networks
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows only private networks to query the zone. Any request from a public network will be refused.</div>
+                                                </div>
+                                                <div class="radio" id="divQueryAccessAllowOnlyZoneNameServers">
+                                                    <label>
+                                                        <input type="radio" name="rdQueryAccess" id="rdQueryAccessAllowOnlyZoneNameServers" value="AllowOnlyZoneNameServers">
+                                                        Allow Only Name Servers In Zone
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows only the name servers with an NS record in the zone to query the zone.</div>
+                                                </div>
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdQueryAccess" id="rdQueryAccessUseSpecifiedNetworkACL" value="UseSpecifiedNetworkACL">
+                                                        Use Specified Network Access Control List (ACL)
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Uses the specified network access control list to allow/deny to query the zone.</div>
+                                                </div>
+                                                <div class="radio" id="divQueryAccessAllowZoneNameServersAndUseSpecifiedNetworkACL">
+                                                    <label>
+                                                        <input type="radio" name="rdQueryAccess" id="rdQueryAccessAllowZoneNameServersAndUseSpecifiedNetworkACL" value="AllowZoneNameServersAndUseSpecifiedNetworkACL">
+                                                        Allow Zone Name Servers And Use Specified Network Access Control List (ACL)
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows zone's name servers and uses specified network access control list to allow/deny to query the zone.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="txtQueryAccessNetworkACL" class="col-sm-3 control-label">Network Access Control List (ACL)</label>
+                                            <div class="col-sm-8">
+                                                <textarea id="txtQueryAccessNetworkACL" class="form-control" rows="5" spellcheck="false"></textarea>
+                                                <div style="padding-top: 5px;">Enter IP addresses or network addresses one below another to allow access. Add <code>!</code> character at the start to deny access, e.g. <code>!0.0.0.0/0</code> will deny all. The ACL is processed in the same order its listed. If no networks match, the default policy is to deny all.</div>
+                                            </div>
+                                        </div>
+
+                                        <div>Note! The zone can always be queried from loopback IP addresses and internally by the DNS server irrespective of the Query Access configuration.</div>
+                                    </div>
+                                </div>
+
+                                <div id="tabPaneZoneOptionsZoneTransfer" role="tabpanel" class="tab-pane" style="padding: 0 6px 0 0; max-height: 450px; margin: 10px 0 0 0; overflow-y: auto; overflow-x: hidden;">
                                     <div class="well well-sm form-horizontal">
                                         <div class="form-group">
                                             <label class="col-sm-3 control-label">Zone Transfer</label>
@@ -4417,35 +4659,35 @@ MII...
                                                     </label>
                                                     <div style="padding-top: 5px; padding-left: 20px;">Allows everyone to perform a zone transfer.</div>
                                                 </div>
-                                                <div class="radio">
+                                                <div class="radio" id="divZoneTransferAllowOnlyZoneNameServers">
                                                     <label>
                                                         <input type="radio" name="rdZoneTransfer" id="rdZoneTransferAllowOnlyZoneNameServers" value="AllowOnlyZoneNameServers">
-                                                        Allow Only Name Servers In Zone (default)
+                                                        Allow Only Name Servers In Zone
                                                     </label>
                                                     <div style="padding-top: 5px; padding-left: 20px;">Allows only the name servers with an NS record in the zone to perform a zone transfer.</div>
                                                 </div>
                                                 <div class="radio">
                                                     <label>
-                                                        <input type="radio" name="rdZoneTransfer" id="rdZoneTransferAllowOnlySpecifiedNameServers" value="AllowOnlySpecifiedNameServers">
-                                                        Allow Only Specified Name Servers
+                                                        <input type="radio" name="rdZoneTransfer" id="rdZoneTransferUseSpecifiedNetworkACL" value="UseSpecifiedNetworkACL">
+                                                        Use Specified Network Access Control List (ACL)
                                                     </label>
-                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows only the specified name servers to perform a zone transfer.</div>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Uses the specified network access control list to allow/deny to perform a zone transfer.</div>
                                                 </div>
-                                                <div class="radio">
+                                                <div class="radio" id="divZoneTransferAllowZoneNameServersAndUseSpecifiedNetworkACL">
                                                     <label>
-                                                        <input type="radio" name="rdZoneTransfer" id="rdZoneTransferAllowBothZoneAndSpecifiedNameServers" value="AllowBothZoneAndSpecifiedNameServers">
-                                                        Allow Both Zone Name Servers And Specified Name Servers
+                                                        <input type="radio" name="rdZoneTransfer" id="rdZoneTransferAllowZoneNameServersAndUseSpecifiedNetworkACL" value="AllowZoneNameServersAndUseSpecifiedNetworkACL">
+                                                        Allow Zone Name Servers And Use Specified Network Access Control List (ACL)
                                                     </label>
-                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows both the zone's name servers and the specified name servers to perform a zone transfer.</div>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows zone's name servers and uses specified network access control list to allow/deny to perform a zone transfer.</div>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div class="form-group">
-                                            <label for="txtZoneTransferNameServers" class="col-sm-3 control-label">Specified Name Servers</label>
+                                            <label for="txtZoneTransferNetworkACL" class="col-sm-3 control-label">Network Access Control List (ACL)</label>
                                             <div class="col-sm-8">
-                                                <textarea id="txtZoneTransferNameServers" class="form-control" rows="5" spellcheck="false"></textarea>
-                                                <div>Note: Enter the IP addresses of the name servers above. Network addresses are also accepted.</div>
+                                                <textarea id="txtZoneTransferNetworkACL" class="form-control" rows="5" spellcheck="false"></textarea>
+                                                <div style="padding-top: 5px;">Enter IP addresses or network addresses one below another to allow access. Add <code>!</code> character at the start to deny access, e.g. <code>!0.0.0.0/0</code> will deny all. The ACL is processed in the same order its listed. If no networks match, the default policy is to deny all.</div>
                                             </div>
                                         </div>
 
@@ -4455,7 +4697,7 @@ MII...
                                     <div class="well well-sm form-horizontal">
                                         <div class="form-group">
                                             <label for="txtZoneOptionsZoneTransferTsigKeyNames" class="col-sm-3 control-label">Zone Transfer TSIG Key Names</label>
-                                            <div class="col-sm-6">
+                                            <div class="col-sm-8">
                                                 <textarea id="txtZoneOptionsZoneTransferTsigKeyNames" class="form-control" rows="3" spellcheck="false"></textarea>
 
                                                 <label for="optZoneOptionsQuickTsigKeyNames" class="control-label">Quick Add</label>
@@ -4480,10 +4722,10 @@ MII...
                                                     </label>
                                                     <div style="padding-top: 5px; padding-left: 20px;">Does not notify any name server when the zone is updated.</div>
                                                 </div>
-                                                <div class="radio">
+                                                <div class="radio" id="divZoneNotifyZoneNameServers">
                                                     <label>
                                                         <input type="radio" name="rdZoneNotify" id="rdZoneNotifyZoneNameServers" value="ZoneNameServers">
-                                                        Name Servers In Zone (default)
+                                                        Name Servers In Zone
                                                     </label>
                                                     <div style="padding-top: 5px; padding-left: 20px;">Notifies only the name servers with an NS record in the zone when the zone is updated.</div>
                                                 </div>
@@ -4494,7 +4736,7 @@ MII...
                                                     </label>
                                                     <div style="padding-top: 5px; padding-left: 20px;">Notifies only the specified name servers when the zone is updated.</div>
                                                 </div>
-                                                <div class="radio">
+                                                <div class="radio" id="divZoneNotifyBothZoneAndSpecifiedNameServers">
                                                     <label>
                                                         <input type="radio" name="rdZoneNotify" id="rdZoneNotifyBothZoneAndSpecifiedNameServers" value="BothZoneAndSpecifiedNameServers">
                                                         Both Zone Name Servers And Specified Name Servers
@@ -4508,14 +4750,14 @@ MII...
                                             <label for="txtZoneNotifyNameServers" class="col-sm-3 control-label">Specified Name Servers</label>
                                             <div class="col-sm-8">
                                                 <textarea id="txtZoneNotifyNameServers" class="form-control" rows="5" spellcheck="false"></textarea>
-                                                <div>Note: Enter only the IP addresses of the name servers above.</div>
+                                                <div style="padding-top: 5px;">Enter only the IP addresses of the name servers above.</div>
                                             </div>
                                         </div>
 
                                         <div id="divZoneNotifyFailedNameServers" class="form-group" style="display: none;">
                                             <label class="col-sm-3 control-label">Notify Failed Name Servers</label>
                                             <div class="col-sm-8">
-                                                <span id="lblZoneNotifyFailedNameServers" class="form-control"></span>
+                                                <span id="lblZoneNotifyFailedNameServers" class="form-control" style="height: auto;"></span>
                                             </div>
                                         </div>
 
@@ -4551,30 +4793,31 @@ MII...
                                                 </div>
                                                 <div class="radio">
                                                     <label>
-                                                        <input type="radio" name="rdDynamicUpdate" id="rdDynamicUpdateAllowOnlySpecifiedIpAddresses" value="AllowOnlySpecifiedIpAddresses">
-                                                        Allow Only Specified IP Addresses
+                                                        <input type="radio" name="rdDynamicUpdate" id="rdDynamicUpdateUseSpecifiedNetworkACL" value="UseSpecifiedNetworkACL">
+                                                        Use Specified Network Access Control List (ACL)
                                                     </label>
-                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows only the specified IP addresses to perform dynamic updates.</div>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Uses the specified network access control list to allow/deny to perform dynamic updates.</div>
                                                 </div>
-                                                <div class="radio" id="divDynamicUpdateAllowBothZoneNameServersAndSpecifiedIpAddresses">
+                                                <div class="radio" id="divDynamicUpdateAllowZoneNameServersAndUseSpecifiedNetworkACL">
                                                     <label>
-                                                        <input type="radio" name="rdDynamicUpdate" id="rdDynamicUpdateAllowBothZoneNameServersAndSpecifiedIpAddresses" value="AllowBothZoneNameServersAndSpecifiedIpAddresses">
-                                                        Allow Both Zone Name Servers And Specified IP addresses
+                                                        <input type="radio" name="rdDynamicUpdate" id="rdDynamicUpdateAllowZoneNameServersAndUseSpecifiedNetworkACL" value="AllowZoneNameServersAndUseSpecifiedNetworkACL">
+                                                        Allow Zone Name Servers And Use Specified Network Access Control List (ACL)
                                                     </label>
-                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows both the zone's name servers and the specified IP addresses to perform dynamic updates.</div>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows zone's name servers and uses specified network access control list to allow/deny to perform dynamic updates.</div>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div class="form-group">
-                                            <label for="txtDynamicUpdateIpAddresses" class="col-sm-3 control-label">Specified IP Addresses</label>
+                                            <label for="txtDynamicUpdateNetworkACL" class="col-sm-3 control-label">Network Access Control List (ACL)</label>
                                             <div class="col-sm-8">
-                                                <textarea id="txtDynamicUpdateIpAddresses" class="form-control" rows="5" spellcheck="false"></textarea>
-                                                <div>Note: Enter the IP addresses of the dynamic update clients above. Network addresses are also accepted.</div>
+                                                <textarea id="txtDynamicUpdateNetworkACL" class="form-control" rows="5" spellcheck="false"></textarea>
+                                                <div style="padding-top: 5px;">Enter IP addresses or network addresses one below another to allow access. Add <code>!</code> character at the start to deny access, e.g. <code>!0.0.0.0/0</code> will deny all. The ACL is processed in the same order its listed. If no networks match, the default policy is to deny all.</div>
                                             </div>
                                         </div>
 
-                                        <div>Note! Dynamic updates should be allowed only to trusted IP addresses since they will be able to add/delete records in the zone. If no security policy is configured below then access will be provided only based on the options selected here. Thus setting up a security policy below is highly recommended.</div>
+                                        <div>Note! Dynamic updates should be allowed only to trusted IP addresses since they will be able to add/delete records in the zone.</div>
+                                        <div style="padding-top: 10px;">Warning! If no security policy is configured in the Primary Zone then access will be provided only based on the options selected here. Thus setting up a security policy in the Primary Zone is highly recommended.</div>
                                     </div>
 
                                     <div id="divDynamicUpdateSecurityPolicy" class="well well-sm form-horizontal">
@@ -4954,7 +5197,7 @@ MII...
                                                 <span>days (valid range 0-365; default 30; set 0 to disable)</span>
                                             </div>
                                         </div>
-                                        <div class="col-sm-offset-4 col-sm-8" style="margin-top: 10px;">
+                                        <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
                                             The frequency at which the DNS server must automatically rollover the key.
                                         </div>
                                     </div>
@@ -5036,7 +5279,7 @@ MII...
                                         <button type="button" class="btn btn-default" style="padding: 2px 0; width: 100px;" data-loading-text="Updating..." onclick="updateDnssecDnsKeyTtl(this);">Update TTL</button>
                                     </div>
                                 </div>
-                                <div class="col-sm-offset-4 col-sm-8" style="margin-top: 10px;">
+                                <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
                                     The TTL value to be used for DNSKEY records. A lower value will allow quicker addition or rollover to a new DNS Key at the cost of increased frequency of DNSKEY queries by resolvers.
                                 </div>
                             </div>

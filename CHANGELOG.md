@@ -1,5 +1,25 @@
 # Technitium DNS Server Change Log
 
+## Version 13.0
+Release Date: 22 September 2024
+
+- Implemented Catalog Zones [RFC 9432](https://datatracker.ietf.org/doc/rfc9432/) support to allow automatic DNS zone provisioning to one or more secondary name servers. The implementation supports Primary, Stub, and Conditional Forwarder zones for automatic provisioning of their respective secondary zones.
+- Added new Secondary Forwarder zone support to allow configuring secondaries for Conditional Forwarder zones. Conditional Forwarder zones now support zone transfer and notify features to support secondaries and will now contain a dummy SOA record.
+- Added Query Access feature to allow configuring access to each individual zone. This allows limiting query access to only clients on configured networks even when the DNS server is publicly accessible.
+- Added support for specifying Expiry TTL for records in zones that will cause the DNS server to automatically delete the records when Expiry TTL elapses.
+- Added support for concurrency in recursive resolver to allow querying more than one name server at a time to improve resolution performance.
+- Added support for latency based name server selection algorithm that works with concurrency feature for both recursive resolution and forwarders to significantly improve resolution performance.
+- Implemented priority support for Conditional Forwarder FWD records which can be used to prioritize some forwarders and have a low priority "This Server" FWD record to perform recursive resolution if needed.
+- Implemented ZONEMD [RFC 8976](https://datatracker.ietf.org/doc/rfc8976/) validation support for Secondary zones which is intended to be used with local secondary ROOT zone. This feature allows validating complete zone after each zone transfer.
+- Added support for Responsible Person (RP) record [RFC 1183](https://www.rfc-editor.org/rfc/rfc1183).
+- Added option to enable/disable Concurrent Forwarding feature so as to allow having sequential forwarding support.
+- The DNS Server now supports Network Access Control Lists for Recursion, Zone Transfer, and Dynamic Updates in both the GUI and HTTP API.
+- Changed the Unsupported NSEC3 Iteration Value implementation due to bug in previous implementation that caused failure to validate in some cases.
+- Improved brute force protection implementation for admin web service for IPv6 networks.
+- Added feature to write client subnet query rate limiting events to log file to allow tracking.
+- This major update has some breaking changes with SOA record and Zone Options related HTTP API calls. Some options in SOA record have been moved to Zone Options in both HTTP API and GUI. There are few breaking changes with the DNS Client library code too so any custom DNS App should be tested before upgrading the DNS server.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 12.2.1
 Release Date: 15 June 2024
 

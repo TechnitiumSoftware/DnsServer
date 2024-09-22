@@ -731,7 +731,7 @@ namespace DnsBlockList
                             responseTXT = line;
 
                             if (DnsClient.IsDomainNameValid(domain))
-                                domains.Enqueue(new BlockEntry<string>(domain.ToLower(), responseA, responseTXT));
+                                domains.Enqueue(new BlockEntry<string>(domain.ToLowerInvariant(), responseA, responseTXT));
                         }
 
                         _blockListFileLastModified = File.GetLastWriteTimeUtc(fS.SafeFileHandle);
@@ -793,7 +793,7 @@ namespace DnsBlockList
 
             public override bool IsBlocked(string domain, out string foundDomain, out IPAddress responseA, out string responseTXT)
             {
-                if (IsDomainBlocked(domain.ToLower(), out BlockEntry<string> domainEntry))
+                if (IsDomainBlocked(domain.ToLowerInvariant(), out BlockEntry<string> domainEntry))
                 {
                     foundDomain = domainEntry.Key;
                     responseA = domainEntry.ResponseA is null ? _responseA : domainEntry.ResponseA;

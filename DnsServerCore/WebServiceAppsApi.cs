@@ -29,7 +29,6 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Http.Client;
 
 namespace DnsServerCore
@@ -346,7 +345,11 @@ namespace DnsServerCore
                 {
                     try
                     {
-                        string storeAppsJsonData = await GetStoreAppsJsonData(false).WithTimeout(5000);
+                        string storeAppsJsonData = await TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
+                        {
+                            return GetStoreAppsJsonData(false);
+                        }, 5000);
+
                         jsonDocument = JsonDocument.Parse(storeAppsJsonData);
                         jsonStoreAppsArray = jsonDocument.RootElement;
                     }
@@ -383,7 +386,11 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.View))
                 throw new DnsWebServiceException("Access was denied.");
 
-            string storeAppsJsonData = await GetStoreAppsJsonData(false).WithTimeout(30000);
+            string storeAppsJsonData = await TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
+            {
+                return GetStoreAppsJsonData(false);
+            }, 30000);
+
             using JsonDocument jsonDocument = JsonDocument.Parse(storeAppsJsonData);
             JsonElement jsonStoreAppsArray = jsonDocument.RootElement;
 

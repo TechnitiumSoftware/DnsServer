@@ -59,7 +59,7 @@ namespace DnsServerCore.Auth
 
             Span<byte> tokenBytes = stackalloc byte[32];
             RandomNumberGenerator.Fill(tokenBytes);
-            _token = Convert.ToHexString(tokenBytes).ToLower();
+            _token = Convert.ToHexString(tokenBytes).ToLowerInvariant();
 
             _type = type;
             _tokenName = tokenName;

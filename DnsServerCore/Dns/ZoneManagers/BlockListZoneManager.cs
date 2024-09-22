@@ -82,7 +82,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         private string GetBlockListFilePath(Uri blockListUrl)
         {
-            return Path.Combine(_localCacheFolder, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(blockListUrl.AbsoluteUri))).ToLower());
+            return Path.Combine(_localCacheFolder, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(blockListUrl.AbsoluteUri))).ToLowerInvariant());
         }
 
         private static string PopWord(ref string line)
@@ -167,14 +167,14 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 options = line.Substring(i + 1);
 
                                 if (((options.Length == 0) || (options.StartsWith('$') && (options.Contains("doc") || options.Contains("all")))) && DnsClient.IsDomainNameValid(domain))
-                                    domains.Enqueue(domain.ToLower());
+                                    domains.Enqueue(domain.ToLowerInvariant());
                             }
                             else
                             {
                                 domain = line.Substring(2);
 
                                 if (DnsClient.IsDomainNameValid(domain))
-                                    domains.Enqueue(domain.ToLower());
+                                    domains.Enqueue(domain.ToLowerInvariant());
                             }
                         }
                         else if (line.StartsWith("@@||"))
@@ -187,14 +187,14 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 options = line.Substring(i + 1);
 
                                 if (((options.Length == 0) || (options.StartsWith('$') && (options.Contains("doc") || options.Contains("all")))) && DnsClient.IsDomainNameValid(domain))
-                                    exceptionDomains.Enqueue(domain.ToLower());
+                                    exceptionDomains.Enqueue(domain.ToLowerInvariant());
                             }
                             else
                             {
                                 domain = line.Substring(4);
 
                                 if (DnsClient.IsDomainNameValid(domain))
-                                    exceptionDomains.Enqueue(domain.ToLower());
+                                    exceptionDomains.Enqueue(domain.ToLowerInvariant());
                             }
                         }
                         else
@@ -216,7 +216,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                                     hostname = secondWord;
                             }
 
-                            hostname = hostname.Trim('.').ToLower();
+                            hostname = hostname.Trim('.').ToLowerInvariant();
 
                             switch (hostname)
                             {
@@ -258,7 +258,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         private List<Uri> IsZoneBlocked(string domain, out string blockedDomain)
         {
-            domain = domain.ToLower();
+            domain = domain.ToLowerInvariant();
 
             do
             {
@@ -279,7 +279,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         private bool IsZoneAllowed(string domain)
         {
-            domain = domain.ToLower();
+            domain = domain.ToLowerInvariant();
 
             do
             {

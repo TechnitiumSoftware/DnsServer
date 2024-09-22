@@ -108,7 +108,7 @@ namespace DnsServerCore.Auth
                 if (value.Length > 255)
                     throw new ArgumentException("Group name length cannot exceed 255 characters.", nameof(Name));
 
-                switch (_name?.ToLower())
+                switch (_name?.ToLowerInvariant())
                 {
                     case "everyone":
                     case "administrators":

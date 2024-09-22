@@ -215,7 +215,7 @@ namespace QueryLogsSqlite
                                     {
                                         DnsQuestionRecord query = log.Request.Question[0];
 
-                                        paramQname.Value = query.Name.ToLower();
+                                        paramQname.Value = query.Name.ToLowerInvariant();
                                         paramQtype.Value = (int)query.Type;
                                         paramQclass.Value = (int)query.Class;
                                     }
@@ -452,7 +452,7 @@ CREATE TABLE IF NOT EXISTS dns_logs
                 pageNumber = 1;
 
             if (qname is not null)
-                qname = qname.ToLower();
+                qname = qname.ToLowerInvariant();
 
             string whereClause = string.Empty;
 

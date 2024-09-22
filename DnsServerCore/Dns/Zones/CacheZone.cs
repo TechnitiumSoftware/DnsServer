@@ -396,12 +396,26 @@ namespace DnsServerCore.Dns.Zones
                     if (cacheSubnet.PrefixLength > eDnsClientSubnet.PrefixLength)
                         continue;
 
-                    if (cacheSubnet.Equals(eDnsClientSubnet) || (!advancedForwardingClientSubnet && cacheSubnet.Contains(eDnsClientSubnet.Address)))
+                    if (advancedForwardingClientSubnet)
                     {
-                        if ((selectedNetwork is null) || (cacheSubnet.PrefixLength > selectedNetwork.PrefixLength))
+                        if (cacheSubnet.Equals(eDnsClientSubnet))
                         {
-                            selectedNetwork = cacheSubnet;
-                            entries = ecsEntry.Value;
+                            if ((selectedNetwork is null) || (cacheSubnet.PrefixLength > selectedNetwork.PrefixLength))
+                            {
+                                selectedNetwork = cacheSubnet;
+                                entries = ecsEntry.Value;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (cacheSubnet.Equals(eDnsClientSubnet) || cacheSubnet.Contains(eDnsClientSubnet.Address))
+                        {
+                            if ((selectedNetwork is null) || (cacheSubnet.PrefixLength < selectedNetwork.PrefixLength))
+                            {
+                                selectedNetwork = cacheSubnet;
+                                entries = ecsEntry.Value;
+                            }
                         }
                     }
                 }

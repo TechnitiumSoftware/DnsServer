@@ -47,7 +47,6 @@ namespace DnsServerCore.Dns.Zones
     {
         #region variables
 
-        readonly DnsServer _dnsServer;
         readonly bool _internal;
 
         Dictionary<ushort, DnssecPrivateKey> _dnssecPrivateKeys;
@@ -63,10 +62,8 @@ namespace DnsServerCore.Dns.Zones
         #region constructor
 
         public PrimaryZone(DnsServer dnsServer, AuthZoneInfo zoneInfo)
-            : base(zoneInfo)
+            : base(dnsServer, zoneInfo)
         {
-            _dnsServer = dnsServer;
-
             IReadOnlyCollection<DnssecPrivateKey> dnssecPrivateKeys = zoneInfo.DnssecPrivateKeys;
             if (dnssecPrivateKeys is not null)
             {
@@ -76,28 +73,22 @@ namespace DnsServerCore.Dns.Zones
                     _dnssecPrivateKeys.Add(dnssecPrivateKey.KeyTag, dnssecPrivateKey);
             }
 
-            InitNotify(_dnsServer);
+            InitNotify();
+            InitRecordExpiry();
         }
 
-        public PrimaryZone(DnsServer dnsServer, string name, string primaryNameServer, bool @internal, bool useSoaSerialDateScheme)
-            : base(name)
+        public PrimaryZone(DnsServer dnsServer, string name, bool @internal, bool useSoaSerialDateScheme)
+            : base(dnsServer, name)
         {
-            _dnsServer = dnsServer;
             _internal = @internal;
 
-            if (_internal)
+            if (!_internal)
             {
-                _zoneTransfer = AuthZoneTransfer.Deny;
-                _notify = AuthZoneNotify.None;
-                _update = AuthZoneUpdate.Deny;
-            }
-            else
-            {
-                _zoneTransfer = AuthZoneTransfer.AllowOnlyZoneNameServers;
-                _notify = AuthZoneNotify.ZoneNameServers;
-                _update = AuthZoneUpdate.Deny;
+                InitNotify();
+                InitRecordExpiry();
 
-                InitNotify(_dnsServer);
+                ZoneTransfer = AuthZoneTransfer.AllowOnlyZoneNameServers;
+                Notify = AuthZoneNotify.ZoneNameServers;
             }
 
             string rp;
@@ -108,27 +99,25 @@ namespace DnsServerCore.Dns.Zones
                 rp = _dnsServer.ResponsiblePersonInternal.Address;
 
             uint serial = GetNewSerial(0, 0, useSoaSerialDateScheme);
-            DnsSOARecordData soa = new DnsSOARecordData(primaryNameServer, rp, serial, 900, 300, 604800, 900);
+            DnsSOARecordData soa = new DnsSOARecordData(_dnsServer.ServerDomain, rp, serial, 900, 300, 604800, 900);
             DnsResourceRecord soaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Minimum, soa);
-
             soaRecord.GetAuthSOARecordInfo().UseSoaSerialDateScheme = useSoaSerialDateScheme;
+            soaRecord.GetAuthSOARecordInfo().LastModified = DateTime.UtcNow;
 
-            _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { soaRecord };
-            _entries[DnsResourceRecordType.NS] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, 3600, new DnsNSRecordData(soa.PrimaryNameServer)) };
+            DnsResourceRecord nsRecord = new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, 3600, new DnsNSRecordData(soa.PrimaryNameServer));
+            nsRecord.GetAuthNSRecordInfo().LastModified = DateTime.UtcNow;
+
+            _entries[DnsResourceRecordType.SOA] = [soaRecord];
+            _entries[DnsResourceRecordType.NS] = [nsRecord];
         }
 
         internal PrimaryZone(DnsServer dnsServer, string name, DnsSOARecordData soa, DnsNSRecordData ns)
-            : base(name)
+            : base(dnsServer, name)
         {
-            _dnsServer = dnsServer;
             _internal = true;
 
-            _zoneTransfer = AuthZoneTransfer.Deny;
-            _notify = AuthZoneNotify.None;
-            _update = AuthZoneUpdate.Deny;
-
-            _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Minimum, soa) };
-            _entries[DnsResourceRecordType.NS] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, 3600, ns) };
+            _entries[DnsResourceRecordType.SOA] = [new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Minimum, soa)];
+            _entries[DnsResourceRecordType.NS] = [new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, 3600, ns)];
         }
 
         #endregion
@@ -355,14 +344,14 @@ namespace DnsServerCore.Dns.Zones
 
                     LogManager log = _dnsServer.LogManager;
                     if (log is not null)
-                        log.Write("The KSK DNSKEYs (" + dnsKeyTags + ") from the primary zone are ready for changing the DS records at the parent zone: " + _name);
+                        log.Write("The KSK DNSKEYs (" + dnsKeyTags + ") from the primary zone are ready for changing the DS records at the parent zone: " + ToString());
                 }
 
                 if (kskToActivate is not null)
                 {
                     try
                     {
-                        IReadOnlyList<DnssecPrivateKey> kskPrivateKeys = await GetDSPublishedPrivateKeys(kskToActivate);
+                        IReadOnlyList<DnssecPrivateKey> kskPrivateKeys = await GetDSPublishedPrivateKeysAsync(kskToActivate);
                         if (kskPrivateKeys.Count > 0)
                         {
                             string dnsKeyTags = null;
@@ -381,7 +370,7 @@ namespace DnsServerCore.Dns.Zones
 
                             LogManager log = _dnsServer.LogManager;
                             if (log is not null)
-                                log.Write("The KSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were activated successfully: " + _name);
+                                log.Write("The KSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were activated successfully: " + ToString());
                         }
                     }
                     catch (Exception ex)
@@ -397,7 +386,7 @@ namespace DnsServerCore.Dns.Zones
 
                 if (kskToRevoke is not null)
                 {
-                    uint dsTtl = await GetDSTtl();
+                    uint dsTtl = await GetDSTtlAsync();
                     uint parentSidePropagationDelay = await GetParentSidePropagationDelayAsync();
 
                     List<DnssecPrivateKey> revokeKskPrivateKeys = null;
@@ -630,7 +619,7 @@ namespace DnsServerCore.Dns.Zones
                 deletedRecords.AddRange(deletedDnsKeyRecords);
 
                 //sign all RRSets
-                IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetZoneWithSubDomainZones(_name);
+                IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetApexZoneWithSubDomainZones(_name);
 
                 foreach (AuthZone zone in zones)
                 {
@@ -711,7 +700,7 @@ namespace DnsServerCore.Dns.Zones
                 throw new DnsServerException("Cannot unsign zone: the is zone not signed.");
 
             List<DnsResourceRecord> deletedRecords = new List<DnsResourceRecord>();
-            IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetZoneWithSubDomainZones(_name);
+            IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetApexZoneWithSubDomainZones(_name);
 
             foreach (AuthZone zone in zones)
             {
@@ -750,7 +739,7 @@ namespace DnsServerCore.Dns.Zones
 
             lock (_dnssecUpdateLock)
             {
-                IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetZoneWithSubDomainZones(_name);
+                IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetApexZoneWithSubDomainZones(_name);
 
                 DisableNSec3(zones);
 
@@ -784,7 +773,7 @@ namespace DnsServerCore.Dns.Zones
 
             lock (_dnssecUpdateLock)
             {
-                IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetZoneWithSubDomainZones(_name);
+                IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetApexZoneWithSubDomainZones(_name);
 
                 DisableNSec(zones);
                 EnableNSec3(zones, iterations, saltLength);
@@ -808,7 +797,7 @@ namespace DnsServerCore.Dns.Zones
 
             lock (_dnssecUpdateLock)
             {
-                IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetZoneWithSubDomainZones(_name);
+                IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetApexZoneWithSubDomainZones(_name);
 
                 DisableNSec3(zones);
 
@@ -831,7 +820,7 @@ namespace DnsServerCore.Dns.Zones
         {
             lock (_dnssecUpdateLock)
             {
-                IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetZoneWithSubDomainZones(_name);
+                IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetApexZoneWithSubDomainZones(_name);
 
                 EnableNSec(zones);
             }
@@ -841,7 +830,7 @@ namespace DnsServerCore.Dns.Zones
         {
             lock (_dnssecUpdateLock)
             {
-                IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetZoneWithSubDomainZones(_name);
+                IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetApexZoneWithSubDomainZones(_name);
 
                 //get non NSEC3 zones
                 List<AuthZone> nonNSec3Zones = new List<AuthZone>(zones.Count);
@@ -1285,7 +1274,7 @@ namespace DnsServerCore.Dns.Zones
             List<DnsResourceRecord> deletedRecords = new List<DnsResourceRecord>();
 
             //re-sign all records with new private keys
-            IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetZoneWithSubDomainZones(_name);
+            IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetApexZoneWithSubDomainZones(_name);
 
             foreach (AuthZone zone in zones)
             {
@@ -1317,7 +1306,7 @@ namespace DnsServerCore.Dns.Zones
 
             LogManager log = _dnsServer.LogManager;
             if (log is not null)
-                log.Write("The ZSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were activated successfully: " + _name);
+                log.Write("The ZSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were activated successfully: " + ToString());
         }
 
         public void RolloverDnsKey(ushort keyTag)
@@ -1494,7 +1483,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 LogManager log = _dnsServer.LogManager;
                 if (log is not null)
-                    log.Write("The KSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were retired successfully: " + _name);
+                    log.Write("The KSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were retired successfully: " + ToString());
 
                 return true;
             }
@@ -1578,7 +1567,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 LogManager log = _dnsServer.LogManager;
                 if (log is not null)
-                    log.Write("The ZSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were retired successfully: " + _name);
+                    log.Write("The ZSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were retired successfully: " + ToString());
 
                 return true;
             }
@@ -1591,7 +1580,7 @@ namespace DnsServerCore.Dns.Zones
             //remove all RRSIGs for the DNSKEYs
             List<DnsResourceRecord> deletedRecords = new List<DnsResourceRecord>();
 
-            IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetZoneWithSubDomainZones(_name);
+            IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetApexZoneWithSubDomainZones(_name);
 
             foreach (AuthZone zone in zones)
             {
@@ -1631,7 +1620,7 @@ namespace DnsServerCore.Dns.Zones
 
             LogManager log = _dnsServer.LogManager;
             if (log is not null)
-                log.Write("The ZSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were deactivated successfully: " + _name);
+                log.Write("The ZSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were deactivated successfully: " + ToString());
         }
 
         private void RevokeKskDnsKeys(IReadOnlyList<DnssecPrivateKey> kskPrivateKeys)
@@ -1740,7 +1729,7 @@ namespace DnsServerCore.Dns.Zones
 
             LogManager log = _dnsServer.LogManager;
             if (log is not null)
-                log.Write("The KSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were revoked successfully: " + _name);
+                log.Write("The KSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were revoked successfully: " + ToString());
         }
 
         private void UnpublishDnsKeys(IReadOnlyList<DnssecPrivateKey> deadPrivateKeys)
@@ -1835,10 +1824,10 @@ namespace DnsServerCore.Dns.Zones
 
             LogManager log = _dnsServer.LogManager;
             if (log is not null)
-                log.Write("The DNSKEYs (" + dnsKeyTags + ") from the primary zone were unpublished successfully: " + _name);
+                log.Write("The DNSKEYs (" + dnsKeyTags + ") from the primary zone were unpublished successfully: " + ToString());
         }
 
-        private async Task<IReadOnlyList<DnssecPrivateKey>> GetDSPublishedPrivateKeys(IReadOnlyList<DnssecPrivateKey> privateKeys)
+        private async Task<IReadOnlyList<DnssecPrivateKey>> GetDSPublishedPrivateKeysAsync(IReadOnlyList<DnssecPrivateKey> privateKeys)
         {
             if (_name.Length == 0)
                 return privateKeys; //zone is root
@@ -1879,7 +1868,7 @@ namespace DnsServerCore.Dns.Zones
             List<DnsResourceRecord> addedRecords = new List<DnsResourceRecord>();
             List<DnsResourceRecord> deletedRecords = new List<DnsResourceRecord>();
 
-            IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetZoneWithSubDomainZones(_name);
+            IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetApexZoneWithSubDomainZones(_name);
 
             foreach (AuthZone zone in zones)
             {
@@ -2099,7 +2088,7 @@ namespace DnsServerCore.Dns.Zones
         private void UpdateNSec3RRSetFor(AuthZone zone)
         {
             uint ttl = GetZoneSoaMinimum();
-            bool noSubDomainExistsForEmptyZone = (zone.IsEmpty || zone.HasOnlyNSec3Records()) && !_dnsServer.AuthZoneManager.SubDomainExists(_name, zone.Name);
+            bool noSubDomainExistsForEmptyZone = (zone.IsEmpty || zone.HasOnlyNSec3Records()) && !_dnsServer.AuthZoneManager.SubDomainExistsFor(_name, zone.Name);
 
             IReadOnlyList<DnsResourceRecord> newNSec3Records = GetUpdatedNSec3RRSetFor(zone, ttl, noSubDomainExistsForEmptyZone);
             if (newNSec3Records.Count > 0)
@@ -2509,17 +2498,7 @@ namespace DnsServerCore.Dns.Zones
             return maxTtl;
         }
 
-        private uint GetZoneSoaMinimum()
-        {
-            return (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).Minimum;
-        }
-
-        internal uint GetZoneSoaExpire()
-        {
-            return (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).Expire;
-        }
-
-        private async Task<uint> GetDSTtl()
+        private async Task<uint> GetDSTtlAsync()
         {
             uint dsTtl = 24 * 60 * 60;
 
@@ -2624,189 +2603,24 @@ namespace DnsServerCore.Dns.Zones
 
         #region versioning
 
-        internal void CommitAndIncrementSerial(IReadOnlyList<DnsResourceRecord> deletedRecords = null, IReadOnlyList<DnsResourceRecord> addedRecords = null)
+        internal override void CommitAndIncrementSerial(IReadOnlyList<DnsResourceRecord> deletedRecords = null, IReadOnlyList<DnsResourceRecord> addedRecords = null)
         {
-            _lastModified = DateTime.UtcNow;
-
             if (_internal)
+            {
+                _lastModified = DateTime.UtcNow;
                 return;
-
-            lock (_zoneHistory)
-            {
-                DnsResourceRecord oldSoaRecord = _entries[DnsResourceRecordType.SOA][0];
-                DnsResourceRecord newSoaRecord;
-                {
-                    DnsSOARecordData oldSoa = oldSoaRecord.RDATA as DnsSOARecordData;
-
-                    if ((addedRecords is not null) && (addedRecords.Count == 1) && (addedRecords[0].Type == DnsResourceRecordType.SOA))
-                    {
-                        DnsResourceRecord addSoaRecord = addedRecords[0];
-                        DnsSOARecordData addSoa = addSoaRecord.RDATA as DnsSOARecordData;
-
-                        uint serial = GetNewSerial(oldSoa.Serial, addSoa.Serial, addSoaRecord.GetAuthSOARecordInfo().UseSoaSerialDateScheme);
-
-                        newSoaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, addSoaRecord.TTL, new DnsSOARecordData(addSoa.PrimaryNameServer, addSoa.ResponsiblePerson, serial, addSoa.Refresh, addSoa.Retry, addSoa.Expire, addSoa.Minimum)) { Tag = addSoaRecord.Tag };
-                        addedRecords = null;
-                    }
-                    else
-                    {
-                        uint serial = GetNewSerial(oldSoa.Serial, 0, oldSoaRecord.GetAuthSOARecordInfo().UseSoaSerialDateScheme);
-
-                        newSoaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, oldSoaRecord.TTL, new DnsSOARecordData(oldSoa.PrimaryNameServer, oldSoa.ResponsiblePerson, serial, oldSoa.Refresh, oldSoa.Retry, oldSoa.Expire, oldSoa.Minimum)) { Tag = oldSoaRecord.Tag };
-                    }
-                }
-
-                DnsResourceRecord[] newSoaRecords = [newSoaRecord];
-
-                //update SOA
-                _entries[DnsResourceRecordType.SOA] = newSoaRecords;
-
-                IReadOnlyList<DnsResourceRecord> newRRSigRecords = null;
-                IReadOnlyList<DnsResourceRecord> deletedRRSigRecords = null;
-
-                if (_dnssecStatus != AuthZoneDnssecStatus.Unsigned)
-                {
-                    //sign SOA and update RRSig
-                    newRRSigRecords = SignRRSet(newSoaRecords);
-                    AddOrUpdateRRSigRecords(newRRSigRecords, out deletedRRSigRecords);
-                }
-
-                //remove RR info from old SOA to allow creating new history RR info for setting DeletedOn
-                oldSoaRecord.Tag = null;
-
-                //start commit
-                oldSoaRecord.GetAuthHistoryRecordInfo().DeletedOn = DateTime.UtcNow;
-
-                //write removed
-                _zoneHistory.Add(oldSoaRecord);
-
-                if (deletedRecords is not null)
-                {
-                    foreach (DnsResourceRecord deletedRecord in deletedRecords)
-                    {
-                        if (deletedRecord.GetAuthGenericRecordInfo().Disabled)
-                            continue;
-
-                        _zoneHistory.Add(deletedRecord);
-
-                        if (deletedRecord.Type == DnsResourceRecordType.NS)
-                        {
-                            IReadOnlyList<DnsResourceRecord> glueRecords = deletedRecord.GetAuthNSRecordInfo().GlueRecords;
-                            if (glueRecords is not null)
-                                _zoneHistory.AddRange(glueRecords);
-                        }
-                    }
-                }
-
-                if (deletedRRSigRecords is not null)
-                    _zoneHistory.AddRange(deletedRRSigRecords);
-
-                //write added
-                _zoneHistory.Add(newSoaRecord);
-
-                if (addedRecords is not null)
-                {
-                    foreach (DnsResourceRecord addedRecord in addedRecords)
-                    {
-                        if (addedRecord.GetAuthGenericRecordInfo().Disabled)
-                            continue;
-
-                        _zoneHistory.Add(addedRecord);
-
-                        if (addedRecord.Type == DnsResourceRecordType.NS)
-                        {
-                            IReadOnlyList<DnsResourceRecord> glueRecords = addedRecord.GetAuthNSRecordInfo().GlueRecords;
-                            if (glueRecords is not null)
-                                _zoneHistory.AddRange(glueRecords);
-                        }
-                    }
-                }
-
-                if (newRRSigRecords is not null)
-                    _zoneHistory.AddRange(newRRSigRecords);
-
-                //end commit
-
-                CleanupHistory();
-            }
-        }
-
-        private static uint GetNewSerial(uint oldSerial, uint updateSerial, bool useSoaSerialDateScheme)
-        {
-            if (useSoaSerialDateScheme)
-            {
-                string strOldSerial = oldSerial.ToString();
-                string strOldSerialDate = null;
-                byte counter = 0;
-
-                if (strOldSerial.Length == 10)
-                {
-                    //parse old serial
-                    strOldSerialDate = strOldSerial.Substring(0, 8);
-                    counter = byte.Parse(strOldSerial.Substring(8));
-                }
-
-                string strSerialDate = DateTime.UtcNow.ToString("yyyyMMdd");
-
-                if (strOldSerialDate is null)
-                {
-                    //transitioning to date scheme
-                    return uint.Parse(strSerialDate + counter.ToString().PadLeft(2, '0'));
-                }
-                else if (strSerialDate.Equals(strOldSerialDate))
-                {
-                    //same date
-                    if (counter < 99)
-                    {
-                        counter++;
-                        return uint.Parse(strSerialDate + counter.ToString().PadLeft(2, '0'));
-                    }
-                    else
-                    {
-                        //more than 100 increments
-                        return uint.Parse(strSerialDate + counter.ToString().PadLeft(2, '0')) + 1;
-                    }
-                }
-                else if (uint.Parse(strSerialDate) > uint.Parse(strOldSerialDate))
-                {
-                    //later date
-                    return uint.Parse(strSerialDate + "00");
-                }
             }
 
-            //default
-            uint serial = oldSerial;
-
-            if (updateSerial > serial)
-                serial = updateSerial;
-            else if (serial < uint.MaxValue)
-                serial++;
-            else
-                serial = 1;
-
-            return serial;
+            base.CommitAndIncrementSerial(deletedRecords, addedRecords);
         }
 
         #endregion
 
         #region public
 
-        public void SetSoaSerial(uint newSerial)
+        public override string GetZoneTypeName()
         {
-            lock (_zoneHistory)
-            {
-                DnsResourceRecord oldSoaRecord = _entries[DnsResourceRecordType.SOA][0];
-                DnsSOARecordData oldSoa = oldSoaRecord.RDATA as DnsSOARecordData;
-
-                DnsResourceRecord newSoaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, oldSoaRecord.TTL, new DnsSOARecordData(oldSoa.PrimaryNameServer, oldSoa.ResponsiblePerson, newSerial, oldSoa.Refresh, oldSoa.Retry, oldSoa.Expire, oldSoa.Minimum)) { Tag = oldSoaRecord.Tag };
-                DnsResourceRecord[] newSoaRecords = [newSoaRecord];
-
-                //update SOA
-                _entries[DnsResourceRecordType.SOA] = newSoaRecords;
-
-                //clear history
-                _zoneHistory.Clear();
-            }
+            return "Primary";
         }
 
         public override void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
@@ -2869,6 +2683,7 @@ namespace DnsServerCore.Dns.Zones
 
                         recordInfo.UseSoaSerialDateScheme = useSoaSerialDateScheme;
                         recordInfo.Comments = comments;
+                        recordInfo.LastModified = DateTime.UtcNow;
                     }
 
                     uint oldSoaMinimum = GetZoneSoaMinimum();
@@ -3006,7 +2821,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public override bool DeleteRecord(DnsResourceRecordType type, DnsResourceRecordData record)
+        public override bool DeleteRecord(DnsResourceRecordType type, DnsResourceRecordData rdata)
         {
             switch (type)
             {
@@ -3021,9 +2836,9 @@ namespace DnsServerCore.Dns.Zones
                     throw new InvalidOperationException("Cannot delete DNSSEC records.");
 
                 default:
-                    if (TryDeleteRecord(type, record, out DnsResourceRecord deletedRecord))
+                    if (TryDeleteRecord(type, rdata, out DnsResourceRecord deletedRecord))
                     {
-                        CommitAndIncrementSerial(new DnsResourceRecord[] { deletedRecord });
+                        CommitAndIncrementSerial([deletedRecord]);
 
                         if (_dnssecStatus != AuthZoneDnssecStatus.Unsigned)
                             UpdateDnssecRecordsFor(this, type);
@@ -3084,29 +2899,26 @@ namespace DnsServerCore.Dns.Zones
 
         #region properties
 
-        public bool Internal
-        { get { return _internal; } }
-
         public override bool Disabled
         {
-            get { return _disabled; }
+            get { return base.Disabled; }
             set
             {
-                if (_disabled != value)
-                {
-                    _disabled = value;
+                if (base.Disabled == value)
+                    return;
 
-                    if (_disabled)
-                        DisableNotifyTimer();
-                    else
-                        TriggerNotify();
-                }
+                base.Disabled = value; //set value early to be able to use it for notify
+
+                if (value)
+                    DisableNotifyTimer();
+                else
+                    TriggerNotify();
             }
         }
 
         public override AuthZoneTransfer ZoneTransfer
         {
-            get { return _zoneTransfer; }
+            get { return base.ZoneTransfer; }
             set
             {
                 if (_internal)
@@ -3118,7 +2930,7 @@ namespace DnsServerCore.Dns.Zones
 
         public override AuthZoneNotify Notify
         {
-            get { return _notify; }
+            get { return base.Notify; }
             set
             {
                 if (_internal)
@@ -3130,7 +2942,7 @@ namespace DnsServerCore.Dns.Zones
 
         public override AuthZoneUpdate Update
         {
-            get { return _update; }
+            get { return base.Update; }
             set
             {
                 if (_internal)
@@ -3139,6 +2951,9 @@ namespace DnsServerCore.Dns.Zones
                 base.Update = value;
             }
         }
+
+        public bool Internal
+        { get { return _internal; } }
 
         public IReadOnlyCollection<DnssecPrivateKey> DnssecPrivateKeys
         {

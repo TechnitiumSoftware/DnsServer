@@ -59,7 +59,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DefaultRecordsApp", "Apps\D
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DnsRebindingProtectionApp", "Apps\DnsRebindingProtectionApp\DnsRebindingProtectionApp.csproj", "{159014D9-662B-429E-8006-495A9B99B902}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FilterAaaaApp", "Apps\FilterAaaaApp\FilterAaaaApp.csproj", "{0A9B7F39-80DA-4084-AD47-8707576927ED}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FilterAaaaApp", "Apps\FilterAaaaApp\FilterAaaaApp.csproj", "{0A9B7F39-80DA-4084-AD47-8707576927ED}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

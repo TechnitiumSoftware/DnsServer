@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -25,11 +25,19 @@ namespace DnsServerCore.Dns.Zones
 {
     class SecondarySubDomainZone : SubDomainZone
     {
+        #region variables
+
+        readonly SecondaryZone _secondaryZone;
+
+        #endregion
+
         #region constructor
 
         public SecondarySubDomainZone(SecondaryZone secondaryZone, string name)
             : base(secondaryZone, name)
-        { }
+        {
+            _secondaryZone = secondaryZone;
+        }
 
         #endregion
 
@@ -37,27 +45,27 @@ namespace DnsServerCore.Dns.Zones
 
         public override void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
         {
-            throw new InvalidOperationException("Cannot set records in secondary zone.");
+            throw new InvalidOperationException("Cannot set records in " + _secondaryZone.GetZoneTypeName() + " zone.");
         }
 
         public override void AddRecord(DnsResourceRecord record)
         {
-            throw new InvalidOperationException("Cannot add record in secondary zone.");
+            throw new InvalidOperationException("Cannot add record in " + _secondaryZone.GetZoneTypeName() + " zone.");
         }
 
         public override bool DeleteRecord(DnsResourceRecordType type, DnsResourceRecordData record)
         {
-            throw new InvalidOperationException("Cannot delete record in secondary zone.");
+            throw new InvalidOperationException("Cannot delete record in " + _secondaryZone.GetZoneTypeName() + " zone.");
         }
 
         public override bool DeleteRecords(DnsResourceRecordType type)
         {
-            throw new InvalidOperationException("Cannot delete records in secondary zone.");
+            throw new InvalidOperationException("Cannot delete records in " + _secondaryZone.GetZoneTypeName() + " zone.");
         }
 
         public override void UpdateRecord(DnsResourceRecord oldRecord, DnsResourceRecord newRecord)
         {
-            throw new InvalidOperationException("Cannot update record in secondary zone.");
+            throw new InvalidOperationException("Cannot update record in " + _secondaryZone.GetZoneTypeName() + " zone.");
         }
 
         #endregion
