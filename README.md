@@ -31,15 +31,16 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Docker image available on [Docker Hub](https://hub.docker.com/r/technitium/dns-server).
 - Installs in just a minute and works out-of-the-box with zero configuration.
 - Block ads & malware using one or more block list URLs.
+- Supports working as an authoritative as well as a recursive DNS server.
 - High performance DNS server based on async IO that can serve millions of requests per minute even on a commodity desktop PC hardware (load tested on Intel i7-8700 CPU with more than 100,000 request/second over Gigabit Ethernet).
 - Self host [DNS-over-TLS](https://www.rfc-editor.org/rfc/rfc7858.html), [DNS-over-HTTPS](https://www.rfc-editor.org/rfc/rfc8484.html), and [DNS-over-QUIC](https://www.ietf.org/rfc/rfc9250.html) DNS services on your network.
 - DNS-over-HTTPS implementation supports HTTP/1.1, HTTP/2, and HTTP/3 transport protocols.
 - Supports DNS over [PROXY protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) version 1 and 2 for both UDP and TCP transports.
 - Use public DNS resolvers like Cloudflare, Google, Quad9, and AdGuard with [DNS-over-TLS](https://www.rfc-editor.org/rfc/rfc7858.html), [DNS-over-HTTPS](https://www.rfc-editor.org/rfc/rfc8484.html), or [DNS-over-QUIC](https://www.ietf.org/rfc/rfc9250.html) protocols as forwarders.
+- Support for latency based name server selection algorithm that works with concurrency feature for both recursive resolution and forwarders.
 - Advanced caching with features like serve stale, prefetching and auto prefetching.
 - Persistent caching feature that saves cache to disk when DNS server restarts.
 - DNS rebinding attack protection feature available with DNS Rebinding Protection App.
-- Supports working as an authoritative as well as a recursive DNS server.
 - DNSSEC validation support with RSA & ECDSA algorithms for recursive resolver, forwarders, and conditional forwarders with NSEC and NSEC3 support.
 - DNSSEC support for all supported DNS transport protocols including encrypted DNS protocols.
 - DANE TLSA [RFC 6698](https://datatracker.ietf.org/doc/html/rfc6698) record type support. This includes support for automatically generating the hash values using certificates in PEM format.
@@ -56,6 +57,8 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Support for REGEX based block lists with different block lists for different client IP addresses or subnet using Advanced Blocking DNS App.
 - Primary, Secondary, Stub, and Conditional Forwarder zone support.
 - Static stub zone support implemented in Conditional Forwarder zone to force a domain name to resolve via given name servers using NS records.
+- Supports Catalog Zones [RFC 9432](https://datatracker.ietf.org/doc/rfc9432/).
+- Supports record aging where the records with expiry set are automatically removed from the zone.
 - Bulk conditional forwarding support using Advanced Forwarding DNS App.
 - DNSSEC signed zones support with RSA & ECDSA algorithms.
 - DNSSEC support for both NSEC and NSEC3.
