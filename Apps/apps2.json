@@ -74,6 +74,12 @@
 				"version": "7.1.1",
 				"url": "https://download.technitium.com/dns/apps/AdvancedBlockingApp-v7.1.1.zip",
 				"size": "30.7 KB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "8.0",
+				"url": "https://download.technitium.com/dns/apps/AdvancedBlockingApp-v8.zip",
+				"size": "30.7 KB"
 			}
 		]
 	},
@@ -116,6 +122,12 @@
 				"version": "2.1",
 				"url": "https://download.technitium.com/dns/apps/AdvancedForwardingApp-v2.1.zip",
 				"size": "20.5 KB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "3.0",
+				"url": "https://download.technitium.com/dns/apps/AdvancedForwardingApp-v3.zip",
+				"size": "20.4 KB"
 			}
 		]
 	},
@@ -140,6 +152,12 @@
 				"version": "2.0",
 				"url": "https://download.technitium.com/dns/apps/AutoPtrApp-v2.zip",
 				"size": "12.3 KB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "3.0",
+				"url": "https://download.technitium.com/dns/apps/AutoPtrApp-v3.zip",
+				"size": "12.2 KB"
 			}
 		]
 	},
@@ -206,6 +224,12 @@
 				"version": "5.1",
 				"url": "https://download.technitium.com/dns/apps/BlockPageApp-v5.1.zip",
 				"size": "25.2 KB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "6.0",
+				"url": "https://download.technitium.com/dns/apps/BlockPageApp-v6.zip",
+				"size": "25.2 KB"
 			}
 		]
 	},
@@ -224,6 +248,12 @@
 				"version": "2.0",
 				"url": "https://download.technitium.com/dns/apps/DefaultRecordsApp-v2.zip",
 				"size": "14.0 KB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "3.0",
+				"url": "https://download.technitium.com/dns/apps/DefaultRecordsApp-v3.zip",
+				"size": "13.8 KB"
 			}
 		]
 	},
@@ -254,6 +284,12 @@
 				"version": "3.0",
 				"url": "https://download.technitium.com/dns/apps/Dns64App-v3.zip",
 				"size": "15.3 KB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "4.0",
+				"url": "https://download.technitium.com/dns/apps/Dns64App-v4.zip",
+				"size": "15.5 KB"
 			}
 		]
 	},
@@ -278,6 +314,12 @@
 				"version": "2.0",
 				"url": "https://download.technitium.com/dns/apps/DnsBlockListApp-v2.zip",
 				"size": "19.5 KB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "3.0",
+				"url": "https://download.technitium.com/dns/apps/DnsBlockListApp-v3.zip",
+				"size": "19.4 KB"
 			}
 		]
 	},
@@ -290,6 +332,12 @@
 				"version": "1.1",
 				"url": "https://download.technitium.com/dns/apps/DnsRebindingProtectionApp-v1.1.zip",
 				"size": "11.7 KB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "2.0",
+				"url": "https://download.technitium.com/dns/apps/DnsRebindingProtectionApp-v2.zip",
+				"size": "11.8 KB"
 			}
 		]
 	},
@@ -326,6 +374,12 @@
 				"version": "5.0",
 				"url": "https://download.technitium.com/dns/apps/DropRequestsApp-v5.zip",
 				"size": "12.7 KB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "6.0",
+				"url": "https://download.technitium.com/dns/apps/DropRequestsApp-v6.zip",
+				"size": "12.6 KB"
 			}
 		]
 	},
@@ -398,6 +452,12 @@
 				"version": "7.0.1",
 				"url": "https://download.technitium.com/dns/apps/FailoverApp-v7.0.1.zip",
 				"size": "49.8 KB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "8.0",
+				"url": "https://download.technitium.com/dns/apps/FailoverApp-v8.zip",
+				"size": "50.0 KB"
 			}
 		]
 	},
@@ -409,6 +469,12 @@
 				"serverVersion": "12.2",
 				"version": "1.0",
 				"url": "https://download.technitium.com/dns/apps/FilterAaaaApp-v1.zip",
+				"size": "12.9 KB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "2.0",
+				"url": "https://download.technitium.com/dns/apps/FilterAaaaApp-v2.zip",
 				"size": "12.9 KB"
 			}
 		]
@@ -470,6 +536,12 @@
 				"version": "7.1",
 				"url": "https://download.technitium.com/dns/apps/GeoContinentApp-v7.1.zip",
 				"size": "7.57 MB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "8.0",
+				"url": "https://download.technitium.com/dns/apps/GeoContinentApp-v8.zip",
+				"size": "8.35 MB"
 			}
 		]
 	},
@@ -530,6 +602,12 @@
 				"version": "7.1",
 				"url": "https://download.technitium.com/dns/apps/GeoCountryApp-v7.1.zip",
 				"size": "7.57 MB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "8.0",
+				"url": "https://download.technitium.com/dns/apps/GeoCountryApp-v8.zip",
+				"size": "8.35 MB"
 			}
 		]
 	},
@@ -590,6 +668,12 @@
 				"version": "7.1",
 				"url": "https://download.technitium.com/dns/apps/GeoDistanceApp-v7.1.zip",
 				"size": "35.4 MB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "8.0",
+				"url": "https://download.technitium.com/dns/apps/GeoDistanceApp-v8.zip",
+				"size": "33.4 MB"
 			}
 		]
 	},
@@ -632,6 +716,12 @@
 				"version": "3.0",
 				"url": "https://download.technitium.com/dns/apps/NoDataApp-v3.zip",
 				"size": "10.9 KB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "4.0",
+				"url": "https://download.technitium.com/dns/apps/NoDataApp-v4.zip",
+				"size": "10.7 KB"
 			}
 		]
 	},
@@ -674,6 +764,12 @@
 				"version": "5.0.1",
 				"url": "https://download.technitium.com/dns/apps/NxDomainApp-v5.0.1.zip",
 				"size": "11.4 KB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "6.0",
+				"url": "https://download.technitium.com/dns/apps/NxDomainApp-v6.zip",
+				"size": "11.4 KB"
 			}
 		]
 	},
@@ -686,6 +782,12 @@
 				"version": "1.0",
 				"url": "https://download.technitium.com/dns/apps/NxDomainOverrideApp-v1.zip",
 				"size": "13.0 KB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "2.0",
+				"url": "https://download.technitium.com/dns/apps/NxDomainOverrideApp-v2.zip",
+				"size": "12.9 KB"
 			}
 		]
 	},
@@ -758,6 +860,12 @@
 				"version": "5.0.2",
 				"url": "https://download.technitium.com/dns/apps/QueryLogsSqliteApp-v5.0.2.zip",
 				"size": "12.2 MB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "6.0",
+				"url": "https://download.technitium.com/dns/apps/QueryLogsSqliteApp-v6.zip",
+				"size": "12.2 MB"
 			}
 		]
 	},
@@ -818,6 +926,12 @@
 				"version": "7.0",
 				"url": "https://download.technitium.com/dns/apps/SplitHorizonApp-v7.zip",
 				"size": "19.5 KB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "8.0",
+				"url": "https://download.technitium.com/dns/apps/SplitHorizonApp-v8.zip",
+				"size": "19.4 KB"
 			}
 		]
 	},
@@ -842,6 +956,12 @@
 				"version": "2.0",
 				"url": "https://download.technitium.com/dns/apps/WeightedRoundRobinApp-v2.zip",
 				"size": "12.7 KB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "3.0",
+				"url": "https://download.technitium.com/dns/apps/WeightedRoundRobinApp-v3.zip",
+				"size": "12.6 KB"
 			}
 		]
 	},
@@ -890,6 +1010,12 @@
 				"version": "6.0",
 				"url": "https://download.technitium.com/dns/apps/WhatIsMyDnsApp-v6.zip",
 				"size": "10.6 KB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "7.0",
+				"url": "https://download.technitium.com/dns/apps/WhatIsMyDnsApp-v7.zip",
+				"size": "10.5 KB"
 			}
 		]
 	},
@@ -932,6 +1058,12 @@
 				"version": "3.0",
 				"url": "https://download.technitium.com/dns/apps/WildIpApp-v3.zip",
 				"size": "12.2 KB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "4.0",
+				"url": "https://download.technitium.com/dns/apps/WildIpApp-v4.zip",
+				"size": "12.1 KB"
 			}
 		]
 	},
@@ -950,6 +1082,12 @@
 				"version": "2.0",
 				"url": "https://download.technitium.com/dns/apps/ZoneAliasApp-v2.zip",
 				"size": "13.0 KB"
+			},
+			{
+				"serverVersion": "13.0",
+				"version": "3.0",
+				"url": "https://download.technitium.com/dns/apps/ZoneAliasApp-v3.zip",
+				"size": "12.9 KB"
 			}
 		]
 	}
