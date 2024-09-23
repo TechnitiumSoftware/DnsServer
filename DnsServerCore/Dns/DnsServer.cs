@@ -3315,16 +3315,19 @@ namespace DnsServerCore.Dns
                 //use forwarders
                 if (_concurrentForwarding)
                 {
-                    //recursive resolve forwarder
-                    foreach (NameServerAddress forwarder in _forwarders)
+                    if (_proxy is null)
                     {
-                        if (forwarder.IsIPEndPointStale)
+                        //recursive resolve forwarders only when proxy is null else let proxy resolve it to allow using .onion or private domains
+                        foreach (NameServerAddress forwarder in _forwarders)
                         {
-                            //refresh forwarder IPEndPoint if stale
-                            await TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
+                            if (forwarder.IsIPEndPointStale)
                             {
-                                return forwarder.RecursiveResolveIPAddressAsync(dnsCache, _proxy, _preferIPv6, _udpPayloadSize, _randomizeName, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, cancellationToken1);
-                            }, RECURSIVE_RESOLUTION_TIMEOUT, cancellationToken);
+                                //refresh forwarder IPEndPoint if stale
+                                await TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
+                                {
+                                    return forwarder.RecursiveResolveIPAddressAsync(dnsCache, null, _preferIPv6, _udpPayloadSize, _randomizeName, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, cancellationToken1);
+                                }, RECURSIVE_RESOLUTION_TIMEOUT, cancellationToken);
+                            }
                         }
                     }
 
@@ -3352,14 +3355,17 @@ namespace DnsServerCore.Dns
 
                     foreach (NameServerAddress forwarder in _forwarders)
                     {
-                        //recursive resolve forwarder
-                        if (forwarder.IsIPEndPointStale)
+                        if (_proxy is null)
                         {
-                            //refresh forwarder IPEndPoint if stale
-                            await TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
+                            //recursive resolve forwarder only when proxy is null else let proxy resolve it to allow using .onion or private domains
+                            if (forwarder.IsIPEndPointStale)
                             {
-                                return forwarder.RecursiveResolveIPAddressAsync(dnsCache, _proxy, _preferIPv6, _udpPayloadSize, _randomizeName, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, cancellationToken1);
-                            }, RECURSIVE_RESOLUTION_TIMEOUT, cancellationToken);
+                                //refresh forwarder IPEndPoint if stale
+                                await TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
+                                {
+                                    return forwarder.RecursiveResolveIPAddressAsync(dnsCache, null, _preferIPv6, _udpPayloadSize, _randomizeName, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, cancellationToken1);
+                                }, RECURSIVE_RESOLUTION_TIMEOUT, cancellationToken);
+                            }
                         }
 
                         //query forwarder and update cache
@@ -3441,14 +3447,18 @@ namespace DnsServerCore.Dns
                     if (forwarder.Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                         continue; //skip resolving
 
-                    //recursive resolve name server
-                    if (forwarder.NameServer.IsIPEndPointStale)
+                    NetProxy proxy = forwarder.GetProxy(_proxy);
+                    if (proxy is null)
                     {
-                        //refresh forwarder IPEndPoint if stale
-                        resolveTasks.Add(TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
+                        //recursive resolve forwarder only when proxy is null else let proxy resolve it to allow using .onion or private domains
+                        if (forwarder.NameServer.IsIPEndPointStale)
                         {
-                            return forwarder.NameServer.RecursiveResolveIPAddressAsync(dnsCache, forwarder.GetProxy(_proxy), _preferIPv6, _udpPayloadSize, _randomizeName, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, cancellationToken1);
-                        }, RECURSIVE_RESOLUTION_TIMEOUT));
+                            //refresh forwarder IPEndPoint if stale
+                            resolveTasks.Add(TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
+                            {
+                                return forwarder.NameServer.RecursiveResolveIPAddressAsync(dnsCache, null, _preferIPv6, _udpPayloadSize, _randomizeName, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, cancellationToken1);
+                            }, RECURSIVE_RESOLUTION_TIMEOUT));
+                        }
                     }
                 }
 
@@ -4501,7 +4511,15 @@ namespace DnsServerCore.Dns
         {
             if (_dohWebService is not null)
             {
-                await _dohWebService.DisposeAsync();
+                try
+                {
+                    await _dohWebService.DisposeAsync();
+                }
+                catch (Exception ex)
+                {
+                    _log?.Write(ex);
+                }
+
                 _dohWebService = null;
             }
         }
@@ -4948,22 +4966,76 @@ namespace DnsServerCore.Dns
             }
 
             foreach (Socket udpListener in _udpListeners)
-                udpListener.Dispose();
+            {
+                try
+                {
+                    udpListener.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    _log?.Write(ex);
+                }
+            }
 
             foreach (Socket udpProxyListener in _udpProxyListeners)
-                udpProxyListener.Dispose();
+            {
+                try
+                {
+                    udpProxyListener.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    _log?.Write(ex);
+                }
+            }
 
             foreach (Socket tcpListener in _tcpListeners)
-                tcpListener.Dispose();
+            {
+                try
+                {
+                    tcpListener.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    _log?.Write(ex);
+                }
+            }
 
             foreach (Socket tcpProxyListener in _tcpProxyListeners)
-                tcpProxyListener.Dispose();
+            {
+                try
+                {
+                    tcpProxyListener.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    _log?.Write(ex);
+                }
+            }
 
             foreach (Socket tlsListener in _tlsListeners)
-                tlsListener.Dispose();
+            {
+                try
+                {
+                    tlsListener.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    _log?.Write(ex);
+                }
+            }
 
             foreach (QuicListener quicListener in _quicListeners)
-                await quicListener.DisposeAsync();
+            {
+                try
+                {
+                    await quicListener.DisposeAsync();
+                }
+                catch (Exception ex)
+                {
+                    _log?.Write(ex);
+                }
+            }
 
             _udpListeners.Clear();
             _udpProxyListeners.Clear();
