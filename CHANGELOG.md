@@ -1,5 +1,10 @@
 # Technitium DNS Server Change Log
 
+## Version 13.0.1
+Release Date: 23 September 2024
+
+- Fixed issue in using proxy with forwarders that caused failure to use DNS-over-TOR with Cloudflare's hidden service.
+
 ## Version 13.0
 Release Date: 22 September 2024
 
