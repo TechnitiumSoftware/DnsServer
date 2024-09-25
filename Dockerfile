@@ -21,7 +21,7 @@ HEREDOC
 
 ## Published image - No shell or package manager (only what is needed to run the service)
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-noble-chiseled AS runtime-image
-COPY ./DnsServerApp/bin/Release/publish/ .
+COPY ./DnsServerApp/bin/Release/publish/ /opt/technitium/dns/
 # DNS-over-QUIC support (libmsquic):
 COPY --link --from=deps /runtime-deps/ /usr/lib/x86_64-linux-gnu/
 
@@ -30,7 +30,7 @@ STOPSIGNAL SIGINT
 
 # `/etc/dns` is expected to exist:
 WORKDIR /etc/dns
-WORKDIR /
+WORKDIR /opt/technitium/dns/
 
 ENTRYPOINT ["/usr/bin/dotnet", "/opt/technitium/dns/DnsServerApp.dll"]
 CMD ["/etc/dns"]
