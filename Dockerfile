@@ -1,36 +1,27 @@
 # syntax=docker.io/docker/dockerfile:1
 
-## This stage is only used to support preparing the runtime-image stage
-FROM ubuntu:24.04 AS deps
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
 RUN <<HEREDOC
-  # Add the MS repo to install libmsquic (which also adds libnuma):
+  # Add the MS repo to install `libmsquic` to support DNS-over-QUIC:
   apt update && apt install -y curl
   curl https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb --output packages-microsoft-prod.deb
   dpkg -i packages-microsoft-prod.deb
   rm packages-microsoft-prod.deb
-  apt update && apt install -y libmsquic
-  apt clean -y
+  # `dnsutils` added to include the `dig` command for troubleshooting:
+  apt update && apt install -y libmsquic dnsutils
+  apt clean -y && rm -rf /var/lib/apt/lists/*
 
-  # Workaround for `COPY` semantics to preserve symlinks you must copy at the directory level:
-  # https://github.com/moby/moby/issues/40449
-  mkdir /runtime-deps
-  mv /usr/lib/x86_64-linux-gnu/libmsquic.so* /runtime-deps
-  mv /usr/lib/x86_64-linux-gnu/libnuma.so* /runtime-deps
+  # `/etc/dns` is expected to exist the default directory for persisting state:
+  # (Users should volume mount to this location or modify the `CMD` of their container)
+  mkdir /etc/dns
 HEREDOC
 
+# Project is built outside of Docker, copy over the build directory:
+WORKDIR /opt/technitium/dns
+COPY --link ./DnsServerApp/bin/Release/publish /opt/technitium/dns
 
-## Published image - No shell or package manager (only what is needed to run the service)
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-noble-chiseled AS runtime-image
-COPY ./DnsServerApp/bin/Release/publish/ /opt/technitium/dns/
-# DNS-over-QUIC support (libmsquic):
-COPY --link --from=deps /runtime-deps/ /usr/lib/x86_64-linux-gnu/
-
-# Graceful shutdown support:
+# Support for graceful shutdown:
 STOPSIGNAL SIGINT
-
-# `/etc/dns` is expected to exist:
-WORKDIR /etc/dns
-WORKDIR /opt/technitium/dns/
 
 ENTRYPOINT ["/usr/bin/dotnet", "/opt/technitium/dns/DnsServerApp.dll"]
 CMD ["/etc/dns"]
