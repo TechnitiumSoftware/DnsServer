@@ -1,5 +1,11 @@
 # Technitium DNS Server Change Log
 
+## Version 13.0.2
+Release Date: 28 September 2024
+
+- Fixed issue with DNS-over-TLS and DNS-over-TCP protocols that would cause the underlying connection to close if original request gets canceled.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 13.0.1
 Release Date: 23 September 2024
 
