@@ -2155,8 +2155,20 @@ function refreshDashboard(hideLoader) {
             //main chart
 
             //fix labels
-            for (var i = 0; i < responseJSON.response.mainChartData.labels.length; i++) {
-                responseJSON.response.mainChartData.labels[i] = moment(responseJSON.response.mainChartData.labels[i]).local().format(responseJSON.response.mainChartData.labelFormat);
+            switch (responseJSON.response.mainChartData.labelFormat) {
+                case "MM/DD":
+                case "DD/MM":
+                case "MM/YYYY":
+                    for (var i = 0; i < responseJSON.response.mainChartData.labels.length; i++) {
+                        responseJSON.response.mainChartData.labels[i] = moment(responseJSON.response.mainChartData.labels[i]).utc().format(responseJSON.response.mainChartData.labelFormat);
+                    }
+                    break;
+
+                default:
+                    for (var i = 0; i < responseJSON.response.mainChartData.labels.length; i++) {
+                        responseJSON.response.mainChartData.labels[i] = moment(responseJSON.response.mainChartData.labels[i]).local().format(responseJSON.response.mainChartData.labelFormat);
+                    }
+                    break;
             }
 
             if (window.chartDashboardMain == null) {
