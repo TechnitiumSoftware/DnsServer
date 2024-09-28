@@ -574,7 +574,7 @@ namespace DnsServerCore.Dhcp
             if (!string.IsNullOrWhiteSpace(reservedLeaseHostName))
             {
                 //domain name override by server
-                clientDomainName = reservedLeaseHostName + "." + _domainName;
+                clientDomainName = DhcpServer.GetSanitizedHostName(reservedLeaseHostName) + "." + _domainName;
             }
             else if (string.IsNullOrWhiteSpace(request.ClientFullyQualifiedDomainName.DomainName))
             {
@@ -582,7 +582,7 @@ namespace DnsServerCore.Dhcp
                 if (request.HostName is null)
                     return null; //server unable to decide a name for client
 
-                clientDomainName = request.HostName.HostName + "." + _domainName;
+                clientDomainName = DhcpServer.GetSanitizedHostName(request.HostName.HostName) + "." + _domainName;
             }
             else if (request.ClientFullyQualifiedDomainName.DomainName.Contains('.'))
             {
