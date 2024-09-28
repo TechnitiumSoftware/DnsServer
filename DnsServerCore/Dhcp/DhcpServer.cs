@@ -28,6 +28,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
@@ -472,7 +473,7 @@ namespace DnsServerCore.Dhcp
                             string clientDomainName = null;
 
                             if (!string.IsNullOrWhiteSpace(reservedLeaseHostName))
-                                clientDomainName = reservedLeaseHostName + "." + scope.DomainName;
+                                clientDomainName = GetSanitizedHostName(reservedLeaseHostName) + "." + scope.DomainName;
 
                             if (string.IsNullOrWhiteSpace(clientDomainName))
                             {
@@ -488,8 +489,8 @@ namespace DnsServerCore.Dhcp
 
                             if (string.IsNullOrWhiteSpace(clientDomainName))
                             {
-                                if ((request.HostName != null) && !string.IsNullOrWhiteSpace(request.HostName.HostName))
-                                    clientDomainName = request.HostName.HostName.Replace(' ', '-') + "." + scope.DomainName;
+                                if ((request.HostName is not null) && !string.IsNullOrWhiteSpace(request.HostName.HostName))
+                                    clientDomainName = GetSanitizedHostName(request.HostName.HostName) + "." + scope.DomainName;
                             }
 
                             if (!string.IsNullOrWhiteSpace(clientDomainName))
@@ -610,8 +611,8 @@ namespace DnsServerCore.Dhcp
 
                             if (string.IsNullOrWhiteSpace(clientDomainName))
                             {
-                                if (request.HostName != null)
-                                    clientDomainName = request.HostName.HostName.Replace(' ', '-') + "." + scope.DomainName;
+                                if (request.HostName is not null)
+                                    clientDomainName = GetSanitizedHostName(request.HostName.HostName) + "." + scope.DomainName;
                             }
 
                             if (!string.IsNullOrWhiteSpace(clientDomainName))
@@ -696,6 +697,34 @@ namespace DnsServerCore.Dhcp
 
                 return foundScope;
             }
+        }
+
+        internal static string GetSanitizedHostName(string hostname)
+        {
+            StringBuilder sb = new StringBuilder(hostname.Length);
+
+            foreach (char c in hostname)
+            {
+                if ((c >= 97) && (c <= 122)) //[a-z]
+                    sb.Append(c);
+                else if ((c >= 65) && (c <= 90)) //[A-Z]
+                    sb.Append(c);
+                else if ((c >= 48) && (c <= 57)) //[0-9]
+                    sb.Append(c);
+                else if (c == 45) //[-]
+                    sb.Append(c);
+                else if (c == 95) //[_]
+                    sb.Append(c);
+                else if (c == 47) //[/]
+                    sb.Append(c);
+                else if (c == ' ')
+                    sb.Append('-');
+            }
+
+            if (sb.Length > 63)
+                sb.Length = 63;
+
+            return sb.ToString();
         }
 
         private void UpdateDnsAuthZone(bool add, Scope scope, Lease lease)
