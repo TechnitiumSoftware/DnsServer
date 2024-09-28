@@ -1923,11 +1923,7 @@ namespace DnsServerCore.Dns
         {
             AuthZoneInfo zoneInfo = _authZoneManager.GetAuthZoneInfo(request.Question[0].Name);
             if ((zoneInfo is null) || !zoneInfo.ApexZone.IsActive)
-            {
-                _log?.Write(remoteEP, protocol, "DNS Server refused a zone transfer request as the zone was not found or was inactive, for zone: " + zoneInfo.DisplayName);
-
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
-            }
 
             switch (zoneInfo.Type)
             {
@@ -1938,8 +1934,6 @@ namespace DnsServerCore.Dns
                     break;
 
                 default:
-                    _log?.Write(remoteEP, protocol, "DNS Server refused a zone transfer request since the DNS server is not authoritative for zone: " + zoneInfo.DisplayName);
-
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
             }
 
