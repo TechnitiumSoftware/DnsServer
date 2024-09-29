@@ -28,19 +28,33 @@ namespace LogExporter.Strategy
 {
     public class HttpExportStrategy : IExportStrategy
     {
+        #region variables
+
         private readonly string _endpoint;
-        private readonly string _method;
-        private readonly Dictionary<string, string> _headers;
+
+        private readonly Dictionary<string, string>? _headers;
+
         private readonly HttpClient _httpClient;
+
+        private readonly string _method;
+
         private bool disposedValue;
 
-        public HttpExportStrategy(string endpoint, string method, Dictionary<string, string> headers)
+        #endregion variables
+
+        #region constructor
+
+        public HttpExportStrategy(string endpoint, string method, Dictionary<string, string>? headers)
         {
             _endpoint = endpoint;
             _method = method;
             _headers = headers;
             _httpClient = new HttpClient();
         }
+
+        #endregion constructor
+
+        #region public
 
         public async Task ExportLogsAsync(List<LogEntry> logs, CancellationToken cancellationToken = default)
         {
@@ -56,9 +70,12 @@ namespace LogExporter.Strategy
                 Content = new StringContent(jsonLogs.ToString(), Encoding.UTF8, "application/json")
             };
 
-            foreach (var header in _headers)
+            if (_headers != null)
             {
-                request.Headers.Add(header.Key, header.Value);
+                foreach (var header in _headers)
+                {
+                    request.Headers.Add(header.Key, header.Value);
+                }
             }
 
             var response = await _httpClient.SendAsync(request, cancellationToken);
@@ -66,6 +83,17 @@ namespace LogExporter.Strategy
             {
                 throw new Exception($"Failed to export logs to {_endpoint}: {response.StatusCode}");
             }
+        }
+
+        #endregion public
+
+        #region IDisposable
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
 
         protected virtual void Dispose(bool disposing)
@@ -81,11 +109,6 @@ namespace LogExporter.Strategy
             }
         }
 
-        public void Dispose()
-        {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
-        }
+        #endregion IDisposable
     }
 }

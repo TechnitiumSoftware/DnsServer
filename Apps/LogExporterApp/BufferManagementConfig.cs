@@ -56,7 +56,7 @@ namespace LogExporter
         public string Method { get; set; }
 
         [JsonPropertyName("headers")]
-        public Dictionary<string,string> Headers { get; set; }
+        public Dictionary<string,string>? Headers { get; set; }
 
         [JsonPropertyName("address")]
         public string Address { get; set; }
@@ -65,6 +65,6 @@ namespace LogExporter
         public int? Port { get; set; }
 
         [JsonPropertyName("protocol")]
-        public string Protocol { get; set; }
+        public string? Protocol { get; set; }
     }
 }

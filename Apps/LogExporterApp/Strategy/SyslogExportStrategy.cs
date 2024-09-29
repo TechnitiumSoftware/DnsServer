@@ -30,19 +30,37 @@ namespace LogExporter.Strategy
 {
     public class SyslogExportStrategy : IExportStrategy
     {
-        private readonly string _processId;
-        private readonly string _host;
+        #region variables
+
         private const string _appName = "Technitium DNS Server";
+
         private const string _msgId = "dnslog";
+
         private const string _sdId = "dnsparams";
 
+        private const string DEFAUL_PROTOCOL = "udp";
+
+        private const int DEFAULT_PORT = 514;
+
+        private readonly string _host;
+
+        private readonly string _processId;
+
         private readonly ISyslogMessageSender _sender;
+
         private readonly ISyslogMessageSerializer _serializer;
+
         private bool disposedValue;
 
-        public SyslogExportStrategy(string address, int? port, string protocol = "udp")
+        #endregion variables
+
+        #region constructor
+
+        public SyslogExportStrategy(string address, int? port, string? protocol)
         {
-            port ??= 514;
+            port ??= DEFAULT_PORT;
+            protocol ??= DEFAUL_PROTOCOL;
+
             _sender = protocol switch
             {
                 "tls" => new SyslogEncryptedTcpSender(address, port.Value),
@@ -57,16 +75,47 @@ namespace LogExporter.Strategy
             _host = Environment.MachineName;
         }
 
+        #endregion constructor
+
+        #region public
+
         public Task ExportLogsAsync(List<LogEntry> logs, CancellationToken cancellationToken = default)
         {
             return Task.Run(() =>
             {
                 var messages = new List<SyslogMessage>(logs.Select(Convert));
                 _sender.Send(messages, _serializer);
-
             }
              , cancellationToken);
         }
+
+        #endregion public
+
+        #region IDisposable
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    _sender.Dispose();
+                }
+
+                disposedValue = true;
+            }
+        }
+
+        #endregion IDisposable
+
+        #region private
 
         private SyslogMessage Convert(LogEntry log)
         {
@@ -145,24 +194,6 @@ namespace LogExporter.Strategy
             );
         }
 
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposedValue)
-            {
-                if (disposing)
-                {
-                    _sender.Dispose();
-                }
-
-                disposedValue = true;
-            }
-        }
-
-        public void Dispose()
-        {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
-        }
+        #endregion private
     }
 }

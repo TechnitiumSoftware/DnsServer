@@ -25,17 +25,22 @@ namespace LogExporter.Strategy
 {
     public class ExportManager
     {
+        #region variables
+
         private readonly Dictionary<string, IExportStrategy> _exportStrategies;
+
+        #endregion variables
+
+        #region constructor
 
         public ExportManager()
         {
             _exportStrategies = new Dictionary<string, IExportStrategy>();
         }
 
-        public void RegisterStrategy(string key, IExportStrategy strategy)
-        {
-            _exportStrategies[key.ToLower()] = strategy;
-        }
+        #endregion constructor
+
+        #region public
 
         public IExportStrategy? GetStrategy(string key)
         {
@@ -49,5 +54,12 @@ namespace LogExporter.Strategy
                 await strategy.ExportLogsAsync(logs, cancellationToken).ConfigureAwait(false);
             }
         }
+
+        public void RegisterStrategy(string key, IExportStrategy strategy)
+        {
+            _exportStrategies[key.ToLower()] = strategy;
+        }
+
+        #endregion public
     }
 }

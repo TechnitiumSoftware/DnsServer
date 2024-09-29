@@ -27,14 +27,26 @@ namespace LogExporter.Strategy
 {
     public class FileExportStrategy : IExportStrategy
     {
-        private readonly string _filePath;
+        #region variables
+
         private static readonly SemaphoreSlim _fileSemaphore = new SemaphoreSlim(1, 1);
+
+        private readonly string _filePath;
+
         private bool disposedValue;
+
+        #endregion variables
+
+        #region constructor
 
         public FileExportStrategy(string filePath)
         {
             _filePath = filePath;
         }
+
+        #endregion constructor
+
+        #region public
 
         public async Task ExportLogsAsync(List<LogEntry> logs, CancellationToken cancellationToken = default)
         {
@@ -60,6 +72,17 @@ namespace LogExporter.Strategy
             }
         }
 
+        #endregion public
+
+        #region IDisposable
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            System.GC.SuppressFinalize(this);
+        }
+
         protected virtual void Dispose(bool disposing)
         {
             if (!disposedValue)
@@ -73,12 +96,6 @@ namespace LogExporter.Strategy
                 disposedValue = true;
             }
         }
-
-        public void Dispose()
-        {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Dispose(disposing: true);
-            System.GC.SuppressFinalize(this);
-        }
+        #endregion IDisposable
     }
 }
