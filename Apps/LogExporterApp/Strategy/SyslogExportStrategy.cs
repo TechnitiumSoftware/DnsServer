@@ -121,14 +121,14 @@ namespace LogExporter.Strategy
         {
             // Create the structured data with all key details from LogEntry
             var elements = new StructuredDataElement(_sdId, new Dictionary<string, string>
-    {
-        { "timestamp", log.Timestamp.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ") },
-        { "clientIp", log.ClientIp },
-        { "clientPort", log.ClientPort.ToString() },
-        { "dnssecOk", log.DnssecOk.ToString() },
-        { "protocol", log.Protocol.ToString() },
-        { "rCode", log.ResponseCode.ToString() }
-    });
+            {
+                { "timestamp", log.Timestamp.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ") },
+                { "clientIp", log.ClientIp },
+                { "clientPort", log.ClientPort.ToString() },
+                { "dnssecOk", log.DnssecOk.ToString() },
+                { "protocol", log.Protocol.ToString() },
+                { "rCode", log.ResponseCode.ToString() }
+            });
 
             // Add each question to the structured data
             if (log.Questions != null && log.Questions.Count > 0)
@@ -171,14 +171,18 @@ namespace LogExporter.Strategy
 
             // Build a comprehensive message summary
             string questionSummary = log.Questions?.Count > 0
-                ? string.Join(", ", log.Questions.Select((q, index) => $"{q.QuestionName} (Type: {q.QuestionType}, Class: {q.QuestionClass}, Size: {q.Size})"))
-                : "No Questions";
+            ? string.Join("; ", log.Questions.Select(q =>
+                $"QNAME: {q.QuestionName}; QTYPE: {q.QuestionType?.ToString() ?? "unknown"}; QCLASS: {q.QuestionClass?.ToString() ?? "unknown"}"))
+            : "No Questions";
 
+            // Build the answer summary in the desired format
             string answerSummary = log.Answers?.Count > 0
-                ? string.Join(", ", log.Answers.Select((a, index) => $"{a.RecordData} (Type: {a.RecordType}, Class: {a.RecordClass}, TTL: {a.RecordTtl}, Size: {a.Size}, DNSSEC: {a.DnssecStatus})"))
+                ? string.Join(", ", log.Answers.Select(a => a.RecordData))
                 : "No Answers";
 
-            string messageSummary = $"{log.ClientIp}:{log.ClientPort} {log.Protocol} DNSSEC={log.DnssecOk} {questionSummary} {log.ResponseCode} {answerSummary}";
+            // Construct the message summary string to match the desired format
+            string messageSummary = $"{questionSummary}; RCODE: {log.ResponseCode}; ANSWER: [{answerSummary}]";
+
 
             // Create and return the syslog message
             return new SyslogMessage(
