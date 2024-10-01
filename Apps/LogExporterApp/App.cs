@@ -96,11 +96,15 @@ namespace LogExporter
             }
         }
 
-        public async Task InitializeAsync(IDnsServer dnsServer, string config)
+        #endregion IDisposable
+
+        #region public
+
+        public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
             _dnsServer = dnsServer;
             _config = BufferManagementConfig.Deserialize(config);
-            if(_config == null)
+            if (_config == null)
             {
                 throw new DnsClientException("Invalid application configuration.");
             }
@@ -131,7 +135,7 @@ namespace LogExporter
                 }, null, QUEUE_TIMER_INTERVAL, Timeout.Infinite);
             }
 
-            await Task.CompletedTask;
+            return Task.CompletedTask;
         }
 
         public Task InsertLogAsync(DateTime timestamp, DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
@@ -180,25 +184,29 @@ namespace LogExporter
 
         private void RegisterExportTargets()
         {
-            foreach (var target in _config.Targets)
+
+            var fileTarget = _config.FileTarget;
+            if (fileTarget != null && fileTarget.Enabled)
             {
-                if (target.Enabled)
-                {
-                    switch (target.Type.ToLower())
-                    {
-                        case "file":
-                            _exportManager.RegisterStrategy("file", new FileExportStrategy(target.Path));
-                            break;
+                var strategy = new FileExportStrategy(fileTarget.Path);
+                _exportManager.RegisterStrategy(strategy);
 
-                        case "http":
-                            _exportManager.RegisterStrategy("http", new HttpExportStrategy(target.Endpoint, target.Method, target.Headers));
-                            break;
+            }
 
-                        case "syslog":
-                            _exportManager.RegisterStrategy("syslog", new SyslogExportStrategy(target.Address, target.Port, target.Protocol));
-                            break;
-                    }
-                }
+            var httpTarget = _config.HttpTarget;
+            if (httpTarget != null && httpTarget.Enabled)
+            {
+                var strategy = new HttpExportStrategy(httpTarget.Endpoint, httpTarget.Method, httpTarget.Headers);
+                _exportManager.RegisterStrategy(strategy);
+
+            }
+
+            var syslogTarget = _config.SyslogTarget;
+            if (syslogTarget != null && syslogTarget.Enabled)
+            {
+                var strategy = new SyslogExportStrategy(syslogTarget.Address, syslogTarget.Port, syslogTarget.Protocol);
+                _exportManager.RegisterStrategy(strategy);
+
             }
         }
 

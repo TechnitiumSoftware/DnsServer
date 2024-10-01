@@ -28,8 +28,14 @@ namespace LogExporter
         [JsonPropertyName("maxLogEntries")]
         public int? MaxLogEntries { get; set; }
 
-        [JsonPropertyName("targets")]
-        public List<Target> Targets { get; set; }
+        [JsonPropertyName("file")]
+        public FileTarget? FileTarget { get; set; }
+
+        [JsonPropertyName("http")]
+        public HttpTarget? HttpTarget { get; set; }
+
+        [JsonPropertyName("syslog")]
+        public SyslogTarget? SyslogTarget { get; set; }
 
         // Load configuration from JSON
         public static BufferManagementConfig? Deserialize(string json)
@@ -37,26 +43,10 @@ namespace LogExporter
             return JsonSerializer.Deserialize<BufferManagementConfig>(json);
         }
     }
-
-    public class Target
+    public class SyslogTarget
     {
-        [JsonPropertyName("type")]
-        public string Type { get; set; }
-
         [JsonPropertyName("enabled")]
         public bool Enabled { get; set; }
-
-        [JsonPropertyName("path")]
-        public string Path { get; set; }
-
-        [JsonPropertyName("endpoint")]
-        public string Endpoint { get; set; }
-
-        [JsonPropertyName("method")]
-        public string Method { get; set; }
-
-        [JsonPropertyName("headers")]
-        public Dictionary<string,string>? Headers { get; set; }
 
         [JsonPropertyName("address")]
         public string Address { get; set; }
@@ -66,5 +56,29 @@ namespace LogExporter
 
         [JsonPropertyName("protocol")]
         public string? Protocol { get; set; }
+    }
+
+    public class FileTarget
+    {
+        [JsonPropertyName("enabled")]
+        public bool Enabled { get; set; }
+
+        [JsonPropertyName("path")]
+        public string Path { get; set; }
+    }
+
+    public class HttpTarget
+    {
+        [JsonPropertyName("enabled")]
+        public bool Enabled { get; set; }
+
+        [JsonPropertyName("endpoint")]
+        public string Endpoint { get; set; }
+
+        [JsonPropertyName("method")]
+        public string Method { get; set; }
+
+        [JsonPropertyName("headers")]
+        public Dictionary<string, string>? Headers { get; set; }
     }
 }

@@ -27,7 +27,7 @@ namespace LogExporter.Strategy
     {
         #region variables
 
-        private readonly Dictionary<string, IExportStrategy> _exportStrategies;
+        private readonly List<IExportStrategy> _exportStrategies;
 
         #endregion variables
 
@@ -35,29 +35,24 @@ namespace LogExporter.Strategy
 
         public ExportManager()
         {
-            _exportStrategies = new Dictionary<string, IExportStrategy>();
+            _exportStrategies = new List<IExportStrategy>();
         }
 
         #endregion constructor
 
         #region public
 
-        public IExportStrategy? GetStrategy(string key)
-        {
-            return _exportStrategies.ContainsKey(key.ToLower()) ? _exportStrategies[key.ToLower()] : null;
-        }
-
         public async Task ImplementStrategyForAsync(List<LogEntry> logs, CancellationToken cancellationToken = default)
         {
-            foreach (var strategy in _exportStrategies.Values)
+            foreach (var strategy in _exportStrategies)
             {
                 await strategy.ExportLogsAsync(logs, cancellationToken).ConfigureAwait(false);
             }
         }
 
-        public void RegisterStrategy(string key, IExportStrategy strategy)
+        public void RegisterStrategy(IExportStrategy strategy)
         {
-            _exportStrategies[key.ToLower()] = strategy;
+            _exportStrategies.Add(strategy);
         }
 
         #endregion public
