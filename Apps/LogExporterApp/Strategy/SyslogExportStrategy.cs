@@ -61,7 +61,7 @@ namespace LogExporter.Strategy
             port ??= DEFAULT_PORT;
             protocol ??= DEFAUL_PROTOCOL;
 
-            _sender = protocol switch
+            _sender = protocol.ToLowerInvariant() switch
             {
                 "tls" => new SyslogEncryptedTcpSender(address, port.Value),
                 "tcp" => new SyslogTcpSender(address, port.Value),

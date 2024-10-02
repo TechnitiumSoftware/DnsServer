@@ -104,6 +104,7 @@ namespace LogExporter
         {
             _dnsServer = dnsServer;
             _config = BufferManagementConfig.Deserialize(config);
+
             if (_config == null)
             {
                 throw new DnsClientException("Invalid application configuration.");
@@ -160,7 +161,7 @@ namespace LogExporter
             {
                 var logs = new List<LogEntry>(BULK_INSERT_COUNT);
 
-                while (true)
+                while (!cancellationToken.IsCancellationRequested)
                 {
                     while ((logs.Count < BULK_INSERT_COUNT) && _logBuffer.TryTake(out LogEntry? log))
                     {
@@ -184,30 +185,22 @@ namespace LogExporter
 
         private void RegisterExportTargets()
         {
-
-            var fileTarget = _config.FileTarget;
-            if (fileTarget != null && fileTarget.Enabled)
+            // Helper function to register an export strategy if the target is enabled
+            void RegisterIfEnabled<TTarget, TStrategy>(TTarget target, Func<TTarget, TStrategy> strategyFactory)
+                where TTarget : TargetBase
+                where TStrategy : IExportStrategy
             {
-                var strategy = new FileExportStrategy(fileTarget.Path);
-                _exportManager.RegisterStrategy(strategy);
-
+                if (target?.Enabled == true)
+                {
+                    var strategy = strategyFactory(target);
+                    _exportManager.AddOrReplaceStrategy(strategy);
+                }
             }
 
-            var httpTarget = _config.HttpTarget;
-            if (httpTarget != null && httpTarget.Enabled)
-            {
-                var strategy = new HttpExportStrategy(httpTarget.Endpoint, httpTarget.Method, httpTarget.Headers);
-                _exportManager.RegisterStrategy(strategy);
-
-            }
-
-            var syslogTarget = _config.SyslogTarget;
-            if (syslogTarget != null && syslogTarget.Enabled)
-            {
-                var strategy = new SyslogExportStrategy(syslogTarget.Address, syslogTarget.Port, syslogTarget.Protocol);
-                _exportManager.RegisterStrategy(strategy);
-
-            }
+            // Register the different strategies using the helper
+            RegisterIfEnabled(_config.FileTarget, target => new FileExportStrategy(target.Path));
+            RegisterIfEnabled(_config.HttpTarget, target => new HttpExportStrategy(target.Endpoint, target.Method, target.Headers));
+            RegisterIfEnabled(_config.SyslogTarget, target => new SyslogExportStrategy(target.Address, target.Port, target.Protocol));
         }
 
         #endregion private

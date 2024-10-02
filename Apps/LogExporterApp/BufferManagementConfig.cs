@@ -43,11 +43,15 @@ namespace LogExporter
             return JsonSerializer.Deserialize<BufferManagementConfig>(json);
         }
     }
-    public class SyslogTarget
+
+    public class TargetBase
     {
         [JsonPropertyName("enabled")]
         public bool Enabled { get; set; }
+    }
 
+    public class SyslogTarget : TargetBase
+    {
         [JsonPropertyName("address")]
         public string Address { get; set; }
 
@@ -58,20 +62,14 @@ namespace LogExporter
         public string? Protocol { get; set; }
     }
 
-    public class FileTarget
+    public class FileTarget : TargetBase
     {
-        [JsonPropertyName("enabled")]
-        public bool Enabled { get; set; }
-
         [JsonPropertyName("path")]
         public string Path { get; set; }
     }
 
-    public class HttpTarget
+    public class HttpTarget : TargetBase
     {
-        [JsonPropertyName("enabled")]
-        public bool Enabled { get; set; }
-
         [JsonPropertyName("endpoint")]
         public string Endpoint { get; set; }
 
