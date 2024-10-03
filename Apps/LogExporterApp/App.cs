@@ -41,21 +41,19 @@ namespace LogExporter
 
         private const int QUEUE_TIMER_INTERVAL = 10000;
 
+        private readonly IReadOnlyList<DnsLogEntry> _emptyList = [];
+
         private readonly ExportManager _exportManager = new ExportManager();
 
-        private BlockingCollection<LogEntry> _logBuffer;
-
-        private readonly object _queueTimerLock = new object();
-
-        private BufferManagementConfig _config;
+        private BufferManagementConfig? _config;
 
         private IDnsServer _dnsServer;
+
+        private BlockingCollection<LogEntry> _logBuffer;
 
         private Timer _queueTimer;
 
         private bool disposedValue;
-
-        private readonly IReadOnlyList<DnsLogEntry> _emptyList = [];
 
         #endregion variables
 
@@ -82,10 +80,7 @@ namespace LogExporter
             {
                 if (disposing)
                 {
-                    lock (_queueTimerLock)
-                    {
-                        _queueTimer?.Dispose();
-                    }
+                    _queueTimer?.Dispose();
 
                     ExportLogsAsync().Sync(); //flush any pending logs
 
@@ -120,22 +115,10 @@ namespace LogExporter
             }
 
             RegisterExportTargets();
-
-            lock (_queueTimerLock)
+            if (_exportManager.HasStrategy())
             {
-                _queueTimer = new Timer(async (object _) =>
-                {
-                    try
-                    {
-                        await ExportLogsAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        _dnsServer.WriteLog(ex);
-                    }
-                }, null, QUEUE_TIMER_INTERVAL, Timeout.Infinite);
+                _queueTimer = new Timer(HandleExportLogCallback, state: null, QUEUE_TIMER_INTERVAL, Timeout.Infinite);
             }
-
             return Task.CompletedTask;
         }
 
@@ -146,40 +129,50 @@ namespace LogExporter
             return Task.CompletedTask;
         }
 
-        public async Task<DnsLogPage> QueryLogsAsync(long pageNumber, int entriesPerPage, bool descendingOrder, DateTime? start, DateTime? end, IPAddress clientIpAddress, DnsTransportProtocol? protocol, DnsServerResponseType? responseType, DnsResponseCode? rcode, string qname, DnsResourceRecordType? qtype, DnsClass? qclass)
+        public Task<DnsLogPage> QueryLogsAsync(long pageNumber, int entriesPerPage, bool descendingOrder, DateTime? start, DateTime? end, IPAddress clientIpAddress, DnsTransportProtocol? protocol, DnsServerResponseType? responseType, DnsResponseCode? rcode, string qname, DnsResourceRecordType? qtype, DnsClass? qclass)
         {
-            return await Task.FromResult(new DnsLogPage(0, 0, 0, _emptyList));
+            return Task.FromResult(new DnsLogPage(0, 0, 0, _emptyList));
         }
 
         #endregion public
 
         #region private
 
-        private async Task ExportLogsAsync(CancellationToken cancellationToken = default)
+        private async Task ExportLogsAsync()
+        {
+            var logs = new List<LogEntry>(BULK_INSERT_COUNT);
+
+            // Process logs within the timer interval, then let the timer reschedule
+            while (logs.Count <= BULK_INSERT_COUNT && _logBuffer.TryTake(out var log))
+            {
+                logs.Add(log);
+            }
+
+            // If we have any logs to process, export them
+            if (logs.Count > 0)
+            {
+                await _exportManager.ImplementStrategyForAsync(logs);
+            }
+        }
+
+        private async void HandleExportLogCallback(object? state)
         {
             try
             {
-                var logs = new List<LogEntry>(BULK_INSERT_COUNT);
-
-                while (!cancellationToken.IsCancellationRequested)
-                {
-                    while ((logs.Count < BULK_INSERT_COUNT) && _logBuffer.TryTake(out LogEntry? log))
-                    {
-                        if (log != null)
-                            logs.Add(log);
-                    }
-
-                    if (logs.Count > 0)
-                    {
-                        await _exportManager.ImplementStrategyForAsync(logs, cancellationToken);
-
-                        logs.Clear();
-                    }
-                }
+                await ExportLogsAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 _dnsServer?.WriteLog(ex);
+            }
+            finally
+            {
+                try
+                {
+                    _queueTimer.Change(QUEUE_TIMER_INTERVAL, Timeout.Infinite);
+                }
+                catch (ObjectDisposedException)
+                { }
             }
         }
 

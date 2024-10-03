@@ -17,16 +17,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace LogExporter.Strategy
 {
-    public class FileExportStrategy : IExportStrategy
+    public partial class FileExportStrategy : IExportStrategy
     {
+
         #region variables
 
         private static readonly SemaphoreSlim _fileSemaphore = new SemaphoreSlim(1, 1);
@@ -35,6 +37,7 @@ namespace LogExporter.Strategy
 
         private bool disposedValue;
 
+
         #endregion variables
 
         #region constructor
@@ -42,33 +45,46 @@ namespace LogExporter.Strategy
         public FileExportStrategy(string filePath)
         {
             _filePath = filePath;
+
         }
 
         #endregion constructor
 
         #region public
 
-        public async Task ExportLogsAsync(List<LogEntry> logs, CancellationToken cancellationToken = default)
+        public Task ExportAsync(List<LogEntry> logs)
         {
-            var jsonLogs = new StringBuilder(logs.Count);
+            var buffer = new GrowableBuffer<char>();
             foreach (var log in logs)
             {
-                jsonLogs.AppendLine(log.ToString());
+                buffer.Append(log.AsSpan());
+                buffer.Append('\n');
             }
+            Flush(buffer.ToSpan());
+            return Task.CompletedTask;
+        }
 
+        private void Flush(ReadOnlySpan<char> jsonLogs)
+        {
             // Wait to enter the semaphore
-            await _fileSemaphore.WaitAsync(cancellationToken);
+            _fileSemaphore.Wait();
             try
             {
                 // Use a FileStream with exclusive access
-                using var fileStream = new FileStream(_filePath, FileMode.Append, FileAccess.Write, FileShare.None);
-                using var writer = new StreamWriter(fileStream);
-                await writer.WriteAsync(jsonLogs.ToString());
+                var fileStream = new FileStream(_filePath, FileMode.Append, FileAccess.Write, FileShare.Write);
+                var writer = new StreamWriter(fileStream);
+                writer.Write(jsonLogs);
+                writer.Close();
+                fileStream.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex);
             }
             finally
             {
                 // Release the semaphore
-                _fileSemaphore.Release();
+                _ = _fileSemaphore.Release();
             }
         }
 
@@ -96,6 +112,7 @@ namespace LogExporter.Strategy
                 disposedValue = true;
             }
         }
+
         #endregion IDisposable
     }
 }

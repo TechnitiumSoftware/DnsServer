@@ -19,7 +19,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace LogExporter.Strategy
@@ -43,23 +42,22 @@ namespace LogExporter.Strategy
 
         #region public
 
-        public IExportStrategy? GetStrategy<T>() where T : IExportStrategy
-        {
-            _exportStrategies.TryGetValue(typeof(T), out var strategy);
-            return strategy;
-        }
-
-        public async Task ImplementStrategyForAsync(List<LogEntry> logs, CancellationToken cancellationToken = default)
-        {
-            foreach (var strategy in _exportStrategies.Values)
-            {
-                await strategy.ExportLogsAsync(logs, cancellationToken);
-            }
-        }
-
         public void AddOrReplaceStrategy(IExportStrategy strategy)
         {
             _exportStrategies[strategy.GetType()] = strategy;
+        }
+
+        public bool HasStrategy()
+        {
+            return _exportStrategies.Count > 0;
+        }
+
+        public async Task ImplementStrategyForAsync(List<LogEntry> logs)
+        {
+            foreach (var strategy in _exportStrategies.Values)
+            {
+                await strategy.ExportAsync(logs).ConfigureAwait(false);
+            }
         }
 
         #endregion public

@@ -1,11 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Text.Json.Serialization;
+using System.Text;
 using System.Text.Json;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
-using System.Collections.Generic;
 
 namespace LogExporter
 {
@@ -43,7 +43,7 @@ namespace LogExporter
                     QuestionName = questionRecord.Name,
                     QuestionType = questionRecord.Type,
                     QuestionClass = questionRecord.Class,
-                    Size = questionRecord.UncompressedLength
+                    Size = questionRecord.UncompressedLength,
                 }));
             }
 
@@ -58,7 +58,7 @@ namespace LogExporter
                     RecordClass = record.Class,
                     RecordTtl = record.TTL,
                     Size = record.UncompressedLength,
-                    DnssecStatus = record.DnssecStatus
+                    DnssecStatus = record.DnssecStatus,
                 }));
             }
 
@@ -71,11 +71,6 @@ namespace LogExporter
             {
                 ResponseTag = response.Tag;
             }
-        }
-
-        public override string ToString()
-        {
-            return JsonSerializer.Serialize(this, DnsLogSerializerOptions.Default);
         }
 
         public class Question
@@ -95,34 +90,74 @@ namespace LogExporter
             public int Size { get; set; }
             public DnssecStatus DnssecStatus { get; set; }
         }
-    }
 
-    // Custom DateTime converter to handle UTC serialization in ISO 8601 format
-    public class JsonDateTimeConverter : JsonConverter<DateTime>
-    {
-        public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        public ReadOnlySpan<char> AsSpan()
         {
-            var dts = reader.GetString();
-            return dts == null ? DateTime.MinValue : DateTime.Parse(dts);
+            // Initialize a ValueStringBuilder with some initial capacity
+            var buffer = new GrowableBuffer<byte>(256);
+
+            using var writer = new Utf8JsonWriter(buffer);
+
+            // Manually serialize the LogEntry as JSON
+            writer.WriteStartObject();
+
+            writer.WriteString("timestamp", Timestamp.ToUniversalTime().ToString("O"));
+            writer.WriteString("clientIp", ClientIp);
+            writer.WriteNumber("clientPort", ClientPort);
+            writer.WriteBoolean("dnssecOk", DnssecOk);
+            writer.WriteString("protocol", Protocol.ToString());
+            writer.WriteString("responseCode", ResponseCode.ToString());
+
+            // Write Questions array
+            writer.WriteStartArray("questions");
+            foreach (var question in Questions)
+            {
+                writer.WriteStartObject();
+                writer.WriteString("questionName", question.QuestionName);
+                writer.WriteString("questionType", question.QuestionType.ToString());
+                writer.WriteString("questionClass", question.QuestionClass.ToString());
+                writer.WriteNumber("size", question.Size);
+                writer.WriteEndObject();
+            }
+            writer.WriteEndArray();
+
+            // Write Answers array (if exists)
+            if (Answers != null && Answers.Count > 0)
+            {
+                writer.WriteStartArray("answers");
+                foreach (var answer in Answers)
+                {
+                    writer.WriteStartObject();
+                    writer.WriteString("recordType", answer.RecordType.ToString());
+                    writer.WriteString("recordData", answer.RecordData);
+                    writer.WriteString("recordClass", answer.RecordClass.ToString());
+                    writer.WriteNumber("recordTtl", answer.RecordTtl);
+                    writer.WriteNumber("size", answer.Size);
+                    writer.WriteString("dnssecStatus", answer.DnssecStatus.ToString());
+                    writer.WriteEndObject();
+                }
+                writer.WriteEndArray();
+            }
+
+            writer.WriteEndObject();
+            writer.Flush();
+
+            return ConvertBytesToChars(buffer.ToSpan());
         }
 
-        public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
+        public static Span<char> ConvertBytesToChars(ReadOnlySpan<byte> byteSpan)
         {
-            writer.WriteStringValue(value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ"));
-        }
-    }
+            // Calculate the maximum required length for the char array
+            int maxCharCount = Encoding.UTF8.GetCharCount(byteSpan);
 
-    // Setup reusable options with a single instance
-    public static class DnsLogSerializerOptions
-    {
-        public static readonly JsonSerializerOptions Default = new JsonSerializerOptions
-        {
-            WriteIndented = false, // Newline delimited logs should not be multiline
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase, // Convert properties to camelCase
-            Converters = { new JsonStringEnumConverter(), new JsonDateTimeConverter() }, // Handle enums and DateTime conversion
-            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping, // For safe encoding
-            NumberHandling = JsonNumberHandling.Strict,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull // Ignore null values
-        };
-    }
+            // Allocate a char array large enough to hold the converted characters
+            char[] charArray = new char[maxCharCount];
+
+            // Decode the byteSpan into the char array
+            int actualCharCount = Encoding.UTF8.GetChars(byteSpan, charArray);
+
+            // Return a span of only the relevant portion of the char array
+            return new Span<char>(charArray, 0, actualCharCount);
+        }
+    };
 }

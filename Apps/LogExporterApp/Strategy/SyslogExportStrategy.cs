@@ -23,7 +23,6 @@ using SyslogNet.Client.Transport;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace LogExporter.Strategy
@@ -79,14 +78,13 @@ namespace LogExporter.Strategy
 
         #region public
 
-        public Task ExportLogsAsync(List<LogEntry> logs, CancellationToken cancellationToken = default)
+        public Task ExportAsync(List<LogEntry> logs)
         {
             return Task.Run(() =>
             {
                 var messages = new List<SyslogMessage>(logs.Select(Convert));
                 _sender.Send(messages, _serializer);
-            }
-             , cancellationToken);
+            });
         }
 
         #endregion public
@@ -120,7 +118,7 @@ namespace LogExporter.Strategy
         private SyslogMessage Convert(LogEntry log)
         {
             // Create the structured data with all key details from LogEntry
-            var elements = new StructuredDataElement(_sdId, new Dictionary<string, string>
+            var elements = new StructuredDataElement(_sdId, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 { "timestamp", log.Timestamp.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ") },
                 { "clientIp", log.ClientIp },
@@ -173,16 +171,15 @@ namespace LogExporter.Strategy
             string questionSummary = log.Questions?.Count > 0
             ? string.Join("; ", log.Questions.Select(q =>
                 $"QNAME: {q.QuestionName}; QTYPE: {q.QuestionType?.ToString() ?? "unknown"}; QCLASS: {q.QuestionClass?.ToString() ?? "unknown"}"))
-            : "No Questions";
+            : string.Empty;
 
             // Build the answer summary in the desired format
             string answerSummary = log.Answers?.Count > 0
                 ? string.Join(", ", log.Answers.Select(a => a.RecordData))
-                : "No Answers";
+                : string.Empty;
 
             // Construct the message summary string to match the desired format
             string messageSummary = $"{questionSummary}; RCODE: {log.ResponseCode}; ANSWER: [{answerSummary}]";
-
 
             // Create and return the syslog message
             return new SyslogMessage(

@@ -19,7 +19,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace LogExporter.Strategy
@@ -29,6 +28,6 @@ namespace LogExporter.Strategy
     /// </summary>
     public interface IExportStrategy: IDisposable
     {
-        Task ExportLogsAsync(List<LogEntry> logs, CancellationToken cancellationToken = default);
+        Task ExportAsync(List<LogEntry> logs);
     }
 }

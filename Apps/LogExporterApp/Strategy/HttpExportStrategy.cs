@@ -21,7 +21,6 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace LogExporter.Strategy
@@ -56,18 +55,20 @@ namespace LogExporter.Strategy
 
         #region public
 
-        public async Task ExportLogsAsync(List<LogEntry> logs, CancellationToken cancellationToken = default)
+        public async Task ExportAsync(List<LogEntry> logs)
         {
-            var jsonLogs = new StringBuilder(logs.Count);
+            var buffer = new GrowableBuffer<char>();
             foreach (var log in logs)
             {
-                jsonLogs.AppendLine(log.ToString());
+                buffer.Append(log.AsSpan());
+                buffer.Append('\n');
             }
+            var content = buffer.ToString() ?? string.Empty;
             var request = new HttpRequestMessage
             {
                 RequestUri = new Uri(_endpoint),
                 Method = new HttpMethod(_method),
-                Content = new StringContent(jsonLogs.ToString(), Encoding.UTF8, "application/json")
+                Content = new StringContent( content, Encoding.UTF8, "application/json")
             };
 
             if (_headers != null)
@@ -78,7 +79,7 @@ namespace LogExporter.Strategy
                 }
             }
 
-            var response = await _httpClient.SendAsync(request, cancellationToken);
+            var response = await _httpClient.SendAsync(request);
             if (!response.IsSuccessStatusCode)
             {
                 throw new Exception($"Failed to export logs to {_endpoint}: {response.StatusCode}");

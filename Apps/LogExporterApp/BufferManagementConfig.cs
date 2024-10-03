@@ -40,7 +40,7 @@ namespace LogExporter
         // Load configuration from JSON
         public static BufferManagementConfig? Deserialize(string json)
         {
-            return JsonSerializer.Deserialize<BufferManagementConfig>(json);
+            return JsonSerializer.Deserialize<BufferManagementConfig>(json, DnsConfigSerializerOptions.Default);
         }
     }
 
@@ -78,5 +78,19 @@ namespace LogExporter
 
         [JsonPropertyName("headers")]
         public Dictionary<string, string>? Headers { get; set; }
+    }
+
+    // Setup reusable options with a single instance
+    public static class DnsConfigSerializerOptions
+    {
+        public static readonly JsonSerializerOptions Default = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase, // Convert properties to camelCase
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping, // For safe encoding
+            NumberHandling = JsonNumberHandling.Strict,
+            AllowTrailingCommas = true, // Allow trailing commas in JSON
+            DictionaryKeyPolicy = JsonNamingPolicy.CamelCase, // Convert dictionary keys to camelCase
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull // Ignore null values
+        };
     }
 }
