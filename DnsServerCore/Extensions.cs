@@ -51,6 +51,13 @@ namespace DnsServerCore
                         //get the real IP address of the requesting client from X-Real-IP header set in nginx proxy_pass block
                         return new IPEndPoint(address, 0);
                     }
+                    //Cloudflare stores the original visitor IP address in the CF-Connecting-IP header instead
+                    //See https://developers.cloudflare.com/fundamentals/reference/http-request-headers/#cf-connecting-ip
+                    string cfConnectingIp = context.Request.Headers["CF-Connecting-IP"];
+                    if (IPAddress.TryParse(cfConnectingIp, out IPAddress address))
+                    {
+                        return new IPEndPoint(address, 0);
+                    }
                 }
 
                 return new IPEndPoint(remoteIP, context.Connection.RemotePort);
