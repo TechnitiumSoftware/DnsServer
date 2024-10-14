@@ -1,15 +1,13 @@
 # syntax=docker.io/docker/dockerfile:1
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
+# Add the MS repo to install `libmsquic` to support DNS-over-QUIC:
+ADD --link https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb /
 RUN <<HEREDOC
-  # Add the MS repo to install `libmsquic` to support DNS-over-QUIC:
-  apt update && apt install -y curl
-  curl https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb --output packages-microsoft-prod.deb
-  dpkg -i packages-microsoft-prod.deb
-  rm packages-microsoft-prod.deb
+  dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb
   # `dnsutils` added to include the `dig` command for troubleshooting:
-  apt update && apt install -y libmsquic dnsutils
-  apt clean -y && rm -rf /var/lib/apt/lists/*
+  apt-get update && apt-get install -y libmsquic dnsutils
+  apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
   # `/etc/dns` is expected to exist the default directory for persisting state:
   # (Users should volume mount to this location or modify the `CMD` of their container)
