@@ -5,6 +5,8 @@
 *.sh text eol=lf
 supervisor.conf text eol=lf
 systemd.service text eol=lf
+# Using the HEREDOC feature expects LF:
+Dockerfile      text eol=lf
 ###############################################################################
 # Set default behavior for command prompt diff.
 #
