@@ -53,7 +53,8 @@ namespace DnsServerCore.Dns.Zones
         None = 0,
         ZoneNameServers = 1,
         SpecifiedNameServers = 2,
-        BothZoneAndSpecifiedNameServers = 3
+        BothZoneAndSpecifiedNameServers = 3,
+        SeparateNameServersForCatalogAndMemberZones = 4
     }
 
     public enum AuthZoneUpdate : byte
@@ -87,6 +88,7 @@ namespace DnsServerCore.Dns.Zones
 
         AuthZoneNotify _notify;
         IReadOnlyCollection<IPAddress> _notifyNameServers;
+        IReadOnlyCollection<IPAddress> _notifySecondaryCatalogNameServers;
 
         AuthZoneUpdate _update;
         IReadOnlyCollection<NetworkAccessControl> _updateNetworkACL;
@@ -141,6 +143,7 @@ namespace DnsServerCore.Dns.Zones
 
             _notify = zoneInfo.Notify;
             _notifyNameServers = zoneInfo.NotifyNameServers;
+            _notifySecondaryCatalogNameServers = zoneInfo.NotifySecondaryCatalogNameServers;
 
             _update = zoneInfo.Update;
             _updateNetworkACL = zoneInfo.UpdateNetworkACL;
@@ -270,33 +273,47 @@ namespace DnsServerCore.Dns.Zones
                 await Task.WhenAll(tasks);
             }
 
-            async Task NotifySpecifiedNameServersAsync(bool onlyFailedNameServers)
+            Task NotifySpecifiedNameServersAsync(bool onlyFailedNameServers)
             {
                 IReadOnlyCollection<IPAddress> specifiedNameServers = apexZone._notifyNameServers;
                 if (specifiedNameServers is not null)
+                    return NotifyNameServersAsync(specifiedNameServers, onlyFailedNameServers);
+
+                return Task.CompletedTask;
+            }
+
+            Task NotifySecondaryCatalogNameServersAsync(bool onlyFailedNameServers)
+            {
+                IReadOnlyCollection<IPAddress> secondaryCatalogNameServers = apexZone._notifySecondaryCatalogNameServers;
+                if (secondaryCatalogNameServers is not null)
+                    return NotifyNameServersAsync(secondaryCatalogNameServers, onlyFailedNameServers);
+
+                return Task.CompletedTask;
+            }
+
+            async Task NotifyNameServersAsync(IReadOnlyCollection<IPAddress> nameServerIpAddresses, bool onlyFailedNameServers)
+            {
+                List<Task> tasks = new List<Task>();
+
+                foreach (IPAddress nameServerIpAddress in nameServerIpAddresses)
                 {
-                    List<Task> tasks = new List<Task>();
+                    string nameServerHost = nameServerIpAddress.ToString();
 
-                    foreach (IPAddress specifiedNameServer in specifiedNameServers)
+                    if (onlyFailedNameServers)
                     {
-                        string nameServerHost = specifiedNameServer.ToString();
-
-                        if (onlyFailedNameServers)
+                        lock (_notifyFailed)
                         {
-                            lock (_notifyFailed)
-                            {
-                                if (!_notifyFailed.Contains(nameServerHost))
-                                    continue;
-                            }
+                            if (!_notifyFailed.Contains(nameServerHost))
+                                continue;
                         }
-
-                        notifiedNameServers.Add(nameServerHost);
-
-                        tasks.Add(NotifyNameServerAsync(nameServerHost, new NameServerAddress[] { new NameServerAddress(specifiedNameServer) }));
                     }
 
-                    await Task.WhenAll(tasks);
+                    notifiedNameServers.Add(nameServerHost);
+
+                    tasks.Add(NotifyNameServerAsync(nameServerHost, [new NameServerAddress(nameServerIpAddress)]));
                 }
+
+                await Task.WhenAll(tasks);
             }
 
             try
@@ -316,6 +333,14 @@ namespace DnsServerCore.Dns.Zones
                         Task t2 = NotifySpecifiedNameServersAsync(!_notifyTimerTriggered);
 
                         await Task.WhenAll(t1, t2);
+                        break;
+
+                    case AuthZoneNotify.SeparateNameServersForCatalogAndMemberZones:
+                        if (this is CatalogZone)
+                            await NotifySecondaryCatalogNameServersAsync(!_notifyTimerTriggered);
+                        else
+                            await NotifySpecifiedNameServersAsync(!_notifyTimerTriggered);
+
                         break;
                 }
 
@@ -1342,6 +1367,25 @@ namespace DnsServerCore.Dns.Zones
                     throw new ArgumentOutOfRangeException(nameof(NotifyNameServers), "Name server addresses cannot have more than 255 entries.");
                 else
                     _notifyNameServers = value;
+
+                lock (_notifyFailed)
+                {
+                    _notifyFailed.Clear();
+                }
+            }
+        }
+
+        public IReadOnlyCollection<IPAddress> NotifySecondaryCatalogNameServers
+        {
+            get { return _notifySecondaryCatalogNameServers; }
+            set
+            {
+                if ((value is null) || (value.Count == 0))
+                    _notifySecondaryCatalogNameServers = null;
+                else if (value.Count > byte.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(NotifySecondaryCatalogNameServers), "Secondary Catalog name server addresses cannot have more than 255 entries.");
+                else
+                    _notifySecondaryCatalogNameServers = value;
 
                 lock (_notifyFailed)
                 {
