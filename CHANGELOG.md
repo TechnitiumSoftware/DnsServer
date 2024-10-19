@@ -1,5 +1,14 @@
 # Technitium DNS Server Change Log
 
+## Version 13.1
+Release Date: 19 October 2024
+
+- Added new option to add Secondary Root Zone directly.
+- Added new notify option for Catalog zones to specify separate name servers only for Catalog zone updates.
+- Added option to configure blocking answer's TTL value in Settings.
+- Added option to make the `X-Real-IP` header customizable for admin web service and for DNS-over-HTTP optional protocol.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 13.0.2
 Release Date: 28 September 2024
 
