@@ -76,7 +76,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         internal void UpdateServerDomain()
         {
-            _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, _dnsServer.ResponsiblePerson.Address, 1, 14400, 3600, 604800, 60);
+            _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, _dnsServer.ResponsiblePerson.Address, 1, 14400, 3600, 604800, _dnsServer.BlockingAnswerTtl);
             _nsRecord = new DnsNSRecordData(_dnsServer.ServerDomain);
         }
 
@@ -515,7 +515,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 DnsResourceRecord[] answer = new DnsResourceRecord[blockLists.Count];
 
                 for (int i = 0; i < answer.Length; i++)
-                    answer[i] = new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData("source=block-list-zone; blockListUrl=" + blockLists[i].AbsoluteUri + "; domain=" + blockedDomain));
+                    answer[i] = new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, _dnsServer.BlockingAnswerTtl, new DnsTXTRecordData("source=block-list-zone; blockListUrl=" + blockLists[i].AbsoluteUri + "; domain=" + blockedDomain));
 
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answer);
             }
@@ -551,7 +551,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         if (parentDomain is null)
                             parentDomain = string.Empty;
 
-                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NxDomain, request.Question, null, new DnsResourceRecord[] { new DnsResourceRecord(parentDomain, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) }, null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, options);
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NxDomain, request.Question, null, [new DnsResourceRecord(parentDomain, DnsResourceRecordType.SOA, question.Class, _dnsServer.BlockingAnswerTtl, _soaRecord)], null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, options);
 
                     default:
                         throw new InvalidOperationException();
@@ -564,40 +564,56 @@ namespace DnsServerCore.Dns.ZoneManagers
                 {
                     case DnsResourceRecordType.A:
                         {
-                            List<DnsResourceRecord> rrList = new List<DnsResourceRecord>(aRecords.Count);
+                            if (aRecords.Count > 0)
+                            {
+                                DnsResourceRecord[] rrList = new DnsResourceRecord[aRecords.Count];
+                                int i = 0;
 
-                            foreach (DnsARecordData record in aRecords)
-                                rrList.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, 60, record));
+                                foreach (DnsARecordData record in aRecords)
+                                    rrList[i++] = new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, _dnsServer.BlockingAnswerTtl, record);
 
-                            answer = rrList;
+                                answer = rrList;
+                            }
+                            else
+                            {
+                                authority = [new DnsResourceRecord(blockedDomain, DnsResourceRecordType.SOA, question.Class, _dnsServer.BlockingAnswerTtl, _soaRecord)];
+                            }
                         }
                         break;
 
                     case DnsResourceRecordType.AAAA:
                         {
-                            List<DnsResourceRecord> rrList = new List<DnsResourceRecord>(aaaaRecords.Count);
+                            if (aaaaRecords.Count > 0)
+                            {
+                                DnsResourceRecord[] rrList = new DnsResourceRecord[aaaaRecords.Count];
+                                int i = 0;
 
-                            foreach (DnsAAAARecordData record in aaaaRecords)
-                                rrList.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, 60, record));
+                                foreach (DnsAAAARecordData record in aaaaRecords)
+                                    rrList[i++] = new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, _dnsServer.BlockingAnswerTtl, record);
 
-                            answer = rrList;
+                                answer = rrList;
+                            }
+                            else
+                            {
+                                authority = [new DnsResourceRecord(blockedDomain, DnsResourceRecordType.SOA, question.Class, _dnsServer.BlockingAnswerTtl, _soaRecord)];
+                            }
                         }
                         break;
 
                     case DnsResourceRecordType.NS:
                         if (question.Name.Equals(blockedDomain, StringComparison.OrdinalIgnoreCase))
-                            answer = new DnsResourceRecord[] { new DnsResourceRecord(blockedDomain, DnsResourceRecordType.NS, question.Class, 60, _nsRecord) };
+                            answer = [new DnsResourceRecord(blockedDomain, DnsResourceRecordType.NS, question.Class, _dnsServer.BlockingAnswerTtl, _nsRecord)];
                         else
-                            authority = new DnsResourceRecord[] { new DnsResourceRecord(blockedDomain, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) };
+                            authority = [new DnsResourceRecord(blockedDomain, DnsResourceRecordType.SOA, question.Class, _dnsServer.BlockingAnswerTtl, _soaRecord)];
 
                         break;
 
                     case DnsResourceRecordType.SOA:
-                        answer = new DnsResourceRecord[] { new DnsResourceRecord(blockedDomain, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) };
+                        answer = [new DnsResourceRecord(blockedDomain, DnsResourceRecordType.SOA, question.Class, _dnsServer.BlockingAnswerTtl, _soaRecord)];
                         break;
 
                     default:
-                        authority = new DnsResourceRecord[] { new DnsResourceRecord(blockedDomain, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) };
+                        authority = [new DnsResourceRecord(blockedDomain, DnsResourceRecordType.SOA, question.Class, _dnsServer.BlockingAnswerTtl, _soaRecord)];
                         break;
                 }
 
