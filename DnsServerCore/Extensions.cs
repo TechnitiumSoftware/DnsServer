@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ namespace DnsServerCore
     {
         readonly static string[] HTTP_METHODS = new string[] { "GET", "POST" };
 
-        public static IPEndPoint GetRemoteEndPoint(this HttpContext context, bool ignoreXRealIpHeader = false)
+        public static IPEndPoint GetRemoteEndPoint(this HttpContext context, string realIpHeaderName)
         {
             try
             {
@@ -43,9 +43,9 @@ namespace DnsServerCore
                 if (remoteIP.IsIPv4MappedToIPv6)
                     remoteIP = remoteIP.MapToIPv4();
 
-                if (!ignoreXRealIpHeader && NetUtilities.IsPrivateIP(remoteIP))
+                if (!string.IsNullOrEmpty(realIpHeaderName) && NetUtilities.IsPrivateIP(remoteIP))
                 {
-                    string xRealIp = context.Request.Headers["X-Real-IP"];
+                    string xRealIp = context.Request.Headers[realIpHeaderName];
                     if (IPAddress.TryParse(xRealIp, out IPAddress address))
                     {
                         //get the real IP address of the requesting client from X-Real-IP header set in nginx proxy_pass block
