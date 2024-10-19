@@ -304,6 +304,7 @@ namespace DnsServerCore
             jsonWriter.WriteNumber("webServiceTlsPort", _dnsWebService._webServiceTlsPort);
             jsonWriter.WriteString("webServiceTlsCertificatePath", _dnsWebService._webServiceTlsCertificatePath);
             jsonWriter.WriteString("webServiceTlsCertificatePassword", "************");
+            jsonWriter.WriteString("webServiceRealIpHeader", _dnsWebService._webServiceRealIpHeader);
 
             //optional protocols
             jsonWriter.WriteBoolean("enableDnsOverUdpProxy", _dnsWebService.DnsServer.EnableDnsOverUdpProxy);
@@ -321,6 +322,7 @@ namespace DnsServerCore
             jsonWriter.WriteNumber("dnsOverQuicPort", _dnsWebService.DnsServer.DnsOverQuicPort);
             jsonWriter.WriteString("dnsTlsCertificatePath", _dnsWebService._dnsTlsCertificatePath);
             jsonWriter.WriteString("dnsTlsCertificatePassword", "************");
+            jsonWriter.WriteString("dnsOverHttpRealIpHeader", _dnsWebService.DnsServer.DnsOverHttpRealIpHeader);
 
             //tsig
             jsonWriter.WritePropertyName("tsigKeys");
@@ -407,6 +409,7 @@ namespace DnsServerCore
                 jsonWriter.WriteString("temporaryDisableBlockingTill", _temporaryDisableBlockingTill);
 
             jsonWriter.WriteString("blockingType", _dnsWebService.DnsServer.BlockingType.ToString());
+            jsonWriter.WriteNumber("blockingAnswerTtl", _dnsWebService.DnsServer.BlockingAnswerTtl);
 
             jsonWriter.WritePropertyName("customBlockingAddresses");
             jsonWriter.WriteStartArray();
@@ -634,6 +637,8 @@ namespace DnsServerCore
             {
                 if (defaultResponsiblePerson.Length == 0)
                     _dnsWebService.DnsServer.ResponsiblePersonInternal = null;
+                else if (defaultResponsiblePerson.Length > 255)
+                    throw new ArgumentException("Default responsible person email address length cannot exceed 255 characters.", "defaultResponsiblePerson");
                 else
                     _dnsWebService.DnsServer.ResponsiblePersonInternal = new MailAddress(defaultResponsiblePerson);
             }
@@ -824,6 +829,12 @@ namespace DnsServerCore
 
                     if ((webServiceTlsCertificatePath != _dnsWebService._webServiceTlsCertificatePath) || (webServiceTlsCertificatePassword != _dnsWebService._webServiceTlsCertificatePassword))
                     {
+                        if (webServiceTlsCertificatePath.Length > 255)
+                            throw new ArgumentException("Web service TLS certificate path length cannot exceed 255 characters.", "webServiceTlsCertificatePath");
+
+                        if (webServiceTlsCertificatePassword?.Length > 255)
+                            throw new ArgumentException("Web service TLS certificate password length cannot exceed 255 characters.", "webServiceTlsCertificatePassword");
+
                         _dnsWebService.LoadWebServiceTlsCertificate(_dnsWebService.ConvertToAbsolutePath(webServiceTlsCertificatePath), webServiceTlsCertificatePassword);
 
                         _dnsWebService._webServiceTlsCertificatePath = _dnsWebService.ConvertToRelativePath(webServiceTlsCertificatePath);
@@ -832,6 +843,17 @@ namespace DnsServerCore
                         _dnsWebService.StartTlsCertificateUpdateTimer();
                     }
                 }
+            }
+
+            if (request.TryGetQueryOrForm("webServiceRealIpHeader", out string webServiceRealIpHeader))
+            {
+                if (webServiceRealIpHeader.Length > 255)
+                    throw new ArgumentException("Web service Real IP header name cannot exceed 255 characters.", "webServiceRealIpHeader");
+
+                if (webServiceRealIpHeader.Contains(' '))
+                    throw new ArgumentException("Web service Real IP header name cannot contain invalid characters.", "webServiceRealIpHeader");
+
+                _dnsWebService._webServiceRealIpHeader = webServiceRealIpHeader;
             }
 
             //optional protocols
@@ -972,25 +994,34 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    string strDnsTlsCertificatePassword = request.QueryOrForm("dnsTlsCertificatePassword");
+                    string dnsTlsCertificatePassword = request.QueryOrForm("dnsTlsCertificatePassword");
 
-                    if ((strDnsTlsCertificatePassword is null) || (strDnsTlsCertificatePassword == "************"))
-                        strDnsTlsCertificatePassword = _dnsWebService._dnsTlsCertificatePassword;
+                    if ((dnsTlsCertificatePassword is null) || (dnsTlsCertificatePassword == "************"))
+                        dnsTlsCertificatePassword = _dnsWebService._dnsTlsCertificatePassword;
 
-                    if ((dnsTlsCertificatePath != _dnsWebService._dnsTlsCertificatePath) || (strDnsTlsCertificatePassword != _dnsWebService._dnsTlsCertificatePassword))
+                    if ((dnsTlsCertificatePath != _dnsWebService._dnsTlsCertificatePath) || (dnsTlsCertificatePassword != _dnsWebService._dnsTlsCertificatePassword))
                     {
-                        _dnsWebService.LoadDnsTlsCertificate(_dnsWebService.ConvertToAbsolutePath(dnsTlsCertificatePath), strDnsTlsCertificatePassword);
+                        if (dnsTlsCertificatePath.Length > 255)
+                            throw new ArgumentException("DNS optional protocols TLS certificate path length cannot exceed 255 characters.", "dnsTlsCertificatePath");
+
+                        if (dnsTlsCertificatePassword?.Length > 255)
+                            throw new ArgumentException("DNS optional protocols TLS certificate password length cannot exceed 255 characters.", "dnsTlsCertificatePassword");
+
+                        _dnsWebService.LoadDnsTlsCertificate(_dnsWebService.ConvertToAbsolutePath(dnsTlsCertificatePath), dnsTlsCertificatePassword);
 
                         if (string.IsNullOrEmpty(_dnsWebService._dnsTlsCertificatePath) && (_dnsWebService.DnsServer.EnableDnsOverTls || _dnsWebService.DnsServer.EnableDnsOverHttps || _dnsWebService.DnsServer.EnableDnsOverQuic))
                             restartDnsService = true;
 
                         _dnsWebService._dnsTlsCertificatePath = _dnsWebService.ConvertToRelativePath(dnsTlsCertificatePath);
-                        _dnsWebService._dnsTlsCertificatePassword = strDnsTlsCertificatePassword;
+                        _dnsWebService._dnsTlsCertificatePassword = dnsTlsCertificatePassword;
 
                         _dnsWebService.StartTlsCertificateUpdateTimer();
                     }
                 }
             }
+
+            if (request.TryGetQueryOrForm("dnsOverHttpRealIpHeader", out string dnsOverHttpRealIpHeader))
+                _dnsWebService.DnsServer.DnsOverHttpRealIpHeader = dnsOverHttpRealIpHeader;
 
             //tsig
             string strTsigKeys = request.QueryOrForm("tsigKeys");
@@ -1132,6 +1163,9 @@ namespace DnsServerCore
             if (request.TryGetQueryOrFormEnum("blockingType", out DnsServerBlockingType blockingType))
                 _dnsWebService.DnsServer.BlockingType = blockingType;
 
+            if (request.TryGetQueryOrForm("blockingAnswerTtl", uint.Parse, out uint blockingAnswerTtl))
+                _dnsWebService.DnsServer.BlockingAnswerTtl = blockingAnswerTtl;
+
             string customBlockingAddresses = request.QueryOrForm("customBlockingAddresses");
             if (customBlockingAddresses is not null)
             {
@@ -1238,12 +1272,18 @@ namespace DnsServerCore
                             {
                                 Uri allowListUrl = new Uri(strBlockListUrl.Substring(1));
 
+                                if (allowListUrl.AbsoluteUri.Length > 255)
+                                    throw new ArgumentException("Allow list URL length cannot exceed 255 characters.", "blockListUrls");
+
                                 if (!_dnsWebService.DnsServer.BlockListZoneManager.AllowListUrls.Contains(allowListUrl))
                                     _dnsWebService.DnsServer.BlockListZoneManager.AllowListUrls.Add(allowListUrl);
                             }
                             else
                             {
                                 Uri blockListUrl = new Uri(strBlockListUrl);
+
+                                if (blockListUrl.AbsoluteUri.Length > 255)
+                                    throw new ArgumentException("Block list URL length cannot exceed 255 characters.", "blockListUrls");
 
                                 if (!_dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Contains(blockListUrl))
                                     _dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Add(blockListUrl);
@@ -1273,7 +1313,16 @@ namespace DnsServerCore
                     NetworkCredential credential = null;
 
                     if (request.TryGetQueryOrForm("proxyUsername", out string proxyUsername))
-                        credential = new NetworkCredential(proxyUsername, request.QueryOrForm("proxyPassword"));
+                    {
+                        if (proxyUsername.Length > 255)
+                            throw new ArgumentException("Proxy username length cannot exceed 255 characters.", "proxyUsername");
+
+                        string proxyPassword = request.QueryOrForm("proxyPassword");
+                        if (proxyPassword?.Length > 255)
+                            throw new ArgumentException("Proxy password length cannot exceed 255 characters.", "proxyPassword");
+
+                        credential = new NetworkCredential(proxyUsername, proxyPassword);
+                    }
 
                     _dnsWebService.DnsServer.Proxy = NetProxy.CreateProxy(proxyType, request.QueryOrForm("proxyAddress"), int.Parse(request.QueryOrForm("proxyPort")), credential);
 
@@ -1396,7 +1445,7 @@ namespace DnsServerCore
             _dnsWebService.SaveConfigFile();
             _dnsWebService._log.SaveConfig();
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS Settings were updated successfully.");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DNS Settings were updated successfully.");
 
             Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
             WriteDnsSettings(jsonWriter);
@@ -1634,7 +1683,7 @@ namespace DnsServerCore
                 }
             }
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Settings backup zip file was exported.");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Settings backup zip file was exported.");
         }
 
         public async Task RestoreSettingsAsync(HttpContext context)
@@ -1974,7 +2023,7 @@ namespace DnsServerCore
                             _dnsWebService.DnsServer.StatsManager.ReloadStats();
                         }
 
-                        _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Settings backup zip file was restored.");
+                        _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Settings backup zip file was restored.");
                     }
                 }
             }
@@ -2005,7 +2054,7 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Access was denied.");
 
             ForceUpdateBlockLists(false);
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Block list update was triggered.");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Block list update was triggered.");
         }
 
         public void TemporaryDisableBlocking(HttpContext context)
@@ -2026,7 +2075,7 @@ namespace DnsServerCore
                 try
                 {
                     _dnsWebService.DnsServer.EnableBlocking = true;
-                    _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Blocking was enabled after " + minutes + " minute(s) being temporarily disabled.");
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Blocking was enabled after " + minutes + " minute(s) being temporarily disabled.");
                 }
                 catch (Exception ex)
                 {
@@ -2041,7 +2090,7 @@ namespace DnsServerCore
                 _dnsWebService.DnsServer.EnableBlocking = false;
                 _temporaryDisableBlockingTill = DateTime.UtcNow.AddMinutes(minutes);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Blocking was temporarily disabled for " + minutes + " minute(s).");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Blocking was temporarily disabled for " + minutes + " minute(s).");
             }
             else
             {
