@@ -493,7 +493,7 @@ namespace DnsServerCore
                     fS.Position = 0;
                     DnsApplication application = await _dnsWebService.DnsServer.DnsApplicationManager.InstallApplicationAsync(name, fS);
 
-                    _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS application '" + name + "' was installed successfully from: " + url);
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DNS application '" + name + "' was installed successfully from: " + url);
 
                     Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
@@ -531,7 +531,7 @@ namespace DnsServerCore
 
             DnsApplication application = await DownloadAndUpdateAppAsync(name, url, false);
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS application '" + name + "' was updated successfully from: " + url);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DNS application '" + name + "' was updated successfully from: " + url);
 
             Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
@@ -565,7 +565,7 @@ namespace DnsServerCore
                     fS.Position = 0;
                     DnsApplication application = await _dnsWebService.DnsServer.DnsApplicationManager.InstallApplicationAsync(name, fS);
 
-                    _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS application '" + name + "' was installed successfully.");
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DNS application '" + name + "' was installed successfully.");
 
                     Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
@@ -612,7 +612,7 @@ namespace DnsServerCore
                     fS.Position = 0;
                     DnsApplication application = await _dnsWebService.DnsServer.DnsApplicationManager.UpdateApplicationAsync(name, fS);
 
-                    _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS application '" + name + "' was updated successfully.");
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DNS application '" + name + "' was updated successfully.");
 
                     Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
@@ -645,7 +645,7 @@ namespace DnsServerCore
             string name = request.GetQueryOrForm("name").Trim();
 
             _dnsWebService.DnsServer.DnsApplicationManager.UninstallApplication(name);
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS application '" + name + "' was uninstalled successfully.");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DNS application '" + name + "' was uninstalled successfully.");
         }
 
         public async Task GetAppConfigAsync(HttpContext context)
@@ -691,7 +691,7 @@ namespace DnsServerCore
 
             await application.SetConfigAsync(config);
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS application '" + name + "' app config was saved successfully.");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DNS application '" + name + "' app config was saved successfully.");
         }
 
         #endregion

@@ -301,7 +301,7 @@ namespace DnsServerCore
             string password = request.GetQueryOrForm("pass");
             string tokenName = (sessionType == UserSessionType.ApiToken) ? request.GetQueryOrForm("tokenName") : null;
             bool includeInfo = request.GetQueryOrForm("includeInfo", bool.Parse, false);
-            IPEndPoint remoteEP = context.GetRemoteEndPoint();
+            IPEndPoint remoteEP = context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader);
 
             UserSession session = await _dnsWebService._authManager.CreateSessionAsync(sessionType, tokenName, username, password, remoteEP.Address, request.Headers.UserAgent);
 
@@ -320,7 +320,7 @@ namespace DnsServerCore
             UserSession session = _dnsWebService._authManager.DeleteSession(token);
             if (session is not null)
             {
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] User logged out.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User logged out.");
 
                 _dnsWebService._authManager.SaveConfigFile();
             }
@@ -344,7 +344,7 @@ namespace DnsServerCore
 
             session.User.ChangePassword(password);
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Password was changed successfully.");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Password was changed successfully.");
 
             _dnsWebService._authManager.SaveConfigFile();
         }
@@ -371,7 +371,7 @@ namespace DnsServerCore
             if (request.TryGetQueryOrForm("sessionTimeoutSeconds", int.Parse, out int sessionTimeoutSeconds))
                 session.User.SessionTimeoutSeconds = sessionTimeoutSeconds;
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] User profile was updated successfully.");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User profile was updated successfully.");
 
             _dnsWebService._authManager.SaveConfigFile();
 
@@ -415,7 +415,7 @@ namespace DnsServerCore
             string username = request.GetQueryOrForm("user");
             string tokenName = request.GetQueryOrForm("tokenName");
 
-            IPEndPoint remoteEP = context.GetRemoteEndPoint();
+            IPEndPoint remoteEP = context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader);
 
             UserSession createdSession = _dnsWebService._authManager.CreateApiToken(tokenName, username, remoteEP.Address, request.Headers.UserAgent);
 
@@ -467,7 +467,7 @@ namespace DnsServerCore
 
             UserSession deletedSession = _dnsWebService._authManager.DeleteSession(token);
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] User session [" + strPartialToken + "] was deleted successfully for user: " + deletedSession.User.Username);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User session [" + strPartialToken + "] was deleted successfully for user: " + deletedSession.User.Username);
 
             _dnsWebService._authManager.SaveConfigFile();
         }
@@ -514,7 +514,7 @@ namespace DnsServerCore
 
             User user = _dnsWebService._authManager.CreateUser(displayName, username, password);
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] User account was created successfully with username: " + user.Username);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User account was created successfully with username: " + user.Username);
 
             _dnsWebService._authManager.SaveConfigFile();
 
@@ -623,7 +623,7 @@ namespace DnsServerCore
                 user.SyncGroups(groups);
             }
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] User account details were updated successfully for user: " + username);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User account details were updated successfully for user: " + username);
 
             _dnsWebService._authManager.SaveConfigFile();
 
@@ -646,7 +646,7 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.DeleteUser(username))
                 throw new DnsWebServiceException("Failed to delete user: " + username);
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] User account was deleted successfully with username: " + username);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User account was deleted successfully with username: " + username);
 
             _dnsWebService._authManager.SaveConfigFile();
         }
@@ -695,7 +695,7 @@ namespace DnsServerCore
 
             Group group = _dnsWebService._authManager.CreateGroup(groupName, description);
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Group was created successfully with name: " + group.Name);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Group was created successfully with name: " + group.Name);
 
             _dnsWebService._authManager.SaveConfigFile();
 
@@ -768,7 +768,7 @@ namespace DnsServerCore
                 _dnsWebService._authManager.SyncGroupMembers(group, users);
             }
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Group details were updated successfully for group: " + groupName);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Group details were updated successfully for group: " + groupName);
 
             _dnsWebService._authManager.SaveConfigFile();
 
@@ -788,7 +788,7 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.DeleteGroup(groupName))
                 throw new DnsWebServiceException("Failed to delete group: " + groupName);
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Group was deleted successfully with name: " + groupName);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Group was deleted successfully with name: " + groupName);
 
             _dnsWebService._authManager.SaveConfigFile();
         }
@@ -1001,7 +1001,7 @@ namespace DnsServerCore
                 permission.SyncPermissions(groupPermissions);
             }
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Permissions were updated successfully for section: " + section.ToString() + (string.IsNullOrEmpty(strSubItem) ? "" : "/" + strSubItem));
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Permissions were updated successfully for section: " + section.ToString() + (string.IsNullOrEmpty(strSubItem) ? "" : "/" + strSubItem));
 
             _dnsWebService._authManager.SaveConfigFile();
 

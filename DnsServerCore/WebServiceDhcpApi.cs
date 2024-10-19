@@ -647,20 +647,20 @@ namespace DnsServerCore
             {
                 _dnsWebService.DhcpServer.SaveScope(scopeName);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope was updated successfully: " + scopeName);
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DHCP scope was updated successfully: " + scopeName);
             }
             else
             {
                 await _dnsWebService.DhcpServer.AddScopeAsync(scope);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope was added successfully: " + scopeName);
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DHCP scope was added successfully: " + scopeName);
             }
 
             if (request.TryGetQueryOrForm("newName", out string newName) && !newName.Equals(scopeName))
             {
                 _dnsWebService.DhcpServer.RenameScope(scopeName, newName);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope was renamed successfully: '" + scopeName + "' to '" + newName + "'");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DHCP scope was renamed successfully: '" + scopeName + "' to '" + newName + "'");
             }
         }
 
@@ -691,7 +691,7 @@ namespace DnsServerCore
 
             _dnsWebService.DhcpServer.SaveScope(scopeName);
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope reserved lease was added successfully: " + scopeName);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DHCP scope reserved lease was added successfully: " + scopeName);
         }
 
         public void RemoveReservedLease(HttpContext context)
@@ -716,7 +716,7 @@ namespace DnsServerCore
 
             _dnsWebService.DhcpServer.SaveScope(scopeName);
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope reserved lease was removed successfully: " + scopeName);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DHCP scope reserved lease was removed successfully: " + scopeName);
         }
 
         public async Task EnableDhcpScopeAsync(HttpContext context)
@@ -730,7 +730,7 @@ namespace DnsServerCore
 
             await _dnsWebService.DhcpServer.EnableScopeAsync(scopeName, true);
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope was enabled successfully: " + scopeName);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DHCP scope was enabled successfully: " + scopeName);
         }
 
         public void DisableDhcpScope(HttpContext context)
@@ -744,7 +744,7 @@ namespace DnsServerCore
 
             _dnsWebService.DhcpServer.DisableScope(scopeName, true);
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope was disabled successfully: " + scopeName);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DHCP scope was disabled successfully: " + scopeName);
         }
 
         public void DeleteDhcpScope(HttpContext context)
@@ -758,7 +758,7 @@ namespace DnsServerCore
 
             _dnsWebService.DhcpServer.DeleteScope(scopeName);
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope was deleted successfully: " + scopeName);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DHCP scope was deleted successfully: " + scopeName);
         }
 
         public void RemoveDhcpLease(HttpContext context)
@@ -788,7 +788,7 @@ namespace DnsServerCore
 
             _dnsWebService.DhcpServer.SaveScope(scopeName);
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope's lease was removed successfully: " + scopeName);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DHCP scope's lease was removed successfully: " + scopeName);
         }
 
         public void ConvertToReservedLease(HttpContext context)
@@ -818,7 +818,7 @@ namespace DnsServerCore
 
             _dnsWebService.DhcpServer.SaveScope(scopeName);
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope's lease was reserved successfully: " + scopeName);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DHCP scope's lease was reserved successfully: " + scopeName);
         }
 
         public void ConvertToDynamicLease(HttpContext context)
@@ -848,7 +848,7 @@ namespace DnsServerCore
 
             _dnsWebService.DhcpServer.SaveScope(scopeName);
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope's lease was unreserved successfully: " + scopeName);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DHCP scope's lease was unreserved successfully: " + scopeName);
         }
 
         #endregion

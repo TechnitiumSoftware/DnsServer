@@ -110,7 +110,7 @@ namespace DnsServerCore
 
             _dnsWebService._log.DeleteLog(log);
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Log file was deleted: " + log);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Log file was deleted: " + log);
         }
 
         public void DeleteAllLogs(HttpContext context)
@@ -122,7 +122,7 @@ namespace DnsServerCore
 
             _dnsWebService._log.DeleteAllLogs();
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] All log files were deleted.");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] All log files were deleted.");
         }
 
         public void DeleteAllStats(HttpContext context)
@@ -134,7 +134,7 @@ namespace DnsServerCore
 
             _dnsWebService.DnsServer.StatsManager.DeleteAllStats();
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] All stats files were deleted.");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] All stats files were deleted.");
         }
 
         public async Task QueryLogsAsync(HttpContext context)

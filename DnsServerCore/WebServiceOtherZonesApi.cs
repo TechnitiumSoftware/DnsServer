@@ -61,7 +61,7 @@ namespace DnsServerCore
 
             _dnsWebService.DnsServer.CacheZoneManager.Flush();
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Cache was flushed.");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Cache was flushed.");
         }
 
         public void ListCachedZones(HttpContext context)
@@ -163,7 +163,7 @@ namespace DnsServerCore
                 domain = DnsClient.ConvertDomainNameToAscii(domain);
 
             if (_dnsWebService.DnsServer.CacheZoneManager.DeleteZone(domain))
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Cached zone was deleted: " + domain);
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Cached zone was deleted: " + domain);
         }
 
         #endregion
@@ -276,7 +276,7 @@ namespace DnsServerCore
 
             _dnsWebService.DnsServer.AllowedZoneManager.ImportZones(allowedZonesList);
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Total " + allowedZonesList.Length + " zones were imported into allowed zone successfully.");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Total " + allowedZonesList.Length + " zones were imported into allowed zone successfully.");
             _dnsWebService.DnsServer.AllowedZoneManager.SaveZoneFile();
         }
 
@@ -315,7 +315,7 @@ namespace DnsServerCore
 
             if (_dnsWebService.DnsServer.AllowedZoneManager.DeleteZone(domain))
             {
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Allowed zone was deleted: " + domain);
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Allowed zone was deleted: " + domain);
                 _dnsWebService.DnsServer.AllowedZoneManager.SaveZoneFile();
             }
         }
@@ -329,7 +329,7 @@ namespace DnsServerCore
 
             _dnsWebService.DnsServer.AllowedZoneManager.Flush();
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Allowed zone was flushed successfully.");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Allowed zone was flushed successfully.");
             _dnsWebService.DnsServer.AllowedZoneManager.SaveZoneFile();
         }
 
@@ -350,7 +350,7 @@ namespace DnsServerCore
 
             if (_dnsWebService.DnsServer.AllowedZoneManager.AllowZone(domain))
             {
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Zone was allowed: " + domain);
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Zone was allowed: " + domain);
                 _dnsWebService.DnsServer.AllowedZoneManager.SaveZoneFile();
             }
         }
@@ -465,7 +465,7 @@ namespace DnsServerCore
 
             _dnsWebService.DnsServer.BlockedZoneManager.ImportZones(blockedZonesList);
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Total " + blockedZonesList.Length + " zones were imported into blocked zone successfully.");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Total " + blockedZonesList.Length + " zones were imported into blocked zone successfully.");
             _dnsWebService.DnsServer.BlockedZoneManager.SaveZoneFile();
         }
 
@@ -504,7 +504,7 @@ namespace DnsServerCore
 
             if (_dnsWebService.DnsServer.BlockedZoneManager.DeleteZone(domain))
             {
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Blocked zone was deleted: " + domain);
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Blocked zone was deleted: " + domain);
                 _dnsWebService.DnsServer.BlockedZoneManager.SaveZoneFile();
             }
         }
@@ -518,7 +518,7 @@ namespace DnsServerCore
 
             _dnsWebService.DnsServer.BlockedZoneManager.Flush();
 
-            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Blocked zone was flushed successfully.");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Blocked zone was flushed successfully.");
             _dnsWebService.DnsServer.BlockedZoneManager.SaveZoneFile();
         }
 
@@ -539,7 +539,7 @@ namespace DnsServerCore
 
             if (_dnsWebService.DnsServer.BlockedZoneManager.BlockZone(domain))
             {
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Domain was added to blocked zone: " + domain);
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Domain was added to blocked zone: " + domain);
                 _dnsWebService.DnsServer.BlockedZoneManager.SaveZoneFile();
             }
         }
