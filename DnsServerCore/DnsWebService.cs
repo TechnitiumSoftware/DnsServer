@@ -100,6 +100,7 @@ namespace DnsServerCore
         internal string _webServiceTlsCertificatePath;
         internal string _webServiceTlsCertificatePassword;
         DateTime _webServiceTlsCertificateLastModifiedOn;
+        internal string _webServiceRealIpHeader = "X-Real-IP";
 
         //optional protocols
         internal string _dnsTlsCertificatePath;
@@ -711,7 +712,7 @@ namespace DnsServerCore
                         jsonWriter.WriteEndObject();
                     }
 
-                    _log.Write(context.GetRemoteEndPoint(), ex);
+                    _log.Write(context.GetRemoteEndPoint(_webServiceRealIpHeader), ex);
                 }
             });
         }
@@ -730,7 +731,7 @@ namespace DnsServerCore
                 return false;
             }
 
-            IPEndPoint remoteEP = context.GetRemoteEndPoint();
+            IPEndPoint remoteEP = context.GetRemoteEndPoint(_webServiceRealIpHeader);
 
             session.UpdateLastSeen(remoteEP.Address, context.Request.Headers.UserAgent);
             return true;
@@ -1220,7 +1221,7 @@ namespace DnsServerCore
 
             int version = bR.ReadByte();
 
-            if ((version >= 28) && (version <= 37))
+            if ((version >= 28) && (version <= 38))
             {
                 ReadConfigFrom(bR, version);
             }
@@ -1234,6 +1235,8 @@ namespace DnsServerCore
                 _appsApi.EnableAutomaticUpdate = true;
                 _webServiceEnableHttp3 = _webServiceEnableTls && IsQuicSupported();
                 _dnsServer.EnableDnsOverHttp3 = _dnsServer.EnableDnsOverHttps && IsQuicSupported();
+                _webServiceRealIpHeader = "X-Real-IP";
+                _dnsServer.DnsOverHttpRealIpHeader = "X-Real-IP";
                 _dnsServer.ResponsiblePersonInternal = null;
                 _dnsServer.AuthZoneManager.UseSoaSerialDateScheme = false;
                 _dnsServer.ZoneTransferAllowedNetworks = null;
@@ -1245,6 +1248,7 @@ namespace DnsServerCore
                 _dnsServer.EDnsClientSubnetIpv6Override = null;
                 _dnsServer.QpmLimitBypassList = null;
                 _dnsServer.BlockingBypassList = null;
+                _dnsServer.BlockingAnswerTtl = 30;
                 _dnsServer.ResolverConcurrency = 2;
                 _dnsServer.CacheZoneManager.ServeStaleAnswerTtl = CacheZoneManager.SERVE_STALE_ANSWER_TTL;
                 _dnsServer.CacheZoneManager.ServeStaleResetTtl = CacheZoneManager.SERVE_STALE_RESET_TTL;
@@ -1318,6 +1322,11 @@ namespace DnsServerCore
                 }
 
                 SelfSignedCertCheck(false, false);
+
+                if (version >= 38)
+                    _webServiceRealIpHeader = bR.ReadShortString();
+                else
+                    _webServiceRealIpHeader = "X-Real-IP";
             }
 
             //dns
@@ -1554,6 +1563,11 @@ namespace DnsServerCore
                     StartTlsCertificateUpdateTimer();
                 }
 
+                if (version >= 38)
+                    _dnsServer.DnsOverHttpRealIpHeader = bR.ReadShortString();
+                else
+                    _dnsServer.DnsOverHttpRealIpHeader = "X-Real-IP";
+
                 //tsig
                 {
                     int count = bR.ReadByte();
@@ -1642,6 +1656,11 @@ namespace DnsServerCore
                     _dnsServer.BlockingBypassList = null;
 
                 _dnsServer.BlockingType = (DnsServerBlockingType)bR.ReadByte();
+
+                if (version >= 38)
+                    _dnsServer.BlockingAnswerTtl = bR.ReadUInt32();
+                else
+                    _dnsServer.BlockingAnswerTtl = 30;
 
                 {
                     //read custom blocking addresses
@@ -2388,7 +2407,7 @@ namespace DnsServerCore
         private void WriteConfigTo(BinaryWriter bW)
         {
             bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-            bW.Write((byte)37); //version
+            bW.Write((byte)38); //version
 
             //web service
             {
@@ -2416,6 +2435,8 @@ namespace DnsServerCore
                     bW.WriteShortString(string.Empty);
                 else
                     bW.WriteShortString(_webServiceTlsCertificatePassword);
+
+                bW.WriteShortString(_webServiceRealIpHeader);
             }
 
             //dns
@@ -2516,6 +2537,8 @@ namespace DnsServerCore
                 else
                     bW.WriteShortString(_dnsTlsCertificatePassword);
 
+                bW.WriteShortString(_dnsServer.DnsOverHttpRealIpHeader);
+
                 //tsig
                 if (_dnsServer.TsigKeys is null)
                 {
@@ -2572,6 +2595,7 @@ namespace DnsServerCore
                 AuthZoneInfo.WriteNetworkAddressesTo(_dnsServer.BlockingBypassList, bW);
 
                 bW.Write((byte)_dnsServer.BlockingType);
+                bW.Write(_dnsServer.BlockingAnswerTtl);
 
                 {
                     bW.Write(Convert.ToByte(_dnsServer.CustomBlockingARecords.Count + _dnsServer.CustomBlockingAAAARecords.Count));
