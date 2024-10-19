@@ -121,10 +121,10 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         internal void UpdateServerDomain()
         {
-            _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, _dnsServer.ResponsiblePerson.Address, 1, 900, 300, 604800, 60);
+            _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, _dnsServer.ResponsiblePerson.Address, 1, 14400, 3600, 604800, _dnsServer.BlockingAnswerTtl);
             _nsRecord = new DnsNSRecordData(_dnsServer.ServerDomain);
 
-            _zoneManager.UpdateServerDomain();
+            _zoneManager.UpdateServerDomain(true);
         }
 
         private void SaveZoneFileInternal()
