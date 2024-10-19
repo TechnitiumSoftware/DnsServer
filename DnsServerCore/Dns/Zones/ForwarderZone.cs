@@ -274,6 +274,23 @@ namespace DnsServerCore.Dns.Zones
 
         #region properties
 
+        public override bool Disabled
+        {
+            get { return base.Disabled; }
+            set
+            {
+                if (base.Disabled == value)
+                    return;
+
+                base.Disabled = value; //set value early to be able to use it for notify
+
+                if (value)
+                    DisableNotifyTimer();
+                else
+                    TriggerNotify();
+            }
+        }
+
         public override AuthZoneQueryAccess QueryAccess
         {
             get { return base.QueryAccess; }
@@ -315,6 +332,12 @@ namespace DnsServerCore.Dns.Zones
                 {
                     case AuthZoneNotify.ZoneNameServers:
                     case AuthZoneNotify.BothZoneAndSpecifiedNameServers:
+                        throw new ArgumentException("The Notify option is invalid for " + GetZoneTypeName() + " zones: " + value.ToString(), nameof(Notify));
+
+                    case AuthZoneNotify.SeparateNameServersForCatalogAndMemberZones:
+                        if (this is CatalogZone)
+                            break;
+
                         throw new ArgumentException("The Notify option is invalid for " + GetZoneTypeName() + " zones: " + value.ToString(), nameof(Notify));
                 }
 
