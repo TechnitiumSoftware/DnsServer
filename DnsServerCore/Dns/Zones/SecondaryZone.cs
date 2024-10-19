@@ -158,7 +158,7 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 if ((soaResponse.Answer.Count == 0) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA))
-                    throw new DnsServerException("DNS Server failed to find SOA record for: " + secondaryZone.ToString());
+                    throw new DnsServerException("DNS Server did not receive SOA record in response from any of the primary name servers for: " + secondaryZone.ToString());
 
                 DnsResourceRecord receivedSoaRecord = soaResponse.Answer[0];
                 DnsSOARecordData receivedSoa = receivedSoaRecord.RDATA as DnsSOARecordData;
@@ -365,11 +365,49 @@ namespace DnsServerCore.Dns.Zones
                 xfrClient.Proxy = _dnsServer.Proxy;
                 xfrClient.PreferIPv6 = _dnsServer.PreferIPv6;
                 xfrClient.Retries = REFRESH_RETRIES;
-                xfrClient.Timeout = REFRESH_XFR_TIMEOUT;
                 xfrClient.Concurrency = 1;
 
                 DnsResourceRecord currentSoaRecord = _entries[DnsResourceRecordType.SOA][0];
                 DnsSOARecordData currentSoa = currentSoaRecord.RDATA as DnsSOARecordData;
+
+                if (!_resync && (this is not SecondaryForwarderZone)) //skip SOA probe for Secondary Forwarder/Catalog since Forwarder/Catalog is not authoritative for SOA
+                {
+                    //check for update
+                    xfrClient.Timeout = REFRESH_SOA_TIMEOUT;
+
+                    DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, [new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN)], null, null, null, _dnsServer.UdpPayloadSize);
+                    DnsDatagram soaResponse;
+
+                    if (key is null)
+                        soaResponse = await xfrClient.RawResolveAsync(soaRequest);
+                    else
+                        soaResponse = await xfrClient.TsigResolveAsync(soaRequest, key, REFRESH_TSIG_FUDGE);
+
+                    if (soaResponse.RCODE != DnsResponseCode.NoError)
+                    {
+                        _dnsServer.LogManager?.Write("DNS Server received RCODE=" + soaResponse.RCODE.ToString() + " for '" + ToString() + "' " + GetZoneTypeName() + " zone refresh from: " + soaResponse.Metadata.NameServer.ToString());
+                        return false;
+                    }
+
+                    if ((soaResponse.Answer.Count < 1) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA) || !_name.Equals(soaResponse.Answer[0].Name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _dnsServer.LogManager?.Write("DNS Server received an empty response for SOA query for '" + ToString() + "' " + GetZoneTypeName() + " zone refresh from: " + soaResponse.Metadata.NameServer.ToString());
+                        return false;
+                    }
+
+                    DnsResourceRecord receivedSoaRecord = soaResponse.Answer[0];
+                    DnsSOARecordData receivedSoa = receivedSoaRecord.RDATA as DnsSOARecordData;
+
+                    //compare using sequence space arithmetic
+                    if (!currentSoa.IsZoneUpdateAvailable(receivedSoa))
+                    {
+                        _dnsServer.LogManager?.Write("DNS Server successfully checked for '" + ToString() + "' " + GetZoneTypeName() + " zone update from: " + soaResponse.Metadata.NameServer.ToString());
+                        return true;
+                    }
+                }
+
+                //update available; do zone transfer
+                xfrClient.Timeout = REFRESH_XFR_TIMEOUT;
 
                 bool doIXFR = !_isExpired && !_resync;
 
@@ -385,45 +423,6 @@ namespace DnsServerCore.Dns.Zones
                     }
                     else
                     {
-                        if (!_resync && (this is not SecondaryForwarderZone)) //skip SOA probe for Secondary Forwarder/Catalog since Forwarder/Catalog is not authoritative for SOA
-                        {
-                            //check for update before proceeding for AXFR
-                            xfrClient.Timeout = REFRESH_SOA_TIMEOUT;
-
-                            DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, [new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN)], null, null, null, _dnsServer.UdpPayloadSize);
-                            DnsDatagram soaResponse;
-
-                            if (key is null)
-                                soaResponse = await xfrClient.RawResolveAsync(soaRequest);
-                            else
-                                soaResponse = await xfrClient.TsigResolveAsync(soaRequest, key, REFRESH_TSIG_FUDGE);
-
-                            if (soaResponse.RCODE != DnsResponseCode.NoError)
-                            {
-                                _dnsServer.LogManager?.Write("DNS Server received RCODE=" + soaResponse.RCODE.ToString() + " for '" + ToString() + "' " + GetZoneTypeName() + " zone refresh from: " + soaResponse.Metadata.NameServer.ToString());
-                                return false;
-                            }
-
-                            if ((soaResponse.Answer.Count < 1) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA) || !_name.Equals(soaResponse.Answer[0].Name, StringComparison.OrdinalIgnoreCase))
-                            {
-                                _dnsServer.LogManager?.Write("DNS Server received an empty response for SOA query for '" + ToString() + "' " + GetZoneTypeName() + " zone refresh from: " + soaResponse.Metadata.NameServer.ToString());
-                                return false;
-                            }
-
-                            DnsResourceRecord receivedSoaRecord = soaResponse.Answer[0];
-                            DnsSOARecordData receivedSoa = receivedSoaRecord.RDATA as DnsSOARecordData;
-
-                            //compare using sequence space arithmetic
-                            if (!currentSoa.IsZoneUpdateAvailable(receivedSoa))
-                            {
-                                _dnsServer.LogManager?.Write("DNS Server successfully checked for '" + ToString() + "' " + GetZoneTypeName() + " zone update from: " + soaResponse.Metadata.NameServer.ToString());
-                                return true;
-                            }
-
-                            //update available; do zone transfer
-                            xfrClient.Timeout = REFRESH_XFR_TIMEOUT;
-                        }
-
                         xfrQuestion = new DnsQuestionRecord(_name, DnsResourceRecordType.AXFR, DnsClass.IN);
                         xfrAuthority = null;
                     }
@@ -834,6 +833,21 @@ namespace DnsServerCore.Dns.Zones
         {
             get { return _overrideCatalogPrimaryNameServers; }
             set { _overrideCatalogPrimaryNameServers = value; }
+        }
+
+        public override AuthZoneNotify Notify
+        {
+            get { return base.Notify; }
+            set
+            {
+                switch (value)
+                {
+                    case AuthZoneNotify.SeparateNameServersForCatalogAndMemberZones:
+                        throw new ArgumentException("The Notify option is invalid for " + GetZoneTypeName() + " zones: " + value.ToString(), nameof(Notify));
+                }
+
+                base.Notify = value;
+            }
         }
 
         public override AuthZoneUpdate Update
