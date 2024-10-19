@@ -2157,8 +2157,9 @@ WHERE:
 - `zoneTransfer` (optional): Sets if the zone allows zone transfer. Valid options are [`Deny`, `Allow`, `AllowOnlyZoneNameServers`, `UseSpecifiedNetworkACL`, `AllowZoneNameServersAndUseSpecifiedNetworkACL`]. This option is valid only for Primary and Secondary zones.
 - `zoneTransferNetworkACL` (optional): A comma separated Access Control List (ACL) of Network Access Control (NAC) entry. NAC is an IP address or network address to allow. Add `!` at the start of the NAC to deny access. The ACL is processed in the same order its listed. If no networks match, the default policy is to deny all. Set this parameter to `false` to remove existing values. This option is valid only for `Primary`, `Secondary`, `Forwarder`, and `Catalog` zones and only when `zoneTransfer` is set to `UseSpecifiedNetworkACL` or `AllowZoneNameServersAndUseSpecifiedNetworkACL`.
 - `zoneTransferTsigKeyNames` (optional): A list of comma separated TSIG keys names that are authorized to perform a zone transfer. Set this option to `false` to clear all key names. This option is valid only for `Primary`, `Secondary`, `Forwarder`, and `Catalog` zones.
-- `notify` (optional): Sets if the DNS server should notify other DNS servers for zone updates. Valid options for `Primary` and `Secondary` zones are [`None`, `ZoneNameServers`, `SpecifiedNameServers`, `BothZoneAndSpecifiedNameServers`]. Valid options for `Forwarder` and `Catalog` zones are [`None`, `SpecifiedNameServers`]. This option is valid only for `Primary`, `Secondary`, `Forwarder`, and `Catalog` zones.
+- `notify` (optional): Sets if the DNS server should notify other DNS servers for zone updates. Valid options for `Primary` and `Secondary` zones are [`None`, `ZoneNameServers`, `SpecifiedNameServers`, `BothZoneAndSpecifiedNameServers`, `SeparateNameServersForCatalogAndMemberZones`]. Valid options for `Forwarder` and `Catalog` zones are [`None`, `SpecifiedNameServers`]. The `SeparateNameServersForCatalogAndMemberZones` option is valid only for `Catalog` zones. This option is valid only for `Primary`, `Secondary`, `Forwarder`, and `Catalog` zones.
 - `notifyNameServers` (optional): A list of comma separated IP addresses which should be notified by the DNS server for zone updates. This list is used only when `notify` option is set to `SpecifiedNameServers` or `BothZoneAndSpecifiedNameServers`. This option is valid only for `Primary`, `Secondary`, `Forwarder`, and `Catalog` zones.
+- `notifySecondaryCatalogsNameServers` (optional): A list of comma separated IP addresses which should be notified by the DNS server only for catalog zone updates. This list is used only when `notify` option is set to `SeparateNameServersForCatalogAndMemberZones`. This option is valid only for `Catalog` zones.
 - `update` (optional): Sets if the DNS server should allow dynamic updates (RFC 2136). This option is valid only for `Primary`, `Secondary`, and `Forwarder` zones. Valid options for `Primary` zones are [`Deny`, `Allow`, `AllowOnlyZoneNameServers`, `UseSpecifiedNetworkACL`, `AllowZoneNameServersAndUseSpecifiedNetworkACL`]. Valid options for `Secondary` and `Forwarder` zones are [`Deny`, `Allow`, `UseSpecifiedNetworkACL`].
 - `updateNetworkACL` (optional): A comma separated Access Control List (ACL) of Network Access Control (NAC) entry. NAC is an IP address or network address to allow. Add `!` at the start of the NAC to deny access. The ACL is processed in the same order its listed. If no networks match, the default policy is to deny all. Set this parameter to `false` to remove existing values. This option is valid only for `Primary`, `Secondary`, and `Forwarder` zones and only when `update` is set to `UseSpecifiedNetworkACL` or `AllowZoneNameServersAndUseSpecifiedNetworkACL`.
 - `updateSecurityPolicies` (optional): A pipe `|` separated table data of security policies with each row containing the TSIG keys name, domain name, and comma separated record types that are allowed. Use wildcard domain name to specify all sub domain names. Set this option to `false` to clear all security policies and stop TSIG authentication. This option is valid only for `Primary` and `Forwarder` zones.
@@ -4526,8 +4527,8 @@ RESPONSE:
 ```
 {
 	"response": {
-		"version": "13.0",
-		"uptimestamp": "2024-09-14T14:04:54.224926Z",
+		"version": "13.1",
+		"uptimestamp": "2024-10-19T17:30:25.124826Z",
 		"dnsServerDomain": "server1",
 		"dnsServerLocalEndPoints": [
 			"0.0.0.0:53",
@@ -4576,6 +4577,7 @@ RESPONSE:
 		"webServiceTlsPort": 53443,
 		"webServiceTlsCertificatePath": null,
 		"webServiceTlsCertificatePassword": "************",
+		"webServiceRealIpHeader": "X-Real-IP",
 		"enableDnsOverUdpProxy": false,
 		"enableDnsOverTcpProxy": false,
 		"enableDnsOverHttp": false,
@@ -4591,6 +4593,7 @@ RESPONSE:
 		"dnsOverQuicPort": 853,
 		"dnsTlsCertificatePath": null,
 		"dnsTlsCertificatePassword": "************",
+		"dnsOverHttpRealIpHeader": "X-Real-IP",
 		"tsigKeys": [
 			{
 				"keyName": "home",
@@ -4626,6 +4629,7 @@ RESPONSE:
 		"allowTxtBlockingReport": true,
 		"blockingBypassList": [],
 		"blockingType": "NxDomain",
+		"blockingAnswerTtl": 30,
 		"customBlockingAddresses": [
 			"127.0.0.1"
 		],
@@ -4697,11 +4701,11 @@ WHERE:
 - `qpmLimitIPv6PrefixLength` (optional): Sets the client subnet IPv6 prefix length used to define the subnet. Initial value is `56`.
 - `qpmLimitBypassList` (optional): A comma separated list of IP addresses or network addresses that are allowed to bypass the QPM limit.
 - `clientTimeout` (optional): The amount of time the DNS server must wait in milliseconds before responding with a ServerFailure response to a client request when no answer is available. Valid range is `1000`-`10000`. Initial value is `4000`.
-- `tcpSendTimeout` (optional): The amount of time in milliseconds a TCP socket must wait for an ACK before closing the connection. This option will apply for DNS requests being received by the DNS Server over TCP, TLS, or HTTPS transports. Valid range is `1000`-`90000`. Initial value is `10000`.
-- `tcpReceiveTimeout` (optional): The amount of time in milliseconds a TCP socket must wait for data before closing the connection. This option will apply for DNS requests being received by the DNS Server over TCP, TLS, or HTTPS transports. Valid range is `1000`-`90000`. Initial value is `10000`.
+- `tcpSendTimeout` (optional): The maximum amount of time in milliseconds a TCP socket will wait for the response to be sent. This option will apply for DNS requests being received by the DNS Server over TCP, TLS, TcpProxy, or HTTPS transports. Valid range is `1000`-`90000`. Initial value is `10000`.
+- `tcpReceiveTimeout` (optional): The maximum amount of time in milliseconds a TCP socket will wait for receiving data. This option will apply for DNS requests being received by the DNS Server over TCP, TLS, TcpProxy, or HTTPS transports. Valid range is `1000`-`90000`. Initial value is `10000`.
 - `quicIdleTimeout` (optional): The time interval in milliseconds after which an idle QUIC connection will be closed. This option applies only to QUIC transport protocol. Valid range is `1000`-`90000`. Initial value is `60000`.
 - `quicMaxInboundStreams` (optional): The max number of inbound bidirectional streams that can be accepted per QUIC connection. This option applies only to QUIC transport protocol. Valid range is `1`-`1000`. Initial value is `100`.
-- `listenBacklog` (optional): The maximum number of pending connections. This option applies to TCP, TLS, and QUIC transport protocols. Initial value is `100`.
+- `listenBacklog` (optional): The maximum number of pending inbound connections. This option applies to TCP, TLS, TcpProxy, and QUIC transport protocols. Initial value is `100`.
 - `webServiceLocalAddresses` (optional): Local addresses are the network interface IP addresses you want the web service to listen for requests. 
 - `webServiceHttpPort` (optional): Specify the TCP port number for the web console and this API web service. Initial value is `5380`.
 - `webServiceEnableTls` (optional): Set this to `true` to start the HTTPS service to access web service.
@@ -4711,6 +4715,7 @@ WHERE:
 - `webServiceUseSelfSignedTlsCertificate` (optional): Set `true` for the web service to use an automatically generated self signed certificate when TLS certificate path is not specified.
 - `webServiceTlsCertificatePath` (optional): Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key. This certificate is used by the web console for HTTPS access.
 - `webServiceTlsCertificatePassword` (optional): Enter the certificate (.pfx) password, if any.
+- `webServiceRealIpHeader` (optional): The HTTP header that must be used to read client's actual IP address when the request comes from a reverse proxy with a private IP address.
 - `enableDnsOverUdpProxy` (optional): Enable this option to accept DNS-over-UDP-PROXY requests. It implements the [PROXY Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) for both version 1 & 2 over UDP datagram and will work only on private networks.
 - `enableDnsOverTcpProxy` (optional): Enable this option to accept DNS-over-TCP-PROXY requests. It implements the [PROXY Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) for both version 1 & 2 over TCP connection and will work only on private networks.
 - `enableDnsOverHttp` (optional): Enable this option to accept DNS-over-HTTP requests. It must be used with a TLS terminating reverse proxy like nginx and will work only on private networks. Enabling this option also allows automatic TLS certificate renewal with HTTP challenge (webroot) for DNS-over-HTTPS service.
@@ -4725,6 +4730,7 @@ WHERE:
 - `dnsOverQuicPort` (optional): The UDP port number for DNS-over-QUIC protocol. Initial value is `853`.
 - `dnsTlsCertificatePath` (optional): Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key. This certificate is used by the DNS-over-TLS and DNS-over-HTTPS optional protocols.
 - `dnsTlsCertificatePassword` (optional): Enter the certificate (.pfx) password, if any.
+- `dnsOverHttpRealIpHeader` (optional): The HTTP header that must be used to read client's actual IP address when the request comes from a reverse proxy with a private IP address.
 - `tsigKeys` (optional): A pipe `|` separated multi row list of TSIG key name, shared secret, and algorithm. Set this parameter to `false` to remove all existing keys. Supported algorithms are [`hmac-md5.sig-alg.reg.int`, `hmac-sha1`, `hmac-sha256`, `hmac-sha256-128`, `hmac-sha384`, `hmac-sha384-192`, `hmac-sha512`, `hmac-sha512-256`].
 - `recursion` (optional): Sets the recursion policy for the DNS server. Valid values are [`Deny`, `Allow`, `AllowOnlyForPrivateNetworks`, `UseSpecifiedNetworkACL`].
 - `recursionNetworkACL` (optional): A comma separated Access Control List (ACL) of Network Access Control (NAC) entry. NAC is an IP address or network address to allow. Add `!` at the start of the NAC to deny access. The ACL is processed in the same order its listed. If no networks match, the default policy is to deny all except loopback. Set this parameter to `false` to remove existing values. These values are only used when `recursion` is set to `UseSpecifiedNetworkACL`.
@@ -4753,6 +4759,7 @@ WHERE:
 - `allowTxtBlockingReport` (optional): Specifies if the DNS Server should respond with TXT records containing a blocked domain report for TXT type requests.
 - `blockingBypassList` (optional): A comma separated list of IP addresses or network addresses that are allowed to bypass blocking.
 - `blockingType` (optional): Sets how the DNS server should respond to a blocked domain request. Valid values are [`AnyAddress`, `NxDomain`, `CustomAddress`] where `AnyAddress` is default which response with `0.0.0.0` and `::` IP addresses for blocked domains. Using `NxDomain` will respond with `NX Domain` response. `CustomAddress` will return the specified custom blocking addresses.
+- `blockingAnswerTtl` (optional): The TTL value in seconds that must be used for the records in a blocking response. This is the TTL value that the client will use to cache the blocking response.
 - `customBlockingAddresses` (optional): Set the custom blocking addresses to be used for blocked domain response. These addresses are returned only when `blockingType` is set to `CustomAddress`.
 - `blockListUrls` (optional): A comma separated list of block list URLs that this server must automatically download and use with the block lists zone. DNS Server will use the data returned by the block list URLs to update the block list zone automatically every 24 hours. The expected file format is standard hosts file format or plain text file containing list of domains to block. Set this parameter to `false` to remove existing values.
 - `blockListUpdateIntervalHours` (optional): The interval in hours to automatically download and update the block lists. Initial value is `24`.
