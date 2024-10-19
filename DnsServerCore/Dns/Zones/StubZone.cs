@@ -122,7 +122,7 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 if ((soaResponse.Answer.Count == 0) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA))
-                    throw new DnsServerException("DNS Server failed to find SOA record for: " + name);
+                    throw new DnsServerException("DNS Server did not receive SOA record in response from any of the primary name servers for: " + name);
 
                 DnsResourceRecord receivedSoaRecord = soaResponse.Answer[0];
                 DnsSOARecordData receivedSoa = receivedSoaRecord.RDATA as DnsSOARecordData;
