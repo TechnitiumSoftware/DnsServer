@@ -70,6 +70,7 @@ namespace DnsServerCore.Dns.Zones
 
         readonly AuthZoneNotify _notify;
         readonly IReadOnlyCollection<IPAddress> _notifyNameServers;
+        readonly IReadOnlyCollection<IPAddress> _notifySecondaryCatalogNameServers;
 
         readonly AuthZoneUpdate _update;
         readonly IReadOnlyCollection<NetworkAccessControl> _updateNetworkACL;
@@ -470,6 +471,7 @@ namespace DnsServerCore.Dns.Zones
                     break;
 
                 case 12:
+                case 13:
                     {
                         _name = bR.ReadShortString();
                         _type = (AuthZoneType)bR.ReadByte();
@@ -612,6 +614,10 @@ namespace DnsServerCore.Dns.Zones
 
                                 _notify = (AuthZoneNotify)bR.ReadByte();
                                 _notifyNameServers = ReadIPAddressesFrom(bR);
+
+                                if (version >= 13)
+                                    _notifySecondaryCatalogNameServers = ReadIPAddressesFrom(bR);
+
                                 break;
 
                             case AuthZoneType.SecondaryCatalog:
@@ -773,6 +779,7 @@ namespace DnsServerCore.Dns.Zones
 
                 _notify = _apexZone.Notify;
                 _notifyNameServers = _apexZone.NotifyNameServers;
+                _notifySecondaryCatalogNameServers = _apexZone.NotifySecondaryCatalogNameServers;
             }
             else if (_apexZone is ForwarderZone)
             {
@@ -1182,7 +1189,7 @@ namespace DnsServerCore.Dns.Zones
             if (_apexZone is null)
                 throw new InvalidOperationException();
 
-            bW.Write((byte)12); //version
+            bW.Write((byte)13); //version
 
             bW.WriteShortString(_name);
             bW.Write((byte)_type);
@@ -1306,6 +1313,7 @@ namespace DnsServerCore.Dns.Zones
 
                     bW.Write((byte)_notify);
                     WriteIPAddressesTo(_notifyNameServers, bW);
+                    WriteIPAddressesTo(_notifySecondaryCatalogNameServers, bW);
                     break;
 
                 case AuthZoneType.SecondaryCatalog:
@@ -1646,6 +1654,24 @@ namespace DnsServerCore.Dns.Zones
                     throw new InvalidOperationException();
 
                 _apexZone.NotifyNameServers = value;
+            }
+        }
+
+        public IReadOnlyCollection<IPAddress> NotifySecondaryCatalogNameServers
+        {
+            get
+            {
+                if (_apexZone is null)
+                    return _notifySecondaryCatalogNameServers;
+
+                return _apexZone.NotifySecondaryCatalogNameServers;
+            }
+            set
+            {
+                if (_apexZone is null)
+                    throw new InvalidOperationException();
+
+                _apexZone.NotifySecondaryCatalogNameServers = value;
             }
         }
 
