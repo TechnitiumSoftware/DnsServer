@@ -23,6 +23,7 @@ var editZoneRecords;
 
 $(function () {
     $("input[type=radio][name=rdAddZoneType]").change(function () {
+        $("#txtAddZone").prop("disabled", false);
         $("#divAddZoneUseSoaSerialDateScheme").hide();
         $("#divAddZonePrimaryNameServerAddresses").hide();
         $("#lblAddZonePrimaryNameServerAddresses").text("Primary Name Server Addresses (Optional)");
@@ -80,6 +81,11 @@ $(function () {
                 $("#divAddZoneTsigKeyName").show();
 
                 loadTsigKeyNames($("#optAddZoneTsigKeyName"), null, $("#divAddZoneAlert"));
+                break;
+
+            case "SecondaryRoot":
+                $("#txtAddZone").prop("disabled", true);
+                $("#txtAddZone").val(".");
                 break;
         }
     });
@@ -222,10 +228,17 @@ $(function () {
             case "SpecifiedNameServers":
             case "BothZoneAndSpecifiedNameServers":
                 $("#txtZoneNotifyNameServers").prop("disabled", false);
+                $("#txtZoneNotifySecondaryCatalogNameServers").prop("disabled", true);
+                break;
+
+            case "SeparateNameServersForCatalogAndMemberZones":
+                $("#txtZoneNotifyNameServers").prop("disabled", false);
+                $("#txtZoneNotifySecondaryCatalogNameServers").prop("disabled", false);
                 break;
 
             default:
                 $("#txtZoneNotifyNameServers").prop("disabled", true);
+                $("#txtZoneNotifySecondaryCatalogNameServers").prop("disabled", true);
                 break;
         }
     });
@@ -1142,6 +1155,7 @@ function showZoneOptionsModal(zone) {
             $("#txtQueryAccessNetworkACL").prop("disabled", true);
             $("#txtZoneTransferNetworkACL").prop("disabled", true);
             $("#txtZoneNotifyNameServers").prop("disabled", true);
+            $("#txtZoneNotifySecondaryCatalogNameServers").prop("disabled", true);
             $("#txtDynamicUpdateNetworkACL").prop("disabled", true);
 
             $("#lblZoneOptionsZoneName").attr("data-zone-type", responseJSON.response.type);
@@ -1686,6 +1700,12 @@ function showZoneOptionsModal(zone) {
                             $("#txtZoneNotifyNameServers").prop("disabled", false);
                             break;
 
+                        case "SeparateNameServersForCatalogAndMemberZones":
+                            $("#rdZoneNotifySeparateNameServersForCatalogAndMemberZones").prop("checked", true);
+                            $("#txtZoneNotifyNameServers").prop("disabled", false);
+                            $("#txtZoneNotifySecondaryCatalogNameServers").prop("disabled", false);
+                            break;
+
                         case "None":
                         default:
                             $("#rdZoneNotifyNone").prop("checked", true);
@@ -1699,6 +1719,18 @@ function showZoneOptionsModal(zone) {
                             value += responseJSON.response.notifyNameServers[i] + "\r\n";
 
                         $("#txtZoneNotifyNameServers").val(value);
+                    }
+
+                    if (responseJSON.response.notifySecondaryCatalogsNameServers != null) {
+                        var value = "";
+
+                        for (var i = 0; i < responseJSON.response.notifySecondaryCatalogsNameServers.length; i++)
+                            value += responseJSON.response.notifySecondaryCatalogsNameServers[i] + "\r\n";
+
+                        $("#txtZoneNotifySecondaryCatalogNameServers").val(value);
+                    }
+                    else {
+                        $("#txtZoneNotifySecondaryCatalogNameServers").val("");
                     }
 
                     if (responseJSON.response.notifyFailed) {
@@ -1725,14 +1757,24 @@ function showZoneOptionsModal(zone) {
 
                     switch (responseJSON.response.type) {
                         case "Forwarder":
+                            $("#divZoneNotifyZoneNameServers").hide();
+                            $("#divZoneNotifyBothZoneAndSpecifiedNameServers").hide();
+                            $("#divZoneNotifySeparateNameServersForCatalogAndMemberZones").hide();
+                            $("#divZoneNotifySecondaryCatalogNameServers").hide();
+                            break;
+
                         case "Catalog":
                             $("#divZoneNotifyZoneNameServers").hide();
                             $("#divZoneNotifyBothZoneAndSpecifiedNameServers").hide();
+                            $("#divZoneNotifySeparateNameServersForCatalogAndMemberZones").show();
+                            $("#divZoneNotifySecondaryCatalogNameServers").show();
                             break;
 
                         default:
                             $("#divZoneNotifyZoneNameServers").show();
                             $("#divZoneNotifyBothZoneAndSpecifiedNameServers").show();
+                            $("#divZoneNotifySeparateNameServersForCatalogAndMemberZones").hide();
+                            $("#divZoneNotifySecondaryCatalogNameServers").hide();
                             break;
                     }
 
@@ -1982,6 +2024,13 @@ function saveZoneOptions() {
     else
         $("#txtZoneNotifyNameServers").val(notifyNameServers.replace(/,/g, "\n"));
 
+    var notifySecondaryCatalogsNameServers = cleanTextList($("#txtZoneNotifySecondaryCatalogNameServers").val());
+
+    if ((notifySecondaryCatalogsNameServers.length === 0) || (notifySecondaryCatalogsNameServers === ","))
+        notifySecondaryCatalogsNameServers = false;
+    else
+        $("#txtZoneNotifySecondaryCatalogNameServers").val(notifySecondaryCatalogsNameServers.replace(/,/g, "\n"));
+
     //dynamic update
     var update = $("input[name=rdDynamicUpdate]:checked").val();
 
@@ -2008,7 +2057,7 @@ function saveZoneOptions() {
             + "&primaryNameServerAddresses=" + encodeURIComponent(primaryNameServerAddresses) + "&primaryZoneTransferProtocol=" + primaryZoneTransferProtocol + "&primaryZoneTransferTsigKeyName=" + encodeURIComponent(primaryZoneTransferTsigKeyName) + "&validateZone=" + validateZone
             + "&queryAccess=" + queryAccess + "&queryAccessNetworkACL=" + encodeURIComponent(queryAccessNetworkACL)
             + "&zoneTransfer=" + zoneTransfer + "&zoneTransferNetworkACL=" + encodeURIComponent(zoneTransferNetworkACL) + "&zoneTransferTsigKeyNames=" + encodeURIComponent(zoneTransferTsigKeyNames)
-            + "&notify=" + notify + "&notifyNameServers=" + encodeURIComponent(notifyNameServers)
+            + "&notify=" + notify + "&notifyNameServers=" + encodeURIComponent(notifyNameServers) + "&notifySecondaryCatalogsNameServers=" + encodeURIComponent(notifySecondaryCatalogsNameServers)
             + "&update=" + update + "&updateNetworkACL=" + encodeURIComponent(updateNetworkACL) + "&updateSecurityPolicies=" + encodeURIComponent(updateSecurityPolicies),
         success: function (responseJSON) {
             btn.button("reset");
@@ -2500,6 +2549,13 @@ function addZone() {
             parameters = "&primaryNameServerAddresses=" + encodeURIComponent(primaryNameServerAddresses);
             parameters += "&zoneTransferProtocol=" + $("input[name=rdAddZoneZoneTransferProtocol]:checked").val();
             parameters += "&tsigKeyName=" + encodeURIComponent($("#optAddZoneTsigKeyName").val());
+            break;
+
+        case "SecondaryRoot":
+            type = "Secondary";
+            parameters = "&primaryNameServerAddresses=199.9.14.201,192.33.4.12,199.7.91.13,192.5.5.241,192.112.36.4,193.0.14.129,192.0.47.132,192.0.32.132,[2001:500:200::b],[2001:500:2::c],[2001:500:2d::d],[2001:500:2f::f],[2001:500:12::d0d],[2001:7fd::1],[2620:0:2830:202::132],[2620:0:2d0:202::132]";
+            parameters += "&zoneTransferProtocol=Tcp";
+            parameters += "&validateZone=true";
             break;
 
         default:
