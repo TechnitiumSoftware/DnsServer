@@ -715,14 +715,11 @@ namespace DnsServerCore.Dhcp
                     sb.Append(c);
                 else if (c == 95) //[_]
                     sb.Append(c);
-                else if (c == 47) //[/]
+                else if (c == '.')
                     sb.Append(c);
                 else if (c == ' ')
                     sb.Append('-');
             }
-
-            if (sb.Length > 63)
-                sb.Length = 63;
 
             return sb.ToString();
         }
