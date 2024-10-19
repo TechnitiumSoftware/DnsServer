@@ -948,7 +948,7 @@
                                                         <div class="form-group">
                                                             <label for="txtDnsServerDomain" class="col-sm-3 control-label">DNS Server Domain</label>
                                                             <div class="col-sm-6">
-                                                                <input type="text" class="form-control" id="txtDnsServerDomain" placeholder="domain name">
+                                                                <input type="text" class="form-control" id="txtDnsServerDomain" placeholder="domain name" maxlength="255">
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The primary fully qualified domain name used by this DNS Server to identify itself.</div>
                                                         </div>
@@ -993,7 +993,7 @@
                                                         <div class="form-group">
                                                             <label for="txtDefaultResponsiblePerson" class="col-sm-3 control-label">Default Responsible Person</label>
                                                             <div class="col-sm-6">
-                                                                <input type="text" class="form-control" id="txtDefaultResponsiblePerson" placeholder="email address">
+                                                                <input type="text" class="form-control" id="txtDefaultResponsiblePerson" placeholder="email address" maxlength="255">
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The default SOA Responsible Person email address to use when adding a Primary Zone.</div>
                                                         </div>
@@ -1215,7 +1215,7 @@
                                                                 <input type="number" class="form-control" id="txtTcpSendTimeout" placeholder="timeout" style="width: 100px; display: inline;">
                                                                 <span>milliseconds (valid range 1000-90000; default 10000)</span>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The amount of time a TCP socket must wait for an <code>ACK</code> before closing the connection. This option will apply for DNS requests being received by the DNS Server over TCP, TLS, or HTTPS transports.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum amount of time the DNS Server will wait for the response to be sent. This option will apply for DNS requests being received by the DNS Server over TCP, TLS, TcpProxy, or HTTPS transports.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1224,7 +1224,7 @@
                                                                 <input type="number" class="form-control" id="txtTcpReceiveTimeout" placeholder="timeout" style="width: 100px; display: inline;">
                                                                 <span>milliseconds (valid range 1000-90000; default 10000)</span>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The amount of time a TCP socket must wait for data before closing the connection. This option will apply for DNS requests being received by the DNS Server over TCP, TLS, or HTTPS transports.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum amount of time the DNS Server will wait for receiving data. This option will apply for DNS requests being received by the DNS Server over TCP, TLS, TcpProxy, or HTTPS transports.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1251,7 +1251,7 @@
                                                                 <input type="number" class="form-control" id="txtListenBacklog" placeholder="100" style="width: 100px; display: inline;">
                                                                 <span>(default 100)</span>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum number of pending inbound connections. This option applies to TCP, TLS, and QUIC transport protocols.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum number of pending inbound connections. This option applies to TCP, TLS, TcpProxy, and QUIC transport protocols.</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1316,7 +1316,7 @@
                                                         <div class="form-group">
                                                             <label for="txtWebServiceTlsCertificatePath" class="col-sm-3 control-label">TLS Certificate File Path</label>
                                                             <div class="col-sm-6">
-                                                                <input type="text" class="form-control" id="txtWebServiceTlsCertificatePath" placeholder="Web Service TLS Certificate File Path On Server">
+                                                                <input type="text" class="form-control" id="txtWebServiceTlsCertificatePath" placeholder="Web Service TLS Certificate File Path On Server" maxlength="255">
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx or .p12) file path on the server. The path can be relative to the DNS server's config folder. The certificate must contain private key.</div>
                                                         </div>
@@ -1324,14 +1324,22 @@
                                                         <div class="form-group">
                                                             <label for="txtWebServiceTlsCertificatePassword" class="col-sm-3 control-label">TLS Certificate Password</label>
                                                             <div class="col-sm-6">
-                                                                <input type="password" class="form-control" id="txtWebServiceTlsCertificatePassword" placeholder="Web Service TLS Certificate Password">
+                                                                <input type="password" class="form-control" id="txtWebServiceTlsCertificatePassword" placeholder="Web Service TLS Certificate Password" maxlength="255">
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enter the certificate (.pfx) password, if any.</div>
                                                         </div>
 
+                                                        <div class="form-group">
+                                                            <label for="txtWebServiceRealIpHeader" class="col-sm-3 control-label">Real IP Header</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" class="form-control" id="txtWebServiceRealIpHeader" placeholder="X-Real-IP" maxlength="255">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The HTTP header that must be used to read client's actual IP address when the request comes from a reverse proxy with a private IP address.</div>
+                                                        </div>
+
                                                         <div>
                                                             <p>Note! The web service port changes will be automatically applied and so you do not need to manually restart the main service. The TLS certificate too will be automatically reloaded when the certificate file's date modified property on disk changes. This web page will be automatically redirected to the new web console URL after saving settings. The HTTPS protocol will be enabled only when a TLS certificate is configured.</p>
-                                                            <p>When using a reverse proxy with the Web Service, you need to add <code>X-Real-IP</code> header to the proxy request with the IP address of the client to allow the Web server to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code>proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
+                                                            <p>When using a reverse proxy with the Web Service, you need to add <code id="lblWebServiceRealIpHeader">X-Real-IP</code> header to the proxy request with the IP address of the client to allow the Web server to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code id="lblWebServiceRealIpNginx">proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
                                                             <p>The web service uses Kestral web server which supports both HTTP/2 and HTTP/3 protocols when TLS certificate is configured. HTTP/3 protocol support is not available on all platforms. On Windows, it is available only on Windows 11 (build 22000 or later) and Windows Server 2022. On Linux, it requires <code>libmsquic</code> to be installed.</p>
                                                             <p>Note! The web service will always bind to <code>[::]</code> local address for HTTP/3 protocol since this is how the <code>libmsquic</code> library is designed to work.</p>
                                                             <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
@@ -1455,7 +1463,7 @@
                                                         <div class="form-group">
                                                             <label for="txtDnsTlsCertificatePath" class="col-sm-3 control-label">TLS Certificate File Path</label>
                                                             <div class="col-sm-6">
-                                                                <input type="text" class="form-control" id="txtDnsTlsCertificatePath" placeholder="DNS Service TLS Certificate File Path On Server">
+                                                                <input type="text" class="form-control" id="txtDnsTlsCertificatePath" placeholder="DNS Service TLS Certificate File Path On Server" maxlength="255">
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx or .p12) file path on the server. The path can be relative to the DNS server's config folder. The certificate must contain private key.</div>
                                                         </div>
@@ -1463,16 +1471,24 @@
                                                         <div class="form-group">
                                                             <label for="txtDnsTlsCertificatePassword" class="col-sm-3 control-label">TLS Certificate Password</label>
                                                             <div class="col-sm-6">
-                                                                <input type="password" class="form-control" id="txtDnsTlsCertificatePassword" placeholder="DNS Service TLS Certificate Password">
+                                                                <input type="password" class="form-control" id="txtDnsTlsCertificatePassword" placeholder="DNS Service TLS Certificate Password" maxlength="255">
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enter the certificate (.pfx) password, if any.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDnsOverHttpRealIpHeader" class="col-sm-3 control-label">Real IP Header</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" class="form-control" id="txtDnsOverHttpRealIpHeader" placeholder="X-Real-IP" maxlength="255">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The HTTP header that must be used to read client's actual IP address when the request comes from a reverse proxy with a private IP address.</div>
                                                         </div>
 
                                                         <div>
                                                             <p>Note! These optional DNS server protocol changes will be automatically applied and so you do not need to manually restart the main service. The TLS certificate too will be automatically reloaded when the certificate file's date modified property on disk changes. The DNS-over-TLS, DNS-over-QUIC, and DNS-over-HTTPS protocols will be enabled only when a TLS certificate is configured.</p>
                                                             <p>These optional DNS server protocols are used to host these as a service. You do not need to enable these optional protocols to use them with Forwarders or Conditional Forwarder Zones.</p>
                                                             <p>For DNS-over-HTTP, use <code>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</code> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <code id="lblDoTHost">tls-certificate-domain:853</code>, for DNS-over-QUIC, use <code id="lblDoQHost">tls-certificate-domain:853</code>, and for DNS-over-HTTPS use <code>https://<span id="lblDoHsHost">tls-certificate-domain</span>/dns-query</code> to configure supported DNS clients.</p>
-                                                            <p>When using a reverse proxy with the DNS-over-HTTP service, you need to add <code>X-Real-IP</code> header to the proxy request with the IP address of the client to allow the DNS server to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code>proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
+                                                            <p>When using a reverse proxy with the DNS-over-HTTP service, you need to add <code id="lblDnsOverHttpRealIpHeader">X-Real-IP</code> header to the proxy request with the IP address of the client to allow the DNS server to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code id="lblDnsOverHttpRealIpNginx">proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
                                                             <p>DNS-over-QUIC protocol support is not available on all platforms. On Windows, it is available only on Windows 11 (build 22000 or later) and Windows Server 2022. On Linux, it requires <code>libmsquic</code> to be installed.</p>
                                                             <p>Note! The DNS-over-HTTP/3 protocol will always bind to <code>[::]</code> local address since this is how the <code>libmsquic</code> library is designed to work.</p>
                                                             <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
@@ -1850,6 +1866,15 @@
                                                         </div>
 
                                                         <div class="form-group">
+                                                            <label for="txtBlockingAnswerTtl" class="col-sm-3 control-label">Blocking Answer TTL</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtBlockingAnswerTtl" placeholder="ttl" style="width: 100px; display: inline;">
+                                                                <span>seconds (default 30)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value in seconds that must be used for the records in a blocking response. This is the TTL value that the client will use to cache the blocking response.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
                                                             <label for="txtBlockListUrls" class="col-sm-3 control-label">Allow / Block List URLs</label>
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtBlockListUrls" class="form-control" rows="7" spellcheck="false"></textarea>
@@ -1949,7 +1974,7 @@
                                                         <div class="form-group">
                                                             <label for="txtProxyAddress" class="col-sm-3 control-label">Proxy Server Address</label>
                                                             <div class="col-sm-6">
-                                                                <input type="text" class="form-control" id="txtProxyAddress" placeholder="domain name or IP address">
+                                                                <input type="text" class="form-control" id="txtProxyAddress" placeholder="domain name or IP address" maxlength="255">
                                                             </div>
                                                         </div>
 
@@ -1963,14 +1988,14 @@
                                                         <div class="form-group">
                                                             <label for="txtProxyUsername" class="col-sm-3 control-label">Username</label>
                                                             <div class="col-sm-6">
-                                                                <input type="text" class="form-control" id="txtProxyUsername" placeholder="username">
+                                                                <input type="text" class="form-control" id="txtProxyUsername" placeholder="username" maxlength="255">
                                                             </div>
                                                         </div>
 
                                                         <div class="form-group">
                                                             <label for="txtProxyPassword" class="col-sm-3 control-label">Password</label>
                                                             <div class="col-sm-6">
-                                                                <input type="password" class="form-control" id="txtProxyPassword" placeholder="password">
+                                                                <input type="password" class="form-control" id="txtProxyPassword" placeholder="password" maxlength="255">
                                                             </div>
                                                         </div>
 
@@ -2198,7 +2223,7 @@
                                                         <div class="form-group">
                                                             <label for="txtLogFolderPath" class="col-sm-3 control-label">Log Folder Path</label>
                                                             <div class="col-sm-6">
-                                                                <input type="text" class="form-control" id="txtLogFolderPath" placeholder="Log Folder Path On Server">
+                                                                <input type="text" class="form-control" id="txtLogFolderPath" placeholder="Log Folder Path On Server" maxlength="255">
                                                             </div>
 
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The folder path on the server where the log files should be saved. The path can be relative to the DNS server's config folder.</div>
@@ -3418,6 +3443,12 @@
                                         <label>
                                             <input type="radio" name="rdAddZoneType" value="SecondaryCatalog">
                                             Secondary Catalog Zone
+                                        </label>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddZoneType" value="SecondaryRoot">
+                                            Secondary ROOT Zone (<a href="https://datatracker.ietf.org/doc/rfc8806/" target="_blank">RFC 8806</a>)
                                         </label>
                                     </div>
                                 </div>
@@ -4743,6 +4774,13 @@ ns1.example.com ([2001:db8::])
                                                     </label>
                                                     <div style="padding-top: 5px; padding-left: 20px;">Notifies both the zone's name servers and the specified name servers when the zone is updated.</div>
                                                 </div>
+                                                <div class="radio" id="divZoneNotifySeparateNameServersForCatalogAndMemberZones">
+                                                    <label>
+                                                        <input type="radio" name="rdZoneNotify" id="rdZoneNotifySeparateNameServersForCatalogAndMemberZones" value="SeparateNameServersForCatalogAndMemberZones">
+                                                        Separate Name Servers For Catalog And Member Zones
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Notifies specified name servers for member zone updates and secondary catalog name servers for catalog zone updates.</div>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -4751,6 +4789,14 @@ ns1.example.com ([2001:db8::])
                                             <div class="col-sm-8">
                                                 <textarea id="txtZoneNotifyNameServers" class="form-control" rows="5" spellcheck="false"></textarea>
                                                 <div style="padding-top: 5px;">Enter only the IP addresses of the name servers above.</div>
+                                            </div>
+                                        </div>
+
+                                        <div id="divZoneNotifySecondaryCatalogNameServers" class="form-group">
+                                            <label for="txtZoneNotifySecondaryCatalogNameServers" class="col-sm-3 control-label">Secondary Catalog Name Servers</label>
+                                            <div class="col-sm-8">
+                                                <textarea id="txtZoneNotifySecondaryCatalogNameServers" class="form-control" rows="5" spellcheck="false"></textarea>
+                                                <div style="padding-top: 5px;">Enter only the IP addresses of the Secondary Catalog name servers above.</div>
                                             </div>
                                         </div>
 
