@@ -806,6 +806,8 @@ namespace DnsServerCore
 
                 if (string.IsNullOrEmpty(value))
                     logFolder = "logs";
+                else if (value.Length > 255)
+                    throw new ArgumentException("Log folder path length cannot exceed 255 characters.", nameof(LogFolder));
                 else
                     logFolder = value;
 
