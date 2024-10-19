@@ -160,7 +160,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         #region private
 
-        internal void UpdateServerDomain()
+        internal void UpdateServerDomain(bool useBlockingAnswerTtl = false)
         {
             ThreadPool.QueueUserWorkItem(delegate (object state)
             {
@@ -179,9 +179,23 @@ namespace DnsServerCore.Dns.ZoneManagers
                         DnsResourceRecord record = zone.ApexZone.GetRecords(DnsResourceRecordType.SOA)[0];
                         DnsSOARecordData soa = record.RDATA as DnsSOARecordData;
 
+                        uint ttl;
+                        uint minimum;
+
+                        if (useBlockingAnswerTtl)
+                        {
+                            ttl = _dnsServer.BlockingAnswerTtl;
+                            minimum = ttl;
+                        }
+                        else
+                        {
+                            ttl = record.TTL;
+                            minimum = soa.Minimum;
+                        }
+
                         if (soa.PrimaryNameServer.Equals(_serverDomain, StringComparison.OrdinalIgnoreCase))
                         {
-                            SetRecord(zone.Name, new DnsResourceRecord(record.Name, record.Type, DnsClass.IN, record.TTL, new DnsSOARecordData(serverDomain, soa.ResponsiblePerson, soa.Serial, soa.Refresh, soa.Retry, soa.Expire, soa.Minimum)));
+                            SetRecord(zone.Name, new DnsResourceRecord(record.Name, record.Type, DnsClass.IN, ttl, new DnsSOARecordData(serverDomain, soa.ResponsiblePerson, soa.Serial, soa.Refresh, soa.Retry, soa.Expire, minimum)));
 
                             //update NS records
                             IReadOnlyList<DnsResourceRecord> nsResourceRecords = zone.ApexZone.GetRecords(DnsResourceRecordType.NS);
@@ -2847,6 +2861,27 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
+        public IReadOnlyList<AuthZoneInfo> GetZones(Func<AuthZoneInfo, bool> predicate)
+        {
+            _zoneIndexLock.EnterReadLock();
+            try
+            {
+                List<AuthZoneInfo> zoneInfoList = new List<AuthZoneInfo>();
+
+                foreach (AuthZoneInfo zoneInfo in _zoneIndex)
+                {
+                    if (predicate(zoneInfo))
+                        zoneInfoList.Add(zoneInfo);
+                }
+
+                return zoneInfoList;
+            }
+            finally
+            {
+                _zoneIndexLock.ExitReadLock();
+            }
+        }
+
         public IReadOnlyList<AuthZoneInfo> GetAllCatalogZones()
         {
             _zoneIndexLock.EnterReadLock();
@@ -2860,32 +2895,20 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        public ZonesPage GetZonesPage(int pageNumber, int zonesPerPage)
+        public IReadOnlyList<AuthZoneInfo> GetCatalogZones(Func<AuthZoneInfo, bool> predicate)
         {
             _zoneIndexLock.EnterReadLock();
             try
             {
-                int totalZones = _zoneIndex.Count;
-                if (totalZones < 1)
-                    return new ZonesPage(0, 0, 0, Array.Empty<AuthZoneInfo>());
+                List<AuthZoneInfo> catalogZoneInfoList = new List<AuthZoneInfo>();
 
-                if (pageNumber == 0)
-                    pageNumber = 1;
+                foreach (AuthZoneInfo zone in _catalogZoneIndex)
+                {
+                    if (predicate(zone))
+                        catalogZoneInfoList.Add(zone);
+                }
 
-                int totalPages = (totalZones / zonesPerPage) + (totalZones % zonesPerPage > 0 ? 1 : 0);
-
-                if ((pageNumber > totalPages) || (pageNumber < 0))
-                    pageNumber = totalPages;
-
-                int start = (pageNumber - 1) * zonesPerPage;
-                int end = Math.Min(start + zonesPerPage, totalZones);
-
-                List<AuthZoneInfo> zones = new List<AuthZoneInfo>(end - start);
-
-                for (int i = start; i < end; i++)
-                    zones.Add(_zoneIndex[i]);
-
-                return new ZonesPage(pageNumber, totalPages, totalZones, zones);
+                return catalogZoneInfoList;
             }
             finally
             {
@@ -3636,45 +3659,5 @@ namespace DnsServerCore.Dns.ZoneManagers
         { get { return _zoneIndex.Count; } }
 
         #endregion
-
-        public class ZonesPage
-        {
-            #region variables
-
-            readonly long _pageNumber;
-            readonly long _totalPages;
-            readonly long _totalZones;
-            readonly IReadOnlyList<AuthZoneInfo> _zones;
-
-            #endregion
-
-            #region constructor
-
-            public ZonesPage(long pageNumber, long totalPages, long totalZones, IReadOnlyList<AuthZoneInfo> zones)
-            {
-                _pageNumber = pageNumber;
-                _totalPages = totalPages;
-                _totalZones = totalZones;
-                _zones = zones;
-            }
-
-            #endregion
-
-            #region properties
-
-            public long PageNumber
-            { get { return _pageNumber; } }
-
-            public long TotalPages
-            { get { return _totalPages; } }
-
-            public long TotalZones
-            { get { return _totalZones; } }
-
-            public IReadOnlyList<AuthZoneInfo> Zones
-            { get { return _zones; } }
-
-            #endregion
-        }
     }
 }
