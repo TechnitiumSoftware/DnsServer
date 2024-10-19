@@ -198,7 +198,7 @@ namespace DnsServerCore.Dns.Zones
                             switch (privateKey.State)
                             {
                                 case DnssecPrivateKeyState.Published:
-                                    if (DateTime.UtcNow > GetDnsKeyStateReadyOn(privateKey))
+                                    if (DateTime.UtcNow > GetKskDnsKeyStateReadyOn(privateKey))
                                     {
                                         //long enough time for old RRsets to expire from caches
                                         if (kskToReady is null)
@@ -2371,12 +2371,12 @@ namespace DnsServerCore.Dns.Zones
             return (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).Expire + (3 * 24 * 60 * 60);
         }
 
-        internal DateTime GetDnsKeyStateReadyBy(DnssecPrivateKey privateKey)
+        internal DateTime GetKskDnsKeyStateReadyBy(DnssecPrivateKey privateKey)
         {
-            return GetDnsKeyStateReadyOn(privateKey).AddMilliseconds(DNSSEC_TIMER_PERIODIC_INTERVAL);
+            return GetKskDnsKeyStateReadyOn(privateKey).AddMilliseconds(DNSSEC_TIMER_PERIODIC_INTERVAL);
         }
 
-        private DateTime GetDnsKeyStateReadyOn(DnssecPrivateKey privateKey)
+        private DateTime GetKskDnsKeyStateReadyOn(DnssecPrivateKey privateKey)
         {
             bool foundOldKsk = false;
 
@@ -2459,24 +2459,27 @@ namespace DnsServerCore.Dns.Zones
         {
             uint maxTtl = 0;
 
-            foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in _entries)
+            foreach (AuthZone zone in _dnsServer.AuthZoneManager.GetApexZoneWithSubDomainZones(_name))
             {
-                if (entry.Key == DnsResourceRecordType.RRSIG)
-                    continue;
-
-                IReadOnlyList<DnsResourceRecord> rrset = entry.Value;
-
-                //find min TTL
-                uint rrsetTtl = 0;
-
-                foreach (DnsResourceRecord rr in rrset)
+                foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in zone.Entries)
                 {
-                    if ((rrsetTtl == 0) || (rrsetTtl > rr.OriginalTtlValue))
-                        rrsetTtl = rr.OriginalTtlValue;
-                }
+                    if (entry.Key == DnsResourceRecordType.RRSIG)
+                        continue;
 
-                if (rrsetTtl > maxTtl)
-                    maxTtl = rrsetTtl;
+                    IReadOnlyList<DnsResourceRecord> rrset = entry.Value;
+
+                    //find min TTL
+                    uint rrsetTtl = 0;
+
+                    foreach (DnsResourceRecord rr in rrset)
+                    {
+                        if ((rrsetTtl == 0) || (rrsetTtl > rr.OriginalTtlValue))
+                            rrsetTtl = rr.OriginalTtlValue;
+                    }
+
+                    if (rrsetTtl > maxTtl)
+                        maxTtl = rrsetTtl;
+                }
             }
 
             return maxTtl;
@@ -2486,13 +2489,16 @@ namespace DnsServerCore.Dns.Zones
         {
             uint maxTtl = 0;
 
-            if (!_entries.TryGetValue(DnsResourceRecordType.RRSIG, out IReadOnlyList<DnsResourceRecord> rrsigRecords))
-                throw new InvalidOperationException();
-
-            foreach (DnsResourceRecord rr in rrsigRecords)
+            foreach (AuthZone zone in _dnsServer.AuthZoneManager.GetApexZoneWithSubDomainZones(_name))
             {
-                if (rr.OriginalTtlValue > maxTtl)
-                    maxTtl = rr.OriginalTtlValue;
+                if (!zone.Entries.TryGetValue(DnsResourceRecordType.RRSIG, out IReadOnlyList<DnsResourceRecord> rrsigRecords))
+                    continue;
+
+                foreach (DnsResourceRecord rr in rrsigRecords)
+                {
+                    if (rr.OriginalTtlValue > maxTtl)
+                        maxTtl = rr.OriginalTtlValue;
+                }
             }
 
             return maxTtl;
@@ -2689,7 +2695,10 @@ namespace DnsServerCore.Dns.Zones
                     uint oldSoaMinimum = GetZoneSoaMinimum();
 
                     //setting new SOA
-                    CommitAndIncrementSerial(null, records);
+                    if (_internal)
+                        _entries[DnsResourceRecordType.SOA] = records; //update SOA directly
+                    else
+                        CommitAndIncrementSerial(null, records);
 
                     if (oldSoaMinimum != newSoa.Minimum)
                     {
@@ -2935,6 +2944,12 @@ namespace DnsServerCore.Dns.Zones
             {
                 if (_internal)
                     throw new InvalidOperationException();
+
+                switch (value)
+                {
+                    case AuthZoneNotify.SeparateNameServersForCatalogAndMemberZones:
+                        throw new ArgumentException("The Notify option is invalid for " + GetZoneTypeName() + " zones: " + value.ToString(), nameof(Notify));
+                }
 
                 base.Notify = value;
             }
