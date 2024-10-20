@@ -27,9 +27,8 @@ using System.Threading.Tasks;
 
 namespace LogExporter.Strategy
 {
-    public partial class FileExportStrategy : IExportStrategy
+    public class FileExportStrategy : IExportStrategy
     {
-
         #region variables
 
         private static readonly SemaphoreSlim _fileSemaphore = new SemaphoreSlim(1, 1);
@@ -38,7 +37,6 @@ namespace LogExporter.Strategy
 
         private bool disposedValue;
 
-
         #endregion variables
 
         #region constructor
@@ -46,7 +44,6 @@ namespace LogExporter.Strategy
         public FileExportStrategy(string filePath)
         {
             _filePath = filePath;
-
         }
 
         #endregion constructor
@@ -55,7 +52,7 @@ namespace LogExporter.Strategy
 
         public Task ExportAsync(List<LogEntry> logs)
         {
-            var jsonLogs = new StringBuilder(logs.Count);
+            var jsonLogs = new StringBuilder(logs.Count * 250);
             foreach (var log in logs)
             {
                 jsonLogs.AppendLine(log.ToString());
@@ -107,7 +104,11 @@ namespace LogExporter.Strategy
             {
                 if (disposing)
                 {
-                    _fileSemaphore.Release();
+                    // Ensure semaphore is released only if it was successfully acquired
+                    if (_fileSemaphore.CurrentCount == 0)
+                    {
+                        _fileSemaphore.Release();
+                    }
                     _fileSemaphore.Dispose();
                 }
 
