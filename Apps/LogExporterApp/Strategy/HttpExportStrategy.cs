@@ -57,13 +57,12 @@ namespace LogExporter.Strategy
 
         public async Task ExportAsync(List<LogEntry> logs)
         {
-            var buffer = new GrowableBuffer<char>();
+            var jsonLogs = new StringBuilder(logs.Count);
             foreach (var log in logs)
             {
-                buffer.Append(log.AsSpan());
-                buffer.Append('\n');
+                jsonLogs.AppendLine(log.ToString());
             }
-            var content = buffer.ToString() ?? string.Empty;
+            var content = jsonLogs.ToString() ?? string.Empty;
             var request = new HttpRequestMessage
             {
                 RequestUri = new Uri(_endpoint),

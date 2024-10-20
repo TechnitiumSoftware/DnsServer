@@ -129,7 +129,7 @@ namespace LogExporter.Strategy
             });
 
             // Add each question to the structured data
-            if (log.Questions != null && log.Questions.Count > 0)
+            if (log.Questions?.Count > 0)
             {
                 for (int i = 0; i < log.Questions.Count; i++)
                 {
@@ -142,7 +142,7 @@ namespace LogExporter.Strategy
             }
 
             // Add each answer to the structured data
-            if (log.Answers != null && log.Answers.Count > 0)
+            if (log.Answers?.Count > 0)
             {
                 for (int i = 0; i < log.Answers.Count; i++)
                 {

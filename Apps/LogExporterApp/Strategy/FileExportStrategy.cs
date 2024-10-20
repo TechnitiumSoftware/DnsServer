@@ -21,6 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -54,17 +55,16 @@ namespace LogExporter.Strategy
 
         public Task ExportAsync(List<LogEntry> logs)
         {
-            var buffer = new GrowableBuffer<char>();
+            var jsonLogs = new StringBuilder(logs.Count);
             foreach (var log in logs)
             {
-                buffer.Append(log.AsSpan());
-                buffer.Append('\n');
+                jsonLogs.AppendLine(log.ToString());
             }
-            Flush(buffer.ToSpan());
+            Flush(jsonLogs.ToString());
             return Task.CompletedTask;
         }
 
-        private void Flush(ReadOnlySpan<char> jsonLogs)
+        private void Flush(string jsonLogs)
         {
             // Wait to enter the semaphore
             _fileSemaphore.Wait();
