@@ -60,22 +60,21 @@ namespace LogExporter.Strategy
             {
                 jsonLogs.AppendLine(log.ToString());
             }
-            Flush(jsonLogs.ToString());
-            return Task.CompletedTask;
+            return FlushAsync(jsonLogs.ToString());
         }
 
-        private void Flush(string jsonLogs)
+        private async Task FlushAsync(string jsonLogs)
         {
             // Wait to enter the semaphore
-            _fileSemaphore.Wait();
+            await _fileSemaphore.WaitAsync();
             try
             {
                 // Use a FileStream with exclusive access
-                var fileStream = new FileStream(_filePath, FileMode.Append, FileAccess.Write, FileShare.Write);
-                var writer = new StreamWriter(fileStream);
-                writer.Write(jsonLogs);
-                writer.Close();
-                fileStream.Dispose();
+                using (var fileStream = new FileStream(_filePath, FileMode.Append, FileAccess.Write, FileShare.None))
+                using (var writer = new StreamWriter(fileStream))
+                {
+                    await writer.WriteAsync(jsonLogs);
+                }
             }
             catch (Exception ex)
             {
@@ -83,8 +82,11 @@ namespace LogExporter.Strategy
             }
             finally
             {
-                // Release the semaphore
-                _ = _fileSemaphore.Release();
+                // Ensure semaphore is released only if it was successfully acquired
+                if (_fileSemaphore.CurrentCount == 0)
+                {
+                    _fileSemaphore.Release();
+                }
             }
         }
 
