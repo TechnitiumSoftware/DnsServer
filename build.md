@@ -80,7 +80,7 @@ echo "nameserver 127.0.0.1" | sudo tee /etc/resolv.conf
 
 Note! Skip this step if you have already installed the DNS server as a systemd service in previous step.
 
-Note! Before proceeding to build a docker image, it is required that you have installed `docker` and `docker-compose` on your computer.
+Note! Before proceeding to build a Docker image, it is required that you have installed `docker` on your computer.
 
 Follow the commands given below to build a docker image for the DNS server.
 
@@ -89,12 +89,12 @@ cd DnsServer
 sudo docker build -t technitium/dns-server:latest .
 ```
 
-You can now run the image that you have build using docker-compose as shown below. You should edit the `docker-compose.yml` file if you wish to edit the container's configuration before running it.
+You can now run the image that you have built using `docker compose` as shown below. You should edit the `docker-compose.yml` file if you wish to edit the container's configuration before running it.
 
 ```
 sudo systemctl stop systemd-resolved
 sudo systemctl disable systemd-resolved
-sudo docker-compose up -d
+sudo docker compose up -d
 ```
 
 9. Open the DNS server web console in a web browser using `http://<server-ip-address>:5380/` URL and set a login password to complete the installation.
