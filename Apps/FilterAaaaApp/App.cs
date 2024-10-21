@@ -40,6 +40,7 @@ namespace FilterAaaa
         bool _bypassLocalZones;
         NetworkAddress[] _bypassNetworks;
         string[] _bypassDomains;
+        string[] _filterDomains;
 
         #endregion
 
@@ -74,6 +75,11 @@ namespace FilterAaaa
             else
                 _bypassDomains = [];
 
+            if (jsonConfig.TryReadArray("filterDomains", out string[] filterDomains))
+                _filterDomains = filterDomains;
+            else
+                _filterDomains = [];
+
             return Task.CompletedTask;
         }
 
@@ -93,6 +99,19 @@ namespace FilterAaaa
 
             DnsQuestionRecord question = request.Question[0];
             if (question.Type != DnsResourceRecordType.AAAA)
+                return response;
+
+            bool filterDomain = _filterDomains.Length == 0;
+            foreach (string filterDomain in _filterDomains)
+            {
+                if (qname.Equals(filterDomain, StringComparison.OrdinalIgnoreCase) || qname.EndsWith("." + filterDomain, StringComparison.OrdinalIgnoreCase))
+                {
+                    filterDomain = true;
+                    break;
+                }
+            }
+
+            if (!filterDomain)
                 return response;
 
             bool hasAAAA = false;
