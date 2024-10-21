@@ -1,4 +1,3 @@
-version: "3"
 services:
   dns-server:
     container_name: dns-server
