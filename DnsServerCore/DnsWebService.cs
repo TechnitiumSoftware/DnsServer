@@ -1106,6 +1106,7 @@ namespace DnsServerCore
                     _log.UseLocalTime = bool.Parse(strUseLocalTime);
 
                 _dnsServer.StatsManager.EnableInMemoryStats = false;
+                _dnsServer.StatsManager.MaxStatFileDays = 365;
 
                 SaveConfigFileInternal();
             }
@@ -1797,7 +1798,13 @@ namespace DnsServerCore
                 else
                     _dnsServer.StatsManager.EnableInMemoryStats = false;
 
-                _dnsServer.StatsManager.MaxStatFileDays = bR.ReadInt32();
+                {
+                    int maxStatFileDays = bR.ReadInt32();
+                    if (maxStatFileDays < 0)
+                        maxStatFileDays = 0;
+
+                    _dnsServer.StatsManager.MaxStatFileDays = maxStatFileDays;
+                }
             }
 
             if ((_webServiceTlsCertificatePath == null) && (_dnsTlsCertificatePath == null))
@@ -1870,9 +1877,17 @@ namespace DnsServerCore
                 _dnsServer.QueryLogManager = _log;
 
             if (version >= 14)
-                _dnsServer.StatsManager.MaxStatFileDays = bR.ReadInt32();
+            {
+                int maxStatFileDays = bR.ReadInt32();
+                if (maxStatFileDays < 0)
+                    maxStatFileDays = 0;
+
+                _dnsServer.StatsManager.MaxStatFileDays = maxStatFileDays;
+            }
             else
+            {
                 _dnsServer.StatsManager.MaxStatFileDays = 0;
+            }
 
             if (version >= 17)
             {
