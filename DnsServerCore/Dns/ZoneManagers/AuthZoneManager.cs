@@ -3367,7 +3367,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         }
                         catch
                         {
-                            DeleteZone(zoneInfo.Name);
+                            DeleteZone(zoneInfo);
                             throw;
                         }
 
@@ -3435,7 +3435,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         }
                         catch
                         {
-                            DeleteZone(zoneInfo.Name);
+                            DeleteZone(zoneInfo);
                             throw;
                         }
 
@@ -3471,10 +3471,13 @@ namespace DnsServerCore.Dns.ZoneManagers
                         //create zone
                         ApexZone apexZone = CreateEmptyApexZone(zoneInfo);
 
-                        //read all zone records
-                        DnsResourceRecord[] records = new DnsResourceRecord[bR.ReadInt32()];
-                        if (records.Length > 0)
+                        try
                         {
+                            //read all zone records
+                            DnsResourceRecord[] records = new DnsResourceRecord[bR.ReadInt32()];
+                            if (records.Length < 1)
+                                throw new InvalidDataException("Failed to load DNS zone file: the zone file does not contain any records.");
+
                             uint minExpiryTtl = 0u;
 
                             for (int i = 0; i < records.Length; i++)
@@ -3501,16 +3504,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 }
                             }
 
-                            try
-                            {
-                                //load records
-                                LoadZoneRecords(apexZone, records);
-                            }
-                            catch
-                            {
-                                DeleteZone(zoneInfo.Name);
-                                throw;
-                            }
+                            //load records
+                            LoadZoneRecords(apexZone, records);
 
                             //init zone
                             switch (zoneInfo.Type)
@@ -3590,6 +3585,11 @@ namespace DnsServerCore.Dns.ZoneManagers
                                     }
                                     break;
                             }
+                        }
+                        catch
+                        {
+                            DeleteZone(zoneInfo);
+                            throw;
                         }
 
                         return new AuthZoneInfo(apexZone);
