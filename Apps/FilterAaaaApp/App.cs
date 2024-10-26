@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.ApplicationCommon;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -55,7 +56,7 @@ namespace FilterAaaa
 
         #region public
 
-        public Task InitializeAsync(IDnsServer dnsServer, string config)
+        public async Task InitializeAsync(IDnsServer dnsServer, string config)
         {
             _dnsServer = dnsServer;
 
@@ -76,11 +77,18 @@ namespace FilterAaaa
                 _bypassDomains = [];
 
             if (jsonConfig.TryReadArray("filterDomains", out string[] filterDomains))
+            {
                 _filterDomains = filterDomains;
+            }
             else
+            {
                 _filterDomains = [];
 
-            return Task.CompletedTask;
+                //update config for new feature
+                config = config.TrimEnd('\r', '\n', ' ', '}');
+                config += ",\r\n  \"filterDomains\": [\r\n  ]\r\n}";
+                await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
+            }
         }
 
         public async Task<DnsDatagram> PostProcessAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
@@ -99,19 +107,6 @@ namespace FilterAaaa
 
             DnsQuestionRecord question = request.Question[0];
             if (question.Type != DnsResourceRecordType.AAAA)
-                return response;
-
-            bool filterDomain = _filterDomains.Length == 0;
-            foreach (string filterDomain in _filterDomains)
-            {
-                if (qname.Equals(filterDomain, StringComparison.OrdinalIgnoreCase) || qname.EndsWith("." + filterDomain, StringComparison.OrdinalIgnoreCase))
-                {
-                    filterDomain = true;
-                    break;
-                }
-            }
-
-            if (!filterDomain)
                 return response;
 
             bool hasAAAA = false;
@@ -143,6 +138,20 @@ namespace FilterAaaa
                 if (qname.Equals(allowedDomain, StringComparison.OrdinalIgnoreCase) || qname.EndsWith("." + allowedDomain, StringComparison.OrdinalIgnoreCase))
                     return response;
             }
+
+            bool filterDomain = _filterDomains.Length == 0;
+
+            foreach (string blockedDomain in _filterDomains)
+            {
+                if (qname.Equals(blockedDomain, StringComparison.OrdinalIgnoreCase) || qname.EndsWith("." + blockedDomain, StringComparison.OrdinalIgnoreCase))
+                {
+                    filterDomain = true;
+                    break;
+                }
+            }
+
+            if (!filterDomain)
+                return response;
 
             DnsDatagram aResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(qname, DnsResourceRecordType.A, DnsClass.IN), 2000);
 
