@@ -702,6 +702,7 @@ function refreshZones(checkDisplay, pageNumber) {
             divViewZones.show();
         },
         invalidToken: function () {
+            divViewZonesLoader.hide();
             showPageLogin();
         },
         objLoaderPlaceholder: divViewZonesLoader
