@@ -476,6 +476,12 @@
 				"version": "2.0",
 				"url": "https://download.technitium.com/dns/apps/FilterAaaaApp-v2.zip",
 				"size": "12.9 KB"
+			},
+			{
+				"serverVersion": "13.1",
+				"version": "3.0",
+				"url": "https://download.technitium.com/dns/apps/FilterAaaaApp-v3.zip",
+				"size": "13.8 KB"
 			}
 		]
 	},
