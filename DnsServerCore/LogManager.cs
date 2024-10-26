@@ -374,7 +374,7 @@ namespace DnsServerCore
             {
                 _enableLogging = true;
                 _logFolder = "logs";
-                _maxLogFileDays = 0;
+                _maxLogFileDays = 365;
                 _useLocalTime = false;
 
                 SaveConfigFileInternal();
