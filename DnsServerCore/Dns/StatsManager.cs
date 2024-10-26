@@ -264,8 +264,8 @@ namespace DnsServerCore.Dns
 
                 if (disposing)
                 {
-                    if (_maintenanceTimer != null)
-                        _maintenanceTimer.Dispose();
+                    _maintenanceTimer?.Dispose();
+                    _statsCleanupTimer?.Dispose();
 
                     //do last maintenance
                     DoMaintenance();
@@ -1253,7 +1253,18 @@ namespace DnsServerCore.Dns
         public int MaxStatFileDays
         {
             get { return _maxStatFileDays; }
-            set { _maxStatFileDays = value; }
+            set
+            {
+                if (value < 0)
+                    throw new ArgumentOutOfRangeException(nameof(MaxStatFileDays), "MaxStatFileDays must be greater than or equal to 0.");
+
+                _maxStatFileDays = value;
+
+                if (_maxStatFileDays == 0)
+                    _statsCleanupTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                else
+                    _statsCleanupTimer.Change(STATS_CLEANUP_TIMER_INITIAL_INTERVAL, STATS_CLEANUP_TIMER_PERIODIC_INTERVAL);
+            }
         }
 
         #endregion
