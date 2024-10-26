@@ -17,6 +17,8 @@ As any post processor, this app is configured globally in the app settings. Its 
   ],
   "bypassDomains": [
     "example.com"
+  ],
+  "filterDomains": [
   ]
 }
 ```
@@ -30,6 +32,8 @@ The individual settings are:
 - `bypassNetworks`: a list of networks. If a request originates from a client in any of the specified networks, the original response is passed through unmodified.
 
 - `bypassDomains` a list of domain names. If a request is for a domain in this list, the original response is passed through unmodified. This includes subdomains of the domains in `bypassDomains`, i.e. `example.com` also matches `subdomain.example.com`.
+
+- `filterDomains` a list of domain names. If the list of filtered domain names is specified then the app will filter AAAA responses only for the specified domain names and their subdomain names. When the list is empty then the app will filter AAAA responses for all domain names.
 
 ## Post-processing
 
