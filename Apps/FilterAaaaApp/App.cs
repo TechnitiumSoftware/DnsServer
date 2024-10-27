@@ -37,6 +37,7 @@ namespace FilterAaaa
         IDnsServer _dnsServer;
 
         bool _enableFilterAaaa;
+        uint _defaultTtl;
         bool _bypassLocalZones;
         NetworkAddress[] _bypassNetworks;
         string[] _bypassDomains;
@@ -62,6 +63,7 @@ namespace FilterAaaa
             JsonElement jsonConfig = jsonDocument.RootElement;
 
             _enableFilterAaaa = jsonConfig.GetPropertyValue("enableFilterAaaa", false);
+            _defaultTtl = jsonConfig.GetPropertyValue("defaultTtl", 30u);
             _bypassLocalZones = jsonConfig.GetPropertyValue("bypassLocalZones", false);
 
             if (jsonConfig.TryReadArray("bypassNetworks", NetworkAddress.Parse, out NetworkAddress[] bypassNetworks))
@@ -146,7 +148,7 @@ namespace FilterAaaa
                         }
                     }
 
-                    DnsResourceRecord[] authority = [new DnsResourceRecord(qname, DnsResourceRecordType.SOA, DnsClass.IN, 30, new DnsSOARecordData(_dnsServer.ServerDomain, _dnsServer.ResponsiblePerson.Address, 1, 3600, 900, 86400, 30))];
+                    DnsResourceRecord[] authority = [new DnsResourceRecord(qname, DnsResourceRecordType.SOA, DnsClass.IN, _defaultTtl, new DnsSOARecordData(_dnsServer.ServerDomain, _dnsServer.ResponsiblePerson.Address, 1, 3600, 900, 86400, _defaultTtl))];
 
                     return new DnsDatagram(response.Identifier, true, response.OPCODE, false, false, response.RecursionDesired, response.RecursionAvailable, false, false, DnsResponseCode.NoError, response.Question, answer, authority);
                 }
