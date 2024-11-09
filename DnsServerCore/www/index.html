@@ -2159,7 +2159,7 @@
                                                         </div>
 
                                                         <div style="margin-top: 10px;">Note! Forwarders are upstream DNS servers which this DNS Server must use to resolve domain names. If no forwarders are configured then the DNS server will use preconfigured ROOT HINTS to perform recursive resolution to resolve domain names.</div>
-                                                        <div style="margin-top: 10px;">Note! The <code>https</code> URL scheme will attempt to make DNS-over-HTTPS/3 request and will fallback to DNS-over-HTTPS/2 (and later to DNS-over-HTTPS/1.1) if it fails to connect. To force DNS-over-HTTPS/3, use <code>h3</code> URL scheme instead of <code>https</code> but note that there wont be any protocol fallback if the connection attempt fails.</div>
+                                                        <div style="margin-top: 10px;">Note! The <code>https</code> URL scheme supports only DNS-over-HTTPS/2 and DNS-over-HTTPS/1.1 protocols. For DNS-over-HTTPS/3, use <code>h3</code> URL scheme instead of <code>https</code> but note that there wont be any protocol fallback if the connection attempt fails.</div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/06/configuring-dns-server-for-privacy.html" target="_blank">Help: Configuring DNS Server For Privacy & Security</a></div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2023/02/configuring-dns-over-quic-and-https3.html" target="_blank">Help: Configuring DNS-over-QUIC and HTTPS/3 For Technitium DNS Server</a></div>
                                                     </div>
@@ -3369,8 +3369,11 @@
                     <div style="margin-bottom: 10px;">
                         <a id="lnkUpdateChangeLog" href="#" target="_blank" style="font-weight: bold;">Read Change Logs</a>
                     </div>
-                    <div>
+                    <div style="margin-bottom: 10px;">
                         Note! It is highly recommended to Backup Settings before installing the update.
+                    </div>
+                    <div>
+                        Note! You will have to refresh this web page manually after updating the DNS server so that new UI changes are loaded.
                     </div>
                 </div>
                 <div class="modal-footer">
