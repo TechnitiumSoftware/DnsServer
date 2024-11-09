@@ -1,5 +1,16 @@
 # Technitium DNS Server Change Log
 
+## Version 13.1.1
+Release Date: 9 November 2024
+
+- Fixed issue with HTTP/3 protocol not working for both admin web service and DNS-over-HTTPS/3 service caused due to changes in how Kestrel web server uses application protocol option.
+- Updated DNS-over-HTTPS client implementation such that it will support HTTP/2 and HTTP/1.1 protocols with `https` scheme and only support HTTP/3 protocol with `h3` scheme with no protocol fallback.
+- Fixed issue in DNS-over-TCP and DNS-over-TLS client caused due to some platforms not supporting TCP keep alive socket options.
+- Updated recursive resolver implementation to always attempt to resolve AAAA for name server with missing IPv6 glue record to allow resolution over IPv6 only networks.
+- Filter AAAA App: added new option to configuring default TTL value.
+- DNS Rebinding Protection App: added new option to configure bypass networks.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 13.1
 Release Date: 19 October 2024
 
@@ -8,6 +19,7 @@ Release Date: 19 October 2024
 - Added option to configure blocking answer's TTL value in Settings.
 - Added option to make the `X-Real-IP` header customizable for admin web service and for DNS-over-HTTP optional protocol.
 - Multiple other minor bug fixes and improvements.
+- Filter AAAA App: updated app to support option to explicitly specify filter domain names.
 
 ## Version 13.0.2
 Release Date: 28 September 2024
