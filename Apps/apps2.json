@@ -230,6 +230,12 @@
 				"version": "6.0",
 				"url": "https://download.technitium.com/dns/apps/BlockPageApp-v6.zip",
 				"size": "25.2 KB"
+			},
+			{
+				"serverVersion": "13.1.1",
+				"version": "6.0.1",
+				"url": "https://download.technitium.com/dns/apps/BlockPageApp-v6.0.1.zip",
+				"size": "25.2 KB"
 			}
 		]
 	},
@@ -338,6 +344,12 @@
 				"version": "2.0",
 				"url": "https://download.technitium.com/dns/apps/DnsRebindingProtectionApp-v2.zip",
 				"size": "11.8 KB"
+			},
+			{
+				"serverVersion": "13.1.1",
+				"version": "3.0",
+				"url": "https://download.technitium.com/dns/apps/DnsRebindingProtectionApp-v3.zip",
+				"size": "12.9 KB"
 			}
 		]
 	},
@@ -482,6 +494,12 @@
 				"version": "3.0",
 				"url": "https://download.technitium.com/dns/apps/FilterAaaaApp-v3.zip",
 				"size": "13.8 KB"
+			},
+			{
+				"serverVersion": "13.1.1",
+				"version": "3.1",
+				"url": "https://download.technitium.com/dns/apps/FilterAaaaApp-v3.1.zip",
+				"size": "14.1 KB"
 			}
 		]
 	},
