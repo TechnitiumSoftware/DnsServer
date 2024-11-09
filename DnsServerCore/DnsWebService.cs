@@ -84,7 +84,6 @@ namespace DnsServerCore
 
         WebApplication _webService;
         X509Certificate2Collection _webServiceCertificateCollection;
-        SslServerAuthenticationOptions _webServiceSslServerAuthenticationOptions;
 
         DnsServer _dnsServer;
         DhcpServer _dhcpServer;
@@ -358,6 +357,34 @@ namespace DnsServerCore
                 //https
                 if (!safeMode && _webServiceEnableTls && (_webServiceCertificateCollection is not null))
                 {
+                    X509Certificate2 serverCertificate = null;
+
+                    foreach (X509Certificate2 certificate in _webServiceCertificateCollection)
+                    {
+                        if (certificate.HasPrivateKey)
+                        {
+                            serverCertificate = certificate;
+                            break;
+                        }
+                    }
+
+                    if (serverCertificate is null)
+                        throw new DnsWebServiceException("Web Service TLS certificate file must contain a certificate with private key.");
+
+                    List<SslApplicationProtocol> applicationProtocols = new List<SslApplicationProtocol>();
+
+                    if (_webServiceEnableHttp3)
+                        applicationProtocols.Add(new SslApplicationProtocol("h3"));
+
+                    applicationProtocols.Add(new SslApplicationProtocol("h2"));
+                    applicationProtocols.Add(new SslApplicationProtocol("http/1.1"));
+
+                    SslServerAuthenticationOptions webServiceSslServerAuthenticationOptions = new SslServerAuthenticationOptions
+                    {
+                        ApplicationProtocols = applicationProtocols,
+                        ServerCertificateContext = SslStreamCertificateContext.Create(serverCertificate, _webServiceCertificateCollection, false)
+                    };
+
                     foreach (IPAddress webServiceLocalAddress in webServiceLocalAddresses)
                     {
                         serverOptions.Listen(webServiceLocalAddress, webServiceTlsPort, delegate (ListenOptions listenOptions)
@@ -365,7 +392,7 @@ namespace DnsServerCore
                             listenOptions.Protocols = _webServiceEnableHttp3 ? HttpProtocols.Http1AndHttp2AndHttp3 : HttpProtocols.Http1AndHttp2;
                             listenOptions.UseHttps(delegate (SslStream stream, SslClientHelloInfo clientHelloInfo, object state, CancellationToken cancellationToken)
                             {
-                                return ValueTask.FromResult(_webServiceSslServerAuthenticationOptions);
+                                return ValueTask.FromResult(webServiceSslServerAuthenticationOptions);
                             }, null);
                         });
                     }
@@ -393,7 +420,7 @@ namespace DnsServerCore
                 OnPrepareResponse = delegate (StaticFileResponseContext ctx)
                 {
                     ctx.Context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
-                    ctx.Context.Response.Headers.CacheControl = "private, max-age=300";
+                    ctx.Context.Response.Headers.CacheControl = "no-cache";
                 },
                 ServeUnknownFileTypes = true
             });
@@ -829,12 +856,6 @@ namespace DnsServerCore
                 throw new ArgumentException("Web Service TLS certificate file must contain a certificate with private key.");
 
             _webServiceCertificateCollection = certificateCollection;
-
-            _webServiceSslServerAuthenticationOptions = new SslServerAuthenticationOptions
-            {
-                ServerCertificateContext = SslStreamCertificateContext.Create(serverCertificate, _webServiceCertificateCollection, false)
-            };
-
             _webServiceTlsCertificateLastModifiedOn = fileInfo.LastWriteTimeUtc;
 
             _log.Write("Web Service TLS certificate was loaded: " + tlsCertificatePath);
