@@ -11,6 +11,7 @@ As any post processor, this app is configured globally in the app settings. Its 
 ```
 {
   "enableFilterAaaa": true,
+  "defaultTtl": 30,
   "bypassLocalZones": false,
   "bypassNetworks": [
     "192.168.1.0/24"
@@ -26,6 +27,8 @@ As any post processor, this app is configured globally in the app settings. Its 
 The individual settings are:
 
 - `enableFilterAaaa`: when set to `false`, this app is disabled and passes through the original response.
+
+- `defaultTtl`: The default TTL (seconds) to use for the response. This will be used by clients to cache negative response.
 
 - `bypassLocalZones`: when set to `true`, authoritative answers are passed through unmodified.
 
