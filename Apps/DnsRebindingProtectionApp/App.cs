@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore.ApplicationCommon;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -34,6 +35,7 @@ namespace DnsRebindingProtection
         #region variables
 
         bool _enableProtection;
+        NetworkAddress[] _bypassNetworks;
         HashSet<NetworkAddress> _privateNetworks;
         HashSet<string> _privateDomains;
 
@@ -144,7 +146,7 @@ namespace DnsRebindingProtection
 
         #region public
 
-        public Task InitializeAsync(IDnsServer dnsServer, string config)
+        public async Task InitializeAsync(IDnsServer dnsServer, string config)
         {
             using JsonDocument jsonDocument = JsonDocument.Parse(config);
             JsonElement jsonConfig = jsonDocument.RootElement;
@@ -153,7 +155,18 @@ namespace DnsRebindingProtection
             _privateNetworks = new HashSet<NetworkAddress>(jsonConfig.ReadArray("privateNetworks", NetworkAddress.Parse));
             _privateDomains = new HashSet<string>(jsonConfig.ReadArray("privateDomains"));
 
-            return Task.CompletedTask;
+            if (jsonConfig.TryReadArray("bypassNetworks", NetworkAddress.Parse, out NetworkAddress[] bypassNetworks))
+            {
+                _bypassNetworks = bypassNetworks;
+            }
+            else
+            {
+                _bypassNetworks = [];
+
+                //update config for new feature
+                config = config.Replace("\"privateNetworks\"", "\"bypassNetworks\": [\r\n  ],\r\n  \"privateNetworks\"");
+                await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
+            }
         }
 
         public Task<DnsDatagram> PostProcessAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
@@ -161,6 +174,14 @@ namespace DnsRebindingProtection
             // Do not filter authoritative responses. Because in this case any rebinding is intentional.
             if (!_enableProtection || response.AuthoritativeAnswer)
                 return Task.FromResult(response);
+
+            IPAddress remoteIP = remoteEP.Address;
+
+            foreach (NetworkAddress network in _bypassNetworks)
+            {
+                if (network.Contains(remoteIP))
+                    return Task.FromResult(response);
+            }
 
             if (TryDetectRebinding(response.Answer, out List<DnsResourceRecord> protectedAnswer))
                 return Task.FromResult(response.Clone(protectedAnswer));
