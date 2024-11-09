@@ -250,7 +250,7 @@ namespace BlockPage
                     OnPrepareResponse = delegate (StaticFileResponseContext ctx)
                     {
                         ctx.Context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
-                        ctx.Context.Response.Headers.CacheControl = "private, max-age=300";
+                        ctx.Context.Response.Headers.CacheControl = "no-cache";
                     },
                     ServeUnknownFileTypes = true
                 });
