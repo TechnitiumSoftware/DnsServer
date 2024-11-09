@@ -99,7 +99,7 @@ namespace DnsServerCore.Dns
         static readonly IPEndPoint IPENDPOINT_ANY_0 = new IPEndPoint(IPAddress.Any, 0);
         static readonly IReadOnlyCollection<DnsARecordData> _aRecords = [new DnsARecordData(IPAddress.Any)];
         static readonly IReadOnlyCollection<DnsAAAARecordData> _aaaaRecords = [new DnsAAAARecordData(IPAddress.IPv6Any)];
-        static readonly List<SslApplicationProtocol> quicApplicationProtocols = new List<SslApplicationProtocol>() { new SslApplicationProtocol("doq") };
+        static readonly List<SslApplicationProtocol> _doqApplicationProtocols = new List<SslApplicationProtocol>() { new SslApplicationProtocol("doq") };
 
         string _serverDomain;
         readonly string _configFolder;
@@ -172,8 +172,8 @@ namespace DnsServerCore.Dns
         int _dnsOverHttpsPort = 443;
         int _dnsOverQuicPort = 853;
         X509Certificate2Collection _certificateCollection;
-        SslServerAuthenticationOptions _sslServerAuthenticationOptions;
-        SslServerAuthenticationOptions _quicSslServerAuthenticationOptions;
+        SslServerAuthenticationOptions _dotSslServerAuthenticationOptions;
+        SslServerAuthenticationOptions _doqSslServerAuthenticationOptions;
         string _dnsOverHttpRealIpHeader = "X-Real-IP";
 
         IReadOnlyDictionary<string, TsigKey> _tsigKeys;
@@ -620,7 +620,7 @@ namespace DnsServerCore.Dns
                             return tlsStream.AuthenticateAsServerAsync(delegate (SslStream stream, SslClientHelloInfo clientHelloInfo, object state, CancellationToken cancellationToken)
                             {
                                 serverName = clientHelloInfo.ServerName;
-                                return ValueTask.FromResult(_sslServerAuthenticationOptions);
+                                return ValueTask.FromResult(_dotSslServerAuthenticationOptions);
                             }, null, cancellationToken1);
                         }, _tcpReceiveTimeout);
 
@@ -2207,7 +2207,7 @@ namespace DnsServerCore.Dns
                         DnsResponseCode rcode;
                         IReadOnlyList<DnsResourceRecord> authority = null;
 
-                        if (zoneInfo.Type == AuthZoneType.Forwarder)
+                        if ((zoneInfo.Type == AuthZoneType.Forwarder) || (zoneInfo.Type == AuthZoneType.SecondaryForwarder))
                         {
                             //process FWD record if exists
                             if (!zoneInfo.Name.Equals(appResourceRecord.Name, StringComparison.OrdinalIgnoreCase))
@@ -4454,6 +4454,34 @@ namespace DnsServerCore.Dns
                     //bind to https port
                     if (_enableDnsOverHttps && (_certificateCollection is not null))
                     {
+                        X509Certificate2 serverCertificate = null;
+
+                        foreach (X509Certificate2 certificate in _certificateCollection)
+                        {
+                            if (certificate.HasPrivateKey)
+                            {
+                                serverCertificate = certificate;
+                                break;
+                            }
+                        }
+
+                        if (serverCertificate is null)
+                            throw new DnsServerException("DNS Server TLS certificate file must contain a certificate with private key.");
+
+                        List<SslApplicationProtocol> applicationProtocols = new List<SslApplicationProtocol>();
+
+                        if (_enableDnsOverHttp3)
+                            applicationProtocols.Add(new SslApplicationProtocol("h3"));
+
+                        applicationProtocols.Add(new SslApplicationProtocol("h2"));
+                        applicationProtocols.Add(new SslApplicationProtocol("http/1.1"));
+
+                        SslServerAuthenticationOptions sslServerAuthenticationOptions = new SslServerAuthenticationOptions
+                        {
+                            ApplicationProtocols = applicationProtocols,
+                            ServerCertificateContext = SslStreamCertificateContext.Create(serverCertificate, _certificateCollection, false),
+                        };
+
                         foreach (IPAddress localAddress in localAddresses)
                         {
                             serverOptions.Listen(localAddress, _dnsOverHttpsPort, delegate (ListenOptions listenOptions)
@@ -4461,7 +4489,7 @@ namespace DnsServerCore.Dns
                                 listenOptions.Protocols = _enableDnsOverHttp3 ? HttpProtocols.Http1AndHttp2AndHttp3 : HttpProtocols.Http1AndHttp2;
                                 listenOptions.UseHttps(delegate (SslStream stream, SslClientHelloInfo clientHelloInfo, object state, CancellationToken cancellationToken)
                                 {
-                                    return ValueTask.FromResult(_sslServerAuthenticationOptions);
+                                    return ValueTask.FromResult(sslServerAuthenticationOptions);
                                 }, null);
                             });
                         }
@@ -4487,7 +4515,7 @@ namespace DnsServerCore.Dns
                     OnPrepareResponse = delegate (StaticFileResponseContext ctx)
                     {
                         ctx.Context.Response.Headers["X-Robots-Tag"] = "noindex, nofollow";
-                        ctx.Context.Response.Headers.CacheControl = "private, max-age=300";
+                        ctx.Context.Response.Headers.CacheControl = "no-cache";
                     },
                     ServeUnknownFileTypes = true
                 });
@@ -4819,7 +4847,7 @@ namespace DnsServerCore.Dns
                         {
                             ListenEndPoint = quicEP,
                             ListenBacklog = _listenBacklog,
-                            ApplicationProtocols = quicApplicationProtocols,
+                            ApplicationProtocols = _doqApplicationProtocols,
                             ConnectionOptionsCallback = delegate (QuicConnection quicConnection, SslClientHelloInfo sslClientHello, CancellationToken cancellationToken)
                             {
                                 QuicServerConnectionOptions serverConnectionOptions = new QuicServerConnectionOptions()
@@ -4829,7 +4857,7 @@ namespace DnsServerCore.Dns
                                     MaxInboundUnidirectionalStreams = 0,
                                     MaxInboundBidirectionalStreams = _quicMaxInboundStreams,
                                     IdleTimeout = TimeSpan.FromMilliseconds(_quicIdleTimeout),
-                                    ServerAuthenticationOptions = _quicSslServerAuthenticationOptions
+                                    ServerAuthenticationOptions = _doqSslServerAuthenticationOptions
                                 };
 
                                 return ValueTask.FromResult(serverConnectionOptions);
@@ -5622,8 +5650,8 @@ namespace DnsServerCore.Dns
                 if (value is null)
                 {
                     _certificateCollection = null;
-                    _sslServerAuthenticationOptions = null;
-                    _quicSslServerAuthenticationOptions = null;
+                    _dotSslServerAuthenticationOptions = null;
+                    _doqSslServerAuthenticationOptions = null;
                 }
                 else
                 {
@@ -5645,14 +5673,14 @@ namespace DnsServerCore.Dns
 
                     SslStreamCertificateContext certificateContext = SslStreamCertificateContext.Create(serverCertificate, _certificateCollection, false);
 
-                    _sslServerAuthenticationOptions = new SslServerAuthenticationOptions()
+                    _dotSslServerAuthenticationOptions = new SslServerAuthenticationOptions()
                     {
                         ServerCertificateContext = certificateContext
                     };
 
-                    _quicSslServerAuthenticationOptions = new SslServerAuthenticationOptions()
+                    _doqSslServerAuthenticationOptions = new SslServerAuthenticationOptions()
                     {
-                        ApplicationProtocols = quicApplicationProtocols,
+                        ApplicationProtocols = _doqApplicationProtocols,
                         ServerCertificateContext = certificateContext
                     };
                 }
