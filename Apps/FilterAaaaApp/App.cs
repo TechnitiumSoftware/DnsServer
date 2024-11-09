@@ -65,7 +65,21 @@ namespace FilterAaaa
             JsonElement jsonConfig = jsonDocument.RootElement;
 
             _enableFilterAaaa = jsonConfig.GetPropertyValue("enableFilterAaaa", false);
-            _defaultTtl = jsonConfig.GetPropertyValue("defaultTtl", 30u);
+
+            if (jsonConfig.TryGetProperty("defaultTtl", out JsonElement jsonValue))
+            {
+                if (!jsonValue.TryGetUInt32(out _defaultTtl))
+                    _defaultTtl = 30u;
+            }
+            else
+            {
+                _defaultTtl = 30u;
+
+                //update config for new option
+                config = config.Replace("\"bypassLocalZones\"", "\"defaultTtl\": 30,\r\n  \"bypassLocalZones\"");
+                await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
+            }
+
             _bypassLocalZones = jsonConfig.GetPropertyValue("bypassLocalZones", false);
 
             if (jsonConfig.TryReadArray("bypassNetworks", NetworkAddress.Parse, out NetworkAddress[] bypassNetworks))
