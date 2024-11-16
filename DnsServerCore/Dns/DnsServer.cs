@@ -911,13 +911,28 @@ namespace DnsServerCore.Dns
 
         private async Task ProcessDoHRequestAsync(HttpContext context)
         {
-            IPEndPoint remoteEP = context.GetRemoteEndPoint(_dnsOverHttpRealIpHeader);
+            IPEndPoint remoteEP = context.GetRemoteEndPoint(); //get the socket connection remote EP
             DnsDatagram dnsRequest = null;
 
             try
             {
                 HttpRequest request = context.Request;
                 HttpResponse response = context.Response;
+
+                if (!request.IsHttps)
+                {
+                    //DNS-over-HTTP insecure protocol
+                    if (!NetworkAccessControl.IsAddressAllowed(remoteEP.Address, _reverseProxyNetworkACL))
+                    {
+                        //this feature is intended to be used with an SSL terminated reverse proxy like nginx on private network
+                        response.StatusCode = 403;
+                        await response.WriteAsync("DNS-over-HTTPS (DoH) queries are supported only on HTTPS.");
+                        return;
+                    }
+
+                    //set client's actual IP from X-Real-IP header
+                    remoteEP = context.GetRemoteEndPoint(_dnsOverHttpRealIpHeader, false);
+                }
 
                 if (IsQpmLimitCrossed(remoteEP.Address))
                 {
@@ -926,20 +941,6 @@ namespace DnsServerCore.Dns
                     response.StatusCode = 429;
                     await response.WriteAsync("Too Many Requests");
                     return;
-                }
-
-                if (!request.IsHttps)
-                {
-                    //get the actual connection remote EP
-                    IPEndPoint connectionEp = context.GetRemoteEndPoint(null);
-
-                    if (!NetworkAccessControl.IsAddressAllowed(connectionEp.Address, _reverseProxyNetworkACL))
-                    {
-                        //this feature is intended to be used with an SSL terminated reverse proxy like nginx on private network
-                        response.StatusCode = 403;
-                        await response.WriteAsync("DNS-over-HTTPS (DoH) queries are supported only on HTTPS.");
-                        return;
-                    }
                 }
 
                 switch (request.Method)
