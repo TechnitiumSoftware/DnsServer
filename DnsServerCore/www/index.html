@@ -1011,7 +1011,7 @@
                                                         </div>
 
                                                         <div class="form-group">
-                                                            <label class="col-sm-3 control-label">Zone Transfer Allowed Networks</label>
+                                                            <label for="txtZoneTransferAllowedNetworks" class="col-sm-3 control-label">Zone Transfer Allowed Networks</label>
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtZoneTransferAllowedNetworks" class="form-control" rows="3" spellcheck="false"></textarea>
                                                                 <div style="padding-top: 5px;">Enter IP addresses or network addresses one below another that are allowed to perform zone transfer for all zones without any TSIG authentication.</div>
@@ -1019,7 +1019,7 @@
                                                         </div>
 
                                                         <div class="form-group">
-                                                            <label class="col-sm-3 control-label">Notify Allowed Networks</label>
+                                                            <label for="txtNotifyAllowedNetworks" class="col-sm-3 control-label">Notify Allowed Networks</label>
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtNotifyAllowedNetworks" class="form-control" rows="3" spellcheck="false"></textarea>
                                                                 <div style="padding-top: 5px;">Enter IP addresses or network addresses one below another that are allowed to Notify all Secondary Zones.</div>
@@ -1189,7 +1189,7 @@
                                                         </div>
 
                                                         <div class="form-group">
-                                                            <label class="col-sm-3 control-label">QPM Limit Bypass List</label>
+                                                            <label for="txtQpmLimitBypassList" class="col-sm-3 control-label">QPM Limit Bypass List</label>
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtQpmLimitBypassList" class="form-control" rows="3" spellcheck="false"></textarea>
                                                                 <div style="padding-top: 5px;">Enter IP addresses or network addresses one below another that are allowed to bypass the QPM limit.</div>
@@ -1360,21 +1360,21 @@
                                                                         <input id="chkEnableDnsOverUdpProxy" type="checkbox"> Enable DNS-over-UDP-PROXY
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-UDP-PROXY requests. It implements the <a href="https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt" target="_blank">PROXY Protocol</a> for both version 1 &amp; 2 over UDP datagram and will work only on private networks.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-UDP-PROXY requests. It implements the <a href="https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt" target="_blank">PROXY Protocol</a> for both version 1 &amp; 2 over UDP datagram. Configure <b>Reverse Proxy Network ACL</b> below to allow only requests coming from your reverse proxy server.</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
                                                                         <input id="chkEnableDnsOverTcpProxy" type="checkbox"> Enable DNS-over-TCP-PROXY
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-TCP-PROXY requests. It implements the <a href="https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt" target="_blank">PROXY Protocol</a> for both version 1 &amp; 2 over TCP connection and will work only on private networks.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-TCP-PROXY requests. It implements the <a href="https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt" target="_blank">PROXY Protocol</a> for both version 1 &amp; 2 over TCP connection. Configure <b>Reverse Proxy Network ACL</b> below to allow only requests coming from your reverse proxy server.</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
                                                                         <input id="chkEnableDnsOverHttp" type="checkbox"> Enable DNS-over-HTTP
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTP requests. It must be used with a TLS terminating reverse proxy like nginx and will work only on private networks. Enabling this option also allows automatic TLS certificate renewal with HTTP challenge (webroot) for DNS-over-HTTPS service when DNS-over-HTTP port is set to 80.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTP requests. It must be used with a TLS terminating reverse proxy like nginx. Configure <b>Reverse Proxy Network ACL</b> below to allow only requests coming from your reverse proxy server. Enabling this option also allows automatic TLS certificate renewal with HTTP challenge (webroot) for DNS-over-HTTPS service when DNS-over-HTTP port is set to 80.</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
@@ -1458,6 +1458,14 @@
                                                                 <span>(default 853)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the UDP port number for DNS-over-QUIC protocol.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtReverseProxyNetworkACL" class="col-sm-3 control-label">Reverse Proxy Network ACL</label>
+                                                            <div class="col-sm-6">
+                                                                <textarea id="txtReverseProxyNetworkACL" class="form-control" rows="5" spellcheck="false"></textarea>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Configure the ACL above to allow only requests coming from your reverse proxy server for DNS-over-UDP-PROXY, DNS-over-TCP-PROXY, and DNS-over-HTTP protocols. Enter IP addresses or network addresses one below another to allow access. Add <code>!</code> character at the start to deny access, e.g. <code>!192.168.10.0/24</code> will deny entire subnet. The ACL is processed in the same order its listed. If no networks match, the default policy is to deny all.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1826,7 +1834,7 @@
                                                         </div>
 
                                                         <div class="form-group">
-                                                            <label class="col-sm-3 control-label">Blocking Bypass List</label>
+                                                            <label for="txtBlockingBypassList" class="col-sm-3 control-label">Blocking Bypass List</label>
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtBlockingBypassList" class="form-control" rows="3" spellcheck="false"></textarea>
                                                                 <div style="padding-top: 5px;">Enter IP addresses or network addresses one below another that are allowed to bypass blocking.</div>
@@ -5941,7 +5949,7 @@ ns1.example.com ([2001:db8::])
                             </div>
 
                             <div class="form-group">
-                                <label class="col-sm-4 control-label">Member Of</label>
+                                <label for="txtUserDetailsMemberOf" class="col-sm-4 control-label">Member Of</label>
                                 <div class="col-sm-7">
                                     <textarea id="txtUserDetailsMemberOf" class="form-control" rows="5"></textarea>
                                     <label class="control-label" for="optUserDetailsGroupList">Add Group</label>
@@ -6043,7 +6051,7 @@ ns1.example.com ([2001:db8::])
                             </div>
 
                             <div class="form-group">
-                                <label class="col-sm-4 control-label">Members</label>
+                                <label for="txtGroupDetailsMembers" class="col-sm-4 control-label">Members</label>
                                 <div class="col-sm-7">
                                     <textarea id="txtGroupDetailsMembers" class="form-control" rows="7"></textarea>
                                     <label class="control-label" for="optGroupDetailsUserList">Add User</label>
