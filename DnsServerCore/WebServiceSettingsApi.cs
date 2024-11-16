@@ -320,6 +320,20 @@ namespace DnsServerCore
             jsonWriter.WriteNumber("dnsOverTlsPort", _dnsWebService.DnsServer.DnsOverTlsPort);
             jsonWriter.WriteNumber("dnsOverHttpsPort", _dnsWebService.DnsServer.DnsOverHttpsPort);
             jsonWriter.WriteNumber("dnsOverQuicPort", _dnsWebService.DnsServer.DnsOverQuicPort);
+
+            jsonWriter.WritePropertyName("reverseProxyNetworkACL");
+            {
+                jsonWriter.WriteStartArray();
+
+                if (_dnsWebService.DnsServer.ReverseProxyNetworkACL is not null)
+                {
+                    foreach (NetworkAccessControl nac in _dnsWebService.DnsServer.ReverseProxyNetworkACL)
+                        jsonWriter.WriteStringValue(nac.ToString());
+                }
+
+                jsonWriter.WriteEndArray();
+            }
+
             jsonWriter.WriteString("dnsTlsCertificatePath", _dnsWebService._dnsTlsCertificatePath);
             jsonWriter.WriteString("dnsTlsCertificatePassword", "************");
             jsonWriter.WriteString("dnsOverHttpRealIpHeader", _dnsWebService.DnsServer.DnsOverHttpRealIpHeader);
@@ -978,6 +992,15 @@ namespace DnsServerCore
                     _dnsWebService.DnsServer.DnsOverQuicPort = dnsOverQuicPort;
                     restartDnsService = true;
                 }
+            }
+
+            string reverseProxyNetworkACL = request.QueryOrForm("reverseProxyNetworkACL");
+            if (reverseProxyNetworkACL is not null)
+            {
+                if ((reverseProxyNetworkACL.Length == 0) || reverseProxyNetworkACL.Equals("false", StringComparison.OrdinalIgnoreCase))
+                    _dnsWebService.DnsServer.ReverseProxyNetworkACL = null;
+                else
+                    _dnsWebService.DnsServer.ReverseProxyNetworkACL = reverseProxyNetworkACL.Split(NetworkAccessControl.Parse, ',');
             }
 
             string dnsTlsCertificatePath = request.QueryOrForm("dnsTlsCertificatePath");
