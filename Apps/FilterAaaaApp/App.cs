@@ -116,7 +116,16 @@ namespace FilterAaaa
                 return response;
 
             if (request.DnssecOk)
-                return response;
+            {
+                foreach (DnsResourceRecord record in response.Answer)
+                {
+                    if (record.Type == DnsResourceRecordType.RRSIG)
+                    {
+                        //response is signed and the client is DNSSEC aware; must not be modified
+                        return response;
+                    }
+                }
+            }
 
             if (response.RCODE != DnsResponseCode.NoError)
                 return response;
