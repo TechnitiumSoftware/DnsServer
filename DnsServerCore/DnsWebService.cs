@@ -1243,7 +1243,7 @@ namespace DnsServerCore
 
             int version = bR.ReadByte();
 
-            if ((version >= 28) && (version <= 38))
+            if ((version >= 28) && (version <= 39))
             {
                 ReadConfigFrom(bR, version);
             }
@@ -1269,6 +1269,22 @@ namespace DnsServerCore
                 _dnsServer.EDnsClientSubnetIpv4Override = null;
                 _dnsServer.EDnsClientSubnetIpv6Override = null;
                 _dnsServer.QpmLimitBypassList = null;
+
+                if (_dnsServer.EnableDnsOverUdpProxy || _dnsServer.EnableDnsOverTcpProxy || _dnsServer.EnableDnsOverHttp)
+                {
+                    _dnsServer.ReverseProxyNetworkACL =
+                        [
+                            new NetworkAccessControl(IPAddress.Parse("127.0.0.0"), 8),
+                            new NetworkAccessControl(IPAddress.Parse("10.0.0.0"), 8),
+                            new NetworkAccessControl(IPAddress.Parse("100.64.0.0"), 10),
+                            new NetworkAccessControl(IPAddress.Parse("169.254.0.0"), 16),
+                            new NetworkAccessControl(IPAddress.Parse("172.16.0.0"), 12),
+                            new NetworkAccessControl(IPAddress.Parse("192.168.0.0"), 16),
+                            new NetworkAccessControl(IPAddress.Parse("2000::"), 3, true),
+                            new NetworkAccessControl(IPAddress.IPv6Any, 0)
+                        ];
+                }
+
                 _dnsServer.BlockingBypassList = null;
                 _dnsServer.BlockingAnswerTtl = 30;
                 _dnsServer.ResolverConcurrency = 2;
@@ -1561,6 +1577,28 @@ namespace DnsServerCore
                     _dnsServer.DnsOverTlsPort = 853;
                     _dnsServer.DnsOverHttpsPort = 443;
                     _dnsServer.DnsOverQuicPort = 853;
+                }
+
+                if (version >= 39)
+                {
+                    _dnsServer.ReverseProxyNetworkACL = AuthZoneInfo.ReadNetworkACLFrom(bR);
+                }
+                else
+                {
+                    if (_dnsServer.EnableDnsOverUdpProxy || _dnsServer.EnableDnsOverTcpProxy || _dnsServer.EnableDnsOverHttp)
+                    {
+                        _dnsServer.ReverseProxyNetworkACL =
+                            [
+                                new NetworkAccessControl(IPAddress.Parse("127.0.0.0"), 8),
+                                new NetworkAccessControl(IPAddress.Parse("10.0.0.0"), 8),
+                                new NetworkAccessControl(IPAddress.Parse("100.64.0.0"), 10),
+                                new NetworkAccessControl(IPAddress.Parse("169.254.0.0"), 16),
+                                new NetworkAccessControl(IPAddress.Parse("172.16.0.0"), 12),
+                                new NetworkAccessControl(IPAddress.Parse("192.168.0.0"), 16),
+                                new NetworkAccessControl(IPAddress.Parse("2000::"), 3, true),
+                                new NetworkAccessControl(IPAddress.IPv6Any, 0)
+                            ];
+                    }
                 }
 
                 _dnsTlsCertificatePath = bR.ReadShortString();
@@ -2443,7 +2481,7 @@ namespace DnsServerCore
         private void WriteConfigTo(BinaryWriter bW)
         {
             bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-            bW.Write((byte)38); //version
+            bW.Write((byte)39); //version
 
             //web service
             {
@@ -2562,6 +2600,8 @@ namespace DnsServerCore
                 bW.Write(_dnsServer.DnsOverTlsPort);
                 bW.Write(_dnsServer.DnsOverHttpsPort);
                 bW.Write(_dnsServer.DnsOverQuicPort);
+
+                AuthZoneInfo.WriteNetworkACLTo(_dnsServer.ReverseProxyNetworkACL, bW);
 
                 if (_dnsTlsCertificatePath == null)
                     bW.WriteShortString(string.Empty);
