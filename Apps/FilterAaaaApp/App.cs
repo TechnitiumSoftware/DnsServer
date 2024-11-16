@@ -115,18 +115,6 @@ namespace FilterAaaa
             if (_bypassLocalZones && response.AuthoritativeAnswer)
                 return response;
 
-            if (request.DnssecOk)
-            {
-                foreach (DnsResourceRecord record in response.Answer)
-                {
-                    if (record.Type == DnsResourceRecordType.RRSIG)
-                    {
-                        //response is signed and the client is DNSSEC aware; must not be modified
-                        return response;
-                    }
-                }
-            }
-
             if (response.RCODE != DnsResponseCode.NoError)
                 return response;
 
@@ -136,12 +124,31 @@ namespace FilterAaaa
 
             bool hasAAAA = false;
 
-            foreach (DnsResourceRecord record in response.Answer)
+            if (request.DnssecOk)
             {
-                if (record.Type == DnsResourceRecordType.AAAA)
+                foreach (DnsResourceRecord record in response.Answer)
                 {
-                    hasAAAA = true;
-                    break;
+                    switch (record.Type)
+                    {
+                        case DnsResourceRecordType.AAAA:
+                            hasAAAA = true;
+                            break;
+
+                        case DnsResourceRecordType.RRSIG:
+                            //response is signed and the client is DNSSEC aware; must not be modified
+                            return response;
+                    }
+                }
+            }
+            else
+            {
+                foreach (DnsResourceRecord record in response.Answer)
+                {
+                    if (record.Type == DnsResourceRecordType.AAAA)
+                    {
+                        hasAAAA = true;
+                        break;
+                    }
                 }
             }
 
