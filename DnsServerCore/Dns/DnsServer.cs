@@ -165,6 +165,7 @@ namespace DnsServerCore.Dns
         bool _enableDnsOverHttps;
         bool _enableDnsOverHttp3;
         bool _enableDnsOverQuic;
+        IReadOnlyCollection<NetworkAccessControl> _reverseProxyNetworkACL;
         int _dnsOverUdpProxyPort = 538;
         int _dnsOverTcpProxyPort = 538;
         int _dnsOverHttpPort = 80;
@@ -399,9 +400,8 @@ namespace DnsServerCore.Dns
 
                             if (protocol == DnsTransportProtocol.UdpProxy)
                             {
-                                if (!NetUtilities.IsPrivateIP(remoteEP.Address))
+                                if (!NetworkAccessControl.IsAddressAllowed(remoteEP.Address, _reverseProxyNetworkACL))
                                 {
-                                    //intentionally blocking public IP addresses from using DNS-over-UDP-PROXY
                                     //this feature is intended to be used with a reverse proxy or load balancer on private network
                                     continue;
                                 }
@@ -635,9 +635,8 @@ namespace DnsServerCore.Dns
                         break;
 
                     case DnsTransportProtocol.TcpProxy:
-                        if (!NetUtilities.IsPrivateIP(remoteEP.Address))
+                        if (!NetworkAccessControl.IsAddressAllowed(remoteEP.Address, _reverseProxyNetworkACL))
                         {
-                            //intentionally blocking public IP addresses from using DNS-over-TCP-PROXY
                             //this feature is intended to be used with a reverse proxy or load balancer on private network
                             return;
                         }
@@ -934,9 +933,8 @@ namespace DnsServerCore.Dns
                     //get the actual connection remote EP
                     IPEndPoint connectionEp = context.GetRemoteEndPoint(null);
 
-                    if (!NetUtilities.IsPrivateIP(connectionEp.Address))
+                    if (!NetworkAccessControl.IsAddressAllowed(connectionEp.Address, _reverseProxyNetworkACL))
                     {
-                        //intentionally blocking public IP addresses from using DNS-over-HTTP (without TLS)
                         //this feature is intended to be used with an SSL terminated reverse proxy like nginx on private network
                         response.StatusCode = 403;
                         await response.WriteAsync("DNS-over-HTTPS (DoH) queries are supported only on HTTPS.");
@@ -5568,6 +5566,20 @@ namespace DnsServerCore.Dns
         {
             get { return _enableDnsOverQuic; }
             set { _enableDnsOverQuic = value; }
+        }
+
+        public IReadOnlyCollection<NetworkAccessControl> ReverseProxyNetworkACL
+        {
+            get { return _reverseProxyNetworkACL; }
+            set
+            {
+                if ((value is null) || (value.Count == 0))
+                    _reverseProxyNetworkACL = null;
+                else if (value.Count > byte.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(ReverseProxyNetworkACL), "Network Access Control List cannot have more than 255 entries.");
+                else
+                    _reverseProxyNetworkACL = value;
+            }
         }
 
         public int DnsOverUdpProxyPort
