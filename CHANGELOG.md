@@ -1,5 +1,11 @@
 # Technitium DNS Server Change Log
 
+## Version 13.2
+Release Date: 16 November 2024
+
+- Added new option in Settings to allow configuring reverse proxy network ACL to use with DNS-over-UDP-PROXY, DNS-over-TCP-PROXY, AND DNS-over-HTTP optional protocols.
+- Fixed issue in DNS-over-QUIC protocol client which caused the forwarding to fail to work with timeout error after a while in some cases.
+
 ## Version 13.1.1
 Release Date: 9 November 2024
 
