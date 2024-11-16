@@ -339,6 +339,7 @@ $(function () {
 
         $("#txtDnsOverHttpPort").prop("disabled", !enableDnsOverHttp);
         $("#txtReverseProxyNetworkACL").prop("disabled", !enableDnsOverUdpProxy && !enableDnsOverTcpProxy && !enableDnsOverHttp);
+        $("#txtDnsOverHttpRealIpHeader").prop("disabled", !enableDnsOverHttp);
     });
 
     $("#chkEnableDnsOverTls").click(function () {
@@ -1102,6 +1103,7 @@ function loadDnsSettings(responseJSON) {
     $("#lblDoQHost").text("tls-certificate-domain:" + responseJSON.response.dnsOverQuicPort);
     $("#lblDoHsHost").text("tls-certificate-domain" + (responseJSON.response.dnsOverHttpsPort == 443 ? "" : ":" + responseJSON.response.dnsOverHttpsPort));
 
+    $("#txtDnsOverHttpRealIpHeader").prop("disabled", !responseJSON.response.enableDnsOverHttp);
     $("#txtDnsOverHttpRealIpHeader").val(responseJSON.response.dnsOverHttpRealIpHeader);
     $("#lblDnsOverHttpRealIpHeader").text(responseJSON.response.dnsOverHttpRealIpHeader);
     $("#lblDnsOverHttpRealIpNginx").text("proxy_set_header " + responseJSON.response.dnsOverHttpRealIpHeader + " $remote_addr;");
