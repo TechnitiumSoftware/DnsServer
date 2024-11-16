@@ -4527,7 +4527,7 @@ RESPONSE:
 ```
 {
 	"response": {
-		"version": "13.1",
+		"version": "13.2",
 		"uptimestamp": "2024-10-19T17:30:25.124826Z",
 		"dnsServerDomain": "server1",
 		"dnsServerLocalEndPoints": [
@@ -4591,6 +4591,7 @@ RESPONSE:
 		"dnsOverTlsPort": 853,
 		"dnsOverHttpsPort": 443,
 		"dnsOverQuicPort": 853,
+		"reverseProxyNetworkACL": [],
 		"dnsTlsCertificatePath": null,
 		"dnsTlsCertificatePassword": "************",
 		"dnsOverHttpRealIpHeader": "X-Real-IP",
@@ -4716,9 +4717,9 @@ WHERE:
 - `webServiceTlsCertificatePath` (optional): Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key. This certificate is used by the web console for HTTPS access.
 - `webServiceTlsCertificatePassword` (optional): Enter the certificate (.pfx) password, if any.
 - `webServiceRealIpHeader` (optional): The HTTP header that must be used to read client's actual IP address when the request comes from a reverse proxy with a private IP address.
-- `enableDnsOverUdpProxy` (optional): Enable this option to accept DNS-over-UDP-PROXY requests. It implements the [PROXY Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) for both version 1 & 2 over UDP datagram and will work only on private networks.
-- `enableDnsOverTcpProxy` (optional): Enable this option to accept DNS-over-TCP-PROXY requests. It implements the [PROXY Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) for both version 1 & 2 over TCP connection and will work only on private networks.
-- `enableDnsOverHttp` (optional): Enable this option to accept DNS-over-HTTP requests. It must be used with a TLS terminating reverse proxy like nginx and will work only on private networks. Enabling this option also allows automatic TLS certificate renewal with HTTP challenge (webroot) for DNS-over-HTTPS service.
+- `enableDnsOverUdpProxy` (optional): Enable this option to accept DNS-over-UDP-PROXY requests. It implements the [PROXY Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) for both version 1 & 2 over UDP datagram. Configure the `reverseProxyNetworkACL` option to allow only requests coming from your reverse proxy server.
+- `enableDnsOverTcpProxy` (optional): Enable this option to accept DNS-over-TCP-PROXY requests. It implements the [PROXY Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) for both version 1 & 2 over TCP connection. Configure the `reverseProxyNetworkACL` option to allow only requests coming from your reverse proxy server.
+- `enableDnsOverHttp` (optional): Enable this option to accept DNS-over-HTTP requests. It must be used with a TLS terminating reverse proxy like nginx. Configure the `reverseProxyNetworkACL` option to allow only requests coming from your reverse proxy server. Enabling this option also allows automatic TLS certificate renewal with HTTP challenge (webroot) for DNS-over-HTTPS service.
 - `enableDnsOverTls` (optional): Enable this option to accept DNS-over-TLS requests.
 - `enableDnsOverHttps` (optional): Enable this option to accept DNS-over-HTTPS requests.
 - `enableDnsOverQuic` (optional): Enable this option to accept DNS-over-QUIC requests.
@@ -4728,6 +4729,7 @@ WHERE:
 - `dnsOverTlsPort` (optional): The TCP port number for DNS-over-TLS protocol. Initial value is `853`.
 - `dnsOverHttpsPort` (optional): The TCP port number for DNS-over-HTTPS protocol. Initial value is `443`.
 - `dnsOverQuicPort` (optional): The UDP port number for DNS-over-QUIC protocol. Initial value is `853`.
+- `reverseProxyNetworkACL` (optional): Configure the ACL to allow only requests coming from your reverse proxy server for DNS-over-UDP-PROXY, DNS-over-TCP-PROXY, and DNS-over-HTTP protocols. Enter IP addresses or network addresses one below another to allow access. Add ! character at the start to deny access, e.g. !192.168.10.0/24 will deny entire subnet. The ACL is processed in the same order its listed. If no networks match, the default policy is to deny all.
 - `dnsTlsCertificatePath` (optional): Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key. This certificate is used by the DNS-over-TLS and DNS-over-HTTPS optional protocols.
 - `dnsTlsCertificatePassword` (optional): Enter the certificate (.pfx) password, if any.
 - `dnsOverHttpRealIpHeader` (optional): The HTTP header that must be used to read client's actual IP address when the request comes from a reverse proxy with a private IP address.
