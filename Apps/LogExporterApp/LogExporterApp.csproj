@@ -20,7 +20,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SyslogNet.Client" Version="0.3.3" />
+    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.Http" Version="9.0.0" />
+    <PackageReference Include="Serilog.Sinks.SyslogMessages" Version="4.0.0" />
   </ItemGroup>
 
   <ItemGroup>
