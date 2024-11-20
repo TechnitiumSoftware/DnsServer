@@ -17,12 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using System;
+using Serilog;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Text;
-using System.Threading;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace LogExporter.Strategy
@@ -31,9 +28,7 @@ namespace LogExporter.Strategy
     {
         #region variables
 
-        private static readonly SemaphoreSlim _fileSemaphore = new SemaphoreSlim(1, 1);
-
-        private readonly string _filePath;
+        private readonly Serilog.Core.Logger _sender;
 
         private bool disposedValue;
 
@@ -43,7 +38,7 @@ namespace LogExporter.Strategy
 
         public FileExportStrategy(string filePath)
         {
-            _filePath = filePath;
+            _sender = new LoggerConfiguration().WriteTo.File(filePath, outputTemplate:"{Message}{Newline}").CreateLogger();
         }
 
         #endregion constructor
@@ -52,39 +47,8 @@ namespace LogExporter.Strategy
 
         public Task ExportAsync(List<LogEntry> logs)
         {
-            var jsonLogs = new StringBuilder(logs.Count * 250);
-            foreach (var log in logs)
-            {
-                jsonLogs.AppendLine(log.ToString());
-            }
-            return FlushAsync(jsonLogs.ToString());
-        }
-
-        private async Task FlushAsync(string jsonLogs)
-        {
-            // Wait to enter the semaphore
-            await _fileSemaphore.WaitAsync();
-            try
-            {
-                // Use a FileStream with exclusive access
-                using (var fileStream = new FileStream(_filePath, FileMode.Append, FileAccess.Write, FileShare.None))
-                using (var writer = new StreamWriter(fileStream))
-                {
-                    await writer.WriteAsync(jsonLogs);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex);
-            }
-            finally
-            {
-                // Ensure semaphore is released only if it was successfully acquired
-                if (_fileSemaphore.CurrentCount == 0)
-                {
-                    _fileSemaphore.Release();
-                }
-            }
+            var tasks = logs.Select(log => Task.Run(() => _sender.Information(log.ToString())));
+            return Task.WhenAll(tasks);
         }
 
         #endregion public
@@ -104,12 +68,7 @@ namespace LogExporter.Strategy
             {
                 if (disposing)
                 {
-                    // Ensure semaphore is released only if it was successfully acquired
-                    if (_fileSemaphore.CurrentCount == 0)
-                    {
-                        _fileSemaphore.Release();
-                    }
-                    _fileSemaphore.Dispose();
+                    _sender.Dispose();
                 }
 
                 disposedValue = true;
