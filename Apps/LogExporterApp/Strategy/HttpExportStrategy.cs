@@ -17,10 +17,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using Microsoft.Extensions.Configuration;
+using Serilog;
+using Serilog.Sinks.Http;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Net.Http;
-using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace LogExporter.Strategy
@@ -29,13 +34,7 @@ namespace LogExporter.Strategy
     {
         #region variables
 
-        private readonly string _endpoint;
-
-        private readonly Dictionary<string, string>? _headers;
-
-        private readonly HttpClient _httpClient;
-
-        private readonly string _method;
+        private readonly Serilog.Core.Logger _sender;
 
         private bool disposedValue;
 
@@ -43,46 +42,27 @@ namespace LogExporter.Strategy
 
         #region constructor
 
-        public HttpExportStrategy(string endpoint, string method, Dictionary<string, string>? headers)
+        public HttpExportStrategy(string endpoint, Dictionary<string, string>? headers = null)
         {
-            _endpoint = endpoint;
-            _method = method;
-            _headers = headers;
-            _httpClient = new HttpClient();
+            IConfigurationRoot? configuration = null;
+            if (headers != null)
+            {
+                configuration = new ConfigurationBuilder()
+               .AddInMemoryCollection(headers)
+               .Build();
+            }
+
+            _sender = new LoggerConfiguration().WriteTo.Http(endpoint, null, httpClient: new CustomHttpClient(), configuration: configuration).Enrich.FromLogContext().CreateLogger();
         }
 
         #endregion constructor
 
         #region public
 
-        public async Task ExportAsync(List<LogEntry> logs)
+        public Task ExportAsync(List<LogEntry> logs)
         {
-            var jsonLogs = new StringBuilder(logs.Count);
-            foreach (var log in logs)
-            {
-                jsonLogs.AppendLine(log.ToString());
-            }
-            var content = jsonLogs.ToString() ?? string.Empty;
-            var request = new HttpRequestMessage
-            {
-                RequestUri = new Uri(_endpoint),
-                Method = new HttpMethod(_method),
-                Content = new StringContent( content, Encoding.UTF8, "application/json")
-            };
-
-            if (_headers != null)
-            {
-                foreach (var header in _headers)
-                {
-                    request.Headers.Add(header.Key, header.Value);
-                }
-            }
-
-            var response = await _httpClient.SendAsync(request);
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new Exception($"Failed to export logs to {_endpoint}: {response.StatusCode}");
-            }
+            var tasks = logs.Select(log => Task.Run(() => _sender.Information(log.ToString())));
+            return Task.WhenAll(tasks);
         }
 
         #endregion public
@@ -102,7 +82,7 @@ namespace LogExporter.Strategy
             {
                 if (disposing)
                 {
-                    _httpClient.Dispose();
+                    _sender.Dispose();
                 }
 
                 disposedValue = true;
@@ -110,5 +90,39 @@ namespace LogExporter.Strategy
         }
 
         #endregion IDisposable
+
+        #region Classes
+
+        public class CustomHttpClient : IHttpClient
+        {
+            private readonly HttpClient httpClient;
+
+            public CustomHttpClient() => httpClient = new HttpClient();
+
+            public void Configure(IConfiguration configuration)
+            {
+                foreach (var pair in configuration.GetChildren())
+                {
+                    httpClient.DefaultRequestHeaders.Add(pair.Key, pair.Value);
+                }
+            }
+
+            public void Dispose()
+            {
+                httpClient?.Dispose();
+            }
+
+            public async Task<HttpResponseMessage> PostAsync(string requestUri, Stream contentStream, CancellationToken cancellationToken)
+            {
+                using var content = new StreamContent(contentStream);
+                content.Headers.Add("Content-Type", "application/json");
+
+                return await httpClient
+                    .PostAsync(requestUri, content, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        #endregion Classes
     }
 }

@@ -73,9 +73,6 @@ namespace LogExporter
         [JsonPropertyName("endpoint")]
         public string Endpoint { get; set; }
 
-        [JsonPropertyName("method")]
-        public string Method { get; set; }
-
         [JsonPropertyName("headers")]
         public Dictionary<string, string>? Headers { get; set; }
     }

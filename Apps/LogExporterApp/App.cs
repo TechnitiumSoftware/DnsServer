@@ -191,9 +191,9 @@ namespace LogExporter
             }
 
             // Register the different strategies using the helper
-            RegisterIfEnabled(_config.FileTarget, target => new FileExportStrategy(target.Path));
-            RegisterIfEnabled(_config.HttpTarget, target => new HttpExportStrategy(target.Endpoint, target.Method, target.Headers));
-            RegisterIfEnabled(_config.SyslogTarget, target => new SyslogExportStrategy(target.Address, target.Port, target.Protocol));
+            RegisterIfEnabled(_config!.FileTarget!, target => new FileExportStrategy(target.Path));
+            RegisterIfEnabled(_config!.HttpTarget!, target => new HttpExportStrategy(target.Endpoint, target.Headers));
+            RegisterIfEnabled(_config!.SyslogTarget!, target => new SyslogExportStrategy(target.Address, target.Port, target.Protocol));
         }
 
         #endregion private
