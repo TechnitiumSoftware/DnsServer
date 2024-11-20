@@ -38,7 +38,7 @@ namespace LogExporter.Strategy
 
         public FileExportStrategy(string filePath)
         {
-            _sender = new LoggerConfiguration().WriteTo.File(filePath, outputTemplate:"{Message}{Newline}").CreateLogger();
+            _sender = new LoggerConfiguration().WriteTo.File(filePath, outputTemplate: "{Message:lj}{Newline}").CreateLogger();
         }
 
         #endregion constructor
