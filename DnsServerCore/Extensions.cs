@@ -22,6 +22,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using System;
+using System.IO;
 using System.Net;
 using System.Text.Json;
 using TechnitiumLibrary.Net;
@@ -109,6 +110,23 @@ namespace DnsServerCore
             string value = request.Query[parameter];
             if ((value is null) && request.HasFormContentType)
                 value = request.Form[parameter];
+
+            request.EnableBuffering();
+            JsonDocument jsonDoc = null;
+            if (request.HasJsonContentType())
+            {
+                using (var reader = new StreamReader(request.Body, leaveOpen: true))
+                {
+                    var body = reader.ReadToEnd();
+                    request.Body.Seek(0, SeekOrigin.Begin);
+                    jsonDoc = JsonDocument.Parse(body);
+                }
+            }
+            JsonElement jsonElem = default;
+            if (jsonDoc != null && jsonDoc.RootElement.TryGetProperty(parameter, out jsonElem))
+            {
+                value = jsonElem.GetString();
+            }
 
             return value;
         }

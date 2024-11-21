@@ -350,6 +350,8 @@ namespace DnsServerCore
 
             builder.WebHost.ConfigureKestrel(delegate (WebHostBuilderContext context, KestrelServerOptions serverOptions)
             {
+                serverOptions.AllowSynchronousIO = true;
+
                 //http
                 foreach (IPAddress webServiceLocalAddress in webServiceLocalAddresses)
                     serverOptions.Listen(webServiceLocalAddress, webServiceHttpPort);
