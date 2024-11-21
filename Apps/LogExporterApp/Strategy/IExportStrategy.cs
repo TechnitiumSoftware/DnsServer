@@ -28,6 +28,6 @@ namespace LogExporter.Strategy
     /// </summary>
     public interface IExportStrategy: IDisposable
     {
-        Task ExportAsync(List<LogEntry> logs);
+        void Export(List<LogEntry> logs);
     }
 }

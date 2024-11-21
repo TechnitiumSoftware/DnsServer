@@ -23,7 +23,6 @@ using Serilog.Sinks.Http;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -59,10 +58,12 @@ namespace LogExporter.Strategy
 
         #region public
 
-        public Task ExportAsync(List<LogEntry> logs)
+        public void Export(List<LogEntry> logs)
         {
-            var tasks = logs.Select(log => Task.Run(() => _sender.Information(log.ToString())));
-            return Task.WhenAll(tasks);
+            foreach (LogEntry logEntry in logs)
+            {
+                _sender.Information(logEntry.ToString());
+            }
         }
 
         #endregion public

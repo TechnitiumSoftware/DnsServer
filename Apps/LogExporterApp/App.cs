@@ -25,7 +25,6 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -82,7 +81,7 @@ namespace LogExporter
                 {
                     _queueTimer?.Dispose();
 
-                    ExportLogsAsync().Sync(); //flush any pending logs
+                    ExportLogs(); //flush any pending logs
 
                     _logBuffer.Dispose();
                 }
@@ -138,7 +137,7 @@ namespace LogExporter
 
         #region private
 
-        private async Task ExportLogsAsync()
+        private void ExportLogs()
         {
             var logs = new List<LogEntry>(BULK_INSERT_COUNT);
 
@@ -151,15 +150,15 @@ namespace LogExporter
             // If we have any logs to process, export them
             if (logs.Count > 0)
             {
-                await _exportManager.ImplementStrategyForAsync(logs);
+                _exportManager.ImplementStrategy(logs);
             }
         }
 
-        private async void HandleExportLogCallback(object? state)
+        private void HandleExportLogCallback(object? state)
         {
             try
             {
-                await ExportLogsAsync().ConfigureAwait(false);
+                ExportLogs();
             }
             catch (Exception ex)
             {
