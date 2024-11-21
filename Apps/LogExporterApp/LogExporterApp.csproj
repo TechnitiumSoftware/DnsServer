@@ -34,9 +34,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="Serilog.Sinks.SyslogMessages">
-      <HintPath>Serilog.Sinks.SyslogMessages.dll</HintPath>
-    </Reference>
     <Reference Include="TechnitiumLibrary.Net">
       <HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
       <Private>false</Private>
