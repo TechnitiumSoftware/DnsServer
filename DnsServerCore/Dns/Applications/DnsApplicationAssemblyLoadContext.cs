@@ -63,6 +63,27 @@ namespace DnsServerCore.Dns.Applications
                 }
             };
 
+            Resolving += delegate (AssemblyLoadContext currentContext, AssemblyName requiredAssembly)
+            {
+                string requiredAssemblyName = requiredAssembly.Name;
+
+                foreach (Assembly loadedAssembly in Default.Assemblies)
+                {
+                    if (!string.IsNullOrEmpty(loadedAssembly.Location))
+                    {
+                        if (requiredAssemblyName.Equals(Path.GetFileNameWithoutExtension(loadedAssembly.Location), StringComparison.OrdinalIgnoreCase))
+                            return loadedAssembly;
+                    }
+                    else
+                    {
+                        if (requiredAssemblyName.Equals(loadedAssembly.GetName().Name, StringComparison.OrdinalIgnoreCase))
+                            return loadedAssembly;
+                    }
+                }
+
+                return null;
+            };
+
             //load all app assemblies
             IEnumerable<Assembly> loadedAssemblies = Default.Assemblies;
             Dictionary<string, Assembly> appAssemblies = new Dictionary<string, Assembly>();
@@ -77,7 +98,7 @@ namespace DnsServerCore.Dns.Applications
                 {
                     if (!string.IsNullOrEmpty(loadedAssembly.Location))
                     {
-                        if (Path.GetFileNameWithoutExtension(loadedAssembly.Location).Equals(dllFileName, StringComparison.OrdinalIgnoreCase))
+                        if (dllFileName.Equals(Path.GetFileNameWithoutExtension(loadedAssembly.Location), StringComparison.OrdinalIgnoreCase))
                         {
                             isLoaded = true;
                             break;
@@ -85,9 +106,7 @@ namespace DnsServerCore.Dns.Applications
                     }
                     else
                     {
-                        AssemblyName assemblyName = loadedAssembly.GetName();
-
-                        if ((assemblyName.Name != null) && assemblyName.Name.Equals(dllFileName, StringComparison.OrdinalIgnoreCase))
+                        if (dllFileName.Equals(loadedAssembly.GetName().Name, StringComparison.OrdinalIgnoreCase))
                         {
                             isLoaded = true;
                             break;
