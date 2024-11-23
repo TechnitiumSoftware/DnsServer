@@ -430,7 +430,7 @@ namespace Failover
 
                                 return new HealthCheckResponse(HealthStatus.Failed, "Received HTTP status code: " + (int)httpResponse.StatusCode + " " + httpResponse.StatusCode.ToString() + "; URL: " + url.AbsoluteUri);
                             }
-                            catch (TaskCanceledException ex)
+                            catch (OperationCanceledException ex)
                             {
                                 lastReason = "Connection timed out.";
                                 lastException = ex;
