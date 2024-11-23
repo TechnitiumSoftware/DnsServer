@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using Serilog;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace LogExporter.Strategy
 {
@@ -43,12 +44,15 @@ namespace LogExporter.Strategy
 
         #region public
 
-        public void Export(List<LogEntry> logs)
+        public Task ExportAsync(List<LogEntry> logs)
         {
-            foreach (LogEntry logEntry in logs)
+            return Task.Run(() =>
+            {
+                foreach (LogEntry logEntry in logs)
             {
                 _sender.Information(logEntry.ToString());
             }
+            });
         }
 
         #endregion public

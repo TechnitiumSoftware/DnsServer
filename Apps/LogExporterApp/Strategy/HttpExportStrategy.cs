@@ -58,12 +58,15 @@ namespace LogExporter.Strategy
 
         #region public
 
-        public void Export(List<LogEntry> logs)
+        public Task ExportAsync(List<LogEntry> logs)
         {
-            foreach (LogEntry logEntry in logs)
+            return Task.Run(() =>
             {
-                _sender.Information(logEntry.ToString());
-            }
+                foreach (LogEntry logEntry in logs)
+                {
+                    _sender.Information(logEntry.ToString());
+                }
+            });
         }
 
         #endregion public

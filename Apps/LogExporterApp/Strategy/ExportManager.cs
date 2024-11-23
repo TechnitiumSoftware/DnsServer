@@ -52,11 +52,11 @@ namespace LogExporter.Strategy
             return _exportStrategies.Count > 0;
         }
 
-        public void ImplementStrategy(List<LogEntry> logs)
+        public async Task ImplementStrategy(List<LogEntry> logs)
         {
             foreach (var strategy in _exportStrategies.Values)
             {
-                strategy.Export(logs);
+                await strategy.ExportAsync(logs).ConfigureAwait(false);
             }
         }
 

@@ -24,6 +24,7 @@ using Serilog.Sinks.Syslog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace LogExporter.Strategy
 {
@@ -74,15 +75,16 @@ namespace LogExporter.Strategy
 
         #region public
 
-        public void Export(List<LogEntry> logs)
+        public Task ExportAsync(List<LogEntry> logs)
         {
-
-            foreach (var log in logs)
+            return Task.Run(() =>
             {
-                Log.Information(_formatter.FormatMessage(Convert(log)));
-            }
+                foreach (var log in logs)
+                {
+                    _sender.Information((string?)_formatter.FormatMessage((LogEvent?)Convert(log)));
+                }
+            });
         }
-
         #endregion public
 
         #region IDisposable
