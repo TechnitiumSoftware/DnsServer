@@ -318,28 +318,31 @@ $(function () {
         var enableDnsOverUdpProxy = $("#chkEnableDnsOverUdpProxy").prop("checked");
         var enableDnsOverTcpProxy = $("#chkEnableDnsOverTcpProxy").prop("checked");
         var enableDnsOverHttp = $("#chkEnableDnsOverHttp").prop("checked");
+        var enableDnsOverHttps = $("#chkEnableDnsOverHttps").prop("checked");
 
         $("#txtDnsOverUdpProxyPort").prop("disabled", !enableDnsOverUdpProxy);
-        $("#txtReverseProxyNetworkACL").prop("disabled", !enableDnsOverUdpProxy && !enableDnsOverTcpProxy && !enableDnsOverHttp);
+        $("#txtReverseProxyNetworkACL").prop("disabled", !enableDnsOverUdpProxy && !enableDnsOverTcpProxy && !enableDnsOverHttp && !enableDnsOverHttps);
     });
 
     $("#chkEnableDnsOverTcpProxy").click(function () {
         var enableDnsOverUdpProxy = $("#chkEnableDnsOverUdpProxy").prop("checked");
         var enableDnsOverTcpProxy = $("#chkEnableDnsOverTcpProxy").prop("checked");
         var enableDnsOverHttp = $("#chkEnableDnsOverHttp").prop("checked");
+        var enableDnsOverHttps = $("#chkEnableDnsOverHttps").prop("checked");
 
         $("#txtDnsOverTcpProxyPort").prop("disabled", !enableDnsOverTcpProxy);
-        $("#txtReverseProxyNetworkACL").prop("disabled", !enableDnsOverUdpProxy && !enableDnsOverTcpProxy && !enableDnsOverHttp);
+        $("#txtReverseProxyNetworkACL").prop("disabled", !enableDnsOverUdpProxy && !enableDnsOverTcpProxy && !enableDnsOverHttp && !enableDnsOverHttps);
     });
 
     $("#chkEnableDnsOverHttp").click(function () {
         var enableDnsOverUdpProxy = $("#chkEnableDnsOverUdpProxy").prop("checked");
         var enableDnsOverTcpProxy = $("#chkEnableDnsOverTcpProxy").prop("checked");
         var enableDnsOverHttp = $("#chkEnableDnsOverHttp").prop("checked");
+        var enableDnsOverHttps = $("#chkEnableDnsOverHttps").prop("checked");
 
         $("#txtDnsOverHttpPort").prop("disabled", !enableDnsOverHttp);
-        $("#txtReverseProxyNetworkACL").prop("disabled", !enableDnsOverUdpProxy && !enableDnsOverTcpProxy && !enableDnsOverHttp);
-        $("#txtDnsOverHttpRealIpHeader").prop("disabled", !enableDnsOverHttp);
+        $("#txtReverseProxyNetworkACL").prop("disabled", !enableDnsOverUdpProxy && !enableDnsOverTcpProxy && !enableDnsOverHttp && !enableDnsOverHttps);
+        $("#txtDnsOverHttpRealIpHeader").prop("disabled", !enableDnsOverHttp && !enableDnsOverHttps);
     });
 
     $("#chkEnableDnsOverTls").click(function () {
@@ -353,14 +356,19 @@ $(function () {
     });
 
     $("#chkEnableDnsOverHttps").click(function () {
+        var enableDnsOverUdpProxy = $("#chkEnableDnsOverUdpProxy").prop("checked");
+        var enableDnsOverTcpProxy = $("#chkEnableDnsOverTcpProxy").prop("checked");
         var enableDnsOverTls = $("#chkEnableDnsOverTls").prop("checked");
+        var enableDnsOverHttp = $("#chkEnableDnsOverHttp").prop("checked");
         var enableDnsOverHttps = $("#chkEnableDnsOverHttps").prop("checked");
         var enableDnsOverQuic = $("#chkEnableDnsOverQuic").prop("checked");
 
         $("#chkEnableDnsOverHttp3").prop("disabled", !enableDnsOverHttps);
         $("#txtDnsOverHttpsPort").prop("disabled", !enableDnsOverHttps);
+        $("#txtReverseProxyNetworkACL").prop("disabled", !enableDnsOverUdpProxy && !enableDnsOverTcpProxy && !enableDnsOverHttp && !enableDnsOverHttps);
         $("#txtDnsTlsCertificatePath").prop("disabled", !enableDnsOverTls && !enableDnsOverHttps && !enableDnsOverQuic);
         $("#txtDnsTlsCertificatePassword").prop("disabled", !enableDnsOverTls && !enableDnsOverHttps && !enableDnsOverQuic);
+        $("#txtDnsOverHttpRealIpHeader").prop("disabled", !enableDnsOverHttp && !enableDnsOverHttps);
     });
 
     $("#chkEnableDnsOverQuic").click(function () {
