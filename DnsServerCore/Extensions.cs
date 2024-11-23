@@ -32,7 +32,7 @@ namespace DnsServerCore
     {
         readonly static string[] HTTP_METHODS = new string[] { "GET", "POST" };
 
-        public static IPEndPoint GetRemoteEndPoint(this HttpContext context, string realIpHeaderName = null, bool readRealIpHeaderForPrivateIpOnly = true)
+        public static IPEndPoint GetRemoteEndPoint(this HttpContext context, string realIpHeaderName = null)
         {
             try
             {
@@ -43,7 +43,7 @@ namespace DnsServerCore
                 if (remoteIP.IsIPv4MappedToIPv6)
                     remoteIP = remoteIP.MapToIPv4();
 
-                if (!string.IsNullOrEmpty(realIpHeaderName) && (!readRealIpHeaderForPrivateIpOnly || NetUtilities.IsPrivateIP(remoteIP)))
+                if (!string.IsNullOrEmpty(realIpHeaderName) && NetUtilities.IsPrivateIP(remoteIP))
                 {
                     //get the real IP address of the requesting client from X-Real-IP header set in nginx proxy_pass block
                     string xRealIp = context.Request.Headers[realIpHeaderName];
