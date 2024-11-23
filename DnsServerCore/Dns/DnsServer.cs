@@ -919,19 +919,25 @@ namespace DnsServerCore.Dns
                 HttpRequest request = context.Request;
                 HttpResponse response = context.Response;
 
-                if (!request.IsHttps)
+                if (NetworkAccessControl.IsAddressAllowed(remoteEP.Address, _reverseProxyNetworkACL))
                 {
-                    //DNS-over-HTTP insecure protocol
-                    if (!NetworkAccessControl.IsAddressAllowed(remoteEP.Address, _reverseProxyNetworkACL))
+                    //try to get client's actual IP from X-Real-IP header, if any
+                    if (!string.IsNullOrEmpty(_dnsOverHttpRealIpHeader))
                     {
-                        //this feature is intended to be used with an SSL terminated reverse proxy like nginx on private network
+                        string xRealIp = context.Request.Headers[_dnsOverHttpRealIpHeader];
+                        if (IPAddress.TryParse(xRealIp, out IPAddress address))
+                            remoteEP = new IPEndPoint(address, 0);
+                    }
+                }
+                else
+                {
+                    if (!request.IsHttps)
+                    {
+                        //DNS-over-HTTP insecure protocol is intended to be used with an SSL terminated reverse proxy like nginx on private network
                         response.StatusCode = 403;
                         await response.WriteAsync("DNS-over-HTTPS (DoH) queries are supported only on HTTPS.");
                         return;
                     }
-
-                    //set client's actual IP from X-Real-IP header
-                    remoteEP = context.GetRemoteEndPoint(_dnsOverHttpRealIpHeader, false);
                 }
 
                 if (IsQpmLimitCrossed(remoteEP.Address))
