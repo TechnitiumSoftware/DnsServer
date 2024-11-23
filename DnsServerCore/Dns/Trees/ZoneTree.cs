@@ -284,7 +284,6 @@ namespace DnsServerCore.Dns.Trees
                         return null; //no child or wildcard found
 
                     //use wildcard node
-                    //currentNode = wildcardNode; //use wildcard node as current node
                     break;
                 }
 
@@ -312,7 +311,7 @@ namespace DnsServerCore.Dns.Trees
                         NodeValue wildcardValue = wildcardNode.Value;
                         if (wildcardValue is not null)
                         {
-                            if (IsKeySubDomain(wildcardValue.Key, value.Key, matchWildcard))
+                            if (IsKeySubDomain(key, value.Key, false) && IsKeySubDomain(wildcardValue.Key, value.Key, matchWildcard))
                             {
                                 //value is a subdomain of an ENT so wildcard is not valid
                                 wildcardNode = null;
