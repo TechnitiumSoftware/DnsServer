@@ -3244,7 +3244,12 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsNSRecordData(nameServer));
 
                         if (!string.IsNullOrEmpty(glueAddresses))
+                        {
+                            if (zoneInfo.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                                throw new DnsWebServiceException("The zone's own NS records cannot have glue addresses. Please add separate A/AAAA records in the zone instead.");
+
                             newRecord.SetGlueRecords(glueAddresses);
+                        }
                     }
                     break;
 
@@ -3994,7 +3999,12 @@ namespace DnsServerCore
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsNSRecordData(newNameServer));
 
                         if (request.TryGetQueryOrForm("glue", out string glueAddresses))
+                        {
+                            if (zoneInfo.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                                throw new DnsWebServiceException("The zone's own NS records cannot have glue addresses. Please add separate A/AAAA records in the zone instead.");
+
                             newRecord.SetGlueRecords(glueAddresses);
+                        }
                     }
                     break;
 
