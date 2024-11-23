@@ -25,7 +25,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 
-namespace DnsServerCore.Dns
+namespace DnsServerCore.Dns.Applications
 {
     class DnsApplicationAssemblyLoadContext : AssemblyLoadContext
     {
@@ -63,9 +63,9 @@ namespace DnsServerCore.Dns
                 }
             };
 
-            _appAssemblies = new List<Assembly>();
-
+            //load all app assemblies
             IEnumerable<Assembly> loadedAssemblies = Default.Assemblies;
+            Dictionary<string, Assembly> appAssemblies = new Dictionary<string, Assembly>();
 
             foreach (string dllFile in Directory.GetFiles(_dnsServer.ApplicationFolder, "*.dll", SearchOption.TopDirectoryOnly))
             {
@@ -121,36 +121,42 @@ namespace DnsServerCore.Dns
                         }
                     }
 
-                    if (_dependencyResolver is null)
-                    {
-                        bool isMainAssembly = false;
-
-                        foreach (Type classType in appAssembly.ExportedTypes)
-                        {
-                            foreach (Type interfaceType in classType.GetInterfaces())
-                            {
-                                if (interfaceType == _dnsApplicationInterface)
-                                {
-                                    isMainAssembly = true;
-                                    break;
-                                }
-                            }
-
-                            if (isMainAssembly)
-                                break;
-                        }
-
-                        if (isMainAssembly)
-                            _dependencyResolver = new AssemblyDependencyResolver(dllFile);
-                    }
-
-                    _appAssemblies.Add(appAssembly);
+                    appAssemblies.Add(dllFile, appAssembly);
                 }
                 catch (Exception ex)
                 {
                     _dnsServer.WriteLog(ex);
                 }
             }
+
+            //init assembly dependency resolver for main app dll
+            foreach (KeyValuePair<string, Assembly> appAssembly in appAssemblies)
+            {
+                bool isMainAssembly = false;
+
+                foreach (Type classType in appAssembly.Value.ExportedTypes)
+                {
+                    foreach (Type interfaceType in classType.GetInterfaces())
+                    {
+                        if (interfaceType == _dnsApplicationInterface)
+                        {
+                            isMainAssembly = true;
+                            break;
+                        }
+                    }
+
+                    if (isMainAssembly)
+                        break;
+                }
+
+                if (isMainAssembly)
+                {
+                    _dependencyResolver = new AssemblyDependencyResolver(appAssembly.Key);
+                    break;
+                }
+            }
+
+            _appAssemblies = new List<Assembly>(appAssemblies.Values);
         }
 
         #endregion
