@@ -4151,6 +4151,12 @@ function addRecord() {
             }
 
             var glue = cleanTextList($("#txtAddEditRecordDataNsGlue").val());
+            var subDomainName = $("#txtAddEditRecordName").val();
+            if ((glue !== "") && ((subDomainName === "") || (subDomainName === "@"))) {
+                showAlert("warning", "Invalid!", "The zone's own NS records cannot have glue addresses. Please add separate A/AAAA records in the zone instead.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataNsGlue").focus();
+                return;
+            }
 
             apiUrl += "&nameServer=" + encodeURIComponent(nameServer) + "&glue=" + encodeURIComponent(glue);
             break;
@@ -5012,6 +5018,12 @@ function updateRecord() {
             }
 
             var glue = cleanTextList($("#txtAddEditRecordDataNsGlue").val());
+            var subDomainName = $("#txtAddEditRecordName").val();
+            if ((glue !== "") && ((subDomainName === "") || (subDomainName === "@"))) {
+                showAlert("warning", "Invalid!", "The zone's own NS records cannot have glue addresses. Please add separate A/AAAA records in the zone instead.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataNsGlue").focus();
+                return;
+            }
 
             apiUrl += "&nameServer=" + encodeURIComponent(nameServer) + "&newNameServer=" + encodeURIComponent(newNameServer) + "&glue=" + encodeURIComponent(glue);
             break;
