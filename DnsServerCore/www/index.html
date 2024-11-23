@@ -1465,7 +1465,7 @@
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtReverseProxyNetworkACL" class="form-control" rows="5" spellcheck="false"></textarea>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Configure the ACL above to allow only requests coming from your reverse proxy server for DNS-over-UDP-PROXY, DNS-over-TCP-PROXY, and DNS-over-HTTP protocols. Enter IP addresses or network addresses one below another to allow access. Add <code>!</code> character at the start to deny access, e.g. <code>!192.168.10.0/24</code> will deny entire subnet. The ACL is processed in the same order its listed. If no networks match, the default policy is to deny all.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Configure the ACL above to allow only requests coming from your reverse proxy server for DNS-over-UDP-PROXY, DNS-over-TCP-PROXY, and DNS-over-HTTP protocols. This ACL will also be used for DNS-over-HTTPS protocol for reading Real IP Header. Enter IP addresses or network addresses one below another to allow access. Add <code>!</code> character at the start to deny access, e.g. <code>!192.168.10.0/24</code> will deny entire subnet. The ACL is processed in the same order its listed. If no networks match, the default policy is to deny all.</div>
                                                         </div>
 
                                                         <div class="form-group">
