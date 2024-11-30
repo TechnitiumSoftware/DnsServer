@@ -1,5 +1,16 @@
 # Technitium DNS Server Change Log
 
+## Version 13.2.1
+Release Date: 30 November 2024
+
+- Updated server to allow DNS-over-HTTPS service to read X-Real-IP header from reverse proxy that are allowed by the ACL.
+- Fixed issue with HTTP/2 on OS versions older than Windows 10 that caused failure to enable HTTPS for admin web service and DNS-over-HTTPS service.
+- Fixed issue with handling connection abort condition for DNS-over-QUIC.
+- Fixed issue with handling a wildcard query case for ENT subdomain names in local zones.
+- Fixed issue with Forwarding where CNAME was not being resolved separately when upstream returned SOA in response authority section.
+- Fixed issue in DNS Application assembly loading implementation that caused issue loading dependencies for some scenarios.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 13.2
 Release Date: 16 November 2024
 
