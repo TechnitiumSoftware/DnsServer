@@ -3245,7 +3245,7 @@ namespace DnsServerCore
 
                         if (!string.IsNullOrEmpty(glueAddresses))
                         {
-                            if (zoneInfo.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                            if (zoneInfo.Name.Equals(domain, StringComparison.OrdinalIgnoreCase) && (nameServer.Equals(domain, StringComparison.OrdinalIgnoreCase) || nameServer.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase)))
                                 throw new DnsWebServiceException("The zone's own NS records cannot have glue addresses. Please add separate A/AAAA records in the zone instead.");
 
                             newRecord.SetGlueRecords(glueAddresses);
@@ -4000,7 +4000,7 @@ namespace DnsServerCore
 
                         if (request.TryGetQueryOrForm("glue", out string glueAddresses))
                         {
-                            if (zoneInfo.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                            if (zoneInfo.Name.Equals(newDomain, StringComparison.OrdinalIgnoreCase) && (newNameServer.Equals(newDomain, StringComparison.OrdinalIgnoreCase) || newNameServer.EndsWith("." + newDomain, StringComparison.OrdinalIgnoreCase)))
                                 throw new DnsWebServiceException("The zone's own NS records cannot have glue addresses. Please add separate A/AAAA records in the zone instead.");
 
                             newRecord.SetGlueRecords(glueAddresses);
