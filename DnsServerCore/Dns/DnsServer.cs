@@ -3202,127 +3202,58 @@ namespace DnsServerCore.Dns
                     _resolverLog.Write("DNS Server failed to resolve the request '" + question.ToString() + "'" + (strForwarders is null ? "" : " using forwarders: " + strForwarders) + ".\r\n" + ex.ToString());
                 }
 
-                if (_serveStale)
+                //fetch failure/stale response to signal; reset stale records
+                DnsDatagram cacheRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, dnssecValidation, DnsResponseCode.NoError, [question], null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(eDnsClientSubnet));
+                DnsDatagram cacheResponse = QueryCache(cacheRequest, _serveStale, _serveStale);
+                if (cacheResponse is not null)
                 {
-                    //fetch and reset stale records
-                    DnsDatagram cacheRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, dnssecValidation, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(eDnsClientSubnet));
-                    DnsDatagram staleResponse = QueryCache(cacheRequest, true, true);
-                    if (staleResponse is not null)
+                    //signal failure/stale response
+                    if (!dnssecValidation || cacheResponse.AuthenticData)
                     {
-                        //signal stale response
-                        if (!dnssecValidation || staleResponse.AuthenticData)
+                        //no dnssec validation enabled OR cache response is validated data
+                        taskCompletionSource.SetResult(new RecursiveResolveResponse(cacheResponse, cacheResponse));
+                    }
+                    else
+                    {
+                        switch (cacheResponse.RCODE)
                         {
-                            taskCompletionSource.SetResult(new RecursiveResolveResponse(staleResponse, staleResponse));
-                        }
-                        else
-                        {
-                            List<EDnsOption> options;
+                            case DnsResponseCode.NoError:
+                            case DnsResponseCode.NxDomain:
+                            case DnsResponseCode.YXDomain:
+                                //cache returned stale answer
+                                taskCompletionSource.SetResult(new RecursiveResolveResponse(cacheResponse, cacheResponse));
+                                break;
 
-                            if ((staleResponse.EDNS is not null) && (staleResponse.EDNS.Options.Count > 0))
-                            {
-                                options = new List<EDnsOption>(staleResponse.EDNS.Options.Count);
+                            default:
+                                //cache returned failure response
+                                List<EDnsOption> options;
 
-                                foreach (EDnsOption option in staleResponse.EDNS.Options)
+                                if ((cacheResponse.EDNS is not null) && (cacheResponse.EDNS.Options.Count > 0))
                                 {
-                                    if (option.Code == EDnsOptionCode.EXTENDED_DNS_ERROR)
-                                        options.Add(option);
+                                    options = new List<EDnsOption>(cacheResponse.EDNS.Options.Count);
+
+                                    foreach (EDnsOption option in cacheResponse.EDNS.Options)
+                                    {
+                                        if (option.Code == EDnsOptionCode.EXTENDED_DNS_ERROR)
+                                            options.Add(option);
+                                    }
                                 }
-                            }
-                            else
-                            {
-                                options = null;
-                            }
+                                else
+                                {
+                                    options = null;
+                                }
 
-                            DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
+                                DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, [question], null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
 
-                            taskCompletionSource.SetResult(new RecursiveResolveResponse(failureResponse, staleResponse));
+                                taskCompletionSource.SetResult(new RecursiveResolveResponse(failureResponse, cacheResponse));
+                                break;
                         }
-
-                        return;
                     }
-                }
-
-                //signal failure response to release waiting tasks
-                if (ex is DnsClientResponseDnssecValidationException ex2)
-                {
-                    List<EDnsOption> options;
-
-                    if (ex2.Response.DnsClientExtendedErrors.Count > 0)
-                    {
-                        options = new List<EDnsOption>(ex2.Response.DnsClientExtendedErrors.Count);
-
-                        foreach (EDnsExtendedDnsErrorOptionData dnsError in ex2.Response.DnsClientExtendedErrors)
-                            options.Add(new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, dnsError));
-                    }
-                    else
-                    {
-                        options = null;
-                    }
-
-                    DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, EDnsHeaderFlags.DNSSEC_OK, options);
-
-                    if ((ex2.Response.Question.Count > 0) && ex2.Response.Question[0].Equals(question))
-                        taskCompletionSource.SetResult(new RecursiveResolveResponse(failureResponse, ex2.Response));
-                    else
-                        taskCompletionSource.SetResult(new RecursiveResolveResponse(failureResponse, failureResponse));
-                }
-                else if (ex is DnsClientNoResponseException ex3)
-                {
-                    IReadOnlyList<EDnsOption> options;
-
-                    if (ex3.InnerException is SocketException ex3a)
-                    {
-                        if (ex3a.SocketErrorCode == SocketError.TimedOut)
-                            options = [new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.NoReachableAuthority, "Request timed out"))];
-                        else
-                            options = [new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.NetworkError, "Socket error: " + ex3a.SocketErrorCode.ToString()))];
-                    }
-                    else
-                    {
-                        options = [new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.NoReachableAuthority, "No response from name servers for " + question.ToString()))];
-                    }
-
-                    DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
-
-                    taskCompletionSource.SetResult(new RecursiveResolveResponse(failureResponse, failureResponse));
-                }
-                else if (ex is SocketException ex4)
-                {
-                    IReadOnlyList<EDnsOption> options;
-
-                    if (ex4.SocketErrorCode == SocketError.TimedOut)
-                        options = [new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.NoReachableAuthority, "Request timed out"))];
-                    else
-                        options = [new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.NetworkError, "Socket error: " + ex4.SocketErrorCode.ToString()))];
-
-                    DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
-
-                    taskCompletionSource.SetResult(new RecursiveResolveResponse(failureResponse, failureResponse));
-                }
-                else if (ex is IOException ex5)
-                {
-                    IReadOnlyList<EDnsOption> options;
-
-                    if (ex5.InnerException is SocketException ex5a)
-                    {
-                        if (ex5a.SocketErrorCode == SocketError.TimedOut)
-                            options = [new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.NoReachableAuthority, "Request timed out"))];
-                        else
-                            options = [new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.NetworkError, "Socket error: " + ex5a.SocketErrorCode.ToString()))];
-                    }
-                    else
-                    {
-                        options = [new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.NetworkError, "IO error: " + ex5.Message))];
-                    }
-
-                    DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
-
-                    taskCompletionSource.SetResult(new RecursiveResolveResponse(failureResponse, failureResponse));
                 }
                 else
                 {
                     IReadOnlyList<EDnsOption> options = [new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Other, "Resolver exception"))];
-                    DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
+                    DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, [question], null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
 
                     taskCompletionSource.SetResult(new RecursiveResolveResponse(failureResponse, failureResponse));
                 }
@@ -3805,9 +3736,8 @@ namespace DnsServerCore.Dns
             //additional section checks
             if (additional.Count > 0)
             {
-                if ((response.RCODE != DnsResponseCode.NoError) && (request.EDNS is not null) && (response.EDNS is not null) && ((response.EDNS.Options.Count > 0) || (response.DnsClientExtendedErrors.Count > 0)))
+                if ((request.EDNS is not null) && (response.EDNS is not null) && ((response.EDNS.Options.Count > 0) || (response.DnsClientExtendedErrors.Count > 0)))
                 {
-                    //only responses with RCODE!=NoError gets cached as a special cache record to preserve EDNS options
                     //copy options as new OPT and keep other records
                     List<DnsResourceRecord> newAdditional = new List<DnsResourceRecord>(additional.Count);
 
@@ -4473,12 +4403,29 @@ namespace DnsServerCore.Dns
                         if (serverCertificate is null)
                             throw new DnsServerException("DNS Server TLS certificate file must contain a certificate with private key.");
 
+                        bool isSupportedHttp2 = _enableDnsOverHttp3;
+                        if (!isSupportedHttp2)
+                        {
+                            switch (Environment.OSVersion.Platform)
+                            {
+                                case PlatformID.Win32NT:
+                                    isSupportedHttp2 = Environment.OSVersion.Version.Major >= 10; //http/2 supported on Windows Server 2016/Windows 10 or later
+                                    break;
+
+                                case PlatformID.Unix:
+                                    isSupportedHttp2 = true; //http/2 supported on Linux with OpenSSL 1.0.2 or later (for example, Ubuntu 16.04 or later)
+                                    break;
+                            }
+                        }
+
                         List<SslApplicationProtocol> applicationProtocols = new List<SslApplicationProtocol>();
 
                         if (_enableDnsOverHttp3)
                             applicationProtocols.Add(new SslApplicationProtocol("h3"));
 
-                        applicationProtocols.Add(new SslApplicationProtocol("h2"));
+                        if (isSupportedHttp2)
+                            applicationProtocols.Add(new SslApplicationProtocol("h2"));
+
                         applicationProtocols.Add(new SslApplicationProtocol("http/1.1"));
 
                         SslServerAuthenticationOptions sslServerAuthenticationOptions = new SslServerAuthenticationOptions
@@ -4491,7 +4438,13 @@ namespace DnsServerCore.Dns
                         {
                             serverOptions.Listen(localAddress, _dnsOverHttpsPort, delegate (ListenOptions listenOptions)
                             {
-                                listenOptions.Protocols = _enableDnsOverHttp3 ? HttpProtocols.Http1AndHttp2AndHttp3 : HttpProtocols.Http1AndHttp2;
+                                if (_enableDnsOverHttp3)
+                                    listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
+                                else if (isSupportedHttp2)
+                                    listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
+                                else
+                                    listenOptions.Protocols = HttpProtocols.Http1;
+
                                 listenOptions.UseHttps(delegate (SslStream stream, SslClientHelloInfo clientHelloInfo, object state, CancellationToken cancellationToken)
                                 {
                                     return ValueTask.FromResult(sslServerAuthenticationOptions);
