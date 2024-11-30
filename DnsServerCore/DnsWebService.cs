@@ -371,12 +371,29 @@ namespace DnsServerCore
                     if (serverCertificate is null)
                         throw new DnsWebServiceException("Web Service TLS certificate file must contain a certificate with private key.");
 
+                    bool isSupportedHttp2 = _webServiceEnableHttp3;
+                    if (!isSupportedHttp2)
+                    {
+                        switch (Environment.OSVersion.Platform)
+                        {
+                            case PlatformID.Win32NT:
+                                isSupportedHttp2 = Environment.OSVersion.Version.Major >= 10; //http/2 supported on Windows Server 2016/Windows 10 or later
+                                break;
+
+                            case PlatformID.Unix:
+                                isSupportedHttp2 = true; //http/2 supported on Linux with OpenSSL 1.0.2 or later (for example, Ubuntu 16.04 or later)
+                                break;
+                        }
+                    }
+
                     List<SslApplicationProtocol> applicationProtocols = new List<SslApplicationProtocol>();
 
                     if (_webServiceEnableHttp3)
                         applicationProtocols.Add(new SslApplicationProtocol("h3"));
 
-                    applicationProtocols.Add(new SslApplicationProtocol("h2"));
+                    if (isSupportedHttp2)
+                        applicationProtocols.Add(new SslApplicationProtocol("h2"));
+
                     applicationProtocols.Add(new SslApplicationProtocol("http/1.1"));
 
                     SslServerAuthenticationOptions webServiceSslServerAuthenticationOptions = new SslServerAuthenticationOptions
@@ -389,7 +406,13 @@ namespace DnsServerCore
                     {
                         serverOptions.Listen(webServiceLocalAddress, webServiceTlsPort, delegate (ListenOptions listenOptions)
                         {
-                            listenOptions.Protocols = _webServiceEnableHttp3 ? HttpProtocols.Http1AndHttp2AndHttp3 : HttpProtocols.Http1AndHttp2;
+                            if (_webServiceEnableHttp3)
+                                listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
+                            else if (isSupportedHttp2)
+                                listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
+                            else
+                                listenOptions.Protocols = HttpProtocols.Http1;
+
                             listenOptions.UseHttps(delegate (SslStream stream, SslClientHelloInfo clientHelloInfo, object state, CancellationToken cancellationToken)
                             {
                                 return ValueTask.FromResult(webServiceSslServerAuthenticationOptions);
