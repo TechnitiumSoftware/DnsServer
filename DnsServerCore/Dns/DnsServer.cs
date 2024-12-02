@@ -3215,38 +3215,74 @@ namespace DnsServerCore.Dns
                     }
                     else
                     {
+                        //dnssec validation enabled; cache response may be a bogus/failure response
+
+                        static bool HasBogusRecords(IReadOnlyList<DnsResourceRecord> records)
+                        {
+                            foreach (DnsResourceRecord record in records)
+                            {
+                                switch (record.DnssecStatus)
+                                {
+                                    case DnssecStatus.Disabled:
+                                    case DnssecStatus.Secure:
+                                    case DnssecStatus.Insecure:
+                                    case DnssecStatus.Indeterminate:
+                                        break;
+
+                                    default:
+                                        return true;
+                                }
+                            }
+
+                            return false;
+                        }
+
+                        bool isFailureResponse = false;
+
                         switch (cacheResponse.RCODE)
                         {
                             case DnsResponseCode.NoError:
                             case DnsResponseCode.NxDomain:
                             case DnsResponseCode.YXDomain:
-                                //cache returned stale answer
-                                taskCompletionSource.SetResult(new RecursiveResolveResponse(cacheResponse, cacheResponse));
+                                isFailureResponse = HasBogusRecords(cacheResponse.Answer);
+                                if (!isFailureResponse)
+                                    isFailureResponse = HasBogusRecords(cacheResponse.Authority);
+
                                 break;
 
                             default:
-                                //cache returned failure response
-                                List<EDnsOption> options;
-
-                                if ((cacheResponse.EDNS is not null) && (cacheResponse.EDNS.Options.Count > 0))
-                                {
-                                    options = new List<EDnsOption>(cacheResponse.EDNS.Options.Count);
-
-                                    foreach (EDnsOption option in cacheResponse.EDNS.Options)
-                                    {
-                                        if (option.Code == EDnsOptionCode.EXTENDED_DNS_ERROR)
-                                            options.Add(option);
-                                    }
-                                }
-                                else
-                                {
-                                    options = null;
-                                }
-
-                                DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, [question], null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
-
-                                taskCompletionSource.SetResult(new RecursiveResolveResponse(failureResponse, cacheResponse));
+                                isFailureResponse = true;
                                 break;
+                        }
+
+                        if (isFailureResponse)
+                        {
+                            //return failure response
+                            List<EDnsOption> options;
+
+                            if ((cacheResponse.EDNS is not null) && (cacheResponse.EDNS.Options.Count > 0))
+                            {
+                                options = new List<EDnsOption>(cacheResponse.EDNS.Options.Count);
+
+                                foreach (EDnsOption option in cacheResponse.EDNS.Options)
+                                {
+                                    if (option.Code == EDnsOptionCode.EXTENDED_DNS_ERROR)
+                                        options.Add(option);
+                                }
+                            }
+                            else
+                            {
+                                options = null;
+                            }
+
+                            DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, [question], null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
+
+                            taskCompletionSource.SetResult(new RecursiveResolveResponse(failureResponse, cacheResponse));
+                        }
+                        else
+                        {
+                            //return cached stale answer
+                            taskCompletionSource.SetResult(new RecursiveResolveResponse(cacheResponse, cacheResponse));
                         }
                     }
                 }
