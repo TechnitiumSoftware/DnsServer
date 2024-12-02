@@ -1,5 +1,10 @@
 # Technitium DNS Server Change Log
 
+## Version 13.2.2
+Release Date: 2 December 2024
+
+- Fixed bug that caused DNS response to include bogus records even when Checking Disabled (CD) is set to false in request.
+
 ## Version 13.2.1
 Release Date: 30 November 2024
 
