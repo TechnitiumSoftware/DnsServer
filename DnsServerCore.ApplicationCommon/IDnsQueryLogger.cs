@@ -139,6 +139,7 @@ namespace DnsServerCore.ApplicationCommon
         readonly IPAddress _clientIpAddress;
         readonly DnsTransportProtocol _protocol;
         readonly DnsServerResponseType _responseType;
+        readonly double? _responseRtt;
         readonly DnsResponseCode _rcode;
         readonly DnsQuestionRecord _question;
         readonly string _answer;
@@ -146,6 +147,42 @@ namespace DnsServerCore.ApplicationCommon
         #endregion
 
         #region constructor
+
+        /// <summary>
+        /// Creates a new object initialized with all the log entry parameters.
+        /// </summary>
+        /// <param name="rowNumber">The row number of the entry in the selected data set.</param>
+        /// <param name="timestamp">The time stamp of the log entry.</param>
+        /// <param name="clientIpAddress">The client IP address of the request.</param>
+        /// <param name="protocol">The DNS transport protocol of the request.</param>
+        /// <param name="responseType">The type of response sent by the DNS server.</param>
+        /// <param name="responseRtt">The round trip time taken to resolve the request.</param>
+        /// <param name="rcode">The response code sent by the DNS server.</param>
+        /// <param name="question">The question section in the request.</param>
+        /// <param name="answer">The answer in text format sent by the DNS server.</param>
+        public DnsLogEntry(long rowNumber, DateTime timestamp, IPAddress clientIpAddress, DnsTransportProtocol protocol, DnsServerResponseType responseType, double? responseRtt, DnsResponseCode rcode, DnsQuestionRecord question, string answer)
+        {
+            _rowNumber = rowNumber;
+            _timestamp = timestamp;
+            _clientIpAddress = clientIpAddress;
+            _protocol = protocol;
+            _responseType = responseType;
+            _responseRtt = responseRtt;
+            _rcode = rcode;
+            _question = question;
+            _answer = answer;
+
+            switch (_timestamp.Kind)
+            {
+                case DateTimeKind.Local:
+                    _timestamp = _timestamp.ToUniversalTime();
+                    break;
+
+                case DateTimeKind.Unspecified:
+                    _timestamp = DateTime.SpecifyKind(_timestamp, DateTimeKind.Utc);
+                    break;
+            }
+        }
 
         /// <summary>
         /// Creates a new object initialized with all the log entry parameters.
@@ -214,6 +251,12 @@ namespace DnsServerCore.ApplicationCommon
         /// </summary>
         public DnsServerResponseType ResponseType
         { get { return _responseType; } }
+
+        /// <summary>
+        /// The round trip time taken to resolve the request.
+        /// </summary>
+        public double? ResponseRtt
+        { get { return _responseRtt; } }
 
         /// <summary>
         /// The response code sent by the DNS server.
