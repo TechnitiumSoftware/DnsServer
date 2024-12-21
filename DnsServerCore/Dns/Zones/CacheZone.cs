@@ -67,7 +67,7 @@ namespace DnsServerCore.Dns.Zones
                         int ecsCount = bR.ReadInt32();
                         if (ecsCount > 0)
                         {
-                            ConcurrentDictionary<NetworkAddress, ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>> ecsEntries = new ConcurrentDictionary<NetworkAddress, ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>>(1, ecsCount);
+                            ConcurrentDictionary<NetworkAddress, ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>> ecsEntries = new ConcurrentDictionary<NetworkAddress, ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>>(-1, ecsCount);
 
                             for (int i = 0; i < ecsCount; i++)
                             {
@@ -129,7 +129,7 @@ namespace DnsServerCore.Dns.Zones
         private static ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> ReadEntriesFrom(BinaryReader bR, bool serveStale)
         {
             int count = bR.ReadInt32();
-            ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entries = new ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>(1, count);
+            ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entries = new ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>(-1, count);
 
             for (int i = 0; i < count; i++)
             {
@@ -196,14 +196,14 @@ namespace DnsServerCore.Dns.Zones
             {
                 if (_ecsEntries is null)
                 {
-                    _ecsEntries = new ConcurrentDictionary<NetworkAddress, ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>>(1, 5);
-                    entries = new ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>(1, 1);
+                    _ecsEntries = new ConcurrentDictionary<NetworkAddress, ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>>(-1, 5);
+                    entries = new ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>(-1, 1);
                     if (!_ecsEntries.TryAdd(eDnsClientSubnet, entries))
                         return false;
                 }
                 else if (!_ecsEntries.TryGetValue(eDnsClientSubnet, out entries))
                 {
-                    entries = new ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>(1, 1);
+                    entries = new ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>(-1, 1);
                     if (!_ecsEntries.TryAdd(eDnsClientSubnet, entries))
                         return false;
                 }
