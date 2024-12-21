@@ -239,9 +239,9 @@ namespace DnsServerCore
             jsonWriter.WriteNumber("defaultRecordTtl", _dnsWebService._zonesApi.DefaultRecordTtl);
             jsonWriter.WriteString("defaultResponsiblePerson", _dnsWebService.DnsServer.ResponsiblePersonInternal?.Address);
             jsonWriter.WriteBoolean("useSoaSerialDateScheme", _dnsWebService.DnsServer.AuthZoneManager.UseSoaSerialDateScheme);
-
+            jsonWriter.WriteNumber("minSoaRefresh", _dnsWebService.DnsServer.AuthZoneManager.MinSoaRefresh);
+            jsonWriter.WriteNumber("minSoaRetry", _dnsWebService.DnsServer.AuthZoneManager.MinSoaRetry);
             jsonWriter.WriteStringArray("zoneTransferAllowedNetworks", _dnsWebService.DnsServer.ZoneTransferAllowedNetworks);
-
             jsonWriter.WriteStringArray("notifyAllowedNetworks", _dnsWebService.DnsServer.NotifyAllowedNetworks);
 
             jsonWriter.WriteBoolean("dnsAppsEnableAutomaticUpdate", _dnsWebService._appsApi.EnableAutomaticUpdate);
@@ -281,6 +281,7 @@ namespace DnsServerCore
             jsonWriter.WriteNumber("quicIdleTimeout", _dnsWebService.DnsServer.QuicIdleTimeout);
             jsonWriter.WriteNumber("quicMaxInboundStreams", _dnsWebService.DnsServer.QuicMaxInboundStreams);
             jsonWriter.WriteNumber("listenBacklog", _dnsWebService.DnsServer.ListenBacklog);
+            jsonWriter.WriteNumber("maxConcurrentResolutionsPerCore", _dnsWebService.DnsServer.MaxConcurrentResolutionsPerCore);
 
             //web service
             jsonWriter.WritePropertyName("webServiceLocalAddresses");
@@ -578,6 +579,7 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Access was denied.");
 
             bool serverDomainChanged = false;
+            bool webServiceLocalAddressesChanged = false;
             bool restartDnsService = false;
             bool restartWebService = false;
             bool blockListUrlsUpdated = false;
@@ -659,6 +661,12 @@ namespace DnsServerCore
 
             if (request.TryGetQueryOrForm("useSoaSerialDateScheme", bool.Parse, out bool useSoaSerialDateScheme))
                 _dnsWebService.DnsServer.AuthZoneManager.UseSoaSerialDateScheme = useSoaSerialDateScheme;
+
+            if (request.TryGetQueryOrForm("minSoaRefresh", uint.Parse, out uint minSoaRefresh))
+                _dnsWebService.DnsServer.AuthZoneManager.MinSoaRefresh = minSoaRefresh;
+
+            if (request.TryGetQueryOrForm("minSoaRetry", uint.Parse, out uint minSoaRetry))
+                _dnsWebService.DnsServer.AuthZoneManager.MinSoaRetry = minSoaRetry;
 
             string zoneTransferAllowedNetworks = request.QueryOrForm("zoneTransferAllowedNetworks");
             if (zoneTransferAllowedNetworks is not null)
@@ -744,6 +752,9 @@ namespace DnsServerCore
             if (request.TryGetQueryOrForm("listenBacklog", int.Parse, out int listenBacklog))
                 _dnsWebService.DnsServer.ListenBacklog = listenBacklog;
 
+            if (request.TryGetQueryOrForm("maxConcurrentResolutionsPerCore", ushort.Parse, out ushort maxConcurrentResolutionsPerCore))
+                _dnsWebService.DnsServer.MaxConcurrentResolutionsPerCore = maxConcurrentResolutionsPerCore;
+
             //web service
             string webServiceLocalAddresses = request.QueryOrForm("webServiceLocalAddresses");
             if (webServiceLocalAddresses is not null)
@@ -756,6 +767,7 @@ namespace DnsServerCore
                 {
                     if (_dnsWebService._webServiceLocalAddresses.Count != localAddresses.Length)
                     {
+                        webServiceLocalAddressesChanged = true;
                         restartWebService = true;
                     }
                     else
@@ -764,6 +776,7 @@ namespace DnsServerCore
                         {
                             if (!localAddresses.Contains(currentlocalAddress))
                             {
+                                webServiceLocalAddressesChanged = true;
                                 restartWebService = true;
                                 break;
                             }
@@ -1442,7 +1455,7 @@ namespace DnsServerCore
             if ((_dnsWebService._webServiceTlsCertificatePath is null) && (_dnsWebService._dnsTlsCertificatePath is null))
                 _dnsWebService.StopTlsCertificateUpdateTimer();
 
-            _dnsWebService.SelfSignedCertCheck(serverDomainChanged, true);
+            _dnsWebService.SelfSignedCertCheck(serverDomainChanged || webServiceLocalAddressesChanged, true);
 
             if (_dnsWebService._webServiceEnableTls && string.IsNullOrEmpty(_dnsWebService._webServiceTlsCertificatePath) && !_dnsWebService._webServiceUseSelfSignedTlsCertificate)
             {
