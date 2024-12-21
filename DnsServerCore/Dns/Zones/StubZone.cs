@@ -185,60 +185,66 @@ namespace DnsServerCore.Dns.Zones
 
         #region private
 
-        private async void RefreshTimerCallback(object state)
+        private void RefreshTimerCallback(object state)
         {
-            try
+            //refresh zone in DNS server's resolver thread pool
+            if (!_dnsServer.TryQueueResolverTask(async delegate (object state)
             {
-                if (Disabled && !_resync)
-                    return;
-
-                _isExpired = DateTime.UtcNow > _expiry;
-
-                //get primary name server addresses
-                IReadOnlyList<NameServerAddress> primaryNameServers = await GetResolvedPrimaryNameServerAddressesAsync();
-
-                if (primaryNameServers.Count == 0)
+                try
                 {
-                    _dnsServer.LogManager?.Write("DNS Server could not find primary name server IP addresses for Stub zone: " + ToString());
+                    if (Disabled && !_resync)
+                        return;
+
+                    _isExpired = DateTime.UtcNow > _expiry;
+
+                    //get primary name server addresses
+                    IReadOnlyList<NameServerAddress> primaryNameServers = await GetResolvedPrimaryNameServerAddressesAsync();
+
+                    if (primaryNameServers.Count == 0)
+                    {
+                        _dnsServer.LogManager?.Write("DNS Server could not find primary name server IP addresses for Stub zone: " + ToString());
+
+                        //set timer for retry
+                        ResetRefreshTimer(Math.Max(GetZoneSoaRetry(), _dnsServer.AuthZoneManager.MinSoaRetry) * 1000);
+                        _syncFailed = true;
+                        return;
+                    }
+
+                    //refresh zone
+                    if (await RefreshZoneAsync(primaryNameServers))
+                    {
+                        //zone refreshed; set timer for refresh
+                        DnsSOARecordData latestSoa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
+                        ResetRefreshTimer(Math.Max(latestSoa.Refresh, _dnsServer.AuthZoneManager.MinSoaRefresh) * 1000);
+                        _syncFailed = false;
+                        _expiry = DateTime.UtcNow.AddSeconds(latestSoa.Expire);
+                        _isExpired = false;
+                        _resync = false;
+                        _dnsServer.AuthZoneManager.SaveZoneFile(_name);
+                        return;
+                    }
+
+                    //no response from any of the name servers; set timer for retry
+                    ResetRefreshTimer(Math.Max(GetZoneSoaRetry(), _dnsServer.AuthZoneManager.MinSoaRetry) * 1000);
+                    _syncFailed = true;
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer.LogManager?.Write(ex);
 
                     //set timer for retry
-                    DnsSOARecordData soa1 = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
-                    ResetRefreshTimer(soa1.Retry * 1000);
+                    ResetRefreshTimer(Math.Max(GetZoneSoaRetry(), _dnsServer.AuthZoneManager.MinSoaRetry) * 1000);
                     _syncFailed = true;
-                    return;
                 }
-
-                //refresh zone
-                if (await RefreshZoneAsync(primaryNameServers))
+                finally
                 {
-                    //zone refreshed; set timer for refresh
-                    DnsSOARecordData latestSoa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
-                    ResetRefreshTimer(latestSoa.Refresh * 1000);
-                    _syncFailed = false;
-                    _expiry = DateTime.UtcNow.AddSeconds(latestSoa.Expire);
-                    _isExpired = false;
-                    _resync = false;
-                    _dnsServer.AuthZoneManager.SaveZoneFile(_name);
-                    return;
+                    _refreshTimerTriggered = false;
                 }
-
-                //no response from any of the name servers; set timer for retry
-                DnsSOARecordData soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
-                ResetRefreshTimer(soa.Retry * 1000);
-                _syncFailed = true;
-            }
-            catch (Exception ex)
+            })
+            )
             {
-                _dnsServer.LogManager?.Write(ex);
-
-                //set timer for retry
-                DnsSOARecordData soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
-                ResetRefreshTimer(soa.Retry * 1000);
-                _syncFailed = true;
-            }
-            finally
-            {
-                _refreshTimerTriggered = false;
+                //failed to queue refresh zone task; try again in some time
+                _refreshTimer?.Change(REFRESH_TIMER_INTERVAL, Timeout.Infinite);
             }
         }
 
