@@ -379,6 +379,9 @@ namespace DnsServerCore.Dns.Zones
 
         public override IReadOnlyList<DnsResourceRecord> QueryRecords(DnsResourceRecordType type, bool dnssecOk)
         {
+            if (type == DnsResourceRecordType.SOA)
+                return base.QueryRecords(type, dnssecOk); //allow SOA for zone transfer to work with bind
+
             return []; //catalog zone is not queriable
         }
 
