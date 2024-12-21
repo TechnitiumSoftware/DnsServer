@@ -2368,7 +2368,7 @@ namespace DnsServerCore.Dns.Zones
         private uint GetSignatureValidityPeriod()
         {
             //SOA EXPIRE + 3 days
-            return (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).Expire + (3 * 24 * 60 * 60);
+            return GetZoneSoaExpire() + (3 * 24 * 60 * 60);
         }
 
         internal DateTime GetKskDnsKeyStateReadyBy(DnssecPrivateKey privateKey)
