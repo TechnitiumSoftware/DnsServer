@@ -1828,7 +1828,7 @@ WHERE:
 - `zone`: The domain name for creating the new zone. The value can be valid domain name, an IP address, or an network address in CIDR format. When value is IP address or network address, a reverse zone is created.
 - `type`: The type of zone to be created. Valid values are [`Primary`, `Secondary`, `Stub`, `Forwarder`, `SecondaryForwarder`, `Catalog`, `SecondaryCatalog`].
 - `catalog` (optional): The name of the catalog zone to become its member zone. This option is valid only for `Primary`, `Stub`, and `Forwarder` zones.
-- `useSoaSerialDateScheme` (optional): Set value to `true` to enable using date scheme for SOA serial. This optional parameter is used only with `Primary` zone. Default value is `false`.
+- `useSoaSerialDateScheme` (optional): Set value to `true` to enable using date scheme for SOA serial. This optional parameter is used only with `Primary`, `Forwarder`, and `Catalog` zones. Default value is `false`.
 - `primaryNameServerAddresses` (optional): List of comma separated IP addresses or domain names of the primary name server. This optional parameter is used only with `Secondary`, `SecondaryForwarder`, `SecondaryCatalog`, and `Stub` zones. If this parameter is not used, the DNS server will try to recursively resolve the primary name server addresses automatically for `Secondary` and `Stub` zones. This option is required for `SecondaryForwarder` and `SecondaryCatalog` zones.
 - `zoneTransferProtocol` (optional): The zone transfer protocol to be used by `Secondary`, `SecondaryForwarder`, and `SecondaryCatalog` zones. Valid values are [`Tcp`, `Tls`, `Quic`].
 - `tsigKeyName` (optional): The TSIG key name to be used by `Secondary`, `SecondaryForwarder`, and `SecondaryCatalog` zones.
@@ -3398,6 +3398,7 @@ WHERE:
 - `retry` (optional): This is the retry parameter in the SOA record. This parameter is required when updating the SOA record.
 - `expire` (optional): This is the expire parameter in the SOA record. This parameter is required when updating the SOA record.
 - `minimum` (optional): This is the minimum parameter in the SOA record. This parameter is required when updating the SOA record.
+- `useSerialDateScheme` (optional):  Set value to `true` to enable using date scheme for SOA serial. This optional parameter is used only with `Primary`, `Forwarder`, and `Catalog` zones. Default value is `false`. This parameter is required when updating the SOA record.
 - `ptrName`(optional): The current PTR domain name. This option is required for updating `PTR` record.
 - `newPtrName`(optional): The new PTR domain name. This option is required for updating `PTR` record.
 - `preference` (optional): The current preference value in an MX record. This parameter when missing will default to `1` value. This parameter is used only when updating `MX` record.
@@ -4527,7 +4528,7 @@ RESPONSE:
 ```
 {
 	"response": {
-		"version": "13.2",
+		"version": "13.3",
 		"uptimestamp": "2024-10-19T17:30:25.124826Z",
 		"dnsServerDomain": "server1",
 		"dnsServerLocalEndPoints": [
@@ -4543,6 +4544,8 @@ RESPONSE:
 		"defaultRecordTtl": 3600,
 		"defaultResponsiblePerson": null,
 		"useSoaSerialDateScheme": false,
+		"minSoaRefresh": 300,
+		"minSoaRetry": 300,
 		"zoneTransferAllowedNetworks": [],
 		"notifyAllowedNetworks": [],
 		"dnsAppsEnableAutomaticUpdate": true,
@@ -4566,6 +4569,7 @@ RESPONSE:
 		"quicIdleTimeout": 60000,
 		"quicMaxInboundStreams": 100,
 		"listenBacklog": 100,
+		"maxConcurrentResolutionsPerCore": 100,
 		"webServiceLocalAddresses": [
 			"[::]"
 		],
@@ -4684,6 +4688,8 @@ WHERE:
 - `defaultRecordTtl` (optional): The default TTL value to use if not specified when adding or updating records in a Zone.
 - `defaultResponsiblePerson` (optional): The default SOA Responsible Person email address to use when adding a Primary Zone.
 - `useSoaSerialDateScheme` (optional): The default SOA Serial option to use if not specified when adding a Primary Zone.
+- `minSoaRefresh` (optional): The minimum Refresh interval to be used by Secondary, Stub, Secondary Forwarder, and Secondary Catalog zones. This value will be used if a zone's SOA Refresh value is less than the minimum value. Initial value is `300`.
+- `minSoaRetry` (optional): The minimum Retry interval to be used by Secondary, Stub, Secondary Forwarder, and Secondary Catalog zones zones. This value will be used if a zone's SOA Retry value is less than the minimum value. Initial value is `300`.
 - `zoneTransferAllowedNetworks` (optional): A comma separated list of IP addresses or network addresses that are allowed to perform zone transfer for all zones without any TSIG authentication.
 - `notifyAllowedNetworks` (optional): A comma separated list of IP addresses or network addresses that are allowed to Notify all secondary zones.
 - `dnsAppsEnableAutomaticUpdate` (optional): Set to `true` to allow DNS server to automatically update the DNS Apps from the DNS App Store. The DNS Server will check for updates every 24 hrs when this option is enabled.
@@ -4707,6 +4713,7 @@ WHERE:
 - `quicIdleTimeout` (optional): The time interval in milliseconds after which an idle QUIC connection will be closed. This option applies only to QUIC transport protocol. Valid range is `1000`-`90000`. Initial value is `60000`.
 - `quicMaxInboundStreams` (optional): The max number of inbound bidirectional streams that can be accepted per QUIC connection. This option applies only to QUIC transport protocol. Valid range is `1`-`1000`. Initial value is `100`.
 - `listenBacklog` (optional): The maximum number of pending inbound connections. This option applies to TCP, TLS, TcpProxy, and QUIC transport protocols. Initial value is `100`.
+- `maxConcurrentResolutionsPerCore` (optional): The maximum number of concurrent async outbound resolutions that should be done per CPU core.  Initial value is `100`.
 - `webServiceLocalAddresses` (optional): Local addresses are the network interface IP addresses you want the web service to listen for requests. 
 - `webServiceHttpPort` (optional): Specify the TCP port number for the web console and this API web service. Initial value is `5380`.
 - `webServiceEnableTls` (optional): Set this to `true` to start the HTTPS service to access web service.
@@ -6405,6 +6412,7 @@ RESPONSE:
 				"clientIpAddress": "127.0.0.1",
 				"protocol": "Udp",
 				"responseType": "Recursive",
+				"responseRtt": 33.45,
 				"rcode": "NoError",
 				"qname": "google.com",
 				"qtype": "A",
@@ -6513,6 +6521,7 @@ RESPONSE:
 				"clientIpAddress": "127.0.0.1",
 				"protocol": "Udp",
 				"responseType": "Recursive",
+				"responseRtt": 23.63,
 				"rcode": "NoError",
 				"qname": "technitium.com",
 				"qtype": "A",
