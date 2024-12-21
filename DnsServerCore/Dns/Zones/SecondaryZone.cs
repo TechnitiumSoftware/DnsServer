@@ -221,96 +221,103 @@ namespace DnsServerCore.Dns.Zones
 
         #region private
 
-        private async void RefreshTimerCallback(object state)
+        private void RefreshTimerCallback(object state)
         {
-            try
+            //refresh zone in DNS server's resolver thread pool
+            if (!_dnsServer.TryQueueResolverTask(async delegate (object state)
+                {
+                    try
+                    {
+                        if (Disabled && !_resync)
+                            return;
+
+                        _isExpired = DateTime.UtcNow > _expiry;
+
+                        //get primary name server addresses
+                        IReadOnlyList<NameServerAddress> primaryNameServerAddresses;
+                        DnsTransportProtocol primaryZoneTransferProtocol;
+                        string primaryZoneTransferTsigKeyName;
+
+                        SecondaryCatalogZone secondaryCatalogZone = SecondaryCatalogZone;
+
+                        if ((secondaryCatalogZone is not null) && !_overrideCatalogPrimaryNameServers)
+                        {
+                            primaryNameServerAddresses = await GetResolvedNameServerAddressesAsync(secondaryCatalogZone.PrimaryNameServerAddresses);
+                            primaryZoneTransferProtocol = secondaryCatalogZone.PrimaryZoneTransferProtocol;
+                            primaryZoneTransferTsigKeyName = secondaryCatalogZone.PrimaryZoneTransferTsigKeyName;
+                        }
+                        else
+                        {
+                            primaryNameServerAddresses = await GetResolvedPrimaryNameServerAddressesAsync();
+                            primaryZoneTransferProtocol = _primaryZoneTransferProtocol;
+                            primaryZoneTransferTsigKeyName = _primaryZoneTransferTsigKeyName;
+                        }
+
+                        DnsResourceRecord currentSoaRecord = _entries[DnsResourceRecordType.SOA][0];
+                        DnsSOARecordData currentSoa = currentSoaRecord.RDATA as DnsSOARecordData;
+
+                        if (primaryNameServerAddresses.Count == 0)
+                        {
+                            _dnsServer.LogManager?.Write("DNS Server could not find primary name server IP addresses for " + GetZoneTypeName() + " zone: " + ToString());
+
+                            //set timer for retry
+                            ResetRefreshTimer(Math.Max(currentSoa.Retry, _dnsServer.AuthZoneManager.MinSoaRetry) * 1000);
+                            _syncFailed = true;
+                            return;
+                        }
+
+                        TsigKey key = null;
+
+                        if (!string.IsNullOrEmpty(primaryZoneTransferTsigKeyName) && ((_dnsServer.TsigKeys is null) || !_dnsServer.TsigKeys.TryGetValue(primaryZoneTransferTsigKeyName, out key)))
+                        {
+                            _dnsServer.LogManager?.Write("DNS Server does not have TSIG key '" + primaryZoneTransferTsigKeyName + "' configured for refreshing " + GetZoneTypeName() + " zone: " + ToString());
+
+                            //set timer for retry
+                            ResetRefreshTimer(Math.Max(currentSoa.Retry, _dnsServer.AuthZoneManager.MinSoaRetry) * 1000);
+                            _syncFailed = true;
+                            return;
+                        }
+
+                        //refresh zone
+                        if (await RefreshZoneAsync(primaryNameServerAddresses, primaryZoneTransferProtocol, key, _validateZone))
+                        {
+                            DnsSOARecordData latestSoa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
+
+                            _syncFailed = false;
+                            _expiry = DateTime.UtcNow.AddSeconds(latestSoa.Expire);
+                            _isExpired = false;
+                            _resync = false;
+                            _dnsServer.AuthZoneManager.SaveZoneFile(_name);
+
+                            if (_validationFailed)
+                                ResetRefreshTimer(Math.Max(latestSoa.Retry, _dnsServer.AuthZoneManager.MinSoaRetry) * 1000); //zone validation failed, set timer for retry
+                            else
+                                ResetRefreshTimer(Math.Max(latestSoa.Refresh, _dnsServer.AuthZoneManager.MinSoaRefresh) * 1000); //zone refreshed; set timer for refresh
+
+                            return;
+                        }
+
+                        //no response from any of the name servers; set timer for retry
+                        ResetRefreshTimer(Math.Max(GetZoneSoaRetry(), _dnsServer.AuthZoneManager.MinSoaRetry) * 1000);
+                        _syncFailed = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        _dnsServer.LogManager?.Write(ex);
+
+                        //set timer for retry
+                        ResetRefreshTimer(Math.Max(GetZoneSoaRetry(), _dnsServer.AuthZoneManager.MinSoaRetry) * 1000);
+                        _syncFailed = true;
+                    }
+                    finally
+                    {
+                        _refreshTimerTriggered = false;
+                    }
+                })
+            )
             {
-                if (Disabled && !_resync)
-                    return;
-
-                _isExpired = DateTime.UtcNow > _expiry;
-
-                //get primary name server addresses
-                IReadOnlyList<NameServerAddress> primaryNameServerAddresses;
-                DnsTransportProtocol primaryZoneTransferProtocol;
-                string primaryZoneTransferTsigKeyName;
-
-                SecondaryCatalogZone secondaryCatalogZone = SecondaryCatalogZone;
-
-                if ((secondaryCatalogZone is not null) && !_overrideCatalogPrimaryNameServers)
-                {
-                    primaryNameServerAddresses = await GetResolvedNameServerAddressesAsync(secondaryCatalogZone.PrimaryNameServerAddresses);
-                    primaryZoneTransferProtocol = secondaryCatalogZone.PrimaryZoneTransferProtocol;
-                    primaryZoneTransferTsigKeyName = secondaryCatalogZone.PrimaryZoneTransferTsigKeyName;
-                }
-                else
-                {
-                    primaryNameServerAddresses = await GetResolvedPrimaryNameServerAddressesAsync();
-                    primaryZoneTransferProtocol = _primaryZoneTransferProtocol;
-                    primaryZoneTransferTsigKeyName = _primaryZoneTransferTsigKeyName;
-                }
-
-                DnsResourceRecord currentSoaRecord = _entries[DnsResourceRecordType.SOA][0];
-                DnsSOARecordData currentSoa = currentSoaRecord.RDATA as DnsSOARecordData;
-
-                if (primaryNameServerAddresses.Count == 0)
-                {
-                    _dnsServer.LogManager?.Write("DNS Server could not find primary name server IP addresses for " + GetZoneTypeName() + " zone: " + ToString());
-
-                    //set timer for retry
-                    ResetRefreshTimer(currentSoa.Retry * 1000);
-                    _syncFailed = true;
-                    return;
-                }
-
-                TsigKey key = null;
-
-                if (!string.IsNullOrEmpty(primaryZoneTransferTsigKeyName) && ((_dnsServer.TsigKeys is null) || !_dnsServer.TsigKeys.TryGetValue(primaryZoneTransferTsigKeyName, out key)))
-                {
-                    _dnsServer.LogManager?.Write("DNS Server does not have TSIG key '" + primaryZoneTransferTsigKeyName + "' configured for refreshing " + GetZoneTypeName() + " zone: " + ToString());
-
-                    //set timer for retry
-                    ResetRefreshTimer(currentSoa.Retry * 1000);
-                    _syncFailed = true;
-                    return;
-                }
-
-                //refresh zone
-                if (await RefreshZoneAsync(primaryNameServerAddresses, primaryZoneTransferProtocol, key, _validateZone))
-                {
-                    DnsSOARecordData latestSoa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
-
-                    _syncFailed = false;
-                    _expiry = DateTime.UtcNow.AddSeconds(latestSoa.Expire);
-                    _isExpired = false;
-                    _resync = false;
-                    _dnsServer.AuthZoneManager.SaveZoneFile(_name);
-
-                    if (_validationFailed)
-                        ResetRefreshTimer(latestSoa.Retry * 1000); //zone validation failed, set timer for retry
-                    else
-                        ResetRefreshTimer(latestSoa.Refresh * 1000); //zone refreshed; set timer for refresh
-
-                    return;
-                }
-
-                //no response from any of the name servers; set timer for retry
-                DnsSOARecordData soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
-                ResetRefreshTimer(soa.Retry * 1000);
-                _syncFailed = true;
-            }
-            catch (Exception ex)
-            {
-                _dnsServer.LogManager?.Write(ex);
-
-                //set timer for retry
-                DnsSOARecordData soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
-                ResetRefreshTimer(soa.Retry * 1000);
-                _syncFailed = true;
-            }
-            finally
-            {
-                _refreshTimerTriggered = false;
+                //failed to queue refresh zone task; try again in some time
+                _refreshTimer?.Change(REFRESH_TIMER_INTERVAL, Timeout.Infinite);
             }
         }
 
