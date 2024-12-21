@@ -1011,6 +1011,24 @@
                                                         </div>
 
                                                         <div class="form-group">
+                                                            <label for="txtMinSoaRefresh" class="col-sm-3 control-label">Minimum SOA Refresh</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtMinSoaRefresh" placeholder="TTL" style="width: 100px; display: inline;">
+                                                                <span>seconds (default 300)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The minimum Refresh interval to be used by Secondary, Stub, Secondary Forwarder, and Secondary Catalog zones. This value will be used if a zone's SOA Refresh value is less than the minimum value.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtMinSoaRetry" class="col-sm-3 control-label">Minimum SOA Retry</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtMinSoaRetry" placeholder="TTL" style="width: 100px; display: inline;">
+                                                                <span>seconds (default 300)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The minimum Retry interval to be used by Secondary, Stub, Secondary Forwarder, and Secondary Catalog zones zones. This value will be used if a zone's SOA Retry value is less than the minimum value.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
                                                             <label for="txtZoneTransferAllowedNetworks" class="col-sm-3 control-label">Zone Transfer Allowed Networks</label>
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtZoneTransferAllowedNetworks" class="form-control" rows="3" spellcheck="false"></textarea>
@@ -1252,6 +1270,15 @@
                                                                 <span>(default 100)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum number of pending inbound connections. This option applies to TCP, TLS, TcpProxy, and QUIC transport protocols.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtMaxConcurrentResolutionsPerCore" class="col-sm-3 control-label">Max Concurrent Resolutions</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtMaxConcurrentResolutionsPerCore" placeholder="100" style="width: 100px; display: inline;">
+                                                                <span>per CPU core (default 100)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum number of concurrent async outbound resolutions that should be done per CPU core.</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -3332,7 +3359,7 @@
     </div>
 
     <div id="modalForgotPassword" class="modal fade" tabindex="-1" role="dialog">
-        <div class="modal-dialog" role="document">
+        <div class="modal-dialog" role="document" style="width: 780px;">
             <div class="modal-content">
                 <div class="modal-header">
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
@@ -3345,10 +3372,12 @@
                         <li>Stop the DNS server.</li>
                         <li>Find the DNS Server config folder and locate the <b>auth.config</b> file. The config folder will be found where the DNS Server is installed on Windows or /etc/dns/ folder on Linux.</li>
                         <li>Rename the <b>auth.config</b> file as <b>resetadmin.config</b></li>
-                        <li>Start the DNS Server to complete the password reset process.</li>
+                        <li>Start the DNS Server.</li>
                         <li>Just refresh this web page in the web browser to auto login with default credentials and quickly change the password.</li>
                     </ol>
-                    <p>Note: To reset 'admin' password, you will need file system access on the server running this DNS Server. If the 'admin' user does not exists then it will be created automatically.</p>
+                    <p>On Linux, stop the DNS server by running 'sudo systemctl stop dns' command and 'sudo systemctl start dns' command to start it.</p>
+                    <p>On Windows, press Win+R to open Run, enter 'services.msc', and press enter to open Services console. Find service named 'Technitium DNS Server' and use the Action menu to start/stop it.</p>
+                    <p><b>Note: </b>To reset 'admin' password, you will need file system access on the server running this DNS Server. If the 'admin' user does not exists then it will be created automatically.</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
