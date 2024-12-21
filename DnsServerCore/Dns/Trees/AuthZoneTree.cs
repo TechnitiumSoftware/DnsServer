@@ -893,7 +893,7 @@ namespace DnsServerCore.Dns.Trees
             return nsecRecords;
         }
 
-        public IReadOnlyList<DnsResourceRecord> FindNSec3ProofOfNonExistenceNxDomain(string domain, bool isWildcardAnswer, CancellationToken cancellationToken)
+        public IReadOnlyList<DnsResourceRecord> FindNSec3ProofOfNonExistenceNxDomain(string domain, bool isWildcardAnswer)
         {
             List<DnsResourceRecord> nsec3Records = new List<DnsResourceRecord>(3 * 2);
 
@@ -905,8 +905,6 @@ namespace DnsServerCore.Dns.Trees
 
                 while (true)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-
                     AuthZone previousNSec3Zone = FindPreviousSubDomainZone(zoneName, currentOwnerName);
                     if (previousNSec3Zone is null)
                         break;
@@ -926,18 +924,13 @@ namespace DnsServerCore.Dns.Trees
                     //didnt find previous NSEC3; find the last NSEC3
                     currentOwnerName = hashedOwnerName;
 
-                    while (true)
+                    //find first auth zone
+                    AuthZone nextNSec3Zone = GetAuthZone(zoneName, currentOwnerName);
+                    if (nextNSec3Zone is null)
+                        nextNSec3Zone = FindNextSubDomainZone(zoneName, currentOwnerName);
+
+                    while (nextNSec3Zone is not null)
                     {
-                        cancellationToken.ThrowIfCancellationRequested();
-
-                        AuthZone nextNSec3Zone = GetAuthZone(zoneName, currentOwnerName);
-                        if (nextNSec3Zone is null)
-                        {
-                            nextNSec3Zone = FindNextSubDomainZone(zoneName, currentOwnerName);
-                            if (nextNSec3Zone is null)
-                                break;
-                        }
-
                         IReadOnlyList<DnsResourceRecord> nextNSec3Records = nextNSec3Zone.QueryRecords(DnsResourceRecordType.NSEC3, true);
                         if (nextNSec3Records.Count > 0)
                         {
@@ -955,6 +948,9 @@ namespace DnsServerCore.Dns.Trees
                         {
                             currentOwnerName = nextNSec3Zone.Name;
                         }
+
+                        //find next auth zone
+                        nextNSec3Zone = FindNextSubDomainZone(zoneName, currentOwnerName);
                     }
                 }
 
@@ -1009,8 +1005,6 @@ namespace DnsServerCore.Dns.Trees
 
             while (true)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
                 string nextCloserName = DnsNSEC3RecordData.GetNextCloserName(domain, closestEncloser);
                 hashedNextCloserName = nsec3Param.ComputeHashedOwnerNameBase32HexString(nextCloserName) + (closestAuthority.Name.Length > 0 ? "." + closestAuthority.Name : "");
 
@@ -1075,7 +1069,7 @@ namespace DnsServerCore.Dns.Trees
             return nsecRecords;
         }
 
-        public IReadOnlyList<DnsResourceRecord> FindNSec3ProofOfNonExistenceNoData(AuthZone zone, ApexZone apexZone, CancellationToken cancellationToken)
+        public IReadOnlyList<DnsResourceRecord> FindNSec3ProofOfNonExistenceNoData(AuthZone zone, ApexZone apexZone)
         {
             IReadOnlyList<DnsResourceRecord> nsec3ParamRecords = apexZone.GetRecords(DnsResourceRecordType.NSEC3PARAM);
             if (nsec3ParamRecords.Count == 0)
@@ -1088,7 +1082,7 @@ namespace DnsServerCore.Dns.Trees
             if (nsec3Zone is null)
             {
                 //this is probably since the domain in request is for an nsec3 record owner name
-                return FindNSec3ProofOfNonExistenceNxDomain(zone.Name, false, cancellationToken);
+                return FindNSec3ProofOfNonExistenceNxDomain(zone.Name, false);
             }
 
             return FindNSec3ProofOfNonExistenceNoData(nsec3Zone);
