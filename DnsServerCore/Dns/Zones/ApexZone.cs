@@ -213,7 +213,7 @@ namespace DnsServerCore.Dns.Zones
                 _notifyTimer.Change(Timeout.Infinite, Timeout.Infinite);
         }
 
-        private async void NotifyTimerCallback(object state)
+        private void NotifyTimerCallback(object state)
         {
             ApexZone apexZone = this;
 
@@ -316,66 +316,74 @@ namespace DnsServerCore.Dns.Zones
                 await Task.WhenAll(tasks);
             }
 
-            try
-            {
-                switch (apexZone._notify)
+            //notify in DNS server's resolver thread pool
+            if (!_dnsServer.TryQueueResolverTask(async delegate (object state)
                 {
-                    case AuthZoneNotify.ZoneNameServers:
-                        await NotifyZoneNameServersAsync(!_notifyTimerTriggered);
-                        break;
-
-                    case AuthZoneNotify.SpecifiedNameServers:
-                        await NotifySpecifiedNameServersAsync(!_notifyTimerTriggered);
-                        break;
-
-                    case AuthZoneNotify.BothZoneAndSpecifiedNameServers:
-                        Task t1 = NotifyZoneNameServersAsync(!_notifyTimerTriggered);
-                        Task t2 = NotifySpecifiedNameServersAsync(!_notifyTimerTriggered);
-
-                        await Task.WhenAll(t1, t2);
-                        break;
-
-                    case AuthZoneNotify.SeparateNameServersForCatalogAndMemberZones:
-                        if (this is CatalogZone)
-                            await NotifySecondaryCatalogNameServersAsync(!_notifyTimerTriggered);
-                        else
-                            await NotifySpecifiedNameServersAsync(!_notifyTimerTriggered);
-
-                        break;
-                }
-
-                //remove non-existent name servers from notify failed list
-                lock (_notifyFailed)
-                {
-                    if (_notifyFailed.Count > 0)
+                    try
                     {
-                        List<string> toRemove = new List<string>();
-
-                        foreach (string failedNameServer in _notifyFailed)
+                        switch (apexZone._notify)
                         {
-                            if (!notifiedNameServers.Contains(failedNameServer))
-                                toRemove.Add(failedNameServer);
+                            case AuthZoneNotify.ZoneNameServers:
+                                await NotifyZoneNameServersAsync(!_notifyTimerTriggered);
+                                break;
+
+                            case AuthZoneNotify.SpecifiedNameServers:
+                                await NotifySpecifiedNameServersAsync(!_notifyTimerTriggered);
+                                break;
+
+                            case AuthZoneNotify.BothZoneAndSpecifiedNameServers:
+                                Task t1 = NotifyZoneNameServersAsync(!_notifyTimerTriggered);
+                                Task t2 = NotifySpecifiedNameServersAsync(!_notifyTimerTriggered);
+
+                                await Task.WhenAll(t1, t2);
+                                break;
+
+                            case AuthZoneNotify.SeparateNameServersForCatalogAndMemberZones:
+                                if (this is CatalogZone)
+                                    await NotifySecondaryCatalogNameServersAsync(!_notifyTimerTriggered);
+                                else
+                                    await NotifySpecifiedNameServersAsync(!_notifyTimerTriggered);
+
+                                break;
                         }
 
-                        foreach (string failedNameServer in toRemove)
-                            _notifyFailed.Remove(failedNameServer);
-
-                        if (_notifyFailed.Count > 0)
+                        //remove non-existent name servers from notify failed list
+                        lock (_notifyFailed)
                         {
-                            //set timer to notify failed name servers again
-                            int retryInterval = (int)((_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).Retry * 1000);
-                            _notifyTimer.Change(retryInterval, Timeout.Infinite);
+                            if (_notifyFailed.Count > 0)
+                            {
+                                List<string> toRemove = new List<string>();
+
+                                foreach (string failedNameServer in _notifyFailed)
+                                {
+                                    if (!notifiedNameServers.Contains(failedNameServer))
+                                        toRemove.Add(failedNameServer);
+                                }
+
+                                foreach (string failedNameServer in toRemove)
+                                    _notifyFailed.Remove(failedNameServer);
+
+                                if (_notifyFailed.Count > 0)
+                                {
+                                    //set timer to notify failed name servers again
+                                    _notifyTimer.Change(Math.Max(GetZoneSoaRetry(), _dnsServer.AuthZoneManager.MinSoaRetry) * 1000, Timeout.Infinite);
+                                }
+                            }
                         }
                     }
-                }
-            }
-            catch (Exception ex)
+                    catch (Exception ex)
+                    {
+                        _dnsServer.LogManager?.Write(ex);
+                    }
+                    finally
+                    {
+                        _notifyTimerTriggered = false;
+                    }
+                })
+            )
             {
-                _dnsServer.LogManager?.Write(ex);
-            }
-            finally
-            {
-                _notifyTimerTriggered = false;
+                //failed to queue notify task; try again in some time
+                _notifyTimer?.Change(NOTIFY_TIMER_INTERVAL, Timeout.Infinite);
             }
         }
 
@@ -978,9 +986,14 @@ namespace DnsServerCore.Dns.Zones
 
         #region public
 
-        public uint GetZoneSoaMinimum()
+        public uint GetZoneSoaSerial()
         {
-            return (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).Minimum;
+            return (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).Serial;
+        }
+
+        public uint GetZoneSoaRetry()
+        {
+            return (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).Retry;
         }
 
         public uint GetZoneSoaExpire()
@@ -988,9 +1001,9 @@ namespace DnsServerCore.Dns.Zones
             return (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).Expire;
         }
 
-        public uint GetZoneSoaSerial()
+        public uint GetZoneSoaMinimum()
         {
-            return (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).Serial;
+            return (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).Minimum;
         }
 
         public abstract string GetZoneTypeName();
