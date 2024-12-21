@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -218,6 +218,10 @@ namespace DnsServerCore
                 jsonWriter.WriteString("clientIpAddress", entry.ClientIpAddress.ToString());
                 jsonWriter.WriteString("protocol", entry.Protocol.ToString());
                 jsonWriter.WriteString("responseType", entry.ResponseType.ToString());
+
+                if (entry.ResponseRtt.HasValue)
+                    jsonWriter.WriteNumber("responseRtt", entry.ResponseRtt.Value);
+
                 jsonWriter.WriteString("rcode", entry.RCODE.ToString());
                 jsonWriter.WriteString("qname", entry.Question?.Name);
                 jsonWriter.WriteString("qtype", entry.Question?.Type.ToString());
