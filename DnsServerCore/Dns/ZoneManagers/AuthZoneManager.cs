@@ -52,6 +52,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         string _serverDomain;
         bool _useSoaSerialDateScheme;
+        uint _minSoaRefresh = 300;
+        uint _minSoaRetry = 300;
 
         readonly AuthZoneTree _root = new AuthZoneTree();
 
@@ -2072,7 +2074,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             DnsResourceRecord currentSoaRecord = soaRecords[0];
             DnsSOARecordData currentSoa = currentSoaRecord.RDATA as DnsSOARecordData;
 
-            IReadOnlyList<DnsResourceRecord> condensedXfrRecords = CondenseIncrementalZoneTransferRecords(zoneName, currentSoaRecord, xfrRecords);
+            List<DnsResourceRecord> condensedXfrRecords = CondenseIncrementalZoneTransferRecords(zoneName, currentSoaRecord, xfrRecords);
 
             List<DnsResourceRecord> deletedRecords = new List<DnsResourceRecord>();
             List<DnsResourceRecord> deletedGlueRecords = new List<DnsResourceRecord>();
@@ -2519,14 +2521,14 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 bool dnssecOk = request.DnssecOk && (apexZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned);
 
-                return GetReferralResponse(request, dnssecOk, delegation, apexZone, CancellationToken.None);
+                return GetReferralResponse(request, dnssecOk, delegation, apexZone);
             }
 
             //no delegation found
             return null;
         }
 
-        public async Task<DnsDatagram> QueryAsync(DnsDatagram request, IPAddress remoteIP, bool isRecursionAllowed, CancellationToken cancellationToken = default)
+        public async Task<DnsDatagram> QueryAsync(DnsDatagram request, IPAddress remoteIP, bool isRecursionAllowed)
         {
             AuthZone zone = _root.FindZone(request.Question[0].Name, out SubDomainZone closest, out SubDomainZone delegation, out ApexZone apexZone, out bool hasSubDomains);
 
@@ -2536,7 +2538,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (!await IsQueryAllowedAsync(apexZone, remoteIP))
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Question);
 
-            return InternalQuery(request, isRecursionAllowed, zone, closest, delegation, apexZone, hasSubDomains, cancellationToken);
+            return InternalQuery(request, isRecursionAllowed, zone, closest, delegation, apexZone, hasSubDomains);
         }
 
         public DnsDatagram Query(DnsDatagram request, bool isRecursionAllowed)
@@ -2546,11 +2548,11 @@ namespace DnsServerCore.Dns.ZoneManagers
             if ((apexZone is null) || !apexZone.IsActive)
                 return null; //no authority for requested zone
 
-            return InternalQuery(request, isRecursionAllowed, zone, closest, delegation, apexZone, hasSubDomains, CancellationToken.None);
+            return InternalQuery(request, isRecursionAllowed, zone, closest, delegation, apexZone, hasSubDomains);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private DnsDatagram InternalQuery(DnsDatagram request, bool isRecursionAllowed, AuthZone zone, SubDomainZone closest, SubDomainZone delegation, ApexZone apexZone, bool hasSubDomains, CancellationToken cancellationToken)
+        private DnsDatagram InternalQuery(DnsDatagram request, bool isRecursionAllowed, AuthZone zone, SubDomainZone closest, SubDomainZone delegation, ApexZone apexZone, bool hasSubDomains)
         {
             DnsQuestionRecord question = request.Question[0];
             bool dnssecOk = request.DnssecOk && (apexZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned);
@@ -2559,10 +2561,10 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 //zone not found
                 if ((delegation is not null) && delegation.IsActive && (delegation.Name.Length > apexZone.Name.Length))
-                    return GetReferralResponse(request, dnssecOk, delegation, apexZone, cancellationToken);
+                    return GetReferralResponse(request, dnssecOk, delegation, apexZone);
 
                 if (apexZone is StubZone)
-                    return GetReferralResponse(request, false, apexZone, apexZone, cancellationToken);
+                    return GetReferralResponse(request, false, apexZone, apexZone);
 
                 DnsResponseCode rCode = DnsResponseCode.NoError;
                 IReadOnlyList<DnsResourceRecord> answer = null;
@@ -2598,7 +2600,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         if (authority.Count == 0)
                         {
                             if ((apexZone is ForwarderZone) || (apexZone is SecondaryForwarderZone))
-                                return GetForwarderResponse(request, null, closest, apexZone, cancellationToken); //no DNAME or APP record available so process FWD response
+                                return GetForwarderResponse(request, null, closest, apexZone); //no DNAME or APP record available so process FWD response
 
                             if (!hasSubDomains)
                                 rCode = DnsResponseCode.NxDomain;
@@ -2611,7 +2613,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 IReadOnlyList<DnsResourceRecord> nsecRecords;
 
                                 if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
-                                    nsecRecords = _root.FindNSec3ProofOfNonExistenceNxDomain(question.Name, false, cancellationToken);
+                                    nsecRecords = _root.FindNSec3ProofOfNonExistenceNxDomain(question.Name, false);
                                 else
                                     nsecRecords = _root.FindNSecProofOfNonExistenceNxDomain(question.Name, false);
 
@@ -2647,7 +2649,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 else if ((delegation is not null) && delegation.IsActive && (delegation.Name.Length > apexZone.Name.Length))
                 {
                     //zone is delegation
-                    return GetReferralResponse(request, dnssecOk, delegation, apexZone, cancellationToken);
+                    return GetReferralResponse(request, dnssecOk, delegation, apexZone);
                 }
 
                 DnsResponseCode rCode = DnsResponseCode.NoError;
@@ -2699,17 +2701,17 @@ namespace DnsServerCore.Dns.ZoneManagers
                             {
                                 //check for delegation, stub & forwarder
                                 if ((delegation is not null) && delegation.IsActive && (delegation.Name.Length > apexZone.Name.Length))
-                                    return GetReferralResponse(request, dnssecOk, delegation, apexZone, cancellationToken);
+                                    return GetReferralResponse(request, dnssecOk, delegation, apexZone);
 
                                 if (apexZone is StubZone)
-                                    return GetReferralResponse(request, false, apexZone, apexZone, cancellationToken);
+                                    return GetReferralResponse(request, false, apexZone, apexZone);
                             }
 
                             authority = zone.QueryRecords(DnsResourceRecordType.APP, false);
                             if (authority.Count == 0)
                             {
                                 if ((apexZone is ForwarderZone) || (apexZone is SecondaryForwarderZone))
-                                    return GetForwarderResponse(request, zone, closest, apexZone, cancellationToken); //no APP record available so process FWD response
+                                    return GetForwarderResponse(request, zone, closest, apexZone); //no APP record available so process FWD response
 
                                 authority = apexZone.QueryRecords(DnsResourceRecordType.SOA, dnssecOk);
 
@@ -2719,7 +2721,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                                     IReadOnlyList<DnsResourceRecord> nsecRecords;
 
                                     if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
-                                        nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(zone, apexZone, cancellationToken);
+                                        nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(zone, apexZone);
                                     else
                                         nsecRecords = AuthZoneTree.FindNSecProofOfNonExistenceNoData(zone);
 
@@ -2756,7 +2758,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                                     IReadOnlyList<DnsResourceRecord> nsecRecords;
 
                                     if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
-                                        nsecRecords = _root.FindNSec3ProofOfNonExistenceNxDomain(question.Name, true, cancellationToken);
+                                        nsecRecords = _root.FindNSec3ProofOfNonExistenceNxDomain(question.Name, true);
                                     else
                                         nsecRecords = _root.FindNSecProofOfNonExistenceNxDomain(question.Name, true);
 
@@ -3102,7 +3104,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        private DnsDatagram GetReferralResponse(DnsDatagram request, bool dnssecOk, AuthZone delegationZone, ApexZone apexZone, CancellationToken cancellationToken)
+        private DnsDatagram GetReferralResponse(DnsDatagram request, bool dnssecOk, AuthZone delegationZone, ApexZone apexZone)
         {
             IReadOnlyList<DnsResourceRecord> authority;
 
@@ -3138,7 +3140,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         IReadOnlyList<DnsResourceRecord> nsecRecords;
 
                         if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
-                            nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(delegationZone, apexZone, cancellationToken);
+                            nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(delegationZone, apexZone);
                         else
                             nsecRecords = AuthZoneTree.FindNSecProofOfNonExistenceNoData(delegationZone);
 
@@ -3160,14 +3162,14 @@ namespace DnsServerCore.Dns.ZoneManagers
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, null, authority, additional);
         }
 
-        private DnsDatagram GetForwarderResponse(DnsDatagram request, AuthZone zone, SubDomainZone closestZone, ApexZone forwarderZone, CancellationToken cancellationToken)
+        private DnsDatagram GetForwarderResponse(DnsDatagram request, AuthZone zone, SubDomainZone closestZone, ApexZone forwarderZone)
         {
             IReadOnlyList<DnsResourceRecord> authority = null;
 
             if (zone is not null)
             {
                 if (zone.ContainsNameServerRecords())
-                    return GetReferralResponse(request, false, zone, forwarderZone, cancellationToken);
+                    return GetReferralResponse(request, false, zone, forwarderZone);
 
                 authority = zone.QueryRecords(DnsResourceRecordType.FWD, false);
             }
@@ -3175,7 +3177,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (((authority is null) || (authority.Count == 0)) && (closestZone is not null))
             {
                 if (closestZone.ContainsNameServerRecords())
-                    return GetReferralResponse(request, false, closestZone, forwarderZone, cancellationToken);
+                    return GetReferralResponse(request, false, closestZone, forwarderZone);
 
                 authority = closestZone.QueryRecords(DnsResourceRecordType.FWD, false);
             }
@@ -3183,7 +3185,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             if ((authority is null) || (authority.Count == 0))
             {
                 if (forwarderZone.ContainsNameServerRecords())
-                    return GetReferralResponse(request, false, forwarderZone, forwarderZone, cancellationToken);
+                    return GetReferralResponse(request, false, forwarderZone, forwarderZone);
 
                 authority = forwarderZone.QueryRecords(DnsResourceRecordType.FWD, false);
             }
@@ -3685,6 +3687,18 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             get { return _useSoaSerialDateScheme; }
             set { _useSoaSerialDateScheme = value; }
+        }
+
+        public uint MinSoaRefresh
+        {
+            get { return _minSoaRefresh; }
+            set { _minSoaRefresh = value; }
+        }
+
+        public uint MinSoaRetry
+        {
+            get { return _minSoaRetry; }
+            set { _minSoaRetry = value; }
         }
 
         public int TotalZones
