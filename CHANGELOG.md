@@ -1,5 +1,18 @@
 # Technitium DNS Server Change Log
 
+## Version 13.3
+Release Date: 21 December 2024
+
+- Implemented resolver queue mechanism to avoid request timeout error issues caused when too many outbound resolutions were being processed concurrently for large deployments. A new Max Concurrent Resolutions option is now available in Settings > General section to configure the maximum number of concurrent async resolutions per CPU core.
+- Added new Minimum SOA Refresh and Minimum SOA Retry options in Settings > General section to override any Secondary, Stub, Secondary Forwarder, or Secondary Catalog zone SOA values that are smaller than these configured minimum values.
+- Added feature to include Subject Alternative Name (SAN) entry for DNS admin web service local unicast addresses in the self-signed certificate.
+- Fixed bug in NSEC3 non-existent proof generation implementation that caused Denial of Service (DoS) for all DNS protocol services when certain primary and secondary zones are DNSSEC signed using NSEC3.
+- Fixed issue of unhandled exception that caused Denial of Service (DoS) for DNS-over-QUIC service.
+- Fixed bug in reloading SSL/TLS certificate for DNS admin web service and DNS-over-HTTPS service.
+- Fixed issue with Catalog zone SOA request that caused zone transfer to failure with BIND.
+- Query Logs (Sqlite): Updated the app to support logging response RTT value.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 13.2.2
 Release Date: 2 December 2024
 
