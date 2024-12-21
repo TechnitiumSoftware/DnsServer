@@ -41,13 +41,13 @@ namespace DnsServerCore.Dns.Zones
         protected Zone(string name)
         {
             _name = name.ToLowerInvariant();
-            _entries = new ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>(1, 5);
+            _entries = new ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>(-1, 5);
         }
 
         protected Zone(string name, int capacity)
         {
             _name = name.ToLowerInvariant();
-            _entries = new ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>(1, capacity);
+            _entries = new ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>(-1, capacity);
         }
 
         protected Zone(string name, ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entries)
