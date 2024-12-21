@@ -334,7 +334,7 @@ function queryLogs(pageNumber) {
                     moment(responseJSON.response.entries[i].timestamp).local().format("YYYY-MM-DD HH:mm:ss") + "</td><td>" +
                     responseJSON.response.entries[i].clientIpAddress + "</td><td>" +
                     responseJSON.response.entries[i].protocol + "</td><td>" +
-                    responseJSON.response.entries[i].responseType + "</td><td>" +
+                    responseJSON.response.entries[i].responseType + (responseJSON.response.entries[i].responseRtt == null ? "" : "<div style=\"font-size: 12px;\">(" + responseJSON.response.entries[i].responseRtt.toFixed(2) + " ms)</div>") + "</td><td>" +
                     responseJSON.response.entries[i].rcode + "</td><td style=\"word-break: break-all;\">" +
                     htmlEncode(responseJSON.response.entries[i].qname == "" ? "." : responseJSON.response.entries[i].qname) + "</td><td>" +
                     (responseJSON.response.entries[i].qtype == null ? "" : responseJSON.response.entries[i].qtype) + "</td><td>" +
