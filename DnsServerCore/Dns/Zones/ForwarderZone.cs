@@ -264,6 +264,9 @@ namespace DnsServerCore.Dns.Zones
 
         public override IReadOnlyList<DnsResourceRecord> QueryRecords(DnsResourceRecordType type, bool dnssecOk)
         {
+            if (this is CatalogZone)
+                return base.QueryRecords(type, dnssecOk);
+
             if (type == DnsResourceRecordType.SOA)
                 return []; //forwarder zone is not authoritative and contains dummy SOA record
 
