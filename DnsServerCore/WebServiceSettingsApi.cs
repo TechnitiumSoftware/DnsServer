@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
 using System.Net;
 using System.Net.Mail;
 using System.Net.Sockets;
@@ -45,8 +44,6 @@ namespace DnsServerCore
     sealed class WebServiceSettingsApi : IDisposable
     {
         #region variables
-
-        static readonly char[] _commaSeparator = new char[] { ',' };
 
         readonly DnsWebService _dnsWebService;
 
@@ -538,24 +535,6 @@ namespace DnsServerCore
             jsonWriter.WriteNumber("maxStatFileDays", _dnsWebService.DnsServer.StatsManager.MaxStatFileDays);
         }
 
-        private static List<NetworkAddress> ParseNetworkAddresses(string networkAddresses)
-        {
-            if ((networkAddresses.Length == 0) || networkAddresses.Equals("false", StringComparison.OrdinalIgnoreCase))
-                return null;
-
-            string[] addresses = networkAddresses.Split(_commaSeparator, StringSplitOptions.RemoveEmptyEntries);
-
-            List<NetworkAddress> networks = new List<NetworkAddress>(addresses.Length);
-
-            foreach (string address in addresses)
-            {
-                if (NetworkAddress.TryParse(address, out NetworkAddress networkAddress))
-                    networks.Add(networkAddress);
-            }
-
-            return networks;
-        }
-
         #endregion
 
         #region public
@@ -571,7 +550,7 @@ namespace DnsServerCore
             WriteDnsSettings(jsonWriter);
         }
 
-        public void SetDnsSettings(HttpContext context)
+        public async Task SetDnsSettingsAsync(HttpContext context)
         {
             UserSession session = context.GetCurrentSession();
 
@@ -589,494 +568,459 @@ namespace DnsServerCore
             bool _webServiceEnablingTls = false;
 
             HttpRequest request = context.Request;
+            JsonDocument jsonDocument = null;
 
-            //general
-            if (request.TryGetQueryOrForm("dnsServerDomain", out string dnsServerDomain))
+            if (request.HasJsonContentType())
             {
-                dnsServerDomain = dnsServerDomain.TrimEnd('.');
-
-                if (!_dnsWebService.DnsServer.ServerDomain.Equals(dnsServerDomain, StringComparison.OrdinalIgnoreCase))
-                {
-                    _dnsWebService.DnsServer.ServerDomain = dnsServerDomain;
-                    serverDomainChanged = true;
-                }
+                jsonDocument = await JsonDocument.ParseAsync(request.Body);
+                context.Items["jsonContent"] = jsonDocument;
             }
 
-            string dnsServerLocalEndPoints = request.QueryOrForm("dnsServerLocalEndPoints");
-            if (dnsServerLocalEndPoints is not null)
+            try
             {
-                if (dnsServerLocalEndPoints.Length == 0)
-                    dnsServerLocalEndPoints = "0.0.0.0:53,[::]:53";
+                #region general
 
-                IPEndPoint[] localEndPoints = dnsServerLocalEndPoints.Split(IPEndPoint.Parse, ',');
-                if (localEndPoints.Length > 0)
+                if (request.TryGetQueryOrForm("dnsServerDomain", out string dnsServerDomain))
                 {
-                    foreach (IPEndPoint localEndPoint in localEndPoints)
-                    {
-                        if (localEndPoint.Port == 0)
-                            localEndPoint.Port = 53;
-                    }
+                    dnsServerDomain = dnsServerDomain.TrimEnd('.');
 
-                    if (_dnsWebService.DnsServer.LocalEndPoints.Count != localEndPoints.Length)
+                    if (!_dnsWebService.DnsServer.ServerDomain.Equals(dnsServerDomain, StringComparison.OrdinalIgnoreCase))
                     {
-                        restartDnsService = true;
+                        _dnsWebService.DnsServer.ServerDomain = dnsServerDomain;
+                        serverDomainChanged = true;
+                    }
+                }
+
+                if (request.TryGetQueryOrFormArray("dnsServerLocalEndPoints", IPEndPoint.Parse, out IPEndPoint[] dnsServerLocalEndPoints))
+                {
+                    if ((dnsServerLocalEndPoints is null) || (dnsServerLocalEndPoints.Length == 0))
+                    {
+                        dnsServerLocalEndPoints = [new IPEndPoint(IPAddress.Any, 53), new IPEndPoint(IPAddress.IPv6Any, 53)];
                     }
                     else
                     {
-                        foreach (IPEndPoint currentLocalEP in _dnsWebService.DnsServer.LocalEndPoints)
+                        foreach (IPEndPoint localEndPoint in dnsServerLocalEndPoints)
                         {
-                            if (!localEndPoints.Contains(currentLocalEP))
-                            {
-                                restartDnsService = true;
-                                break;
-                            }
+                            if (localEndPoint.Port == 0)
+                                localEndPoint.Port = 53;
                         }
                     }
 
-                    _dnsWebService.DnsServer.LocalEndPoints = localEndPoints;
+                    if (!_dnsWebService.DnsServer.LocalEndPoints.HasSameItems(dnsServerLocalEndPoints))
+                        restartDnsService = true;
+
+                    _dnsWebService.DnsServer.LocalEndPoints = dnsServerLocalEndPoints;
                 }
-            }
 
-            string dnsServerIPv4SourceAddresses = request.QueryOrForm("dnsServerIPv4SourceAddresses");
-            if (dnsServerIPv4SourceAddresses is not null)
-                DnsClientConnection.IPv4SourceAddresses = ParseNetworkAddresses(dnsServerIPv4SourceAddresses);
+                if (request.TryGetQueryOrFormArray("dnsServerIPv4SourceAddresses", NetworkAddress.Parse, out NetworkAddress[] dnsServerIPv4SourceAddresses))
+                    DnsClientConnection.IPv4SourceAddresses = dnsServerIPv4SourceAddresses;
 
-            string dnsServerIPv6SourceAddresses = request.QueryOrForm("dnsServerIPv6SourceAddresses");
-            if (dnsServerIPv6SourceAddresses is not null)
-                DnsClientConnection.IPv6SourceAddresses = ParseNetworkAddresses(dnsServerIPv6SourceAddresses);
+                if (request.TryGetQueryOrFormArray("dnsServerIPv6SourceAddresses", NetworkAddress.Parse, out NetworkAddress[] dnsServerIPv6SourceAddresses))
+                    DnsClientConnection.IPv6SourceAddresses = dnsServerIPv6SourceAddresses;
 
-            if (request.TryGetQueryOrForm("defaultRecordTtl", uint.Parse, out uint defaultRecordTtl))
-                _dnsWebService._zonesApi.DefaultRecordTtl = defaultRecordTtl;
+                if (request.TryGetQueryOrForm("defaultRecordTtl", uint.Parse, out uint defaultRecordTtl))
+                    _dnsWebService._zonesApi.DefaultRecordTtl = defaultRecordTtl;
 
-            string defaultResponsiblePerson = request.QueryOrForm("defaultResponsiblePerson");
-            if (defaultResponsiblePerson is not null)
-            {
-                if (defaultResponsiblePerson.Length == 0)
-                    _dnsWebService.DnsServer.ResponsiblePersonInternal = null;
-                else if (defaultResponsiblePerson.Length > 255)
-                    throw new ArgumentException("Default responsible person email address length cannot exceed 255 characters.", "defaultResponsiblePerson");
-                else
-                    _dnsWebService.DnsServer.ResponsiblePersonInternal = new MailAddress(defaultResponsiblePerson);
-            }
-
-            if (request.TryGetQueryOrForm("useSoaSerialDateScheme", bool.Parse, out bool useSoaSerialDateScheme))
-                _dnsWebService.DnsServer.AuthZoneManager.UseSoaSerialDateScheme = useSoaSerialDateScheme;
-
-            if (request.TryGetQueryOrForm("minSoaRefresh", uint.Parse, out uint minSoaRefresh))
-                _dnsWebService.DnsServer.AuthZoneManager.MinSoaRefresh = minSoaRefresh;
-
-            if (request.TryGetQueryOrForm("minSoaRetry", uint.Parse, out uint minSoaRetry))
-                _dnsWebService.DnsServer.AuthZoneManager.MinSoaRetry = minSoaRetry;
-
-            string zoneTransferAllowedNetworks = request.QueryOrForm("zoneTransferAllowedNetworks");
-            if (zoneTransferAllowedNetworks is not null)
-                _dnsWebService.DnsServer.ZoneTransferAllowedNetworks = ParseNetworkAddresses(zoneTransferAllowedNetworks);
-
-            string notifyAllowedNetworks = request.QueryOrForm("notifyAllowedNetworks");
-            if (notifyAllowedNetworks is not null)
-                _dnsWebService.DnsServer.NotifyAllowedNetworks = ParseNetworkAddresses(notifyAllowedNetworks);
-
-            if (request.TryGetQueryOrForm("dnsAppsEnableAutomaticUpdate", bool.Parse, out bool dnsAppsEnableAutomaticUpdate))
-                _dnsWebService._appsApi.EnableAutomaticUpdate = dnsAppsEnableAutomaticUpdate;
-
-            if (request.TryGetQueryOrForm("preferIPv6", bool.Parse, out bool preferIPv6))
-                _dnsWebService.DnsServer.PreferIPv6 = preferIPv6;
-
-            if (request.TryGetQueryOrForm("udpPayloadSize", ushort.Parse, out ushort udpPayloadSize))
-                _dnsWebService.DnsServer.UdpPayloadSize = udpPayloadSize;
-
-            if (request.TryGetQueryOrForm("dnssecValidation", bool.Parse, out bool dnssecValidation))
-                _dnsWebService.DnsServer.DnssecValidation = dnssecValidation;
-
-            if (request.TryGetQueryOrForm("eDnsClientSubnet", bool.Parse, out bool eDnsClientSubnet))
-                _dnsWebService.DnsServer.EDnsClientSubnet = eDnsClientSubnet;
-
-            if (request.TryGetQueryOrForm("eDnsClientSubnetIPv4PrefixLength", byte.Parse, out byte eDnsClientSubnetIPv4PrefixLength))
-                _dnsWebService.DnsServer.EDnsClientSubnetIPv4PrefixLength = eDnsClientSubnetIPv4PrefixLength;
-
-            if (request.TryGetQueryOrForm("eDnsClientSubnetIPv6PrefixLength", byte.Parse, out byte eDnsClientSubnetIPv6PrefixLength))
-                _dnsWebService.DnsServer.EDnsClientSubnetIPv6PrefixLength = eDnsClientSubnetIPv6PrefixLength;
-
-            string eDnsClientSubnetIpv4Override = request.QueryOrForm("eDnsClientSubnetIpv4Override");
-            if (eDnsClientSubnetIpv4Override is not null)
-            {
-                if (eDnsClientSubnetIpv4Override.Length == 0)
-                    _dnsWebService.DnsServer.EDnsClientSubnetIpv4Override = null;
-                else
-                    _dnsWebService.DnsServer.EDnsClientSubnetIpv4Override = NetworkAddress.Parse(eDnsClientSubnetIpv4Override);
-            }
-
-            string eDnsClientSubnetIpv6Override = request.QueryOrForm("eDnsClientSubnetIpv6Override");
-            if (eDnsClientSubnetIpv6Override is not null)
-            {
-                if (eDnsClientSubnetIpv6Override.Length == 0)
-                    _dnsWebService.DnsServer.EDnsClientSubnetIpv6Override = null;
-                else
-                    _dnsWebService.DnsServer.EDnsClientSubnetIpv6Override = NetworkAddress.Parse(eDnsClientSubnetIpv6Override);
-            }
-
-            if (request.TryGetQueryOrForm("qpmLimitRequests", int.Parse, out int qpmLimitRequests))
-                _dnsWebService.DnsServer.QpmLimitRequests = qpmLimitRequests;
-
-            if (request.TryGetQueryOrForm("qpmLimitErrors", int.Parse, out int qpmLimitErrors))
-                _dnsWebService.DnsServer.QpmLimitErrors = qpmLimitErrors;
-
-            if (request.TryGetQueryOrForm("qpmLimitSampleMinutes", int.Parse, out int qpmLimitSampleMinutes))
-                _dnsWebService.DnsServer.QpmLimitSampleMinutes = qpmLimitSampleMinutes;
-
-            if (request.TryGetQueryOrForm("qpmLimitIPv4PrefixLength", int.Parse, out int qpmLimitIPv4PrefixLength))
-                _dnsWebService.DnsServer.QpmLimitIPv4PrefixLength = qpmLimitIPv4PrefixLength;
-
-            if (request.TryGetQueryOrForm("qpmLimitIPv6PrefixLength", int.Parse, out int qpmLimitIPv6PrefixLength))
-                _dnsWebService.DnsServer.QpmLimitIPv6PrefixLength = qpmLimitIPv6PrefixLength;
-
-            string qpmLimitBypassList = request.QueryOrForm("qpmLimitBypassList");
-            if (qpmLimitBypassList is not null)
-                _dnsWebService.DnsServer.QpmLimitBypassList = ParseNetworkAddresses(qpmLimitBypassList);
-
-            if (request.TryGetQueryOrForm("clientTimeout", int.Parse, out int clientTimeout))
-                _dnsWebService.DnsServer.ClientTimeout = clientTimeout;
-
-            if (request.TryGetQueryOrForm("tcpSendTimeout", int.Parse, out int tcpSendTimeout))
-                _dnsWebService.DnsServer.TcpSendTimeout = tcpSendTimeout;
-
-            if (request.TryGetQueryOrForm("tcpReceiveTimeout", int.Parse, out int tcpReceiveTimeout))
-                _dnsWebService.DnsServer.TcpReceiveTimeout = tcpReceiveTimeout;
-
-            if (request.TryGetQueryOrForm("quicIdleTimeout", int.Parse, out int quicIdleTimeout))
-                _dnsWebService.DnsServer.QuicIdleTimeout = quicIdleTimeout;
-
-            if (request.TryGetQueryOrForm("quicMaxInboundStreams", int.Parse, out int quicMaxInboundStreams))
-                _dnsWebService.DnsServer.QuicMaxInboundStreams = quicMaxInboundStreams;
-
-            if (request.TryGetQueryOrForm("listenBacklog", int.Parse, out int listenBacklog))
-                _dnsWebService.DnsServer.ListenBacklog = listenBacklog;
-
-            if (request.TryGetQueryOrForm("maxConcurrentResolutionsPerCore", ushort.Parse, out ushort maxConcurrentResolutionsPerCore))
-                _dnsWebService.DnsServer.MaxConcurrentResolutionsPerCore = maxConcurrentResolutionsPerCore;
-
-            //web service
-            string webServiceLocalAddresses = request.QueryOrForm("webServiceLocalAddresses");
-            if (webServiceLocalAddresses is not null)
-            {
-                if (webServiceLocalAddresses.Length == 0)
-                    webServiceLocalAddresses = "0.0.0.0,[::]";
-
-                IPAddress[] localAddresses = webServiceLocalAddresses.Split(IPAddress.Parse, ',');
-                if (localAddresses.Length > 0)
+                string defaultResponsiblePerson = request.QueryOrForm("defaultResponsiblePerson");
+                if (defaultResponsiblePerson is not null)
                 {
-                    if (_dnsWebService._webServiceLocalAddresses.Count != localAddresses.Length)
+                    if (defaultResponsiblePerson.Length == 0)
+                        _dnsWebService.DnsServer.ResponsiblePersonInternal = null;
+                    else if (defaultResponsiblePerson.Length > 255)
+                        throw new ArgumentException("Default responsible person email address length cannot exceed 255 characters.", "defaultResponsiblePerson");
+                    else
+                        _dnsWebService.DnsServer.ResponsiblePersonInternal = new MailAddress(defaultResponsiblePerson);
+                }
+
+                if (request.TryGetQueryOrForm("useSoaSerialDateScheme", bool.Parse, out bool useSoaSerialDateScheme))
+                    _dnsWebService.DnsServer.AuthZoneManager.UseSoaSerialDateScheme = useSoaSerialDateScheme;
+
+                if (request.TryGetQueryOrForm("minSoaRefresh", uint.Parse, out uint minSoaRefresh))
+                    _dnsWebService.DnsServer.AuthZoneManager.MinSoaRefresh = minSoaRefresh;
+
+                if (request.TryGetQueryOrForm("minSoaRetry", uint.Parse, out uint minSoaRetry))
+                    _dnsWebService.DnsServer.AuthZoneManager.MinSoaRetry = minSoaRetry;
+
+                if (request.TryGetQueryOrFormArray("zoneTransferAllowedNetworks", NetworkAddress.Parse, out NetworkAddress[] zoneTransferAllowedNetworks))
+                    _dnsWebService.DnsServer.ZoneTransferAllowedNetworks = zoneTransferAllowedNetworks;
+
+                if (request.TryGetQueryOrFormArray("notifyAllowedNetworks", NetworkAddress.Parse, out NetworkAddress[] notifyAllowedNetworks))
+                    _dnsWebService.DnsServer.NotifyAllowedNetworks = notifyAllowedNetworks;
+
+                if (request.TryGetQueryOrForm("dnsAppsEnableAutomaticUpdate", bool.Parse, out bool dnsAppsEnableAutomaticUpdate))
+                    _dnsWebService._appsApi.EnableAutomaticUpdate = dnsAppsEnableAutomaticUpdate;
+
+                if (request.TryGetQueryOrForm("preferIPv6", bool.Parse, out bool preferIPv6))
+                    _dnsWebService.DnsServer.PreferIPv6 = preferIPv6;
+
+                if (request.TryGetQueryOrForm("udpPayloadSize", ushort.Parse, out ushort udpPayloadSize))
+                    _dnsWebService.DnsServer.UdpPayloadSize = udpPayloadSize;
+
+                if (request.TryGetQueryOrForm("dnssecValidation", bool.Parse, out bool dnssecValidation))
+                    _dnsWebService.DnsServer.DnssecValidation = dnssecValidation;
+
+                if (request.TryGetQueryOrForm("eDnsClientSubnet", bool.Parse, out bool eDnsClientSubnet))
+                    _dnsWebService.DnsServer.EDnsClientSubnet = eDnsClientSubnet;
+
+                if (request.TryGetQueryOrForm("eDnsClientSubnetIPv4PrefixLength", byte.Parse, out byte eDnsClientSubnetIPv4PrefixLength))
+                    _dnsWebService.DnsServer.EDnsClientSubnetIPv4PrefixLength = eDnsClientSubnetIPv4PrefixLength;
+
+                if (request.TryGetQueryOrForm("eDnsClientSubnetIPv6PrefixLength", byte.Parse, out byte eDnsClientSubnetIPv6PrefixLength))
+                    _dnsWebService.DnsServer.EDnsClientSubnetIPv6PrefixLength = eDnsClientSubnetIPv6PrefixLength;
+
+                string eDnsClientSubnetIpv4Override = request.QueryOrForm("eDnsClientSubnetIpv4Override");
+                if (eDnsClientSubnetIpv4Override is not null)
+                {
+                    if (eDnsClientSubnetIpv4Override.Length == 0)
+                        _dnsWebService.DnsServer.EDnsClientSubnetIpv4Override = null;
+                    else
+                        _dnsWebService.DnsServer.EDnsClientSubnetIpv4Override = NetworkAddress.Parse(eDnsClientSubnetIpv4Override);
+                }
+
+                string eDnsClientSubnetIpv6Override = request.QueryOrForm("eDnsClientSubnetIpv6Override");
+                if (eDnsClientSubnetIpv6Override is not null)
+                {
+                    if (eDnsClientSubnetIpv6Override.Length == 0)
+                        _dnsWebService.DnsServer.EDnsClientSubnetIpv6Override = null;
+                    else
+                        _dnsWebService.DnsServer.EDnsClientSubnetIpv6Override = NetworkAddress.Parse(eDnsClientSubnetIpv6Override);
+                }
+
+                if (request.TryGetQueryOrForm("qpmLimitRequests", int.Parse, out int qpmLimitRequests))
+                    _dnsWebService.DnsServer.QpmLimitRequests = qpmLimitRequests;
+
+                if (request.TryGetQueryOrForm("qpmLimitErrors", int.Parse, out int qpmLimitErrors))
+                    _dnsWebService.DnsServer.QpmLimitErrors = qpmLimitErrors;
+
+                if (request.TryGetQueryOrForm("qpmLimitSampleMinutes", int.Parse, out int qpmLimitSampleMinutes))
+                    _dnsWebService.DnsServer.QpmLimitSampleMinutes = qpmLimitSampleMinutes;
+
+                if (request.TryGetQueryOrForm("qpmLimitIPv4PrefixLength", int.Parse, out int qpmLimitIPv4PrefixLength))
+                    _dnsWebService.DnsServer.QpmLimitIPv4PrefixLength = qpmLimitIPv4PrefixLength;
+
+                if (request.TryGetQueryOrForm("qpmLimitIPv6PrefixLength", int.Parse, out int qpmLimitIPv6PrefixLength))
+                    _dnsWebService.DnsServer.QpmLimitIPv6PrefixLength = qpmLimitIPv6PrefixLength;
+
+                if (request.TryGetQueryOrFormArray("qpmLimitBypassList", NetworkAddress.Parse, out NetworkAddress[] qpmLimitBypassList))
+                    _dnsWebService.DnsServer.QpmLimitBypassList = qpmLimitBypassList;
+
+                if (request.TryGetQueryOrForm("clientTimeout", int.Parse, out int clientTimeout))
+                    _dnsWebService.DnsServer.ClientTimeout = clientTimeout;
+
+                if (request.TryGetQueryOrForm("tcpSendTimeout", int.Parse, out int tcpSendTimeout))
+                    _dnsWebService.DnsServer.TcpSendTimeout = tcpSendTimeout;
+
+                if (request.TryGetQueryOrForm("tcpReceiveTimeout", int.Parse, out int tcpReceiveTimeout))
+                    _dnsWebService.DnsServer.TcpReceiveTimeout = tcpReceiveTimeout;
+
+                if (request.TryGetQueryOrForm("quicIdleTimeout", int.Parse, out int quicIdleTimeout))
+                    _dnsWebService.DnsServer.QuicIdleTimeout = quicIdleTimeout;
+
+                if (request.TryGetQueryOrForm("quicMaxInboundStreams", int.Parse, out int quicMaxInboundStreams))
+                    _dnsWebService.DnsServer.QuicMaxInboundStreams = quicMaxInboundStreams;
+
+                if (request.TryGetQueryOrForm("listenBacklog", int.Parse, out int listenBacklog))
+                    _dnsWebService.DnsServer.ListenBacklog = listenBacklog;
+
+                if (request.TryGetQueryOrForm("maxConcurrentResolutionsPerCore", ushort.Parse, out ushort maxConcurrentResolutionsPerCore))
+                    _dnsWebService.DnsServer.MaxConcurrentResolutionsPerCore = maxConcurrentResolutionsPerCore;
+
+                #endregion
+
+                #region web service
+
+                if (request.TryGetQueryOrFormArray("webServiceLocalAddresses", IPAddress.Parse, out IPAddress[] webServiceLocalAddresses))
+                {
+                    if ((webServiceLocalAddresses is null) || (webServiceLocalAddresses.Length == 0))
+                        webServiceLocalAddresses = [IPAddress.Any, IPAddress.IPv6Any];
+
+                    if (!_dnsWebService._webServiceLocalAddresses.HasSameItems(webServiceLocalAddresses))
                     {
                         webServiceLocalAddressesChanged = true;
                         restartWebService = true;
                     }
+
+                    _dnsWebService._webServiceLocalAddresses = DnsServer.GetValidKestralLocalAddresses(webServiceLocalAddresses);
+                }
+
+                if (request.TryGetQueryOrForm("webServiceHttpPort", int.Parse, out int webServiceHttpPort))
+                {
+                    if (_dnsWebService._webServiceHttpPort != webServiceHttpPort)
+                    {
+                        _dnsWebService._webServiceHttpPort = webServiceHttpPort;
+                        restartWebService = true;
+                    }
+                }
+
+                if (request.TryGetQueryOrForm("webServiceEnableTls", bool.Parse, out bool webServiceEnableTls))
+                {
+                    if (_dnsWebService._webServiceEnableTls != webServiceEnableTls)
+                    {
+                        _dnsWebService._webServiceEnableTls = webServiceEnableTls;
+                        _webServiceEnablingTls = webServiceEnableTls;
+                        restartWebService = true;
+                    }
+                }
+
+                if (request.TryGetQueryOrForm("webServiceEnableHttp3", bool.Parse, out bool webServiceEnableHttp3))
+                {
+                    if (_dnsWebService._webServiceEnableHttp3 != webServiceEnableHttp3)
+                    {
+                        if (webServiceEnableHttp3)
+                            DnsWebService.ValidateQuicSupport("HTTP/3");
+
+                        _dnsWebService._webServiceEnableHttp3 = webServiceEnableHttp3;
+                        restartWebService = true;
+                    }
+                }
+
+                if (request.TryGetQueryOrForm("webServiceHttpToTlsRedirect", bool.Parse, out bool webServiceHttpToTlsRedirect))
+                {
+                    if (_dnsWebService._webServiceHttpToTlsRedirect != webServiceHttpToTlsRedirect)
+                    {
+                        _dnsWebService._webServiceHttpToTlsRedirect = webServiceHttpToTlsRedirect;
+                        restartWebService = true;
+                    }
+                }
+
+                if (request.TryGetQueryOrForm("webServiceUseSelfSignedTlsCertificate", bool.Parse, out bool webServiceUseSelfSignedTlsCertificate))
+                    _dnsWebService._webServiceUseSelfSignedTlsCertificate = webServiceUseSelfSignedTlsCertificate;
+
+                if (request.TryGetQueryOrForm("webServiceTlsPort", int.Parse, out int webServiceTlsPort))
+                {
+                    if (_dnsWebService._webServiceTlsPort != webServiceTlsPort)
+                    {
+                        _dnsWebService._webServiceTlsPort = webServiceTlsPort;
+                        restartWebService = true;
+                    }
+                }
+
+                string webServiceTlsCertificatePath = request.QueryOrForm("webServiceTlsCertificatePath");
+                if (webServiceTlsCertificatePath is not null)
+                {
+                    if (webServiceTlsCertificatePath.Length == 0)
+                    {
+                        _dnsWebService._webServiceTlsCertificatePath = null;
+                        _dnsWebService._webServiceTlsCertificatePassword = "";
+                    }
                     else
                     {
-                        foreach (IPAddress currentlocalAddress in _dnsWebService._webServiceLocalAddresses)
+                        string webServiceTlsCertificatePassword = request.QueryOrForm("webServiceTlsCertificatePassword");
+
+                        if ((webServiceTlsCertificatePassword is null) || (webServiceTlsCertificatePassword == "************"))
+                            webServiceTlsCertificatePassword = _dnsWebService._webServiceTlsCertificatePassword;
+
+                        if ((webServiceTlsCertificatePath != _dnsWebService._webServiceTlsCertificatePath) || (webServiceTlsCertificatePassword != _dnsWebService._webServiceTlsCertificatePassword))
                         {
-                            if (!localAddresses.Contains(currentlocalAddress))
-                            {
-                                webServiceLocalAddressesChanged = true;
-                                restartWebService = true;
-                                break;
-                            }
+                            if (webServiceTlsCertificatePath.Length > 255)
+                                throw new ArgumentException("Web service TLS certificate path length cannot exceed 255 characters.", "webServiceTlsCertificatePath");
+
+                            if (webServiceTlsCertificatePassword?.Length > 255)
+                                throw new ArgumentException("Web service TLS certificate password length cannot exceed 255 characters.", "webServiceTlsCertificatePassword");
+
+                            _dnsWebService.LoadWebServiceTlsCertificate(_dnsWebService.ConvertToAbsolutePath(webServiceTlsCertificatePath), webServiceTlsCertificatePassword);
+
+                            _dnsWebService._webServiceTlsCertificatePath = _dnsWebService.ConvertToRelativePath(webServiceTlsCertificatePath);
+                            _dnsWebService._webServiceTlsCertificatePassword = webServiceTlsCertificatePassword;
+
+                            _dnsWebService.StartTlsCertificateUpdateTimer();
                         }
                     }
-
-                    _dnsWebService._webServiceLocalAddresses = DnsServer.GetValidKestralLocalAddresses(localAddresses);
                 }
-            }
 
-            if (request.TryGetQueryOrForm("webServiceHttpPort", int.Parse, out int webServiceHttpPort))
-            {
-                if (_dnsWebService._webServiceHttpPort != webServiceHttpPort)
+                if (request.TryGetQueryOrForm("webServiceRealIpHeader", out string webServiceRealIpHeader))
                 {
-                    _dnsWebService._webServiceHttpPort = webServiceHttpPort;
-                    restartWebService = true;
+                    if (webServiceRealIpHeader.Length > 255)
+                        throw new ArgumentException("Web service Real IP header name cannot exceed 255 characters.", "webServiceRealIpHeader");
+
+                    if (webServiceRealIpHeader.Contains(' '))
+                        throw new ArgumentException("Web service Real IP header name cannot contain invalid characters.", "webServiceRealIpHeader");
+
+                    _dnsWebService._webServiceRealIpHeader = webServiceRealIpHeader;
                 }
-            }
 
-            if (request.TryGetQueryOrForm("webServiceEnableTls", bool.Parse, out bool webServiceEnableTls))
-            {
-                if (_dnsWebService._webServiceEnableTls != webServiceEnableTls)
+                #endregion
+
+                #region optional protocols
+
+                if (request.TryGetQueryOrForm("enableDnsOverUdpProxy", bool.Parse, out bool enableDnsOverUdpProxy))
                 {
-                    _dnsWebService._webServiceEnableTls = webServiceEnableTls;
-                    _webServiceEnablingTls = webServiceEnableTls;
-                    restartWebService = true;
-                }
-            }
-
-            if (request.TryGetQueryOrForm("webServiceEnableHttp3", bool.Parse, out bool webServiceEnableHttp3))
-            {
-                if (_dnsWebService._webServiceEnableHttp3 != webServiceEnableHttp3)
-                {
-                    if (webServiceEnableHttp3)
-                        DnsWebService.ValidateQuicSupport("HTTP/3");
-
-                    _dnsWebService._webServiceEnableHttp3 = webServiceEnableHttp3;
-                    restartWebService = true;
-                }
-            }
-
-            if (request.TryGetQueryOrForm("webServiceHttpToTlsRedirect", bool.Parse, out bool webServiceHttpToTlsRedirect))
-            {
-                if (_dnsWebService._webServiceHttpToTlsRedirect != webServiceHttpToTlsRedirect)
-                {
-                    _dnsWebService._webServiceHttpToTlsRedirect = webServiceHttpToTlsRedirect;
-                    restartWebService = true;
-                }
-            }
-
-            if (request.TryGetQueryOrForm("webServiceUseSelfSignedTlsCertificate", bool.Parse, out bool webServiceUseSelfSignedTlsCertificate))
-                _dnsWebService._webServiceUseSelfSignedTlsCertificate = webServiceUseSelfSignedTlsCertificate;
-
-            if (request.TryGetQueryOrForm("webServiceTlsPort", int.Parse, out int webServiceTlsPort))
-            {
-                if (_dnsWebService._webServiceTlsPort != webServiceTlsPort)
-                {
-                    _dnsWebService._webServiceTlsPort = webServiceTlsPort;
-                    restartWebService = true;
-                }
-            }
-
-            string webServiceTlsCertificatePath = request.QueryOrForm("webServiceTlsCertificatePath");
-            if (webServiceTlsCertificatePath is not null)
-            {
-                if (webServiceTlsCertificatePath.Length == 0)
-                {
-                    _dnsWebService._webServiceTlsCertificatePath = null;
-                    _dnsWebService._webServiceTlsCertificatePassword = "";
-                }
-                else
-                {
-                    string webServiceTlsCertificatePassword = request.QueryOrForm("webServiceTlsCertificatePassword");
-
-                    if ((webServiceTlsCertificatePassword is null) || (webServiceTlsCertificatePassword == "************"))
-                        webServiceTlsCertificatePassword = _dnsWebService._webServiceTlsCertificatePassword;
-
-                    if ((webServiceTlsCertificatePath != _dnsWebService._webServiceTlsCertificatePath) || (webServiceTlsCertificatePassword != _dnsWebService._webServiceTlsCertificatePassword))
+                    if (_dnsWebService.DnsServer.EnableDnsOverUdpProxy != enableDnsOverUdpProxy)
                     {
-                        if (webServiceTlsCertificatePath.Length > 255)
-                            throw new ArgumentException("Web service TLS certificate path length cannot exceed 255 characters.", "webServiceTlsCertificatePath");
-
-                        if (webServiceTlsCertificatePassword?.Length > 255)
-                            throw new ArgumentException("Web service TLS certificate password length cannot exceed 255 characters.", "webServiceTlsCertificatePassword");
-
-                        _dnsWebService.LoadWebServiceTlsCertificate(_dnsWebService.ConvertToAbsolutePath(webServiceTlsCertificatePath), webServiceTlsCertificatePassword);
-
-                        _dnsWebService._webServiceTlsCertificatePath = _dnsWebService.ConvertToRelativePath(webServiceTlsCertificatePath);
-                        _dnsWebService._webServiceTlsCertificatePassword = webServiceTlsCertificatePassword;
-
-                        _dnsWebService.StartTlsCertificateUpdateTimer();
+                        _dnsWebService.DnsServer.EnableDnsOverUdpProxy = enableDnsOverUdpProxy;
+                        restartDnsService = true;
                     }
                 }
-            }
 
-            if (request.TryGetQueryOrForm("webServiceRealIpHeader", out string webServiceRealIpHeader))
-            {
-                if (webServiceRealIpHeader.Length > 255)
-                    throw new ArgumentException("Web service Real IP header name cannot exceed 255 characters.", "webServiceRealIpHeader");
-
-                if (webServiceRealIpHeader.Contains(' '))
-                    throw new ArgumentException("Web service Real IP header name cannot contain invalid characters.", "webServiceRealIpHeader");
-
-                _dnsWebService._webServiceRealIpHeader = webServiceRealIpHeader;
-            }
-
-            //optional protocols
-            if (request.TryGetQueryOrForm("enableDnsOverUdpProxy", bool.Parse, out bool enableDnsOverUdpProxy))
-            {
-                if (_dnsWebService.DnsServer.EnableDnsOverUdpProxy != enableDnsOverUdpProxy)
+                if (request.TryGetQueryOrForm("enableDnsOverTcpProxy", bool.Parse, out bool enableDnsOverTcpProxy))
                 {
-                    _dnsWebService.DnsServer.EnableDnsOverUdpProxy = enableDnsOverUdpProxy;
-                    restartDnsService = true;
-                }
-            }
-
-            if (request.TryGetQueryOrForm("enableDnsOverTcpProxy", bool.Parse, out bool enableDnsOverTcpProxy))
-            {
-                if (_dnsWebService.DnsServer.EnableDnsOverTcpProxy != enableDnsOverTcpProxy)
-                {
-                    _dnsWebService.DnsServer.EnableDnsOverTcpProxy = enableDnsOverTcpProxy;
-                    restartDnsService = true;
-                }
-            }
-
-            if (request.TryGetQueryOrForm("enableDnsOverHttp", bool.Parse, out bool enableDnsOverHttp))
-            {
-                if (_dnsWebService.DnsServer.EnableDnsOverHttp != enableDnsOverHttp)
-                {
-                    _dnsWebService.DnsServer.EnableDnsOverHttp = enableDnsOverHttp;
-                    restartDnsService = true;
-                }
-            }
-
-            if (request.TryGetQueryOrForm("enableDnsOverTls", bool.Parse, out bool enableDnsOverTls))
-            {
-                if (_dnsWebService.DnsServer.EnableDnsOverTls != enableDnsOverTls)
-                {
-                    _dnsWebService.DnsServer.EnableDnsOverTls = enableDnsOverTls;
-                    restartDnsService = true;
-                }
-            }
-
-            if (request.TryGetQueryOrForm("enableDnsOverHttps", bool.Parse, out bool enableDnsOverHttps))
-            {
-                if (_dnsWebService.DnsServer.EnableDnsOverHttps != enableDnsOverHttps)
-                {
-                    _dnsWebService.DnsServer.EnableDnsOverHttps = enableDnsOverHttps;
-                    restartDnsService = true;
-                }
-            }
-
-            if (request.TryGetQueryOrForm("enableDnsOverHttp3", bool.Parse, out bool enableDnsOverHttp3))
-            {
-                if (_dnsWebService.DnsServer.EnableDnsOverHttp3 != enableDnsOverHttp3)
-                {
-                    if (enableDnsOverHttp3)
-                        DnsWebService.ValidateQuicSupport("DNS-over-HTTP/3");
-
-                    _dnsWebService.DnsServer.EnableDnsOverHttp3 = enableDnsOverHttp3;
-                    restartDnsService = true;
-                }
-            }
-
-            if (request.TryGetQueryOrForm("enableDnsOverQuic", bool.Parse, out bool enableDnsOverQuic))
-            {
-                if (_dnsWebService.DnsServer.EnableDnsOverQuic != enableDnsOverQuic)
-                {
-                    if (enableDnsOverQuic)
-                        DnsWebService.ValidateQuicSupport();
-
-                    _dnsWebService.DnsServer.EnableDnsOverQuic = enableDnsOverQuic;
-                    restartDnsService = true;
-                }
-            }
-
-            if (request.TryGetQueryOrForm("dnsOverUdpProxyPort", int.Parse, out int dnsOverUdpProxyPort))
-            {
-                if (_dnsWebService.DnsServer.DnsOverUdpProxyPort != dnsOverUdpProxyPort)
-                {
-                    _dnsWebService.DnsServer.DnsOverUdpProxyPort = dnsOverUdpProxyPort;
-                    restartDnsService = true;
-                }
-            }
-
-            if (request.TryGetQueryOrForm("dnsOverTcpProxyPort", int.Parse, out int dnsOverTcpProxyPort))
-            {
-                if (_dnsWebService.DnsServer.DnsOverTcpProxyPort != dnsOverTcpProxyPort)
-                {
-                    _dnsWebService.DnsServer.DnsOverTcpProxyPort = dnsOverTcpProxyPort;
-                    restartDnsService = true;
-                }
-            }
-
-            if (request.TryGetQueryOrForm("dnsOverHttpPort", int.Parse, out int dnsOverHttpPort))
-            {
-                if (_dnsWebService.DnsServer.DnsOverHttpPort != dnsOverHttpPort)
-                {
-                    _dnsWebService.DnsServer.DnsOverHttpPort = dnsOverHttpPort;
-                    restartDnsService = true;
-                }
-            }
-
-            if (request.TryGetQueryOrForm("dnsOverTlsPort", int.Parse, out int dnsOverTlsPort))
-            {
-                if (_dnsWebService.DnsServer.DnsOverTlsPort != dnsOverTlsPort)
-                {
-                    _dnsWebService.DnsServer.DnsOverTlsPort = dnsOverTlsPort;
-                    restartDnsService = true;
-                }
-            }
-
-            if (request.TryGetQueryOrForm("dnsOverHttpsPort", int.Parse, out int dnsOverHttpsPort))
-            {
-                if (_dnsWebService.DnsServer.DnsOverHttpsPort != dnsOverHttpsPort)
-                {
-                    _dnsWebService.DnsServer.DnsOverHttpsPort = dnsOverHttpsPort;
-                    restartDnsService = true;
-                }
-            }
-
-            if (request.TryGetQueryOrForm("dnsOverQuicPort", int.Parse, out int dnsOverQuicPort))
-            {
-                if (_dnsWebService.DnsServer.DnsOverQuicPort != dnsOverQuicPort)
-                {
-                    _dnsWebService.DnsServer.DnsOverQuicPort = dnsOverQuicPort;
-                    restartDnsService = true;
-                }
-            }
-
-            string reverseProxyNetworkACL = request.QueryOrForm("reverseProxyNetworkACL");
-            if (reverseProxyNetworkACL is not null)
-            {
-                if ((reverseProxyNetworkACL.Length == 0) || reverseProxyNetworkACL.Equals("false", StringComparison.OrdinalIgnoreCase))
-                    _dnsWebService.DnsServer.ReverseProxyNetworkACL = null;
-                else
-                    _dnsWebService.DnsServer.ReverseProxyNetworkACL = reverseProxyNetworkACL.Split(NetworkAccessControl.Parse, ',');
-            }
-
-            string dnsTlsCertificatePath = request.QueryOrForm("dnsTlsCertificatePath");
-            if (dnsTlsCertificatePath is not null)
-            {
-                if (dnsTlsCertificatePath.Length == 0)
-                {
-                    if (!string.IsNullOrEmpty(_dnsWebService._dnsTlsCertificatePath) && (_dnsWebService.DnsServer.EnableDnsOverTls || _dnsWebService.DnsServer.EnableDnsOverHttps || _dnsWebService.DnsServer.EnableDnsOverQuic))
-                        restartDnsService = true;
-
-                    _dnsWebService.DnsServer.CertificateCollection = null;
-                    _dnsWebService._dnsTlsCertificatePath = null;
-                    _dnsWebService._dnsTlsCertificatePassword = "";
-                }
-                else
-                {
-                    string dnsTlsCertificatePassword = request.QueryOrForm("dnsTlsCertificatePassword");
-
-                    if ((dnsTlsCertificatePassword is null) || (dnsTlsCertificatePassword == "************"))
-                        dnsTlsCertificatePassword = _dnsWebService._dnsTlsCertificatePassword;
-
-                    if ((dnsTlsCertificatePath != _dnsWebService._dnsTlsCertificatePath) || (dnsTlsCertificatePassword != _dnsWebService._dnsTlsCertificatePassword))
+                    if (_dnsWebService.DnsServer.EnableDnsOverTcpProxy != enableDnsOverTcpProxy)
                     {
-                        if (dnsTlsCertificatePath.Length > 255)
-                            throw new ArgumentException("DNS optional protocols TLS certificate path length cannot exceed 255 characters.", "dnsTlsCertificatePath");
+                        _dnsWebService.DnsServer.EnableDnsOverTcpProxy = enableDnsOverTcpProxy;
+                        restartDnsService = true;
+                    }
+                }
 
-                        if (dnsTlsCertificatePassword?.Length > 255)
-                            throw new ArgumentException("DNS optional protocols TLS certificate password length cannot exceed 255 characters.", "dnsTlsCertificatePassword");
+                if (request.TryGetQueryOrForm("enableDnsOverHttp", bool.Parse, out bool enableDnsOverHttp))
+                {
+                    if (_dnsWebService.DnsServer.EnableDnsOverHttp != enableDnsOverHttp)
+                    {
+                        _dnsWebService.DnsServer.EnableDnsOverHttp = enableDnsOverHttp;
+                        restartDnsService = true;
+                    }
+                }
 
-                        _dnsWebService.LoadDnsTlsCertificate(_dnsWebService.ConvertToAbsolutePath(dnsTlsCertificatePath), dnsTlsCertificatePassword);
+                if (request.TryGetQueryOrForm("enableDnsOverTls", bool.Parse, out bool enableDnsOverTls))
+                {
+                    if (_dnsWebService.DnsServer.EnableDnsOverTls != enableDnsOverTls)
+                    {
+                        _dnsWebService.DnsServer.EnableDnsOverTls = enableDnsOverTls;
+                        restartDnsService = true;
+                    }
+                }
 
-                        if (string.IsNullOrEmpty(_dnsWebService._dnsTlsCertificatePath) && (_dnsWebService.DnsServer.EnableDnsOverTls || _dnsWebService.DnsServer.EnableDnsOverHttps || _dnsWebService.DnsServer.EnableDnsOverQuic))
+                if (request.TryGetQueryOrForm("enableDnsOverHttps", bool.Parse, out bool enableDnsOverHttps))
+                {
+                    if (_dnsWebService.DnsServer.EnableDnsOverHttps != enableDnsOverHttps)
+                    {
+                        _dnsWebService.DnsServer.EnableDnsOverHttps = enableDnsOverHttps;
+                        restartDnsService = true;
+                    }
+                }
+
+                if (request.TryGetQueryOrForm("enableDnsOverHttp3", bool.Parse, out bool enableDnsOverHttp3))
+                {
+                    if (_dnsWebService.DnsServer.EnableDnsOverHttp3 != enableDnsOverHttp3)
+                    {
+                        if (enableDnsOverHttp3)
+                            DnsWebService.ValidateQuicSupport("DNS-over-HTTP/3");
+
+                        _dnsWebService.DnsServer.EnableDnsOverHttp3 = enableDnsOverHttp3;
+                        restartDnsService = true;
+                    }
+                }
+
+                if (request.TryGetQueryOrForm("enableDnsOverQuic", bool.Parse, out bool enableDnsOverQuic))
+                {
+                    if (_dnsWebService.DnsServer.EnableDnsOverQuic != enableDnsOverQuic)
+                    {
+                        if (enableDnsOverQuic)
+                            DnsWebService.ValidateQuicSupport();
+
+                        _dnsWebService.DnsServer.EnableDnsOverQuic = enableDnsOverQuic;
+                        restartDnsService = true;
+                    }
+                }
+
+                if (request.TryGetQueryOrForm("dnsOverUdpProxyPort", int.Parse, out int dnsOverUdpProxyPort))
+                {
+                    if (_dnsWebService.DnsServer.DnsOverUdpProxyPort != dnsOverUdpProxyPort)
+                    {
+                        _dnsWebService.DnsServer.DnsOverUdpProxyPort = dnsOverUdpProxyPort;
+                        restartDnsService = true;
+                    }
+                }
+
+                if (request.TryGetQueryOrForm("dnsOverTcpProxyPort", int.Parse, out int dnsOverTcpProxyPort))
+                {
+                    if (_dnsWebService.DnsServer.DnsOverTcpProxyPort != dnsOverTcpProxyPort)
+                    {
+                        _dnsWebService.DnsServer.DnsOverTcpProxyPort = dnsOverTcpProxyPort;
+                        restartDnsService = true;
+                    }
+                }
+
+                if (request.TryGetQueryOrForm("dnsOverHttpPort", int.Parse, out int dnsOverHttpPort))
+                {
+                    if (_dnsWebService.DnsServer.DnsOverHttpPort != dnsOverHttpPort)
+                    {
+                        _dnsWebService.DnsServer.DnsOverHttpPort = dnsOverHttpPort;
+                        restartDnsService = true;
+                    }
+                }
+
+                if (request.TryGetQueryOrForm("dnsOverTlsPort", int.Parse, out int dnsOverTlsPort))
+                {
+                    if (_dnsWebService.DnsServer.DnsOverTlsPort != dnsOverTlsPort)
+                    {
+                        _dnsWebService.DnsServer.DnsOverTlsPort = dnsOverTlsPort;
+                        restartDnsService = true;
+                    }
+                }
+
+                if (request.TryGetQueryOrForm("dnsOverHttpsPort", int.Parse, out int dnsOverHttpsPort))
+                {
+                    if (_dnsWebService.DnsServer.DnsOverHttpsPort != dnsOverHttpsPort)
+                    {
+                        _dnsWebService.DnsServer.DnsOverHttpsPort = dnsOverHttpsPort;
+                        restartDnsService = true;
+                    }
+                }
+
+                if (request.TryGetQueryOrForm("dnsOverQuicPort", int.Parse, out int dnsOverQuicPort))
+                {
+                    if (_dnsWebService.DnsServer.DnsOverQuicPort != dnsOverQuicPort)
+                    {
+                        _dnsWebService.DnsServer.DnsOverQuicPort = dnsOverQuicPort;
+                        restartDnsService = true;
+                    }
+                }
+
+                if (request.TryGetQueryOrFormArray("reverseProxyNetworkACL", NetworkAccessControl.Parse, out NetworkAccessControl[] reverseProxyNetworkACL))
+                    _dnsWebService.DnsServer.ReverseProxyNetworkACL = reverseProxyNetworkACL;
+
+                string dnsTlsCertificatePath = request.QueryOrForm("dnsTlsCertificatePath");
+                if (dnsTlsCertificatePath is not null)
+                {
+                    if (dnsTlsCertificatePath.Length == 0)
+                    {
+                        if (!string.IsNullOrEmpty(_dnsWebService._dnsTlsCertificatePath) && (_dnsWebService.DnsServer.EnableDnsOverTls || _dnsWebService.DnsServer.EnableDnsOverHttps || _dnsWebService.DnsServer.EnableDnsOverQuic))
                             restartDnsService = true;
 
-                        _dnsWebService._dnsTlsCertificatePath = _dnsWebService.ConvertToRelativePath(dnsTlsCertificatePath);
-                        _dnsWebService._dnsTlsCertificatePassword = dnsTlsCertificatePassword;
+                        _dnsWebService.DnsServer.CertificateCollection = null;
+                        _dnsWebService._dnsTlsCertificatePath = null;
+                        _dnsWebService._dnsTlsCertificatePassword = "";
+                    }
+                    else
+                    {
+                        string dnsTlsCertificatePassword = request.QueryOrForm("dnsTlsCertificatePassword");
 
-                        _dnsWebService.StartTlsCertificateUpdateTimer();
+                        if ((dnsTlsCertificatePassword is null) || (dnsTlsCertificatePassword == "************"))
+                            dnsTlsCertificatePassword = _dnsWebService._dnsTlsCertificatePassword;
+
+                        if ((dnsTlsCertificatePath != _dnsWebService._dnsTlsCertificatePath) || (dnsTlsCertificatePassword != _dnsWebService._dnsTlsCertificatePassword))
+                        {
+                            if (dnsTlsCertificatePath.Length > 255)
+                                throw new ArgumentException("DNS optional protocols TLS certificate path length cannot exceed 255 characters.", "dnsTlsCertificatePath");
+
+                            if (dnsTlsCertificatePassword?.Length > 255)
+                                throw new ArgumentException("DNS optional protocols TLS certificate password length cannot exceed 255 characters.", "dnsTlsCertificatePassword");
+
+                            _dnsWebService.LoadDnsTlsCertificate(_dnsWebService.ConvertToAbsolutePath(dnsTlsCertificatePath), dnsTlsCertificatePassword);
+
+                            if (string.IsNullOrEmpty(_dnsWebService._dnsTlsCertificatePath) && (_dnsWebService.DnsServer.EnableDnsOverTls || _dnsWebService.DnsServer.EnableDnsOverHttps || _dnsWebService.DnsServer.EnableDnsOverQuic))
+                                restartDnsService = true;
+
+                            _dnsWebService._dnsTlsCertificatePath = _dnsWebService.ConvertToRelativePath(dnsTlsCertificatePath);
+                            _dnsWebService._dnsTlsCertificatePassword = dnsTlsCertificatePassword;
+
+                            _dnsWebService.StartTlsCertificateUpdateTimer();
+                        }
                     }
                 }
-            }
 
-            if (request.TryGetQueryOrForm("dnsOverHttpRealIpHeader", out string dnsOverHttpRealIpHeader))
-                _dnsWebService.DnsServer.DnsOverHttpRealIpHeader = dnsOverHttpRealIpHeader;
+                if (request.TryGetQueryOrForm("dnsOverHttpRealIpHeader", out string dnsOverHttpRealIpHeader))
+                    _dnsWebService.DnsServer.DnsOverHttpRealIpHeader = dnsOverHttpRealIpHeader;
 
-            //tsig
-            string strTsigKeys = request.QueryOrForm("tsigKeys");
-            if (strTsigKeys is not null)
-            {
-                if ((strTsigKeys.Length == 0) || strTsigKeys.Equals("false", StringComparison.OrdinalIgnoreCase))
-                {
-                    _dnsWebService.DnsServer.TsigKeys = null;
-                }
-                else
-                {
-                    string[] strTsigKeyParts = strTsigKeys.Split('|');
-                    Dictionary<string, TsigKey> tsigKeys = new Dictionary<string, TsigKey>(strTsigKeyParts.Length);
+                #endregion
 
-                    for (int i = 0; i < strTsigKeyParts.Length; i += 3)
+                #region tsig
+
+                if (request.TryGetQueryOrFormArray("tsigKeys", delegate (JsonElement jsonObject)
                     {
-                        string keyName = strTsigKeyParts[i + 0].TrimEnd('.').ToLowerInvariant();
-                        string sharedSecret = strTsigKeyParts[i + 1];
-                        string algorithmName = strTsigKeyParts[i + 2];
+                        string keyName = jsonObject.GetProperty("keyName").GetString().TrimEnd('.').ToLowerInvariant(); ;
+                        string sharedSecret = jsonObject.GetProperty("sharedSecret").GetString();
+                        string algorithmName = jsonObject.GetProperty("algorithmName").GetString();
 
                         if (DnsClient.IsDomainNameUnicode(keyName))
                             keyName = DnsClient.ConvertDomainNameToAscii(keyName);
@@ -1084,402 +1028,437 @@ namespace DnsServerCore
                         DnsClient.IsDomainNameValid(keyName, true);
 
                         if (sharedSecret.Length == 0)
-                            tsigKeys.Add(keyName, new TsigKey(keyName, algorithmName));
-                        else
-                            tsigKeys.Add(keyName, new TsigKey(keyName, sharedSecret, algorithmName));
-                    }
+                            return new TsigKey(keyName, algorithmName);
 
-                    _dnsWebService.DnsServer.TsigKeys = tsigKeys;
-                }
-            }
-
-            //recursion
-            if (request.TryGetQueryOrFormEnum("recursion", out DnsServerRecursion recursion))
-                _dnsWebService.DnsServer.Recursion = recursion;
-
-            string recursionNetworkACL = request.QueryOrForm("recursionNetworkACL");
-            if (recursionNetworkACL is not null)
-            {
-                if ((recursionNetworkACL.Length == 0) || recursionNetworkACL.Equals("false", StringComparison.OrdinalIgnoreCase))
-                    _dnsWebService.DnsServer.RecursionNetworkACL = null;
-                else
-                    _dnsWebService.DnsServer.RecursionNetworkACL = recursionNetworkACL.Split(NetworkAccessControl.Parse, ',');
-            }
-
-            if (request.TryGetQueryOrForm("randomizeName", bool.Parse, out bool randomizeName))
-                _dnsWebService.DnsServer.RandomizeName = randomizeName;
-
-            if (request.TryGetQueryOrForm("qnameMinimization", bool.Parse, out bool qnameMinimization))
-                _dnsWebService.DnsServer.QnameMinimization = qnameMinimization;
-
-            if (request.TryGetQueryOrForm("nsRevalidation", bool.Parse, out bool nsRevalidation))
-                _dnsWebService.DnsServer.NsRevalidation = nsRevalidation;
-
-            if (request.TryGetQueryOrForm("resolverRetries", int.Parse, out int resolverRetries))
-                _dnsWebService.DnsServer.ResolverRetries = resolverRetries;
-
-            if (request.TryGetQueryOrForm("resolverTimeout", int.Parse, out int resolverTimeout))
-                _dnsWebService.DnsServer.ResolverTimeout = resolverTimeout;
-
-            if (request.TryGetQueryOrForm("resolverConcurrency", int.Parse, out int resolverConcurrency))
-                _dnsWebService.DnsServer.ResolverConcurrency = resolverConcurrency;
-
-            if (request.TryGetQueryOrForm("resolverMaxStackCount", int.Parse, out int resolverMaxStackCount))
-                _dnsWebService.DnsServer.ResolverMaxStackCount = resolverMaxStackCount;
-
-            //cache
-            if (request.TryGetQueryOrForm("saveCache", bool.Parse, out bool saveCache))
-            {
-                if (!saveCache)
-                    _dnsWebService.DnsServer.CacheZoneManager.DeleteCacheZoneFile();
-
-                _dnsWebService._saveCache = saveCache;
-            }
-
-            if (request.TryGetQueryOrForm("serveStale", bool.Parse, out bool serveStale))
-                _dnsWebService.DnsServer.ServeStale = serveStale;
-
-            if (request.TryGetQueryOrForm("serveStaleTtl", uint.Parse, out uint serveStaleTtl))
-                _dnsWebService.DnsServer.CacheZoneManager.ServeStaleTtl = serveStaleTtl;
-
-            if (request.TryGetQueryOrForm("serveStaleAnswerTtl", uint.Parse, out uint serveStaleAnswerTtl))
-                _dnsWebService.DnsServer.CacheZoneManager.ServeStaleAnswerTtl = serveStaleAnswerTtl;
-
-            if (request.TryGetQueryOrForm("serveStaleResetTtl", uint.Parse, out uint serveStaleResetTtl))
-                _dnsWebService.DnsServer.CacheZoneManager.ServeStaleResetTtl = serveStaleResetTtl;
-
-            if (request.TryGetQueryOrForm("serveStaleMaxWaitTime", int.Parse, out int serveStaleMaxWaitTime))
-                _dnsWebService.DnsServer.ServeStaleMaxWaitTime = serveStaleMaxWaitTime;
-
-            if (request.TryGetQueryOrForm("cacheMaximumEntries", long.Parse, out long cacheMaximumEntries))
-                _dnsWebService.DnsServer.CacheZoneManager.MaximumEntries = cacheMaximumEntries;
-
-            if (request.TryGetQueryOrForm("cacheMinimumRecordTtl", uint.Parse, out uint cacheMinimumRecordTtl))
-                _dnsWebService.DnsServer.CacheZoneManager.MinimumRecordTtl = cacheMinimumRecordTtl;
-
-            if (request.TryGetQueryOrForm("cacheMaximumRecordTtl", uint.Parse, out uint cacheMaximumRecordTtl))
-                _dnsWebService.DnsServer.CacheZoneManager.MaximumRecordTtl = cacheMaximumRecordTtl;
-
-            if (request.TryGetQueryOrForm("cacheNegativeRecordTtl", uint.Parse, out uint cacheNegativeRecordTtl))
-                _dnsWebService.DnsServer.CacheZoneManager.NegativeRecordTtl = cacheNegativeRecordTtl;
-
-            if (request.TryGetQueryOrForm("cacheFailureRecordTtl", uint.Parse, out uint cacheFailureRecordTtl))
-                _dnsWebService.DnsServer.CacheZoneManager.FailureRecordTtl = cacheFailureRecordTtl;
-
-            if (request.TryGetQueryOrForm("cachePrefetchEligibility", int.Parse, out int cachePrefetchEligibility))
-                _dnsWebService.DnsServer.CachePrefetchEligibility = cachePrefetchEligibility;
-
-            if (request.TryGetQueryOrForm("cachePrefetchTrigger", int.Parse, out int cachePrefetchTrigger))
-                _dnsWebService.DnsServer.CachePrefetchTrigger = cachePrefetchTrigger;
-
-            if (request.TryGetQueryOrForm("cachePrefetchSampleIntervalInMinutes", int.Parse, out int cachePrefetchSampleIntervalInMinutes))
-                _dnsWebService.DnsServer.CachePrefetchSampleIntervalInMinutes = cachePrefetchSampleIntervalInMinutes;
-
-            if (request.TryGetQueryOrForm("cachePrefetchSampleEligibilityHitsPerHour", int.Parse, out int cachePrefetchSampleEligibilityHitsPerHour))
-                _dnsWebService.DnsServer.CachePrefetchSampleEligibilityHitsPerHour = cachePrefetchSampleEligibilityHitsPerHour;
-
-            //blocking
-            if (request.TryGetQueryOrForm("enableBlocking", bool.Parse, out bool enableBlocking))
-            {
-                _dnsWebService.DnsServer.EnableBlocking = enableBlocking;
-                if (_dnsWebService.DnsServer.EnableBlocking)
-                {
-                    if (_temporaryDisableBlockingTimer is not null)
-                        _temporaryDisableBlockingTimer.Dispose();
-                }
-            }
-
-            if (request.TryGetQueryOrForm("allowTxtBlockingReport", bool.Parse, out bool allowTxtBlockingReport))
-                _dnsWebService.DnsServer.AllowTxtBlockingReport = allowTxtBlockingReport;
-
-            string blockingBypassList = request.QueryOrForm("blockingBypassList");
-            if (blockingBypassList is not null)
-                _dnsWebService.DnsServer.BlockingBypassList = ParseNetworkAddresses(blockingBypassList);
-
-            if (request.TryGetQueryOrFormEnum("blockingType", out DnsServerBlockingType blockingType))
-                _dnsWebService.DnsServer.BlockingType = blockingType;
-
-            if (request.TryGetQueryOrForm("blockingAnswerTtl", uint.Parse, out uint blockingAnswerTtl))
-                _dnsWebService.DnsServer.BlockingAnswerTtl = blockingAnswerTtl;
-
-            string customBlockingAddresses = request.QueryOrForm("customBlockingAddresses");
-            if (customBlockingAddresses is not null)
-            {
-                if ((customBlockingAddresses.Length == 0) || customBlockingAddresses.Equals("false", StringComparison.OrdinalIgnoreCase))
-                {
-                    _dnsWebService.DnsServer.CustomBlockingARecords = null;
-                    _dnsWebService.DnsServer.CustomBlockingAAAARecords = null;
-                }
-                else
-                {
-                    string[] strAddresses = customBlockingAddresses.Split(_commaSeparator, StringSplitOptions.RemoveEmptyEntries);
-
-                    List<DnsARecordData> dnsARecords = new List<DnsARecordData>();
-                    List<DnsAAAARecordData> dnsAAAARecords = new List<DnsAAAARecordData>();
-
-                    foreach (string strAddress in strAddresses)
+                        return new TsigKey(keyName, sharedSecret, algorithmName);
+                    },
+                    delegate (ArraySegment<string> tableRow)
                     {
-                        if (IPAddress.TryParse(strAddress, out IPAddress customAddress))
-                        {
-                            switch (customAddress.AddressFamily)
-                            {
-                                case AddressFamily.InterNetwork:
-                                    dnsARecords.Add(new DnsARecordData(customAddress));
-                                    break;
+                        string keyName = tableRow[0].TrimEnd('.').ToLowerInvariant();
+                        string sharedSecret = tableRow[1];
+                        string algorithmName = tableRow[2];
 
-                                case AddressFamily.InterNetworkV6:
-                                    dnsAAAARecords.Add(new DnsAAAARecordData(customAddress));
-                                    break;
-                            }
-                        }
-                    }
+                        if (DnsClient.IsDomainNameUnicode(keyName))
+                            keyName = DnsClient.ConvertDomainNameToAscii(keyName);
 
-                    _dnsWebService.DnsServer.CustomBlockingARecords = dnsARecords;
-                    _dnsWebService.DnsServer.CustomBlockingAAAARecords = dnsAAAARecords;
-                }
-            }
+                        DnsClient.IsDomainNameValid(keyName, true);
 
-            string blockListUrls = request.QueryOrForm("blockListUrls");
-            if (blockListUrls is not null)
-            {
-                if ((blockListUrls.Length == 0) || blockListUrls.Equals("false", StringComparison.OrdinalIgnoreCase))
+                        if (sharedSecret.Length == 0)
+                            return new TsigKey(keyName, algorithmName);
+
+                        return new TsigKey(keyName, sharedSecret, algorithmName);
+                    },
+                    3, out TsigKey[] tsigKeys, '|')
+                )
                 {
-                    _dnsWebService.DnsServer.BlockListZoneManager.AllowListUrls.Clear();
-                    _dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Clear();
-                    _dnsWebService.DnsServer.BlockListZoneManager.Flush();
-                }
-                else
-                {
-                    string[] blockListUrlList = blockListUrls.Split(_commaSeparator, StringSplitOptions.RemoveEmptyEntries);
-
-                    if (oldWebServiceHttpPort != _dnsWebService._webServiceHttpPort)
+                    if ((tsigKeys is null) || (tsigKeys.Length == 0))
                     {
-                        for (int i = 0; i < blockListUrlList.Length; i++)
-                        {
-                            if (blockListUrlList[i].Contains("http://localhost:" + oldWebServiceHttpPort + "/blocklist.txt"))
-                            {
-                                blockListUrlList[i] = "http://localhost:" + _dnsWebService._webServiceHttpPort + "/blocklist.txt";
-                                blockListUrlsUpdated = true;
-                                break;
-                            }
-                        }
+                        _dnsWebService.DnsServer.TsigKeys = null;
                     }
-
-                    if (!blockListUrlsUpdated)
+                    else
                     {
-                        if (blockListUrlList.Length != (_dnsWebService.DnsServer.BlockListZoneManager.AllowListUrls.Count + _dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Count))
+                        Dictionary<string, TsigKey> tsigKeysMap = new Dictionary<string, TsigKey>(tsigKeys.Length);
+
+                        foreach (TsigKey tsigKey in tsigKeys)
+                            tsigKeysMap.Add(tsigKey.KeyName, tsigKey);
+
+                        _dnsWebService.DnsServer.TsigKeys = tsigKeysMap;
+                    }
+                }
+
+                #endregion
+
+                #region recursion
+
+                if (request.TryGetQueryOrFormEnum("recursion", out DnsServerRecursion recursion))
+                    _dnsWebService.DnsServer.Recursion = recursion;
+
+                if (request.TryGetQueryOrFormArray("recursionNetworkACL", NetworkAccessControl.Parse, out NetworkAccessControl[] recursionNetworkACL))
+                    _dnsWebService.DnsServer.RecursionNetworkACL = recursionNetworkACL;
+
+                if (request.TryGetQueryOrForm("randomizeName", bool.Parse, out bool randomizeName))
+                    _dnsWebService.DnsServer.RandomizeName = randomizeName;
+
+                if (request.TryGetQueryOrForm("qnameMinimization", bool.Parse, out bool qnameMinimization))
+                    _dnsWebService.DnsServer.QnameMinimization = qnameMinimization;
+
+                if (request.TryGetQueryOrForm("nsRevalidation", bool.Parse, out bool nsRevalidation))
+                    _dnsWebService.DnsServer.NsRevalidation = nsRevalidation;
+
+                if (request.TryGetQueryOrForm("resolverRetries", int.Parse, out int resolverRetries))
+                    _dnsWebService.DnsServer.ResolverRetries = resolverRetries;
+
+                if (request.TryGetQueryOrForm("resolverTimeout", int.Parse, out int resolverTimeout))
+                    _dnsWebService.DnsServer.ResolverTimeout = resolverTimeout;
+
+                if (request.TryGetQueryOrForm("resolverConcurrency", int.Parse, out int resolverConcurrency))
+                    _dnsWebService.DnsServer.ResolverConcurrency = resolverConcurrency;
+
+                if (request.TryGetQueryOrForm("resolverMaxStackCount", int.Parse, out int resolverMaxStackCount))
+                    _dnsWebService.DnsServer.ResolverMaxStackCount = resolverMaxStackCount;
+
+                #endregion
+
+                #region cache
+
+                //cache
+                if (request.TryGetQueryOrForm("saveCache", bool.Parse, out bool saveCache))
+                {
+                    if (!saveCache)
+                        _dnsWebService.DnsServer.CacheZoneManager.DeleteCacheZoneFile();
+
+                    _dnsWebService._saveCache = saveCache;
+                }
+
+                if (request.TryGetQueryOrForm("serveStale", bool.Parse, out bool serveStale))
+                    _dnsWebService.DnsServer.ServeStale = serveStale;
+
+                if (request.TryGetQueryOrForm("serveStaleTtl", uint.Parse, out uint serveStaleTtl))
+                    _dnsWebService.DnsServer.CacheZoneManager.ServeStaleTtl = serveStaleTtl;
+
+                if (request.TryGetQueryOrForm("serveStaleAnswerTtl", uint.Parse, out uint serveStaleAnswerTtl))
+                    _dnsWebService.DnsServer.CacheZoneManager.ServeStaleAnswerTtl = serveStaleAnswerTtl;
+
+                if (request.TryGetQueryOrForm("serveStaleResetTtl", uint.Parse, out uint serveStaleResetTtl))
+                    _dnsWebService.DnsServer.CacheZoneManager.ServeStaleResetTtl = serveStaleResetTtl;
+
+                if (request.TryGetQueryOrForm("serveStaleMaxWaitTime", int.Parse, out int serveStaleMaxWaitTime))
+                    _dnsWebService.DnsServer.ServeStaleMaxWaitTime = serveStaleMaxWaitTime;
+
+                if (request.TryGetQueryOrForm("cacheMaximumEntries", long.Parse, out long cacheMaximumEntries))
+                    _dnsWebService.DnsServer.CacheZoneManager.MaximumEntries = cacheMaximumEntries;
+
+                if (request.TryGetQueryOrForm("cacheMinimumRecordTtl", uint.Parse, out uint cacheMinimumRecordTtl))
+                    _dnsWebService.DnsServer.CacheZoneManager.MinimumRecordTtl = cacheMinimumRecordTtl;
+
+                if (request.TryGetQueryOrForm("cacheMaximumRecordTtl", uint.Parse, out uint cacheMaximumRecordTtl))
+                    _dnsWebService.DnsServer.CacheZoneManager.MaximumRecordTtl = cacheMaximumRecordTtl;
+
+                if (request.TryGetQueryOrForm("cacheNegativeRecordTtl", uint.Parse, out uint cacheNegativeRecordTtl))
+                    _dnsWebService.DnsServer.CacheZoneManager.NegativeRecordTtl = cacheNegativeRecordTtl;
+
+                if (request.TryGetQueryOrForm("cacheFailureRecordTtl", uint.Parse, out uint cacheFailureRecordTtl))
+                    _dnsWebService.DnsServer.CacheZoneManager.FailureRecordTtl = cacheFailureRecordTtl;
+
+                if (request.TryGetQueryOrForm("cachePrefetchEligibility", int.Parse, out int cachePrefetchEligibility))
+                    _dnsWebService.DnsServer.CachePrefetchEligibility = cachePrefetchEligibility;
+
+                if (request.TryGetQueryOrForm("cachePrefetchTrigger", int.Parse, out int cachePrefetchTrigger))
+                    _dnsWebService.DnsServer.CachePrefetchTrigger = cachePrefetchTrigger;
+
+                if (request.TryGetQueryOrForm("cachePrefetchSampleIntervalInMinutes", int.Parse, out int cachePrefetchSampleIntervalInMinutes))
+                    _dnsWebService.DnsServer.CachePrefetchSampleIntervalInMinutes = cachePrefetchSampleIntervalInMinutes;
+
+                if (request.TryGetQueryOrForm("cachePrefetchSampleEligibilityHitsPerHour", int.Parse, out int cachePrefetchSampleEligibilityHitsPerHour))
+                    _dnsWebService.DnsServer.CachePrefetchSampleEligibilityHitsPerHour = cachePrefetchSampleEligibilityHitsPerHour;
+
+                #endregion
+
+                #region blocking
+
+                if (request.TryGetQueryOrForm("enableBlocking", bool.Parse, out bool enableBlocking))
+                {
+                    _dnsWebService.DnsServer.EnableBlocking = enableBlocking;
+                    if (_dnsWebService.DnsServer.EnableBlocking)
+                    {
+                        if (_temporaryDisableBlockingTimer is not null)
+                            _temporaryDisableBlockingTimer.Dispose();
+                    }
+                }
+
+                if (request.TryGetQueryOrForm("allowTxtBlockingReport", bool.Parse, out bool allowTxtBlockingReport))
+                    _dnsWebService.DnsServer.AllowTxtBlockingReport = allowTxtBlockingReport;
+
+                if (request.TryGetQueryOrFormArray("blockingBypassList", NetworkAddress.Parse, out NetworkAddress[] blockingBypassList))
+                    _dnsWebService.DnsServer.BlockingBypassList = blockingBypassList;
+
+                if (request.TryGetQueryOrFormEnum("blockingType", out DnsServerBlockingType blockingType))
+                    _dnsWebService.DnsServer.BlockingType = blockingType;
+
+                if (request.TryGetQueryOrForm("blockingAnswerTtl", uint.Parse, out uint blockingAnswerTtl))
+                    _dnsWebService.DnsServer.BlockingAnswerTtl = blockingAnswerTtl;
+
+                if (request.TryGetQueryOrFormArray("customBlockingAddresses", out string[] customBlockingAddresses))
+                {
+                    if ((customBlockingAddresses is null) || (customBlockingAddresses.Length == 0))
+                    {
+                        _dnsWebService.DnsServer.CustomBlockingARecords = null;
+                        _dnsWebService.DnsServer.CustomBlockingAAAARecords = null;
+                    }
+                    else
+                    {
+                        List<DnsARecordData> dnsARecords = new List<DnsARecordData>();
+                        List<DnsAAAARecordData> dnsAAAARecords = new List<DnsAAAARecordData>();
+
+                        foreach (string strAddress in customBlockingAddresses)
                         {
-                            blockListUrlsUpdated = true;
-                        }
-                        else
-                        {
-                            foreach (string strBlockListUrl in blockListUrlList)
+                            if (IPAddress.TryParse(strAddress, out IPAddress customAddress))
                             {
-                                if (strBlockListUrl.StartsWith('!'))
+                                switch (customAddress.AddressFamily)
                                 {
-                                    string strAllowListUrl = strBlockListUrl.Substring(1);
+                                    case AddressFamily.InterNetwork:
+                                        dnsARecords.Add(new DnsARecordData(customAddress));
+                                        break;
 
-                                    if (!_dnsWebService.DnsServer.BlockListZoneManager.AllowListUrls.Contains(new Uri(strAllowListUrl)))
-                                    {
-                                        blockListUrlsUpdated = true;
+                                    case AddressFamily.InterNetworkV6:
+                                        dnsAAAARecords.Add(new DnsAAAARecordData(customAddress));
                                         break;
-                                    }
-                                }
-                                else
-                                {
-                                    if (!_dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Contains(new Uri(strBlockListUrl)))
-                                    {
-                                        blockListUrlsUpdated = true;
-                                        break;
-                                    }
                                 }
                             }
                         }
-                    }
 
-                    if (blockListUrlsUpdated)
+                        _dnsWebService.DnsServer.CustomBlockingARecords = dnsARecords;
+                        _dnsWebService.DnsServer.CustomBlockingAAAARecords = dnsAAAARecords;
+                    }
+                }
+
+                if (request.TryGetQueryOrFormArray("blockListUrls", out string[] blockListUrls))
+                {
+                    if ((blockListUrls is null) || (blockListUrls.Length == 0))
                     {
                         _dnsWebService.DnsServer.BlockListZoneManager.AllowListUrls.Clear();
                         _dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Clear();
-
-                        foreach (string strBlockListUrl in blockListUrlList)
+                        _dnsWebService.DnsServer.BlockListZoneManager.Flush();
+                    }
+                    else
+                    {
+                        if (oldWebServiceHttpPort != _dnsWebService._webServiceHttpPort)
                         {
-                            if (strBlockListUrl.StartsWith('!'))
+                            for (int i = 0; i < blockListUrls.Length; i++)
                             {
-                                Uri allowListUrl = new Uri(strBlockListUrl.Substring(1));
+                                if (blockListUrls[i].Contains("http://localhost:" + oldWebServiceHttpPort + "/blocklist.txt"))
+                                {
+                                    blockListUrls[i] = "http://localhost:" + _dnsWebService._webServiceHttpPort + "/blocklist.txt";
+                                    blockListUrlsUpdated = true;
+                                    break;
+                                }
+                            }
+                        }
 
-                                if (allowListUrl.AbsoluteUri.Length > 255)
-                                    throw new ArgumentException("Allow list URL length cannot exceed 255 characters.", "blockListUrls");
-
-                                if (!_dnsWebService.DnsServer.BlockListZoneManager.AllowListUrls.Contains(allowListUrl))
-                                    _dnsWebService.DnsServer.BlockListZoneManager.AllowListUrls.Add(allowListUrl);
+                        if (!blockListUrlsUpdated)
+                        {
+                            if (blockListUrls.Length != (_dnsWebService.DnsServer.BlockListZoneManager.AllowListUrls.Count + _dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Count))
+                            {
+                                blockListUrlsUpdated = true;
                             }
                             else
                             {
-                                Uri blockListUrl = new Uri(strBlockListUrl);
+                                foreach (string strBlockListUrl in blockListUrls)
+                                {
+                                    if (strBlockListUrl.StartsWith('!'))
+                                    {
+                                        string strAllowListUrl = strBlockListUrl.Substring(1);
 
-                                if (blockListUrl.AbsoluteUri.Length > 255)
-                                    throw new ArgumentException("Block list URL length cannot exceed 255 characters.", "blockListUrls");
+                                        if (!_dnsWebService.DnsServer.BlockListZoneManager.AllowListUrls.Contains(new Uri(strAllowListUrl)))
+                                        {
+                                            blockListUrlsUpdated = true;
+                                            break;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (!_dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Contains(new Uri(strBlockListUrl)))
+                                        {
+                                            blockListUrlsUpdated = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
-                                if (!_dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Contains(blockListUrl))
-                                    _dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Add(blockListUrl);
+                        if (blockListUrlsUpdated)
+                        {
+                            _dnsWebService.DnsServer.BlockListZoneManager.AllowListUrls.Clear();
+                            _dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Clear();
+
+                            foreach (string strBlockListUrl in blockListUrls)
+                            {
+                                if (strBlockListUrl.StartsWith('!'))
+                                {
+                                    Uri allowListUrl = new Uri(strBlockListUrl.Substring(1));
+
+                                    if (allowListUrl.AbsoluteUri.Length > 255)
+                                        throw new ArgumentException("Allow list URL length cannot exceed 255 characters.", "blockListUrls");
+
+                                    if (!_dnsWebService.DnsServer.BlockListZoneManager.AllowListUrls.Contains(allowListUrl))
+                                        _dnsWebService.DnsServer.BlockListZoneManager.AllowListUrls.Add(allowListUrl);
+                                }
+                                else
+                                {
+                                    Uri blockListUrl = new Uri(strBlockListUrl);
+
+                                    if (blockListUrl.AbsoluteUri.Length > 255)
+                                        throw new ArgumentException("Block list URL length cannot exceed 255 characters.", "blockListUrls");
+
+                                    if (!_dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Contains(blockListUrl))
+                                        _dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Add(blockListUrl);
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            if (request.TryGetQueryOrForm("blockListUpdateIntervalHours", int.Parse, out int blockListUpdateIntervalHours))
-            {
-                if ((blockListUpdateIntervalHours < 0) || (blockListUpdateIntervalHours > 168))
-                    throw new DnsWebServiceException("Parameter `blockListUpdateIntervalHours` must be between 1 hour and 168 hours (7 days) or 0 to disable automatic update.");
-
-                _blockListUpdateIntervalHours = blockListUpdateIntervalHours;
-            }
-
-            //proxy & forwarders
-            if (request.TryGetQueryOrFormEnum("proxyType", out NetProxyType proxyType))
-            {
-                if (proxyType == NetProxyType.None)
+                if (request.TryGetQueryOrForm("blockListUpdateIntervalHours", int.Parse, out int blockListUpdateIntervalHours))
                 {
-                    _dnsWebService.DnsServer.Proxy = null;
+                    if ((blockListUpdateIntervalHours < 0) || (blockListUpdateIntervalHours > 168))
+                        throw new DnsWebServiceException("Parameter `blockListUpdateIntervalHours` must be between 1 hour and 168 hours (7 days) or 0 to disable automatic update.");
+
+                    _blockListUpdateIntervalHours = blockListUpdateIntervalHours;
+                }
+
+                #endregion
+
+                #region proxy & forwarders
+
+                //proxy & forwarders
+                if (request.TryGetQueryOrFormEnum("proxyType", out NetProxyType proxyType))
+                {
+                    if (proxyType == NetProxyType.None)
+                    {
+                        _dnsWebService.DnsServer.Proxy = null;
+                    }
+                    else
+                    {
+                        NetworkCredential credential = null;
+
+                        if (request.TryGetQueryOrForm("proxyUsername", out string proxyUsername))
+                        {
+                            if (proxyUsername.Length > 255)
+                                throw new ArgumentException("Proxy username length cannot exceed 255 characters.", "proxyUsername");
+
+                            string proxyPassword = request.QueryOrForm("proxyPassword");
+                            if (proxyPassword?.Length > 255)
+                                throw new ArgumentException("Proxy password length cannot exceed 255 characters.", "proxyPassword");
+
+                            credential = new NetworkCredential(proxyUsername, proxyPassword);
+                        }
+
+                        _dnsWebService.DnsServer.Proxy = NetProxy.CreateProxy(proxyType, request.QueryOrForm("proxyAddress"), int.Parse(request.QueryOrForm("proxyPort")), credential);
+
+                        if (request.TryGetQueryOrFormArray("proxyBypass", delegate (string value) { return new NetProxyBypassItem(value); }, out NetProxyBypassItem[] proxyBypass))
+                            _dnsWebService.DnsServer.Proxy.BypassList = proxyBypass;
+                    }
+                }
+
+                if (request.TryGetQueryOrFormArray("forwarders", NameServerAddress.Parse, out NameServerAddress[] forwarders))
+                {
+                    if ((forwarders is null) || (forwarders.Length == 0))
+                    {
+                        _dnsWebService.DnsServer.Forwarders = null;
+                    }
+                    else
+                    {
+                        DnsTransportProtocol forwarderProtocol = request.GetQueryOrFormEnum("forwarderProtocol", DnsTransportProtocol.Udp);
+
+                        switch (forwarderProtocol)
+                        {
+                            case DnsTransportProtocol.Udp:
+                                if (proxyType == NetProxyType.Http)
+                                    throw new DnsWebServiceException("HTTP proxy server can transport only DNS-over-TCP, DNS-over-TLS, or DNS-over-HTTPS forwarder protocols. Use SOCKS5 proxy server for DNS-over-UDP or DNS-over-QUIC forwarder protocols.");
+
+                                break;
+
+                            case DnsTransportProtocol.HttpsJson:
+                                forwarderProtocol = DnsTransportProtocol.Https;
+                                break;
+
+                            case DnsTransportProtocol.Quic:
+                                DnsWebService.ValidateQuicSupport();
+
+                                if (proxyType == NetProxyType.Http)
+                                    throw new DnsWebServiceException("HTTP proxy server can transport only DNS-over-TCP, DNS-over-TLS, or DNS-over-HTTPS forwarder protocols. Use SOCKS5 proxy server for DNS-over-UDP or DNS-over-QUIC forwarder protocols.");
+
+                                break;
+                        }
+
+                        for (int i = 0; i < forwarders.Length; i++)
+                        {
+                            if (forwarders[i].Protocol != forwarderProtocol)
+                                forwarders[i] = forwarders[i].ChangeProtocol(forwarderProtocol);
+                        }
+
+                        if (!_dnsWebService.DnsServer.Forwarders.ListEquals(forwarders))
+                            _dnsWebService.DnsServer.Forwarders = forwarders;
+                    }
+                }
+
+                if (request.TryGetQueryOrForm("concurrentForwarding", bool.Parse, out bool concurrentForwarding))
+                    _dnsWebService.DnsServer.ConcurrentForwarding = concurrentForwarding;
+
+                if (request.TryGetQueryOrForm("forwarderRetries", int.Parse, out int forwarderRetries))
+                    _dnsWebService.DnsServer.ForwarderRetries = forwarderRetries;
+
+                if (request.TryGetQueryOrForm("forwarderTimeout", int.Parse, out int forwarderTimeout))
+                    _dnsWebService.DnsServer.ForwarderTimeout = forwarderTimeout;
+
+                if (request.TryGetQueryOrForm("forwarderConcurrency", int.Parse, out int forwarderConcurrency))
+                    _dnsWebService.DnsServer.ForwarderConcurrency = forwarderConcurrency;
+
+                #endregion
+
+                #region logging
+
+                if (request.TryGetQueryOrForm("enableLogging", bool.Parse, out bool enableLogging))
+                    _dnsWebService._log.EnableLogging = enableLogging;
+
+                if (request.TryGetQueryOrForm("ignoreResolverLogs", bool.Parse, out bool ignoreResolverLogs))
+                    _dnsWebService.DnsServer.ResolverLogManager = ignoreResolverLogs ? null : _dnsWebService._log;
+
+                if (request.TryGetQueryOrForm("logQueries", bool.Parse, out bool logQueries))
+                    _dnsWebService.DnsServer.QueryLogManager = logQueries ? _dnsWebService._log : null;
+
+                if (request.TryGetQueryOrForm("useLocalTime", bool.Parse, out bool useLocalTime))
+                    _dnsWebService._log.UseLocalTime = useLocalTime;
+
+                if (request.TryGetQueryOrForm("logFolder", out string logFolder))
+                    _dnsWebService._log.LogFolder = logFolder;
+
+                if (request.TryGetQueryOrForm("maxLogFileDays", int.Parse, out int maxLogFileDays))
+                    _dnsWebService._log.MaxLogFileDays = maxLogFileDays;
+
+                if (request.TryGetQueryOrForm("enableInMemoryStats", bool.Parse, out bool enableInMemoryStats))
+                    _dnsWebService.DnsServer.StatsManager.EnableInMemoryStats = enableInMemoryStats;
+
+                if (request.TryGetQueryOrForm("maxStatFileDays", int.Parse, out int maxStatFileDays))
+                    _dnsWebService.DnsServer.StatsManager.MaxStatFileDays = maxStatFileDays;
+
+                #endregion
+            }
+            finally
+            {
+                jsonDocument?.Dispose();
+
+                //TLS actions
+                if ((_dnsWebService._webServiceTlsCertificatePath is null) && (_dnsWebService._dnsTlsCertificatePath is null))
+                    _dnsWebService.StopTlsCertificateUpdateTimer();
+
+                _dnsWebService.SelfSignedCertCheck(serverDomainChanged || webServiceLocalAddressesChanged, true);
+
+                if (_dnsWebService._webServiceEnableTls && string.IsNullOrEmpty(_dnsWebService._webServiceTlsCertificatePath) && !_dnsWebService._webServiceUseSelfSignedTlsCertificate)
+                {
+                    //disable TLS
+                    _dnsWebService._webServiceEnableTls = false;
+                    restartWebService = true;
+                }
+
+                //blocklist timers
+                if ((_blockListUpdateIntervalHours > 0) && ((_dnsWebService.DnsServer.BlockListZoneManager.AllowListUrls.Count + _dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Count) > 0))
+                {
+                    if (_blockListUpdateTimer is null)
+                        StartBlockListUpdateTimer(blockListUrlsUpdated);
+                    else if (blockListUrlsUpdated)
+                        ForceUpdateBlockLists(true);
                 }
                 else
                 {
-                    NetworkCredential credential = null;
-
-                    if (request.TryGetQueryOrForm("proxyUsername", out string proxyUsername))
-                    {
-                        if (proxyUsername.Length > 255)
-                            throw new ArgumentException("Proxy username length cannot exceed 255 characters.", "proxyUsername");
-
-                        string proxyPassword = request.QueryOrForm("proxyPassword");
-                        if (proxyPassword?.Length > 255)
-                            throw new ArgumentException("Proxy password length cannot exceed 255 characters.", "proxyPassword");
-
-                        credential = new NetworkCredential(proxyUsername, proxyPassword);
-                    }
-
-                    _dnsWebService.DnsServer.Proxy = NetProxy.CreateProxy(proxyType, request.QueryOrForm("proxyAddress"), int.Parse(request.QueryOrForm("proxyPort")), credential);
-
-                    if (request.TryGetQueryOrForm("proxyBypass", out string proxyBypass))
-                        _dnsWebService.DnsServer.Proxy.BypassList = proxyBypass.Split(delegate (string value) { return new NetProxyBypassItem(value); }, ',');
+                    StopBlockListUpdateTimer();
                 }
+
+                //save config
+                _dnsWebService.SaveConfigFile();
+                _dnsWebService._log.SaveConfig();
             }
-
-            string strForwarders = request.QueryOrForm("forwarders");
-            if (strForwarders is not null)
-            {
-                if ((strForwarders.Length == 0) || strForwarders.Equals("false", StringComparison.OrdinalIgnoreCase))
-                {
-                    _dnsWebService.DnsServer.Forwarders = null;
-                }
-                else
-                {
-                    DnsTransportProtocol forwarderProtocol = request.GetQueryOrFormEnum("forwarderProtocol", DnsTransportProtocol.Udp);
-
-                    switch (forwarderProtocol)
-                    {
-                        case DnsTransportProtocol.Udp:
-                            if (proxyType == NetProxyType.Http)
-                                throw new DnsWebServiceException("HTTP proxy server can transport only DNS-over-TCP, DNS-over-TLS, or DNS-over-HTTPS forwarder protocols. Use SOCKS5 proxy server for DNS-over-UDP or DNS-over-QUIC forwarder protocols.");
-
-                            break;
-
-                        case DnsTransportProtocol.HttpsJson:
-                            forwarderProtocol = DnsTransportProtocol.Https;
-                            break;
-
-                        case DnsTransportProtocol.Quic:
-                            DnsWebService.ValidateQuicSupport();
-
-                            if (proxyType == NetProxyType.Http)
-                                throw new DnsWebServiceException("HTTP proxy server can transport only DNS-over-TCP, DNS-over-TLS, or DNS-over-HTTPS forwarder protocols. Use SOCKS5 proxy server for DNS-over-UDP or DNS-over-QUIC forwarder protocols.");
-
-                            break;
-                    }
-
-                    NameServerAddress[] forwarders = strForwarders.Split(delegate (string value)
-                    {
-                        NameServerAddress forwarder = NameServerAddress.Parse(value);
-
-                        if (forwarder.Protocol != forwarderProtocol)
-                            forwarder = forwarder.ChangeProtocol(forwarderProtocol);
-
-                        return forwarder;
-                    }, ',');
-
-                    if (!_dnsWebService.DnsServer.Forwarders.ListEquals(forwarders))
-                        _dnsWebService.DnsServer.Forwarders = forwarders;
-                }
-            }
-
-            if (request.TryGetQueryOrForm("concurrentForwarding", bool.Parse, out bool concurrentForwarding))
-                _dnsWebService.DnsServer.ConcurrentForwarding = concurrentForwarding;
-
-            if (request.TryGetQueryOrForm("forwarderRetries", int.Parse, out int forwarderRetries))
-                _dnsWebService.DnsServer.ForwarderRetries = forwarderRetries;
-
-            if (request.TryGetQueryOrForm("forwarderTimeout", int.Parse, out int forwarderTimeout))
-                _dnsWebService.DnsServer.ForwarderTimeout = forwarderTimeout;
-
-            if (request.TryGetQueryOrForm("forwarderConcurrency", int.Parse, out int forwarderConcurrency))
-                _dnsWebService.DnsServer.ForwarderConcurrency = forwarderConcurrency;
-
-            //logging
-            if (request.TryGetQueryOrForm("enableLogging", bool.Parse, out bool enableLogging))
-                _dnsWebService._log.EnableLogging = enableLogging;
-
-            if (request.TryGetQueryOrForm("ignoreResolverLogs", bool.Parse, out bool ignoreResolverLogs))
-                _dnsWebService.DnsServer.ResolverLogManager = ignoreResolverLogs ? null : _dnsWebService._log;
-
-            if (request.TryGetQueryOrForm("logQueries", bool.Parse, out bool logQueries))
-                _dnsWebService.DnsServer.QueryLogManager = logQueries ? _dnsWebService._log : null;
-
-            if (request.TryGetQueryOrForm("useLocalTime", bool.Parse, out bool useLocalTime))
-                _dnsWebService._log.UseLocalTime = useLocalTime;
-
-            if (request.TryGetQueryOrForm("logFolder", out string logFolder))
-                _dnsWebService._log.LogFolder = logFolder;
-
-            if (request.TryGetQueryOrForm("maxLogFileDays", int.Parse, out int maxLogFileDays))
-                _dnsWebService._log.MaxLogFileDays = maxLogFileDays;
-
-            if (request.TryGetQueryOrForm("enableInMemoryStats", bool.Parse, out bool enableInMemoryStats))
-                _dnsWebService.DnsServer.StatsManager.EnableInMemoryStats = enableInMemoryStats;
-
-            if (request.TryGetQueryOrForm("maxStatFileDays", int.Parse, out int maxStatFileDays))
-                _dnsWebService.DnsServer.StatsManager.MaxStatFileDays = maxStatFileDays;
-
-            //TLS actions
-            if ((_dnsWebService._webServiceTlsCertificatePath is null) && (_dnsWebService._dnsTlsCertificatePath is null))
-                _dnsWebService.StopTlsCertificateUpdateTimer();
-
-            _dnsWebService.SelfSignedCertCheck(serverDomainChanged || webServiceLocalAddressesChanged, true);
-
-            if (_dnsWebService._webServiceEnableTls && string.IsNullOrEmpty(_dnsWebService._webServiceTlsCertificatePath) && !_dnsWebService._webServiceUseSelfSignedTlsCertificate)
-            {
-                //disable TLS
-                _dnsWebService._webServiceEnableTls = false;
-                restartWebService = true;
-            }
-
-            //blocklist timers
-            if ((_blockListUpdateIntervalHours > 0) && ((_dnsWebService.DnsServer.BlockListZoneManager.AllowListUrls.Count + _dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Count) > 0))
-            {
-                if (_blockListUpdateTimer is null)
-                    StartBlockListUpdateTimer(blockListUrlsUpdated);
-                else if (blockListUrlsUpdated)
-                    ForceUpdateBlockLists(true);
-            }
-            else
-            {
-                StopBlockListUpdateTimer();
-            }
-
-            //save config
-            _dnsWebService.SaveConfigFile();
-            _dnsWebService._log.SaveConfig();
 
             _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DNS Settings were updated successfully.");
 
