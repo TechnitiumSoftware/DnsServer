@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -2137,12 +2137,12 @@ function refreshDashboard(hideLoader) {
             return;
         }
 
-        var start = moment(txtStart, "YYYY-MM-DD");
-        var end = moment(txtEnd, "YYYY-MM-DD");
+        var start = moment(txtStart);
+        var end = moment(txtEnd);
 
         if ((end.diff(start, "days") + 1) > 7) {
-            start = moment.utc(txtStart, "YYYY-MM-DD").toISOString();
-            end = moment.utc(txtEnd, "YYYY-MM-DD").toISOString();
+            start = moment.utc(txtStart).toISOString();
+            end = moment.utc(txtEnd).toISOString();
         }
         else {
             start = start.toISOString();
@@ -2438,21 +2438,33 @@ function showTopStats(statsType, limit) {
     var custom = "";
 
     if (type === "custom") {
-        var start = $("#dpCustomDayWiseStart").val();
-        if (start === null || (start === "")) {
+        var txtStart = $("#dpCustomDayWiseStart").val();
+        if (txtStart === null || (txtStart === "")) {
             showAlert("warning", "Missing!", "Please select a start date.");
             $("#dpCustomDayWiseStart").focus();
             return;
         }
 
-        var end = $("#dpCustomDayWiseEnd").val();
-        if (end === null || (end === "")) {
+        var txtEnd = $("#dpCustomDayWiseEnd").val();
+        if (txtEnd === null || (txtEnd === "")) {
             showAlert("warning", "Missing!", "Please select an end date.");
             $("#dpCustomDayWiseEnd").focus();
             return;
         }
 
-        custom = "&start=" + start + "&end=" + end;
+        var start = moment(txtStart);
+        var end = moment(txtEnd);
+
+        if ((end.diff(start, "days") + 1) > 7) {
+            start = moment.utc(txtStart).toISOString();
+            end = moment.utc(txtEnd).toISOString();
+        }
+        else {
+            start = start.toISOString();
+            end = end.toISOString();
+        }
+
+        custom = "&start=" + encodeURIComponent(start) + "&end=" + encodeURIComponent(end);
     }
 
     HTTPRequest({
