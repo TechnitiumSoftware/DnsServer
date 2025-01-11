@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -196,7 +196,9 @@ namespace DnsServerCore
                     if (startDate > endDate)
                         throw new DnsWebServiceException("Start date must be less than or equal to end date.");
 
-                    if ((Convert.ToInt32((endDate - startDate).TotalDays) + 1) > 7)
+                    TimeSpan duration = endDate - startDate;
+
+                    if ((Convert.ToInt32(duration.TotalDays) + 1) > 7)
                     {
                         data = _dnsWebService.DnsServer.StatsManager.GetDayWiseStats(startDate, endDate, utcFormat);
 
@@ -205,7 +207,7 @@ namespace DnsServerCore
                         else
                             labelFormat = "DD/MM";
                     }
-                    else
+                    else if ((Convert.ToInt32(duration.TotalHours) + 1) > 3)
                     {
                         data = _dnsWebService.DnsServer.StatsManager.GetHourWiseStats(startDate, endDate, utcFormat);
 
@@ -213,6 +215,15 @@ namespace DnsServerCore
                             labelFormat = "MM/DD HH:00";
                         else
                             labelFormat = "DD/MM HH:00";
+                    }
+                    else
+                    {
+                        data = _dnsWebService.DnsServer.StatsManager.GetMinuteWiseStats(startDate, endDate, utcFormat);
+
+                        if (isLanguageEnUs)
+                            labelFormat = "MM/DD HH:mm";
+                        else
+                            labelFormat = "DD/MM HH:mm";
                     }
 
                     break;
@@ -595,19 +606,23 @@ namespace DnsServerCore
                     string strStartDate = request.GetQueryOrForm("start");
                     string strEndDate = request.GetQueryOrForm("end");
 
-                    if (!DateTime.TryParseExact(strStartDate, "yyyy-M-d", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime startDate))
+                    if (!DateTime.TryParse(strStartDate, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime startDate))
                         throw new DnsWebServiceException("Invalid start date format.");
 
-                    if (!DateTime.TryParseExact(strEndDate, "yyyy-M-d", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime endDate))
+                    if (!DateTime.TryParse(strEndDate, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime endDate))
                         throw new DnsWebServiceException("Invalid end date format.");
 
                     if (startDate > endDate)
                         throw new DnsWebServiceException("Start date must be less than or equal to end date.");
 
-                    if ((Convert.ToInt32((endDate - startDate).TotalDays) + 1) > 7)
+                    TimeSpan duration = endDate - startDate;
+
+                    if ((Convert.ToInt32(duration.TotalDays) + 1) > 7)
                         topStatsData = _dnsWebService.DnsServer.StatsManager.GetDayWiseTopStats(startDate, endDate, statsType, limit);
-                    else
+                    else if ((Convert.ToInt32(duration.TotalHours) + 1) > 3)
                         topStatsData = _dnsWebService.DnsServer.StatsManager.GetHourWiseTopStats(startDate, endDate, statsType, limit);
+                    else
+                        topStatsData = _dnsWebService.DnsServer.StatsManager.GetMinuteWiseTopStats(startDate, endDate, statsType, limit);
 
                     break;
 
