@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -238,10 +238,10 @@ namespace DnsServerCore.Dns
         IReadOnlyDictionary<IPAddress, long> _qpmLimitClientSubnetStats;
         IReadOnlyDictionary<IPAddress, long> _qpmLimitErrorClientSubnetStats;
 
-        readonly IndependentTaskScheduler _queryTaskScheduler = new IndependentTaskScheduler();
+        readonly IndependentTaskScheduler _queryTaskScheduler = new IndependentTaskScheduler(threadName: "QueryThreadPool");
 
         TaskPool _resolverTaskPool;
-        readonly IndependentTaskScheduler _resolverTaskScheduler = new IndependentTaskScheduler(ThreadPriority.AboveNormal);
+        readonly IndependentTaskScheduler _resolverTaskScheduler = new IndependentTaskScheduler(ThreadPriority.AboveNormal, "ResolverThreadPool");
         readonly ConcurrentDictionary<string, Task<RecursiveResolveResponse>> _resolverTasks = new ConcurrentDictionary<string, Task<RecursiveResolveResponse>>(-1, 1000);
 
         volatile ServiceState _state = ServiceState.Stopped;
@@ -3077,7 +3077,7 @@ namespace DnsServerCore.Dns
             if (!cachePrefetchOperation && !cacheRefreshOperation)
             {
                 //query cache zone to see if answer available
-                DnsDatagram cacheResponse = QueryCache(request, false, false);
+                DnsDatagram cacheResponse = await QueryCacheAsync(request, false, false);
                 if (cacheResponse is not null)
                 {
                     if (_cachePrefetchTrigger > 0)
@@ -3144,7 +3144,7 @@ namespace DnsServerCore.Dns
                     //wait timed out
 
                     //query cache zone to return stale answer (if available) as per RFC 8767
-                    DnsDatagram staleResponse = QueryCache(request, true, false);
+                    DnsDatagram staleResponse = await QueryCacheAsync(request, true, false);
                     if (staleResponse is not null)
                         return staleResponse;
 
@@ -3268,7 +3268,7 @@ namespace DnsServerCore.Dns
 
                 //fetch failure/stale response to signal; reset stale records
                 DnsDatagram cacheRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, dnssecValidation, DnsResponseCode.NoError, [question], null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(eDnsClientSubnet));
-                DnsDatagram cacheResponse = QueryCache(cacheRequest, _serveStale, _serveStale);
+                DnsDatagram cacheResponse = await QueryCacheAsync(cacheRequest, _serveStale, _serveStale);
                 if (cacheResponse is not null)
                 {
                     //signal failure/stale response
@@ -3466,7 +3466,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task<DnsDatagram> PriorityConditionalForwarderResolveAsync(DnsQuestionRecord question, NetworkAddress eDnsClientSubnet, bool advancedForwardingClientSubnet, IDnsCache dnsCache, bool skipDnsAppAuthoritativeRequestHandlers, IReadOnlyList<DnsResourceRecord> conditionalForwarders)
+        internal async Task<DnsDatagram> PriorityConditionalForwarderResolveAsync(DnsQuestionRecord question, NetworkAddress eDnsClientSubnet, bool advancedForwardingClientSubnet, IDnsCache dnsCache, bool skipDnsAppAuthoritativeRequestHandlers, IReadOnlyList<DnsResourceRecord> conditionalForwarders)
         {
             if (conditionalForwarders.Count == 1)
             {
@@ -4006,9 +4006,9 @@ namespace DnsServerCore.Dns
             return question.ToString() + " " + eDnsClientSubnet.ToString();
         }
 
-        private DnsDatagram QueryCache(DnsDatagram request, bool serveStale, bool resetExpiry)
+        private async Task<DnsDatagram> QueryCacheAsync(DnsDatagram request, bool serveStale, bool resetExpiry)
         {
-            DnsDatagram cacheResponse = _cacheZoneManager.Query(request, serveStale, false, resetExpiry);
+            DnsDatagram cacheResponse = await _cacheZoneManager.QueryAsync(request, serveStale, false, resetExpiry);
             if (cacheResponse is not null)
             {
                 if ((cacheResponse.RCODE != DnsResponseCode.NoError) || (cacheResponse.Answer.Count > 0) || (cacheResponse.Authority.Count == 0) || cacheResponse.IsFirstAuthoritySOA())
@@ -4073,13 +4073,13 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private DnsQuestionRecord GetCacheRefreshNeededQuery(DnsQuestionRecord question, int trigger)
+        private async Task<DnsQuestionRecord> GetCacheRefreshNeededQueryAsync(DnsQuestionRecord question, int trigger)
         {
             int queryCount = 0;
 
             while (true)
             {
-                DnsDatagram cacheResponse = QueryCache(new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }), false, false);
+                DnsDatagram cacheResponse = await QueryCacheAsync(new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }), false, false);
                 if (cacheResponse is null)
                     return question; //cache expired so refresh question
 
@@ -4110,9 +4110,9 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private bool IsCacheRefreshNeeded(DnsQuestionRecord question, int trigger)
+        private async Task<bool> IsCacheRefreshNeededAsync(DnsQuestionRecord question, int trigger)
         {
-            DnsDatagram cacheResponse = QueryCache(new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }), false, false);
+            DnsDatagram cacheResponse = await QueryCacheAsync(new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }), false, false);
             if (cacheResponse is null)
                 return true; //cache expired so refresh needed
 
@@ -4159,7 +4159,7 @@ namespace DnsServerCore.Dns
                         if (response is null)
                         {
                             //zone not hosted; do refresh
-                            refreshQuery = GetCacheRefreshNeededQuery(eligibleQuerySample, cacheRefreshTrigger);
+                            refreshQuery = await GetCacheRefreshNeededQueryAsync(eligibleQuerySample, cacheRefreshTrigger);
                         }
                         else
                         {
@@ -4179,12 +4179,12 @@ namespace DnsServerCore.Dns
                                 switch (firstAuthority.Type)
                                 {
                                     case DnsResourceRecordType.NS: //zone is delegated
-                                        refreshQuery = GetCacheRefreshNeededQuery(eligibleQuerySample, cacheRefreshTrigger);
+                                        refreshQuery = await GetCacheRefreshNeededQueryAsync(eligibleQuerySample, cacheRefreshTrigger);
                                         conditionalForwarders = Array.Empty<DnsResourceRecord>(); //do forced recursive resolution using empty conditional forwarders
                                         break;
 
                                     case DnsResourceRecordType.FWD: //zone is conditional forwarder
-                                        refreshQuery = GetCacheRefreshNeededQuery(eligibleQuerySample, cacheRefreshTrigger);
+                                        refreshQuery = await GetCacheRefreshNeededQueryAsync(eligibleQuerySample, cacheRefreshTrigger);
                                         conditionalForwarders = response.Authority; //do conditional forwarding
                                         break;
                                 }
@@ -4216,7 +4216,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private void CachePrefetchRefreshTimerCallback(object state)
+        private async void CachePrefetchRefreshTimerCallback(object state)
         {
             try
             {
@@ -4229,7 +4229,7 @@ namespace DnsServerCore.Dns
                         if (sample is null)
                             continue;
 
-                        if (!IsCacheRefreshNeeded(sample.SampleQuestion, _cachePrefetchTrigger + 1))
+                        if (!await IsCacheRefreshNeededAsync(sample.SampleQuestion, _cachePrefetchTrigger + 1))
                             continue;
 
                         //run in resolver thread pool
