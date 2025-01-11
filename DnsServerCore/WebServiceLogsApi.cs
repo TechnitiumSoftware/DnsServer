@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Net;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net;
@@ -232,6 +233,164 @@ namespace DnsServerCore
             }
 
             jsonWriter.WriteEndArray();
+        }
+
+        public async Task ExportLogsAsync(HttpContext context)
+        {
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.View))
+                throw new DnsWebServiceException("Access was denied.");
+
+            HttpRequest request = context.Request;
+
+            string name = request.GetQueryOrForm("name");
+            string classPath = request.GetQueryOrForm("classPath");
+
+            if (!_dnsWebService.DnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication application))
+                throw new DnsWebServiceException("DNS application was not found: " + name);
+
+            if (!application.DnsQueryLoggers.TryGetValue(classPath, out IDnsQueryLogger logger))
+                throw new DnsWebServiceException("DNS application '" + classPath + "' class path was not found: " + name);
+
+            DateTime? start = null;
+            string strStart = request.QueryOrForm("start");
+            if (!string.IsNullOrEmpty(strStart))
+                start = DateTime.Parse(strStart, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+
+            DateTime? end = null;
+            string strEnd = request.QueryOrForm("end");
+            if (!string.IsNullOrEmpty(strEnd))
+                end = DateTime.Parse(strEnd, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+
+            IPAddress clientIpAddress = request.GetQueryOrForm("clientIpAddress", IPAddress.Parse, null);
+
+            DnsTransportProtocol? protocol = null;
+            string strProtocol = request.QueryOrForm("protocol");
+            if (!string.IsNullOrEmpty(strProtocol))
+                protocol = Enum.Parse<DnsTransportProtocol>(strProtocol, true);
+
+            DnsServerResponseType? responseType = null;
+            string strResponseType = request.QueryOrForm("responseType");
+            if (!string.IsNullOrEmpty(strResponseType))
+                responseType = Enum.Parse<DnsServerResponseType>(strResponseType, true);
+
+            DnsResponseCode? rcode = null;
+            string strRcode = request.QueryOrForm("rcode");
+            if (!string.IsNullOrEmpty(strRcode))
+                rcode = Enum.Parse<DnsResponseCode>(strRcode, true);
+
+            string qname = request.GetQueryOrForm("qname", null);
+
+            DnsResourceRecordType? qtype = null;
+            string strQtype = request.QueryOrForm("qtype");
+            if (!string.IsNullOrEmpty(strQtype))
+                qtype = Enum.Parse<DnsResourceRecordType>(strQtype, true);
+
+            DnsClass? qclass = null;
+            string strQclass = request.QueryOrForm("qclass");
+            if (!string.IsNullOrEmpty(strQclass))
+                qclass = Enum.Parse<DnsClass>(strQclass, true);
+
+            static async Task WriteCsvFieldAsync(StreamWriter sW, string data)
+            {
+                if ((data is null) || (data.Length == 0))
+                    return;
+
+                if (data.Contains('"', StringComparison.OrdinalIgnoreCase))
+                {
+                    await sW.WriteAsync('"');
+                    await sW.WriteAsync(data.Replace("\"", "\"\""));
+                    await sW.WriteAsync('"');
+                }
+                else if (data.Contains(',', StringComparison.OrdinalIgnoreCase) || data.Contains(' ', StringComparison.OrdinalIgnoreCase))
+                {
+                    await sW.WriteAsync('"');
+                    await sW.WriteAsync(data);
+                    await sW.WriteAsync('"');
+                }
+                else
+                {
+                    await sW.WriteAsync(data);
+                }
+            }
+
+            DnsLogPage page;
+            long pageNumber = 1;
+            string tmpFile = Path.GetTempFileName();
+
+            try
+            {
+                using (FileStream csvFileStream = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite))
+                {
+                    StreamWriter sW = new StreamWriter(csvFileStream, Encoding.UTF8);
+
+                    await sW.WriteLineAsync("RowNumber,Timestamp,ClientIpAddress,Protocol,ResponseType,ResponseRtt,RCODE,Domain,Type,Class,Answer");
+
+                    do
+                    {
+                        page = await logger.QueryLogsAsync(pageNumber, 10000, false, start, end, clientIpAddress, protocol, responseType, rcode, qname, qtype, qclass);
+
+                        foreach (DnsLogEntry entry in page.Entries)
+                        {
+                            await WriteCsvFieldAsync(sW, entry.RowNumber.ToString());
+                            await sW.WriteAsync(',');
+                            await WriteCsvFieldAsync(sW, entry.Timestamp.ToString("O"));
+                            await sW.WriteAsync(',');
+                            await WriteCsvFieldAsync(sW, entry.ClientIpAddress.ToString());
+                            await sW.WriteAsync(',');
+                            await WriteCsvFieldAsync(sW, entry.Protocol.ToString());
+                            await sW.WriteAsync(',');
+                            await WriteCsvFieldAsync(sW, entry.ResponseType.ToString());
+                            await sW.WriteAsync(',');
+
+                            if (entry.ResponseRtt.HasValue)
+                                await WriteCsvFieldAsync(sW, entry.ResponseRtt.Value.ToString());
+
+                            await sW.WriteAsync(',');
+                            await WriteCsvFieldAsync(sW, entry.RCODE.ToString());
+                            await sW.WriteAsync(',');
+                            await WriteCsvFieldAsync(sW, entry.Question?.Name.ToString());
+                            await sW.WriteAsync(',');
+                            await WriteCsvFieldAsync(sW, entry.Question?.Type.ToString());
+                            await sW.WriteAsync(',');
+                            await WriteCsvFieldAsync(sW, entry.Question?.Class.ToString());
+                            await sW.WriteAsync(',');
+                            await WriteCsvFieldAsync(sW, entry.Answer);
+
+                            await sW.WriteLineAsync();
+                        }
+                    }
+                    while (pageNumber++ < page.TotalPages);
+
+                    await sW.FlushAsync();
+
+                    //send csv file
+                    csvFileStream.Position = 0;
+
+                    HttpResponse response = context.Response;
+
+                    response.ContentType = "text/csv";
+                    response.ContentLength = csvFileStream.Length;
+                    response.Headers.ContentDisposition = "attachment;filename=" + _dnsWebService.DnsServer.ServerDomain + DateTime.UtcNow.ToString("_yyyy-MM-dd_HH-mm-ss") + "_query_logs.csv";
+
+                    using (Stream output = response.Body)
+                    {
+                        await csvFileStream.CopyToAsync(output);
+                    }
+                }
+            }
+            finally
+            {
+                try
+                {
+                    File.Delete(tmpFile);
+                }
+                catch (Exception ex)
+                {
+                    _dnsWebService._log.Write(ex);
+                }
+            }
         }
 
         #endregion
