@@ -141,8 +141,8 @@
                                         </div>
 
                                         <div id="divCustomDayWise" class="pull-left" style="padding: 4px 0px 4px 10px; display: none;">
-                                            <span style="margin-right: 6px;"><label for="dpCustomDayWiseStart">Start</label> <input type="date" id="dpCustomDayWiseStart" size="10"></span>
-                                            <span style="margin-right: 6px;"><label for="dpCustomDayWiseEnd">End</label> <input type="date" id="dpCustomDayWiseEnd" size="10"></span>
+                                            <span style="margin-right: 6px;"><label for="dpCustomDayWiseStart">Start</label> <input type="datetime-local" id="dpCustomDayWiseStart" size="10"></span>
+                                            <span style="margin-right: 6px;"><label for="dpCustomDayWiseEnd">End</label> <input type="datetime-local" id="dpCustomDayWiseEnd" size="10"></span>
                                             <button id="btnCustomDayWise" class="btn btn-default" type="button" style="font-size: 12px; padding: 3px 0px; width: 60px; vertical-align: top;">Show</button>
                                         </div>
 
@@ -1290,7 +1290,7 @@
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtWebServiceLocalAddresses" class="form-control" rows="3" spellcheck="false"></textarea>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local addresses are the network interface IP addresses you want the web service to listen for requests. ANY addresses (0.0.0.0 &amp; [::]) cannot be used together with unicast IP addresses. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the web service to listen on specific networks.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local addresses are the network interface IP addresses you want the web service to listen for requests. ANY addresses (0.0.0.0 &amp; [::]) cannot be used together with unicast IP addresses. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the web service to listen on specific networks. Configured unicast IP addresses will be included as Subject Alternative Name (SAN) in the self signed TLS certificate.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -3035,6 +3035,7 @@
 
                                                 <div class="form-group" style="display: block;">
                                                     <button type="submit" class="btn btn-primary" id="btnQueryLogs" data-loading-text="Querying..." onclick="queryLogs(); return false;" style="margin-right: 6px;">Query</button>
+                                                    <button type="button" class="btn btn-default" onclick="exportQueryLogsCsv(); return false;" style="margin-right: 6px;">Export</button>
                                                     <button type="reset" class="btn btn-default">Reset</button>
                                                 </div>
                                             </form>
@@ -3519,7 +3520,7 @@
                             <div class="form-group" id="divAddZonePrimaryNameServerAddresses">
                                 <label id="lblAddZonePrimaryNameServerAddresses" for="txtAddZonePrimaryNameServerAddresses" class="col-sm-4 control-label">Primary Name Server Addresses (Optional)</label>
                                 <div class="col-sm-7">
-                                    <textarea id="txtAddZonePrimaryNameServerAddresses" class="form-control" rows="3" spellcheck="false" placeholder="192.168.1.1
+                                    <textarea id="txtAddZonePrimaryNameServerAddresses" class="form-control" rows="4" spellcheck="false" placeholder="192.168.1.1
 2001:db8::
 ns1.example.com (192.168.1.1)
 ns1.example.com ([2001:db8::])
@@ -4594,7 +4595,7 @@ MII...
                                         <div class="form-group">
                                             <label id="lblZoneOptionsPrimaryNameServerAddresses" for="txtZoneOptionsPrimaryNameServerAddresses" class="col-sm-4 control-label">Primary Name Server Addresses (Optional)</label>
                                             <div class="col-sm-7">
-                                                <textarea id="txtZoneOptionsPrimaryNameServerAddresses" class="form-control" rows="3" spellcheck="false" placeholder="192.168.1.1
+                                                <textarea id="txtZoneOptionsPrimaryNameServerAddresses" class="form-control" rows="4" spellcheck="false" placeholder="192.168.1.1
 2001:db8::
 ns1.example.com (192.168.1.1)
 ns1.example.com ([2001:db8::])
