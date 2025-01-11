@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns
@@ -41,20 +42,20 @@ namespace DnsServerCore.Dns
 
         #region public
 
-        public override DnsDatagram Query(DnsDatagram request, bool serveStale = false, bool findClosestNameServers = false, bool resetExpiry = false)
+        public override Task<DnsDatagram> QueryAsync(DnsDatagram request, bool serveStale = false, bool findClosestNameServers = false, bool resetExpiry = false)
         {
             if (_prefetchQuestion.Equals(request.Question[0]))
             {
                 //request is for prefetch question
 
                 if (!findClosestNameServers)
-                    return null; //dont give answer from cache for prefetch question
+                    return Task.FromResult<DnsDatagram>(null); //dont give answer from cache for prefetch question
 
                 //return closest name servers so that the recursive resolver queries them to refreshes cache instead of returning response from cache
-                return QueryClosestDelegation(request);
+                return QueryClosestDelegationAsync(request);
             }
 
-            return base.Query(request, serveStale, findClosestNameServers, resetExpiry);
+            return base.QueryAsync(request, serveStale, findClosestNameServers, resetExpiry);
         }
 
         #endregion
