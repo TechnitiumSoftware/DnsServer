@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -969,14 +969,14 @@ namespace DnsServerCore.Dns.Zones
 
             #region public
 
-            public DnsDatagram QueryClosestDelegation(DnsDatagram request)
+            public Task<DnsDatagram> QueryClosestDelegationAsync(DnsDatagram request)
             {
-                return null; //no cache available
+                return Task.FromResult<DnsDatagram>(null); //no cache available
             }
 
-            public DnsDatagram Query(DnsDatagram request, bool serveStale = false, bool findClosestNameServers = false, bool resetExpiry = false)
+            public Task<DnsDatagram> QueryAsync(DnsDatagram request, bool serveStale = false, bool findClosestNameServers = false, bool resetExpiry = false)
             {
-                return null; //no cache available
+                return Task.FromResult<DnsDatagram>(null); //no cache available
             }
 
             public void CacheResponse(DnsDatagram response, bool isDnssecBadCache = false, string zoneCut = null)
