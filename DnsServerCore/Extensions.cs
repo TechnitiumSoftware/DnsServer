@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -24,13 +24,15 @@ using Microsoft.AspNetCore.Routing;
 using System;
 using System.Net;
 using System.Text.Json;
+using TechnitiumLibrary;
 using TechnitiumLibrary.Net;
 
 namespace DnsServerCore
 {
     static class Extensions
     {
-        readonly static string[] HTTP_METHODS = new string[] { "GET", "POST" };
+        static readonly string[] HTTP_METHODS = new string[] { "GET", "POST" };
+        static readonly char[] COMMA_SEPARATOR = new char[] { ',' };
 
         public static IPEndPoint GetRemoteEndPoint(this HttpContext context, string realIpHeaderName = null)
         {
@@ -106,6 +108,31 @@ namespace DnsServerCore
 
         public static string QueryOrForm(this HttpRequest request, string parameter)
         {
+            if (request.HttpContext.Items.TryGetValue("jsonContent", out object jsonObject))
+            {
+                JsonDocument json = (JsonDocument)jsonObject;
+
+                if (!json.RootElement.TryGetProperty(parameter, out JsonElement jsonValue))
+                    return null;
+
+                switch (jsonValue.ValueKind)
+                {
+                    case JsonValueKind.String:
+                        return jsonValue.GetString();
+
+                    case JsonValueKind.Number:
+                    case JsonValueKind.True:
+                    case JsonValueKind.False:
+                        return jsonValue.ToString();
+
+                    case JsonValueKind.Null:
+                        return null;
+
+                    default:
+                        throw new InvalidOperationException();
+                }
+            }
+
             string value = request.Query[parameter];
             if ((value is null) && request.HasFormContentType)
                 value = request.Form[parameter];
@@ -251,6 +278,95 @@ namespace DnsServerCore
             }
 
             return parse(value);
+        }
+
+        public static bool TryGetQueryOrFormArray(this HttpRequest request, string parameter, out string[] array, params char[] separator)
+        {
+            if (request.HttpContext.Items.TryGetValue("jsonContent", out object jsonObject))
+            {
+                JsonDocument json = (JsonDocument)jsonObject;
+                return json.RootElement.TryReadArray(parameter, out array);
+            }
+
+            string value = request.QueryOrForm(parameter);
+            if (string.IsNullOrEmpty(value))
+            {
+                array = null;
+                return false;
+            }
+
+            if ((value.Length == 0) || value.Equals("false", StringComparison.OrdinalIgnoreCase))
+            {
+                array = [];
+                return true;
+            }
+
+            if ((separator is null) || (separator.Length == 0))
+                separator = COMMA_SEPARATOR;
+
+            array = value.Split(separator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return true;
+        }
+
+        public static bool TryGetQueryOrFormArray<T>(this HttpRequest request, string parameter, Func<string, T> parse, out T[] array, params char[] separator)
+        {
+            if (request.HttpContext.Items.TryGetValue("jsonContent", out object jsonObject))
+            {
+                JsonDocument json = (JsonDocument)jsonObject;
+                return json.RootElement.TryReadArray(parameter, parse, out array);
+            }
+
+            string value = request.QueryOrForm(parameter);
+            if (string.IsNullOrEmpty(value))
+            {
+                array = null;
+                return false;
+            }
+
+            if ((value.Length == 0) || value.Equals("false", StringComparison.OrdinalIgnoreCase))
+            {
+                array = [];
+                return true;
+            }
+
+            if ((separator is null) || (separator.Length == 0))
+                separator = COMMA_SEPARATOR;
+
+            array = value.Split(parse, separator);
+            return true;
+        }
+
+        public static bool TryGetQueryOrFormArray<T>(this HttpRequest request, string parameter, Func<JsonElement, T> getObject, Func<ArraySegment<string>, T> parse, int colspan, out T[] array, params char[] separator)
+        {
+            if (request.HttpContext.Items.TryGetValue("jsonContent", out object jsonObject))
+            {
+                JsonDocument json = (JsonDocument)jsonObject;
+                return json.RootElement.TryReadArray(parameter, getObject, out array);
+            }
+
+            string value = request.QueryOrForm(parameter);
+            if (string.IsNullOrEmpty(value))
+            {
+                array = null;
+                return false;
+            }
+
+            if ((value.Length == 0) || value.Equals("false", StringComparison.OrdinalIgnoreCase))
+            {
+                array = [];
+                return true;
+            }
+
+            if ((separator is null) || (separator.Length == 0))
+                separator = COMMA_SEPARATOR;
+
+            string[] cells = value.Split(separator);
+            array = new T[cells.Length / colspan];
+
+            for (int i = 0, j = 0; i < cells.Length; i += colspan)
+                array[j++] = parse(new ArraySegment<string>(cells, i, colspan));
+
+            return true;
         }
     }
 }
