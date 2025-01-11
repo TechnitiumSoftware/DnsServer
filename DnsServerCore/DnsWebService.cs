@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -559,7 +559,7 @@ namespace DnsServerCore
 
             //settings
             _webService.MapGetAndPost("/api/settings/get", _settingsApi.GetDnsSettings);
-            _webService.MapGetAndPost("/api/settings/set", _settingsApi.SetDnsSettings);
+            _webService.MapGetAndPost("/api/settings/set", _settingsApi.SetDnsSettingsAsync);
             _webService.MapGetAndPost("/api/settings/getTsigKeyNames", _settingsApi.GetTsigKeyNames);
             _webService.MapGetAndPost("/api/settings/forceUpdateBlockLists", _settingsApi.ForceUpdateBlockLists);
             _webService.MapGetAndPost("/api/settings/temporaryDisableBlocking", _settingsApi.TemporaryDisableBlocking);
@@ -604,6 +604,7 @@ namespace DnsServerCore
             _webService.MapGetAndPost("/api/logs/delete", _logsApi.DeleteLog);
             _webService.MapGetAndPost("/api/logs/deleteAll", _logsApi.DeleteAllLogs);
             _webService.MapGetAndPost("/api/logs/query", _logsApi.QueryLogsAsync);
+            _webService.MapGetAndPost("/api/logs/export", _logsApi.ExportLogsAsync);
         }
 
         private Task WebServiceHttpsRedirectionMiddleware(HttpContext context, RequestDelegate next)
@@ -643,6 +644,7 @@ namespace DnsServerCore
                 case "/api/blocked/export":
                 case "/api/settings/backup":
                 case "/api/logs/download":
+                case "/api/logs/export":
                     {
                         if (!TryGetSession(context, out UserSession session))
                             throw new InvalidTokenWebServiceException("Invalid token or session expired.");
@@ -941,6 +943,15 @@ namespace DnsServerCore
                     try
                     {
                         LoadWebServiceTlsCertificate(selfSignedCertificateFilePath, null);
+
+                        if (!generateNew)
+                        {
+                            if (_webServiceSslServerAuthenticationOptions.ServerCertificateContext.TargetCertificate.NotAfter < DateTime.UtcNow.AddYears(1))
+                            {
+                                _log.Write("Web Service TLS self signed certificate is nearing expiration and will be regenerated.");
+                                SelfSignedCertCheck(true, throwException); //force generate new cert
+                            }
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -2981,7 +2992,6 @@ namespace DnsServerCore
                 }
 
                 _log?.Write("DNS Server (v" + _currentVersion.ToString() + ") was stopped successfully.");
-                _dnsServer = null;
             }
             catch (Exception ex)
             {
