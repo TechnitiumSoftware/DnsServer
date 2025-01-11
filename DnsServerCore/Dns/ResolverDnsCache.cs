@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,9 +19,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore.ApplicationCommon;
 using System;
+using System.Collections.Generic;
 using System.Net;
-using TechnitiumLibrary;
+using System.Threading.Tasks;
+using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns
@@ -47,7 +50,7 @@ namespace DnsServerCore.Dns
 
         #region private
 
-        private DnsDatagram DnsApplicationQueryClosestDelegation(DnsDatagram request)
+        private async Task<DnsDatagram> DnsApplicationQueryClosestDelegationAsync(DnsDatagram request)
         {
             if (_skipDnsAppAuthoritativeRequestHandlers || (_dnsServer.DnsApplicationManager.DnsAuthoritativeRequestHandlers.Count < 1) || (request.Question.Count != 1))
                 return null;
@@ -64,7 +67,7 @@ namespace DnsServerCore.Dns
                 {
                     try
                     {
-                        DnsDatagram nsResponse = requestHandler.ProcessRequestAsync(nsRequest, localEP, DnsTransportProtocol.Tcp, false).Sync();
+                        DnsDatagram nsResponse = await requestHandler.ProcessRequestAsync(nsRequest, localEP, DnsTransportProtocol.Tcp, false);
                         if (nsResponse is not null)
                         {
                             if ((nsResponse.Answer.Count > 0) && (nsResponse.Answer[0].Type == DnsResourceRecordType.NS))
@@ -94,17 +97,46 @@ namespace DnsServerCore.Dns
             return null;
         }
 
+        private Task<DnsDatagram> DoConditionalForwardingResolutionAsync(DnsDatagram request, IReadOnlyList<DnsResourceRecord> conditionalForwarders)
+        {
+            DnsQuestionRecord question = request.Question[0];
+            NetworkAddress eDnsClientSubnet = null;
+            bool advancedForwardingClientSubnet = false; //this feature is used by Advanced Forwarding app to cache response per network group
+
+            EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
+            if (requestECS is not null)
+            {
+                //use ECS from client request
+                switch (requestECS.Family)
+                {
+                    case EDnsClientSubnetAddressFamily.IPv4:
+                        eDnsClientSubnet = new NetworkAddress(requestECS.Address, requestECS.SourcePrefixLength);
+                        break;
+
+                    case EDnsClientSubnetAddressFamily.IPv6:
+                        eDnsClientSubnet = new NetworkAddress(requestECS.Address, requestECS.SourcePrefixLength);
+                        break;
+                }
+
+                advancedForwardingClientSubnet = requestECS.AdvancedForwardingClientSubnet;
+            }
+
+            ResolverPrefetchDnsCache dnsCache = new ResolverPrefetchDnsCache(_dnsServer, _skipDnsAppAuthoritativeRequestHandlers, question);
+
+            return _dnsServer.PriorityConditionalForwarderResolveAsync(question, eDnsClientSubnet, advancedForwardingClientSubnet, dnsCache, _skipDnsAppAuthoritativeRequestHandlers, conditionalForwarders);
+        }
+
         #endregion
 
         #region public
 
-        public DnsDatagram QueryClosestDelegation(DnsDatagram request)
+        public async Task<DnsDatagram> QueryClosestDelegationAsync(DnsDatagram request)
         {
             DnsDatagram authResponse = _dnsServer.AuthZoneManager.QueryClosestDelegation(request);
             if (authResponse is null)
-                authResponse = DnsApplicationQueryClosestDelegation(request);
+                authResponse = await DnsApplicationQueryClosestDelegationAsync(request);
 
-            DnsDatagram cacheResponse = _dnsServer.CacheZoneManager.QueryClosestDelegation(request);
+            DnsDatagram cacheResponse = await _dnsServer.CacheZoneManager.QueryClosestDelegationAsync(request);
 
             if ((authResponse is not null) && (authResponse.Authority.Count > 0))
             {
@@ -125,7 +157,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        public virtual DnsDatagram Query(DnsDatagram request, bool serveStale, bool findClosestNameServers = false, bool resetExpiry = false)
+        public virtual async Task<DnsDatagram> QueryAsync(DnsDatagram request, bool serveStale, bool findClosestNameServers = false, bool resetExpiry = false)
         {
             DnsDatagram authResponse = _dnsServer.AuthZoneManager.Query(request, true);
             if (authResponse is not null)
@@ -139,7 +171,7 @@ namespace DnsServerCore.Dns
                 {
                     try
                     {
-                        authResponse = requestHandler.ProcessRequestAsync(request, new IPEndPoint(IPAddress.Any, 0), DnsTransportProtocol.Tcp, true).Sync();
+                        authResponse = await requestHandler.ProcessRequestAsync(request, new IPEndPoint(IPAddress.Any, 0), DnsTransportProtocol.Tcp, true);
                         if (authResponse is not null)
                         {
                             if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || authResponse.IsFirstAuthoritySOA())
@@ -157,7 +189,7 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            DnsDatagram cacheResponse = _dnsServer.CacheZoneManager.Query(request, serveStale, findClosestNameServers, resetExpiry);
+            DnsDatagram cacheResponse = await _dnsServer.CacheZoneManager.QueryAsync(request, serveStale, findClosestNameServers, resetExpiry);
             if (cacheResponse is not null)
             {
                 if ((cacheResponse.RCODE != DnsResponseCode.NoError) || (cacheResponse.Answer.Count > 0) || (cacheResponse.Authority.Count == 0) || cacheResponse.IsFirstAuthoritySOA())
@@ -173,6 +205,12 @@ namespace DnsServerCore.Dns
 
                     if (cacheResponseFirstAuthority.Name.Length > authResponseFirstAuthority.Name.Length)
                         return cacheResponse;
+                }
+
+                {
+                    DnsResourceRecord authResponseFirstAuthority = authResponse.FindFirstAuthorityRecord();
+                    if (authResponseFirstAuthority.Type == DnsResourceRecordType.FWD)
+                        return await DoConditionalForwardingResolutionAsync(request, authResponse.Authority);
                 }
 
                 return authResponse;
