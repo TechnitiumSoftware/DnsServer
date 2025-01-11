@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -446,4 +446,41 @@ function showQueryLogs(domain, clientIp) {
     $("#modalTopStats").modal("hide");
 
     refreshQueryLogsTab(true);
+}
+
+function exportQueryLogsCsv() {
+    var name = $("#optQueryLogsAppName").val();
+    if (name == null) {
+        showAlert("warning", "Missing!", "Please install the 'Query Logs (Sqlite)' DNS App or any other DNS app that supports query logging feature.");
+        $("#optQueryLogsAppName").focus();
+        return false;
+    }
+
+    var classPath = $("#optQueryLogsClassPath").val();
+    if (classPath == null) {
+        showAlert("warning", "Missing!", "Please select a Class Path to query logs.");
+        $("#optQueryLogsClassPath").focus();
+        return false;
+    }
+
+    var start = $("#txtQueryLogStart").val();
+    if (start != "")
+        start = moment(start).toISOString();
+
+    var end = $("#txtQueryLogEnd").val();
+    if (end != "")
+        end = moment(end).toISOString();
+
+    var clientIpAddress = $("#txtQueryLogClientIpAddress").val();
+    var protocol = $("#optQueryLogsProtocol").val();
+    var responseType = $("#optQueryLogsResponseType").val();
+    var rcode = $("#optQueryLogsResponseCode").val();
+    var qname = $("#txtQueryLogQName").val();
+    var qtype = $("#txtQueryLogQType").val();
+    var qclass = $("#optQueryLogQClass").val();
+
+    window.open("/api/logs/export?token=" + sessionData.token + "&name=" + encodeURIComponent(name) + "&classPath=" + encodeURIComponent(classPath) +
+        "&start=" + encodeURIComponent(start) + "&end=" + encodeURIComponent(end) + "&clientIpAddress=" + encodeURIComponent(clientIpAddress) +
+        "&protocol=" + protocol + "&responseType=" + responseType + "&rcode=" + rcode + "&qname=" + encodeURIComponent(qname) + "&qtype=" + qtype + "&qclass=" + qclass
+        , "_blank");
 }
