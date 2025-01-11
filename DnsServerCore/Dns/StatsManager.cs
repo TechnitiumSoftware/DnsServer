@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -407,14 +407,14 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private HourlyStats LoadHourlyStats(DateTime dateTime)
+        private HourlyStats LoadHourlyStats(DateTime dateTime, bool forceReload = false)
         {
             if (_enableInMemoryStats)
                 return _emptyHourlyStats;
 
             DateTime hourlyDateTime = new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, 0, 0, 0, DateTimeKind.Utc);
 
-            if (!_hourlyStatsCache.TryGetValue(hourlyDateTime, out HourlyStats hourlyStats))
+            if (forceReload || !_hourlyStatsCache.TryGetValue(hourlyDateTime, out HourlyStats hourlyStats))
             {
                 string hourlyStatsFile = Path.Combine(_statsFolder, dateTime.ToString("yyyyMMddHH") + ".stat");
 
@@ -429,9 +429,7 @@ namespace DnsServerCore.Dns
                     }
                     catch (Exception ex)
                     {
-                        LogManager log = _dnsServer.LogManager;
-                        if (log != null)
-                            log.Write(ex);
+                        _dnsServer.LogManager?.Write(ex);
 
                         hourlyStats = new HourlyStats();
                     }
@@ -441,11 +439,7 @@ namespace DnsServerCore.Dns
                     hourlyStats = new HourlyStats();
                 }
 
-                if (!_hourlyStatsCache.TryAdd(hourlyDateTime, hourlyStats))
-                {
-                    if (!_hourlyStatsCache.TryGetValue(hourlyDateTime, out hourlyStats))
-                        throw new DnsServerException("Unable to load hourly stats.");
-                }
+                _hourlyStatsCache[hourlyDateTime] = hourlyStats;
             }
 
             return hourlyStats;
@@ -823,17 +817,120 @@ namespace DnsServerCore.Dns
             return data;
         }
 
+        public Dictionary<string, List<KeyValuePair<string, long>>> GetMinuteWiseStats(DateTime startDate, DateTime endDate, bool utcFormat)
+        {
+            return GetMinuteWiseStats(startDate, Convert.ToInt32((endDate - startDate).TotalMinutes) + 1, utcFormat);
+        }
+
+        public Dictionary<string, List<KeyValuePair<string, long>>> GetMinuteWiseStats(DateTime startDate, int minutes, bool utcFormat)
+        {
+            startDate = startDate.AddMinutes(-1);
+
+            StatCounter totalStatCounter = new StatCounter();
+            totalStatCounter.Lock();
+
+            List<KeyValuePair<string, long>> totalQueriesPerInterval = new List<KeyValuePair<string, long>>();
+            List<KeyValuePair<string, long>> totalNoErrorPerInterval = new List<KeyValuePair<string, long>>();
+            List<KeyValuePair<string, long>> totalServerFailurePerInterval = new List<KeyValuePair<string, long>>();
+            List<KeyValuePair<string, long>> totalNxDomainPerInterval = new List<KeyValuePair<string, long>>();
+            List<KeyValuePair<string, long>> totalRefusedPerInterval = new List<KeyValuePair<string, long>>();
+
+            List<KeyValuePair<string, long>> totalAuthHitPerInterval = new List<KeyValuePair<string, long>>();
+            List<KeyValuePair<string, long>> totalRecursionsPerInterval = new List<KeyValuePair<string, long>>();
+            List<KeyValuePair<string, long>> totalCacheHitPerInterval = new List<KeyValuePair<string, long>>();
+            List<KeyValuePair<string, long>> totalBlockedPerInterval = new List<KeyValuePair<string, long>>();
+            List<KeyValuePair<string, long>> totalDroppedPerInterval = new List<KeyValuePair<string, long>>();
+
+            List<KeyValuePair<string, long>> totalClientsPerInterval = new List<KeyValuePair<string, long>>();
+
+            for (int minute = 0; minute < minutes; minute++)
+            {
+                DateTime lastDateTime = startDate.AddMinutes(minute);
+
+                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
+                if (hourlyStats.MinuteStats is null)
+                    hourlyStats = LoadHourlyStats(lastDateTime, true);
+
+                StatCounter minuteStatCounter = hourlyStats.MinuteStats[lastDateTime.Minute];
+
+                string label;
+
+                if (utcFormat)
+                    label = lastDateTime.AddMinutes(1).ToString("O");
+                else
+                    label = lastDateTime.AddMinutes(1).ToLocalTime().ToString("MM/dd HH:mm");
+
+                totalStatCounter.Merge(minuteStatCounter);
+
+                totalQueriesPerInterval.Add(new KeyValuePair<string, long>(label, minuteStatCounter.TotalQueries));
+                totalNoErrorPerInterval.Add(new KeyValuePair<string, long>(label, minuteStatCounter.TotalNoError));
+                totalServerFailurePerInterval.Add(new KeyValuePair<string, long>(label, minuteStatCounter.TotalServerFailure));
+                totalNxDomainPerInterval.Add(new KeyValuePair<string, long>(label, minuteStatCounter.TotalNxDomain));
+                totalRefusedPerInterval.Add(new KeyValuePair<string, long>(label, minuteStatCounter.TotalRefused));
+
+                totalAuthHitPerInterval.Add(new KeyValuePair<string, long>(label, minuteStatCounter.TotalAuthoritative));
+                totalRecursionsPerInterval.Add(new KeyValuePair<string, long>(label, minuteStatCounter.TotalRecursive));
+                totalCacheHitPerInterval.Add(new KeyValuePair<string, long>(label, minuteStatCounter.TotalCached));
+                totalBlockedPerInterval.Add(new KeyValuePair<string, long>(label, minuteStatCounter.TotalBlocked));
+                totalDroppedPerInterval.Add(new KeyValuePair<string, long>(label, minuteStatCounter.TotalDropped));
+
+                totalClientsPerInterval.Add(new KeyValuePair<string, long>(label, minuteStatCounter.TotalClients));
+            }
+
+            Dictionary<string, List<KeyValuePair<string, long>>> data = new Dictionary<string, List<KeyValuePair<string, long>>>();
+
+            {
+                List<KeyValuePair<string, long>> stats = new List<KeyValuePair<string, long>>(6);
+
+                stats.Add(new KeyValuePair<string, long>("totalQueries", totalStatCounter.TotalQueries));
+                stats.Add(new KeyValuePair<string, long>("totalNoError", totalStatCounter.TotalNoError));
+                stats.Add(new KeyValuePair<string, long>("totalServerFailure", totalStatCounter.TotalServerFailure));
+                stats.Add(new KeyValuePair<string, long>("totalNxDomain", totalStatCounter.TotalNxDomain));
+                stats.Add(new KeyValuePair<string, long>("totalRefused", totalStatCounter.TotalRefused));
+
+                stats.Add(new KeyValuePair<string, long>("totalAuthoritative", totalStatCounter.TotalAuthoritative));
+                stats.Add(new KeyValuePair<string, long>("totalRecursive", totalStatCounter.TotalRecursive));
+                stats.Add(new KeyValuePair<string, long>("totalCached", totalStatCounter.TotalCached));
+                stats.Add(new KeyValuePair<string, long>("totalBlocked", totalStatCounter.TotalBlocked));
+                stats.Add(new KeyValuePair<string, long>("totalDropped", totalStatCounter.TotalDropped));
+
+                stats.Add(new KeyValuePair<string, long>("totalClients", totalStatCounter.TotalClients));
+
+                data.Add("stats", stats);
+            }
+
+            data.Add("totalQueriesPerInterval", totalQueriesPerInterval);
+            data.Add("totalNoErrorPerInterval", totalNoErrorPerInterval);
+            data.Add("totalServerFailurePerInterval", totalServerFailurePerInterval);
+            data.Add("totalNxDomainPerInterval", totalNxDomainPerInterval);
+            data.Add("totalRefusedPerInterval", totalRefusedPerInterval);
+
+            data.Add("totalAuthHitPerInterval", totalAuthHitPerInterval);
+            data.Add("totalRecursionsPerInterval", totalRecursionsPerInterval);
+            data.Add("totalCacheHitPerInterval", totalCacheHitPerInterval);
+            data.Add("totalBlockedPerInterval", totalBlockedPerInterval);
+            data.Add("totalDroppedPerInterval", totalDroppedPerInterval);
+
+            data.Add("totalClientsPerInterval", totalClientsPerInterval);
+
+            data.Add("topDomains", totalStatCounter.GetTopDomains(10));
+            data.Add("topBlockedDomains", totalStatCounter.GetTopBlockedDomains(10));
+            data.Add("topClients", totalStatCounter.GetTopClients(10));
+            data.Add("queryTypes", totalStatCounter.GetTopQueryTypes(10));
+            data.Add("protocolTypes", totalStatCounter.GetTopProtocolTypes());
+
+            return data;
+        }
+
         public Dictionary<string, List<KeyValuePair<string, long>>> GetHourWiseStats(DateTime startDate, DateTime endDate, bool utcFormat)
         {
-            int hours = Convert.ToInt32((endDate - startDate).TotalHours) + 1;
-            if (hours < 24)
-                hours = 24;
-
-            return GetHourWiseStats(startDate, hours, utcFormat);
+            return GetHourWiseStats(startDate, Convert.ToInt32((endDate - startDate).TotalHours) + 1, utcFormat);
         }
 
         public Dictionary<string, List<KeyValuePair<string, long>>> GetHourWiseStats(DateTime startDate, int hours, bool utcFormat)
         {
+            startDate = new DateTime(startDate.Year, startDate.Month, startDate.Day, startDate.Hour, 0, 0, 0, DateTimeKind.Utc);
+
             StatCounter totalStatCounter = new StatCounter();
             totalStatCounter.Lock();
 
@@ -1113,17 +1210,56 @@ namespace DnsServerCore.Dns
             }
         }
 
+        public List<KeyValuePair<string, long>> GetMinuteWiseTopStats(DateTime startDate, DateTime endDate, TopStatsType type, int limit)
+        {
+            return GetMinuteWiseTopStats(startDate, Convert.ToInt32((endDate - startDate).TotalMinutes) + 1, type, limit);
+        }
+
+        public List<KeyValuePair<string, long>> GetMinuteWiseTopStats(DateTime startDate, int minutes, TopStatsType type, int limit)
+        {
+            startDate = startDate.AddMinutes(-1);
+
+            StatCounter totalStatCounter = new StatCounter();
+            totalStatCounter.Lock();
+
+            for (int minute = 0; minute < minutes; minute++)
+            {
+                DateTime lastDateTime = startDate.AddMinutes(minute);
+
+                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
+                if (hourlyStats.MinuteStats is null)
+                    hourlyStats = LoadHourlyStats(lastDateTime, true);
+
+                StatCounter minuteStatCounter = hourlyStats.MinuteStats[lastDateTime.Minute];
+
+                totalStatCounter.Merge(minuteStatCounter);
+            }
+
+            switch (type)
+            {
+                case TopStatsType.TopDomains:
+                    return totalStatCounter.GetTopDomains(limit);
+
+                case TopStatsType.TopBlockedDomains:
+                    return totalStatCounter.GetTopBlockedDomains(limit);
+
+                case TopStatsType.TopClients:
+                    return totalStatCounter.GetTopClients(limit);
+
+                default:
+                    throw new NotSupportedException();
+            }
+        }
+
         public List<KeyValuePair<string, long>> GetHourWiseTopStats(DateTime startDate, DateTime endDate, TopStatsType type, int limit)
         {
-            int hours = Convert.ToInt32((endDate - startDate).TotalHours) + 1;
-            if (hours < 24)
-                hours = 24;
-
-            return GetHourWiseTopStats(startDate, hours, type, limit);
+            return GetHourWiseTopStats(startDate, Convert.ToInt32((endDate - startDate).TotalHours) + 1, type, limit);
         }
 
         public List<KeyValuePair<string, long>> GetHourWiseTopStats(DateTime startDate, int hours, TopStatsType type, int limit)
         {
+            startDate = new DateTime(startDate.Year, startDate.Month, startDate.Day, startDate.Hour, 0, 0, 0, DateTimeKind.Utc);
+
             StatCounter totalStatCounter = new StatCounter();
             totalStatCounter.Lock();
 
@@ -1284,6 +1420,12 @@ namespace DnsServerCore.Dns
             {
                 _hourStat = new StatCounter();
                 _hourStat.Lock();
+
+                for (int i = 0; i < _minuteStats.Length; i++)
+                {
+                    _minuteStats[i] = new StatCounter();
+                    _minuteStats[i].Lock();
+                }
             }
 
             public HourlyStats(BinaryReader bR)
