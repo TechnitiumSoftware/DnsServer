@@ -4312,22 +4312,30 @@ namespace DnsServerCore.Dns
             }
         }
 
-        internal bool IsQpmLimitCrossed(IPAddress remoteIP)
+        private bool IsQpmLimitBypassed(IPAddress remoteIP)
         {
-            if ((_qpmLimitRequests < 1) && (_qpmLimitErrors < 1))
-                return false;
-
             if (IPAddress.IsLoopback(remoteIP))
-                return false;
+                return true;
 
             if (_qpmLimitBypassList is not null)
             {
                 foreach (NetworkAddress networkAddress in _qpmLimitBypassList)
                 {
                     if (networkAddress.Contains(remoteIP))
-                        return false;
+                        return true;
                 }
             }
+
+            return false;
+        }
+
+        internal bool IsQpmLimitCrossed(IPAddress remoteIP)
+        {
+            if ((_qpmLimitRequests < 1) && (_qpmLimitErrors < 1))
+                return false;
+
+            if (IsQpmLimitBypassed(remoteIP))
+                return false;
 
             IPAddress remoteSubnet;
 
@@ -4400,6 +4408,9 @@ namespace DnsServerCore.Dns
                     if (oldAverageCountPerMinute >= qpmLimit)
                     {
                         //previously over limit
+                        if (IsQpmLimitBypassed(sampleEntry.Key))
+                            continue; //network bypassed
+
                         long averageCountPerMinute = 0;
 
                         if (newQpmLimitClientSubnetStats.TryGetValue(sampleEntry.Key, out long newCountPerSample))
@@ -4417,6 +4428,9 @@ namespace DnsServerCore.Dns
                 if (averageCountPerMinute >= qpmLimit)
                 {
                     //currently over limit
+                    if (IsQpmLimitBypassed(sampleEntry.Key))
+                        continue; //network bypassed
+
                     if ((oldQpmLimitClientSubnetStats is not null) && oldQpmLimitClientSubnetStats.TryGetValue(sampleEntry.Key, out long oldCountPerSample))
                     {
                         long oldAverageCountPerMinute = oldCountPerSample / _qpmLimitSampleMinutes;
