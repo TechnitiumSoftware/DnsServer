@@ -1,4 +1,4 @@
-﻿/*
+/*
 Technitium DNS Server
 Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
@@ -34,10 +34,11 @@ namespace DnsRebindingProtection
     {
         #region variables
 
-        bool _enableProtection;
-        NetworkAddress[] _bypassNetworks;
-        HashSet<NetworkAddress> _privateNetworks;
-        HashSet<string> _privateDomains;
+        private bool _enableProtection;
+        private NetworkAddress[] _bypassNetworks;
+        private HashSet<NetworkAddress> _privateNetworks;
+        private HashSet<string> _privateDomains;
+        private static readonly SemaphoreSlim ConfigWriteLock = new SemaphoreSlim(1, 1);
 
         #endregion
 
@@ -54,32 +55,37 @@ namespace DnsRebindingProtection
 
         private static string GetParentZone(string domain)
         {
+            if (string.IsNullOrWhiteSpace(domain))
+                return null;
+
             int i = domain.IndexOf('.');
-            if (i > -1)
+            if (i > -1 && i + 1 < domain.Length)
                 return domain[(i + 1)..];
 
-            //dont return root zone
             return null;
         }
 
         private bool IsPrivateDomain(string domain)
         {
             domain = domain.ToLowerInvariant();
+            int maxDepth = 10;
 
-            do
+            while (domain is not null && maxDepth-- > 0)
             {
                 if (_privateDomains.Contains(domain))
                     return true;
 
                 domain = GetParentZone(domain);
             }
-            while (domain is not null);
 
             return false;
         }
 
         private bool IsRebindingAttempt(DnsResourceRecord record)
         {
+            if (record.RDATA is null)
+                return false;
+
             IPAddress address;
 
             switch (record.Type)
@@ -88,19 +94,22 @@ namespace DnsRebindingProtection
                     if (IsPrivateDomain(record.Name))
                         return false;
 
-                    address = (record.RDATA as DnsARecordData).Address;
+                    address = (record.RDATA as DnsARecordData)?.Address;
                     break;
 
                 case DnsResourceRecordType.AAAA:
                     if (IsPrivateDomain(record.Name))
                         return false;
 
-                    address = (record.RDATA as DnsAAAARecordData).Address;
+                    address = (record.RDATA as DnsAAAARecordData)?.Address;
                     break;
 
                 default:
                     return false;
             }
+
+            if (address is null)
+                return false;
 
             foreach (NetworkAddress networkAddress in _privateNetworks)
             {
@@ -113,20 +122,18 @@ namespace DnsRebindingProtection
 
         private bool TryDetectRebinding(IReadOnlyList<DnsResourceRecord> answer, out List<DnsResourceRecord> protectedAnswer)
         {
+            protectedAnswer = new List<DnsResourceRecord>();
+
             for (int i = 0; i < answer.Count; i++)
             {
                 DnsResourceRecord record = answer[i];
                 if (IsRebindingAttempt(record))
                 {
-                    //rebinding attempt detected!
-                    //prepare protected answer
                     protectedAnswer = new List<DnsResourceRecord>(answer.Count);
 
-                    //copy passed records
                     for (int j = 0; j < i; j++)
                         protectedAnswer.Add(answer[j]);
 
-                    //copy remaining records with check
                     for (int j = i + 1; j < answer.Count; j++)
                     {
                         record = answer[j];
@@ -138,7 +145,6 @@ namespace DnsRebindingProtection
                 }
             }
 
-            protectedAnswer = null;
             return false;
         }
 
@@ -148,30 +154,42 @@ namespace DnsRebindingProtection
 
         public async Task InitializeAsync(IDnsServer dnsServer, string config)
         {
-            using JsonDocument jsonDocument = JsonDocument.Parse(config);
-            JsonElement jsonConfig = jsonDocument.RootElement;
+            if (string.IsNullOrWhiteSpace(config))
+                throw new ArgumentNullException(nameof(config), "Configuration cannot be null or empty.");
 
-            _enableProtection = jsonConfig.GetPropertyValue("enableProtection", true);
-            _privateNetworks = new HashSet<NetworkAddress>(jsonConfig.ReadArray("privateNetworks", NetworkAddress.Parse));
-            _privateDomains = new HashSet<string>(jsonConfig.ReadArray("privateDomains"));
-
-            if (jsonConfig.TryReadArray("bypassNetworks", NetworkAddress.Parse, out NetworkAddress[] bypassNetworks))
+            await ConfigWriteLock.WaitAsync();
+            try
             {
-                _bypassNetworks = bypassNetworks;
+                using JsonDocument jsonDocument = JsonDocument.Parse(config);
+                JsonElement jsonConfig = jsonDocument.RootElement;
+
+                _enableProtection = jsonConfig.GetPropertyValue("enableProtection", true);
+                _privateNetworks = new HashSet<NetworkAddress>(jsonConfig.ReadArray("privateNetworks", NetworkAddress.Parse));
+                _privateDomains = new HashSet<string>(jsonConfig.ReadArray("privateDomains"));
+
+                if (jsonConfig.TryReadArray("bypassNetworks", NetworkAddress.Parse, out NetworkAddress[] bypassNetworks))
+                {
+                    _bypassNetworks = bypassNetworks;
+                }
+                else
+                {
+                    _bypassNetworks = Array.Empty<NetworkAddress>();
+                    config = config.Replace("\"privateNetworks\"", "\"bypassNetworks\": [\r\n  ],\r\n  \"privateNetworks\"");
+                    await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
+                }
             }
-            else
+            catch (JsonException ex)
             {
-                _bypassNetworks = [];
-
-                //update config for new feature
-                config = config.Replace("\"privateNetworks\"", "\"bypassNetworks\": [\r\n  ],\r\n  \"privateNetworks\"");
-                await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
+                throw new InvalidOperationException("Failed to parse the DNS server configuration.", ex);
+            }
+            finally
+            {
+                ConfigWriteLock.Release();
             }
         }
 
         public Task<DnsDatagram> PostProcessAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
         {
-            // Do not filter authoritative responses. Because in this case any rebinding is intentional.
             if (!_enableProtection || response.AuthoritativeAnswer)
                 return Task.FromResult(response);
 
