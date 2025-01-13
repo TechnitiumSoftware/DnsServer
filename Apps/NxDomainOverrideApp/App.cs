@@ -1,4 +1,4 @@
-﻿/*
+/*
 Technitium DNS Server
 Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
 
@@ -45,7 +45,7 @@ namespace NxDomainOverride
 
         public void Dispose()
         {
-            //do nothing
+            // No resources to dispose
         }
 
         #endregion
@@ -58,14 +58,13 @@ namespace NxDomainOverride
             if (i > -1)
                 return domain.Substring(i + 1);
 
-            //dont return root zone
+            // Do not return the root zone
             return null;
         }
 
         private bool TryGetMappedSets(string domain, out string[] setNames)
         {
             domain = domain.ToLowerInvariant();
-
             string parent;
 
             do
@@ -76,6 +75,7 @@ namespace NxDomainOverride
                 parent = GetParentZone(domain);
                 if (parent is null)
                 {
+                    // Check wildcard domain mapping
                     if (_domainSetMap.TryGetValue("*", out setNames))
                         return true;
 
@@ -100,27 +100,32 @@ namespace NxDomainOverride
 
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
-            using JsonDocument jsonDocument = JsonDocument.Parse(config);
-            JsonElement jsonConfig = jsonDocument.RootElement;
-
-            _enableOverride = jsonConfig.GetPropertyValue("enableOverride", true);
-            _defaultTtl = jsonConfig.GetPropertyValue("defaultTtl", 300u);
-
-            _domainSetMap = jsonConfig.ReadObjectAsMap("domainSetMap", delegate (string domain, JsonElement jsonSets)
+            try
             {
-                string[] sets = jsonSets.GetArray();
+                using JsonDocument jsonDocument = JsonDocument.Parse(config);
+                JsonElement jsonConfig = jsonDocument.RootElement;
 
-                return new Tuple<string, string[]>(domain.ToLowerInvariant(), sets);
-            });
+                _enableOverride = jsonConfig.GetPropertyValue("enableOverride", true);
+                _defaultTtl = jsonConfig.GetPropertyValue("defaultTtl", 300u);
 
-            _sets = jsonConfig.ReadArrayAsMap("sets", delegate (JsonElement jsonSet)
+                _domainSetMap = jsonConfig.ReadObjectAsMap("domainSetMap", delegate (string domain, JsonElement jsonSets)
+                {
+                    string[] sets = jsonSets.GetArray();
+                    return new Tuple<string, string[]>(domain.ToLowerInvariant(), sets);
+                });
+
+                _sets = jsonConfig.ReadArrayAsMap("sets", delegate (JsonElement jsonSet)
+                {
+                    Set set = new Set(jsonSet);
+                    return new Tuple<string, Set>(set.Name, set);
+                });
+
+                return Task.CompletedTask;
+            }
+            catch (Exception ex)
             {
-                Set set = new Set(jsonSet);
-
-                return new Tuple<string, Set>(set.Name, set);
-            });
-
-            return Task.CompletedTask;
+                throw new InvalidOperationException("Failed to initialize configuration.", ex);
+            }
         }
 
         public Task<DnsDatagram> PostProcessAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
@@ -128,13 +133,11 @@ namespace NxDomainOverride
             if (!_enableOverride)
                 return Task.FromResult(response);
 
-            if (response.DnssecOk)
+            if (response.DnssecOk || response.OPCODE != DnsOpcode.StandardQuery || response.RCODE != DnsResponseCode.NxDomain)
                 return Task.FromResult(response);
 
-            if (response.OPCODE != DnsOpcode.StandardQuery)
-                return Task.FromResult(response);
-
-            if (response.RCODE != DnsResponseCode.NxDomain)
+            // Ensure there's at least one question
+            if (request.Question.Count == 0)
                 return Task.FromResult(response);
 
             DnsQuestionRecord question = request.Question[0];
@@ -146,7 +149,7 @@ namespace NxDomainOverride
                     break;
 
                 default:
-                    //NO DATA response
+                    // Return NO DATA response for unsupported query types
                     return Task.FromResult(new DnsDatagram(response.Identifier, true, response.OPCODE, response.AuthoritativeAnswer, response.Truncation, response.RecursionDesired, response.RecursionAvailable, response.AuthenticData, response.CheckingDisabled, DnsResponseCode.NoError, response.Question, response.Answer, response.Authority, response.Additional) { Tag = response.Tag });
             }
 
@@ -154,15 +157,14 @@ namespace NxDomainOverride
 
             foreach (DnsResourceRecord record in response.Answer)
             {
-                if (record.Type == DnsResourceRecordType.CNAME)
-                    nxDomain = (record.RDATA as DnsCNAMERecordData).Domain;
+                if (record.Type == DnsResourceRecordType.CNAME && record.RDATA is DnsCNAMERecordData cnameData)
+                    nxDomain = cnameData.Domain;
             }
 
             if (!TryGetMappedSets(nxDomain, out string[] setNames))
                 return Task.FromResult(response);
 
-            List<DnsResourceRecord> newAnswer = new List<DnsResourceRecord>();
-            newAnswer.AddRange(response.Answer);
+            List<DnsResourceRecord> newAnswer = new List<DnsResourceRecord>(response.Answer);
 
             foreach (string setName in setNames)
             {
@@ -187,7 +189,7 @@ namespace NxDomainOverride
                             break;
 
                         default:
-                            throw new InvalidOperationException();
+                            throw new InvalidOperationException("Unsupported resource record type.");
                     }
                 }
             }
@@ -217,8 +219,11 @@ namespace NxDomainOverride
 
             public Set(JsonElement jsonSet)
             {
-                _name = jsonSet.GetProperty("name").GetString();
-                _rdataAddresses = jsonSet.ReadArray<DnsResourceRecordData>("addresses", delegate (string item)
+                if (!jsonSet.TryGetProperty("name", out JsonElement nameElement) || !jsonSet.TryGetProperty("addresses", out JsonElement addressesElement))
+                    throw new ArgumentException("Invalid set configuration.");
+
+                _name = nameElement.GetString();
+                _rdataAddresses = addressesElement.ReadArray<DnsResourceRecordData>("addresses", delegate (string item)
                 {
                     IPAddress address = IPAddress.Parse(item);
 
@@ -240,11 +245,9 @@ namespace NxDomainOverride
 
             #region properties
 
-            public string Name
-            { get { return _name; } }
+            public string Name => _name;
 
-            public DnsResourceRecordData[] RecordDataAddresses
-            { get { return _rdataAddresses; } }
+            public DnsResourceRecordData[] RecordDataAddresses => _rdataAddresses;
 
             #endregion
         }
