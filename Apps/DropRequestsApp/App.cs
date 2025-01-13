@@ -36,9 +36,9 @@ namespace DropRequests
 
         bool _enableBlocking;
         bool _dropMalformedRequests;
-        NetworkAddress[] _allowedNetworks;
-        NetworkAddress[] _blockedNetworks;
-        BlockedQuestion[] _blockedQuestions;
+        NetworkAddress[] _allowedNetworks = Array.Empty<NetworkAddress>();
+        NetworkAddress[] _blockedNetworks = Array.Empty<NetworkAddress>();
+        BlockedQuestion[] _blockedQuestions = Array.Empty<BlockedQuestion>();
 
         #endregion
 
@@ -67,18 +67,12 @@ namespace DropRequests
 
             if (jsonConfig.TryReadArray("allowedNetworks", NetworkAddress.Parse, out NetworkAddress[] allowedNetworks))
                 _allowedNetworks = allowedNetworks;
-            else
-                _allowedNetworks = Array.Empty<NetworkAddress>();
 
             if (jsonConfig.TryReadArray("blockedNetworks", NetworkAddress.Parse, out NetworkAddress[] blockedNetworks))
                 _blockedNetworks = blockedNetworks;
-            else
-                _blockedNetworks = Array.Empty<NetworkAddress>();
 
             if (jsonConfig.TryReadArray("blockedQuestions", delegate (JsonElement blockedQuestion) { return new BlockedQuestion(blockedQuestion); }, out BlockedQuestion[] blockedQuestions))
                 _blockedQuestions = blockedQuestions;
-            else
-                _blockedQuestions = Array.Empty<BlockedQuestion>();
 
             if (!jsonConfig.TryGetProperty("dropMalformedRequests", out _))
             {
@@ -148,7 +142,7 @@ namespace DropRequests
             public BlockedQuestion(JsonElement jsonQuestion)
             {
                 if (jsonQuestion.TryGetProperty("name", out JsonElement jsonName))
-                    _name = jsonName.GetString().TrimEnd('.');
+                    _name = jsonName.GetString()?.TrimEnd('.');
 
                 if (jsonQuestion.TryGetProperty("blockZone", out JsonElement jsonBlockZone))
                     _blockZone = jsonBlockZone.GetBoolean();
