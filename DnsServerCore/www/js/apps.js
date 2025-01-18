@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -86,11 +86,14 @@ function getAppRowHtml(app) {
 
             if (app.dnsApps[j].isAuthoritativeRequestHandler)
                 labels += "<span class=\"label label-info\" style=\"margin-right: 4px;\">Authoritative</span>";
-                
+
             if (app.dnsApps[j].isRequestBlockingHandler)
                 labels += "<span class=\"label label-info\" style=\"margin-right: 4px;\">Blocking</span>";
 
             if (app.dnsApps[j].isQueryLogger)
+                labels += "<span class=\"label label-info\" style=\"margin-right: 4px;\">Query Logger</span>";
+
+            if (app.dnsApps[j].isQueryLogs)
                 labels += "<span class=\"label label-info\" style=\"margin-right: 4px;\">Query Logs</span>";
 
             if (app.dnsApps[j].isPostProcessor)
