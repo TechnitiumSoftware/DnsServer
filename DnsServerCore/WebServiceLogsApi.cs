@@ -153,7 +153,7 @@ namespace DnsServerCore
             if (!_dnsWebService.DnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication application))
                 throw new DnsWebServiceException("DNS application was not found: " + name);
 
-            if (!application.DnsQueryLoggers.TryGetValue(classPath, out IDnsQueryLogger logger))
+            if (!application.DnsQueryLogs.TryGetValue(classPath, out IDnsQueryLogs queryLogs))
                 throw new DnsWebServiceException("DNS application '" + classPath + "' class path was not found: " + name);
 
             long pageNumber = request.GetQueryOrForm("pageNumber", long.Parse, 1);
@@ -199,7 +199,7 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strQclass))
                 qclass = Enum.Parse<DnsClass>(strQclass, true);
 
-            DnsLogPage page = await logger.QueryLogsAsync(pageNumber, entriesPerPage, descendingOrder, start, end, clientIpAddress, protocol, responseType, rcode, qname, qtype, qclass);
+            DnsLogPage page = await queryLogs.QueryLogsAsync(pageNumber, entriesPerPage, descendingOrder, start, end, clientIpAddress, protocol, responseType, rcode, qname, qtype, qclass);
 
             Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
@@ -250,7 +250,7 @@ namespace DnsServerCore
             if (!_dnsWebService.DnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication application))
                 throw new DnsWebServiceException("DNS application was not found: " + name);
 
-            if (!application.DnsQueryLoggers.TryGetValue(classPath, out IDnsQueryLogger logger))
+            if (!application.DnsQueryLogs.TryGetValue(classPath, out IDnsQueryLogs queryLogs))
                 throw new DnsWebServiceException("DNS application '" + classPath + "' class path was not found: " + name);
 
             DateTime? start = null;
@@ -329,7 +329,7 @@ namespace DnsServerCore
 
                     do
                     {
-                        page = await logger.QueryLogsAsync(pageNumber, 10000, false, start, end, clientIpAddress, protocol, responseType, rcode, qname, qtype, qclass);
+                        page = await queryLogs.QueryLogsAsync(pageNumber, 10000, false, start, end, clientIpAddress, protocol, responseType, rcode, qname, qtype, qclass);
 
                         foreach (DnsLogEntry entry in page.Entries)
                         {
