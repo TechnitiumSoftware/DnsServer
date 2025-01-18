@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -34,13 +34,14 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace QueryLogsSqlite
 {
-    public sealed class App : IDnsApplication, IDnsQueryLogger
+    public sealed class App : IDnsApplication, IDnsQueryLogger, IDnsQueryLogs
     {
         #region variables
 
         IDnsServer _dnsServer;
 
         bool _enableLogging;
+        int _maxQueueSize;
         int _maxLogDays;
         int _maxLogRecords;
         bool _useInMemoryDb;
@@ -289,6 +290,7 @@ namespace QueryLogsSqlite
             JsonElement jsonConfig = jsonDocument.RootElement;
 
             _enableLogging = jsonConfig.GetPropertyValue("enableLogging", true);
+            _maxQueueSize = jsonConfig.GetPropertyValue("maxQueueSize", 200000);
             _maxLogDays = jsonConfig.GetPropertyValue("maxLogDays", 0);
             _maxLogRecords = jsonConfig.GetPropertyValue("maxLogRecords", 0);
             _useInMemoryDb = jsonConfig.GetPropertyValue("useInMemoryDb", false);
@@ -458,12 +460,22 @@ CREATE TABLE IF NOT EXISTS dns_logs
 
                 await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
             }
+
+            if (!jsonConfig.TryGetProperty("maxQueueSize", out _))
+            {
+                config = config.Replace("\"maxLogDays\"", "\"maxQueueSize\": 200000,\r\n  \"maxLogDays\"");
+
+                await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
+            }
         }
 
         public Task InsertLogAsync(DateTime timestamp, DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
         {
             if (_enableLogging)
-                _queuedLogs.Enqueue(new LogEntry(timestamp, request, remoteEP, protocol, response));
+            {
+                if (_queuedLogs.Count < _maxQueueSize)
+                    _queuedLogs.Enqueue(new LogEntry(timestamp, request, remoteEP, protocol, response));
+            }
 
             return Task.CompletedTask;
         }
