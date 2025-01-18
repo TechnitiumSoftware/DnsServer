@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -24,10 +24,10 @@ using System.Threading.Tasks;
 namespace LogExporter.Strategy
 {
     /// <summary>
-    ///     Strategu interface to decide the sinks for exporting the logs.
+    ///     Strategy interface to decide the sinks for exporting the logs.
     /// </summary>
     public interface IExportStrategy: IDisposable
     {
-        Task ExportAsync(List<LogEntry> logs);
+        Task ExportAsync(IReadOnlyList<LogEntry> logs);
     }
 }

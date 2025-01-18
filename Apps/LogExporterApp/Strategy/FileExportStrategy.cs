@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -23,15 +23,15 @@ using System.Threading.Tasks;
 
 namespace LogExporter.Strategy
 {
-    public class FileExportStrategy : IExportStrategy
+    public sealed class FileExportStrategy : IExportStrategy
     {
         #region variables
 
-        private readonly Serilog.Core.Logger _sender;
+        readonly Serilog.Core.Logger _sender;
 
-        private bool disposedValue;
+        bool _disposed;
 
-        #endregion variables
+        #endregion
 
         #region constructor
 
@@ -40,45 +40,32 @@ namespace LogExporter.Strategy
             _sender = new LoggerConfiguration().WriteTo.File(filePath, outputTemplate: "{Message:lj}{NewLine}{Exception}").CreateLogger();
         }
 
-        #endregion constructor
-
-        #region public
-
-        public Task ExportAsync(List<LogEntry> logs)
-        {
-            return Task.Run(() =>
-            {
-                foreach (LogEntry logEntry in logs)
-            {
-                _sender.Information(logEntry.ToString());
-            }
-            });
-        }
-
-        #endregion public
+        #endregion
 
         #region IDisposable
 
         public void Dispose()
         {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Dispose(disposing: true);
-            System.GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposedValue)
+            if (!_disposed)
             {
-                if (disposing)
-                {
-                    _sender.Dispose();
-                }
+                _sender.Dispose();
 
-                disposedValue = true;
+                _disposed = true;
             }
         }
 
-        #endregion IDisposable
+        #endregion
+
+        #region public
+
+        public Task ExportAsync(IReadOnlyList<LogEntry> logs)
+        {
+            foreach (LogEntry logEntry in logs)
+                _sender.Information(logEntry.ToString());
+
+            return Task.CompletedTask;
+        }
+
+        #endregion
     }
 }

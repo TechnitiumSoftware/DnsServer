@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -29,19 +29,19 @@ using System.Threading.Tasks;
 
 namespace LogExporter.Strategy
 {
-    public class HttpExportStrategy : IExportStrategy
+    public sealed class HttpExportStrategy : IExportStrategy
     {
         #region variables
 
-        private readonly Serilog.Core.Logger _sender;
+        readonly Serilog.Core.Logger _sender;
 
-        private bool disposedValue;
+        bool _disposed;
 
-        #endregion variables
+        #endregion
 
         #region constructor
 
-        public HttpExportStrategy(string endpoint, Dictionary<string, string>? headers = null)
+        public HttpExportStrategy(string endpoint, Dictionary<string, string?>? headers = null)
         {
             IConfigurationRoot? configuration = null;
             if (headers != null)
@@ -54,79 +54,66 @@ namespace LogExporter.Strategy
             _sender = new LoggerConfiguration().WriteTo.Http(endpoint, null, httpClient: new CustomHttpClient(), configuration: configuration).Enrich.FromLogContext().CreateLogger();
         }
 
-        #endregion constructor
-
-        #region public
-
-        public Task ExportAsync(List<LogEntry> logs)
-        {
-            return Task.Run(() =>
-            {
-                foreach (LogEntry logEntry in logs)
-                {
-                    _sender.Information(logEntry.ToString());
-                }
-            });
-        }
-
-        #endregion public
+        #endregion
 
         #region IDisposable
 
         public void Dispose()
         {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposedValue)
+            if (!_disposed)
             {
-                if (disposing)
-                {
-                    _sender.Dispose();
-                }
+                _sender.Dispose();
 
-                disposedValue = true;
+                _disposed = true;
             }
         }
 
-        #endregion IDisposable
+        #endregion
 
-        #region Classes
+        #region public
+
+        public Task ExportAsync(IReadOnlyList<LogEntry> logs)
+        {
+            foreach (LogEntry logEntry in logs)
+                _sender.Information(logEntry.ToString());
+
+            return Task.CompletedTask;
+        }
+
+        #endregion
 
         public class CustomHttpClient : IHttpClient
         {
-            private readonly HttpClient httpClient;
+            readonly HttpClient _httpClient;
 
-            public CustomHttpClient() => httpClient = new HttpClient();
+            public CustomHttpClient()
+            {
+                _httpClient = new HttpClient();
+            }
 
             public void Configure(IConfiguration configuration)
             {
-                foreach (var pair in configuration.GetChildren())
+                foreach (IConfigurationSection pair in configuration.GetChildren())
                 {
-                    httpClient.DefaultRequestHeaders.Add(pair.Key, pair.Value);
+                    _httpClient.DefaultRequestHeaders.Add(pair.Key, pair.Value);
                 }
             }
 
             public void Dispose()
             {
-                httpClient?.Dispose();
+                _httpClient?.Dispose();
+                GC.SuppressFinalize(this);
             }
 
             public async Task<HttpResponseMessage> PostAsync(string requestUri, Stream contentStream, CancellationToken cancellationToken)
             {
-                using var content = new StreamContent(contentStream);
+                StreamContent content = new StreamContent(contentStream);
                 content.Headers.Add("Content-Type", "application/json");
 
-                return await httpClient
+                return await _httpClient
                     .PostAsync(requestUri, content, cancellationToken)
                     .ConfigureAwait(false);
             }
         }
-
-        #endregion Classes
     }
 }

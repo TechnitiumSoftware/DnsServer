@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -25,8 +25,8 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
-using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace LogExporter
 {
@@ -34,63 +34,57 @@ namespace LogExporter
     {
         #region variables
 
-        private const int BULK_INSERT_COUNT = 1000;
+        IDnsServer? _dnsServer;
+        BufferManagementConfig? _config;
 
-        private const int DEFAULT_QUEUE_CAPACITY = 1000;
+        readonly ExportManager _exportManager = new ExportManager();
 
-        private const int QUEUE_TIMER_INTERVAL = 10000;
+        bool _enableLogging;
 
-        private readonly IReadOnlyList<DnsLogEntry> _emptyList = [];
+        readonly ConcurrentQueue<LogEntry> _queuedLogs = new ConcurrentQueue<LogEntry>();
+        readonly Timer _queueTimer;
+        const int QUEUE_TIMER_INTERVAL = 10000;
+        const int BULK_INSERT_COUNT = 1000;
 
-        private readonly ExportManager _exportManager = new ExportManager();
+        bool _disposed;
 
-        private BufferManagementConfig? _config;
-
-        private IDnsServer _dnsServer;
-
-        private BlockingCollection<LogEntry> _logBuffer;
-
-        private Timer _queueTimer;
-
-        private bool disposedValue;
-
-        #endregion variables
+        #endregion
 
         #region constructor
 
         public App()
         {
+            _queueTimer = new Timer(HandleExportLogCallback);
         }
 
-        #endregion constructor
+        #endregion
 
         #region IDisposable
 
         public void Dispose()
         {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
 
         private void Dispose(bool disposing)
         {
-            if (!disposedValue)
+            if (!_disposed)
             {
                 if (disposing)
                 {
                     _queueTimer?.Dispose();
 
-                    ExportLogs(); //flush any pending logs
+                    ExportLogsAsync().Sync(); //flush any pending logs
 
-                    _logBuffer.Dispose();
+                    _exportManager.Dispose();
                 }
 
-                disposedValue = true;
+                _disposed = true;
             }
         }
 
-        #endregion IDisposable
+        #endregion
 
         #region public
 
@@ -99,66 +93,97 @@ namespace LogExporter
             _dnsServer = dnsServer;
             _config = BufferManagementConfig.Deserialize(config);
 
-            if (_config == null)
-            {
+            if (_config is null)
                 throw new DnsClientException("Invalid application configuration.");
-            }
 
-            if (_config.MaxLogEntries != null)
+            if (_config.FileTarget!.Enabled)
             {
-                _logBuffer = new BlockingCollection<LogEntry>(_config.MaxLogEntries.Value);
+                _exportManager.RemoveStrategy(typeof(FileExportStrategy));
+                _exportManager.AddStrategy(new FileExportStrategy(_config.FileTarget!.Path));
             }
             else
             {
-                _logBuffer = new BlockingCollection<LogEntry>(DEFAULT_QUEUE_CAPACITY);
+                _exportManager.RemoveStrategy(typeof(FileExportStrategy));
             }
 
-            RegisterExportTargets();
-            if (_exportManager.HasStrategy())
+            if (_config.HttpTarget!.Enabled)
             {
-                _queueTimer = new Timer(HandleExportLogCallback, state: null, QUEUE_TIMER_INTERVAL, Timeout.Infinite);
+                _exportManager.RemoveStrategy(typeof(HttpExportStrategy));
+                _exportManager.AddStrategy(new HttpExportStrategy(_config.HttpTarget.Endpoint, _config.HttpTarget.Headers));
             }
+            else
+            {
+                _exportManager.RemoveStrategy(typeof(HttpExportStrategy));
+            }
+
+            if (_config.SyslogTarget!.Enabled)
+            {
+                _exportManager.RemoveStrategy(typeof(SyslogExportStrategy));
+                _exportManager.AddStrategy(new SyslogExportStrategy(_config.SyslogTarget.Address, _config.SyslogTarget.Port, _config.SyslogTarget.Protocol));
+            }
+            else
+            {
+                _exportManager.RemoveStrategy(typeof(SyslogExportStrategy));
+            }
+
+            _enableLogging = _exportManager.HasStrategy();
+
+            if (_enableLogging)
+                _queueTimer.Change(QUEUE_TIMER_INTERVAL, Timeout.Infinite);
+            else
+                _queueTimer.Change(Timeout.Infinite, Timeout.Infinite);
+
             return Task.CompletedTask;
         }
 
         public Task InsertLogAsync(DateTime timestamp, DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
         {
-            _logBuffer.Add(new LogEntry(timestamp, remoteEP, protocol, request, response));
+            if (_enableLogging)
+            {
+                if (_queuedLogs.Count < _config!.MaxQueueSize)
+                    _queuedLogs.Enqueue(new LogEntry(timestamp, remoteEP, protocol, request, response));
+            }
 
             return Task.CompletedTask;
         }
 
-        public Task<DnsLogPage> QueryLogsAsync(long pageNumber, int entriesPerPage, bool descendingOrder, DateTime? start, DateTime? end, IPAddress clientIpAddress, DnsTransportProtocol? protocol, DnsServerResponseType? responseType, DnsResponseCode? rcode, string qname, DnsResourceRecordType? qtype, DnsClass? qclass)
-        {
-            return Task.FromResult(new DnsLogPage(0, 0, 0, _emptyList));
-        }
-
-        #endregion public
+        #endregion
 
         #region private
 
-        private void ExportLogs()
-        {
-            var logs = new List<LogEntry>(BULK_INSERT_COUNT);
-
-            // Process logs within the timer interval, then let the timer reschedule
-            while (logs.Count <= BULK_INSERT_COUNT && _logBuffer.TryTake(out var log))
-            {
-                logs.Add(log);
-            }
-
-            // If we have any logs to process, export them
-            if (logs.Count > 0)
-            {
-                _exportManager.ImplementStrategy(logs);
-            }
-        }
-
-        private void HandleExportLogCallback(object? state)
+        private async Task ExportLogsAsync()
         {
             try
             {
-                ExportLogs();
+                List<LogEntry> logs = new List<LogEntry>(BULK_INSERT_COUNT);
+
+                while (true)
+                {
+                    while (logs.Count < BULK_INSERT_COUNT && _queuedLogs.TryDequeue(out LogEntry? log))
+                    {
+                        logs.Add(log);
+                    }
+
+                    if (logs.Count < 1)
+                        break;
+
+                    await _exportManager.ImplementStrategyAsync(logs);
+
+                    logs.Clear();
+                }
+            }
+            catch (Exception ex)
+            {
+                _dnsServer?.WriteLog(ex);
+            }
+        }
+
+        private async void HandleExportLogCallback(object? state)
+        {
+            try
+            {
+                // Process logs within the timer interval, then let the timer reschedule
+                await ExportLogsAsync();
             }
             catch (Exception ex)
             {
@@ -168,42 +193,22 @@ namespace LogExporter
             {
                 try
                 {
-                    _queueTimer.Change(QUEUE_TIMER_INTERVAL, Timeout.Infinite);
+                    _queueTimer?.Change(QUEUE_TIMER_INTERVAL, Timeout.Infinite);
                 }
                 catch (ObjectDisposedException)
                 { }
             }
         }
 
-        private void RegisterExportTargets()
-        {
-            // Helper function to register an export strategy if the target is enabled
-            void RegisterIfEnabled<TTarget, TStrategy>(TTarget target, Func<TTarget, TStrategy> strategyFactory)
-                where TTarget : TargetBase
-                where TStrategy : IExportStrategy
-            {
-                if (target?.Enabled == true)
-                {
-                    var strategy = strategyFactory(target);
-                    _exportManager.AddOrReplaceStrategy(strategy);
-                }
-            }
-
-            // Register the different strategies using the helper
-            RegisterIfEnabled(_config!.FileTarget!, target => new FileExportStrategy(target.Path));
-            RegisterIfEnabled(_config!.HttpTarget!, target => new HttpExportStrategy(target.Endpoint, target.Headers));
-            RegisterIfEnabled(_config!.SyslogTarget!, target => new SyslogExportStrategy(target.Address, target.Port, target.Protocol));
-        }
-
-        #endregion private
+        #endregion
 
         #region properties
 
         public string Description
         {
-            get { return "The app allows exporting logs to a third party sink using an internal buffer."; }
+            get { return "Allows exporting query logs to third party sinks. It supports exporting to File, HTTP endpoint, and Syslog (UDP, TCP, TLS, and Local protocols)."; }
         }
 
-        #endregion properties
+        #endregion
     }
 }

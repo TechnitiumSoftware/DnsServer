@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -25,8 +25,9 @@ namespace LogExporter
 {
     public class BufferManagementConfig
     {
-        [JsonPropertyName("maxLogEntries")]
-        public int? MaxLogEntries { get; set; }
+        [JsonPropertyName("maxQueueSize")]
+        public int MaxQueueSize
+        { get; set; }
 
         [JsonPropertyName("file")]
         public FileTarget? FileTarget { get; set; }
@@ -74,7 +75,7 @@ namespace LogExporter
         public string Endpoint { get; set; }
 
         [JsonPropertyName("headers")]
-        public Dictionary<string, string>? Headers { get; set; }
+        public Dictionary<string, string?>? Headers { get; set; }
     }
 
     // Setup reusable options with a single instance

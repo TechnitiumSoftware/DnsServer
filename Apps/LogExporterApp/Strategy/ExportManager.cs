@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,48 +18,65 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace LogExporter.Strategy
 {
-    public class ExportManager
+    public sealed class ExportManager : IDisposable
     {
         #region variables
 
-        private readonly Dictionary<Type, IExportStrategy> _exportStrategies;
+        readonly ConcurrentDictionary<Type, IExportStrategy> _exportStrategies = new ConcurrentDictionary<Type, IExportStrategy>();
 
-        #endregion variables
+        #endregion
 
-        #region constructor
+        #region IDisposable
 
-        public ExportManager()
+        public void Dispose()
         {
-            _exportStrategies = new Dictionary<Type, IExportStrategy>();
+            foreach (KeyValuePair<Type, IExportStrategy> exportStrategy in _exportStrategies)
+                exportStrategy.Value.Dispose();
         }
 
-        #endregion constructor
+        #endregion
 
         #region public
 
-        public void AddOrReplaceStrategy(IExportStrategy strategy)
+        public void AddStrategy(IExportStrategy strategy)
         {
-            _exportStrategies[strategy.GetType()] = strategy;
+            if (!_exportStrategies.TryAdd(strategy.GetType(), strategy))
+                throw new InvalidOperationException();
+        }
+
+        public void RemoveStrategy(Type type)
+        {
+            if (_exportStrategies.TryRemove(type, out IExportStrategy? existing))
+                existing?.Dispose();
         }
 
         public bool HasStrategy()
         {
-            return _exportStrategies.Count > 0;
+            return !_exportStrategies.IsEmpty;
         }
 
-        public async Task ImplementStrategy(List<LogEntry> logs)
+        public async Task ImplementStrategyAsync(IReadOnlyList<LogEntry> logs)
         {
-            foreach (var strategy in _exportStrategies.Values)
+            List<Task> tasks = new List<Task>(_exportStrategies.Count);
+
+            foreach (KeyValuePair<Type, IExportStrategy> strategy in _exportStrategies)
             {
-                await strategy.ExportAsync(logs).ConfigureAwait(false);
+                tasks.Add(Task.Factory.StartNew(delegate (object? state)
+                {
+                    return strategy.Value.ExportAsync(logs);
+                }, null, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Current));
             }
+
+            await Task.WhenAll(tasks);
         }
 
-        #endregion public
+        #endregion
     }
 }
