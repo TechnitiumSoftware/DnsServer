@@ -153,10 +153,17 @@ namespace DropRequests
                 if (jsonQuestion.TryGetProperty("blockZone", out JsonElement jsonBlockZone))
                     _blockZone = jsonBlockZone.GetBoolean();
 
-                if (jsonQuestion.TryGetProperty("type", out JsonElement jsonType) && Enum.TryParse(jsonType.GetString(), true, out DnsResourceRecordType type))
+                if (jsonQuestion.TryGetProperty("type", out JsonElement jsonType))
+                {
+                    if (!Enum.TryParse(jsonType.GetString(), true, out DnsResourceRecordType type))
+                        throw new NotSupportedException("DNS record type is not supported: " + jsonType.GetString());
+
                     _type = type;
+                }
                 else
+                {
                     _type = DnsResourceRecordType.Unknown;
+                }
             }
 
             #endregion
