@@ -28,7 +28,7 @@ $(function () {
         for (var i = 0; i < appsList.length; i++) {
             if (appsList[i].name == appName) {
                 for (var j = 0; j < appsList[i].dnsApps.length; j++) {
-                    if (appsList[i].dnsApps[j].isQueryLogger)
+                    if (appsList[i].dnsApps[j].isQueryLogs)
                         optClassPaths += "<option>" + appsList[i].dnsApps[j].classPath + "</option>";
                 }
 
@@ -212,7 +212,7 @@ function refreshQueryLogsTab(doQueryLogs) {
 
             for (var i = 0; i < apps.length; i++) {
                 for (var j = 0; j < apps[i].dnsApps.length; j++) {
-                    if (apps[i].dnsApps[j].isQueryLogger) {
+                    if (apps[i].dnsApps[j].isQueryLogs) {
                         optApps += "<option>" + apps[i].name + "</option>";
 
                         if (currentAppName == null)
@@ -226,7 +226,7 @@ function refreshQueryLogsTab(doQueryLogs) {
             for (var i = 0; i < apps.length; i++) {
                 if (apps[i].name == currentAppName) {
                     for (var j = 0; j < apps[i].dnsApps.length; j++) {
-                        if (apps[i].dnsApps[j].isQueryLogger)
+                        if (apps[i].dnsApps[j].isQueryLogs)
                             optClassPaths += "<option>" + apps[i].dnsApps[j].classPath + "</option>";
                     }
 
