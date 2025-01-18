@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -45,6 +45,7 @@ namespace DnsServerCore.Dns.Applications
         readonly IReadOnlyDictionary<string, IDnsAuthoritativeRequestHandler> _dnsAuthoritativeRequestHandlers;
         readonly IReadOnlyDictionary<string, IDnsRequestBlockingHandler> _dnsRequestBlockingHandlers;
         readonly IReadOnlyDictionary<string, IDnsQueryLogger> _dnsQueryLoggers;
+        readonly IReadOnlyDictionary<string, IDnsQueryLogs> _dnsQueryLogs;
         readonly IReadOnlyDictionary<string, IDnsPostProcessor> _dnsPostProcessors;
 
         #endregion
@@ -65,6 +66,7 @@ namespace DnsServerCore.Dns.Applications
             Dictionary<string, IDnsAuthoritativeRequestHandler> dnsAuthoritativeRequestHandlers = new Dictionary<string, IDnsAuthoritativeRequestHandler>(1);
             Dictionary<string, IDnsRequestBlockingHandler> dnsRequestBlockingHandlers = new Dictionary<string, IDnsRequestBlockingHandler>(1);
             Dictionary<string, IDnsQueryLogger> dnsQueryLoggers = new Dictionary<string, IDnsQueryLogger>(1);
+            Dictionary<string, IDnsQueryLogs> dnsQueryLogs = new Dictionary<string, IDnsQueryLogs>(1);
             Dictionary<string, IDnsPostProcessor> dnsPostProcessors = new Dictionary<string, IDnsPostProcessor>(1);
 
             foreach (Assembly appAssembly in _appContext.AppAssemblies)
@@ -107,6 +109,9 @@ namespace DnsServerCore.Dns.Applications
                                 if (app is IDnsQueryLogger logger)
                                     dnsQueryLoggers.Add(classType.FullName, logger);
 
+                                if (app is IDnsQueryLogs queryLogs)
+                                    dnsQueryLogs.Add(classType.FullName, queryLogs);
+
                                 if (app is IDnsPostProcessor postProcessor)
                                     dnsPostProcessors.Add(classType.FullName, postProcessor);
 
@@ -147,6 +152,7 @@ namespace DnsServerCore.Dns.Applications
             _dnsAuthoritativeRequestHandlers = dnsAuthoritativeRequestHandlers;
             _dnsRequestBlockingHandlers = dnsRequestBlockingHandlers;
             _dnsQueryLoggers = dnsQueryLoggers;
+            _dnsQueryLogs = dnsQueryLogs;
             _dnsPostProcessors = dnsPostProcessors;
         }
 
@@ -262,6 +268,9 @@ namespace DnsServerCore.Dns.Applications
 
         public IReadOnlyDictionary<string, IDnsQueryLogger> DnsQueryLoggers
         { get { return _dnsQueryLoggers; } }
+
+        public IReadOnlyDictionary<string, IDnsQueryLogs> DnsQueryLogs
+        { get { return _dnsQueryLogs; } }
 
         public IReadOnlyDictionary<string, IDnsPostProcessor> DnsPostProcessors
         { get { return _dnsPostProcessors; } }
