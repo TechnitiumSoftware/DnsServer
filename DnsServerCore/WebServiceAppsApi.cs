@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -305,6 +305,7 @@ namespace DnsServerCore
                     jsonWriter.WriteBoolean("isAuthoritativeRequestHandler", dnsApp.Value is IDnsAuthoritativeRequestHandler);
                     jsonWriter.WriteBoolean("isRequestBlockingHandler", dnsApp.Value is IDnsRequestBlockingHandler);
                     jsonWriter.WriteBoolean("isQueryLogger", dnsApp.Value is IDnsQueryLogger);
+                    jsonWriter.WriteBoolean("isQueryLogs", dnsApp.Value is IDnsQueryLogs);
                     jsonWriter.WriteBoolean("isPostProcessor", dnsApp.Value is IDnsPostProcessor);
 
                     jsonWriter.WriteEndObject();
