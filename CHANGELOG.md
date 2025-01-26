@@ -1,5 +1,17 @@
 # Technitium DNS Server Change Log
 
+## Version 13.4
+Release Date: 26 January 2025
+
+- Added implementation to detect spoofed DNS responses over UDP transport and switch to TCP transport to mitigate cache poisoning attempts.
+- Added support for reading minute stats for given custom date time range (for max 2 hours range difference).
+- Added HTTP API and GUI option to export Query Logs as a CSV file.
+- Drop Requests App: Fixed bug that caused matching all requests when unknown record type was configured.
+- Log Exported App: Added new app that supports exporting query logs to file, HTTP, and Syslog sinks. The app was designed and implemented by [Zafer Balkan](https://github.com/zbalkan).
+- Query Logs (SQL Server) App: Added new app that supports logging query logs to Microsoft SQL Server.
+- Query Logs (MySQL) App: Added new app that supports logging query logs to MySQL database server.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 13.3
 Release Date: 21 December 2024
 
