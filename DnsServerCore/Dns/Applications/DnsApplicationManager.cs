@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -188,18 +188,16 @@ namespace DnsServerCore.Dns.Applications
                 {
                     try
                     {
+                        _dnsServer.LogManager?.Write("DNS Server is loading DNS application: " + Path.GetFileName(applicationFolder));
+
                         _ = await LoadApplicationAsync(applicationFolder, false);
                         RefreshAppObjectLists();
 
-                        LogManager log = _dnsServer.LogManager;
-                        if (log != null)
-                            log.Write("DNS Server successfully loaded DNS application: " + Path.GetFileName(applicationFolder));
+                        _dnsServer.LogManager?.Write("DNS Server successfully loaded DNS application: " + Path.GetFileName(applicationFolder));
                     }
                     catch (Exception ex)
                     {
-                        LogManager log = _dnsServer.LogManager;
-                        if (log != null)
-                            log.Write("DNS Server failed to load DNS application: " + Path.GetFileName(applicationFolder) + "\r\n" + ex.ToString());
+                        _dnsServer.LogManager?.Write("DNS Server failed to load DNS application: " + Path.GetFileName(applicationFolder) + "\r\n" + ex.ToString());
                     }
                 });
             }
@@ -280,7 +278,16 @@ namespace DnsServerCore.Dns.Applications
                 app.Dispose();
 
                 if (Directory.Exists(app.DnsServer.ApplicationFolder))
-                    Directory.Delete(app.DnsServer.ApplicationFolder, true);
+                {
+                    try
+                    {
+                        Directory.Delete(app.DnsServer.ApplicationFolder, true);
+                    }
+                    catch (Exception ex)
+                    {
+                        _dnsServer.LogManager?.Write(ex);
+                    }
+                }
             }
         }
 
