@@ -4,22 +4,23 @@
     <TargetFramework>net8.0</TargetFramework>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <Version>7.0</Version>
+    <Version>1.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Technitium</Company>
     <Product>Technitium DNS Server</Product>
     <Authors>Shreyas Zare</Authors>
-    <AssemblyName>QueryLogsSqliteApp</AssemblyName>
-    <RootNamespace>QueryLogsSqlite</RootNamespace>
+    <AssemblyName>QueryLogsMySqlApp</AssemblyName>
+    <RootNamespace>QueryLogsMySql</RootNamespace>
     <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-    <Description>Logs all incoming DNS requests and their responses in a Sqlite database that can be queried from the DNS Server web console. The query logging throughput is limited by the disk throughput on which the Sqlite db file is stored. This app is not recommended to be used with very high throughput (more than 20,000 requests/second).</Description>
+    <Description>Logs all incoming DNS requests and their responses in a MySQL database that can be queried from the DNS Server web console.</Description>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <OutputType>Library</OutputType>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.1" />
+    <PackageReference Include="MySql.Data" Version="9.2.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -35,7 +36,7 @@
     </Reference>
     <Reference Include="TechnitiumLibrary">
       <HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.dll</HintPath>
-      <Private>false</Private>
+      <Private>True</Private>
     </Reference>
   </ItemGroup>
 
