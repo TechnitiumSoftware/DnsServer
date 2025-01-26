@@ -89,7 +89,7 @@ namespace QueryLogsMySql
                 {
                     await using (MySqlConnection connection = new MySqlConnection(_connectionString + $" Database={_databaseName};"))
                     {
-                        await connection.OpenAsync();
+                        connection.Open(); //OpenAsync() has a critical bug that will crash the entire DNS server which Oracle wont fix: https://bugs.mysql.com/bug.php?id=110789
 
                         if (_maxLogRecords > 0)
                         {
@@ -179,7 +179,7 @@ namespace QueryLogsMySql
 
                     await using (MySqlConnection connection = new MySqlConnection(_connectionString + $" Database={_databaseName};"))
                     {
-                        await connection.OpenAsync();
+                        connection.Open(); //OpenAsync() has a critical bug that will crash the entire DNS server which Oracle wont fix: https://bugs.mysql.com/bug.php?id=110789
 
                         await using (MySqlCommand command = connection.CreateCommand())
                         {
@@ -316,7 +316,7 @@ namespace QueryLogsMySql
             {
                 await using (MySqlConnection connection = new MySqlConnection(_connectionString))
                 {
-                    await connection.OpenAsync();
+                    connection.Open(); //OpenAsync() has a critical bug that will crash the entire DNS server which Oracle wont fix: https://bugs.mysql.com/bug.php?id=110789
 
                     await using (MySqlCommand command = connection.CreateCommand())
                     {
@@ -578,7 +578,7 @@ CREATE TABLE IF NOT EXISTS dns_logs
 
             await using (MySqlConnection connection = new MySqlConnection(_connectionString + $" Database={_databaseName};"))
             {
-                await connection.OpenAsync();
+                connection.Open(); //OpenAsync() has a critical bug that will crash the entire DNS server which Oracle wont fix: https://bugs.mysql.com/bug.php?id=110789
 
                 //find total entries
                 long totalEntries;
