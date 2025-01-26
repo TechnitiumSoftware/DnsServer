@@ -37,7 +37,7 @@ namespace DnsServerCore.Dns.Applications
         readonly AssemblyDependencyResolver _dependencyResolver;
 
         readonly Dictionary<string, IntPtr> _loadedUnmanagedDlls = new Dictionary<string, IntPtr>();
-        readonly List<string> _unmanagedDllTempPaths = new List<string>();
+        readonly List<string> _dllTempPaths = new List<string>();
 
         #endregion
 
@@ -50,11 +50,11 @@ namespace DnsServerCore.Dns.Applications
 
             Unloading += delegate (AssemblyLoadContext obj)
             {
-                foreach (string unmanagedDllTempPath in _unmanagedDllTempPaths)
+                foreach (string dllTempPath in _dllTempPaths)
                 {
                     try
                     {
-                        File.Delete(unmanagedDllTempPath);
+                        File.Delete(dllTempPath);
                     }
                     catch
                     { }
@@ -116,7 +116,12 @@ namespace DnsServerCore.Dns.Applications
             {
                 string resolvedPath = _dependencyResolver.ResolveAssemblyToPath(assemblyName);
                 if (!string.IsNullOrEmpty(resolvedPath) && File.Exists(resolvedPath))
-                    return LoadFromAssemblyPath(resolvedPath);
+                {
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                        return LoadFromAssemblyPath(GetTempDllFile(resolvedPath));
+                    else
+                        return LoadFromAssemblyPath(resolvedPath);
+                }
             }
 
             foreach (Assembly loadedAssembly in Default.Assemblies)
@@ -199,26 +204,9 @@ namespace DnsServerCore.Dns.Applications
                     //load the unmanaged DLL
 
                     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                    {
-                        //copy unmanaged dll into temp file for loading to allow uninstalling/updating app at runtime.
-                        string tempPath = Path.GetTempFileName();
-
-                        using (FileStream srcFile = new FileStream(unmanagedDllPath, FileMode.Open, FileAccess.Read))
-                        {
-                            using (FileStream dstFile = new FileStream(tempPath, FileMode.Create, FileAccess.Write))
-                            {
-                                srcFile.CopyTo(dstFile);
-                            }
-                        }
-
-                        _unmanagedDllTempPaths.Add(tempPath);
-
-                        value = LoadUnmanagedDllFromPath(tempPath);
-                    }
+                        value = LoadUnmanagedDllFromPath(GetTempDllFile(unmanagedDllPath));
                     else
-                    {
                         value = LoadUnmanagedDllFromPath(unmanagedDllPath);
-                    }
 
                     _loadedUnmanagedDlls.Add(unmanagedDllPath.ToLowerInvariant(), value);
                 }
@@ -230,6 +218,24 @@ namespace DnsServerCore.Dns.Applications
         #endregion
 
         #region private
+
+        private string GetTempDllFile(string dllFile)
+        {
+            //copy dll into temp file for loading to allow uninstalling/updating app at runtime.
+            string tempPath = Path.GetTempFileName();
+
+            using (FileStream srcFile = new FileStream(dllFile, FileMode.Open, FileAccess.Read))
+            {
+                using (FileStream dstFile = new FileStream(tempPath, FileMode.Create, FileAccess.Write))
+                {
+                    srcFile.CopyTo(dstFile);
+                }
+            }
+
+            _dllTempPaths.Add(tempPath);
+
+            return tempPath;
+        }
 
         private string FindUnmanagedDllPath(string unmanagedDllName, string runtime, string[] prefixes, string[] extensions)
         {
