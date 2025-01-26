@@ -8,7 +8,7 @@
 		<RootNamespace>DnsServerWindowsService</RootNamespace>
 		<AssemblyName>DnsService</AssemblyName>
 		<ApplicationIcon>logo2.ico</ApplicationIcon>
-		<Version>13.3</Version>
+		<Version>13.4</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 		<Authors>Shreyas Zare</Authors>
 		<Company>Technitium</Company>
@@ -30,8 +30,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
-		<PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.1" />
+		<PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.1" />
 	</ItemGroup>
 
 	<ItemGroup>
