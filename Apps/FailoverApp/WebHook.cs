@@ -101,7 +101,7 @@ namespace Failover
         private void ConditionalHttpReload()
         {
             bool handlerChanged = false;
-            NetProxy proxy = _service.DnsServer.Proxy;
+            NetProxy proxy = _service.DnsServer.WebReqProxy;
 
             if (_httpHandler is null)
             {

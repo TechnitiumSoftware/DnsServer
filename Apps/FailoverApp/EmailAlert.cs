@@ -169,7 +169,7 @@ namespace Failover
             else
                 _smtpClient.Credentials = new NetworkCredential(_username, _password);
 
-            _smtpClient.Proxy = _service.DnsServer.Proxy;
+            _smtpClient.Proxy = _service.DnsServer.WebReqProxy;
         }
 
         public Task SendAlertAsync(IPAddress address, string healthCheck, HealthCheckResponse healthCheckResponse)
