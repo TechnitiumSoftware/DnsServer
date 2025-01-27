@@ -288,6 +288,24 @@ $(function () {
         }
     });
 
+    $("input[type=radio][name=rdWebReqProxyType]").change(function () {
+        var proxyType = $('input[name=rdWebReqProxyType]:checked').val().toLowerCase();
+        if (proxyType === "none") {
+            $("#txtWebReqProxyAddress").prop("disabled", true);
+            $("#txtWebReqProxyPort").prop("disabled", true);
+            $("#txtWebReqProxyUsername").prop("disabled", true);
+            $("#txtWebReqProxyPassword").prop("disabled", true);
+            $("#txtWebReqProxyBypassList").prop("disabled", true);
+        }
+        else {
+            $("#txtWebReqProxyAddress").prop("disabled", false);
+            $("#txtWebReqProxyPort").prop("disabled", false);
+            $("#txtWebReqProxyUsername").prop("disabled", false);
+            $("#txtWebReqProxyPassword").prop("disabled", false);
+            $("#txtWebReqProxyBypassList").prop("disabled", false);
+        }
+    });
+
     $("input[type=radio][name=rdRecursion]").change(function () {
         var recursion = $('input[name=rdRecursion]:checked').val();
 
@@ -1301,6 +1319,50 @@ function loadDnsSettings(responseJSON) {
         $("#txtProxyBypassList").prop("disabled", false);
     }
 
+    var webReqProxy = responseJSON.response.webReqProxy;
+    if (webReqProxy === null) {
+        $("#rdWebReqProxyTypeNone").prop("checked", true);
+
+        $("#txtWebReqProxyAddress").prop("disabled", true);
+        $("#txtWebReqProxyort").prop("disabled", true);
+        $("#txtWebReqProxyUsername").prop("disabled", true);
+        $("#txtWebReqProxyPassword").prop("disabled", true);
+        $("#txtWebReqProxyBypassList").prop("disabled", true);
+
+        $("#txtWebReqProxyAddress").val("");
+        $("#txtWebReqProxyPort").val("");
+        $("#txtWebReqProxyUsername").val("");
+        $("#txtWebReqProxyPassword").val("");
+        $("#txtWebReqProxyBypassList").val("");
+    }
+    else {
+        switch (webReqProxy.type.toLowerCase()) {
+            case "http":
+                $("#rdWebReqProxyTypeHttp").prop("checked", true);
+                break;
+
+            case "socks5":
+                $("#rdWebReqProxyTypeSocks5").prop("checked", true);
+                break;
+
+            default:
+                $("#rdWebReqProxyTypeNone").prop("checked", true);
+                break;
+        }
+
+        $("#txtWebReqProxyAddress").val(webReqProxy.address);
+        $("#txtWebReqProxyPort").val(webReqProxy.port);
+        $("#txtWebReqProxyUsername").val(webReqProxy.username);
+        $("#txtWebReqProxyPassword").val(webReqProxy.password);
+        $("#txtWebReqProxyBypassList").val(getArrayAsString(webReqProxy.bypass));
+
+        $("#txtWebReqProxyAddress").prop("disabled", false);
+        $("#txtWebReqProxyPort").prop("disabled", false);
+        $("#txtWebReqProxyUsername").prop("disabled", false);
+        $("#txtWebReqProxyPassword").prop("disabled", false);
+        $("#txtWebReqProxyBypassList").prop("disabled", false);
+    }
+
     var forwarders = responseJSON.response.forwarders;
     if (forwarders == null)
         $("#txtForwarders").val("");
@@ -1779,9 +1841,53 @@ function saveDnsSettings() {
         else
             $("#txtProxyBypassList").val(proxyBypass.replace(/,/g, "\n"));
 
-        proxy = "&proxyType=" + proxyType + "&proxyAddress=" + encodeURIComponent(proxyAddress) + "&proxyPort=" + proxyPort + "&proxyUsername=" + encodeURIComponent($("#txtProxyUsername").val()) + "&proxyPassword=" + encodeURIComponent($("#txtProxyPassword").val()) + "&proxyBypass=" + encodeURIComponent(proxyBypass);
+        proxy =
+            "&proxyType=" + proxyType +
+            "&proxyAddress=" + encodeURIComponent(proxyAddress) +
+            "&proxyPort=" + proxyPort +
+            "&proxyUsername=" + encodeURIComponent($("#txtProxyUsername").val()) +
+            "&proxyPassword=" + encodeURIComponent($("#txtProxyPassword").val()) +
+            "&proxyBypass=" + encodeURIComponent(proxyBypass);
     }
 
+    var webReqProxy;
+    var webReqProxyType = $('input[name=rdWebReqProxyType]:checked').val().toLowerCase();
+    if (webReqProxyType === "none") {
+        webReqProxy = "&webReqProxyType=" + webReqProxyType;
+    }
+    else {
+        var webReqProxyAddress = $("#txtWebReqProxyAddress").val();
+
+        if ((webReqPproxyAddress === null) || (webReqProxyAddress === "")) {
+            showAlert("warning", "Missing!", "Please enter web request proxy server address.");
+            $("#txtWebReqProxyAddress").focus();
+            return;
+        }
+
+        var webReqProxyPort = $("#txtWebReqProxyPort").val();
+
+        if ((webReqProxyPort === null) || (webReqProxyPort === "")) {
+            showAlert("warning", "Missing!", "Please enter web request proxy server port.");
+            $("#txtWebReqProxyPort").focus();
+            return;
+        }
+
+        var webReqProxyBypass = cleanTextList($("#txtWebReqProxyBypassList").val());
+
+        if ((webReqProxyBypass.length === 0) || (webReqProxyBypass === ","))
+            webReqProxyBypass = "";
+        else
+            $("#txtWebReqProxyBypassList").val(webReqProxyBypass.replace(/,/g, "\n"));
+
+        webReqProxy = 
+            "&webReqProxyType=" + webReqProxyType +
+            "&webReqProxyAddress=" + encodeURIComponent(webReqProxyAddress) +
+            "&webReqProxyPort=" + webReqProxyPort +
+            "&webReqProxyUsername=" + encodeURIComponent($("#txtWebReqProxyUsername").val()) +
+            "&webReqProxyPassword=" + encodeURIComponent($("#txtWebReqProxyPassword").val()) +
+            "&webReqProxyBypass=" + encodeURIComponent(webReqProxyBypass);
+    }
+    
     var forwarders = cleanTextList($("#txtForwarders").val());
 
     if ((forwarders.length === 0) || (forwarders === ","))
@@ -1842,7 +1948,7 @@ function saveDnsSettings() {
             + "&recursion=" + recursion + "&recursionNetworkACL=" + encodeURIComponent(recursionNetworkACL) + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization + "&nsRevalidation=" + nsRevalidation + "&resolverRetries=" + resolverRetries + "&resolverTimeout=" + resolverTimeout + "&resolverConcurrency=" + resolverConcurrency + "&resolverMaxStackCount=" + resolverMaxStackCount
             + "&saveCache=" + saveCache + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&serveStaleAnswerTtl=" + serveStaleAnswerTtl + "&serveStaleResetTtl=" + serveStaleResetTtl + "&serveStaleMaxWaitTime=" + serveStaleMaxWaitTime + "&cacheMaximumEntries=" + cacheMaximumEntries + "&cacheMinimumRecordTtl=" + cacheMinimumRecordTtl + "&cacheMaximumRecordTtl=" + cacheMaximumRecordTtl + "&cacheNegativeRecordTtl=" + cacheNegativeRecordTtl + "&cacheFailureRecordTtl=" + cacheFailureRecordTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
             + "&enableBlocking=" + enableBlocking + "&allowTxtBlockingReport=" + allowTxtBlockingReport + "&blockingBypassList=" + encodeURIComponent(blockingBypassList) + "&blockingType=" + blockingType + "&customBlockingAddresses=" + encodeURIComponent(customBlockingAddresses) + "&blockingAnswerTtl=" + blockingAnswerTtl + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours
-            + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&concurrentForwarding=" + concurrentForwarding + "&forwarderRetries=" + forwarderRetries + "&forwarderTimeout=" + forwarderTimeout + "&forwarderConcurrency=" + forwarderConcurrency
+            + proxy + webReqProxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&concurrentForwarding=" + concurrentForwarding + "&forwarderRetries=" + forwarderRetries + "&forwarderTimeout=" + forwarderTimeout + "&forwarderConcurrency=" + forwarderConcurrency
             + "&enableLogging=" + enableLogging + "&ignoreResolverLogs=" + ignoreResolverLogs + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&enableInMemoryStats=" + enableInMemoryStats + "&maxStatFileDays=" + maxStatFileDays,
         processData: false,
         showInnerError: true,
