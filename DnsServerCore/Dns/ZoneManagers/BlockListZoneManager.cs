@@ -415,8 +415,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                     else
                     {
                         SocketsHttpHandler handler = new SocketsHttpHandler();
-                        handler.Proxy = _dnsServer.Proxy;
-                        handler.UseProxy = _dnsServer.Proxy is not null;
+                        handler.Proxy = _dnsServer.WebReqProxy;
+                        handler.UseProxy = _dnsServer.WebReqProxy is not null;
                         handler.AutomaticDecompression = DecompressionMethods.All;
 
                         using (HttpClient http = new HttpClient(new HttpClientNetworkHandler(handler, _dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default, _dnsServer)))
