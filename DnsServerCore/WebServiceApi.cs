@@ -71,8 +71,8 @@ namespace DnsServerCore
             if ((_checkForUpdateJsonData is null) || (DateTime.UtcNow > _checkForUpdateJsonDataUpdatedOn.AddSeconds(CHECK_FOR_UPDATE_JSON_DATA_CACHE_TIME_SECONDS)))
             {
                 SocketsHttpHandler handler = new SocketsHttpHandler();
-                handler.Proxy = _dnsWebService.DnsServer.Proxy;
-                handler.UseProxy = _dnsWebService.DnsServer.Proxy is not null;
+                handler.Proxy = _dnsWebService.DnsServer.WebReqProxy;
+                handler.UseProxy = _dnsWebService.DnsServer.WebReqProxy is not null;
                 handler.AutomaticDecompression = DecompressionMethods.All;
 
                 using (HttpClient http = new HttpClient(new HttpClientNetworkHandler(handler, _dnsWebService.DnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default, _dnsWebService.DnsServer)))
