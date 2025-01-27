@@ -208,6 +208,7 @@ namespace DnsServerCore.Dns
         IReadOnlyCollection<DnsAAAARecordData> _customBlockingAAAARecords = Array.Empty<DnsAAAARecordData>();
 
         NetProxy _proxy;
+        NetProxy _webReqProxy;
         IReadOnlyList<NameServerAddress> _forwarders;
         bool _concurrentForwarding = true;
         int _forwarderRetries = 3;
@@ -6102,6 +6103,12 @@ namespace DnsServerCore.Dns
         {
             get { return _proxy; }
             set { _proxy = value; }
+        }
+
+        public NetProxy WebReqProxy
+        {
+            get { return _webReqProxy; }
+            set { _webReqProxy = value; }
         }
 
         public IReadOnlyList<NameServerAddress> Forwarders
