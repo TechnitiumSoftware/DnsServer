@@ -1858,7 +1858,7 @@ function saveDnsSettings() {
     else {
         var webReqProxyAddress = $("#txtWebReqProxyAddress").val();
 
-        if ((webReqPproxyAddress === null) || (webReqProxyAddress === "")) {
+        if ((webReqProxyAddress === null) || (webReqProxyAddress === "")) {
             showAlert("warning", "Missing!", "Please enter web request proxy server address.");
             $("#txtWebReqProxyAddress").focus();
             return;
