@@ -107,6 +107,9 @@ namespace DnsServerCore.Dns.Applications
         public NetProxy Proxy
         { get { return _dnsServer.Proxy; } }
 
+        public NetProxy WebReqProxy
+        { get { return _dnsServer.WebReqProxy; } }
+
         public bool PreferIPv6
         { get { return _dnsServer.PreferIPv6; } }
 
