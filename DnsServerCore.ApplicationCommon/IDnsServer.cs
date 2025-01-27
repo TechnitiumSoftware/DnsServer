@@ -86,9 +86,14 @@ namespace DnsServerCore.ApplicationCommon
         IDnsCache DnsCache { get; }
 
         /// <summary>
-        /// The proxy server setting on the DNS server to be used when required to make any outbound network connection.
+        /// The proxy server setting on the DNS server to be used when making outbound DNS request.
         /// </summary>
         NetProxy Proxy { get; }
+
+        /// <summary>
+        /// The proxy server setting on the DNS server to be used when making any outbound network request other than DNS request.
+        /// </summary>
+        NetProxy WebReqProxy { get; }
 
         /// <summary>
         /// Tells if the DNS server prefers using IPv6 as per the settings.
