@@ -1283,7 +1283,7 @@ namespace DnsServerCore
 
             int version = bR.ReadByte();
 
-            if ((version >= 28) && (version <= 40))
+            if ((version >= 28) && (version <= 41))
             {
                 ReadConfigFrom(bR, version);
             }
@@ -1859,6 +1859,38 @@ namespace DnsServerCore
                 else
                 {
                     _dnsServer.Proxy = null;
+                }
+
+                if (version >= 41)
+                {
+                    NetProxyType webReqProxyType = (NetProxyType)bR.ReadByte();
+                    if (webReqProxyType != NetProxyType.None)
+                    {
+                        string address = bR.ReadShortString();
+                        int port = bR.ReadInt32();
+                        NetworkCredential credential = null;
+
+                        if (bR.ReadBoolean()) //credential set
+                            credential = new NetworkCredential(bR.ReadShortString(), bR.ReadShortString());
+
+                        _dnsServer.WebReqProxy = NetProxy.CreateProxy(proxyType, address, port, credential);
+
+                        int count = bR.ReadByte();
+                        List<NetProxyBypassItem> bypassList = new List<NetProxyBypassItem>(count);
+
+                        for (int i = 0; i < count; i++)
+                            bypassList.Add(new NetProxyBypassItem(bR.ReadShortString()));
+
+                        _dnsServer.WebReqProxy.BypassList = bypassList;
+                    }
+                    else
+                    {
+                        _dnsServer.WebReqProxy = null;
+                    }
+                }
+                else
+                {
+                    _dnsServer.WebReqProxy = null;
                 }
 
                 {
@@ -2539,7 +2571,7 @@ namespace DnsServerCore
         private void WriteConfigTo(BinaryWriter bW)
         {
             bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-            bW.Write((byte)40); //version
+            bW.Write((byte)41); //version
 
             //web service
             {
@@ -2786,6 +2818,38 @@ namespace DnsServerCore
                         bW.Write(Convert.ToByte(_dnsServer.Proxy.BypassList.Count));
 
                         foreach (NetProxyBypassItem item in _dnsServer.Proxy.BypassList)
+                            bW.WriteShortString(item.Value);
+                    }
+                }
+
+                if (_dnsServer.WebReqProxy == null)
+                {
+                    bW.Write((byte)NetProxyType.None);
+                }
+                else
+                {
+                    bW.Write((byte)_dnsServer.WebReqProxy.Type);
+                    bW.WriteShortString(_dnsServer.WebReqProxy.Address);
+                    bW.Write(_dnsServer.WebReqProxy.Port);
+
+                    NetworkCredential credential = _dnsServer.WebReqProxy.Credential;
+
+                    if (credential == null)
+                    {
+                        bW.Write(false);
+                    }
+                    else
+                    {
+                        bW.Write(true);
+                        bW.WriteShortString(credential.UserName);
+                        bW.WriteShortString(credential.Password);
+                    }
+
+                    //bypass list
+                    {
+                        bW.Write(Convert.ToByte(_dnsServer.WebReqProxy.BypassList.Count));
+
+                        foreach (NetProxyBypassItem item in _dnsServer.WebReqProxy.BypassList)
                             bW.WriteShortString(item.Value);
                     }
                 }
