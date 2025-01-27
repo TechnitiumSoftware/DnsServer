@@ -1983,7 +1983,7 @@
                                                 <div id="settingsTabPaneProxyForwarders" role="tabpanel" class="tab-pane">
                                                     <div class="well well-sm form-horizontal">
                                                         <div class="form-group">
-                                                            <label class="col-sm-3 control-label">Network Proxy</label>
+                                                            <label class="col-sm-3 control-label">DNS query Proxy</label>
                                                             <div class="col-sm-6">
                                                                 <div class="radio">
                                                                     <label>
@@ -2042,7 +2042,73 @@
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enter IP addresses, network addresses or domain names to never proxy.</div>
                                                         </div>
 
-                                                        <div style="margin-top: 10px;">Note! When proxy server is configured, DNS Server will use it for all outbound network requests.</div>
+                                                        <div style="margin-top: 10px;">Note! This proxy is used for DNS queries, both recursion or forwarded.</div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Web Request Proxy</label>
+                                                            <div class="col-sm-6">
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdWebReqProxyType" id="rdWebReqProxyTypeNone" value="None" checked>
+                                                                        No Proxy (default)
+                                                                    </label>
+                                                                </div>
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdWebReqProxyType" id="rdWebReqProxyTypeHttp" value="Http">
+                                                                        HTTP Proxy
+                                                                    </label>
+                                                                </div>
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdWebReqProxyType" id="rdWebReqProxyTypeSocks5" value="Socks5">
+                                                                        SOCKS5 Proxy
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    
+                                                        <div class="form-group">
+                                                            <label for="txtWebReqProxyAddress" class="col-sm-3 control-label">Proxy Server Address</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" class="form-control" id="txtWebReqProxyAddress" placeholder="domain name or IP address"
+                                                                    maxlength="255">
+                                                            </div>
+                                                        </div>
+                                                    
+                                                        <div class="form-group">
+                                                            <label for="txtWebReqProxyPort" class="col-sm-3 control-label">Proxy Server Port</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtWebReqProxyPort" placeholder="port" style="width: 100px;">
+                                                            </div>
+                                                        </div>
+                                                    
+                                                        <div class="form-group">
+                                                            <label for="txtWebReqProxyUsername" class="col-sm-3 control-label">Username</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" class="form-control" id="txtWebReqProxyUsername" placeholder="username" maxlength="255">
+                                                            </div>
+                                                        </div>
+                                                    
+                                                        <div class="form-group">
+                                                            <label for="txtWebReqProxyPassword" class="col-sm-3 control-label">Password</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="password" class="form-control" id="txtWebReqProxyPassword" placeholder="password" maxlength="255">
+                                                            </div>
+                                                        </div>
+                                                    
+                                                        <div class="form-group">
+                                                            <label for="txtWebReqProxyBypassList" class="col-sm-3 control-label">Proxy Bypass List</label>
+                                                            <div class="col-sm-6">
+                                                                <textarea id="txtWebReqProxyBypassList" class="form-control" rows="5" spellcheck="false"></textarea>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enter IP addresses, network addresses or domain
+                                                                names to never proxy.</div>
+                                                        </div>
+                                                    
+                                                        <div style="margin-top: 10px;">Note! This proxy is used for update check, app store and blocklist updates.</div>
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
