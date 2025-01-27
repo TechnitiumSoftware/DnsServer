@@ -496,6 +496,39 @@ namespace DnsServerCore
                 jsonWriter.WriteEndObject();
             }
 
+            jsonWriter.WritePropertyName("webReqProxy");
+            if (_dnsWebService.DnsServer.WebReqProxy == null)
+            {
+                jsonWriter.WriteNullValue();
+            }
+            else
+            {
+                jsonWriter.WriteStartObject();
+
+                NetProxy proxy = _dnsWebService.DnsServer.WebReqProxy;
+
+                jsonWriter.WriteString("type", proxy.Type.ToString());
+                jsonWriter.WriteString("address", proxy.Address);
+                jsonWriter.WriteNumber("port", proxy.Port);
+
+                NetworkCredential credential = proxy.Credential;
+                if (credential != null)
+                {
+                    jsonWriter.WriteString("username", credential.UserName);
+                    jsonWriter.WriteString("password", credential.Password);
+                }
+
+                jsonWriter.WritePropertyName("bypass");
+                jsonWriter.WriteStartArray();
+
+                foreach (NetProxyBypassItem item in proxy.BypassList)
+                    jsonWriter.WriteStringValue(item.Value);
+
+                jsonWriter.WriteEndArray();
+
+                jsonWriter.WriteEndObject();
+            }
+
             jsonWriter.WritePropertyName("forwarders");
 
             DnsTransportProtocol forwarderProtocol = DnsTransportProtocol.Udp;
@@ -1338,6 +1371,35 @@ namespace DnsServerCore
 
                         if (request.TryGetQueryOrFormArray("proxyBypass", delegate (string value) { return new NetProxyBypassItem(value); }, out NetProxyBypassItem[] proxyBypass))
                             _dnsWebService.DnsServer.Proxy.BypassList = proxyBypass;
+                    }
+                }
+
+                if (request.TryGetQueryOrFormEnum("webReqProxyType", out NetProxyType webReqProxyType))
+                {
+                    if (webReqProxyType == NetProxyType.None)
+                    {
+                        _dnsWebService.DnsServer.WebReqProxy = null;
+                    }
+                    else
+                    {
+                        NetworkCredential credential = null;
+
+                        if (request.TryGetQueryOrForm("webReqProxyUsername", out string webReqProxyUsername))
+                        {
+                            if (webReqProxyUsername.Length > 255)
+                                throw new ArgumentException("Web request proxy username length cannot exceed 255 characters.", "webReqProxyUsername");
+
+                            string webReqProxyPassword = request.QueryOrForm("webReqProxyPassword");
+                            if (webReqProxyPassword?.Length > 255)
+                                throw new ArgumentException("Web request proxy password length cannot exceed 255 characters.", "webReqProxyPassword");
+
+                            credential = new NetworkCredential(webReqProxyUsername, webReqProxyPassword);
+                        }
+
+                        _dnsWebService.DnsServer.WebReqProxy = NetProxy.CreateProxy(webReqProxyType, request.QueryOrForm("webReqProxyAddress"), int.Parse(request.QueryOrForm("webReqProxyPort")), credential);
+
+                        if (request.TryGetQueryOrFormArray("webReqProxyBypass", delegate (string value) { return new NetProxyBypassItem(value); }, out NetProxyBypassItem[] webReqProxyBypass))
+                            _dnsWebService.DnsServer.WebReqProxy.BypassList = webReqProxyBypass;
                     }
                 }
 
