@@ -35,15 +35,17 @@ namespace DnsServerCore.Dns
 
         readonly DnsServer _dnsServer;
         readonly bool _skipDnsAppAuthoritativeRequestHandlers;
+        readonly bool _skipConditionalForwardingResolution;
 
         #endregion
 
         #region constructor
 
-        public ResolverDnsCache(DnsServer dnsServer, bool skipDnsAppAuthoritativeRequestHandlers)
+        public ResolverDnsCache(DnsServer dnsServer, bool skipDnsAppAuthoritativeRequestHandlers, bool skipConditionalForwardingResolution = false)
         {
             _dnsServer = dnsServer;
             _skipDnsAppAuthoritativeRequestHandlers = skipDnsAppAuthoritativeRequestHandlers;
+            _skipConditionalForwardingResolution = skipConditionalForwardingResolution;
         }
 
         #endregion
@@ -121,7 +123,7 @@ namespace DnsServerCore.Dns
                 advancedForwardingClientSubnet = requestECS.AdvancedForwardingClientSubnet;
             }
 
-            ResolverPrefetchDnsCache dnsCache = new ResolverPrefetchDnsCache(_dnsServer, _skipDnsAppAuthoritativeRequestHandlers, question);
+            ResolverDnsCache dnsCache = new ResolverDnsCache(_dnsServer, _skipDnsAppAuthoritativeRequestHandlers, true);
 
             return _dnsServer.PriorityConditionalForwarderResolveAsync(question, eDnsClientSubnet, advancedForwardingClientSubnet, dnsCache, _skipDnsAppAuthoritativeRequestHandlers, conditionalForwarders);
         }
@@ -207,6 +209,7 @@ namespace DnsServerCore.Dns
                         return cacheResponse;
                 }
 
+                if (!_skipConditionalForwardingResolution)
                 {
                     DnsResourceRecord authResponseFirstAuthority = authResponse.FindFirstAuthorityRecord();
                     if (authResponseFirstAuthority.Type == DnsResourceRecordType.FWD)
