@@ -4,7 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <Version>1.0</Version>
+    <Version>1.1</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Technitium</Company>
     <Product>Technitium DNS Server</Product>
@@ -13,7 +13,7 @@
     <RootNamespace>QueryLogsMySql</RootNamespace>
     <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-    <Description>Logs all incoming DNS requests and their responses in a MySQL database that can be queried from the DNS Server web console.</Description>
+    <Description>Logs all incoming DNS requests and their responses in a MySQL database that can be queried from the DNS Server web console.\n\nNote! You will need to create a user and grant all privileges on the database to the user so that the app will be able to access it. To do that run the following commands with the required database name and username on your mysql root prompt:\nCREATE USER 'user'@'%' IDENTIFIED BY 'password';\nGRANT ALL PRIVILEGES ON DatabaseName.* TO 'user'@'%';</Description>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <OutputType>Library</OutputType>
     <Nullable>enable</Nullable>
