@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -37,6 +37,9 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
+using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.EDnsOptions;
+using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace BlockPage
 {
@@ -151,8 +154,9 @@ namespace BlockPage
             string _webServerTlsCertificatePassword;
             string _webServerRootPath;
             bool _serveBlockPageFromWebServerRoot;
+            bool _includeBlockingInfo;
 
-            byte[] _blockPageContent;
+            string _blockPageContent;
 
             WebApplication _webServer;
 
@@ -384,15 +388,70 @@ namespace BlockPage
 
             private async Task ServeDefaultPageAsync(HttpContext context, RequestDelegate next)
             {
+                string blockPageContent = _blockPageContent;
+
+                if (_includeBlockingInfo)
+                {
+                    string blockingInfoHtmlContent = null;
+
+                    try
+                    {
+                        string host = context.Request.Host.Host;
+                        if (host is not null)
+                        {
+                            DnsDatagram dnsRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, [new DnsQuestionRecord(host, DnsResourceRecordType.A, DnsClass.IN)], udpPayloadSize: DnsDatagram.EDNS_DEFAULT_UDP_PAYLOAD_SIZE);
+                            DnsDatagram dnsResponse = await _dnsServer.DirectQueryAsync(dnsRequest, 500);
+
+                            List<EDnsExtendedDnsErrorOptionData> options = new List<EDnsExtendedDnsErrorOptionData>();
+
+                            if (dnsResponse.EDNS is not null)
+                            {
+                                foreach (EDnsOption option in dnsResponse.EDNS.Options)
+                                {
+                                    if (option.Code == EDnsOptionCode.EXTENDED_DNS_ERROR)
+                                    {
+                                        EDnsExtendedDnsErrorOptionData ede = option.Data as EDnsExtendedDnsErrorOptionData;
+                                        options.Add(ede);
+                                    }
+                                }
+                            }
+
+                            options.AddRange(dnsResponse.DnsClientExtendedErrors);
+
+                            foreach (EDnsExtendedDnsErrorOptionData option in options)
+                            {
+                                if (blockingInfoHtmlContent is null)
+                                    blockingInfoHtmlContent = "  <p><b>Detailed Info</b><br>" + option.InfoCode.ToString() + (option.ExtraText is null ? "" : ": " + option.ExtraText);
+                                else
+                                    blockingInfoHtmlContent += "<br>" + option.InfoCode.ToString() + (option.ExtraText is null ? "" : ": " + option.ExtraText);
+                            }
+
+                            if (blockingInfoHtmlContent is not null)
+                                blockingInfoHtmlContent += "</p>";
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _dnsServer.WriteLog(ex);
+                    }
+
+                    if (blockingInfoHtmlContent is null)
+                        blockPageContent = blockPageContent.Replace("{BLOCKING-INFO}", "");
+                    else
+                        blockPageContent = blockPageContent.Replace("{BLOCKING-INFO}", blockingInfoHtmlContent);
+                }
+
+                byte[] finalBlockPageContent = Encoding.UTF8.GetBytes(blockPageContent);
+
                 HttpResponse response = context.Response;
 
                 response.StatusCode = StatusCodes.Status200OK;
                 response.ContentType = "text/html; charset=utf-8";
-                response.ContentLength = _blockPageContent.Length;
+                response.ContentLength = finalBlockPageContent.Length;
 
                 using (Stream s = context.Response.Body)
                 {
-                    await s.WriteAsync(_blockPageContent);
+                    await s.WriteAsync(finalBlockPageContent);
                 }
             }
 
@@ -430,17 +489,18 @@ namespace BlockPage
                 string blockPageHeading = jsonWebServerConfig.GetProperty("blockPageHeading").GetString();
                 string blockPageMessage = jsonWebServerConfig.GetProperty("blockPageMessage").GetString();
 
-                string blockPageContent = @"<html>
+                _includeBlockingInfo = jsonWebServerConfig.GetPropertyValue("includeBlockingInfo", true);
+
+                _blockPageContent = @"<html>
 <head>
   <title>" + (blockPageTitle is null ? "" : blockPageTitle) + @"</title>
 </head>
 <body>
 " + (blockPageHeading is null ? "" : "  <h1>" + blockPageHeading + "</h1>") + @"
 " + (blockPageMessage is null ? "" : "  <p>" + blockPageMessage + "</p>") + @"
+" + (_includeBlockingInfo ? "{BLOCKING-INFO}" : "") + @"
 </body>
 </html>";
-
-                _blockPageContent = Encoding.UTF8.GetBytes(blockPageContent);
 
                 try
                 {
