@@ -184,14 +184,14 @@ namespace QueryLogsMySql
                         await using (MySqlCommand command = connection.CreateCommand())
                         {
                             sb.Length = 0;
-                            sb.Append("INSERT INTO dns_logs (timestamp, client_ip, protocol, response_type, response_rtt, rcode, qname, qtype, qclass, answer) VALUES ");
+                            sb.Append("INSERT INTO dns_logs (server, timestamp, client_ip, protocol, response_type, response_rtt, rcode, qname, qtype, qclass, answer) VALUES ");
 
                             for (int i = 0; i < logs.Count; i++)
                             {
                                 if (i == 0)
-                                    sb.Append($"(@timestamp{i}, @client_ip{i}, @protocol{i}, @response_type{i}, @response_rtt{i}, @rcode{i}, @qname{i}, @qtype{i}, @qclass{i}, @answer{i})");
+                                    sb.Append($"(@server{i}, @timestamp{i}, @client_ip{i}, @protocol{i}, @response_type{i}, @response_rtt{i}, @rcode{i}, @qname{i}, @qtype{i}, @qclass{i}, @answer{i})");
                                 else
-                                    sb.Append($", (@timestamp{i}, @client_ip{i}, @protocol{i}, @response_type{i}, @response_rtt{i}, @rcode{i}, @qname{i}, @qtype{i}, @qclass{i}, @answer{i})");
+                                    sb.Append($", (@server{i}, @timestamp{i}, @client_ip{i}, @protocol{i}, @response_type{i}, @response_rtt{i}, @rcode{i}, @qname{i}, @qtype{i}, @qclass{i}, @answer{i})");
                             }
                             command.CommandText = sb.ToString();
 
@@ -199,6 +199,7 @@ namespace QueryLogsMySql
                             {
                                 LogEntry log = logs[i];
 
+                                MySqlParameter paramServer = command.Parameters.Add("@server" + i, MySqlDbType.VarChar);
                                 MySqlParameter paramTimestamp = command.Parameters.Add("@timestamp" + i, MySqlDbType.DateTime);
                                 MySqlParameter paramClientIp = command.Parameters.Add("@client_ip" + i, MySqlDbType.VarChar);
                                 MySqlParameter paramProtocol = command.Parameters.Add("@protocol" + i, MySqlDbType.Byte);
@@ -210,6 +211,7 @@ namespace QueryLogsMySql
                                 MySqlParameter paramQclass = command.Parameters.Add("@qclass" + i, MySqlDbType.Int16);
                                 MySqlParameter paramAnswer = command.Parameters.Add("@answer" + i, MySqlDbType.VarChar);
 
+                                paramServer.Value = _dnsServer?.ServerDomain;
                                 paramTimestamp.Value = log.Timestamp;
                                 paramClientIp.Value = log.RemoteEP.Address.ToString();
                                 paramProtocol.Value = (byte)log.Protocol;
@@ -321,8 +323,6 @@ namespace QueryLogsMySql
                     await using (MySqlCommand command = connection.CreateCommand())
                     {
                         command.CommandText = @$"
-USE mysql;
-
 CREATE DATABASE IF NOT EXISTS {_databaseName};
 
 USE {_databaseName};
@@ -330,6 +330,7 @@ USE {_databaseName};
 CREATE TABLE IF NOT EXISTS dns_logs
 (
     dlid INT PRIMARY KEY AUTO_INCREMENT,
+    server varchar(255),
     timestamp DATETIME NOT NULL,
     client_ip VARCHAR(39) NOT NULL,
     protocol TINYINT NOT NULL,
@@ -346,6 +347,30 @@ CREATE TABLE IF NOT EXISTS dns_logs
                         await command.ExecuteNonQueryAsync();
                     }
 
+                    await using (MySqlCommand command = connection.CreateCommand())
+                    {
+                        command.CommandText = "ALTER TABLE dns_logs ADD server varchar(255);";
+
+                        try
+                        {
+                            await command.ExecuteNonQueryAsync();
+                        }
+                        catch
+                        { }
+                    }
+
+                    await using (MySqlCommand command = connection.CreateCommand())
+                    {
+                        command.CommandText = "CREATE INDEX index_server ON dns_logs (server);";
+
+                        try
+                        {
+                            await command.ExecuteNonQueryAsync();
+                        }
+                        catch
+                        { }
+                    }
+                    
                     await using (MySqlCommand command = connection.CreateCommand())
                     {
                         command.CommandText = "CREATE INDEX index_timestamp ON dns_logs (timestamp);";
@@ -492,7 +517,7 @@ CREATE TABLE IF NOT EXISTS dns_logs
 
                     await using (MySqlCommand command = connection.CreateCommand())
                     {
-                        command.CommandText = "CREATE INDEX index_all ON dns_logs (timestamp, client_ip, protocol, response_type, rcode, qname, qtype, qclass);";
+                        command.CommandText = "CREATE INDEX index_all ON dns_logs (server, timestamp, client_ip, protocol, response_type, rcode, qname, qtype, qclass);";
 
                         try
                         {
@@ -535,7 +560,7 @@ CREATE TABLE IF NOT EXISTS dns_logs
             if (qname is not null)
                 qname = qname.ToLowerInvariant();
 
-            string whereClause = string.Empty;
+            string whereClause = $"server = '{_dnsServer?.ServerDomain}' AND ";
 
             if (start is not null)
                 whereClause += "timestamp >= @start AND ";
