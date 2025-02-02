@@ -184,14 +184,14 @@ namespace QueryLogsSqlServer
                         await using (SqlCommand command = connection.CreateCommand())
                         {
                             sb.Length = 0;
-                            sb.Append("INSERT INTO dns_logs (timestamp, client_ip, protocol, response_type, response_rtt, rcode, qname, qtype, qclass, answer) VALUES ");
+                            sb.Append("INSERT INTO dns_logs (server, timestamp, client_ip, protocol, response_type, response_rtt, rcode, qname, qtype, qclass, answer) VALUES ");
 
                             for (int i = 0; i < logs.Count; i++)
                             {
                                 if (i == 0)
-                                    sb.Append($"(@timestamp{i}, @client_ip{i}, @protocol{i}, @response_type{i}, @response_rtt{i}, @rcode{i}, @qname{i}, @qtype{i}, @qclass{i}, @answer{i})");
+                                    sb.Append($"(@server{i}, @timestamp{i}, @client_ip{i}, @protocol{i}, @response_type{i}, @response_rtt{i}, @rcode{i}, @qname{i}, @qtype{i}, @qclass{i}, @answer{i})");
                                 else
-                                    sb.Append($", (@timestamp{i}, @client_ip{i}, @protocol{i}, @response_type{i}, @response_rtt{i}, @rcode{i}, @qname{i}, @qtype{i}, @qclass{i}, @answer{i})");
+                                    sb.Append($", (@server{i}, @timestamp{i}, @client_ip{i}, @protocol{i}, @response_type{i}, @response_rtt{i}, @rcode{i}, @qname{i}, @qtype{i}, @qclass{i}, @answer{i})");
                             }
 
                             command.CommandText = sb.ToString();
@@ -200,6 +200,7 @@ namespace QueryLogsSqlServer
                             {
                                 LogEntry log = logs[i];
 
+                                SqlParameter paramServer = command.Parameters.Add("@server" + i, SqlDbType.VarChar);
                                 SqlParameter paramTimestamp = command.Parameters.Add("@timestamp" + i, SqlDbType.DateTime);
                                 SqlParameter paramClientIp = command.Parameters.Add("@client_ip" + i, SqlDbType.VarChar);
                                 SqlParameter paramProtocol = command.Parameters.Add("@protocol" + i, SqlDbType.TinyInt);
@@ -211,6 +212,7 @@ namespace QueryLogsSqlServer
                                 SqlParameter paramQclass = command.Parameters.Add("@qclass" + i, SqlDbType.SmallInt);
                                 SqlParameter paramAnswer = command.Parameters.Add("@answer" + i, SqlDbType.VarChar);
 
+                                paramServer.Value = _dnsServer?.ServerDomain;
                                 paramTimestamp.Value = log.Timestamp;
                                 paramClientIp.Value = log.RemoteEP.Address.ToString();
                                 paramProtocol.Value = (byte)log.Protocol;
@@ -322,8 +324,6 @@ namespace QueryLogsSqlServer
                     await using (SqlCommand command = connection.CreateCommand())
                     {
                         command.CommandText = @$"
-USE master;
-
 IF NOT EXISTS(SELECT * FROM sys.databases WHERE name = '{_databaseName}')
 BEGIN
     CREATE DATABASE {_databaseName};
@@ -337,12 +337,13 @@ END
                     {
                         command.CommandText = @$"
 USE {_databaseName};
-   
+
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name='dns_logs' and type='U')
 BEGIN
     CREATE TABLE dns_logs
     (
         dlid INT IDENTITY(1,1) PRIMARY KEY,
+        server varchar(255),
         timestamp DATETIME NOT NULL,
         client_ip VARCHAR(39) NOT NULL,
         protocol TINYINT NOT NULL,
@@ -354,6 +355,16 @@ BEGIN
         qclass SMALLINT,
         answer VARCHAR(4000)
     );
+END
+
+IF NOT EXISTS(SELECT * FROM sys.columns WHERE name = 'server' AND object_id = OBJECT_ID('dns_logs'))
+BEGIN
+    ALTER TABLE dns_logs ADD server varchar(255);
+END
+
+IF NOT EXISTS(SELECT * FROM sys.indexes WHERE name = 'index_server' AND object_id = OBJECT_ID('dns_logs'))
+BEGIN
+    CREATE INDEX index_server ON dns_logs (server);
 END
 
 IF NOT EXISTS(SELECT * FROM sys.indexes WHERE name = 'index_timestamp' AND object_id = OBJECT_ID('dns_logs'))
@@ -418,7 +429,7 @@ END
 
 IF NOT EXISTS(SELECT * FROM sys.indexes WHERE name = 'index_all' AND object_id = OBJECT_ID('dns_logs'))
 BEGIN
-    CREATE INDEX index_all ON dns_logs (timestamp, client_ip, protocol, response_type, rcode, qname, qtype, qclass);
+    CREATE INDEX index_all ON dns_logs (server, timestamp, client_ip, protocol, response_type, rcode, qname, qtype, qclass);
 END
 ";
 
@@ -458,7 +469,7 @@ END
             if (qname is not null)
                 qname = qname.ToLowerInvariant();
 
-            string whereClause = string.Empty;
+            string whereClause = $"server = '{_dnsServer?.ServerDomain}' AND ";
 
             if (start is not null)
                 whereClause += "timestamp >= @start AND ";
