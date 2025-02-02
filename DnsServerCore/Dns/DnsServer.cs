@@ -551,6 +551,10 @@ namespace DnsServerCore.Dns
                 _queryLog?.Write(remoteEP, protocol, request, response);
                 _stats.QueueUpdate(request, remoteEP, protocol, response, false);
             }
+            catch (ObjectDisposedException)
+            {
+                //ignore
+            }
             catch (Exception ex)
             {
                 if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
@@ -4840,6 +4844,9 @@ namespace DnsServerCore.Dns
 
                         #endregion
 
+                        if (Environment.OSVersion.Platform == PlatformID.Unix)
+                            udpProxyListener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1); //to allow binding to same port with different addresses
+
                         udpProxyListener.ReceiveBufferSize = 512 * 1024;
                         udpProxyListener.SendBufferSize = 512 * 1024;
 
@@ -4862,6 +4869,9 @@ namespace DnsServerCore.Dns
                 try
                 {
                     tcpListener = new Socket(localEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+                    if (Environment.OSVersion.Platform == PlatformID.Unix)
+                        tcpListener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1); //to allow binding to same port with different addresses
 
                     tcpListener.Bind(localEP);
                     tcpListener.Listen(_listenBacklog);
@@ -4886,6 +4896,9 @@ namespace DnsServerCore.Dns
                     {
                         tcpProxyListner = new Socket(tcpProxyEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
+                        if (Environment.OSVersion.Platform == PlatformID.Unix)
+                            tcpProxyListner.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1); //to allow binding to same port with different addresses
+
                         tcpProxyListner.Bind(tcpProxyEP);
                         tcpProxyListner.Listen(_listenBacklog);
 
@@ -4909,6 +4922,9 @@ namespace DnsServerCore.Dns
                     try
                     {
                         tlsListener = new Socket(tlsEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+                        if (Environment.OSVersion.Platform == PlatformID.Unix)
+                            tlsListener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1); //to allow binding to same port with different addresses
 
                         tlsListener.Bind(tlsEP);
                         tlsListener.Listen(_listenBacklog);
