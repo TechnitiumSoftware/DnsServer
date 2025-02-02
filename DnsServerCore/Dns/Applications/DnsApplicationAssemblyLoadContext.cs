@@ -201,12 +201,10 @@ namespace DnsServerCore.Dns.Applications
             {
                 if (!_loadedUnmanagedDlls.TryGetValue(unmanagedDllPath.ToLowerInvariant(), out IntPtr value))
                 {
-                    //load the unmanaged DLL
-
-                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                        value = LoadUnmanagedDllFromPath(GetTempDllFile(unmanagedDllPath));
-                    else
-                        value = LoadUnmanagedDllFromPath(unmanagedDllPath);
+                    //load the unmanaged DLL via temp file
+                    // - to allow uninstalling/updating app at runtime on Windows
+                    // - to avoid dns server crash issue when updating apps on Linux
+                    value = LoadUnmanagedDllFromPath(GetTempDllFile(unmanagedDllPath));
 
                     _loadedUnmanagedDlls.Add(unmanagedDllPath.ToLowerInvariant(), value);
                 }
@@ -221,7 +219,6 @@ namespace DnsServerCore.Dns.Applications
 
         private string GetTempDllFile(string dllFile)
         {
-            //copy dll into temp file for loading to allow uninstalling/updating app at runtime.
             string tempPath = Path.GetTempFileName();
 
             using (FileStream srcFile = new FileStream(dllFile, FileMode.Open, FileAccess.Read))
