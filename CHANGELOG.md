@@ -1,5 +1,14 @@
 # Technitium DNS Server Change Log
 
+## Version 13.4.1
+Release Date: 2 February 2025
+
+- Fixed issue of unhandled CD flag condition when DO flag is unset in requests.
+- Block Page App: Updated app to show blocking info details on the block page.
+- Query Logs (MySQL) App: Updated app to add server domain to db logs to allow using same db with multiple instances.
+- Query Logs (SQL Server) App: Updated app to add server domain to db logs to allow using same db with multiple instances.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 13.4
 Release Date: 26 January 2025
 
@@ -19,7 +28,7 @@ Release Date: 21 December 2024
 - Added new Minimum SOA Refresh and Minimum SOA Retry options in Settings > General section to override any Secondary, Stub, Secondary Forwarder, or Secondary Catalog zone SOA values that are smaller than these configured minimum values.
 - Added feature to include Subject Alternative Name (SAN) entry for DNS admin web service local unicast addresses in the self-signed certificate.
 - Fixed bug in NSEC3 non-existent proof generation implementation that caused Denial of Service (DoS) for all DNS protocol services when certain primary and secondary zones are DNSSEC signed using NSEC3.
-- Fixed issue of unhandled exception that caused Denial of Service (DoS) for DNS-over-QUIC service.
+- Fixed issue of unhandled exception that caused Denial of Service (DoS) for DNS-over-QUIC service [CVE-2024-56946] reported by Michael Wedl, St. Poelten University of Applied Sciences.
 - Fixed bug in reloading SSL/TLS certificate for DNS admin web service and DNS-over-HTTPS service.
 - Fixed issue with Catalog zone SOA request that caused zone transfer to failure with BIND.
 - Query Logs (Sqlite): Updated the app to support logging response RTT value.
