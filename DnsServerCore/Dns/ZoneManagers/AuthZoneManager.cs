@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -2644,6 +2644,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                             return null; //no authoritative parent side delegation zone available to answer for DS
 
                         zone = delegation; //switch zone to parent side sub domain delegation zone for DS record
+
+                        if (request.DnssecOk && (delegation.AuthoritativeZone is ApexZone delegationApex))
+                            dnssecOk = delegationApex.DnssecStatus != AuthZoneDnssecStatus.Unsigned;
                     }
                 }
                 else if ((delegation is not null) && delegation.IsActive && (delegation.Name.Length > apexZone.Name.Length))
