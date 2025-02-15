@@ -242,6 +242,12 @@
 				"version": "6.1",
 				"url": "https://download.technitium.com/dns/apps/BlockPageApp-v6.1.zip",
 				"size": "28.3 KB"
+			},
+			{
+				"serverVersion": "13.4.2",
+				"version": "6.2",
+				"url": "https://download.technitium.com/dns/apps/BlockPageApp-v6.2.zip",
+				"size": "28.4 KB"
 			}
 		]
 	},
@@ -853,7 +859,7 @@
 	},
 	{
 		"name": "Query Logs (MySQL)",
-		"description": "Logs all incoming DNS requests and their responses in a MySQL database that can be queried from the DNS Server web console.",
+		"description": "Logs all incoming DNS requests and their responses in a MySQL/MariaDB database that can be queried from the DNS Server web console.",
 		"versions": [
 			{
 				"serverVersion": "13.4",
@@ -866,6 +872,12 @@
 				"version": "1.1",
 				"url": "https://download.technitium.com/dns/apps/QueryLogsMySqlApp-v1.1.zip",
 				"size": "6.70 MB"
+			},
+			{
+				"serverVersion": "13.4.2",
+				"version": "2.0",
+				"url": "https://download.technitium.com/dns/apps/QueryLogsMySqlApp-v2.zip",
+				"size": "472 KB"
 			}
 		]
 	},
@@ -973,6 +985,12 @@
 				"serverVersion": "13.4.1",
 				"version": "1.1",
 				"url": "https://download.technitium.com/dns/apps/QueryLogsSqlServerApp-v1.1.zip",
+				"size": "4.67 MB"
+			},
+			{
+				"serverVersion": "13.4.2",
+				"version": "1.2",
+				"url": "https://download.technitium.com/dns/apps/QueryLogsSqlServerApp-v1.2.zip",
 				"size": "4.67 MB"
 			}
 		]
