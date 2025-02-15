@@ -1,5 +1,14 @@
 # Technitium DNS Server Change Log
 
+## Version 13.4.2
+Release Date: 15 February 2025
+
+- Fixed issue of unhandled CD flag condition when DO flag is unset in requests for a specific case.
+- Block Page App: Fixed issue with Kestrel local addresses that caused failure to bind on Linux systems.
+- Query Logs (MySQL) App: Updated app to use MySqlConnector driver which allows the app to work with MariaDB too.
+- Query Logs (SQL Server) App: Fixed issue with bulk insert due to limit on parameters per query. Fixed issue with qtype filtering.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 13.4.1
 Release Date: 2 February 2025
 
@@ -30,7 +39,7 @@ Release Date: 21 December 2024
 - Fixed bug in NSEC3 non-existent proof generation implementation that caused Denial of Service (DoS) for all DNS protocol services when certain primary and secondary zones are DNSSEC signed using NSEC3.
 - Fixed issue of unhandled exception that caused Denial of Service (DoS) for DNS-over-QUIC service [CVE-2024-56946] reported by Michael Wedl, St. Poelten University of Applied Sciences.
 - Fixed bug in reloading SSL/TLS certificate for DNS admin web service and DNS-over-HTTPS service.
-- Fixed issue with Catalog zone SOA request that caused zone transfer to failure with BIND.
+- Fixed issue with Catalog zone SOA request that caused zone transfer to fail with BIND.
 - Query Logs (Sqlite): Updated the app to support logging response RTT value.
 - Multiple other minor bug fixes and improvements.
 
