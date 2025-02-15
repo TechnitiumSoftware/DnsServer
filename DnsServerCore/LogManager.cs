@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -81,12 +81,10 @@ namespace DnsServerCore
 
             AppDomain.CurrentDomain.UnhandledException += delegate (object sender, UnhandledExceptionEventArgs e)
             {
-                if (!_enableLogging)
-                {
-                    Console.WriteLine(e.ExceptionObject.ToString());
-                    return;
-                }
+                //log to console immediately
+                Console.WriteLine(e.ExceptionObject.ToString());
 
+                //try log to file
                 lock (_queueLock)
                 {
                     try
@@ -103,7 +101,6 @@ namespace DnsServerCore
                     { }
                     catch (Exception ex)
                     {
-                        Console.WriteLine(e.ExceptionObject.ToString());
                         Console.WriteLine(ex.ToString());
                     }
                     finally
