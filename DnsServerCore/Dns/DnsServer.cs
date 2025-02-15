@@ -4584,7 +4584,7 @@ namespace DnsServerCore.Dns
 
         private async Task StartDoHAsync()
         {
-            IReadOnlyList<IPAddress> localAddresses = WebUtilities.GetValidKestralLocalAddresses(_localEndPoints.Convert(delegate (IPEndPoint ep) { return ep.Address; }));
+            IReadOnlyList<IPAddress> localAddresses = WebUtilities.GetValidKestrelLocalAddresses(_localEndPoints.Convert(delegate (IPEndPoint ep) { return ep.Address; }));
 
             try
             {

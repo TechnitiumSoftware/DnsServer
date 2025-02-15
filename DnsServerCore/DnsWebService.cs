@@ -284,7 +284,7 @@ namespace DnsServerCore
         {
             try
             {
-                _webServiceLocalAddresses = WebUtilities.GetValidKestralLocalAddresses(_webServiceLocalAddresses);
+                _webServiceLocalAddresses = WebUtilities.GetValidKestrelLocalAddresses(_webServiceLocalAddresses);
 
                 await StartWebServiceAsync(_webServiceLocalAddresses, _webServiceHttpPort, _webServiceTlsPort, false);
                 return;
@@ -298,7 +298,7 @@ namespace DnsServerCore
 
             try
             {
-                _webServiceLocalAddresses = WebUtilities.GetValidKestralLocalAddresses(oldWebServiceLocalAddresses);
+                _webServiceLocalAddresses = WebUtilities.GetValidKestrelLocalAddresses(oldWebServiceLocalAddresses);
                 _webServiceHttpPort = oldWebServiceHttpPort;
                 _webServiceTlsPort = oldWebServiceTlsPort;
 

@@ -742,7 +742,7 @@ namespace DnsServerCore
                             restartWebService = true;
                         }
 
-                        _dnsWebService._webServiceLocalAddresses = WebUtilities.GetValidKestralLocalAddresses(webServiceLocalAddresses);
+                        _dnsWebService._webServiceLocalAddresses = WebUtilities.GetValidKestrelLocalAddresses(webServiceLocalAddresses);
                     }
 
                     if (request.TryGetQueryOrForm("webServiceHttpPort", int.Parse, out int webServiceHttpPort))

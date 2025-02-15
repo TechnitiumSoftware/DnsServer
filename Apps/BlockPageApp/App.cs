@@ -469,7 +469,7 @@ namespace BlockPage
                     return;
                 }
 
-                _webServerLocalAddresses = WebUtilities.GetValidKestralLocalAddresses(jsonWebServerConfig.ReadArray("webServerLocalAddresses", IPAddress.Parse));
+                _webServerLocalAddresses = WebUtilities.GetValidKestrelLocalAddresses(jsonWebServerConfig.ReadArray("webServerLocalAddresses", IPAddress.Parse));
 
                 if (jsonWebServerConfig.TryGetProperty("webServerUseSelfSignedTlsCertificate", out JsonElement jsonWebServerUseSelfSignedTlsCertificate))
                     _webServerUseSelfSignedTlsCertificate = jsonWebServerUseSelfSignedTlsCertificate.GetBoolean();
