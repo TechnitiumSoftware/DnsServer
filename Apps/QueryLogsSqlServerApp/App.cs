@@ -50,7 +50,7 @@ namespace QueryLogsSqlServer
         readonly ConcurrentQueue<LogEntry> _queuedLogs = new ConcurrentQueue<LogEntry>();
         readonly Timer _queueTimer;
         const int QUEUE_TIMER_INTERVAL = 10000;
-        const int BULK_INSERT_COUNT = 1000;
+        const int BULK_INSERT_COUNT = 190; //sql server supports a maximum of 2100 parameters per query
 
         readonly Timer _cleanupTimer;
         const int CLEAN_UP_TIMER_INITIAL_INTERVAL = 5 * 1000;
@@ -544,7 +544,7 @@ END
                         command.Parameters.AddWithValue("@qname", qname);
 
                     if (qtype is not null)
-                        command.Parameters.AddWithValue("@qtype", (ushort)qtype);
+                        command.Parameters.AddWithValue("@qtype", (short)qtype);
 
                     if (qclass is not null)
                         command.Parameters.AddWithValue("@qclass", (ushort)qclass);
@@ -624,7 +624,7 @@ ORDER BY row_num" + (descendingOrder ? " DESC" : "");
                         command.Parameters.AddWithValue("@qname", qname);
 
                     if (qtype is not null)
-                        command.Parameters.AddWithValue("@qtype", (ushort)qtype);
+                        command.Parameters.AddWithValue("@qtype", (short)qtype);
 
                     if (qclass is not null)
                         command.Parameters.AddWithValue("@qclass", (ushort)qclass);
