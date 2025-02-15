@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -819,7 +819,10 @@ namespace DnsServerCore.Dhcp
                     }
 
                     DnsResourceRecord aRecord = new DnsResourceRecord(domain, DnsResourceRecordType.A, DnsClass.IN, scope.DnsTtl, new DnsARecordData(address));
-                    aRecord.GetAuthGenericRecordInfo().LastModified = DateTime.UtcNow;
+
+                    GenericRecordInfo aRecordInfo = aRecord.GetAuthGenericRecordInfo();
+                    aRecordInfo.LastModified = DateTime.UtcNow;
+                    aRecordInfo.Comments = $"Via '{scope.Name}' DHCP scope";
 
                     _dnsServer.AuthZoneManager.SetRecord(zoneName, aRecord);
                     _log?.Write("DHCP Server updated DNS A record '" + domain + "' with IP address [" + address.ToString() + "].");
@@ -873,7 +876,10 @@ namespace DnsServerCore.Dhcp
                     reverseZoneName = reverseZoneInfo.Name;
 
                     DnsResourceRecord ptrRecord = new DnsResourceRecord(reverseDomain, DnsResourceRecordType.PTR, DnsClass.IN, scope.DnsTtl, new DnsPTRRecordData(domain));
-                    ptrRecord.GetAuthGenericRecordInfo().LastModified = DateTime.UtcNow;
+
+                    GenericRecordInfo ptrRecordInfo = aRecord.GetAuthGenericRecordInfo();
+                    ptrRecordInfo.LastModified = DateTime.UtcNow;
+                    ptrRecordInfo.Comments = $"Via '{scope.Name}' DHCP scope";
 
                     _dnsServer.AuthZoneManager.SetRecord(reverseZoneName, ptrRecord);
 
