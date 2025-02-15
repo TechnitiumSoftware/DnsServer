@@ -37,6 +37,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
+using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
@@ -468,7 +469,7 @@ namespace BlockPage
                     return;
                 }
 
-                _webServerLocalAddresses = jsonWebServerConfig.ReadArray("webServerLocalAddresses", IPAddress.Parse);
+                _webServerLocalAddresses = WebUtilities.GetValidKestralLocalAddresses(jsonWebServerConfig.ReadArray("webServerLocalAddresses", IPAddress.Parse));
 
                 if (jsonWebServerConfig.TryGetProperty("webServerUseSelfSignedTlsCertificate", out JsonElement jsonWebServerUseSelfSignedTlsCertificate))
                     _webServerUseSelfSignedTlsCertificate = jsonWebServerUseSelfSignedTlsCertificate.GetBoolean();
