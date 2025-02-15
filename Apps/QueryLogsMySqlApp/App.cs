@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.ApplicationCommon;
-using MySql.Data.MySqlClient;
+using MySqlConnector;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -370,7 +370,7 @@ CREATE TABLE IF NOT EXISTS dns_logs
                         catch
                         { }
                     }
-                    
+
                     await using (MySqlCommand command = connection.CreateCommand())
                     {
                         command.CommandText = "CREATE INDEX index_timestamp ON dns_logs (timestamp);";
@@ -634,10 +634,10 @@ CREATE TABLE IF NOT EXISTS dns_logs
                         command.Parameters.AddWithValue("@qname", qname);
 
                     if (qtype is not null)
-                        command.Parameters.AddWithValue("@qtype", (ushort)qtype);
+                        command.Parameters.AddWithValue("@qtype", (short)qtype);
 
                     if (qclass is not null)
-                        command.Parameters.AddWithValue("@qclass", (ushort)qclass);
+                        command.Parameters.AddWithValue("@qclass", (short)qclass);
 
                     totalEntries = Convert.ToInt64(await command.ExecuteScalarAsync() ?? 0L);
                 }
@@ -714,10 +714,10 @@ ORDER BY row_num" + (descendingOrder ? " DESC" : "");
                         command.Parameters.AddWithValue("@qname", qname);
 
                     if (qtype is not null)
-                        command.Parameters.AddWithValue("@qtype", (ushort)qtype);
+                        command.Parameters.AddWithValue("@qtype", (short)qtype);
 
                     if (qclass is not null)
-                        command.Parameters.AddWithValue("@qclass", (ushort)qclass);
+                        command.Parameters.AddWithValue("@qclass", (short)qclass);
 
                     await using (DbDataReader reader = await command.ExecuteReaderAsync())
                     {
