@@ -3260,16 +3260,20 @@ namespace DnsServerCore.Dns
                 {
                     string strForwarders = null;
 
-                    if ((conditionalForwarders is not null) && (conditionalForwarders.Count > 0))
+                    if (conditionalForwarders is not null)
                     {
-                        foreach (DnsResourceRecord conditionalForwarder in conditionalForwarders)
+                        //empty conditional forwarder array is used to force recursive resolution
+                        if (conditionalForwarders.Count > 0)
                         {
-                            NameServerAddress nameServer = (conditionalForwarder.RDATA as DnsForwarderRecordData).NameServer;
+                            foreach (DnsResourceRecord conditionalForwarder in conditionalForwarders)
+                            {
+                                NameServerAddress nameServer = (conditionalForwarder.RDATA as DnsForwarderRecordData).NameServer;
 
-                            if (strForwarders is null)
-                                strForwarders = nameServer.ToString();
-                            else
-                                strForwarders += ", " + nameServer.ToString();
+                                if (strForwarders is null)
+                                    strForwarders = nameServer.ToString();
+                                else
+                                    strForwarders += ", " + nameServer.ToString();
+                            }
                         }
                     }
                     else if ((_forwarders is not null) && (_forwarders.Count > 0))
