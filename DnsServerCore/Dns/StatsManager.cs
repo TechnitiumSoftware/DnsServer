@@ -407,7 +407,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private HourlyStats LoadHourlyStats(DateTime dateTime, bool forceReload = false)
+        private HourlyStats LoadHourlyStats(DateTime dateTime, bool forceReload = false, bool ifNotExistsReturnEmptyHourlyStats = false)
         {
             if (_enableInMemoryStats)
                 return _emptyHourlyStats;
@@ -431,12 +431,18 @@ namespace DnsServerCore.Dns
                     {
                         _dnsServer.LogManager?.Write(ex);
 
-                        hourlyStats = new HourlyStats();
+                        if (ifNotExistsReturnEmptyHourlyStats)
+                            hourlyStats = _emptyHourlyStats;
+                        else
+                            hourlyStats = new HourlyStats();
                     }
                 }
                 else
                 {
-                    hourlyStats = new HourlyStats();
+                    if (ifNotExistsReturnEmptyHourlyStats)
+                        hourlyStats = _emptyHourlyStats;
+                    else
+                        hourlyStats = new HourlyStats();
                 }
 
                 _hourlyStatsCache[hourlyDateTime] = hourlyStats;
@@ -484,7 +490,7 @@ namespace DnsServerCore.Dns
 
                     for (int hour = 0; hour < 24; hour++) //hours
                     {
-                        HourlyStats hourlyStats = LoadHourlyStats(dailyDateTime.AddHours(hour));
+                        HourlyStats hourlyStats = LoadHourlyStats(dailyDateTime.AddHours(hour), ifNotExistsReturnEmptyHourlyStats: true);
                         dailyStats.Merge(hourlyStats.HourStat);
                     }
 
@@ -847,7 +853,7 @@ namespace DnsServerCore.Dns
             {
                 DateTime lastDateTime = startDate.AddMinutes(minute);
 
-                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
+                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime, ifNotExistsReturnEmptyHourlyStats: true);
                 if (hourlyStats.MinuteStats is null)
                     hourlyStats = LoadHourlyStats(lastDateTime, true);
 
@@ -958,7 +964,7 @@ namespace DnsServerCore.Dns
                 else
                     label = lastDateTime.AddHours(1).ToLocalTime().ToString("MM/dd HH") + ":00";
 
-                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
+                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime, ifNotExistsReturnEmptyHourlyStats: true);
                 StatCounter hourlyStatCounter = hourlyStats.HourStat;
 
                 totalStatCounter.Merge(hourlyStatCounter);
@@ -1226,7 +1232,7 @@ namespace DnsServerCore.Dns
             {
                 DateTime lastDateTime = startDate.AddMinutes(minute);
 
-                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
+                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime, ifNotExistsReturnEmptyHourlyStats: true);
                 if (hourlyStats.MinuteStats is null)
                     hourlyStats = LoadHourlyStats(lastDateTime, true);
 
@@ -1267,7 +1273,7 @@ namespace DnsServerCore.Dns
             {
                 DateTime lastDateTime = startDate.AddHours(hour);
 
-                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
+                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime, ifNotExistsReturnEmptyHourlyStats: true);
                 StatCounter hourlyStatCounter = hourlyStats.HourStat;
 
                 totalStatCounter.Merge(hourlyStatCounter);
