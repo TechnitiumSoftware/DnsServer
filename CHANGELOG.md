@@ -1,5 +1,12 @@
 # Technitium DNS Server Change Log
 
+## Version 13.4.3
+Release Date: 23 February 2025
+
+- Fixed issue of high memory usage when "Last Year" option is used on Dashboard.
+- Fixed multiple issues of DNSSEC validation failures for certain domain names when using forwarders.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 13.4.2
 Release Date: 15 February 2025
 
