@@ -88,7 +88,21 @@ then
 			if ! dpkg -l | grep -q "libicu"; then
 				echo "Installing required ICU package..."
 				apt-get update >> $installLog 2>&1
-				apt-get install -y libicu* >> $installLog 2>&1
+				# Try to install the most common package name
+				if apt-cache show libicu74 >/dev/null 2>&1; then
+					echo "Installing libicu74 package..."
+					apt-get install -y libicu74 >> $installLog 2>&1
+				elif apt-cache show libicu72 >/dev/null 2>&1; then
+					echo "Installing libicu72 package..."
+					apt-get install -y libicu72 >> $installLog 2>&1
+				elif apt-cache show libicu70 >/dev/null 2>&1; then
+					echo "Installing libicu70 package..."
+					apt-get install -y libicu70 >> $installLog 2>&1
+				else
+					# Fallback to a generic approach
+					echo "No specific libicu package found, trying generic installation..."
+					apt-get install -y libicu* >> $installLog 2>&1
+				fi
 			fi
 		elif command -v dnf >/dev/null 2>&1; then
 			# Fedora/RHEL based
@@ -118,7 +132,7 @@ then
 			# Alpine Linux
 			if ! apk list --installed | grep -q "icu"; then
 				echo "Installing required ICU package..."
-				apk add --no-cache icu-libs >> $installLog 2>&1
+				apk add --no-cache icu >> $installLog 2>&1
 			fi
 		else
 			echo "Warning: Could not determine package manager to install ICU package."
