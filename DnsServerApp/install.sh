@@ -84,62 +84,47 @@ then
 		# Check for required ICU package before configuring service
 		echo "Checking for required ICU package..."
 		if command -v apt-get >/dev/null 2>&1; then
-		    # Debian/Ubuntu based
-		    if ! dpkg -l | grep -q "libicu"; then
-		        echo "Installing required ICU package..."
-		        apt-get update >> $installLog 2>&1
-		        # Try to install the most common package name
-		        if apt-cache show libicu74 >/dev/null 2>&1; then
-		            echo "Installing libicu74 package..."
-		            apt-get install -y libicu74 >> $installLog 2>&1
-		        elif apt-cache show libicu72 >/dev/null 2>&1; then
-		            echo "Installing libicu72 package..."
-		            apt-get install -y libicu72 >> $installLog 2>&1
-		        elif apt-cache show libicu70 >/dev/null 2>&1; then
-		            echo "Installing libicu70 package..."
-		            apt-get install -y libicu70 >> $installLog 2>&1
-		        else
-		            # Fallback to a generic approach
-		            echo "No specific libicu package found, trying generic installation..."
-		            apt-get install -y libicu* >> $installLog 2>&1
-		        fi
-		    fi
+			# Debian/Ubuntu based
+			if ! dpkg -l | grep -q "libicu"; then
+				echo "Installing required ICU package..."
+				apt-get update >> $installLog 2>&1
+				apt-get install -y libicu* >> $installLog 2>&1
+			fi
 		elif command -v dnf >/dev/null 2>&1; then
-		    # Fedora/RHEL based
-		    if ! rpm -qa | grep -q "libicu"; then
-		        echo "Installing required ICU package..."
-		        dnf install -y libicu >> $installLog 2>&1
-		    fi
+			# Fedora/RHEL based
+			if ! rpm -qa | grep -q "libicu"; then
+				echo "Installing required ICU package..."
+				dnf install -y libicu >> $installLog 2>&1
+			fi
 		elif command -v yum >/dev/null 2>&1; then
-		    # Older RHEL/CentOS systems
-		    if ! rpm -qa | grep -q "libicu"; then
-		        echo "Installing required ICU package..."
-		        yum install -y libicu >> $installLog 2>&1
-		    fi
+			# Older RHEL/CentOS systems
+			if ! rpm -qa | grep -q "libicu"; then
+				echo "Installing required ICU package..."
+				yum install -y libicu >> $installLog 2>&1
+			fi
 		elif command -v zypper >/dev/null 2>&1; then
-		    # openSUSE based
-		    if ! rpm -qa | grep -q "libicu"; then
-		        echo "Installing required ICU package..."
-		        zypper install -y libicu76 >> $installLog 2>&1
-		    fi
+			# openSUSE based
+			if ! rpm -qa | grep -q "libicu"; then
+				echo "Installing required ICU package..."
+				zypper install -y libicu >> $installLog 2>&1
+			fi
 		elif command -v pacman >/dev/null 2>&1; then
-		    # Arch based
-		    if ! pacman -Q | grep -q "icu"; then
-		        echo "Installing required ICU package..."
-		        pacman -S --noconfirm icu >> $installLog 2>&1
-		    fi
+			# Arch based
+			if ! pacman -Q | grep -q "icu"; then
+				echo "Installing required ICU package..."
+				pacman -S --noconfirm icu >> $installLog 2>&1
+			fi
 		elif command -v apk >/dev/null 2>&1; then
-		    # Alpine Linux
-		    if ! apk list --installed | grep -q "icu"; then
-		        echo "Installing required ICU package..."
-		        apk add --no-cache icu >> $installLog 2>&1
-		    fi
+			# Alpine Linux
+			if ! apk list --installed | grep -q "icu"; then
+				echo "Installing required ICU package..."
+				apk add --no-cache icu-libs >> $installLog 2>&1
+			fi
 		else
-		    echo "Warning: Could not determine package manager to install ICU package."
-		    echo "If DNS server fails to start, you may need to manually install libicu package."
-		    echo "See: https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html (Section: Missing ICU Package) for details."
+			echo "Warning: Could not determine package manager to install ICU package."
+			echo "If DNS server fails to start, you may need to manually install libicu package."
+			echo "See: https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html (Section: Missing ICU Package) for details."
 		fi
-
 		
 		if [ -f "/etc/systemd/system/dns.service" ]
 		then
