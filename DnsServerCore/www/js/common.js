@@ -90,7 +90,7 @@ function HTTPRequest(url, method, data, isTextResponse, success, error, invalidT
         contentType = arguments[0].contentType;
 
     if (objLoaderPlaceholder != null)
-        objLoaderPlaceholder.html("<div style='width: 64px; height: inherit; margin: auto;'><div style='height: inherit; display: table-cell; vertical-align: middle;'><img src='/img/loader.gif'/></div></div>");
+        objLoaderPlaceholder.html("<div style='width: 64px; height: inherit; margin: auto;'><div style='height: inherit; display: table-cell; vertical-align: middle;'><img src='./img/loader.gif'/></div></div>");
 
     var successFlag = false;
 
@@ -129,7 +129,7 @@ function HTTPRequest(url, method, data, isTextResponse, success, error, invalidT
                         else if (error != null)
                             error();
                         else
-                            window.location = "/";
+                            window.location = "./";
 
                         break;
 

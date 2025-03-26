@@ -230,7 +230,7 @@ function showPageMain() {
 $(function () {
     var headerHtml = $("#header").html();
 
-    $("#header").html("<div class=\"title\"><a href=\"/\"><img src=\"/img/logo25x25.png\" alt=\"Technitium Logo\" /><span class=\"text\" style=\"color: #ffffff;\">Technitium</span></a>" + headerHtml + "</div>");
+    $("#header").html("<div class=\"title\"><a href=\"./\"><img src=\"./img/logo25x25.png\" alt=\"Technitium Logo\" /><span class=\"text\" style=\"color: #ffffff;\">Technitium</span></a>" + headerHtml + "</div>");
     $("#footer").html("<div class=\"content\"><a href=\"https://technitium.com/\" target=\"_blank\">Technitium</a> | <a href=\"https://blog.technitium.com/\" target=\"_blank\">Blog</a> | <a href=\"https://go.technitium.com/?id=35\" target=\"_blank\">Donate</a> | <a href=\"https://dnsclient.net/\" target=\"_blank\">DNS Client</a> | <a href=\"https://github.com/TechnitiumSoftware/DnsServer\" target=\"_blank\"><i class=\"fa fa-github\"></i>&nbsp;GitHub</a> | <a href=\"#\" onclick=\"showAbout(); return false;\">About</a></div>");
 
     //dropdown list box support
@@ -882,7 +882,7 @@ function showAbout() {
 
 function checkForUpdate() {
     HTTPRequest({
-        url: "/api/user/checkForUpdate?token=" + sessionData.token,
+        url: "./api/user/checkForUpdate?token=" + sessionData.token,
         success: function (responseJSON) {
             var lnkUpdateAvailable = $("#lnkUpdateAvailable");
 
@@ -953,7 +953,7 @@ function refreshDnsSettings() {
     divDnsSettingsLoader.show();
 
     HTTPRequest({
-        url: "/api/settings/get?token=" + sessionData.token,
+        url: "./api/settings/get?token=" + sessionData.token,
         success: function (responseJSON) {
             loadDnsSettings(responseJSON);
             checkForReverseProxy(responseJSON);
@@ -1829,7 +1829,7 @@ function saveDnsSettings() {
     var btn = $("#btnSaveDnsSettings").button('loading');
 
     HTTPRequest({
-        url: "/api/settings/set",
+        url: "./api/settings/set",
         method: "POST",
         data: "token=" + sessionData.token + "&dnsServerDomain=" + dnsServerDomain + "&dnsServerLocalEndPoints=" + encodeURIComponent(dnsServerLocalEndPoints) + "&dnsServerIPv4SourceAddresses=" + encodeURIComponent(dnsServerIPv4SourceAddresses) + "&dnsServerIPv6SourceAddresses=" + encodeURIComponent(dnsServerIPv6SourceAddresses)
             + "&defaultRecordTtl=" + defaultRecordTtl + "&defaultResponsiblePerson=" + encodeURIComponent(defaultResponsiblePerson) + "&useSoaSerialDateScheme=" + useSoaSerialDateScheme + "&minSoaRefresh=" + minSoaRefresh + "&minSoaRetry=" + minSoaRetry + "&zoneTransferAllowedNetworks=" + encodeURIComponent(zoneTransferAllowedNetworks) + "&notifyAllowedNetworks=" + encodeURIComponent(notifyAllowedNetworks) + "&dnsAppsEnableAutomaticUpdate=" + dnsAppsEnableAutomaticUpdate + "&preferIPv6=" + preferIPv6 + "&udpPayloadSize=" + udpPayloadSize + "&dnssecValidation=" + dnssecValidation
@@ -1958,7 +1958,7 @@ function forceUpdateBlockLists() {
     var btn = $("#btnUpdateBlockListsNow").button('loading');
 
     HTTPRequest({
-        url: "/api/settings/forceUpdateBlockLists?token=" + sessionData.token,
+        url: "./api/settings/forceUpdateBlockLists?token=" + sessionData.token,
         success: function (responseJSON) {
             btn.button('reset');
 
@@ -1991,7 +1991,7 @@ function temporaryDisableBlockingNow() {
     var btn = $("#btnTemporaryDisableBlockingNow").button("loading");
 
     HTTPRequest({
-        url: "/api/settings/temporaryDisableBlocking?token=" + sessionData.token + "&minutes=" + minutes,
+        url: "./api/settings/temporaryDisableBlocking?token=" + sessionData.token + "&minutes=" + minutes,
         success: function (responseJSON) {
             btn.button("reset");
 
@@ -2158,7 +2158,7 @@ function refreshDashboard(hideLoader) {
     }
 
     HTTPRequest({
-        url: "/api/dashboard/stats/get?token=" + sessionData.token + "&type=" + type + "&utc=true" + custom,
+        url: "./api/dashboard/stats/get?token=" + sessionData.token + "&type=" + type + "&utc=true" + custom,
         success: function (responseJSON) {
 
             //stats
@@ -2468,7 +2468,7 @@ function showTopStats(statsType, limit) {
     }
 
     HTTPRequest({
-        url: "/api/dashboard/stats/getTop?token=" + sessionData.token + "&type=" + type + custom + "&statsType=" + statsType + "&limit=" + limit,
+        url: "./api/dashboard/stats/getTop?token=" + sessionData.token + "&type=" + type + custom + "&statsType=" + statsType + "&limit=" + limit,
         success: function (responseJSON) {
             divTopStatsLoader.hide();
 
@@ -2645,7 +2645,7 @@ function resolveQuery(importRecords) {
     divDnsClientLoader.show();
 
     HTTPRequest({
-        url: "/api/dnsClient/resolve?token=" + sessionData.token + "&server=" + encodeURIComponent(server) + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&protocol=" + protocol + "&dnssec=" + dnssecValidation + "&eDnsClientSubnet=" + encodeURIComponent(eDnsClientSubnet) + (importRecords ? "&import=true" : ""),
+        url: "./api/dnsClient/resolve?token=" + sessionData.token + "&server=" + encodeURIComponent(server) + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&protocol=" + protocol + "&dnssec=" + dnssecValidation + "&eDnsClientSubnet=" + encodeURIComponent(eDnsClientSubnet) + (importRecords ? "&import=true" : ""),
         success: function (responseJSON) {
             divDnsClientLoader.hide();
             btn.button("reset");
@@ -2770,7 +2770,7 @@ function backupSettings() {
         return;
     }
 
-    window.open("/api/settings/backup?token=" + sessionData.token + "&blockLists=" + blockLists + "&logs=" + logs + "&scopes=" + scopes + "&apps=" + apps + "&stats=" + stats + "&zones=" + zones + "&allowedZones=" + allowedZones + "&blockedZones=" + blockedZones + "&dnsSettings=" + dnsSettings + "&authConfig=" + authConfig + "&logSettings=" + logSettings + "&ts=" + (new Date().getTime()), "_blank");
+    window.open("./api/settings/backup?token=" + sessionData.token + "&blockLists=" + blockLists + "&logs=" + logs + "&scopes=" + scopes + "&apps=" + apps + "&stats=" + stats + "&zones=" + zones + "&allowedZones=" + allowedZones + "&blockedZones=" + blockedZones + "&dnsSettings=" + dnsSettings + "&authConfig=" + authConfig + "&logSettings=" + logSettings + "&ts=" + (new Date().getTime()), "_blank");
 
     $("#modalBackupSettings").modal("hide");
     showAlert("success", "Backed Up!", "Settings were backed up successfully.");
@@ -2831,7 +2831,7 @@ function restoreSettings() {
     var btn = $("#btnRestoreSettings").button('loading');
 
     HTTPRequest({
-        url: "/api/settings/restore?token=" + sessionData.token + "&blockLists=" + blockLists + "&logs=" + logs + "&scopes=" + scopes + "&apps=" + apps + "&stats=" + stats + "&zones=" + zones + "&allowedZones=" + allowedZones + "&blockedZones=" + blockedZones + "&dnsSettings=" + dnsSettings + "&authConfig=" + authConfig + "&logSettings=" + logSettings + "&deleteExistingFiles=" + deleteExistingFiles,
+        url: "./api/settings/restore?token=" + sessionData.token + "&blockLists=" + blockLists + "&logs=" + logs + "&scopes=" + scopes + "&apps=" + apps + "&stats=" + stats + "&zones=" + zones + "&allowedZones=" + allowedZones + "&blockedZones=" + blockedZones + "&dnsSettings=" + dnsSettings + "&authConfig=" + authConfig + "&logSettings=" + logSettings + "&deleteExistingFiles=" + deleteExistingFiles,
         method: "POST",
         data: formData,
         contentType: false,
