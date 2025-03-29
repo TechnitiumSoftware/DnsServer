@@ -67,7 +67,7 @@ function refreshLogFilesList() {
             var list = "<div class=\"log\" style=\"font-size: 14px; padding-bottom: 6px;\"><a href=\"#\" onclick=\"deleteAllStats(); return false;\"><b>[delete all stats]</b></a></div>";
 
             if (logFiles.length == 0) {
-                list += "<div class=\"log\">No Log Was Found</div>";
+                list += "<div class=\"log\">No Log File Was Found</div>";
             }
             else {
                 list += "<div class=\"log\" style=\"font-size: 14px; padding-bottom: 6px;\"><a href=\"#\" onclick=\"deleteAllLogs(); return false;\"><b>[delete all logs]</b></a></div>";
@@ -330,8 +330,62 @@ function queryLogs(pageNumber) {
             var tableHtml = "";
 
             for (var i = 0; i < responseJSON.response.entries.length; i++) {
-                tableHtml += "<tr><td>" + responseJSON.response.entries[i].rowNumber + "</td><td>" +
-                    moment(responseJSON.response.entries[i].timestamp).local().format("YYYY-MM-DD HH:mm:ss") + "</td><td>" +
+                var trbgcolor;
+
+                switch (responseJSON.response.entries[i].rcode.toLowerCase()) {
+                    case "serverfailure":
+                        trbgcolor = "rgba(217, 83, 79, 0.1)";
+                        break;
+
+                    case "nxdomain":
+                        switch (responseJSON.response.entries[i].responseType.toLowerCase()) {
+                            case "blocked":
+                            case "upstreamblocked":
+                            case "upstreamblockedcached":
+                                trbgcolor = "rgba(255, 165, 0, 0.1)";
+                                break;
+
+                            default:
+                                trbgcolor = "rgba(120, 120, 120, 0.1)";
+                                break;
+                        }
+
+                        break;
+
+                    case "refused":
+                        trbgcolor = "rgba(91, 192, 222, 0.1)";
+                        break;
+
+                    default:
+                        switch (responseJSON.response.entries[i].responseType.toLowerCase()) {
+                            case "authoritative":
+                                trbgcolor = "rgba(150, 150, 0, 0.1)";
+                                break;
+
+                            case "recursive":
+                                trbgcolor = "rgba(23, 162, 184, 0.1)";
+                                break;
+
+                            case "cached":
+                                trbgcolor = "rgba(111, 84, 153, 0.1)";
+                                break;
+
+                            case "blocked":
+                            case "upstreamblocked":
+                            case "upstreamblockedcached":
+                                trbgcolor = "rgba(255, 165, 0, 0.1)";
+                                break;
+
+                            default:
+                                trbgcolor = null;
+                                break;
+                        }
+
+                        break;
+                }
+
+                tableHtml += "<tr" + (trbgcolor == null ? "" : " style=\"background-color: " + trbgcolor + ";\"") + "><td>" + responseJSON.response.entries[i].rowNumber + "</td><td>" +
+                    moment(responseJSON.response.entries[i].timestamp).local().format("YYYY-MM-DD HH:mm:ss") + "</td><td style=\"word-break: break-all;\">" +
                     responseJSON.response.entries[i].clientIpAddress + "</td><td>" +
                     responseJSON.response.entries[i].protocol + "</td><td>" +
                     responseJSON.response.entries[i].responseType + (responseJSON.response.entries[i].responseRtt == null ? "" : "<div style=\"font-size: 12px;\">(" + responseJSON.response.entries[i].responseRtt.toFixed(2) + " ms)</div>") + "</td><td>" +
@@ -347,7 +401,7 @@ function queryLogs(pageNumber) {
                 switch (responseJSON.response.entries[i].responseType.toLowerCase()) {
                     case "blocked":
                     case "upstreamblocked":
-                    case "cacheblocked":
+                    case "upstreamblockedcached":
                         tableHtml += "<li><a href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(responseJSON.response.entries[i].qname) + "\" onclick=\"allowDomain(this, 'btnQueryLogsRowOption'); return false;\">Allow Domain</a></li>";
                         break;
 
