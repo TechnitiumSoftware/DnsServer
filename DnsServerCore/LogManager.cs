@@ -35,6 +35,15 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore
 {
+    [Flags]
+    public enum LoggingType : byte
+    {
+        None = 0,
+        File = 1,
+        Console = 2,
+        FileAndConsole = 3
+    }
+
     public sealed class LogManager : IDisposable
     {
         #region variables
@@ -43,7 +52,7 @@ namespace DnsServerCore
 
         readonly string _configFolder;
 
-        bool _enableLogging;
+        LoggingType _loggingType;
         string _logFolder;
         int _maxLogFileDays;
         bool _useLocalTime;
@@ -51,6 +60,7 @@ namespace DnsServerCore
         const string LOG_ENTRY_DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
         const string LOG_FILE_DATE_TIME_FORMAT = "yyyy-MM-dd";
 
+        bool _isRunning;
         string _logFile;
         StreamWriter _logOut;
         DateTime _logDate;
@@ -84,28 +94,30 @@ namespace DnsServerCore
                 //log to console immediately
                 Console.WriteLine(e.ExceptionObject.ToString());
 
-                //try log to file
-                lock (_queueLock)
+                if (_loggingType.HasFlag(LoggingType.File))
                 {
-                    try
+                    //try log to file
+                    lock (_queueLock)
                     {
-                        _queueCancellationTokenSource.Cancel();
-
-                        lock (_logFileLock)
+                        try
                         {
-                            if (_logOut != null)
-                                WriteLog(DateTime.UtcNow, e.ExceptionObject.ToString());
+                            _queueCancellationTokenSource.Cancel();
+
+                            lock (_logFileLock)
+                            {
+                                WriteLog(DateTime.UtcNow, e.ExceptionObject.ToString(), LoggingType.File);
+                            }
                         }
-                    }
-                    catch (ObjectDisposedException)
-                    { }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(ex.ToString());
-                    }
-                    finally
-                    {
-                        _queueWait.Set();
+                        catch (ObjectDisposedException)
+                        { }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine(ex.ToString());
+                        }
+                        finally
+                        {
+                            _queueWait.Set();
+                        }
                     }
                 }
             };
@@ -154,7 +166,7 @@ namespace DnsServerCore
 
             LoadConfig();
 
-            if (_enableLogging)
+            if (_loggingType != LoggingType.None)
                 StartLogging();
 
             _saveTimer = new Timer(delegate (object state)
@@ -165,7 +177,7 @@ namespace DnsServerCore
                     {
                         try
                         {
-                            SaveConfigInternal();
+                            SaveConfigFileInternal();
                             _pendingSave = false;
                         }
                         catch (Exception ex)
@@ -224,8 +236,10 @@ namespace DnsServerCore
                         {
                             if (_logOut != null)
                             {
-                                WriteLog(DateTime.UtcNow, "Logging stopped.");
+                                WriteLog(DateTime.UtcNow, "Logging stopped.", LoggingType.File);
+
                                 _logOut.Dispose();
+                                _logOut = null;
                             }
 
                             _logCleanupTimer.Dispose();
@@ -252,90 +266,114 @@ namespace DnsServerCore
 
         internal void StartLogging()
         {
-            StartNewLog();
-
-            _queueWait.Set();
-
-            //start consumer thread
-            _consumerThread = new Thread(delegate ()
+            lock (_queueLock)
             {
-                while (true)
+                if (_isRunning)
+                    return;
+
+                if (_loggingType.HasFlag(LoggingType.File))
+                    StartNewLog();
+
+                _queueWait.Set();
+
+                //start consumer thread
+                _consumerThread = new Thread(delegate ()
                 {
-                    _queueWait.WaitOne();
-
-                    Monitor.Enter(_logFileLock);
-                    try
+                    while (true)
                     {
-                        if (_disposed || (_logOut == null))
-                            break;
+                        _queueWait.WaitOne();
 
-                        foreach (LogQueueItem item in _queue.GetConsumingEnumerable(_queueCancellationTokenSource.Token))
+                        Monitor.Enter(_logFileLock);
+                        try
                         {
-                            if (_useLocalTime)
+                            if (_disposed)
+                                break;
+
+                            foreach (LogQueueItem item in _queue.GetConsumingEnumerable(_queueCancellationTokenSource.Token))
                             {
-                                DateTime messageLocalDateTime = item._dateTime.ToLocalTime();
-
-                                if (messageLocalDateTime.Date > _logDate)
+                                if (_useLocalTime)
                                 {
-                                    WriteLog(DateTime.UtcNow, "Logging stopped.");
-                                    StartNewLog();
-                                }
+                                    DateTime messageLocalDateTime = item._dateTime.ToLocalTime();
 
-                                WriteLog(messageLocalDateTime, item._message);
+                                    if (_loggingType.HasFlag(LoggingType.File) && (messageLocalDateTime.Date > _logDate))
+                                    {
+                                        WriteLog(DateTime.UtcNow, "Logging stopped.", LoggingType.File);
+                                        StartNewLog();
+                                    }
+
+                                    WriteLog(messageLocalDateTime, item._message, _loggingType);
+                                }
+                                else
+                                {
+                                    if (_loggingType.HasFlag(LoggingType.File) && (item._dateTime.Date > _logDate))
+                                    {
+                                        WriteLog(DateTime.UtcNow, "Logging stopped.", LoggingType.File);
+                                        StartNewLog();
+                                    }
+
+                                    WriteLog(item._dateTime, item._message, _loggingType);
+                                }
                             }
-                            else
-                            {
-                                if (item._dateTime.Date > _logDate)
-                                {
-                                    WriteLog(DateTime.UtcNow, "Logging stopped.");
-                                    StartNewLog();
-                                }
+                        }
+                        catch (ObjectDisposedException)
+                        { }
+                        catch (OperationCanceledException)
+                        { }
+                        finally
+                        {
+                            Monitor.Exit(_logFileLock);
+                        }
 
-                                WriteLog(item._dateTime, item._message);
+                        _queueCancellationTokenSource = new CancellationTokenSource();
+
+                        lock (_queueLock)
+                        {
+                            if (!_isRunning)
+                            {
+                                Monitor.PulseAll(_queueLock); //signal stop logging of thread exit
+                                break;
                             }
                         }
                     }
-                    catch (ObjectDisposedException)
-                    { }
-                    catch (OperationCanceledException)
-                    { }
-                    finally
-                    {
-                        Monitor.Exit(_logFileLock);
-                    }
+                });
 
-                    _queueCancellationTokenSource = new CancellationTokenSource();
-                }
-            });
+                _consumerThread.Name = "Log";
+                _consumerThread.IsBackground = true;
+                _consumerThread.Start();
 
-            _consumerThread.Name = "Log";
-            _consumerThread.IsBackground = true;
-            _consumerThread.Start();
+                _isRunning = true;
+            }
         }
 
         internal void StopLogging()
         {
             lock (_queueLock)
             {
+                if (!_isRunning)
+                    return;
+
                 try
                 {
-                    if (_logOut != null)
-                        _queueCancellationTokenSource.Cancel();
+                    _queueCancellationTokenSource.Cancel();
 
                     lock (_logFileLock)
                     {
                         if (_logOut != null)
                         {
-                            WriteLog(DateTime.UtcNow, "Logging stopped.");
+                            WriteLog(DateTime.UtcNow, "Logging stopped.", LoggingType.File);
+
                             _logOut.Dispose();
-                            _logOut = null; //to stop consumer thread
+                            _logOut = null;
                         }
                     }
                 }
                 finally
                 {
+                    _isRunning = false;
                     _queueWait.Set();
                 }
+
+                Monitor.Wait(_queueLock); //wait for log consumer thread to exit to ensure that the thread stops
             }
         }
 
@@ -356,7 +394,7 @@ namespace DnsServerCore
                     switch (version)
                     {
                         case 1:
-                            _enableLogging = bR.ReadBoolean();
+                            _loggingType = (LoggingType)bR.ReadByte();
                             _logFolder = bR.ReadShortString();
                             _maxLogFileDays = bR.ReadInt32();
                             _useLocalTime = bR.ReadBoolean();
@@ -369,7 +407,7 @@ namespace DnsServerCore
             }
             catch (FileNotFoundException)
             {
-                _enableLogging = true;
+                _loggingType = LoggingType.File;
                 _logFolder = "logs";
                 _maxLogFileDays = 365;
                 _useLocalTime = false;
@@ -386,6 +424,36 @@ namespace DnsServerCore
                 _logCleanupTimer.Change(Timeout.Infinite, Timeout.Infinite);
             else
                 _logCleanupTimer.Change(LOG_CLEANUP_TIMER_INITIAL_INTERVAL, LOG_CLEANUP_TIMER_PERIODIC_INTERVAL);
+        }
+
+        private void UpdateLogFileState()
+        {
+            lock (_queueLock)
+            {
+                try
+                {
+                    if (_isRunning)
+                        _queueCancellationTokenSource.Cancel();
+
+                    lock (_logFileLock)
+                    {
+                        if (_logOut != null)
+                        {
+                            WriteLog(DateTime.UtcNow, "Logging stopped.", LoggingType.File);
+
+                            _logOut.Dispose();
+                            _logOut = null;
+                        }
+
+                        if (_loggingType.HasFlag(LoggingType.File))
+                            StartNewLog();
+                    }
+                }
+                finally
+                {
+                    _queueWait.Set();
+                }
+            }
         }
 
         private string ConvertToRelativePath(string path)
@@ -416,7 +484,7 @@ namespace DnsServerCore
                 bW.Write(Encoding.ASCII.GetBytes("LS")); //format
                 bW.Write((byte)1); //version
 
-                bW.Write(_enableLogging);
+                bW.Write((byte)_loggingType);
                 bW.WriteShortString(_logFolder);
                 bW.Write(_maxLogFileDays);
                 bW.Write(_useLocalTime);
@@ -427,32 +495,6 @@ namespace DnsServerCore
                 using (FileStream fS = new FileStream(logConfigFile, FileMode.Create, FileAccess.Write))
                 {
                     mS.CopyTo(fS);
-                }
-            }
-        }
-
-        private void SaveConfigInternal()
-        {
-            SaveConfigFileInternal();
-
-            if (_logOut is null)
-            {
-                //stopped
-                if (_enableLogging)
-                    StartLogging();
-            }
-            else
-            {
-                //running
-                if (!_enableLogging)
-                {
-                    StopLogging();
-                }
-                else if (!_logFile.StartsWith(ConvertToAbsolutePath(_logFolder)))
-                {
-                    //log folder changed; restart logging to new folder
-                    StopLogging();
-                    StartLogging();
                 }
             }
         }
@@ -478,27 +520,36 @@ namespace DnsServerCore
             _logOut = new StreamWriter(new FileStream(_logFile, FileMode.Append, FileAccess.Write, FileShare.Read));
             _logDate = logStartDateTime.Date;
 
-            WriteLog(logStartDateTime, "Logging started.");
+            WriteLog(logStartDateTime, "Logging started.", LoggingType.File);
         }
 
-        private void WriteLog(DateTime dateTime, string message)
+        private void WriteLog(DateTime dateTime, string message, LoggingType loggingType)
         {
+            string logEntry;
+
             if (_useLocalTime)
             {
                 if (dateTime.Kind == DateTimeKind.Local)
-                    _logOut.WriteLine("[" + dateTime.ToString(LOG_ENTRY_DATE_TIME_FORMAT) + " Local] " + message);
+                    logEntry = "[" + dateTime.ToString(LOG_ENTRY_DATE_TIME_FORMAT) + " Local] " + message;
                 else
-                    _logOut.WriteLine("[" + dateTime.ToLocalTime().ToString(LOG_ENTRY_DATE_TIME_FORMAT) + " Local] " + message);
+                    logEntry = "[" + dateTime.ToLocalTime().ToString(LOG_ENTRY_DATE_TIME_FORMAT) + " Local] " + message;
             }
             else
             {
                 if (dateTime.Kind == DateTimeKind.Utc)
-                    _logOut.WriteLine("[" + dateTime.ToString(LOG_ENTRY_DATE_TIME_FORMAT) + " UTC] " + message);
+                    logEntry = "[" + dateTime.ToString(LOG_ENTRY_DATE_TIME_FORMAT) + " UTC] " + message;
                 else
-                    _logOut.WriteLine("[" + dateTime.ToUniversalTime().ToString(LOG_ENTRY_DATE_TIME_FORMAT) + " UTC] " + message);
+                    logEntry = "[" + dateTime.ToUniversalTime().ToString(LOG_ENTRY_DATE_TIME_FORMAT) + " UTC] " + message;
             }
 
-            _logOut.Flush();
+            if (loggingType.HasFlag(LoggingType.File) && (_logOut is not null))
+            {
+                _logOut.WriteLine(logEntry);
+                _logOut.Flush();
+            }
+
+            if (loggingType.HasFlag(LoggingType.Console))
+                Console.WriteLine(logEntry);
         }
 
         #endregion
@@ -741,7 +792,7 @@ namespace DnsServerCore
 
         public void Write(string message)
         {
-            if (_enableLogging)
+            if (_loggingType != LoggingType.None)
                 _queue.Add(new LogQueueItem(message));
         }
 
@@ -751,17 +802,20 @@ namespace DnsServerCore
             {
                 try
                 {
-                    if (_logOut != null)
+                    if (_isRunning)
                         _queueCancellationTokenSource.Cancel();
 
                     lock (_logFileLock)
                     {
                         if (_logOut != null)
+                        {
                             _logOut.Dispose();
+                            _logOut = null;
+                        }
 
                         File.Delete(_logFile);
 
-                        if (_enableLogging)
+                        if (_loggingType.HasFlag(LoggingType.File))
                             StartNewLog();
                     }
                 }
@@ -788,10 +842,44 @@ namespace DnsServerCore
 
         #region properties
 
-        public bool EnableLogging
+        public LoggingType LoggingType
         {
-            get { return _enableLogging; }
-            set { _enableLogging = value; }
+            get { return _loggingType; }
+            set
+            {
+                _loggingType = value;
+
+                if (_isRunning)
+                {
+                    //running
+                    if (_loggingType == LoggingType.None)
+                    {
+                        StopLogging();
+                    }
+                    else if (_loggingType.HasFlag(LoggingType.File))
+                    {
+                        if ((_logOut is null) || !_logFile.StartsWith(ConvertToAbsolutePath(_logFolder)))
+                        {
+                            //file not being logged or log folder changed; start new log file
+                            UpdateLogFileState();
+                        }
+                    }
+                    else if (_loggingType == LoggingType.Console)
+                    {
+                        if (_logOut is not null)
+                        {
+                            //only console logging enabled; close any open log file
+                            UpdateLogFileState();
+                        }
+                    }
+                }
+                else
+                {
+                    //stopped
+                    if (_loggingType != LoggingType.None)
+                        StartLogging();
+                }
+            }
         }
 
         public string LogFolder
