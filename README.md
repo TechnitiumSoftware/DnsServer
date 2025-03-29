@@ -41,7 +41,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Advanced caching with features like serve stale, prefetching and auto prefetching.
 - Persistent caching feature that saves cache to disk when DNS server restarts.
 - DNS rebinding attack protection feature available with DNS Rebinding Protection App.
-- DNSSEC validation support with RSA & ECDSA algorithms for recursive resolver, forwarders, and conditional forwarders with NSEC and NSEC3 support.
+- DNSSEC validation support with RSA, ECDSA & EdDSA algorithms for recursive resolver, forwarders, and conditional forwarders with NSEC and NSEC3 support.
 - DNSSEC support for all supported DNS transport protocols including encrypted DNS protocols.
 - DANE TLSA [RFC 6698](https://datatracker.ietf.org/doc/html/rfc6698) record type support. This includes support for automatically generating the hash values using certificates in PEM format.
 - SVCB & HTTPS [draft-ietf-dnsop-svcb-https](https://www.ietf.org/archive/id/draft-ietf-dnsop-svcb-https-12.html) record type support.
@@ -60,7 +60,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Supports Catalog Zones [RFC 9432](https://datatracker.ietf.org/doc/rfc9432/).
 - Supports record aging where the records with expiry set are automatically removed from the zone.
 - Bulk conditional forwarding support using Advanced Forwarding DNS App.
-- DNSSEC signed zones support with RSA & ECDSA algorithms.
+- DNSSEC signed zones support with RSA, ECDSA & EdDSA algorithms.
 - DNSSEC support for both NSEC and NSEC3.
 - Zone transfer with AXFR and IXFR [RFC 1995](https://www.rfc-editor.org/rfc/rfc1995.html) and DNS NOTIFY [RFC 1996](https://www.rfc-editor.org/rfc/rfc1996.html) support.
 - Zone transfer over TLS (XFR-over-TLS) [RFC 9103](https://www.rfc-editor.org/rfc/rfc9103.html) support.
