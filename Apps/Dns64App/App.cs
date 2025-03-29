@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -34,11 +34,13 @@ namespace Dns64
     // DNS64: DNS Extensions for Network Address Translation from IPv6 Clients to IPv4 Servers
     // https://www.rfc-editor.org/rfc/rfc6147
 
-    public sealed class App : IDnsApplication, IDnsPostProcessor, IDnsAuthoritativeRequestHandler
+    public sealed class App : IDnsApplication, IDnsPostProcessor, IDnsAuthoritativeRequestHandler, IDnsApplicationPreference
     {
         #region variables
 
         IDnsServer _dnsServer;
+
+        byte _appPreference;
 
         bool _enableDns64;
         Dictionary<NetworkAddress, string> _networkGroupMap;
@@ -63,6 +65,8 @@ namespace Dns64
 
             using JsonDocument jsonDocument = JsonDocument.Parse(config);
             JsonElement jsonConfig = jsonDocument.RootElement;
+
+            _appPreference = Convert.ToByte(jsonConfig.GetPropertyValue("appPreference", 30));
 
             _enableDns64 = jsonConfig.GetProperty("enableDns64").GetBoolean();
 
@@ -262,6 +266,9 @@ namespace Dns64
 
         public string Description
         { get { return "Enables DNS64 function for both authoritative and recursive resolver responses for use by IPv6 only clients."; } }
+
+        public byte Preference
+        { get { return _appPreference; } }
 
         #endregion
 
