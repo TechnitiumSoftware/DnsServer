@@ -511,12 +511,13 @@ namespace DnsServerCore
             _webService.MapGetAndPost("/api/zones/dnssec/properties/convertToNSEC3", _zonesApi.ConvertPrimaryZoneToNSEC3);
             _webService.MapGetAndPost("/api/zones/dnssec/properties/updateNSEC3Params", _zonesApi.UpdatePrimaryZoneNSEC3Parameters);
             _webService.MapGetAndPost("/api/zones/dnssec/properties/updateDnsKeyTtl", _zonesApi.UpdatePrimaryZoneDnssecDnsKeyTtl);
-            _webService.MapGetAndPost("/api/zones/dnssec/properties/generatePrivateKey", _zonesApi.GenerateAndAddPrimaryZoneDnssecPrivateKey);
+            _webService.MapGetAndPost("/api/zones/dnssec/properties/generatePrivateKey", _zonesApi.AddPrimaryZoneDnssecPrivateKey);
+            _webService.MapGetAndPost("/api/zones/dnssec/properties/addPrivateKey", _zonesApi.AddPrimaryZoneDnssecPrivateKey);
             _webService.MapGetAndPost("/api/zones/dnssec/properties/updatePrivateKey", _zonesApi.UpdatePrimaryZoneDnssecPrivateKey);
             _webService.MapGetAndPost("/api/zones/dnssec/properties/deletePrivateKey", _zonesApi.DeletePrimaryZoneDnssecPrivateKey);
             _webService.MapGetAndPost("/api/zones/dnssec/properties/publishAllPrivateKeys", _zonesApi.PublishAllGeneratedPrimaryZoneDnssecPrivateKeys);
             _webService.MapGetAndPost("/api/zones/dnssec/properties/rolloverDnsKey", _zonesApi.RolloverPrimaryZoneDnsKey);
-            _webService.MapGetAndPost("/api/zones/dnssec/properties/retireDnsKey", _zonesApi.RetirePrimaryZoneDnsKey);
+            _webService.MapGetAndPost("/api/zones/dnssec/properties/retireDnsKey", _zonesApi.RetirePrimaryZoneDnsKeyAsync);
             _webService.MapGetAndPost("/api/zones/records/add", _zonesApi.AddRecord);
             _webService.MapGetAndPost("/api/zones/records/get", _zonesApi.GetRecords);
             _webService.MapGetAndPost("/api/zones/records/update", _zonesApi.UpdateRecord);
@@ -1092,7 +1093,6 @@ namespace DnsServerCore
 
                 _dnsServer.RandomizeName = false; //default false to allow resolving from bad name servers
                 _dnsServer.QnameMinimization = true; //default true to enable privacy feature
-                _dnsServer.NsRevalidation = false; //default false to allow resolving misconfigured zones
 
                 //cache
                 _dnsServer.CacheZoneManager.MaximumEntries = 10000;
@@ -1283,7 +1283,7 @@ namespace DnsServerCore
 
             int version = bR.ReadByte();
 
-            if ((version >= 28) && (version <= 40))
+            if ((version >= 28) && (version <= 41))
             {
                 ReadConfigFrom(bR, version);
             }
@@ -1719,7 +1719,9 @@ namespace DnsServerCore
 
                 _dnsServer.RandomizeName = bR.ReadBoolean();
                 _dnsServer.QnameMinimization = bR.ReadBoolean();
-                _dnsServer.NsRevalidation = bR.ReadBoolean();
+
+                if (version <= 40)
+                    _ = bR.ReadBoolean(); //removed NsRevalidation option
 
                 _dnsServer.ResolverRetries = bR.ReadInt32();
                 _dnsServer.ResolverTimeout = bR.ReadInt32();
@@ -2462,9 +2464,7 @@ namespace DnsServerCore
             }
 
             if (version >= 22)
-                _dnsServer.NsRevalidation = bR.ReadBoolean();
-            else
-                _dnsServer.NsRevalidation = false; //default false to allow resolving misconfigured zones
+                _ = bR.ReadBoolean(); //removed NsRevalidation option
 
             if (version >= 23)
             {
@@ -2539,7 +2539,7 @@ namespace DnsServerCore
         private void WriteConfigTo(BinaryWriter bW)
         {
             bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-            bW.Write((byte)40); //version
+            bW.Write((byte)41); //version
 
             //web service
             {
@@ -2699,7 +2699,6 @@ namespace DnsServerCore
 
                 bW.Write(_dnsServer.RandomizeName);
                 bW.Write(_dnsServer.QnameMinimization);
-                bW.Write(_dnsServer.NsRevalidation);
 
                 bW.Write(_dnsServer.ResolverRetries);
                 bW.Write(_dnsServer.ResolverTimeout);
@@ -2876,7 +2875,7 @@ namespace DnsServerCore
                 LoadConfigFile();
 
                 //load all dns applications
-                _dnsServer.DnsApplicationManager.LoadAllApplications();
+                await _dnsServer.DnsApplicationManager.LoadAllApplicationsAsync();
 
                 //load all zones files
                 _dnsServer.AuthZoneManager.SecondaryCatalogZoneAdded += AuthZoneManager_SecondaryCatalogZoneAdded;
