@@ -130,9 +130,9 @@ namespace DnsServerCore.Dns
 
         #endregion
 
-        #region public
+        #region protected
 
-        public async Task<DnsDatagram> QueryClosestDelegationAsync(DnsDatagram request)
+        protected async Task<DnsDatagram> QueryClosestDelegationAsync(DnsDatagram request)
         {
             DnsDatagram authResponse = _dnsServer.AuthZoneManager.QueryClosestDelegation(request);
             if (authResponse is null)
@@ -158,6 +158,10 @@ namespace DnsServerCore.Dns
                 return cacheResponse;
             }
         }
+
+        #endregion
+
+        #region public
 
         public virtual async Task<DnsDatagram> QueryAsync(DnsDatagram request, bool serveStale, bool findClosestNameServers = false, bool resetExpiry = false)
         {
