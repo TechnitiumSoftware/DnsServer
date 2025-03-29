@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -60,10 +60,10 @@ namespace DnsServerCore.Dns.Zones
 
                 default:
                     if (records[0].OriginalTtlValue > _forwarderZone.GetZoneSoaExpire())
-                        throw new DnsServerException("Failed to set records: TTL cannot be greater than SOA EXPIRE.");
+                        throw new DnsServerException("Cannot set records: TTL cannot be greater than SOA EXPIRE.");
 
                     if (!TrySetRecords(type, records, out IReadOnlyList<DnsResourceRecord> deletedRecords))
-                        throw new DnsServerException("Failed to set records. Please try again.");
+                        throw new DnsServerException("Cannot set records. Please try again.");
 
                     _forwarderZone.CommitAndIncrementSerial(deletedRecords, records);
 
@@ -86,16 +86,16 @@ namespace DnsServerCore.Dns.Zones
 
                 default:
                     if (record.OriginalTtlValue > _forwarderZone.GetZoneSoaExpire())
-                        throw new DnsServerException("Failed to add record: TTL cannot be greater than SOA EXPIRE.");
+                        throw new DnsServerException("Cannot add record: TTL cannot be greater than SOA EXPIRE.");
 
                     AddRecord(record, out IReadOnlyList<DnsResourceRecord> addedRecords, out IReadOnlyList<DnsResourceRecord> deletedRecords);
 
-                    if (addedRecords.Count > 0)
-                    {
-                        _forwarderZone.CommitAndIncrementSerial(deletedRecords, addedRecords);
+                    if (addedRecords.Count == 0)
+                        throw new DnsServerException("Cannot add record: the record already exists.");
 
-                        _forwarderZone.TriggerNotify();
-                    }
+                    _forwarderZone.CommitAndIncrementSerial(deletedRecords, addedRecords);
+
+                    _forwarderZone.TriggerNotify();
                     break;
             }
         }
@@ -140,16 +140,18 @@ namespace DnsServerCore.Dns.Zones
                         throw new InvalidOperationException("Old and new record types do not match.");
 
                     if (newRecord.OriginalTtlValue > _forwarderZone.GetZoneSoaExpire())
-                        throw new DnsServerException("Failed to update record: TTL cannot be greater than SOA EXPIRE.");
-
-                    if (!TryDeleteRecord(oldRecord.Type, oldRecord.RDATA, out DnsResourceRecord deletedRecord))
-                        throw new InvalidOperationException("Cannot update record: the record does not exists to be updated.");
+                        throw new DnsServerException("Cannot update record: TTL cannot be greater than SOA EXPIRE.");
 
                     AddRecord(newRecord, out IReadOnlyList<DnsResourceRecord> addedRecords, out IReadOnlyList<DnsResourceRecord> deletedRecords);
 
+                    if (addedRecords.Count == 0)
+                        throw new DnsServerException("Cannot update record: the updated record already exists.");
+
                     List<DnsResourceRecord> allDeletedRecords = new List<DnsResourceRecord>(deletedRecords.Count + 1);
-                    allDeletedRecords.Add(deletedRecord);
                     allDeletedRecords.AddRange(deletedRecords);
+
+                    if (TryDeleteRecord(oldRecord.Type, oldRecord.RDATA, out DnsResourceRecord deletedRecord))
+                        allDeletedRecords.Add(deletedRecord);
 
                     _forwarderZone.CommitAndIncrementSerial(allDeletedRecords, addedRecords);
 
