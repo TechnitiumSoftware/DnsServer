@@ -200,6 +200,9 @@ th a {
     display: none;
 }
 
+.query-logs tr:hover {
+    backdrop-filter: brightness(95%);
+}
 
 .stats-panel {
     height: 80px;
