@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -32,11 +32,13 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace AdvancedForwarding
 {
-    public sealed class App : IDnsApplication, IDnsAuthoritativeRequestHandler
+    public sealed class App : IDnsApplication, IDnsAuthoritativeRequestHandler, IDnsApplicationPreference
     {
         #region variables
 
         IDnsServer _dnsServer;
+
+        byte _appPreference;
 
         bool _enableForwarding;
         Dictionary<string, ConfigProxyServer> _configProxyServers;
@@ -110,6 +112,8 @@ namespace AdvancedForwarding
 
             using JsonDocument jsonDocument = JsonDocument.Parse(config);
             JsonElement jsonConfig = jsonDocument.RootElement;
+
+            _appPreference = Convert.ToByte(jsonConfig.GetPropertyValue("appPreference", 200));
 
             _enableForwarding = jsonConfig.GetPropertyValue("enableForwarding", true);
 
@@ -203,6 +207,9 @@ namespace AdvancedForwarding
 
         public string Description
         { get { return "Performs bulk conditional forwarding for configured domain names and AdGuard Upstream config files."; } }
+
+        public byte Preference
+        { get { return _appPreference; } }
 
         #endregion
 
