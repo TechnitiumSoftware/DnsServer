@@ -77,9 +77,11 @@ namespace DnsServerCore.Dns.ZoneManagers
             //read and set glue records from base class; also collect any DNAME records found
             foreach (DnsResourceRecord resourceRecord in resourceRecords)
             {
-                IReadOnlyList<DnsResourceRecord> glueRecords = GetGlueRecordsFrom(resourceRecord);
-                IReadOnlyList<DnsResourceRecord> rrsigRecords = GetRRSIGRecordsFrom(resourceRecord);
-                IReadOnlyList<DnsResourceRecord> nsecRecords = GetNSECRecordsFrom(resourceRecord);
+                DnsResourceRecordInfo recordInfo = GetRecordInfo(resourceRecord);
+
+                IReadOnlyList<DnsResourceRecord> glueRecords = recordInfo.GlueRecords;
+                IReadOnlyList<DnsResourceRecord> rrsigRecords = recordInfo.RRSIGRecords;
+                IReadOnlyList<DnsResourceRecord> nsecRecords = recordInfo.NSECRecords;
 
                 CacheRecordInfo rrInfo = resourceRecord.GetCacheRecordInfo();
 
@@ -93,7 +95,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 {
                     foreach (DnsResourceRecord glueRecord in glueRecords)
                     {
-                        IReadOnlyList<DnsResourceRecord> glueRRSIGRecords = GetRRSIGRecordsFrom(glueRecord);
+                        IReadOnlyList<DnsResourceRecord> glueRRSIGRecords = GetRecordInfo(glueRecord).RRSIGRecords;
                         if (glueRRSIGRecords is not null)
                             glueRecord.GetCacheRecordInfo().RRSIGRecords = glueRRSIGRecords;
                     }
@@ -103,7 +105,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 {
                     foreach (DnsResourceRecord nsecRecord in nsecRecords)
                     {
-                        IReadOnlyList<DnsResourceRecord> nsecRRSIGRecords = GetRRSIGRecordsFrom(nsecRecord);
+                        IReadOnlyList<DnsResourceRecord> nsecRRSIGRecords = GetRecordInfo(nsecRecord).RRSIGRecords;
                         if (nsecRRSIGRecords is not null)
                             nsecRecord.GetCacheRecordInfo().RRSIGRecords = nsecRRSIGRecords;
                     }
@@ -268,7 +270,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 if (!_root.TryGet(cnameDomain, out CacheZone cacheZone))
                     break;
 
-                IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(question.Type, serveStale, true, eDnsClientSubnet, advancedForwardingClientSubnet);
+                IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(question.Type == DnsResourceRecordType.NS ? DnsResourceRecordType.CHILD_NS : question.Type, serveStale, true, eDnsClientSubnet, advancedForwardingClientSubnet);
                 if (records.Count < 1)
                     break;
 
@@ -642,9 +644,10 @@ namespace DnsServerCore.Dns.ZoneManagers
                 zone.ListAllRecords(records);
         }
 
-        public override Task<DnsDatagram> QueryClosestDelegationAsync(DnsDatagram request)
+        public Task<DnsDatagram> QueryClosestDelegationAsync(DnsDatagram request)
         {
-            string domain = request.Question[0].Name;
+            DnsQuestionRecord question = request.Question[0];
+            string domain = question.Name;
 
             NetworkAddress eDnsClientSubnet = null;
             bool advancedForwardingClientSubnet = false;
@@ -657,6 +660,14 @@ namespace DnsServerCore.Dns.ZoneManagers
                 }
             }
 
+            if (question.Type == DnsResourceRecordType.DS)
+            {
+                //find parent delegation
+                domain = AuthZoneManager.GetParentZone(question.Name);
+                if (domain is null)
+                    return Task.FromResult<DnsDatagram>(null); //dont find NS for root
+            }
+
             do
             {
                 _ = _root.FindZone(domain, out _, out CacheZone delegation);
@@ -665,6 +676,9 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                 //return closest name servers in delegation
                 IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS, false, true, eDnsClientSubnet, advancedForwardingClientSubnet);
+                if ((closestAuthority.Count == 0) && (delegation.Name.Length == 0))
+                    closestAuthority = delegation.QueryRecords(DnsResourceRecordType.CHILD_NS, false, true, eDnsClientSubnet, advancedForwardingClientSubnet); //root zone case
+
                 if ((closestAuthority.Count > 0) && (closestAuthority[0].Type == DnsResourceRecordType.NS))
                 {
                     if (request.DnssecOk)
@@ -728,7 +742,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (zone is not null)
             {
                 //zone found
-                IReadOnlyList<DnsResourceRecord> answer = zone.QueryRecords(question.Type, serveStale, false, eDnsClientSubnet, advancedForwardingClientSubnet);
+                IReadOnlyList<DnsResourceRecord> answer = zone.QueryRecords(question.Type == DnsResourceRecordType.NS ? DnsResourceRecordType.CHILD_NS : question.Type, serveStale, false, eDnsClientSubnet, advancedForwardingClientSubnet);
                 if (answer.Count > 0)
                 {
                     //answer found in cache
@@ -1001,8 +1015,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                 }
             }
 
-            //no answer in cache
-            beforeFindClosestNameServers:
+        //no answer in cache
+        beforeFindClosestNameServers:
 
             //check for closest delegation if any
             if (findClosestNameServers && (delegation is not null))
@@ -1023,6 +1037,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                 while (true)
                 {
                     IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS, serveStale, true, eDnsClientSubnet, advancedForwardingClientSubnet);
+                    if ((closestAuthority.Count == 0) && (delegation.Name.Length == 0))
+                        closestAuthority = delegation.QueryRecords(DnsResourceRecordType.CHILD_NS, serveStale, true, eDnsClientSubnet, advancedForwardingClientSubnet); //root zone case
+
                     if ((closestAuthority.Count > 0) && (closestAuthority[0].Type == DnsResourceRecordType.NS))
                     {
                         if (dnssecOk)
