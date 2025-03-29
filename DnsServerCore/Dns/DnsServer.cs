@@ -185,7 +185,6 @@ namespace DnsServerCore.Dns
 
         bool _randomizeName;
         bool _qnameMinimization;
-        bool _nsRevalidation;
 
         int _resolverRetries = 2;
         int _resolverTimeout = 1500;
@@ -1188,7 +1187,7 @@ namespace DnsServerCore.Dns
                 {
                     response = await postProcessor.PostProcessAsync(request, remoteEP, protocol, response);
                     if (response is null)
-                        return null;
+                        return null; //drop request
                 }
                 catch (Exception ex)
                 {
@@ -2986,7 +2985,7 @@ namespace DnsServerCore.Dns
             else if ((DnsServerResponseType)response.Tag == DnsServerResponseType.Cached)
             {
                 if (response.IsBlockedResponse())
-                    response.Tag = DnsServerResponseType.CacheBlocked;
+                    response.Tag = DnsServerResponseType.UpstreamBlockedCached;
             }
 
             return response;
@@ -3232,7 +3231,7 @@ namespace DnsServerCore.Dns
                         //do force recursive resolution
                         response = await TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
                         {
-                            return DnsClient.RecursiveResolveAsync(question, dnsCache, _proxy, _preferIPv6, _udpPayloadSize, _randomizeName, _qnameMinimization, dnssecValidation, eDnsClientSubnet, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, true, _nsRevalidation, true, cancellationToken: cancellationToken1);
+                            return DnsClient.RecursiveResolveAsync(question, dnsCache, _proxy, _preferIPv6, _udpPayloadSize, _randomizeName, _qnameMinimization, dnssecValidation, eDnsClientSubnet, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, true, true, cancellationToken: cancellationToken1);
                         }, RECURSIVE_RESOLUTION_TIMEOUT);
                     }
                 }
@@ -3251,7 +3250,7 @@ namespace DnsServerCore.Dns
                         break;
 
                     default:
-                        throw new DnsServerException("DNS Server received a response for '" + question.ToString() + "' with RCODE=" + response.RCODE.ToString() + " from: " + (response.Metadata is null ? "unknown" : response.Metadata.NameServer));
+                        throw new DnsServerException("All name servers failed to answer the request '" + question.ToString() + "'. Received last response with RCODE=" + response.RCODE.ToString() + " from: " + (response.Metadata is null ? "unknown" : response.Metadata.NameServer));
                 }
             }
             catch (Exception ex)
@@ -3485,7 +3484,7 @@ namespace DnsServerCore.Dns
                 //do recursive resolution
                 return await TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
                 {
-                    return DnsClient.RecursiveResolveAsync(question, dnsCache, _proxy, _preferIPv6, _udpPayloadSize, _randomizeName, _qnameMinimization, dnssecValidation, eDnsClientSubnet, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, true, _nsRevalidation, true, null, cancellationToken1);
+                    return DnsClient.RecursiveResolveAsync(question, dnsCache, _proxy, _preferIPv6, _udpPayloadSize, _randomizeName, _qnameMinimization, dnssecValidation, eDnsClientSubnet, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, true, true, null, cancellationToken1);
                 }, RECURSIVE_RESOLUTION_TIMEOUT, cancellationToken);
             }
         }
@@ -3784,10 +3783,24 @@ namespace DnsServerCore.Dns
                 return finalCdResponse;
             }
 
+            DnsResponseCode rCode;
             DnsDatagram response = resolveResponse.Response;
             IReadOnlyList<DnsResourceRecord> answer = response.Answer;
             IReadOnlyList<DnsResourceRecord> authority = response.Authority;
             IReadOnlyList<DnsResourceRecord> additional = response.Additional;
+
+            switch (response.RCODE)
+            {
+                case DnsResponseCode.NoError:
+                case DnsResponseCode.NxDomain:
+                case DnsResponseCode.YXDomain:
+                    rCode = response.RCODE;
+                    break;
+
+                default:
+                    rCode = DnsResponseCode.ServerFailure;
+                    break;
+            }
 
             //answer section checks
             if (!dnssecOk && (answer.Count > 0) && (response.Question[0].Type != DnsResourceRecordType.ANY))
@@ -3952,7 +3965,7 @@ namespace DnsServerCore.Dns
                         options = newOptions;
                     }
 
-                    newAdditional.Add(DnsDatagramEdns.GetOPTFor(_udpPayloadSize, response.RCODE, 0, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options));
+                    newAdditional.Add(DnsDatagramEdns.GetOPTFor(_udpPayloadSize, rCode, 0, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options));
 
                     additional = newAdditional;
                 }
@@ -3996,7 +4009,7 @@ namespace DnsServerCore.Dns
                     }
                 }
 
-                DnsDatagram finalResponse = new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, authenticData, request.CheckingDisabled, response.RCODE, request.Question, answer, authority, additional);
+                DnsDatagram finalResponse = new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, authenticData, request.CheckingDisabled, rCode, request.Question, answer, authority, additional);
                 DnsDatagramMetadata metadata = response.Metadata;
                 if (metadata is not null)
                     finalResponse.SetMetadata(metadata.NameServer, metadata.RoundTripTime);
@@ -5893,12 +5906,6 @@ namespace DnsServerCore.Dns
         {
             get { return _qnameMinimization; }
             set { _qnameMinimization = value; }
-        }
-
-        public bool NsRevalidation
-        {
-            get { return _nsRevalidation; }
-            set { _nsRevalidation = value; }
         }
 
         public int ResolverRetries
