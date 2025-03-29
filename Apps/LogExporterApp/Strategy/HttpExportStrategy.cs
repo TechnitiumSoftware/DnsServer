@@ -95,7 +95,8 @@ namespace LogExporter.Strategy
             {
                 foreach (IConfigurationSection pair in configuration.GetChildren())
                 {
-                    _httpClient.DefaultRequestHeaders.Add(pair.Key, pair.Value);
+                    if (!_httpClient.DefaultRequestHeaders.TryAddWithoutValidation(pair.Key, pair.Value))
+                        throw new FormatException($"Failed to add header '{pair.Key}'.");
                 }
             }
 
