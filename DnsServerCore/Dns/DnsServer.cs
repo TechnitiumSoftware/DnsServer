@@ -412,7 +412,12 @@ namespace DnsServerCore.Dns
                                 }
 
                                 ProxyProtocolStream proxyStream = await ProxyProtocolStream.CreateAsServerAsync(recvBufferStream);
-                                remoteEP = new IPEndPoint(proxyStream.SourceAddress, proxyStream.SourcePort);
+
+                                if (!proxyStream.IsLocal)
+                                {
+                                    remoteEP = new IPEndPoint(proxyStream.SourceAddress, proxyStream.SourcePort);
+                                }
+                                
                                 recvBufferStream.Position = proxyStream.DataOffset;
                             }
 
