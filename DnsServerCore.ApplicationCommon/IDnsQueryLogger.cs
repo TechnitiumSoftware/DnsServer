@@ -31,7 +31,7 @@ namespace DnsServerCore.ApplicationCommon
         Cached = 3,
         Blocked = 4,
         UpstreamBlocked = 5,
-        CacheBlocked = 6,
+        UpstreamBlockedCached = 6,
         Dropped = 7
     }
 
