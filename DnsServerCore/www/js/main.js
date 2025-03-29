@@ -386,8 +386,10 @@ $(function () {
         $("#txtForwarderConcurrency").prop("disabled", !concurrentForwarding)
     });
 
-    $("#chkEnableLogging").click(function () {
-        var enableLogging = $("#chkEnableLogging").prop("checked");
+    $("input[type=radio][name=rdLoggingType]").change(function () {
+        var rdLoggingType = $('input[name=rdLoggingType]:checked').val();
+        var enableLogging = rdLoggingType.toLowerCase() != "none";
+
         $("#chkIgnoreResolverLogs").prop("disabled", !enableLogging);
         $("#chkLogQueries").prop("disabled", !enableLogging);
         $("#chkUseLocalTime").prop("disabled", !enableLogging);
@@ -1155,7 +1157,6 @@ function loadDnsSettings(responseJSON) {
 
     $("#chkRandomizeName").prop("checked", responseJSON.response.randomizeName);
     $("#chkQnameMinimization").prop("checked", responseJSON.response.qnameMinimization);
-    $("#chkNsRevalidation").prop("checked", responseJSON.response.nsRevalidation);
 
     $("#txtResolverRetries").val(responseJSON.response.resolverRetries);
     $("#txtResolverTimeout").val(responseJSON.response.resolverTimeout);
@@ -1339,12 +1340,34 @@ function loadDnsSettings(responseJSON) {
     $("#txtForwarderConcurrency").val(responseJSON.response.forwarderConcurrency);
 
     //logging
-    $("#chkEnableLogging").prop("checked", responseJSON.response.enableLogging);
+    var enableLogging;
 
-    $("#chkIgnoreResolverLogs").prop("disabled", !responseJSON.response.enableLogging);
-    $("#chkLogQueries").prop("disabled", !responseJSON.response.enableLogging);
-    $("#chkUseLocalTime").prop("disabled", !responseJSON.response.enableLogging);
-    $("#txtLogFolderPath").prop("disabled", !responseJSON.response.enableLogging);
+    switch (responseJSON.response.loggingType.toLowerCase()) {
+        case "file":
+            $("#rdLoggingTypeFile").prop("checked", true);
+            enableLogging = true;
+            break;
+
+        case "console":
+            $("#rdLoggingTypeConsole").prop("checked", true);
+            enableLogging = true;
+            break;
+
+        case "fileandconsole":
+            $("#rdLoggingTypeFileAndConsole").prop("checked", true);
+            enableLogging = true;
+            break;
+
+        default:
+            $("#rdLoggingTypeNone").prop("checked", true);
+            enableLogging = false;
+            break;
+    }
+
+    $("#chkIgnoreResolverLogs").prop("disabled", !enableLogging);
+    $("#chkLogQueries").prop("disabled", !enableLogging);
+    $("#chkUseLocalTime").prop("disabled", !enableLogging);
+    $("#txtLogFolderPath").prop("disabled", !enableLogging);
 
     $("#chkIgnoreResolverLogs").prop("checked", responseJSON.response.ignoreResolverLogs);
     $("#chkLogQueries").prop("checked", responseJSON.response.logQueries);
@@ -1618,7 +1641,6 @@ function saveDnsSettings() {
 
     var randomizeName = $("#chkRandomizeName").prop('checked');
     var qnameMinimization = $("#chkQnameMinimization").prop('checked');
-    var nsRevalidation = $("#chkNsRevalidation").prop('checked');
 
     var resolverRetries = $("#txtResolverRetries").val();
     if ((resolverRetries == null) || (resolverRetries === "")) {
@@ -1815,7 +1837,7 @@ function saveDnsSettings() {
     }
 
     //logging
-    var enableLogging = $("#chkEnableLogging").prop('checked');
+    var loggingType = $("input[name=rdLoggingType]:checked").val();
     var ignoreResolverLogs = $("#chkIgnoreResolverLogs").prop('checked');
     var logQueries = $("#chkLogQueries").prop('checked');
     var useLocalTime = $("#chkUseLocalTime").prop('checked');
@@ -1839,11 +1861,11 @@ function saveDnsSettings() {
             + "&webServiceLocalAddresses=" + encodeURIComponent(webServiceLocalAddresses) + "&webServiceHttpPort=" + webServiceHttpPort + "&webServiceEnableTls=" + webServiceEnableTls + "&webServiceEnableHttp3=" + webServiceEnableHttp3 + "&webServiceHttpToTlsRedirect=" + webServiceHttpToTlsRedirect + "&webServiceUseSelfSignedTlsCertificate=" + webServiceUseSelfSignedTlsCertificate + "&webServiceTlsPort=" + webServiceTlsPort + "&webServiceTlsCertificatePath=" + encodeURIComponent(webServiceTlsCertificatePath) + "&webServiceTlsCertificatePassword=" + encodeURIComponent(webServiceTlsCertificatePassword) + "&webServiceRealIpHeader=" + encodeURIComponent(webServiceRealIpHeader)
             + "&enableDnsOverUdpProxy=" + enableDnsOverUdpProxy + "&enableDnsOverTcpProxy=" + enableDnsOverTcpProxy + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&enableDnsOverHttp3=" + enableDnsOverHttp3 + "&enableDnsOverQuic=" + enableDnsOverQuic + "&dnsOverUdpProxyPort=" + dnsOverUdpProxyPort + "&dnsOverTcpProxyPort=" + dnsOverTcpProxyPort + "&dnsOverHttpPort=" + dnsOverHttpPort + "&dnsOverTlsPort=" + dnsOverTlsPort + "&dnsOverHttpsPort=" + dnsOverHttpsPort + "&dnsOverQuicPort=" + dnsOverQuicPort + "&reverseProxyNetworkACL=" + encodeURIComponent(reverseProxyNetworkACL) + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword) + "&dnsOverHttpRealIpHeader=" + encodeURIComponent(dnsOverHttpRealIpHeader)
             + "&tsigKeys=" + encodeURIComponent(tsigKeys)
-            + "&recursion=" + recursion + "&recursionNetworkACL=" + encodeURIComponent(recursionNetworkACL) + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization + "&nsRevalidation=" + nsRevalidation + "&resolverRetries=" + resolverRetries + "&resolverTimeout=" + resolverTimeout + "&resolverConcurrency=" + resolverConcurrency + "&resolverMaxStackCount=" + resolverMaxStackCount
+            + "&recursion=" + recursion + "&recursionNetworkACL=" + encodeURIComponent(recursionNetworkACL) + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization + "&resolverRetries=" + resolverRetries + "&resolverTimeout=" + resolverTimeout + "&resolverConcurrency=" + resolverConcurrency + "&resolverMaxStackCount=" + resolverMaxStackCount
             + "&saveCache=" + saveCache + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&serveStaleAnswerTtl=" + serveStaleAnswerTtl + "&serveStaleResetTtl=" + serveStaleResetTtl + "&serveStaleMaxWaitTime=" + serveStaleMaxWaitTime + "&cacheMaximumEntries=" + cacheMaximumEntries + "&cacheMinimumRecordTtl=" + cacheMinimumRecordTtl + "&cacheMaximumRecordTtl=" + cacheMaximumRecordTtl + "&cacheNegativeRecordTtl=" + cacheNegativeRecordTtl + "&cacheFailureRecordTtl=" + cacheFailureRecordTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
             + "&enableBlocking=" + enableBlocking + "&allowTxtBlockingReport=" + allowTxtBlockingReport + "&blockingBypassList=" + encodeURIComponent(blockingBypassList) + "&blockingType=" + blockingType + "&customBlockingAddresses=" + encodeURIComponent(customBlockingAddresses) + "&blockingAnswerTtl=" + blockingAnswerTtl + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours
             + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&concurrentForwarding=" + concurrentForwarding + "&forwarderRetries=" + forwarderRetries + "&forwarderTimeout=" + forwarderTimeout + "&forwarderConcurrency=" + forwarderConcurrency
-            + "&enableLogging=" + enableLogging + "&ignoreResolverLogs=" + ignoreResolverLogs + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&enableInMemoryStats=" + enableInMemoryStats + "&maxStatFileDays=" + maxStatFileDays,
+            + "&loggingType=" + loggingType + "&ignoreResolverLogs=" + ignoreResolverLogs + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&enableInMemoryStats=" + enableInMemoryStats + "&maxStatFileDays=" + maxStatFileDays,
         processData: false,
         showInnerError: true,
         success: function (responseJSON) {
