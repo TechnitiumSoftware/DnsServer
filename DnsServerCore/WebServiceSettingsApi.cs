@@ -378,7 +378,6 @@ namespace DnsServerCore
 
                 jsonWriter.WriteBoolean("randomizeName", _dnsWebService._dnsServer.RandomizeName);
                 jsonWriter.WriteBoolean("qnameMinimization", _dnsWebService._dnsServer.QnameMinimization);
-                jsonWriter.WriteBoolean("nsRevalidation", _dnsWebService._dnsServer.NsRevalidation);
 
                 jsonWriter.WriteNumber("resolverRetries", _dnsWebService._dnsServer.ResolverRetries);
                 jsonWriter.WriteNumber("resolverTimeout", _dnsWebService._dnsServer.ResolverTimeout);
@@ -526,7 +525,8 @@ namespace DnsServerCore
                 jsonWriter.WriteNumber("forwarderConcurrency", _dnsWebService._dnsServer.ForwarderConcurrency);
 
                 //logging
-                jsonWriter.WriteBoolean("enableLogging", _dnsWebService._log.EnableLogging);
+                jsonWriter.WriteBoolean("enableLogging", _dnsWebService._log.LoggingType != LoggingType.None);
+                jsonWriter.WriteString("loggingType", _dnsWebService._log.LoggingType.ToString());
                 jsonWriter.WriteBoolean("ignoreResolverLogs", _dnsWebService._dnsServer.ResolverLogManager == null);
                 jsonWriter.WriteBoolean("logQueries", _dnsWebService._dnsServer.QueryLogManager != null);
                 jsonWriter.WriteBoolean("useLocalTime", _dnsWebService._log.UseLocalTime);
@@ -1084,9 +1084,6 @@ namespace DnsServerCore
                     if (request.TryGetQueryOrForm("qnameMinimization", bool.Parse, out bool qnameMinimization))
                         _dnsWebService._dnsServer.QnameMinimization = qnameMinimization;
 
-                    if (request.TryGetQueryOrForm("nsRevalidation", bool.Parse, out bool nsRevalidation))
-                        _dnsWebService._dnsServer.NsRevalidation = nsRevalidation;
-
                     if (request.TryGetQueryOrForm("resolverRetries", int.Parse, out int resolverRetries))
                         _dnsWebService._dnsServer.ResolverRetries = resolverRetries;
 
@@ -1401,8 +1398,10 @@ namespace DnsServerCore
 
                     #region logging
 
-                    if (request.TryGetQueryOrForm("enableLogging", bool.Parse, out bool enableLogging))
-                        _dnsWebService._log.EnableLogging = enableLogging;
+                    if (request.TryGetQueryOrFormEnum("loggingType", out LoggingType loggingType))
+                        _dnsWebService._log.LoggingType = loggingType;
+                    else if (request.TryGetQueryOrForm("enableLogging", bool.Parse, out bool enableLogging))
+                        _dnsWebService._log.LoggingType = enableLogging ? LoggingType.File : LoggingType.None;
 
                     if (request.TryGetQueryOrForm("ignoreResolverLogs", bool.Parse, out bool ignoreResolverLogs))
                         _dnsWebService._dnsServer.ResolverLogManager = ignoreResolverLogs ? null : _dnsWebService._log;
@@ -1786,7 +1785,7 @@ namespace DnsServerCore
                                 if (logSettings || logs)
                                 {
                                     //start logging
-                                    if (_dnsWebService._log.EnableLogging)
+                                    if (_dnsWebService._log.LoggingType != LoggingType.None)
                                         _dnsWebService._log.StartLogging();
                                 }
                             }
@@ -1917,7 +1916,7 @@ namespace DnsServerCore
                                 }
 
                                 //reload apps
-                                _dnsWebService._dnsServer.DnsApplicationManager.LoadAllApplications();
+                                await _dnsWebService._dnsServer.DnsApplicationManager.LoadAllApplicationsAsync();
                             }
 
                             if (zones)
