@@ -414,10 +414,8 @@ namespace DnsServerCore.Dns
                                 ProxyProtocolStream proxyStream = await ProxyProtocolStream.CreateAsServerAsync(recvBufferStream);
 
                                 if (!proxyStream.IsLocal)
-                                {
                                     remoteEP = new IPEndPoint(proxyStream.SourceAddress, proxyStream.SourcePort);
-                                }
-                                
+
                                 recvBufferStream.Position = proxyStream.DataOffset;
                             }
 
@@ -445,7 +443,7 @@ namespace DnsServerCore.Dns
             }
             catch (ObjectDisposedException)
             {
-                //server stopping
+                //server stopped
             }
             catch (SocketException ex)
             {
