@@ -1017,8 +1017,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <div class="form-group">
                                                             <label for="txtDefaultRecordTtl" class="col-sm-3 control-label">Default Record TTL</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtDefaultRecordTtl" placeholder="TTL" style="width: 100px; display: inline;">
-                                                                <span>seconds (default 3600)</span>
+                                                                <input type="text" class="form-control" id="txtDefaultRecordTtl" placeholder="TTL" style="width: 100px; display: inline;">
+                                                                <span>seconds (default 3600/1h)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The default TTL value to use if not specified when adding or updating records in a Zone.</div>
                                                         </div>
@@ -1046,8 +1046,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <div class="form-group">
                                                             <label for="txtMinSoaRefresh" class="col-sm-3 control-label">Minimum SOA Refresh</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtMinSoaRefresh" placeholder="TTL" style="width: 100px; display: inline;">
-                                                                <span>seconds (default 300)</span>
+                                                                <input type="text" class="form-control" id="txtMinSoaRefresh" placeholder="TTL" style="width: 100px; display: inline;">
+                                                                <span>seconds (default 300/5m)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The minimum Refresh interval to be used by Secondary, Stub, Secondary Forwarder, and Secondary Catalog zones. This minimum value will be used if a zone's SOA Refresh value is less than it.</div>
                                                         </div>
@@ -1055,8 +1055,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <div class="form-group">
                                                             <label for="txtMinSoaRetry" class="col-sm-3 control-label">Minimum SOA Retry</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtMinSoaRetry" placeholder="TTL" style="width: 100px; display: inline;">
-                                                                <span>seconds (default 300)</span>
+                                                                <input type="text" class="form-control" id="txtMinSoaRetry" placeholder="TTL" style="width: 100px; display: inline;">
+                                                                <span>seconds (default 300/5m)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The minimum Retry interval to be used by Secondary, Stub, Secondary Forwarder, and Secondary Catalog zones zones. This minimum value will be used if a zone's SOA Retry value is less than it.</div>
                                                         </div>
@@ -1731,8 +1731,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <div class="form-group">
                                                             <label for="txtServeStaleTtl" class="col-sm-3 control-label">Serve Stale TTL</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtServeStaleTtl" placeholder="seconds" style="width: 100px; display: inline;">
-                                                                <span>seconds (recommended 259200 i.e. 3 days)</span>
+                                                                <input type="text" class="form-control" id="txtServeStaleTtl" placeholder="seconds" style="width: 100px; display: inline;">
+                                                                <span>seconds (recommended 259200/3d)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value in seconds which should be used for cached records that are expired. When the serve stale TTL too expires for a stale record, it gets removed from the cache. Recommended value is between 1-3 days and maximum supported value is 7 days.</div>
                                                         </div>
@@ -1740,8 +1740,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <div class="form-group">
                                                             <label for="txtServeStaleAnswerTtl" class="col-sm-3 control-label">Serve Stale Answer TTL</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtServeStaleAnswerTtl" placeholder="seconds" style="width: 100px; display: inline;">
-                                                                <span>seconds (valid range 0-300; recommended 30)</span>
+                                                                <input type="text" class="form-control" id="txtServeStaleAnswerTtl" placeholder="seconds" style="width: 100px; display: inline;">
+                                                                <span>seconds (valid range 0-300/5m; recommended 30)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value in seconds which should be used for the records in a stale response. This is the TTL value that the client will be using to cache the stale records.</div>
                                                         </div>
@@ -1749,8 +1749,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <div class="form-group">
                                                             <label for="txtServeStaleResetTtl" class="col-sm-3 control-label">Serve Stale Reset TTL</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtServeStaleResetTtl" placeholder="seconds" style="width: 100px; display: inline;">
-                                                                <span>seconds (valid range 10-900; recommended 30)</span>
+                                                                <input type="text" class="form-control" id="txtServeStaleResetTtl" placeholder="seconds" style="width: 100px; display: inline;">
+                                                                <span>seconds (valid range 10-900/15m; recommended 30)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value in seconds which should be used to reset the stale record's TTL value in the cache when the resolver fails to refresh the data. The TTL reset causes the stale records to become valid again so that they can be used to serve requests normally. This reset effectively prevents the resolver from attempting to frequently update the stale records.</div>
                                                         </div>
@@ -1778,7 +1778,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <div class="form-group">
                                                             <label for="txtCacheMinimumRecordTtl" class="col-sm-3 control-label">Cache Minimum TTL</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtCacheMinimumRecordTtl" placeholder="min TTL" style="width: 100px; display: inline;">
+                                                                <input type="text" class="form-control" id="txtCacheMinimumRecordTtl" placeholder="min TTL" style="width: 100px; display: inline;">
                                                                 <span>seconds (recommended 10)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The minimum TTL value that a record can have in the cache. Set a value to make sure that the records with TTL value less than that stays in cache for a minimum duration.</div>
@@ -1787,8 +1787,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <div class="form-group">
                                                             <label for="txtCacheMaximumRecordTtl" class="col-sm-3 control-label">Cache Maximum TTL</label>
                                                             <div class="col-sm-8">
-                                                                <input type="number" class="form-control" id="txtCacheMaximumRecordTtl" placeholder="max TTL" style="width: 100px; display: inline;">
-                                                                <span>seconds (default 604800)</span>
+                                                                <input type="text" class="form-control" id="txtCacheMaximumRecordTtl" placeholder="max TTL" style="width: 100px; display: inline;">
+                                                                <span>seconds (default 604800/1w)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum TTL value that a record can have in the cache. Set a lower value to allow the records to expire early.</div>
                                                         </div>
@@ -1796,8 +1796,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <div class="form-group">
                                                             <label for="txtCacheNegativeRecordTtl" class="col-sm-3 control-label">Cache Negative TTL</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtCacheNegativeRecordTtl" placeholder="-ve TTL" style="width: 100px; display: inline;">
-                                                                <span>seconds (recommended 300)</span>
+                                                                <input type="text" class="form-control" id="txtCacheNegativeRecordTtl" placeholder="-ve TTL" style="width: 100px; display: inline;">
+                                                                <span>seconds (recommended 300/5m)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The negative TTL value to use when there is no SOA MINIMUM value available. Negative caching stores records in cache for <code>NXDOMAIN</code> and <code>NODATA</code> responses.</div>
                                                         </div>
@@ -1805,7 +1805,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <div class="form-group">
                                                             <label for="txtCacheFailureRecordTtl" class="col-sm-3 control-label">Cache Failure TTL</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtCacheFailureRecordTtl" placeholder="fail TTL" style="width: 100px; display: inline;">
+                                                                <input type="text" class="form-control" id="txtCacheFailureRecordTtl" placeholder="fail TTL" style="width: 100px; display: inline;">
                                                                 <span>seconds (recommended 10)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The failure TTL value to be used for caching failure responses. This allows storing failure record in cache and prevent frequent recursive resolution requests to the name servers that are responding with <code>ServerFailure</code> or failing to respond.</div>
@@ -1931,7 +1931,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <div class="form-group">
                                                             <label for="txtBlockingAnswerTtl" class="col-sm-3 control-label">Blocking Answer TTL</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtBlockingAnswerTtl" placeholder="ttl" style="width: 100px; display: inline;">
+                                                                <input type="text" class="form-control" id="txtBlockingAnswerTtl" placeholder="ttl" style="width: 100px; display: inline;">
                                                                 <span>seconds (default 30)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value in seconds that must be used for the records in a blocking response. This is the TTL value that the client will use to cache the blocking response.</div>
@@ -2562,9 +2562,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
                                                         <div class="form-group">
                                                             <label for="txtDhcpScopeDnsTtl" class="col-sm-3 control-label">DNS TTL</label>
-                                                            <div class="col-sm-3">
-                                                                <input type="number" class="form-control" style="width: 100px; display: inline;" id="txtDhcpScopeDnsTtl" placeholder="DNS TTL">
-                                                                <span>seconds (default 900)</span>
+                                                            <div class="col-sm-8">
+                                                                <input type="text" class="form-control" style="width: 100px; display: inline;" id="txtDhcpScopeDnsTtl" placeholder="DNS TTL">
+                                                                <span>seconds (default 900/15m)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value of the DNS records updated for the above provided domain name.</div>
                                                         </div>
@@ -3825,8 +3825,8 @@ ns1.example.com ([2001:db8::])
                             <div class="form-group">
                                 <label for="txtAddEditRecordTtl" class="col-sm-4 control-label">TTL</label>
                                 <div class="col-sm-7">
-                                    <input id="txtAddEditRecordTtl" type="number" class="form-control" placeholder="3600" style="width: 100px; display: inline;">
-                                    <span>seconds</span>
+                                    <input id="txtAddEditRecordTtl" type="text" class="form-control" placeholder="3600" style="width: 100px; display: inline;">
+                                    <span>seconds (default 3600/1h)</span>
                                 </div>
                             </div>
 
@@ -3910,25 +3910,29 @@ ns1.example.com ([2001:db8::])
                                 <div class="form-group">
                                     <label for="txtEditRecordDataSoaRefresh" class="col-sm-4 control-label">Refresh</label>
                                     <div class="col-sm-7">
-                                        <input id="txtEditRecordDataSoaRefresh" type="number" class="form-control" style="width: 100px;">
+                                        <input id="txtEditRecordDataSoaRefresh" type="text" class="form-control" style="width: 100px; display: inline;">
+                                        <span>seconds</span>
                                     </div>
                                 </div>
                                 <div class="form-group">
                                     <label for="txtEditRecordDataSoaRetry" class="col-sm-4 control-label">Retry</label>
                                     <div class="col-sm-7">
-                                        <input id="txtEditRecordDataSoaRetry" type="number" class="form-control" style="width: 100px;">
+                                        <input id="txtEditRecordDataSoaRetry" type="text" class="form-control" style="width: 100px; display: inline;">
+                                        <span>seconds</span>
                                     </div>
                                 </div>
                                 <div class="form-group">
                                     <label for="txtEditRecordDataSoaExpire" class="col-sm-4 control-label">Expire</label>
                                     <div class="col-sm-7">
-                                        <input id="txtEditRecordDataSoaExpire" type="number" class="form-control" style="width: 100px;">
+                                        <input id="txtEditRecordDataSoaExpire" type="text" class="form-control" style="width: 100px; display: inline;">
+                                        <span>seconds</span>
                                     </div>
                                 </div>
                                 <div class="form-group">
                                     <label for="txtEditRecordDataSoaMinimum" class="col-sm-4 control-label">Minimum</label>
                                     <div class="col-sm-7">
-                                        <input id="txtEditRecordDataSoaMinimum" type="number" class="form-control" style="width: 100px;">
+                                        <input id="txtEditRecordDataSoaMinimum" type="text" class="form-control" style="width: 100px; display: inline;">
+                                        <span>seconds</span>
                                     </div>
                                 </div>
                             </div>
@@ -4444,7 +4448,7 @@ MII...
                             <div class="form-group" id="divAddEditRecordExpiryTtl">
                                 <label for="txtAddEditRecordExpiryTtl" class="col-sm-4 control-label">Expiry TTL</label>
                                 <div class="col-sm-7">
-                                    <input id="txtAddEditRecordExpiryTtl" type="number" class="form-control" placeholder="0" style="width: 100px; display: inline;">
+                                    <input id="txtAddEditRecordExpiryTtl" type="text" class="form-control" placeholder="0" style="width: 100px; display: inline;">
                                     <span>seconds (set 0 to disable)</span>
                                 </div>
                                 <div class="col-sm-offset-4 col-sm-7" style="padding-top: 5px;">Set to automatically delete the record when the value in seconds elapses since the record’s last modified time.</div>
@@ -5239,8 +5243,8 @@ MII...
                         <div class="form-group">
                             <label for="txtDnssecSignZoneDnsKeyTtl" class="col-sm-4 control-label">DNSKEY TTL</label>
                             <div class="col-sm-8">
-                                <input id="txtDnssecSignZoneDnsKeyTtl" type="number" class="form-control" placeholder="ttl" style="width: 100px; display: inline;">
-                                <span>seconds (default 3600)</span>
+                                <input id="txtDnssecSignZoneDnsKeyTtl" type="text" class="form-control" placeholder="ttl" style="width: 100px; display: inline;">
+                                <span>seconds (default 3600/1h)</span>
                             </div>
                             <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
                                 The TTL value to be used for DNSKEY records. A lower value will allow quicker addition or rollover to a new DNS Key at the cost of increased frequency of DNSKEY queries by resolvers.
@@ -5582,8 +5586,8 @@ MII...
                                 <label for="txtDnssecPropertiesDnsKeyTtl" class="col-sm-4 control-label">DNSKEY TTL</label>
                                 <div class="col-sm-8">
                                     <div>
-                                        <input id="txtDnssecPropertiesDnsKeyTtl" type="number" class="form-control" placeholder="ttl" style="width: 100px; display: inline;">
-                                        <span>seconds (default 3600)</span>
+                                        <input id="txtDnssecPropertiesDnsKeyTtl" type="text" class="form-control" placeholder="ttl" style="width: 100px; display: inline;">
+                                        <span>seconds (default 3600/1h)</span>
                                     </div>
                                     <div style="margin-top: 10px;">
                                         <button type="button" class="btn btn-default" style="padding: 2px 0; width: 100px;" data-loading-text="Updating..." onclick="updateDnssecDnsKeyTtl(this);">Update TTL</button>
