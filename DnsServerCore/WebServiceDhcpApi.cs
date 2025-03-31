@@ -27,6 +27,7 @@ using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
+using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore
 {
@@ -462,7 +463,7 @@ namespace DnsServerCore
                 if (request.TryGetQueryOrForm("dnsUpdates", bool.Parse, out bool dnsUpdates))
                     scope.DnsUpdates = dnsUpdates;
 
-                if (request.TryGetQueryOrForm("dnsTtl", uint.Parse, out uint dnsTtl))
+                if (request.TryGetQueryOrForm("dnsTtl", ZoneFile.ParseTtl, out uint dnsTtl))
                     scope.DnsTtl = dnsTtl;
 
                 string serverAddress = request.QueryOrForm("serverAddress");
