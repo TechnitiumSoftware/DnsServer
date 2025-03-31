@@ -3351,7 +3351,7 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
 
     var tableHtmlRow = "<tr id=\"trZoneRecord" + index + "\"><td>" + (index + 1) + "</td><td>" + htmlEncode(name) + "</td>";
     tableHtmlRow += "<td>" + record.type + "</td>";
-    tableHtmlRow += "<td>" + record.ttl + "</td>";
+    tableHtmlRow += "<td>" + record.ttl + "<br />(" + record.ttlString + ")</td>";
 
     var additionalDataAttributes = "";
 
@@ -3416,10 +3416,10 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
             tableHtmlRow += "<b>Primary Name Server:</b> " + htmlEncode(record.rData.primaryNameServer) +
                 "<br /><b>Responsible Person:</b> " + htmlEncode(record.rData.responsiblePerson) +
                 "<br /><b>Serial:</b> " + htmlEncode(record.rData.serial) +
-                "<br /><b>Refresh:</b> " + htmlEncode(record.rData.refresh) +
-                "<br /><b>Retry:</b> " + htmlEncode(record.rData.retry) +
-                "<br /><b>Expire:</b> " + htmlEncode(record.rData.expire) +
-                "<br /><b>Minimum:</b> " + htmlEncode(record.rData.minimum);
+                "<br /><b>Refresh:</b> " + htmlEncode(record.rData.refresh + " (" + record.rData.refreshString + ")") +
+                "<br /><b>Retry:</b> " + htmlEncode(record.rData.retry + " (" + record.rData.retryString + ")") +
+                "<br /><b>Expire:</b> " + htmlEncode(record.rData.expire + " (" + record.rData.expireString + ")") +
+                "<br /><b>Minimum:</b> " + htmlEncode(record.rData.minimum + " (" + record.rData.minimumString + ")");
 
             if (record.rData.useSerialDateScheme != null) {
                 tableHtmlRow += "<br /><br /><b>Use Serial Date Scheme:</b> " + record.rData.useSerialDateScheme;
@@ -3849,7 +3849,7 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
 
     if (record.expiryTtl > 0) {
         var expiresOn = moment(record.lastModified).add(record.expiryTtl, "s");
-        tableHtmlRow += "<b>Expiry TTL:</b> " + record.expiryTtl;
+        tableHtmlRow += "<b>Expiry TTL:</b> " + record.expiryTtl + " (" + record.expiryTtlString + ")";
         tableHtmlRow += "<br /><b>Expires On:</b> " + expiresOn.local().format("YYYY-MM-DD HH:mm:ss") + " (" + expiresOn.fromNow() + ")";
         tableHtmlRow += "<br />";
     }
