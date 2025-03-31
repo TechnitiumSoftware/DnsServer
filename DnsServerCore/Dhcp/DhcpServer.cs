@@ -217,9 +217,11 @@ namespace DnsServerCore.Dhcp
                         break; //server stopping
 
                     default:
-                        _log?.Write(ex);
+                        if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
+                            return; //server stopping
 
-                        throw;
+                        _log?.Write(ex);
+                        break;
                 }
             }
             catch (Exception ex)
@@ -228,8 +230,6 @@ namespace DnsServerCore.Dhcp
                     return; //server stopping
 
                 _log?.Write(ex);
-
-                throw;
             }
         }
 
