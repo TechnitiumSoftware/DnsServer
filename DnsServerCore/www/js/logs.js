@@ -60,7 +60,7 @@ function refreshLogFilesList() {
     var lstLogFiles = $("#lstLogFiles");
 
     HTTPRequest({
-        url: "/api/logs/list?token=" + sessionData.token,
+        url: "api/logs/list?token=" + sessionData.token,
         success: function (responseJSON) {
             var logFiles = responseJSON.response.logFiles;
 
@@ -101,7 +101,7 @@ function viewLog(logFile) {
     divLogViewer.show();
 
     HTTPRequest({
-        url: "/api/logs/download?token=" + sessionData.token + "&fileName=" + encodeURIComponent(logFile) + "&limit=2",
+        url: "api/logs/download?token=" + sessionData.token + "&fileName=" + encodeURIComponent(logFile) + "&limit=2",
         isTextResponse: true,
         success: function (response) {
             divLogViewerLoader.hide();
@@ -115,7 +115,7 @@ function viewLog(logFile) {
 
 function downloadLog() {
     var logFile = $("#txtLogViewerTitle").text();
-    window.open("/api/logs/download?token=" + sessionData.token + "&fileName=" + encodeURIComponent(logFile) + "&ts=" + (new Date().getTime()), "_blank");
+    window.open("api/logs/download?token=" + sessionData.token + "&fileName=" + encodeURIComponent(logFile) + "&ts=" + (new Date().getTime()), "_blank");
 }
 
 function deleteLog() {
@@ -127,7 +127,7 @@ function deleteLog() {
     var btn = $("#btnDeleteLog").button('loading');
 
     HTTPRequest({
-        url: "/api/logs/delete?token=" + sessionData.token + "&log=" + logFile,
+        url: "api/logs/delete?token=" + sessionData.token + "&log=" + logFile,
         success: function (responseJSON) {
             refreshLogFilesList();
 
@@ -151,7 +151,7 @@ function deleteAllLogs() {
         return;
 
     HTTPRequest({
-        url: "/api/logs/deleteAll?token=" + sessionData.token,
+        url: "api/logs/deleteAll?token=" + sessionData.token,
         success: function (responseJSON) {
             refreshLogFilesList();
 
@@ -170,7 +170,7 @@ function deleteAllStats() {
         return;
 
     HTTPRequest({
-        url: "/api/dashboard/stats/deleteAll?token=" + sessionData.token,
+        url: "api/dashboard/stats/deleteAll?token=" + sessionData.token,
         success: function (responseJSON) {
             showAlert("success", "Stats Deleted!", "All stats files were deleted successfully.");
         },
@@ -203,7 +203,7 @@ function refreshQueryLogsTab(doQueryLogs) {
     }
 
     HTTPRequest({
-        url: "/api/apps/list?token=" + sessionData.token,
+        url: "api/apps/list?token=" + sessionData.token,
         success: function (responseJSON) {
             var apps = responseJSON.response.apps;
 
@@ -323,7 +323,7 @@ function queryLogs(pageNumber) {
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/logs/query?token=" + sessionData.token + "&name=" + encodeURIComponent(name) + "&classPath=" + encodeURIComponent(classPath) + "&pageNumber=" + pageNumber + "&entriesPerPage=" + entriesPerPage + "&descendingOrder=" + descendingOrder +
+        url: "api/logs/query?token=" + sessionData.token + "&name=" + encodeURIComponent(name) + "&classPath=" + encodeURIComponent(classPath) + "&pageNumber=" + pageNumber + "&entriesPerPage=" + entriesPerPage + "&descendingOrder=" + descendingOrder +
             "&start=" + encodeURIComponent(start) + "&end=" + encodeURIComponent(end) + "&clientIpAddress=" + encodeURIComponent(clientIpAddress) + "&protocol=" + protocol + "&responseType=" + responseType + "&rcode=" + rcode +
             "&qname=" + encodeURIComponent(qname) + "&qtype=" + qtype + "&qclass=" + qclass,
         success: function (responseJSON) {
@@ -533,7 +533,7 @@ function exportQueryLogsCsv() {
     var qtype = $("#txtQueryLogQType").val();
     var qclass = $("#optQueryLogQClass").val();
 
-    window.open("/api/logs/export?token=" + sessionData.token + "&name=" + encodeURIComponent(name) + "&classPath=" + encodeURIComponent(classPath) +
+    window.open("api/logs/export?token=" + sessionData.token + "&name=" + encodeURIComponent(name) + "&classPath=" + encodeURIComponent(classPath) +
         "&start=" + encodeURIComponent(start) + "&end=" + encodeURIComponent(end) + "&clientIpAddress=" + encodeURIComponent(clientIpAddress) +
         "&protocol=" + protocol + "&responseType=" + responseType + "&rcode=" + rcode + "&qname=" + encodeURIComponent(qname) + "&qtype=" + qtype + "&qclass=" + qclass
         , "_blank");

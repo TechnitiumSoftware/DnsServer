@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ function refreshDhcpLeases() {
     divDhcpLeasesLoader.show();
 
     HTTPRequest({
-        url: "/api/dhcp/leases/list?token=" + sessionData.token,
+        url: "api/dhcp/leases/list?token=" + sessionData.token,
         success: function (responseJSON) {
             var dhcpLeases = responseJSON.response.leases;
             var tableHtmlRows = "";
@@ -82,7 +82,7 @@ function convertToReservedLease(id, scopeName, clientIdentifier) {
     btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
-        url: "/api/dhcp/leases/convertToReserved?token=" + sessionData.token + "&name=" + encodeURIComponent(scopeName) + "&clientIdentifier=" + encodeURIComponent(clientIdentifier),
+        url: "api/dhcp/leases/convertToReserved?token=" + sessionData.token + "&name=" + encodeURIComponent(scopeName) + "&clientIdentifier=" + encodeURIComponent(clientIdentifier),
         success: function (responseJSON) {
             btn.prop("disabled", false);
             btn.html(originalBtnHtml);
@@ -116,7 +116,7 @@ function convertToDynamicLease(id, scopeName, clientIdentifier) {
     btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
-        url: "/api/dhcp/leases/convertToDynamic?token=" + sessionData.token + "&name=" + encodeURIComponent(scopeName) + "&clientIdentifier=" + encodeURIComponent(clientIdentifier),
+        url: "api/dhcp/leases/convertToDynamic?token=" + sessionData.token + "&name=" + encodeURIComponent(scopeName) + "&clientIdentifier=" + encodeURIComponent(clientIdentifier),
         success: function (responseJSON) {
             btn.prop("disabled", false);
             btn.html(originalBtnHtml);
@@ -153,7 +153,7 @@ function removeLease(objBtn, index, scopeName, clientIdentifier) {
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/dhcp/leases/remove?token=" + sessionData.token + "&name=" + encodeURIComponent(scopeName) + "&clientIdentifier=" + encodeURIComponent(clientIdentifier),
+        url: "api/dhcp/leases/remove?token=" + sessionData.token + "&name=" + encodeURIComponent(scopeName) + "&clientIdentifier=" + encodeURIComponent(clientIdentifier),
         success: function (responseJSON) {
             btn.button('reset');
             $("#modalDhcpRemoveLease").modal("hide");
@@ -195,7 +195,7 @@ function refreshDhcpScopes(checkDisplay) {
     divDhcpViewScopesLoader.show();
 
     HTTPRequest({
-        url: "/api/dhcp/scopes/list?token=" + sessionData.token,
+        url: "api/dhcp/scopes/list?token=" + sessionData.token,
         success: function (responseJSON) {
             var dhcpScopes = responseJSON.response.scopes;
             var tableHtmlRows = "";
@@ -347,7 +347,7 @@ function showEditDhcpScope(scopeName) {
     divDhcpViewScopesLoader.show();
 
     HTTPRequest({
-        url: "/api/dhcp/scopes/get?token=" + sessionData.token + "&name=" + scopeName,
+        url: "api/dhcp/scopes/get?token=" + sessionData.token + "&name=" + scopeName,
         success: function (responseJSON) {
             $("#txtDhcpScopeName").attr("data-name", responseJSON.response.name);
             $("#txtDhcpScopeName").val(responseJSON.response.name);
@@ -519,7 +519,7 @@ function saveDhcpScope() {
     var btn = $("#btnSaveDhcpScope").button('loading');
 
     HTTPRequest({
-        url: "/api/dhcp/scopes/set",
+        url: "api/dhcp/scopes/set",
         method: "POST",
         data: "token=" + sessionData.token + "&name=" + encodeURIComponent(name) + (newName == null ? "" : "&newName=" + encodeURIComponent(newName)) + "&startingAddress=" + encodeURIComponent(startingAddress) + "&endingAddress=" + encodeURIComponent(endingAddress) + "&subnetMask=" + encodeURIComponent(subnetMask) +
             "&leaseTimeDays=" + leaseTimeDays + "&leaseTimeHours=" + leaseTimeHours + "&leaseTimeMinutes=" + leaseTimeMinutes + "&offerDelayTime=" + offerDelayTime + "&pingCheckEnabled=" + pingCheckEnabled + "&pingCheckTimeout=" + pingCheckTimeout + "&pingCheckRetries=" + pingCheckRetries +
@@ -555,7 +555,7 @@ function disableDhcpScope(scopeName) {
     divDhcpViewScopesLoader.show();
 
     HTTPRequest({
-        url: "/api/dhcp/scopes/disable?token=" + sessionData.token + "&name=" + scopeName,
+        url: "api/dhcp/scopes/disable?token=" + sessionData.token + "&name=" + scopeName,
         success: function (responseJSON) {
             refreshDhcpScopes();
             showAlert("success", "Scope Disabled!", "DHCP Scope was disabled successfully.");
@@ -581,7 +581,7 @@ function enableDhcpScope(scopeName) {
     divDhcpViewScopesLoader.show();
 
     HTTPRequest({
-        url: "/api/dhcp/scopes/enable?token=" + sessionData.token + "&name=" + scopeName,
+        url: "api/dhcp/scopes/enable?token=" + sessionData.token + "&name=" + scopeName,
         success: function (responseJSON) {
             refreshDhcpScopes();
             showAlert("success", "Scope Enabled!", "DHCP Scope was enabled successfully.");
@@ -610,7 +610,7 @@ function deleteDhcpScope(index, scopeName) {
     divDhcpViewScopesLoader.show();
 
     HTTPRequest({
-        url: "/api/dhcp/scopes/delete?token=" + sessionData.token + "&name=" + scopeName,
+        url: "api/dhcp/scopes/delete?token=" + sessionData.token + "&name=" + scopeName,
         success: function (responseJSON) {
             $("#trDhcpScopeRow" + index).remove();
 

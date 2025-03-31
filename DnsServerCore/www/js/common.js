@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -90,7 +90,7 @@ function HTTPRequest(url, method, data, isTextResponse, success, error, invalidT
         contentType = arguments[0].contentType;
 
     if (objLoaderPlaceholder != null)
-        objLoaderPlaceholder.html("<div style='width: 64px; height: inherit; margin: auto;'><div style='height: inherit; display: table-cell; vertical-align: middle;'><img src='/img/loader.gif'/></div></div>");
+        objLoaderPlaceholder.html("<div style='width: 64px; height: inherit; margin: auto;'><div style='height: inherit; display: table-cell; vertical-align: middle;'><img src='img/loader.gif'/></div></div>");
 
     var successFlag = false;
 

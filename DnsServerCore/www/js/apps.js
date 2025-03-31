@@ -25,7 +25,7 @@ function refreshApps() {
     divViewAppsLoader.show();
 
     HTTPRequest({
-        url: "/api/apps/list?token=" + sessionData.token,
+        url: "api/apps/list?token=" + sessionData.token,
         success: function (responseJSON) {
             var apps = responseJSON.response.apps;
             var tableHtmlRows = "";
@@ -143,7 +143,7 @@ function showStoreAppsModal() {
     $("#modalStoreApps").modal("show");
 
     HTTPRequest({
-        url: "/api/apps/listStoreApps?token=" + sessionData.token,
+        url: "api/apps/listStoreApps?token=" + sessionData.token,
         success: function (responseJSON) {
             var storeApps = responseJSON.response.storeApps;
             var tableHtmlRows = "";
@@ -222,7 +222,7 @@ function installStoreApp(objBtn, appName, url) {
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/apps/downloadAndInstall?token=" + sessionData.token + "&name=" + encodeURIComponent(appName) + "&url=" + encodeURIComponent(url),
+        url: "api/apps/downloadAndInstall?token=" + sessionData.token + "&name=" + encodeURIComponent(appName) + "&url=" + encodeURIComponent(url),
         success: function (responseJSON) {
             btn.button('reset');
             btn.hide();
@@ -258,7 +258,7 @@ function updateStoreApp(objBtn, appName, url, isModal) {
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/apps/downloadAndUpdate?token=" + sessionData.token + "&name=" + encodeURIComponent(appName) + "&url=" + encodeURIComponent(url),
+        url: "api/apps/downloadAndUpdate?token=" + sessionData.token + "&name=" + encodeURIComponent(appName) + "&url=" + encodeURIComponent(url),
         success: function (responseJSON) {
             btn.button('reset');
             btn.hide();
@@ -296,7 +296,7 @@ function uninstallStoreApp(objBtn, appName) {
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/apps/uninstall?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
+        url: "api/apps/uninstall?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
         success: function (responseJSON) {
             btn.button('reset');
             btn.hide();
@@ -347,7 +347,7 @@ function installApp() {
     var btn = $("#btnInstallApp").button('loading');
 
     HTTPRequest({
-        url: "/api/apps/install?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
+        url: "api/apps/install?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
         method: "POST",
         data: formData,
         contentType: false,
@@ -389,7 +389,7 @@ function updateApp() {
     var btn = $("#btnUpdateApp").button('loading');
 
     HTTPRequest({
-        url: "/api/apps/update?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
+        url: "api/apps/update?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
         method: "POST",
         data: formData,
         contentType: false,
@@ -422,7 +422,7 @@ function uninstallApp(objBtn, appName) {
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/apps/uninstall?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
+        url: "api/apps/uninstall?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
         success: function (responseJSON) {
             var id = btn.attr("data-id");
             $("#trApp" + id).remove();
@@ -453,7 +453,7 @@ function showAppConfigModal(objBtn, appName) {
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/apps/config/get?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
+        url: "api/apps/config/get?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
         success: function (responseJSON) {
             btn.button('reset');
 
@@ -488,7 +488,7 @@ function saveAppConfig() {
     var btn = $("#btnAppConfig").button("loading");
 
     HTTPRequest({
-        url: "/api/apps/config/set?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
+        url: "api/apps/config/set?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
         method: "POST",
         data: "config=" + encodeURIComponent(config),
         processData: false,

@@ -605,7 +605,7 @@ function refreshZones(checkDisplay, pageNumber) {
     divViewZonesLoader.show();
 
     HTTPRequest({
-        url: "/api/zones/list?token=" + sessionData.token + "&pageNumber=" + pageNumber + "&zonesPerPage=" + zonesPerPage,
+        url: "api/zones/list?token=" + sessionData.token + "&pageNumber=" + pageNumber + "&zonesPerPage=" + zonesPerPage,
         success: function (responseJSON) {
             var zones = responseJSON.response.zones;
             var firstRowNumber = ((responseJSON.response.pageNumber - 1) * zonesPerPage) + 1;
@@ -887,7 +887,7 @@ function enableZoneMenu(objMenuItem) {
     btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
-        url: "/api/zones/enable?token=" + sessionData.token + "&zone=" + zone,
+        url: "api/zones/enable?token=" + sessionData.token + "&zone=" + zone,
         success: function (responseJSON) {
             btn.prop("disabled", false);
             btn.html(originalBtnHtml);
@@ -916,7 +916,7 @@ function enableZone(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "/api/zones/enable?token=" + sessionData.token + "&zone=" + zone,
+        url: "api/zones/enable?token=" + sessionData.token + "&zone=" + zone,
         success: function (responseJSON) {
             btn.button("reset");
 
@@ -952,7 +952,7 @@ function disableZoneMenu(objMenuItem) {
     btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
-        url: "/api/zones/disable?token=" + sessionData.token + "&zone=" + zone,
+        url: "api/zones/disable?token=" + sessionData.token + "&zone=" + zone,
         success: function (responseJSON) {
             btn.prop("disabled", false);
             btn.html(originalBtnHtml);
@@ -984,7 +984,7 @@ function disableZone(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "/api/zones/disable?token=" + sessionData.token + "&zone=" + zone,
+        url: "api/zones/disable?token=" + sessionData.token + "&zone=" + zone,
         success: function (responseJSON) {
             btn.button("reset");
 
@@ -1020,7 +1020,7 @@ function deleteZoneMenu(objMenuItem) {
     btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
-        url: "/api/zones/delete?token=" + sessionData.token + "&zone=" + zone,
+        url: "api/zones/delete?token=" + sessionData.token + "&zone=" + zone,
         success: function (responseJSON) {
             refreshZones();
 
@@ -1046,7 +1046,7 @@ function deleteZone(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "/api/zones/delete?token=" + sessionData.token + "&zone=" + zone,
+        url: "api/zones/delete?token=" + sessionData.token + "&zone=" + zone,
         success: function (responseJSON) {
             btn.button("reset");
             refreshZones();
@@ -1121,7 +1121,7 @@ function importZone() {
     var btn = $("#btnImportZone").button("loading");
 
     HTTPRequest({
-        url: "/api/zones/import?token=" + sessionData.token + "&zone=" + zone + "&importType=" + importType + "&overwrite=" + overwrite + "&overwriteSoaSerial=" + overwriteSoaSerial,
+        url: "api/zones/import?token=" + sessionData.token + "&zone=" + zone + "&importType=" + importType + "&overwrite=" + overwrite + "&overwriteSoaSerial=" + overwriteSoaSerial,
         method: "POST",
         data: formData,
         contentType: contentType,
@@ -1146,7 +1146,7 @@ function importZone() {
 }
 
 function exportZone(zone) {
-    window.open("/api/zones/export?token=" + sessionData.token + "&zone=" + zone, "_blank");
+    window.open("api/zones/export?token=" + sessionData.token + "&zone=" + zone, "_blank");
 
     showAlert("success", "Zone Exported!", "Zone file was exported successfully.");
 }
@@ -1181,7 +1181,7 @@ function cloneZone(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "/api/zones/clone?token=" + sessionData.token + "&zone=" + zone + "&sourceZone=" + sourceZone,
+        url: "api/zones/clone?token=" + sessionData.token + "&zone=" + zone + "&sourceZone=" + sourceZone,
         success: function (responseJSON) {
             btn.button("reset");
             $("#modalCloneZone").modal("hide");
@@ -1256,7 +1256,7 @@ function convertZone(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "/api/zones/convert?token=" + sessionData.token + "&zone=" + zone + "&type=" + type,
+        url: "api/zones/convert?token=" + sessionData.token + "&zone=" + zone + "&type=" + type,
         success: function (responseJSON) {
             btn.button("reset");
             $("#modalConvertZone").modal("hide");
@@ -1337,7 +1337,7 @@ function showZoneOptionsModal(zone) {
     $("#modalZoneOptions").modal("show");
 
     HTTPRequest({
-        url: "/api/zones/options/get?token=" + sessionData.token + "&zone=" + zone + "&includeAvailableCatalogZoneNames=true&includeAvailableTsigKeyNames=true",
+        url: "api/zones/options/get?token=" + sessionData.token + "&zone=" + zone + "&includeAvailableCatalogZoneNames=true&includeAvailableTsigKeyNames=true",
         success: function (responseJSON) {
             $("#optZoneOptionsCatalogZoneName").html("");
 
@@ -2256,7 +2256,7 @@ function saveZoneOptions() {
     btn.button("loading");
 
     HTTPRequest({
-        url: "/api/zones/options/set?token=" + sessionData.token + "&zone=" + zone
+        url: "api/zones/options/set?token=" + sessionData.token + "&zone=" + zone
             + "&catalog=" + encodeURIComponent(catalog) + "&overrideCatalogQueryAccess=" + overrideCatalogQueryAccess + "&overrideCatalogZoneTransfer=" + overrideCatalogZoneTransfer + "&overrideCatalogNotify=" + overrideCatalogNotify
             + "&primaryNameServerAddresses=" + encodeURIComponent(primaryNameServerAddresses) + "&primaryZoneTransferProtocol=" + primaryZoneTransferProtocol + "&primaryZoneTransferTsigKeyName=" + encodeURIComponent(primaryZoneTransferTsigKeyName) + "&validateZone=" + validateZone
             + "&queryAccess=" + queryAccess + "&queryAccessNetworkACL=" + encodeURIComponent(queryAccessNetworkACL)
@@ -2341,7 +2341,7 @@ function showZonePermissionsModal(zone) {
     modalEditPermissions.modal("show");
 
     HTTPRequest({
-        url: "/api/zones/permissions/get?token=" + sessionData.token + "&zone=" + htmlEncode(zone) + "&includeUsersAndGroups=true",
+        url: "api/zones/permissions/get?token=" + sessionData.token + "&zone=" + htmlEncode(zone) + "&includeUsersAndGroups=true",
         success: function (responseJSON) {
             $("#lblEditPermissionsName").text(responseJSON.response.section + " / " + (responseJSON.response.subItem == "." ? "<root>" : responseJSON.response.subItem));
 
@@ -2399,7 +2399,7 @@ function saveZonePermissions(objBtn) {
     var userPermissions = serializeTableData($("#tableEditPermissionsUser"), 4);
     var groupPermissions = serializeTableData($("#tableEditPermissionsGroup"), 4);
 
-    var apiUrl = "/api/zones/permissions/set?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&userPermissions=" + encodeURIComponent(userPermissions) + "&groupPermissions=" + encodeURIComponent(groupPermissions);
+    var apiUrl = "api/zones/permissions/set?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&userPermissions=" + encodeURIComponent(userPermissions) + "&groupPermissions=" + encodeURIComponent(groupPermissions);
 
     btn.button("loading");
 
@@ -2445,7 +2445,7 @@ function resyncZoneMenu(objMenuItem) {
     btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
-        url: "/api/zones/resync?token=" + sessionData.token + "&zone=" + zone,
+        url: "api/zones/resync?token=" + sessionData.token + "&zone=" + zone,
         success: function (responseJSON) {
             btn.prop("disabled", false);
             btn.html(originalBtnHtml);
@@ -2476,7 +2476,7 @@ function resyncZone(objBtn, zone) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "/api/zones/resync?token=" + sessionData.token + "&zone=" + zone,
+        url: "api/zones/resync?token=" + sessionData.token + "&zone=" + zone,
         success: function (responseJSON) {
             btn.button("reset");
             showAlert("success", "Resync Triggered!", "Zone '" + zone + "' resync was triggered successfully. Please check the Logs for confirmation.");
@@ -2557,7 +2557,7 @@ function loadCatalogZoneNames(jqDropDown, currentValue, divAlertPlaceholder, div
     }
 
     HTTPRequest({
-        url: "/api/zones/catalogs/list?token=" + sessionData.token,
+        url: "api/zones/catalogs/list?token=" + sessionData.token,
         success: function (responseJSON) {
             loadCatalogZoneNamesFrom(responseJSON.response.catalogZoneNames, jqDropDown, currentValue);
 
@@ -2607,7 +2607,7 @@ function loadTsigKeyNames(jqDropDown, currentValue, divAlertPlaceholder) {
     }
 
     HTTPRequest({
-        url: "/api/settings/getTsigKeyNames?token=" + sessionData.token,
+        url: "api/settings/getTsigKeyNames?token=" + sessionData.token,
         success: function (responseJSON) {
             loadTsigKeyNamesFrom(responseJSON.response.tsigKeyNames, jqDropDown, currentValue);
         },
@@ -2771,7 +2771,7 @@ function addZone() {
     var btn = $("#btnAddZone").button('loading');
 
     HTTPRequest({
-        url: "/api/zones/create?token=" + sessionData.token + "&zone=" + zone + "&type=" + type + parameters,
+        url: "api/zones/create?token=" + sessionData.token + "&zone=" + zone + "&type=" + type + parameters,
         success: function (responseJSON) {
             $("#modalAddZone").modal("hide");
             showEditZone(responseJSON.response.domain);
@@ -2816,7 +2816,7 @@ function showEditZone(zone, showPageNumber) {
     divViewZonesLoader.show();
 
     HTTPRequest({
-        url: "/api/zones/records/get?token=" + sessionData.token + "&domain=" + zone + "&zone=" + zone + "&listZone=true",
+        url: "api/zones/records/get?token=" + sessionData.token + "&domain=" + zone + "&zone=" + zone + "&listZone=true",
         success: function (responseJSON) {
             zone = responseJSON.response.zone.name;
             if (zone === "")
@@ -4113,7 +4113,7 @@ function loadAddRecordModalAppNames() {
     txtAddEditRecordDataData.val("");
 
     HTTPRequest({
-        url: "/api/apps/list?token=" + sessionData.token,
+        url: "api/apps/list?token=" + sessionData.token,
         success: function (responseJSON) {
             appsList = responseJSON.response.apps;
 
@@ -4836,7 +4836,7 @@ function addRecord() {
             break;
     }
 
-    apiUrl = "/api/zones/records/add?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&domain=" + encodeURIComponent(domain) + "&type=" + encodeURIComponent(type) + "&ttl=" + ttl + "&overwrite=" + overwrite + "&comments=" + encodeURIComponent(comments) + "&expiryTtl=" + expiryTtl + apiUrl;
+    apiUrl = "api/zones/records/add?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&domain=" + encodeURIComponent(domain) + "&type=" + encodeURIComponent(type) + "&ttl=" + ttl + "&overwrite=" + overwrite + "&comments=" + encodeURIComponent(comments) + "&expiryTtl=" + expiryTtl + apiUrl;
 
     btn.button("loading");
 
@@ -5819,7 +5819,7 @@ function updateRecord() {
             break;
     }
 
-    apiUrl = "/api/zones/records/update?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&type=" + encodeURIComponent(type) + "&domain=" + encodeURIComponent(domain) + "&newDomain=" + encodeURIComponent(newDomain) + "&ttl=" + ttl + "&disable=" + disable + "&comments=" + encodeURIComponent(comments) + "&expiryTtl=" + expiryTtl + apiUrl;
+    apiUrl = "api/zones/records/update?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&type=" + encodeURIComponent(type) + "&domain=" + encodeURIComponent(domain) + "&newDomain=" + encodeURIComponent(newDomain) + "&ttl=" + ttl + "&disable=" + disable + "&comments=" + encodeURIComponent(comments) + "&expiryTtl=" + expiryTtl + apiUrl;
 
     btn.button("loading");
 
@@ -5886,7 +5886,7 @@ function updateRecordState(objBtn, disable) {
     if (disable && !confirm("Are you sure to disable the " + type + " record '" + domain + "'?"))
         return;
 
-    var apiUrl = "/api/zones/records/update?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&type=" + encodeURIComponent(type) + "&domain=" + encodeURIComponent(domain) + "&ttl=" + ttl + "&disable=" + disable + "&comments=" + encodeURIComponent(comments) + "&expiryTtl=" + expiryTtl;
+    var apiUrl = "api/zones/records/update?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&type=" + encodeURIComponent(type) + "&domain=" + encodeURIComponent(domain) + "&ttl=" + ttl + "&disable=" + disable + "&comments=" + encodeURIComponent(comments) + "&expiryTtl=" + expiryTtl;
 
     switch (type) {
         case "A":
@@ -6058,7 +6058,7 @@ function deleteRecord(objBtn) {
     if (!confirm("Are you sure to permanently delete the " + type + " record '" + domain + "'?"))
         return;
 
-    var apiUrl = "/api/zones/records/delete?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&domain=" + encodeURIComponent(domain) + "&type=" + encodeURIComponent(type);
+    var apiUrl = "api/zones/records/delete?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&domain=" + encodeURIComponent(domain) + "&type=" + encodeURIComponent(type);
 
     switch (type) {
         case "A":
@@ -6259,7 +6259,7 @@ function signPrimaryZone() {
     btn.button("loading");
 
     HTTPRequest({
-        url: "/api/zones/dnssec/sign?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&algorithm=" + algorithm + "&pemKskPrivateKey=" + encodeURIComponent(pemKskPrivateKey) + "&pemZskPrivateKey=" + encodeURIComponent(pemZskPrivateKey) + "&dnsKeyTtl=" + dnsKeyTtl + "&zskRolloverDays=" + zskRolloverDays + "&nxProof=" + nxProof + additionalParameters,
+        url: "api/zones/dnssec/sign?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&algorithm=" + algorithm + "&pemKskPrivateKey=" + encodeURIComponent(pemKskPrivateKey) + "&pemZskPrivateKey=" + encodeURIComponent(pemZskPrivateKey) + "&dnsKeyTtl=" + dnsKeyTtl + "&zskRolloverDays=" + zskRolloverDays + "&nxProof=" + nxProof + additionalParameters,
         success: function (responseJSON) {
             btn.button("reset");
             $("#modalDnssecSignZone").modal("hide");
@@ -6320,7 +6320,7 @@ function unsignPrimaryZone() {
     btn.button("loading");
 
     HTTPRequest({
-        url: "/api/zones/dnssec/unsign?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone),
+        url: "api/zones/dnssec/unsign?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone),
         success: function (responseJSON) {
             btn.button("reset");
             $("#modalDnssecUnsignZone").modal("hide");
@@ -6377,7 +6377,7 @@ function showViewDsModal(zoneName) {
     $("#modalDnssecViewDs").modal("show");
 
     HTTPRequest({
-        url: "/api/zones/dnssec/viewDS?token=" + sessionData.token + "&zone=" + zoneName,
+        url: "api/zones/dnssec/viewDS?token=" + sessionData.token + "&zone=" + zoneName,
         success: function (responseJSON) {
             var tableHtmlRows = "";
 
@@ -6473,7 +6473,7 @@ function refreshDnssecProperties(divDnssecPropertiesLoader) {
     divDnssecPropertiesNoteRetiredRevoked.hide();
 
     HTTPRequest({
-        url: "/api/zones/dnssec/properties/get?token=" + sessionData.token + "&zone=" + zone,
+        url: "api/zones/dnssec/properties/get?token=" + sessionData.token + "&zone=" + zone,
         success: function (responseJSON) {
             var tableHtmlRows = "";
             var foundGeneratedKey = false;
@@ -6620,7 +6620,7 @@ function updateDnssecPrivateKey(keyTag, objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "/api/zones/dnssec/properties/updatePrivateKey?token=" + sessionData.token + "&zone=" + zone + "&keyTag=" + keyTag + "&rolloverDays=" + rolloverDays,
+        url: "api/zones/dnssec/properties/updatePrivateKey?token=" + sessionData.token + "&zone=" + zone + "&keyTag=" + keyTag + "&rolloverDays=" + rolloverDays,
         success: function (responseJSON) {
             btn.button("reset");
             showAlert("success", "Updated!", "The DNSKEY automatic rollover config was updated successfully.", divDnssecPropertiesAlert);
@@ -6650,7 +6650,7 @@ function deleteDnssecPrivateKey(keyTag, id) {
     btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
-        url: "/api/zones/dnssec/properties/deletePrivateKey?token=" + sessionData.token + "&zone=" + zone + "&keyTag=" + keyTag,
+        url: "api/zones/dnssec/properties/deletePrivateKey?token=" + sessionData.token + "&zone=" + zone + "&keyTag=" + keyTag,
         success: function (responseJSON) {
             $("#trDnssecPropertiesPrivateKey" + id).remove();
             showAlert("success", "Private Key Deleted!", "The DNSSEC private key was deleted successfully.", divDnssecPropertiesAlert);
@@ -6680,7 +6680,7 @@ function rolloverDnssecDnsKey(keyTag, id) {
     btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
-        url: "/api/zones/dnssec/properties/rolloverDnsKey?token=" + sessionData.token + "&zone=" + zone + "&keyTag=" + keyTag,
+        url: "api/zones/dnssec/properties/rolloverDnsKey?token=" + sessionData.token + "&zone=" + zone + "&keyTag=" + keyTag,
         success: function (responseJSON) {
             refreshDnssecProperties();
             showAlert("success", "Rollover Done!", "The DNS Key was rolled over successfully.", divDnssecPropertiesAlert);
@@ -6710,7 +6710,7 @@ function retireDnssecDnsKey(keyTag, id) {
     btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
-        url: "/api/zones/dnssec/properties/retireDnsKey?token=" + sessionData.token + "&zone=" + zone + "&keyTag=" + keyTag,
+        url: "api/zones/dnssec/properties/retireDnsKey?token=" + sessionData.token + "&zone=" + zone + "&keyTag=" + keyTag,
         success: function (responseJSON) {
             refreshDnssecProperties();
             showAlert("success", "DNS Key Retired!", "The DNS Key was retired successfully.", divDnssecPropertiesAlert);
@@ -6738,7 +6738,7 @@ function publishAllDnssecPrivateKeys(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "/api/zones/dnssec/properties/publishAllPrivateKeys?token=" + sessionData.token + "&zone=" + zone,
+        url: "api/zones/dnssec/properties/publishAllPrivateKeys?token=" + sessionData.token + "&zone=" + zone,
         success: function (responseJSON) {
             refreshDnssecProperties();
             btn.button("reset");
@@ -6791,7 +6791,7 @@ function addDnssecPrivateKey(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "/api/zones/dnssec/properties/addPrivateKey?token=" + sessionData.token + "&zone=" + zone + "&keyType=" + keyType + "&algorithm=" + algorithm + "&pemPrivateKey=" + encodeURIComponent(pemPrivateKey) + "&rolloverDays=" + rolloverDays + additionalParameters,
+        url: "api/zones/dnssec/properties/addPrivateKey?token=" + sessionData.token + "&zone=" + zone + "&keyType=" + keyType + "&algorithm=" + algorithm + "&pemPrivateKey=" + encodeURIComponent(pemPrivateKey) + "&rolloverDays=" + rolloverDays + additionalParameters,
         success: function (responseJSON) {
             $("#divDnssecPropertiesAddKey").collapse("hide");
             $("#txtDnssecPropertiesPemPrivateKey").val("");
@@ -6838,7 +6838,7 @@ function changeDnssecNxProof(objBtn) {
                 var iterations = $("#txtDnssecPropertiesNSEC3Iterations").val();
                 var saltLength = $("#txtDnssecPropertiesNSEC3SaltLength").val();
 
-                apiUrl = "/api/zones/dnssec/properties/convertToNSEC3?token=" + sessionData.token + "&zone=" + zone + "&iterations=" + iterations + "&saltLength=" + saltLength;
+                apiUrl = "api/zones/dnssec/properties/convertToNSEC3?token=" + sessionData.token + "&zone=" + zone + "&iterations=" + iterations + "&saltLength=" + saltLength;
             }
             break;
 
@@ -6852,10 +6852,10 @@ function changeDnssecNxProof(objBtn) {
                     return;
                 }
                 else {
-                    apiUrl = "/api/zones/dnssec/properties/updateNSEC3Params?token=" + sessionData.token + "&zone=" + zone + "&iterations=" + iterations + "&saltLength=" + saltLength;
+                    apiUrl = "api/zones/dnssec/properties/updateNSEC3Params?token=" + sessionData.token + "&zone=" + zone + "&iterations=" + iterations + "&saltLength=" + saltLength;
                 }
             } else {
-                apiUrl = "/api/zones/dnssec/properties/convertToNSEC?token=" + sessionData.token + "&zone=" + zone;
+                apiUrl = "api/zones/dnssec/properties/convertToNSEC?token=" + sessionData.token + "&zone=" + zone;
             }
             break;
 
@@ -6910,7 +6910,7 @@ function updateDnssecDnsKeyTtl(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "/api/zones/dnssec/properties/updateDnsKeyTtl?token=" + sessionData.token + "&zone=" + zone + "&ttl=" + ttl,
+        url: "api/zones/dnssec/properties/updateDnsKeyTtl?token=" + sessionData.token + "&zone=" + zone + "&ttl=" + ttl,
         success: function (responseJSON) {
             btn.button("reset");
             showAlert("success", "TTL Updated!", "The DNSKEY TTL was updated successfully.", divDnssecPropertiesAlert);
