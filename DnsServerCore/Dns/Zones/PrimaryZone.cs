@@ -2587,15 +2587,15 @@ namespace DnsServerCore.Dns.Zones
 
                     AddRecord(record, out IReadOnlyList<DnsResourceRecord> addedRecords, out IReadOnlyList<DnsResourceRecord> deletedRecords);
 
-                    if (addedRecords.Count == 0)
-                        throw new DnsServerException("Cannot add record: the record already exists.");
+                    if (addedRecords.Count > 0)
+                    {
+                        CommitAndIncrementSerial(deletedRecords, addedRecords);
 
-                    CommitAndIncrementSerial(deletedRecords, addedRecords);
+                        if (_dnssecStatus != AuthZoneDnssecStatus.Unsigned)
+                            UpdateDnssecRecordsFor(this, record.Type);
 
-                    if (_dnssecStatus != AuthZoneDnssecStatus.Unsigned)
-                        UpdateDnssecRecordsFor(this, record.Type);
-
-                    TriggerNotify();
+                        TriggerNotify();
+                    }
                     break;
             }
         }
@@ -2686,16 +2686,14 @@ namespace DnsServerCore.Dns.Zones
                     if (newRecord.OriginalTtlValue > GetZoneSoaExpire())
                         throw new DnsServerException("Cannot update record: TTL cannot be greater than SOA EXPIRE.");
 
+                    if (!TryDeleteRecord(oldRecord.Type, oldRecord.RDATA, out DnsResourceRecord deletedRecord))
+                        throw new DnsServerException("Cannot update record: the record does not exists to be updated.");
+
                     AddRecord(newRecord, out IReadOnlyList<DnsResourceRecord> addedRecords, out IReadOnlyList<DnsResourceRecord> deletedRecords);
 
-                    if (addedRecords.Count == 0)
-                        throw new DnsServerException("Cannot update record: the updated record already exists.");
-
                     List<DnsResourceRecord> allDeletedRecords = new List<DnsResourceRecord>(deletedRecords.Count + 1);
+                    allDeletedRecords.Add(deletedRecord);
                     allDeletedRecords.AddRange(deletedRecords);
-
-                    if (TryDeleteRecord(oldRecord.Type, oldRecord.RDATA, out DnsResourceRecord deletedRecord))
-                        allDeletedRecords.Add(deletedRecord);
 
                     CommitAndIncrementSerial(allDeletedRecords, addedRecords);
 

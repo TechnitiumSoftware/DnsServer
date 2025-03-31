@@ -90,12 +90,12 @@ namespace DnsServerCore.Dns.Zones
 
                     AddRecord(record, out IReadOnlyList<DnsResourceRecord> addedRecords, out IReadOnlyList<DnsResourceRecord> deletedRecords);
 
-                    if (addedRecords.Count == 0)
-                        throw new DnsServerException("Cannot add record: the record already exists.");
+                    if (addedRecords.Count > 0)
+                    {
+                        _forwarderZone.CommitAndIncrementSerial(deletedRecords, addedRecords);
 
-                    _forwarderZone.CommitAndIncrementSerial(deletedRecords, addedRecords);
-
-                    _forwarderZone.TriggerNotify();
+                        _forwarderZone.TriggerNotify();
+                    }
                     break;
             }
         }
@@ -142,16 +142,14 @@ namespace DnsServerCore.Dns.Zones
                     if (newRecord.OriginalTtlValue > _forwarderZone.GetZoneSoaExpire())
                         throw new DnsServerException("Cannot update record: TTL cannot be greater than SOA EXPIRE.");
 
+                    if (!TryDeleteRecord(oldRecord.Type, oldRecord.RDATA, out DnsResourceRecord deletedRecord))
+                        throw new InvalidOperationException("Cannot update record: the record does not exists to be updated.");
+
                     AddRecord(newRecord, out IReadOnlyList<DnsResourceRecord> addedRecords, out IReadOnlyList<DnsResourceRecord> deletedRecords);
 
-                    if (addedRecords.Count == 0)
-                        throw new DnsServerException("Cannot update record: the updated record already exists.");
-
                     List<DnsResourceRecord> allDeletedRecords = new List<DnsResourceRecord>(deletedRecords.Count + 1);
+                    allDeletedRecords.Add(deletedRecord);
                     allDeletedRecords.AddRange(deletedRecords);
-
-                    if (TryDeleteRecord(oldRecord.Type, oldRecord.RDATA, out DnsResourceRecord deletedRecord))
-                        allDeletedRecords.Add(deletedRecord);
 
                     _forwarderZone.CommitAndIncrementSerial(allDeletedRecords, addedRecords);
 
