@@ -821,6 +821,7 @@ namespace DnsServerCore
                     jsonWriter.WriteString("lastUsedOn", authRecordInfo.LastUsedOn);
                     jsonWriter.WriteString("lastModified", authRecordInfo.LastModified);
                     jsonWriter.WriteNumber("expiryTtl", authRecordInfo.ExpiryTtl);
+                    jsonWriter.WriteString("expiryTtlString", ZoneFile.GetTtlString(authRecordInfo.ExpiryTtl));
                 }
                 else
                 {
@@ -1808,7 +1809,7 @@ namespace DnsServerCore
                 string algorithm = request.GetQueryOrForm("algorithm");
                 string pemKskPrivateKey = request.GetQueryOrForm("pemKskPrivateKey", null);
                 string pemZskPrivateKey = request.GetQueryOrForm("pemZskPrivateKey", null);
-                uint dnsKeyTtl = request.GetQueryOrForm("dnsKeyTtl", uint.Parse, 3600u);
+                uint dnsKeyTtl = request.GetQueryOrForm("dnsKeyTtl", ZoneFile.ParseTtl, 3600u);
                 ushort zskRolloverDays = request.GetQueryOrForm("zskRolloverDays", ushort.Parse, Convert.ToUInt16(pemZskPrivateKey is null ? 30 : 0));
 
                 bool useNSEC3 = false;
@@ -2281,7 +2282,7 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
-                uint dnsKeyTtl = request.GetQueryOrForm("ttl", uint.Parse);
+                uint dnsKeyTtl = request.GetQueryOrForm("ttl", ZoneFile.ParseTtl);
 
                 _dnsWebService._dnsServer.AuthZoneManager.UpdatePrimaryZoneDnsKeyTtl(zoneName, dnsKeyTtl);
 
@@ -3425,7 +3426,7 @@ namespace DnsServerCore
                 uint ttl = request.GetQueryOrForm("ttl", ZoneFile.ParseTtl, _defaultRecordTtl);
                 bool overwrite = request.GetQueryOrForm("overwrite", bool.Parse, false);
                 string comments = request.QueryOrForm("comments");
-                uint expiryTtl = request.GetQueryOrForm("expiryTtl", uint.Parse, 0u);
+                uint expiryTtl = request.GetQueryOrForm("expiryTtl", ZoneFile.ParseTtl, 0u);
 
                 DnsResourceRecord newRecord;
 
@@ -3902,12 +3903,12 @@ namespace DnsServerCore
                             if (type == DnsResourceRecordType.A)
                             {
                                 if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsARecordData(ipAddress)))
-                                    throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                                    throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                             }
                             else
                             {
                                 if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsAAAARecordData(ipAddress)))
-                                    throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                                    throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                             }
 
                             string ptrDomain = Zone.GetReverseZone(ipAddress, type == DnsResourceRecordType.A ? 32 : 128);
@@ -3941,13 +3942,13 @@ namespace DnsServerCore
                             string nameServer = request.GetQueryOrFormAlt("nameServer", "value").TrimEnd('.');
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsNSRecordData(nameServer, false)))
-                                throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
                     case DnsResourceRecordType.CNAME:
                         if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecords(zoneInfo.Name, domain, type))
-                            throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                            throw new DnsWebServiceException("Cannot delete record: no such record exists.");
 
                         break;
 
@@ -3956,7 +3957,7 @@ namespace DnsServerCore
                             string ptrName = request.GetQueryOrFormAlt("ptrName", "value").TrimEnd('.');
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsPTRRecordData(ptrName)))
-                                throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -3966,7 +3967,7 @@ namespace DnsServerCore
                             string exchange = request.GetQueryOrFormAlt("exchange", "value").TrimEnd('.');
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsMXRecordData(preference, exchange)))
-                                throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -3976,7 +3977,7 @@ namespace DnsServerCore
                             bool splitText = request.GetQueryOrForm("splitText", bool.Parse, false);
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, splitText ? new DnsTXTRecordData(DecodeCharacterStrings(text)) : new DnsTXTRecordData(text)))
-                                throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -3986,7 +3987,7 @@ namespace DnsServerCore
                             string txtDomain = request.GetQueryOrForm("txtDomain", "").TrimEnd('.');
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsRPRecordData(mailbox, txtDomain)))
-                                throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -3998,7 +3999,7 @@ namespace DnsServerCore
                             string target = request.GetQueryOrFormAlt("target", "value").TrimEnd('.');
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSRVRecordData(priority, weight, port, target)))
-                                throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -4012,13 +4013,13 @@ namespace DnsServerCore
                             string replacement = request.GetQueryOrForm("naptrReplacement", "").TrimEnd('.');
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsNAPTRRecordData(order, preference, flags, services, regexp, replacement)))
-                                throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
                     case DnsResourceRecordType.DNAME:
                         if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecords(zoneInfo.Name, domain, type))
-                            throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                            throw new DnsWebServiceException("Cannot delete record: no such record exists.");
 
                         break;
 
@@ -4030,7 +4031,7 @@ namespace DnsServerCore
                             byte[] digest = Convert.FromHexString(request.GetQueryOrFormAlt("digest", "value"));
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsDSRecordData(keyTag, algorithm, digestType, digest)))
-                                throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -4041,7 +4042,7 @@ namespace DnsServerCore
                             byte[] sshfpFingerprint = request.GetQueryOrForm("sshfpFingerprint", Convert.FromHexString);
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSSHFPRecordData(sshfpAlgorithm, sshfpFingerprintType, sshfpFingerprint)))
-                                throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -4053,7 +4054,7 @@ namespace DnsServerCore
                             string tlsaCertificateAssociationData = request.GetQueryOrForm("tlsaCertificateAssociationData");
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsTLSARecordData(tlsaCertificateUsage, tlsaSelector, tlsaMatchingType, tlsaCertificateAssociationData)))
-                                throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -4085,7 +4086,7 @@ namespace DnsServerCore
                             }
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSVCBRecordData(svcPriority, targetName, svcParams)))
-                                throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -4096,7 +4097,7 @@ namespace DnsServerCore
                             Uri uri = request.GetQueryOrForm("uri", delegate (string value) { return new Uri(value); });
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsURIRecordData(priority, weight, uri)))
-                                throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -4107,7 +4108,7 @@ namespace DnsServerCore
                             string value = request.GetQueryOrForm("value");
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsCAARecordData(flags, tag, value)))
-                                throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -4116,7 +4117,7 @@ namespace DnsServerCore
                             string aname = request.GetQueryOrFormAlt("aname", "value").TrimEnd('.');
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsANAMERecordData(aname)))
-                                throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -4126,13 +4127,13 @@ namespace DnsServerCore
                             string forwarder = request.GetQueryOrFormAlt("forwarder", "value");
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, DnsForwarderRecordData.CreatePartialRecordData(protocol, forwarder)))
-                                throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
                     case DnsResourceRecordType.APP:
                         if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecords(zoneInfo.Name, domain, type))
-                            throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                            throw new DnsWebServiceException("Cannot delete record: no such record exists.");
 
                         break;
 
@@ -4148,7 +4149,7 @@ namespace DnsServerCore
                                 rdata = Convert.FromHexString(strRData);
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsUnknownRecordData(rdata)))
-                                throw new DnsWebServiceException("Failed to delete the record: no such record exists.");
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
                 }
@@ -4192,7 +4193,7 @@ namespace DnsServerCore
                 uint ttl = request.GetQueryOrForm("ttl", ZoneFile.ParseTtl, _defaultRecordTtl);
                 bool disable = request.GetQueryOrForm("disable", bool.Parse, false);
                 string comments = request.QueryOrForm("comments");
-                uint expiryTtl = request.GetQueryOrForm("expiryTtl", uint.Parse, 0u);
+                uint expiryTtl = request.GetQueryOrForm("expiryTtl", ZoneFile.ParseTtl, 0u);
                 DnsResourceRecordType type = request.GetQueryOrFormEnum<DnsResourceRecordType>("type");
 
                 DnsResourceRecord oldRecord = null;
@@ -4304,10 +4305,10 @@ namespace DnsServerCore
                             string primaryNameServer = request.GetQueryOrForm("primaryNameServer").TrimEnd('.');
                             string responsiblePerson = request.GetQueryOrForm("responsiblePerson").TrimEnd('.');
                             uint serial = request.GetQueryOrForm("serial", uint.Parse);
-                            uint refresh = request.GetQueryOrForm("refresh", uint.Parse);
-                            uint retry = request.GetQueryOrForm("retry", uint.Parse);
-                            uint expire = request.GetQueryOrForm("expire", uint.Parse);
-                            uint minimum = request.GetQueryOrForm("minimum", uint.Parse);
+                            uint refresh = request.GetQueryOrForm("refresh", ZoneFile.ParseTtl);
+                            uint retry = request.GetQueryOrForm("retry", ZoneFile.ParseTtl);
+                            uint expire = request.GetQueryOrForm("expire", ZoneFile.ParseTtl);
+                            uint minimum = request.GetQueryOrForm("minimum", ZoneFile.ParseTtl);
 
                             newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSOARecordData(primaryNameServer, responsiblePerson, serial, refresh, retry, expire, minimum));
 
