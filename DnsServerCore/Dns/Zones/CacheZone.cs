@@ -389,29 +389,23 @@ namespace DnsServerCore.Dns.Zones
                 if (_ecsEntries is null)
                     return Array.Empty<DnsResourceRecord>();
 
-                NetworkAddress selectedNetwork = null;
-                entries = null;
-
-                foreach (KeyValuePair<NetworkAddress, ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>> ecsEntry in _ecsEntries)
+                if (advancedForwardingClientSubnet)
                 {
-                    NetworkAddress cacheSubnet = ecsEntry.Key;
+                    if (!_ecsEntries.TryGetValue(eDnsClientSubnet, out entries))
+                        return Array.Empty<DnsResourceRecord>();
+                }
+                else
+                {
+                    NetworkAddress selectedNetwork = null;
+                    entries = null;
 
-                    if (cacheSubnet.PrefixLength > eDnsClientSubnet.PrefixLength)
-                        continue;
+                    foreach (KeyValuePair<NetworkAddress, ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>> ecsEntry in _ecsEntries)
+                    {
+                        NetworkAddress cacheSubnet = ecsEntry.Key;
 
-                    if (advancedForwardingClientSubnet)
-                    {
-                        if (cacheSubnet.Equals(eDnsClientSubnet))
-                        {
-                            if ((selectedNetwork is null) || (cacheSubnet.PrefixLength > selectedNetwork.PrefixLength))
-                            {
-                                selectedNetwork = cacheSubnet;
-                                entries = ecsEntry.Value;
-                            }
-                        }
-                    }
-                    else
-                    {
+                        if (cacheSubnet.PrefixLength > eDnsClientSubnet.PrefixLength)
+                            continue;
+
                         if (cacheSubnet.Equals(eDnsClientSubnet) || cacheSubnet.Contains(eDnsClientSubnet.Address))
                         {
                             if ((selectedNetwork is null) || (cacheSubnet.PrefixLength < selectedNetwork.PrefixLength))
@@ -421,10 +415,10 @@ namespace DnsServerCore.Dns.Zones
                             }
                         }
                     }
-                }
 
-                if (entries is null)
-                    return Array.Empty<DnsResourceRecord>();
+                    if (entries is null)
+                        return Array.Empty<DnsResourceRecord>();
+                }
             }
 
             switch (type)
