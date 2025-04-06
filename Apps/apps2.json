@@ -128,6 +128,12 @@
 				"version": "3.0",
 				"url": "https://download.technitium.com/dns/apps/AdvancedForwardingApp-v3.zip",
 				"size": "20.4 KB"
+			},
+			{
+				"serverVersion": "13.5",
+				"version": "3.1",
+				"url": "https://download.technitium.com/dns/apps/AdvancedForwardingApp-v3.1.zip",
+				"size": "20.5 KB"
 			}
 		]
 	},
@@ -308,6 +314,12 @@
 				"version": "4.0",
 				"url": "https://download.technitium.com/dns/apps/Dns64App-v4.zip",
 				"size": "15.5 KB"
+			},
+			{
+				"serverVersion": "13.5",
+				"version": "4.1",
+				"url": "https://download.technitium.com/dns/apps/Dns64App-v4.1.zip",
+				"size": "15.6 KB"
 			}
 		]
 	},
@@ -740,6 +752,12 @@
 				"version": "1.0",
 				"url": "https://download.technitium.com/dns/apps/LogExporterApp-v1.zip",
 				"size": "202 KB"
+			},
+			{
+				"serverVersion": "13.5",
+				"version": "1.0.1",
+				"url": "https://download.technitium.com/dns/apps/LogExporterApp-v1.0.1.zip",
+				"size": "202 KB"
 			}
 		]
 	},
@@ -836,6 +854,12 @@
 				"version": "6.0",
 				"url": "https://download.technitium.com/dns/apps/NxDomainApp-v6.zip",
 				"size": "11.4 KB"
+			},
+			{
+				"serverVersion": "13.5",
+				"version": "6.1",
+				"url": "https://download.technitium.com/dns/apps/NxDomainApp-v6.1.zip",
+				"size": "11.6 KB"
 			}
 		]
 	},
@@ -877,6 +901,12 @@
 				"serverVersion": "13.4.2",
 				"version": "2.0",
 				"url": "https://download.technitium.com/dns/apps/QueryLogsMySqlApp-v2.zip",
+				"size": "472 KB"
+			},
+			{
+				"serverVersion": "13.5",
+				"version": "2.0.1",
+				"url": "https://download.technitium.com/dns/apps/QueryLogsMySqlApp-v2.0.1.zip",
 				"size": "472 KB"
 			}
 		]
@@ -992,6 +1022,12 @@
 				"version": "1.2",
 				"url": "https://download.technitium.com/dns/apps/QueryLogsSqlServerApp-v1.2.zip",
 				"size": "4.67 MB"
+			},
+			{
+				"serverVersion": "13.5",
+				"version": "1.2.1",
+				"url": "https://download.technitium.com/dns/apps/QueryLogsSqlServerApp-v1.2.1.zip",
+				"size": "4.67 MB"
 			}
 		]
 	},
@@ -1058,6 +1094,12 @@
 				"version": "8.0",
 				"url": "https://download.technitium.com/dns/apps/SplitHorizonApp-v8.zip",
 				"size": "19.4 KB"
+			},
+			{
+				"serverVersion": "13.5",
+				"version": "8.1",
+				"url": "https://download.technitium.com/dns/apps/SplitHorizonApp-v8.1.zip",
+				"size": "19.5 KB"
 			}
 		]
 	},
@@ -1214,6 +1256,12 @@
 				"version": "3.0",
 				"url": "https://download.technitium.com/dns/apps/ZoneAliasApp-v3.zip",
 				"size": "12.9 KB"
+			},
+			{
+				"serverVersion": "13.5",
+				"version": "3.1",
+				"url": "https://download.technitium.com/dns/apps/ZoneAliasApp-v3.1.zip",
+				"size": "13.0 KB"
 			}
 		]
 	}
