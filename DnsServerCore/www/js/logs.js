@@ -60,14 +60,14 @@ function refreshLogFilesList() {
     var lstLogFiles = $("#lstLogFiles");
 
     HTTPRequest({
-        url: "/api/logs/list?token=" + sessionData.token,
+        url: "api/logs/list?token=" + sessionData.token,
         success: function (responseJSON) {
             var logFiles = responseJSON.response.logFiles;
 
             var list = "<div class=\"log\" style=\"font-size: 14px; padding-bottom: 6px;\"><a href=\"#\" onclick=\"deleteAllStats(); return false;\"><b>[delete all stats]</b></a></div>";
 
             if (logFiles.length == 0) {
-                list += "<div class=\"log\">No Log Was Found</div>";
+                list += "<div class=\"log\">No Log File Was Found</div>";
             }
             else {
                 list += "<div class=\"log\" style=\"font-size: 14px; padding-bottom: 6px;\"><a href=\"#\" onclick=\"deleteAllLogs(); return false;\"><b>[delete all logs]</b></a></div>";
@@ -101,7 +101,7 @@ function viewLog(logFile) {
     divLogViewer.show();
 
     HTTPRequest({
-        url: "/api/logs/download?token=" + sessionData.token + "&fileName=" + encodeURIComponent(logFile) + "&limit=2",
+        url: "api/logs/download?token=" + sessionData.token + "&fileName=" + encodeURIComponent(logFile) + "&limit=2",
         isTextResponse: true,
         success: function (response) {
             divLogViewerLoader.hide();
@@ -115,7 +115,7 @@ function viewLog(logFile) {
 
 function downloadLog() {
     var logFile = $("#txtLogViewerTitle").text();
-    window.open("/api/logs/download?token=" + sessionData.token + "&fileName=" + encodeURIComponent(logFile) + "&ts=" + (new Date().getTime()), "_blank");
+    window.open("api/logs/download?token=" + sessionData.token + "&fileName=" + encodeURIComponent(logFile) + "&ts=" + (new Date().getTime()), "_blank");
 }
 
 function deleteLog() {
@@ -127,7 +127,7 @@ function deleteLog() {
     var btn = $("#btnDeleteLog").button('loading');
 
     HTTPRequest({
-        url: "/api/logs/delete?token=" + sessionData.token + "&log=" + logFile,
+        url: "api/logs/delete?token=" + sessionData.token + "&log=" + logFile,
         success: function (responseJSON) {
             refreshLogFilesList();
 
@@ -151,7 +151,7 @@ function deleteAllLogs() {
         return;
 
     HTTPRequest({
-        url: "/api/logs/deleteAll?token=" + sessionData.token,
+        url: "api/logs/deleteAll?token=" + sessionData.token,
         success: function (responseJSON) {
             refreshLogFilesList();
 
@@ -170,7 +170,7 @@ function deleteAllStats() {
         return;
 
     HTTPRequest({
-        url: "/api/dashboard/stats/deleteAll?token=" + sessionData.token,
+        url: "api/dashboard/stats/deleteAll?token=" + sessionData.token,
         success: function (responseJSON) {
             showAlert("success", "Stats Deleted!", "All stats files were deleted successfully.");
         },
@@ -203,7 +203,7 @@ function refreshQueryLogsTab(doQueryLogs) {
     }
 
     HTTPRequest({
-        url: "/api/apps/list?token=" + sessionData.token,
+        url: "api/apps/list?token=" + sessionData.token,
         success: function (responseJSON) {
             var apps = responseJSON.response.apps;
 
@@ -323,15 +323,69 @@ function queryLogs(pageNumber) {
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/logs/query?token=" + sessionData.token + "&name=" + encodeURIComponent(name) + "&classPath=" + encodeURIComponent(classPath) + "&pageNumber=" + pageNumber + "&entriesPerPage=" + entriesPerPage + "&descendingOrder=" + descendingOrder +
+        url: "api/logs/query?token=" + sessionData.token + "&name=" + encodeURIComponent(name) + "&classPath=" + encodeURIComponent(classPath) + "&pageNumber=" + pageNumber + "&entriesPerPage=" + entriesPerPage + "&descendingOrder=" + descendingOrder +
             "&start=" + encodeURIComponent(start) + "&end=" + encodeURIComponent(end) + "&clientIpAddress=" + encodeURIComponent(clientIpAddress) + "&protocol=" + protocol + "&responseType=" + responseType + "&rcode=" + rcode +
             "&qname=" + encodeURIComponent(qname) + "&qtype=" + qtype + "&qclass=" + qclass,
         success: function (responseJSON) {
             var tableHtml = "";
 
             for (var i = 0; i < responseJSON.response.entries.length; i++) {
-                tableHtml += "<tr><td>" + responseJSON.response.entries[i].rowNumber + "</td><td>" +
-                    moment(responseJSON.response.entries[i].timestamp).local().format("YYYY-MM-DD HH:mm:ss") + "</td><td>" +
+                var trbgcolor;
+
+                switch (responseJSON.response.entries[i].rcode.toLowerCase()) {
+                    case "serverfailure":
+                        trbgcolor = "rgba(217, 83, 79, 0.1)";
+                        break;
+
+                    case "nxdomain":
+                        switch (responseJSON.response.entries[i].responseType.toLowerCase()) {
+                            case "blocked":
+                            case "upstreamblocked":
+                            case "upstreamblockedcached":
+                                trbgcolor = "rgba(255, 165, 0, 0.1)";
+                                break;
+
+                            default:
+                                trbgcolor = "rgba(120, 120, 120, 0.1)";
+                                break;
+                        }
+
+                        break;
+
+                    case "refused":
+                        trbgcolor = "rgba(91, 192, 222, 0.1)";
+                        break;
+
+                    default:
+                        switch (responseJSON.response.entries[i].responseType.toLowerCase()) {
+                            case "authoritative":
+                                trbgcolor = "rgba(150, 150, 0, 0.1)";
+                                break;
+
+                            case "recursive":
+                                trbgcolor = "rgba(23, 162, 184, 0.1)";
+                                break;
+
+                            case "cached":
+                                trbgcolor = "rgba(111, 84, 153, 0.1)";
+                                break;
+
+                            case "blocked":
+                            case "upstreamblocked":
+                            case "upstreamblockedcached":
+                                trbgcolor = "rgba(255, 165, 0, 0.1)";
+                                break;
+
+                            default:
+                                trbgcolor = null;
+                                break;
+                        }
+
+                        break;
+                }
+
+                tableHtml += "<tr" + (trbgcolor == null ? "" : " style=\"background-color: " + trbgcolor + ";\"") + "><td>" + responseJSON.response.entries[i].rowNumber + "</td><td>" +
+                    moment(responseJSON.response.entries[i].timestamp).local().format("YYYY-MM-DD HH:mm:ss") + "</td><td style=\"word-break: break-all; min-width: 125px;\">" +
                     responseJSON.response.entries[i].clientIpAddress + "</td><td>" +
                     responseJSON.response.entries[i].protocol + "</td><td>" +
                     responseJSON.response.entries[i].responseType + (responseJSON.response.entries[i].responseRtt == null ? "" : "<div style=\"font-size: 12px;\">(" + responseJSON.response.entries[i].responseRtt.toFixed(2) + " ms)</div>") + "</td><td>" +
@@ -347,7 +401,7 @@ function queryLogs(pageNumber) {
                 switch (responseJSON.response.entries[i].responseType.toLowerCase()) {
                     case "blocked":
                     case "upstreamblocked":
-                    case "cacheblocked":
+                    case "upstreamblockedcached":
                         tableHtml += "<li><a href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(responseJSON.response.entries[i].qname) + "\" onclick=\"allowDomain(this, 'btnQueryLogsRowOption'); return false;\">Allow Domain</a></li>";
                         break;
 
@@ -479,7 +533,7 @@ function exportQueryLogsCsv() {
     var qtype = $("#txtQueryLogQType").val();
     var qclass = $("#optQueryLogQClass").val();
 
-    window.open("/api/logs/export?token=" + sessionData.token + "&name=" + encodeURIComponent(name) + "&classPath=" + encodeURIComponent(classPath) +
+    window.open("api/logs/export?token=" + sessionData.token + "&name=" + encodeURIComponent(name) + "&classPath=" + encodeURIComponent(classPath) +
         "&start=" + encodeURIComponent(start) + "&end=" + encodeURIComponent(end) + "&clientIpAddress=" + encodeURIComponent(clientIpAddress) +
         "&protocol=" + protocol + "&responseType=" + responseType + "&rcode=" + rcode + "&qname=" + encodeURIComponent(qname) + "&qtype=" + qtype + "&qclass=" + qclass
         , "_blank");

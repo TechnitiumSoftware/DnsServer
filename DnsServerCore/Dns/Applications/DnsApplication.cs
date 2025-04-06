@@ -28,6 +28,12 @@ namespace DnsServerCore.Dns.Applications
 {
     public sealed class DnsApplication : IDisposable
     {
+        #region events
+
+        public event EventHandler ConfigUpdated;
+
+        #endregion
+
         #region variables
 
         readonly static Type _dnsApplicationInterface = typeof(IDnsApplication);
@@ -233,6 +239,8 @@ namespace DnsServerCore.Dns.Applications
                 File.Delete(configFile);
             else
                 await File.WriteAllTextAsync(configFile, config);
+
+            ConfigUpdated?.Invoke(this, EventArgs.Empty);
         }
 
         #endregion

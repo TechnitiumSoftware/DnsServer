@@ -378,7 +378,6 @@ namespace DnsServerCore
 
                 jsonWriter.WriteBoolean("randomizeName", _dnsWebService._dnsServer.RandomizeName);
                 jsonWriter.WriteBoolean("qnameMinimization", _dnsWebService._dnsServer.QnameMinimization);
-                jsonWriter.WriteBoolean("nsRevalidation", _dnsWebService._dnsServer.NsRevalidation);
 
                 jsonWriter.WriteNumber("resolverRetries", _dnsWebService._dnsServer.ResolverRetries);
                 jsonWriter.WriteNumber("resolverTimeout", _dnsWebService._dnsServer.ResolverTimeout);
@@ -526,7 +525,8 @@ namespace DnsServerCore
                 jsonWriter.WriteNumber("forwarderConcurrency", _dnsWebService._dnsServer.ForwarderConcurrency);
 
                 //logging
-                jsonWriter.WriteBoolean("enableLogging", _dnsWebService._log.EnableLogging);
+                jsonWriter.WriteBoolean("enableLogging", _dnsWebService._log.LoggingType != LoggingType.None);
+                jsonWriter.WriteString("loggingType", _dnsWebService._log.LoggingType.ToString());
                 jsonWriter.WriteBoolean("ignoreResolverLogs", _dnsWebService._dnsServer.ResolverLogManager == null);
                 jsonWriter.WriteBoolean("logQueries", _dnsWebService._dnsServer.QueryLogManager != null);
                 jsonWriter.WriteBoolean("useLocalTime", _dnsWebService._log.UseLocalTime);
@@ -620,7 +620,7 @@ namespace DnsServerCore
                     if (request.TryGetQueryOrFormArray("dnsServerIPv6SourceAddresses", NetworkAddress.Parse, out NetworkAddress[] dnsServerIPv6SourceAddresses))
                         DnsClientConnection.IPv6SourceAddresses = dnsServerIPv6SourceAddresses;
 
-                    if (request.TryGetQueryOrForm("defaultRecordTtl", uint.Parse, out uint defaultRecordTtl))
+                    if (request.TryGetQueryOrForm("defaultRecordTtl", ZoneFile.ParseTtl, out uint defaultRecordTtl))
                         _dnsWebService._zonesApi.DefaultRecordTtl = defaultRecordTtl;
 
                     string defaultResponsiblePerson = request.QueryOrForm("defaultResponsiblePerson");
@@ -637,10 +637,10 @@ namespace DnsServerCore
                     if (request.TryGetQueryOrForm("useSoaSerialDateScheme", bool.Parse, out bool useSoaSerialDateScheme))
                         _dnsWebService._dnsServer.AuthZoneManager.UseSoaSerialDateScheme = useSoaSerialDateScheme;
 
-                    if (request.TryGetQueryOrForm("minSoaRefresh", uint.Parse, out uint minSoaRefresh))
+                    if (request.TryGetQueryOrForm("minSoaRefresh", ZoneFile.ParseTtl, out uint minSoaRefresh))
                         _dnsWebService._dnsServer.AuthZoneManager.MinSoaRefresh = minSoaRefresh;
 
-                    if (request.TryGetQueryOrForm("minSoaRetry", uint.Parse, out uint minSoaRetry))
+                    if (request.TryGetQueryOrForm("minSoaRetry", ZoneFile.ParseTtl, out uint minSoaRetry))
                         _dnsWebService._dnsServer.AuthZoneManager.MinSoaRetry = minSoaRetry;
 
                     if (request.TryGetQueryOrFormArray("zoneTransferAllowedNetworks", NetworkAddress.Parse, out NetworkAddress[] zoneTransferAllowedNetworks))
@@ -1084,9 +1084,6 @@ namespace DnsServerCore
                     if (request.TryGetQueryOrForm("qnameMinimization", bool.Parse, out bool qnameMinimization))
                         _dnsWebService._dnsServer.QnameMinimization = qnameMinimization;
 
-                    if (request.TryGetQueryOrForm("nsRevalidation", bool.Parse, out bool nsRevalidation))
-                        _dnsWebService._dnsServer.NsRevalidation = nsRevalidation;
-
                     if (request.TryGetQueryOrForm("resolverRetries", int.Parse, out int resolverRetries))
                         _dnsWebService._dnsServer.ResolverRetries = resolverRetries;
 
@@ -1115,13 +1112,13 @@ namespace DnsServerCore
                     if (request.TryGetQueryOrForm("serveStale", bool.Parse, out bool serveStale))
                         _dnsWebService._dnsServer.ServeStale = serveStale;
 
-                    if (request.TryGetQueryOrForm("serveStaleTtl", uint.Parse, out uint serveStaleTtl))
+                    if (request.TryGetQueryOrForm("serveStaleTtl", ZoneFile.ParseTtl, out uint serveStaleTtl))
                         _dnsWebService._dnsServer.CacheZoneManager.ServeStaleTtl = serveStaleTtl;
 
-                    if (request.TryGetQueryOrForm("serveStaleAnswerTtl", uint.Parse, out uint serveStaleAnswerTtl))
+                    if (request.TryGetQueryOrForm("serveStaleAnswerTtl", ZoneFile.ParseTtl, out uint serveStaleAnswerTtl))
                         _dnsWebService._dnsServer.CacheZoneManager.ServeStaleAnswerTtl = serveStaleAnswerTtl;
 
-                    if (request.TryGetQueryOrForm("serveStaleResetTtl", uint.Parse, out uint serveStaleResetTtl))
+                    if (request.TryGetQueryOrForm("serveStaleResetTtl", ZoneFile.ParseTtl, out uint serveStaleResetTtl))
                         _dnsWebService._dnsServer.CacheZoneManager.ServeStaleResetTtl = serveStaleResetTtl;
 
                     if (request.TryGetQueryOrForm("serveStaleMaxWaitTime", int.Parse, out int serveStaleMaxWaitTime))
@@ -1130,16 +1127,16 @@ namespace DnsServerCore
                     if (request.TryGetQueryOrForm("cacheMaximumEntries", long.Parse, out long cacheMaximumEntries))
                         _dnsWebService._dnsServer.CacheZoneManager.MaximumEntries = cacheMaximumEntries;
 
-                    if (request.TryGetQueryOrForm("cacheMinimumRecordTtl", uint.Parse, out uint cacheMinimumRecordTtl))
+                    if (request.TryGetQueryOrForm("cacheMinimumRecordTtl", ZoneFile.ParseTtl, out uint cacheMinimumRecordTtl))
                         _dnsWebService._dnsServer.CacheZoneManager.MinimumRecordTtl = cacheMinimumRecordTtl;
 
-                    if (request.TryGetQueryOrForm("cacheMaximumRecordTtl", uint.Parse, out uint cacheMaximumRecordTtl))
+                    if (request.TryGetQueryOrForm("cacheMaximumRecordTtl", ZoneFile.ParseTtl, out uint cacheMaximumRecordTtl))
                         _dnsWebService._dnsServer.CacheZoneManager.MaximumRecordTtl = cacheMaximumRecordTtl;
 
-                    if (request.TryGetQueryOrForm("cacheNegativeRecordTtl", uint.Parse, out uint cacheNegativeRecordTtl))
+                    if (request.TryGetQueryOrForm("cacheNegativeRecordTtl", ZoneFile.ParseTtl, out uint cacheNegativeRecordTtl))
                         _dnsWebService._dnsServer.CacheZoneManager.NegativeRecordTtl = cacheNegativeRecordTtl;
 
-                    if (request.TryGetQueryOrForm("cacheFailureRecordTtl", uint.Parse, out uint cacheFailureRecordTtl))
+                    if (request.TryGetQueryOrForm("cacheFailureRecordTtl", ZoneFile.ParseTtl, out uint cacheFailureRecordTtl))
                         _dnsWebService._dnsServer.CacheZoneManager.FailureRecordTtl = cacheFailureRecordTtl;
 
                     if (request.TryGetQueryOrForm("cachePrefetchEligibility", int.Parse, out int cachePrefetchEligibility))
@@ -1177,7 +1174,7 @@ namespace DnsServerCore
                     if (request.TryGetQueryOrFormEnum("blockingType", out DnsServerBlockingType blockingType))
                         _dnsWebService._dnsServer.BlockingType = blockingType;
 
-                    if (request.TryGetQueryOrForm("blockingAnswerTtl", uint.Parse, out uint blockingAnswerTtl))
+                    if (request.TryGetQueryOrForm("blockingAnswerTtl", ZoneFile.ParseTtl, out uint blockingAnswerTtl))
                         _dnsWebService._dnsServer.BlockingAnswerTtl = blockingAnswerTtl;
 
                     if (request.TryGetQueryOrFormArray("customBlockingAddresses", out string[] customBlockingAddresses))
@@ -1401,8 +1398,10 @@ namespace DnsServerCore
 
                     #region logging
 
-                    if (request.TryGetQueryOrForm("enableLogging", bool.Parse, out bool enableLogging))
-                        _dnsWebService._log.EnableLogging = enableLogging;
+                    if (request.TryGetQueryOrFormEnum("loggingType", out LoggingType loggingType))
+                        _dnsWebService._log.LoggingType = loggingType;
+                    else if (request.TryGetQueryOrForm("enableLogging", bool.Parse, out bool enableLogging))
+                        _dnsWebService._log.LoggingType = enableLogging ? LoggingType.File : LoggingType.None;
 
                     if (request.TryGetQueryOrForm("ignoreResolverLogs", bool.Parse, out bool ignoreResolverLogs))
                         _dnsWebService._dnsServer.ResolverLogManager = ignoreResolverLogs ? null : _dnsWebService._log;
@@ -1786,7 +1785,7 @@ namespace DnsServerCore
                                 if (logSettings || logs)
                                 {
                                     //start logging
-                                    if (_dnsWebService._log.EnableLogging)
+                                    if (_dnsWebService._log.LoggingType != LoggingType.None)
                                         _dnsWebService._log.StartLogging();
                                 }
                             }
@@ -1917,7 +1916,7 @@ namespace DnsServerCore
                                 }
 
                                 //reload apps
-                                _dnsWebService._dnsServer.DnsApplicationManager.LoadAllApplications();
+                                await _dnsWebService._dnsServer.DnsApplicationManager.LoadAllApplicationsAsync();
                             }
 
                             if (zones)

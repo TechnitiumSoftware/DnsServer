@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dns.Zones;
+using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.OpenSsl;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -132,6 +135,7 @@ namespace DnsServerCore.Dns.Dnssec
 
         DnssecPrivateKeyState _state;
         DateTime _stateChangedOn;
+        DateTime _stateTransitionBy;
         bool _isRetiring;
         ushort _rolloverDays;
 
@@ -150,13 +154,17 @@ namespace DnsServerCore.Dns.Dnssec
             _stateChangedOn = DateTime.UtcNow;
         }
 
-        protected DnssecPrivateKey(DnssecAlgorithm algorithm, BinaryReader bR)
+        protected DnssecPrivateKey(DnssecAlgorithm algorithm, BinaryReader bR, int version)
         {
             _algorithm = algorithm;
             _keyType = (DnssecPrivateKeyType)bR.ReadByte();
 
             _state = (DnssecPrivateKeyState)bR.ReadByte();
             _stateChangedOn = DateTime.UnixEpoch.AddSeconds(bR.ReadInt64());
+
+            if (version >= 2)
+                _stateTransitionBy = DateTime.UnixEpoch.AddSeconds(bR.ReadInt64());
+
             _isRetiring = bR.ReadBoolean();
             _rolloverDays = bR.ReadUInt16();
 
@@ -177,7 +185,7 @@ namespace DnsServerCore.Dns.Dnssec
                 case DnssecAlgorithm.RSASHA256:
                 case DnssecAlgorithm.RSASHA512:
                     if ((keySize < 1024) || (keySize > 4096))
-                        throw new ArgumentOutOfRangeException(nameof(keySize), "Valid RSA key size range is between 1024-4096 bits.");
+                        throw new ArgumentOutOfRangeException(nameof(keySize), $"Valid RSA ({(keyType == DnssecPrivateKeyType.KeySigningKey ? "KSK" : "ZSK")}) private key size range is between 1024-4096 bits.");
 
                     using (RSA rsa = RSA.Create(keySize))
                     {
@@ -196,6 +204,76 @@ namespace DnsServerCore.Dns.Dnssec
                         return new DnssecEcdsaPrivateKey(algorithm, keyType, ecdsa.ExportParameters(true));
                     }
 
+                case DnssecAlgorithm.ED25519:
+                    return new DnssecEddsaPrivateKey(keyType, new Ed25519PrivateKeyParameters(RandomNumberGenerator.GetBytes(32)));
+
+                case DnssecAlgorithm.ED448:
+                    return new DnssecEddsaPrivateKey(keyType, new Ed448PrivateKeyParameters(RandomNumberGenerator.GetBytes(57)));
+
+                default:
+                    throw new NotSupportedException("DNSSEC algorithm is not supported: " + algorithm.ToString());
+            }
+        }
+
+        public static DnssecPrivateKey Create(DnssecAlgorithm algorithm, DnssecPrivateKeyType keyType, string pemPrivateKey)
+        {
+            switch (algorithm)
+            {
+                case DnssecAlgorithm.RSAMD5:
+                case DnssecAlgorithm.RSASHA1:
+                case DnssecAlgorithm.RSASHA1_NSEC3_SHA1:
+                case DnssecAlgorithm.RSASHA256:
+                case DnssecAlgorithm.RSASHA512:
+                    using (RSA rsa = RSA.Create())
+                    {
+                        rsa.ImportFromPem(pemPrivateKey);
+
+                        if ((rsa.KeySize < 1024) || (rsa.KeySize > 4096))
+                            throw new ArgumentOutOfRangeException(nameof(pemPrivateKey), $"Valid RSA ({(keyType == DnssecPrivateKeyType.KeySigningKey ? "KSK" : "ZSK")}) private key size range is between 1024-4096 bits.");
+
+                        return new DnssecRsaPrivateKey(algorithm, keyType, rsa.KeySize, rsa.ExportParameters(true));
+                    }
+
+                case DnssecAlgorithm.ECDSAP256SHA256:
+                    using (ECDsa ecdsa = ECDsa.Create())
+                    {
+                        ecdsa.ImportFromPem(pemPrivateKey);
+
+                        if (ecdsa.KeySize != 256)
+                            throw new ArgumentException($"The ECDSA ({(keyType == DnssecPrivateKeyType.KeySigningKey ? "KSK" : "ZSK")}) private key must have key size of 256 bits.", nameof(pemPrivateKey));
+
+                        return new DnssecEcdsaPrivateKey(algorithm, keyType, ecdsa.ExportParameters(true));
+                    }
+
+                case DnssecAlgorithm.ECDSAP384SHA384:
+                    using (ECDsa ecdsa = ECDsa.Create())
+                    {
+                        ecdsa.ImportFromPem(pemPrivateKey);
+
+                        if (ecdsa.KeySize != 384)
+                            throw new ArgumentException($"The ECDSA ({(keyType == DnssecPrivateKeyType.KeySigningKey ? "KSK" : "ZSK")}) private key must have key size of 384 bits.", nameof(pemPrivateKey));
+
+                        return new DnssecEcdsaPrivateKey(algorithm, keyType, ecdsa.ExportParameters(true));
+                    }
+
+                case DnssecAlgorithm.ED25519:
+                    using (PemReader pemReader = new PemReader(new StringReader(pemPrivateKey)))
+                    {
+                        if (pemReader.ReadObject() is not Ed25519PrivateKeyParameters privateKey)
+                            throw new ArgumentException($"The EdDSA ({(keyType == DnssecPrivateKeyType.KeySigningKey ? "KSK" : "ZSK")}) private key must be for Ed25519 curve.", nameof(pemPrivateKey));
+
+                        return new DnssecEddsaPrivateKey(keyType, privateKey);
+                    }
+
+                case DnssecAlgorithm.ED448:
+                    using (PemReader pemReader = new PemReader(new StringReader(pemPrivateKey)))
+                    {
+                        if (pemReader.ReadObject() is not Ed448PrivateKeyParameters privateKey)
+                            throw new ArgumentException($"The EdDSA ({(keyType == DnssecPrivateKeyType.KeySigningKey ? "KSK" : "ZSK")}) private key must be for Ed448 curve.", nameof(pemPrivateKey));
+
+                        return new DnssecEddsaPrivateKey(keyType, privateKey);
+                    }
+
                 default:
                     throw new NotSupportedException("DNSSEC algorithm is not supported: " + algorithm.ToString());
             }
@@ -210,6 +288,7 @@ namespace DnsServerCore.Dns.Dnssec
             switch (version)
             {
                 case 1:
+                case 2:
                     DnssecAlgorithm algorithm = (DnssecAlgorithm)bR.ReadByte();
                     switch (algorithm)
                     {
@@ -218,11 +297,15 @@ namespace DnsServerCore.Dns.Dnssec
                         case DnssecAlgorithm.RSASHA1_NSEC3_SHA1:
                         case DnssecAlgorithm.RSASHA256:
                         case DnssecAlgorithm.RSASHA512:
-                            return new DnssecRsaPrivateKey(algorithm, bR);
+                            return new DnssecRsaPrivateKey(algorithm, bR, version);
 
                         case DnssecAlgorithm.ECDSAP256SHA256:
                         case DnssecAlgorithm.ECDSAP384SHA384:
-                            return new DnssecEcdsaPrivateKey(algorithm, bR);
+                            return new DnssecEcdsaPrivateKey(algorithm, bR, version);
+
+                        case DnssecAlgorithm.ED25519:
+                        case DnssecAlgorithm.ED448:
+                            return new DnssecEddsaPrivateKey(algorithm, bR, version);
 
                         default:
                             throw new NotSupportedException("DNSSEC algorithm is not supported: " + algorithm.ToString());
@@ -274,13 +357,18 @@ namespace DnsServerCore.Dns.Dnssec
             return new DnsResourceRecord(firstRecord.Name, DnsResourceRecordType.RRSIG, firstRecord.Class, firstRecord.OriginalTtlValue, signedRRSigRecord);
         }
 
-        internal void SetState(DnssecPrivateKeyState state)
+        internal void SetState(DnssecPrivateKeyState state, uint stateTransitionInTtl = 0)
         {
             if (_state >= state)
                 return; //ignore; state cannot be updated to lower value
 
             _state = state;
             _stateChangedOn = DateTime.UtcNow;
+
+            if (stateTransitionInTtl > 0)
+                _stateTransitionBy = _stateChangedOn.AddSeconds(stateTransitionInTtl);
+            else
+                _stateTransitionBy = default;
 
             if (_state == DnssecPrivateKeyState.Revoked)
                 InitDnsKey(_dnsKey.PublicKey);
@@ -299,13 +387,14 @@ namespace DnsServerCore.Dns.Dnssec
         internal void WriteTo(BinaryWriter bW)
         {
             bW.Write(Encoding.ASCII.GetBytes("DK")); //format
-            bW.Write((byte)1); //version
+            bW.Write((byte)2); //version
 
             bW.Write((byte)_algorithm);
             bW.Write((byte)_keyType);
 
             bW.Write((byte)_state);
             bW.Write(Convert.ToInt64((_stateChangedOn - DateTime.UnixEpoch).TotalSeconds));
+            bW.Write(Convert.ToInt64((_stateTransitionBy - DateTime.UnixEpoch).TotalSeconds));
             bW.Write(_isRetiring);
             bW.Write(_rolloverDays);
 
@@ -327,6 +416,12 @@ namespace DnsServerCore.Dns.Dnssec
 
         public DateTime StateChangedOn
         { get { return _stateChangedOn; } }
+
+        public DateTime StateTransitionBy
+        { get { return _stateTransitionBy; } }
+
+        public DateTime StateTransitionByWithDelays
+        { get { return _stateTransitionBy.AddMilliseconds(PrimaryZone.DNSSEC_TIMER_PERIODIC_INTERVAL); } }
 
         public bool IsRetiring
         { get { return _isRetiring; } }

@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -66,12 +66,7 @@ namespace DnsServerApp
                     exitHandle.WaitOne();
                 };
 
-                Console.WriteLine("Technitium DNS Server was started successfully.");
-                Console.WriteLine("Using config folder: " + service.ConfigFolder);
-                Console.WriteLine("");
-                Console.WriteLine("Note: Open http://" + Environment.MachineName.ToLowerInvariant() + ":" + service.WebServiceHttpPort + "/ in web browser to access web console.");
-                Console.WriteLine("");
-                Console.WriteLine("Press [CTRL + C] to stop...");
+                Console.WriteLine("Technitium DNS Server was started successfully.\r\nUsing config folder: " + service.ConfigFolder + "\r\n\r\nNote: Open http://" + Environment.MachineName.ToLowerInvariant() + ":" + service.WebServiceHttpPort + "/ in web browser to access web console.\r\n\r\nPress [CTRL + C] to stop...");
 
                 waitHandle.WaitOne();
             }
@@ -81,8 +76,7 @@ namespace DnsServerApp
             }
             finally
             {
-                Console.WriteLine("");
-                Console.WriteLine("Technitium DNS Server is stopping...");
+                Console.WriteLine("\r\nTechnitium DNS Server is stopping...");
 
                 if (service != null)
                     service.Dispose();

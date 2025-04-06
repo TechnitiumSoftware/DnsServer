@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -99,13 +99,13 @@ namespace DnsServerCore.Dns.Zones
                     DnsSOARecordData newSoa = newSoaRecord.RDATA as DnsSOARecordData;
 
                     if (newSoaRecord.OriginalTtlValue > newSoa.Expire)
-                        throw new DnsServerException("Failed to set records: TTL cannot be greater than SOA EXPIRE.");
+                        throw new DnsServerException("Cannot set record: TTL cannot be greater than SOA EXPIRE.");
 
                     if (newSoa.Retry > newSoa.Refresh)
-                        throw new DnsServerException("Failed to set records: SOA RETRY cannot be greater than SOA REFRESH.");
+                        throw new DnsServerException("Cannot set record: SOA RETRY cannot be greater than SOA REFRESH.");
 
                     if (newSoa.Refresh > newSoa.Expire)
-                        throw new DnsServerException("Failed to set records: SOA REFRESH cannot be greater than SOA EXPIRE.");
+                        throw new DnsServerException("Cannot set record: SOA REFRESH cannot be greater than SOA EXPIRE.");
 
                     {
                         //reset fixed record values
@@ -150,10 +150,10 @@ namespace DnsServerCore.Dns.Zones
 
                 default:
                     if (records[0].OriginalTtlValue > GetZoneSoaExpire())
-                        throw new DnsServerException("Failed to set records: TTL cannot be greater than SOA EXPIRE.");
+                        throw new DnsServerException("Cannot set records: TTL cannot be greater than SOA EXPIRE.");
 
                     if (!TrySetRecords(type, records, out IReadOnlyList<DnsResourceRecord> deletedRecords))
-                        throw new DnsServerException("Failed to set records. Please try again.");
+                        throw new DnsServerException("Cannot set records. Please try again.");
 
                     CommitAndIncrementSerial(deletedRecords, records);
 
@@ -176,7 +176,7 @@ namespace DnsServerCore.Dns.Zones
 
                 default:
                     if (record.OriginalTtlValue > GetZoneSoaExpire())
-                        throw new DnsServerException("Failed to add record: TTL cannot be greater than SOA EXPIRE.");
+                        throw new DnsServerException("Cannot add record: TTL cannot be greater than SOA EXPIRE.");
 
                     AddRecord(record, out IReadOnlyList<DnsResourceRecord> addedRecords, out IReadOnlyList<DnsResourceRecord> deletedRecords);
 

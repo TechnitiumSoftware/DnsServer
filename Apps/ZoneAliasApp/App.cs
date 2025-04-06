@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -29,11 +29,13 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace ZoneAlias
 {
-    public sealed class App : IDnsApplication, IDnsAuthoritativeRequestHandler
+    public sealed class App : IDnsApplication, IDnsAuthoritativeRequestHandler, IDnsApplicationPreference
     {
         #region variables
 
         IDnsServer _dnsServer;
+
+        byte _appPreference;
 
         bool _enableAliasing;
         Dictionary<string, string> _aliases;
@@ -117,6 +119,8 @@ namespace ZoneAlias
             using JsonDocument jsonDocument = JsonDocument.Parse(config);
             JsonElement jsonConfig = jsonDocument.RootElement;
 
+            _appPreference = Convert.ToByte(jsonConfig.GetPropertyValue("appPreference", 10));
+
             _enableAliasing = jsonConfig.GetPropertyValue("enableAliasing", true);
 
             if (jsonConfig.TryGetProperty("zoneAliases", out JsonElement jsonZoneAliases))
@@ -191,6 +195,9 @@ namespace ZoneAlias
 
         public string Description
         { get { return "Allows configuring aliases for any zone (internal or external) such that they all return the same set of records."; } }
+
+        public byte Preference
+        { get { return _appPreference; } }
 
         #endregion
     }

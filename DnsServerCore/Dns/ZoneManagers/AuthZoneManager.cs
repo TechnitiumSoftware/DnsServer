@@ -1319,42 +1319,12 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         #region DNSSEC
 
-        public void SignPrimaryZoneWithRsaNSEC(string zoneName, string hashAlgorithm, int kskKeySize, int zskKeySize, uint dnsKeyTtl, ushort zskRolloverDays)
+        public void SignPrimaryZone(string zoneName, DnssecPrivateKey kskPrivateKey, DnssecPrivateKey zskPrivateKey, uint dnsKeyTtl, bool useNSec3, ushort iterations = 0, byte saltLength = 0)
         {
             if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
-            primaryZone.SignZoneWithRsaNSec(hashAlgorithm, kskKeySize, zskKeySize, dnsKeyTtl, zskRolloverDays);
-
-            SaveZoneFile(primaryZone.Name);
-        }
-
-        public void SignPrimaryZoneWithRsaNSEC3(string zoneName, string hashAlgorithm, int kskKeySize, int zskKeySize, ushort iterations, byte saltLength, uint dnsKeyTtl, ushort zskRolloverDays)
-        {
-            if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
-                throw new DnsServerException("No such primary zone was found: " + zoneName);
-
-            primaryZone.SignZoneWithRsaNSec3(hashAlgorithm, kskKeySize, zskKeySize, iterations, saltLength, dnsKeyTtl, zskRolloverDays);
-
-            SaveZoneFile(primaryZone.Name);
-        }
-
-        public void SignPrimaryZoneWithEcdsaNSEC(string zoneName, string curve, uint dnsKeyTtl, ushort zskRolloverDays)
-        {
-            if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
-                throw new DnsServerException("No such primary zone was found: " + zoneName);
-
-            primaryZone.SignZoneWithEcdsaNSec(curve, dnsKeyTtl, zskRolloverDays);
-
-            SaveZoneFile(primaryZone.Name);
-        }
-
-        public void SignPrimaryZoneWithEcdsaNSEC3(string zoneName, string curve, ushort iterations, byte saltLength, uint dnsKeyTtl, ushort zskRolloverDays)
-        {
-            if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
-                throw new DnsServerException("No such primary zone was found: " + zoneName);
-
-            primaryZone.SignZoneWithEcdsaNSec3(curve, iterations, saltLength, dnsKeyTtl, zskRolloverDays);
+            primaryZone.SignZone(kskPrivateKey, zskPrivateKey, dnsKeyTtl, useNSec3, iterations, saltLength);
 
             SaveZoneFile(primaryZone.Name);
         }
@@ -1409,22 +1379,22 @@ namespace DnsServerCore.Dns.ZoneManagers
             SaveZoneFile(primaryZone.Name);
         }
 
-        public void GenerateAndAddPrimaryZoneDnssecRsaPrivateKey(string zoneName, DnssecPrivateKeyType keyType, string hashAlgorithm, int keySize, ushort rolloverDays)
+        public void GenerateAndAddPrimaryZoneDnssecPrivateKey(string zoneName, DnssecPrivateKeyType keyType, DnssecAlgorithm algorithm, ushort rolloverDays, int keySize = -1)
         {
             if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
-            primaryZone.GenerateAndAddRsaKey(keyType, hashAlgorithm, keySize, rolloverDays);
+            primaryZone.GenerateAndAddPrivateKey(keyType, algorithm, rolloverDays, keySize);
 
             SaveZoneFile(primaryZone.Name);
         }
 
-        public void GenerateAndAddPrimaryZoneDnssecEcdsaPrivateKey(string zoneName, DnssecPrivateKeyType keyType, string curve, ushort rolloverDays)
+        public void AddPrimaryZoneDnssecPrivateKey(string zoneName, DnssecPrivateKey privateKey)
         {
             if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
-            primaryZone.GenerateAndAddEcdsaKey(keyType, curve, rolloverDays);
+            primaryZone.AddPrivateKey(privateKey);
 
             SaveZoneFile(primaryZone.Name);
         }
@@ -1469,12 +1439,12 @@ namespace DnsServerCore.Dns.ZoneManagers
             SaveZoneFile(primaryZone.Name);
         }
 
-        public void RetirePrimaryZoneDnsKey(string zoneName, ushort keyTag)
+        public async Task RetirePrimaryZoneDnsKeyAsync(string zoneName, ushort keyTag)
         {
             if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
-            primaryZone.RetireDnsKey(keyTag);
+            await primaryZone.RetireDnsKeyAsync(keyTag);
 
             SaveZoneFile(primaryZone.Name);
         }
@@ -2640,13 +2610,13 @@ namespace DnsServerCore.Dns.ZoneManagers
                 {
                     if (zone is ApexZone)
                     {
-                        if ((delegation is null) || !delegation.IsActive || (delegation.Name.Length > apexZone.Name.Length))
+                        if ((delegation is null) || !delegation.IsActive || !delegation.AuthoritativeZone.IsActive || (delegation.Name.Length > apexZone.Name.Length))
                             return null; //no authoritative parent side delegation zone available to answer for DS
 
                         zone = delegation; //switch zone to parent side sub domain delegation zone for DS record
 
-                        if (request.DnssecOk && (delegation.AuthoritativeZone is ApexZone delegationApex))
-                            dnssecOk = delegationApex.DnssecStatus != AuthZoneDnssecStatus.Unsigned;
+                        if (request.DnssecOk)
+                            dnssecOk = delegation.AuthoritativeZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned;
                     }
                 }
                 else if ((delegation is not null) && delegation.IsActive && (delegation.Name.Length > apexZone.Name.Length))

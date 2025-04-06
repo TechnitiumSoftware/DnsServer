@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -29,9 +29,11 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace NxDomain
 {
-    public sealed class App : IDnsApplication, IDnsAuthoritativeRequestHandler
+    public sealed class App : IDnsApplication, IDnsAuthoritativeRequestHandler, IDnsApplicationPreference
     {
         #region variables
+
+        byte _appPreference;
 
         DnsSOARecordData _soaRecord;
 
@@ -95,6 +97,8 @@ namespace NxDomain
             using JsonDocument jsonDocument = JsonDocument.Parse(config);
             JsonElement jsonConfig = jsonDocument.RootElement;
 
+            _appPreference = Convert.ToByte(jsonConfig.GetPropertyValue("appPreference", 20));
+
             _enableBlocking = jsonConfig.GetProperty("enableBlocking").GetBoolean();
             _allowTxtBlockingReport = jsonConfig.GetProperty("allowTxtBlockingReport").GetBoolean();
             _blockListZone = jsonConfig.ReadArrayAsMap("blocked", delegate (JsonElement jsonDomainName) { return new Tuple<string, object>(jsonDomainName.GetString(), null); });
@@ -137,6 +141,9 @@ namespace NxDomain
 
         public string Description
         { get { return "Blocks configured domain names with a NX Domain response."; } }
+
+        public byte Preference
+        { get { return _appPreference; } }
 
         #endregion
     }

@@ -114,6 +114,7 @@ namespace DnsServerCore
                     GenericRecordInfo authRecordInfo = record.GetAuthGenericRecordInfo();
 
                     jsonWriter.WriteNumber("ttl", record.TTL);
+                    jsonWriter.WriteString("ttlString", ZoneFile.GetTtlString(record.TTL));
                     jsonWriter.WriteBoolean("disabled", authRecordInfo.Disabled);
 
                     string comments = authRecordInfo.Comments;
@@ -123,9 +124,9 @@ namespace DnsServerCore
                 else
                 {
                     if (record.IsStale)
-                        jsonWriter.WriteString("ttl", "0 (0 sec)");
+                        jsonWriter.WriteString("ttl", "0 (0s)");
                     else
-                        jsonWriter.WriteString("ttl", record.TTL + " (" + WebUtilities.GetFormattedTime((int)record.TTL) + ")");
+                        jsonWriter.WriteString("ttl", record.TTL + " (" + ZoneFile.GetTtlString(record.TTL) + ")");
                 }
 
                 jsonWriter.WritePropertyName("rData");
@@ -155,12 +156,6 @@ namespace DnsServerCore
 
                                 if (DnsClient.TryConvertDomainNameToUnicode(rdata.NameServer, out string nameServerIdn))
                                     jsonWriter.WriteString("nameServerIdn", nameServerIdn);
-
-                                if (!authoritativeZoneRecords)
-                                {
-                                    if (rdata.IsParentSideTtlSet)
-                                        jsonWriter.WriteString("parentSideTtl", rdata.ParentSideTtl + " (" + WebUtilities.GetFormattedTime((int)rdata.ParentSideTtl) + ")");
-                                }
                             }
                             else
                             {
@@ -198,10 +193,26 @@ namespace DnsServerCore
 
                                 jsonWriter.WriteString("responsiblePerson", rdata.ResponsiblePerson);
                                 jsonWriter.WriteNumber("serial", rdata.Serial);
-                                jsonWriter.WriteNumber("refresh", rdata.Refresh);
-                                jsonWriter.WriteNumber("retry", rdata.Retry);
-                                jsonWriter.WriteNumber("expire", rdata.Expire);
-                                jsonWriter.WriteNumber("minimum", rdata.Minimum);
+
+                                if (authoritativeZoneRecords)
+                                {
+                                    jsonWriter.WriteNumber("refresh", rdata.Refresh);
+                                    jsonWriter.WriteNumber("retry", rdata.Retry);
+                                    jsonWriter.WriteNumber("expire", rdata.Expire);
+                                    jsonWriter.WriteNumber("minimum", rdata.Minimum);
+
+                                    jsonWriter.WriteString("refreshString", ZoneFile.GetTtlString(rdata.Refresh));
+                                    jsonWriter.WriteString("retryString", ZoneFile.GetTtlString(rdata.Retry));
+                                    jsonWriter.WriteString("expireString", ZoneFile.GetTtlString(rdata.Expire));
+                                    jsonWriter.WriteString("minimumString", ZoneFile.GetTtlString(rdata.Minimum));
+                                }
+                                else
+                                {
+                                    jsonWriter.WriteString("refresh", rdata.Refresh + " (" + ZoneFile.GetTtlString(rdata.Refresh) + ")");
+                                    jsonWriter.WriteString("retry", rdata.Retry + " (" + ZoneFile.GetTtlString(rdata.Retry) + ")");
+                                    jsonWriter.WriteString("expire", rdata.Expire + " (" + ZoneFile.GetTtlString(rdata.Expire) + ")");
+                                    jsonWriter.WriteString("minimum", rdata.Minimum + " (" + ZoneFile.GetTtlString(rdata.Minimum) + ")");
+                                }
                             }
                             else
                             {
@@ -405,7 +416,9 @@ namespace DnsServerCore
                             {
                                 jsonWriter.WriteNumber("keyTag", rdata.KeyTag);
                                 jsonWriter.WriteString("algorithm", rdata.Algorithm.ToString());
+                                jsonWriter.WriteNumber("algorithmNumber", (byte)rdata.Algorithm);
                                 jsonWriter.WriteString("digestType", rdata.DigestType.ToString());
+                                jsonWriter.WriteNumber("digestTypeNumber", (byte)rdata.DigestType);
                                 jsonWriter.WriteString("digest", Convert.ToHexString(rdata.Digest));
                             }
                             else
@@ -438,6 +451,7 @@ namespace DnsServerCore
                             {
                                 jsonWriter.WriteString("typeCovered", rdata.TypeCovered.ToString());
                                 jsonWriter.WriteString("algorithm", rdata.Algorithm.ToString());
+                                jsonWriter.WriteNumber("algorithmNumber", (byte)rdata.Algorithm);
                                 jsonWriter.WriteNumber("labels", rdata.Labels);
                                 jsonWriter.WriteNumber("originalTtl", rdata.OriginalTtl);
                                 jsonWriter.WriteString("signatureExpiration", DateTime.UnixEpoch.AddSeconds(rdata.SignatureExpiration));
@@ -483,6 +497,7 @@ namespace DnsServerCore
                                 jsonWriter.WriteString("flags", rdata.Flags.ToString());
                                 jsonWriter.WriteNumber("protocol", rdata.Protocol);
                                 jsonWriter.WriteString("algorithm", rdata.Algorithm.ToString());
+                                jsonWriter.WriteNumber("algorithmNumber", (byte)rdata.Algorithm);
                                 jsonWriter.WriteString("publicKey", rdata.PublicKey.ToString());
                                 jsonWriter.WriteNumber("computedKeyTag", rdata.ComputedKeyTag);
 
@@ -499,8 +514,19 @@ namespace DnsServerCore
                                                 {
                                                     jsonWriter.WriteString("dnsKeyState", dnssecPrivateKey.State.ToString());
 
-                                                    if ((dnssecPrivateKey.KeyType == DnssecPrivateKeyType.KeySigningKey) && (dnssecPrivateKey.State == DnssecPrivateKeyState.Published))
-                                                        jsonWriter.WriteString("dnsKeyStateReadyBy", (zoneInfo.ApexZone as PrimaryZone).GetKskDnsKeyStateReadyBy(dnssecPrivateKey));
+                                                    if (dnssecPrivateKey.State == DnssecPrivateKeyState.Published)
+                                                    {
+                                                        switch (dnssecPrivateKey.KeyType)
+                                                        {
+                                                            case DnssecPrivateKeyType.KeySigningKey:
+                                                                jsonWriter.WriteString("dnsKeyStateReadyBy", dnssecPrivateKey.StateTransitionByWithDelays);
+                                                                break;
+
+                                                            case DnssecPrivateKeyType.ZoneSigningKey:
+                                                                jsonWriter.WriteString("dnsKeyStateActiveBy", dnssecPrivateKey.StateTransitionByWithDelays);
+                                                                break;
+                                                        }
+                                                    }
 
                                                     break;
                                                 }
@@ -795,6 +821,7 @@ namespace DnsServerCore
                     jsonWriter.WriteString("lastUsedOn", authRecordInfo.LastUsedOn);
                     jsonWriter.WriteString("lastModified", authRecordInfo.LastModified);
                     jsonWriter.WriteNumber("expiryTtl", authRecordInfo.ExpiryTtl);
+                    jsonWriter.WriteString("expiryTtlString", ZoneFile.GetTtlString(authRecordInfo.ExpiryTtl));
                 }
                 else
                 {
@@ -1518,29 +1545,45 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
+                string importType = request.GetQueryOrForm("importType", "Text");
                 bool overwrite = request.GetQueryOrForm("overwrite", bool.Parse, true);
                 bool overwriteSoaSerial = request.GetQueryOrForm("overwriteSoaSerial", bool.Parse, false);
 
                 TextReader textReader;
 
-                switch (request.ContentType?.ToLowerInvariant())
+                switch (importType.ToUpperInvariant())
                 {
-                    case "application/x-www-form-urlencoded":
-                        string zoneRecords = request.GetQueryOrForm("records");
-                        textReader = new StringReader(zoneRecords);
+                    case "FILE":
+                        if (request.Form.Files.Count == 0)
+                            throw new DnsWebServiceException("The zone file to import is missing.");
+
+                        textReader = new StreamReader(request.Form.Files[0].OpenReadStream());
                         break;
 
-                    case "text/plain":
-                        textReader = new StreamReader(request.Body);
+                    case "TEXT":
+                        switch (request.ContentType?.ToLowerInvariant())
+                        {
+                            case "application/x-www-form-urlencoded":
+                                string zoneRecords = request.GetQueryOrForm("records");
+                                textReader = new StringReader(zoneRecords);
+                                break;
+
+                            case "text/plain":
+                                textReader = new StreamReader(request.Body);
+                                break;
+
+                            default:
+                                throw new DnsWebServiceException("Content type is not supported: " + request.ContentType);
+                        }
                         break;
 
                     default:
-                        throw new DnsWebServiceException("Content type is not supported: " + request.ContentType);
+                        throw new DnsWebServiceException("Import type is not supported: " + importType);
                 }
 
                 using TextReader zoneReader = textReader;
 
-                IReadOnlyCollection<DnsResourceRecord> records = await ZoneFile.ReadZoneFileFromAsync(zoneReader, zoneInfo.Name, _dnsWebService._zonesApi.DefaultRecordTtl);
+                List<DnsResourceRecord> records = await ZoneFile.ReadZoneFileFromAsync(zoneReader, zoneInfo.Name, _dnsWebService._zonesApi.DefaultRecordTtl);
                 List<DnsResourceRecord> newRecords = new List<DnsResourceRecord>(records.Count);
 
                 foreach (DnsResourceRecord record in records)
@@ -1764,8 +1807,10 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Access was denied.");
 
                 string algorithm = request.GetQueryOrForm("algorithm");
-                uint dnsKeyTtl = request.GetQueryOrForm<uint>("dnsKeyTtl", uint.Parse, 24 * 60 * 60);
-                ushort zskRolloverDays = request.GetQueryOrForm<ushort>("zskRolloverDays", ushort.Parse, 30);
+                string pemKskPrivateKey = request.GetQueryOrForm("pemKskPrivateKey", null);
+                string pemZskPrivateKey = request.GetQueryOrForm("pemZskPrivateKey", null);
+                uint dnsKeyTtl = request.GetQueryOrForm("dnsKeyTtl", ZoneFile.ParseTtl, 3600u);
+                ushort zskRolloverDays = request.GetQueryOrForm("zskRolloverDays", ushort.Parse, Convert.ToUInt16(pemZskPrivateKey is null ? 30 : 0));
 
                 bool useNSEC3 = false;
                 string strNxProof = request.QueryOrForm("nxProof");
@@ -1795,33 +1840,122 @@ namespace DnsServerCore
                     saltLength = request.GetQueryOrForm<byte>("saltLength", byte.Parse, 0);
                 }
 
+                DnssecPrivateKey kskPrivateKey;
+                DnssecPrivateKey zskPrivateKey;
+
                 switch (algorithm.ToUpper())
                 {
                     case "RSA":
-                        string hashAlgorithm = request.GetQueryOrForm("hashAlgorithm");
-                        int kskKeySize = request.GetQueryOrForm("kskKeySize", int.Parse);
-                        int zskKeySize = request.GetQueryOrForm("zskKeySize", int.Parse);
+                        {
+                            string hashAlgorithm = request.GetQueryOrForm("hashAlgorithm");
 
-                        if (useNSEC3)
-                            _dnsWebService._dnsServer.AuthZoneManager.SignPrimaryZoneWithRsaNSEC3(zoneName, hashAlgorithm, kskKeySize, zskKeySize, iterations, saltLength, dnsKeyTtl, zskRolloverDays);
-                        else
-                            _dnsWebService._dnsServer.AuthZoneManager.SignPrimaryZoneWithRsaNSEC(zoneName, hashAlgorithm, kskKeySize, zskKeySize, dnsKeyTtl, zskRolloverDays);
+                            DnssecAlgorithm dnssecAlgorithm;
 
+                            switch (hashAlgorithm.ToUpper())
+                            {
+                                case "MD5":
+                                    dnssecAlgorithm = DnssecAlgorithm.RSAMD5;
+                                    break;
+
+                                case "SHA1":
+                                    dnssecAlgorithm = DnssecAlgorithm.RSASHA1;
+                                    break;
+
+                                case "SHA256":
+                                    dnssecAlgorithm = DnssecAlgorithm.RSASHA256;
+                                    break;
+
+                                case "SHA512":
+                                    dnssecAlgorithm = DnssecAlgorithm.RSASHA512;
+                                    break;
+
+                                default:
+                                    throw new NotSupportedException("Hash algorithm is not supported: " + hashAlgorithm);
+                            }
+
+                            if (pemKskPrivateKey is null)
+                                kskPrivateKey = DnssecPrivateKey.Create(dnssecAlgorithm, DnssecPrivateKeyType.KeySigningKey, request.GetQueryOrForm("kskKeySize", int.Parse));
+                            else
+                                kskPrivateKey = DnssecPrivateKey.Create(dnssecAlgorithm, DnssecPrivateKeyType.KeySigningKey, pemKskPrivateKey);
+
+                            if (pemZskPrivateKey is null)
+                                zskPrivateKey = DnssecPrivateKey.Create(dnssecAlgorithm, DnssecPrivateKeyType.ZoneSigningKey, request.GetQueryOrForm("zskKeySize", int.Parse));
+                            else
+                                zskPrivateKey = DnssecPrivateKey.Create(dnssecAlgorithm, DnssecPrivateKeyType.ZoneSigningKey, pemZskPrivateKey);
+                        }
                         break;
 
                     case "ECDSA":
-                        string curve = request.GetQueryOrForm("curve");
+                        {
+                            string curve = request.GetQueryOrForm("curve");
 
-                        if (useNSEC3)
-                            _dnsWebService._dnsServer.AuthZoneManager.SignPrimaryZoneWithEcdsaNSEC3(zoneName, curve, iterations, saltLength, dnsKeyTtl, zskRolloverDays);
-                        else
-                            _dnsWebService._dnsServer.AuthZoneManager.SignPrimaryZoneWithEcdsaNSEC(zoneName, curve, dnsKeyTtl, zskRolloverDays);
+                            DnssecAlgorithm dnssecAlgorithm;
 
+                            switch (curve.ToUpper())
+                            {
+                                case "P256":
+                                    dnssecAlgorithm = DnssecAlgorithm.ECDSAP256SHA256;
+                                    break;
+
+                                case "P384":
+                                    dnssecAlgorithm = DnssecAlgorithm.ECDSAP384SHA384;
+                                    break;
+
+                                default:
+                                    throw new NotSupportedException("ECDSA curve is not supported: " + curve);
+                            }
+
+                            if (pemKskPrivateKey is null)
+                                kskPrivateKey = DnssecPrivateKey.Create(dnssecAlgorithm, DnssecPrivateKeyType.KeySigningKey);
+                            else
+                                kskPrivateKey = DnssecPrivateKey.Create(dnssecAlgorithm, DnssecPrivateKeyType.KeySigningKey, pemKskPrivateKey);
+
+                            if (pemZskPrivateKey is null)
+                                zskPrivateKey = DnssecPrivateKey.Create(dnssecAlgorithm, DnssecPrivateKeyType.ZoneSigningKey);
+                            else
+                                zskPrivateKey = DnssecPrivateKey.Create(dnssecAlgorithm, DnssecPrivateKeyType.ZoneSigningKey, pemZskPrivateKey);
+                        }
+                        break;
+
+                    case "EDDSA":
+                        {
+                            string curve = request.GetQueryOrForm("curve");
+
+                            DnssecAlgorithm dnssecAlgorithm;
+
+                            switch (curve.ToUpper())
+                            {
+                                case "ED25519":
+                                    dnssecAlgorithm = DnssecAlgorithm.ED25519;
+                                    break;
+
+                                case "ED448":
+                                    dnssecAlgorithm = DnssecAlgorithm.ED448;
+                                    break;
+
+                                default:
+                                    throw new NotSupportedException("EdDSA curve is not supported: " + curve);
+                            }
+
+                            if (pemKskPrivateKey is null)
+                                kskPrivateKey = DnssecPrivateKey.Create(dnssecAlgorithm, DnssecPrivateKeyType.KeySigningKey);
+                            else
+                                kskPrivateKey = DnssecPrivateKey.Create(dnssecAlgorithm, DnssecPrivateKeyType.KeySigningKey, pemKskPrivateKey);
+
+                            if (pemZskPrivateKey is null)
+                                zskPrivateKey = DnssecPrivateKey.Create(dnssecAlgorithm, DnssecPrivateKeyType.ZoneSigningKey);
+                            else
+                                zskPrivateKey = DnssecPrivateKey.Create(dnssecAlgorithm, DnssecPrivateKeyType.ZoneSigningKey, pemZskPrivateKey);
+                        }
                         break;
 
                     default:
                         throw new NotSupportedException("Algorithm is not supported: " + algorithm);
                 }
+
+                zskPrivateKey.RolloverDays = zskRolloverDays;
+
+                _dnsWebService._dnsServer.AuthZoneManager.SignPrimaryZone(zoneName, kskPrivateKey, zskPrivateKey, dnsKeyTtl, useNSEC3, iterations, saltLength);
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Primary zone was signed successfully: " + zoneName);
             }
@@ -1905,14 +2039,16 @@ namespace DnsServerCore
                                     jsonWriter.WriteString("dnsKeyState", dnssecPrivateKey.State.ToString());
 
                                     if (dnssecPrivateKey.State == DnssecPrivateKeyState.Published)
-                                        jsonWriter.WriteString("dnsKeyStateReadyBy", (zoneInfo.ApexZone as PrimaryZone).GetKskDnsKeyStateReadyBy(dnssecPrivateKey));
+                                        jsonWriter.WriteString("dnsKeyStateReadyBy", dnssecPrivateKey.StateTransitionByWithDelays);
 
+                                    jsonWriter.WriteBoolean("isRetiring", dnssecPrivateKey.IsRetiring);
                                     break;
                                 }
                             }
                         }
 
                         jsonWriter.WriteString("algorithm", rdata.Algorithm.ToString());
+                        jsonWriter.WriteNumber("algorithmNumber", (byte)rdata.Algorithm);
                         jsonWriter.WriteString("publicKey", rdata.PublicKey.ToString());
 
                         jsonWriter.WritePropertyName("digests");
@@ -1922,6 +2058,7 @@ namespace DnsServerCore
                             jsonWriter.WriteStartObject();
 
                             jsonWriter.WriteString("digestType", "SHA256");
+                            jsonWriter.WriteString("digestTypeNumber", "2");
                             jsonWriter.WriteString("digest", Convert.ToHexString(rdata.CreateDS(record.Name, DnssecDigestType.SHA256).Digest));
 
                             jsonWriter.WriteEndObject();
@@ -1931,6 +2068,7 @@ namespace DnsServerCore
                             jsonWriter.WriteStartObject();
 
                             jsonWriter.WriteString("digestType", "SHA384");
+                            jsonWriter.WriteString("digestTypeNumber", "4");
                             jsonWriter.WriteString("digest", Convert.ToHexString(rdata.CreateDS(record.Name, DnssecDigestType.SHA384).Digest));
 
                             jsonWriter.WriteEndObject();
@@ -2028,11 +2166,24 @@ namespace DnsServerCore
                                 break;
                         }
 
+                        jsonWriter.WriteNumber("algorithmNumber", (byte)dnssecPrivateKey.Algorithm);
+
                         jsonWriter.WriteString("state", dnssecPrivateKey.State.ToString());
                         jsonWriter.WriteString("stateChangedOn", dnssecPrivateKey.StateChangedOn);
 
-                        if ((dnssecPrivateKey.KeyType == DnssecPrivateKeyType.KeySigningKey) && (dnssecPrivateKey.State == DnssecPrivateKeyState.Published))
-                            jsonWriter.WriteString("stateReadyBy", (zoneInfo.ApexZone as PrimaryZone).GetKskDnsKeyStateReadyBy(dnssecPrivateKey));
+                        if (dnssecPrivateKey.State == DnssecPrivateKeyState.Published)
+                        {
+                            switch (dnssecPrivateKey.KeyType)
+                            {
+                                case DnssecPrivateKeyType.KeySigningKey:
+                                    jsonWriter.WriteString("stateReadyBy", dnssecPrivateKey.StateTransitionByWithDelays);
+                                    break;
+
+                                case DnssecPrivateKeyType.ZoneSigningKey:
+                                    jsonWriter.WriteString("stateActiveBy", dnssecPrivateKey.StateTransitionByWithDelays);
+                                    break;
+                            }
+                        }
 
                         jsonWriter.WriteBoolean("isRetiring", dnssecPrivateKey.IsRetiring);
                         jsonWriter.WriteNumber("rolloverDays", dnssecPrivateKey.RolloverDays);
@@ -2131,14 +2282,14 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
-                uint dnsKeyTtl = request.GetQueryOrForm("ttl", uint.Parse);
+                uint dnsKeyTtl = request.GetQueryOrForm("ttl", ZoneFile.ParseTtl);
 
                 _dnsWebService._dnsServer.AuthZoneManager.UpdatePrimaryZoneDnsKeyTtl(zoneName, dnsKeyTtl);
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Primary zone DNSKEY TTL was updated successfully: " + zoneName);
             }
 
-            public void GenerateAndAddPrimaryZoneDnssecPrivateKey(HttpContext context)
+            public void AddPrimaryZoneDnssecPrivateKey(HttpContext context)
             {
                 UserSession session = context.GetCurrentSession();
 
@@ -2158,20 +2309,120 @@ namespace DnsServerCore
                 DnssecPrivateKeyType keyType = request.GetQueryOrFormEnum<DnssecPrivateKeyType>("keyType");
                 ushort rolloverDays = request.GetQueryOrForm("rolloverDays", ushort.Parse, (ushort)(keyType == DnssecPrivateKeyType.ZoneSigningKey ? 30 : 0));
                 string algorithm = request.GetQueryOrForm("algorithm");
+                string pemPrivateKey = request.GetQueryOrForm("pemPrivateKey", null);
 
                 switch (algorithm.ToUpper())
                 {
                     case "RSA":
-                        string hashAlgorithm = request.GetQueryOrForm("hashAlgorithm");
-                        int keySize = request.GetQueryOrForm("keySize", int.Parse);
+                        {
+                            string hashAlgorithm = request.GetQueryOrForm("hashAlgorithm");
 
-                        _dnsWebService._dnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecRsaPrivateKey(zoneName, keyType, hashAlgorithm, keySize, rolloverDays);
+                            DnssecAlgorithm dnssecAlgorithm;
+
+                            switch (hashAlgorithm.ToUpper())
+                            {
+                                case "MD5":
+                                    dnssecAlgorithm = DnssecAlgorithm.RSAMD5;
+                                    break;
+
+                                case "SHA1":
+                                    dnssecAlgorithm = DnssecAlgorithm.RSASHA1;
+                                    break;
+
+                                case "SHA256":
+                                    dnssecAlgorithm = DnssecAlgorithm.RSASHA256;
+                                    break;
+
+                                case "SHA512":
+                                    dnssecAlgorithm = DnssecAlgorithm.RSASHA512;
+                                    break;
+
+                                default:
+                                    throw new NotSupportedException("Hash algorithm is not supported: " + hashAlgorithm);
+                            }
+
+                            if (pemPrivateKey is null)
+                            {
+                                int keySize = request.GetQueryOrForm("keySize", int.Parse);
+
+                                _dnsWebService._dnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecPrivateKey(zoneName, keyType, dnssecAlgorithm, rolloverDays, keySize);
+                            }
+                            else
+                            {
+                                DnssecPrivateKey privateKey = DnssecPrivateKey.Create(dnssecAlgorithm, keyType, pemPrivateKey);
+                                privateKey.RolloverDays = rolloverDays;
+
+                                _dnsWebService._dnsServer.AuthZoneManager.AddPrimaryZoneDnssecPrivateKey(zoneName, privateKey);
+                            }
+                        }
                         break;
 
                     case "ECDSA":
-                        string curve = request.GetQueryOrForm("curve");
+                        {
+                            string curve = request.GetQueryOrForm("curve");
 
-                        _dnsWebService._dnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecEcdsaPrivateKey(zoneName, keyType, curve, rolloverDays);
+                            DnssecAlgorithm dnssecAlgorithm;
+
+                            switch (curve.ToUpper())
+                            {
+                                case "P256":
+                                    dnssecAlgorithm = DnssecAlgorithm.ECDSAP256SHA256;
+                                    break;
+
+                                case "P384":
+                                    dnssecAlgorithm = DnssecAlgorithm.ECDSAP384SHA384;
+                                    break;
+
+                                default:
+                                    throw new NotSupportedException("ECDSA curve is not supported: " + curve);
+                            }
+
+                            if (pemPrivateKey is null)
+                            {
+                                _dnsWebService._dnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecPrivateKey(zoneName, keyType, dnssecAlgorithm, rolloverDays);
+                            }
+                            else
+                            {
+                                DnssecPrivateKey privateKey = DnssecPrivateKey.Create(dnssecAlgorithm, keyType, pemPrivateKey);
+                                privateKey.RolloverDays = rolloverDays;
+
+                                _dnsWebService._dnsServer.AuthZoneManager.AddPrimaryZoneDnssecPrivateKey(zoneName, privateKey);
+                            }
+                        }
+                        break;
+
+                    case "EDDSA":
+                        {
+                            string curve = request.GetQueryOrForm("curve");
+
+                            DnssecAlgorithm dnssecAlgorithm;
+
+                            switch (curve.ToUpper())
+                            {
+                                case "ED25519":
+                                    dnssecAlgorithm = DnssecAlgorithm.ED25519;
+                                    break;
+
+                                case "ED448":
+                                    dnssecAlgorithm = DnssecAlgorithm.ED448;
+                                    break;
+
+                                default:
+                                    throw new NotSupportedException("EdDSA curve is not supported: " + curve);
+                            }
+
+                            if (pemPrivateKey is null)
+                            {
+                                _dnsWebService._dnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecPrivateKey(zoneName, keyType, dnssecAlgorithm, rolloverDays);
+                            }
+                            else
+                            {
+                                DnssecPrivateKey privateKey = DnssecPrivateKey.Create(dnssecAlgorithm, keyType, pemPrivateKey);
+                                privateKey.RolloverDays = rolloverDays;
+
+                                _dnsWebService._dnsServer.AuthZoneManager.AddPrimaryZoneDnssecPrivateKey(zoneName, privateKey);
+                            }
+                        }
                         break;
 
                     default:
@@ -2274,7 +2525,7 @@ namespace DnsServerCore
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] The DNSKEY (" + keyTag + ") from the primary zone was rolled over successfully: " + zoneName);
             }
 
-            public void RetirePrimaryZoneDnsKey(HttpContext context)
+            public async Task RetirePrimaryZoneDnsKeyAsync(HttpContext context)
             {
                 UserSession session = context.GetCurrentSession();
 
@@ -2293,7 +2544,7 @@ namespace DnsServerCore
 
                 ushort keyTag = request.GetQueryOrForm("keyTag", ushort.Parse);
 
-                _dnsWebService._dnsServer.AuthZoneManager.RetirePrimaryZoneDnsKey(zoneName, keyTag);
+                await _dnsWebService._dnsServer.AuthZoneManager.RetirePrimaryZoneDnsKeyAsync(zoneName, keyTag);
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] The DNSKEY (" + keyTag + ") from the primary zone was retired successfully: " + zoneName);
             }
@@ -3172,10 +3423,10 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Access was denied.");
 
                 DnsResourceRecordType type = request.GetQueryOrFormEnum<DnsResourceRecordType>("type");
-                uint ttl = request.GetQueryOrForm("ttl", uint.Parse, _defaultRecordTtl);
+                uint ttl = request.GetQueryOrForm("ttl", ZoneFile.ParseTtl, _defaultRecordTtl);
                 bool overwrite = request.GetQueryOrForm("overwrite", bool.Parse, false);
                 string comments = request.QueryOrForm("comments");
-                uint expiryTtl = request.GetQueryOrForm("expiryTtl", uint.Parse, 0u);
+                uint expiryTtl = request.GetQueryOrForm("expiryTtl", ZoneFile.ParseTtl, 0u);
 
                 DnsResourceRecord newRecord;
 
@@ -3650,9 +3901,15 @@ namespace DnsServerCore
                             IPAddress ipAddress = IPAddress.Parse(request.GetQueryOrFormAlt("ipAddress", "value"));
 
                             if (type == DnsResourceRecordType.A)
-                                _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsARecordData(ipAddress));
+                            {
+                                if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsARecordData(ipAddress)))
+                                    throw new DnsWebServiceException("Cannot delete record: no such record exists.");
+                            }
                             else
-                                _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsAAAARecordData(ipAddress));
+                            {
+                                if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsAAAARecordData(ipAddress)))
+                                    throw new DnsWebServiceException("Cannot delete record: no such record exists.");
+                            }
 
                             string ptrDomain = Zone.GetReverseZone(ipAddress, type == DnsResourceRecordType.A ? 32 : 128);
                             AuthZoneInfo reverseZoneInfo = _dnsWebService._dnsServer.AuthZoneManager.FindAuthZoneInfo(ptrDomain);
@@ -3684,19 +3941,23 @@ namespace DnsServerCore
                         {
                             string nameServer = request.GetQueryOrFormAlt("nameServer", "value").TrimEnd('.');
 
-                            _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsNSRecordData(nameServer, false));
+                            if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsNSRecordData(nameServer, false)))
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
                     case DnsResourceRecordType.CNAME:
-                        _dnsWebService._dnsServer.AuthZoneManager.DeleteRecords(zoneInfo.Name, domain, type);
+                        if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecords(zoneInfo.Name, domain, type))
+                            throw new DnsWebServiceException("Cannot delete record: no such record exists.");
+
                         break;
 
                     case DnsResourceRecordType.PTR:
                         {
                             string ptrName = request.GetQueryOrFormAlt("ptrName", "value").TrimEnd('.');
 
-                            _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsPTRRecordData(ptrName));
+                            if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsPTRRecordData(ptrName)))
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -3705,7 +3966,8 @@ namespace DnsServerCore
                             ushort preference = request.GetQueryOrForm("preference", ushort.Parse);
                             string exchange = request.GetQueryOrFormAlt("exchange", "value").TrimEnd('.');
 
-                            _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsMXRecordData(preference, exchange));
+                            if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsMXRecordData(preference, exchange)))
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -3714,7 +3976,8 @@ namespace DnsServerCore
                             string text = request.GetQueryOrFormAlt("text", "value");
                             bool splitText = request.GetQueryOrForm("splitText", bool.Parse, false);
 
-                            _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, splitText ? new DnsTXTRecordData(DecodeCharacterStrings(text)) : new DnsTXTRecordData(text));
+                            if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, splitText ? new DnsTXTRecordData(DecodeCharacterStrings(text)) : new DnsTXTRecordData(text)))
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -3723,7 +3986,8 @@ namespace DnsServerCore
                             string mailbox = request.GetQueryOrForm("mailbox", "").TrimEnd('.');
                             string txtDomain = request.GetQueryOrForm("txtDomain", "").TrimEnd('.');
 
-                            _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsRPRecordData(mailbox, txtDomain));
+                            if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsRPRecordData(mailbox, txtDomain)))
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -3734,7 +3998,8 @@ namespace DnsServerCore
                             ushort port = request.GetQueryOrForm("port", ushort.Parse);
                             string target = request.GetQueryOrFormAlt("target", "value").TrimEnd('.');
 
-                            _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSRVRecordData(priority, weight, port, target));
+                            if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSRVRecordData(priority, weight, port, target)))
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -3747,12 +4012,15 @@ namespace DnsServerCore
                             string regexp = request.GetQueryOrForm("naptrRegexp", "");
                             string replacement = request.GetQueryOrForm("naptrReplacement", "").TrimEnd('.');
 
-                            _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsNAPTRRecordData(order, preference, flags, services, regexp, replacement));
+                            if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsNAPTRRecordData(order, preference, flags, services, regexp, replacement)))
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
                     case DnsResourceRecordType.DNAME:
-                        _dnsWebService._dnsServer.AuthZoneManager.DeleteRecords(zoneInfo.Name, domain, type);
+                        if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecords(zoneInfo.Name, domain, type))
+                            throw new DnsWebServiceException("Cannot delete record: no such record exists.");
+
                         break;
 
                     case DnsResourceRecordType.DS:
@@ -3762,7 +4030,8 @@ namespace DnsServerCore
                             DnssecDigestType digestType = Enum.Parse<DnssecDigestType>(request.GetQueryOrForm("digestType").Replace('-', '_'), true);
                             byte[] digest = Convert.FromHexString(request.GetQueryOrFormAlt("digest", "value"));
 
-                            _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsDSRecordData(keyTag, algorithm, digestType, digest));
+                            if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsDSRecordData(keyTag, algorithm, digestType, digest)))
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -3772,7 +4041,8 @@ namespace DnsServerCore
                             DnsSSHFPFingerprintType sshfpFingerprintType = request.GetQueryOrFormEnum<DnsSSHFPFingerprintType>("sshfpFingerprintType");
                             byte[] sshfpFingerprint = request.GetQueryOrForm("sshfpFingerprint", Convert.FromHexString);
 
-                            _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSSHFPRecordData(sshfpAlgorithm, sshfpFingerprintType, sshfpFingerprint));
+                            if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSSHFPRecordData(sshfpAlgorithm, sshfpFingerprintType, sshfpFingerprint)))
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -3783,7 +4053,8 @@ namespace DnsServerCore
                             DnsTLSAMatchingType tlsaMatchingType = Enum.Parse<DnsTLSAMatchingType>(request.GetQueryOrForm("tlsaMatchingType").Replace('-', '_'), true);
                             string tlsaCertificateAssociationData = request.GetQueryOrForm("tlsaCertificateAssociationData");
 
-                            _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsTLSARecordData(tlsaCertificateUsage, tlsaSelector, tlsaMatchingType, tlsaCertificateAssociationData));
+                            if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsTLSARecordData(tlsaCertificateUsage, tlsaSelector, tlsaMatchingType, tlsaCertificateAssociationData)))
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -3814,7 +4085,8 @@ namespace DnsServerCore
                                 }
                             }
 
-                            _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSVCBRecordData(svcPriority, targetName, svcParams));
+                            if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSVCBRecordData(svcPriority, targetName, svcParams)))
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -3824,7 +4096,8 @@ namespace DnsServerCore
                             ushort weight = request.GetQueryOrForm("uriWeight", ushort.Parse);
                             Uri uri = request.GetQueryOrForm("uri", delegate (string value) { return new Uri(value); });
 
-                            _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsURIRecordData(priority, weight, uri));
+                            if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsURIRecordData(priority, weight, uri)))
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -3834,7 +4107,8 @@ namespace DnsServerCore
                             string tag = request.GetQueryOrForm("tag");
                             string value = request.GetQueryOrForm("value");
 
-                            _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsCAARecordData(flags, tag, value));
+                            if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsCAARecordData(flags, tag, value)))
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -3842,7 +4116,8 @@ namespace DnsServerCore
                         {
                             string aname = request.GetQueryOrFormAlt("aname", "value").TrimEnd('.');
 
-                            _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsANAMERecordData(aname));
+                            if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsANAMERecordData(aname)))
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
@@ -3851,12 +4126,15 @@ namespace DnsServerCore
                             DnsTransportProtocol protocol = request.GetQueryOrFormEnum("protocol", DnsTransportProtocol.Udp);
                             string forwarder = request.GetQueryOrFormAlt("forwarder", "value");
 
-                            _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, DnsForwarderRecordData.CreatePartialRecordData(protocol, forwarder));
+                            if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, DnsForwarderRecordData.CreatePartialRecordData(protocol, forwarder)))
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
 
                     case DnsResourceRecordType.APP:
-                        _dnsWebService._dnsServer.AuthZoneManager.DeleteRecords(zoneInfo.Name, domain, type);
+                        if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecords(zoneInfo.Name, domain, type))
+                            throw new DnsWebServiceException("Cannot delete record: no such record exists.");
+
                         break;
 
                     default:
@@ -3871,7 +4149,7 @@ namespace DnsServerCore
                                 rdata = Convert.FromHexString(strRData);
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsUnknownRecordData(rdata)))
-                                throw new DnsWebServiceException("Failed to delete the record.");
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
                 }
@@ -3912,10 +4190,10 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Access was denied.");
 
                 string newDomain = request.GetQueryOrForm("newDomain", domain).TrimEnd('.');
-                uint ttl = request.GetQueryOrForm("ttl", uint.Parse, _defaultRecordTtl);
+                uint ttl = request.GetQueryOrForm("ttl", ZoneFile.ParseTtl, _defaultRecordTtl);
                 bool disable = request.GetQueryOrForm("disable", bool.Parse, false);
                 string comments = request.QueryOrForm("comments");
-                uint expiryTtl = request.GetQueryOrForm("expiryTtl", uint.Parse, 0u);
+                uint expiryTtl = request.GetQueryOrForm("expiryTtl", ZoneFile.ParseTtl, 0u);
                 DnsResourceRecordType type = request.GetQueryOrFormEnum<DnsResourceRecordType>("type");
 
                 DnsResourceRecord oldRecord = null;
@@ -4027,10 +4305,10 @@ namespace DnsServerCore
                             string primaryNameServer = request.GetQueryOrForm("primaryNameServer").TrimEnd('.');
                             string responsiblePerson = request.GetQueryOrForm("responsiblePerson").TrimEnd('.');
                             uint serial = request.GetQueryOrForm("serial", uint.Parse);
-                            uint refresh = request.GetQueryOrForm("refresh", uint.Parse);
-                            uint retry = request.GetQueryOrForm("retry", uint.Parse);
-                            uint expire = request.GetQueryOrForm("expire", uint.Parse);
-                            uint minimum = request.GetQueryOrForm("minimum", uint.Parse);
+                            uint refresh = request.GetQueryOrForm("refresh", ZoneFile.ParseTtl);
+                            uint retry = request.GetQueryOrForm("retry", ZoneFile.ParseTtl);
+                            uint expire = request.GetQueryOrForm("expire", ZoneFile.ParseTtl);
+                            uint minimum = request.GetQueryOrForm("minimum", ZoneFile.ParseTtl);
 
                             newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSOARecordData(primaryNameServer, responsiblePerson, serial, refresh, retry, expire, minimum));
 

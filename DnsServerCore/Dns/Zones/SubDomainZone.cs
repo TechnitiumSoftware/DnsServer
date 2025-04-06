@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -27,13 +27,13 @@ namespace DnsServerCore.Dns.Zones
     {
         #region variables
 
-        readonly AuthZone _authoritativeZone;
+        readonly ApexZone _authoritativeZone;
 
         #endregion
 
         #region constructor
 
-        protected SubDomainZone(AuthZone authoritativeZone, string name)
+        protected SubDomainZone(ApexZone authoritativeZone, string name)
             : base(name)
         {
             _authoritativeZone = authoritativeZone;
@@ -64,7 +64,7 @@ namespace DnsServerCore.Dns.Zones
 
         #region properties
 
-        public AuthZone AuthoritativeZone
+        public ApexZone AuthoritativeZone
         { get { return _authoritativeZone; } }
 
         #endregion

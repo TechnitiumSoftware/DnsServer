@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -32,9 +32,11 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace SplitHorizon
 {
-    public sealed class AddressTranslation : IDnsApplication, IDnsPostProcessor, IDnsAuthoritativeRequestHandler
+    public sealed class AddressTranslation : IDnsApplication, IDnsPostProcessor, IDnsAuthoritativeRequestHandler, IDnsApplicationPreference
     {
         #region variables
+
+        byte _appPreference;
 
         bool _enableAddressTranslation;
         Dictionary<NetworkAddress, string> _networkGroupMap;
@@ -112,6 +114,8 @@ namespace SplitHorizon
             {
                 using JsonDocument jsonDocument = JsonDocument.Parse(config);
                 JsonElement jsonConfig = jsonDocument.RootElement;
+
+                _appPreference = Convert.ToByte(jsonConfig.GetPropertyValue("appPreference", 40));
 
                 if (!jsonConfig.TryGetProperty("enableAddressTranslation", out _))
                 {
@@ -302,6 +306,9 @@ namespace SplitHorizon
 
         public string Description
         { get { return "Translates IP addresses in DNS response for A & AAAA type request based on the client's network address and the configured 1:1 translation. Also supports reverse (PTR) queries for translated addresses."; } }
+
+        public byte Preference
+        { get { return _appPreference; } }
 
         #endregion
 

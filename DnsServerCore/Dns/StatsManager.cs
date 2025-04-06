@@ -1808,7 +1808,7 @@ namespace DnsServerCore.Dns
                                 {
                                     case DnsServerResponseType.Blocked:
                                     case DnsServerResponseType.UpstreamBlocked:
-                                    case DnsServerResponseType.CacheBlocked:
+                                    case DnsServerResponseType.UpstreamBlockedCached:
                                         //skip blocked domains
                                         break;
 
@@ -1871,7 +1871,7 @@ namespace DnsServerCore.Dns
                             _totalBlocked++;
                             break;
 
-                        case DnsServerResponseType.CacheBlocked:
+                        case DnsServerResponseType.UpstreamBlockedCached:
                             _totalCached++;
 
                             if (query is not null)

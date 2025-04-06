@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ namespace DnsServerCore.Dns.Dnssec
 
         #region constructor
 
-        internal DnssecRsaPrivateKey(DnssecAlgorithm algorithm, DnssecPrivateKeyType keyType, int keySize, RSAParameters rsaPrivateKey)
+        public DnssecRsaPrivateKey(DnssecAlgorithm algorithm, DnssecPrivateKeyType keyType, int keySize, RSAParameters rsaPrivateKey)
             : base(algorithm, keyType)
         {
             _keySize = keySize;
@@ -47,8 +47,8 @@ namespace DnsServerCore.Dns.Dnssec
             InitDnsKey();
         }
 
-        internal DnssecRsaPrivateKey(DnssecAlgorithm algorithm, BinaryReader bR)
-            : base(algorithm, bR)
+        public DnssecRsaPrivateKey(DnssecAlgorithm algorithm, BinaryReader bR, int version)
+            : base(algorithm, bR, version)
         {
             _hashAlgorithm = DnsRRSIGRecordData.GetHashAlgorithmName(algorithm);
             InitDnsKey();

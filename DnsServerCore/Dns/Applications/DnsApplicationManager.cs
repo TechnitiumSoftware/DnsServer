@@ -101,6 +101,8 @@ namespace DnsServerCore.Dns.Applications
                 throw new DnsServerException("DNS application already exists: " + application.Name);
             }
 
+            application.ConfigUpdated += Application_ConfigUpdated;
+
             if (refreshAppObjectList)
                 RefreshAppObjectLists();
 
@@ -109,12 +111,19 @@ namespace DnsServerCore.Dns.Applications
 
         private void UnloadApplication(string applicationName)
         {
-            if (!_applications.TryRemove(applicationName, out DnsApplication existingApp))
+            if (!_applications.TryRemove(applicationName, out DnsApplication removedApp))
                 throw new DnsServerException("DNS application does not exists: " + applicationName);
 
             RefreshAppObjectLists();
 
-            existingApp.Dispose();
+            removedApp.ConfigUpdated -= Application_ConfigUpdated;
+            removedApp.Dispose();
+        }
+
+        private void Application_ConfigUpdated(object sender, EventArgs e)
+        {
+            //refresh app objects to allow sorting them as per app preference
+            RefreshAppObjectLists();
         }
 
         private void RefreshAppObjectLists()
@@ -143,11 +152,36 @@ namespace DnsServerCore.Dns.Applications
                     dnsPostProcessors.Add(processor.Value);
             }
 
+            //sort app objects by preference
+            dnsRequestControllers.Sort(CompareApps);
+            dnsAuthoritativeRequestHandlers.Sort(CompareApps);
+            dnsRequestBlockingHandlers.Sort(CompareApps);
+            dnsQueryLoggers.Sort(CompareApps);
+            dnsPostProcessors.Sort(CompareApps);
+
             _dnsRequestControllers = dnsRequestControllers;
             _dnsAuthoritativeRequestHandlers = dnsAuthoritativeRequestHandlers;
             _dnsRequestBlockingHandlers = dnsRequestBlockingHandlers;
             _dnsQueryLoggers = dnsQueryLoggers;
             _dnsPostProcessors = dnsPostProcessors;
+        }
+
+        private static int CompareApps<T>(T x, T y)
+        {
+            int xp;
+            int yp;
+
+            if (x is IDnsApplicationPreference xpref)
+                xp = xpref.Preference;
+            else
+                xp = 100;
+
+            if (y is IDnsApplicationPreference ypref)
+                yp = ypref.Preference;
+            else
+                yp = 100;
+
+            return xp.CompareTo(yp);
         }
 
         #endregion
@@ -178,20 +212,21 @@ namespace DnsServerCore.Dns.Applications
             _dnsPostProcessors = Array.Empty<IDnsPostProcessor>();
         }
 
-        public void LoadAllApplications()
+        public async Task LoadAllApplicationsAsync()
         {
             UnloadAllApplications();
 
+            List<Task> tasks = new List<Task>();
+
             foreach (string applicationFolder in Directory.GetDirectories(_appsPath))
             {
-                Task.Run(async delegate ()
+                tasks.Add(Task.Run(async delegate ()
                 {
                     try
                     {
                         _dnsServer.LogManager?.Write("DNS Server is loading DNS application: " + Path.GetFileName(applicationFolder));
 
                         _ = await LoadApplicationAsync(applicationFolder, false);
-                        RefreshAppObjectLists();
 
                         _dnsServer.LogManager?.Write("DNS Server successfully loaded DNS application: " + Path.GetFileName(applicationFolder));
                     }
@@ -199,8 +234,12 @@ namespace DnsServerCore.Dns.Applications
                     {
                         _dnsServer.LogManager?.Write("DNS Server failed to load DNS application: " + Path.GetFileName(applicationFolder) + "\r\n" + ex.ToString());
                     }
-                });
+                }));
             }
+
+            await Task.WhenAll(tasks);
+
+            RefreshAppObjectLists();
         }
 
         public async Task<DnsApplication> InstallApplicationAsync(string applicationName, Stream appStream)
@@ -271,17 +310,18 @@ namespace DnsServerCore.Dns.Applications
 
         public void UninstallApplication(string applicationName)
         {
-            if (_applications.TryRemove(applicationName, out DnsApplication app))
+            if (_applications.TryRemove(applicationName, out DnsApplication removedApp))
             {
                 RefreshAppObjectLists();
 
-                app.Dispose();
+                removedApp.ConfigUpdated -= Application_ConfigUpdated;
+                removedApp.Dispose();
 
-                if (Directory.Exists(app.DnsServer.ApplicationFolder))
+                if (Directory.Exists(removedApp.DnsServer.ApplicationFolder))
                 {
                     try
                     {
-                        Directory.Delete(app.DnsServer.ApplicationFolder, true);
+                        Directory.Delete(removedApp.DnsServer.ApplicationFolder, true);
                     }
                     catch (Exception ex)
                     {

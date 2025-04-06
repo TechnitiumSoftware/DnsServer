@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using System;
 using System.IO;
 using System.Security.Cryptography;
 using TechnitiumLibrary.IO;
@@ -36,7 +35,7 @@ namespace DnsServerCore.Dns.Dnssec
 
         #region constructor
 
-        internal DnssecEcdsaPrivateKey(DnssecAlgorithm algorithm, DnssecPrivateKeyType keyType, ECParameters ecdsaPrivateKey)
+        public DnssecEcdsaPrivateKey(DnssecAlgorithm algorithm, DnssecPrivateKeyType keyType, ECParameters ecdsaPrivateKey)
             : base(algorithm, keyType)
         {
             _ecdsaPrivateKey = ecdsaPrivateKey;
@@ -44,8 +43,8 @@ namespace DnsServerCore.Dns.Dnssec
             InitDnsKey();
         }
 
-        internal DnssecEcdsaPrivateKey(DnssecAlgorithm algorithm, BinaryReader bR)
-            : base(algorithm, bR)
+        public DnssecEcdsaPrivateKey(DnssecAlgorithm algorithm, BinaryReader bR, int version)
+            : base(algorithm, bR, version)
         {
             InitDnsKey();
         }
@@ -90,7 +89,7 @@ namespace DnsServerCore.Dns.Dnssec
                     break;
 
                 default:
-                    throw new NotSupportedException();
+                    throw new InvalidDataException();
             }
 
             _ecdsaPrivateKey.D = bR.ReadBuffer();

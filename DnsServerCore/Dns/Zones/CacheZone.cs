@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -228,19 +228,22 @@ namespace DnsServerCore.Dns.Zones
                     }
                 }
             }
-            else if ((type == DnsResourceRecordType.NS) && (records[0].RDATA is DnsNSRecordData ns) && !ns.IsParentSideTtlSet)
+            else if (records[0].Type == DnsResourceRecordType.CHILD_NS)
             {
-                //for ns revalidation
-                if (entries.TryGetValue(DnsResourceRecordType.NS, out IReadOnlyList<DnsResourceRecord> existingNSRecords))
-                {
-                    if ((existingNSRecords.Count > 0) && (existingNSRecords[0].RDATA is DnsNSRecordData existingNS) && existingNS.IsParentSideTtlSet)
-                    {
-                        uint parentSideTtl = existingNS.ParentSideTtl;
+                //convert back RRSet to correct type
+                DnsResourceRecord[] newRecords = new DnsResourceRecord[records.Count];
 
-                        foreach (DnsResourceRecord record in records)
-                            (record.RDATA as DnsNSRecordData).ParentSideTtl = parentSideTtl;
-                    }
+                for (int i = 0; i < records.Count; i++)
+                {
+                    DnsResourceRecord record = records[i];
+
+                    if (record.Type == DnsResourceRecordType.CHILD_NS)
+                        record = record.CloneAs(DnsResourceRecordType.NS);
+
+                    newRecords[i] = record;
                 }
+
+                records = newRecords;
             }
 
             //set last used date time
@@ -386,29 +389,23 @@ namespace DnsServerCore.Dns.Zones
                 if (_ecsEntries is null)
                     return Array.Empty<DnsResourceRecord>();
 
-                NetworkAddress selectedNetwork = null;
-                entries = null;
-
-                foreach (KeyValuePair<NetworkAddress, ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>> ecsEntry in _ecsEntries)
+                if (advancedForwardingClientSubnet)
                 {
-                    NetworkAddress cacheSubnet = ecsEntry.Key;
+                    if (!_ecsEntries.TryGetValue(eDnsClientSubnet, out entries))
+                        return Array.Empty<DnsResourceRecord>();
+                }
+                else
+                {
+                    NetworkAddress selectedNetwork = null;
+                    entries = null;
 
-                    if (cacheSubnet.PrefixLength > eDnsClientSubnet.PrefixLength)
-                        continue;
+                    foreach (KeyValuePair<NetworkAddress, ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>> ecsEntry in _ecsEntries)
+                    {
+                        NetworkAddress cacheSubnet = ecsEntry.Key;
 
-                    if (advancedForwardingClientSubnet)
-                    {
-                        if (cacheSubnet.Equals(eDnsClientSubnet))
-                        {
-                            if ((selectedNetwork is null) || (cacheSubnet.PrefixLength > selectedNetwork.PrefixLength))
-                            {
-                                selectedNetwork = cacheSubnet;
-                                entries = ecsEntry.Value;
-                            }
-                        }
-                    }
-                    else
-                    {
+                        if (cacheSubnet.PrefixLength > eDnsClientSubnet.PrefixLength)
+                            continue;
+
                         if (cacheSubnet.Equals(eDnsClientSubnet) || cacheSubnet.Contains(eDnsClientSubnet.Address))
                         {
                             if ((selectedNetwork is null) || (cacheSubnet.PrefixLength < selectedNetwork.PrefixLength))
@@ -418,10 +415,10 @@ namespace DnsServerCore.Dns.Zones
                             }
                         }
                     }
-                }
 
-                if (entries is null)
-                    return Array.Empty<DnsResourceRecord>();
+                    if (entries is null)
+                        return Array.Empty<DnsResourceRecord>();
+                }
             }
 
             switch (type)
@@ -504,7 +501,10 @@ namespace DnsServerCore.Dns.Zones
         public override bool ContainsNameServerRecords()
         {
             if (!_entries.TryGetValue(DnsResourceRecordType.NS, out IReadOnlyList<DnsResourceRecord> records))
-                return false;
+            {
+                if ((_name.Length > 0) || !_entries.TryGetValue(DnsResourceRecordType.CHILD_NS, out records)) //root zone case
+                    return false;
+            }
 
             foreach (DnsResourceRecord record in records)
             {

@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -798,8 +798,10 @@ namespace DnsServerCore.Dns.Zones
             switch (type)
             {
                 case DnsResourceRecordType.CNAME:
-                    if ((!_entries.IsEmpty) && !_entries.ContainsKey(DnsResourceRecordType.CNAME))
-                        throw new InvalidOperationException("Cannot add record: a CNAME record cannot exists with other record types for the same name.");
+                case DnsResourceRecordType.DNAME:
+                case DnsResourceRecordType.APP:
+                    if ((!_entries.IsEmpty) && !_entries.ContainsKey(type))
+                        throw new InvalidOperationException($"Cannot add record: {type} record already exists for the same name.");
 
                     break;
 

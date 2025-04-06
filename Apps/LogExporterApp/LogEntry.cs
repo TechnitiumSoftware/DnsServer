@@ -86,18 +86,18 @@ namespace LogExporter
 
         public class DnsQuestion
         {
-            public string QuestionName { get; set; }
+            public required string QuestionName { get; set; }
             public DnsResourceRecordType QuestionType { get; set; }
             public DnsClass QuestionClass { get; set; }
         }
 
         public class DnsResourceRecord
         {
-            public string Name { get; set; }
+            public required string Name { get; set; }
             public DnsResourceRecordType RecordType { get; set; }
             public DnsClass RecordClass { get; set; }
             public uint RecordTtl { get; set; }
-            public string RecordData { get; set; }
+            public required string RecordData { get; set; }
             public DnssecStatus DnssecStatus { get; set; }
         }
 

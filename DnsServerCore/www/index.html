@@ -1,5 +1,23 @@
 ﻿<!DOCTYPE html>
 
+<!--
+Technitium DNS Server
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-->
+
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="utf-8" />
@@ -8,27 +26,27 @@
 
     <title>Technitium DNS Server</title>
 
-    <script src="/js/jquery.min.js"></script>
+    <script src="js/jquery.min.js"></script>
 
-    <link href="/css/bootstrap.min.css" rel="stylesheet">
-    <script src="/js/bootstrap.min.js"></script>
-    <script src="/js/Chart.min.js"></script>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/Chart.min.js"></script>
 
-    <link href="/css/font-awesome.min.css" rel="stylesheet" />
+    <link href="css/font-awesome.min.css" rel="stylesheet" />
 
-    <script src="/js/moment.min.js"></script>
+    <script src="js/moment.min.js"></script>
 
-    <link href="/css/main.css" rel="stylesheet" />
-    <script src="/js/common.js"></script>
-    <script src="/js/main.js"></script>
-    <script src="/js/auth.js"></script>
-    <script src="/js/zone.js"></script>
-    <script src="/js/other-zones.js"></script>
-    <script src="/js/apps.js"></script>
-    <script src="/js/dhcp.js"></script>
-    <script src="/js/logs.js"></script>
+    <link href="css/main.css" rel="stylesheet" />
+    <script src="js/common.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/zone.js"></script>
+    <script src="js/other-zones.js"></script>
+    <script src="js/apps.js"></script>
+    <script src="js/dhcp.js"></script>
+    <script src="js/logs.js"></script>
 </head>
-<body>
+<body style="background-color: #fafafa;">
     <div id="header">
         <div id="mnuUser" class="menu dropdown" style="display: none;">
             <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false" style="text-decoration: none;">
@@ -479,6 +497,7 @@
                                                         <li id="lnkImportZone"><a href="#" onclick="showImportZoneModal($('#titleEditZone').attr('data-zone')); return false;">Import Zone</a></li>
                                                         <li id="lnkExportZone"><a href="#" onclick="exportZone($('#titleEditZone').attr('data-zone')); return false;">Export Zone</a></li>
                                                         <li id="lnkZoneConvert"><a href="#" onclick="showConvertZoneModal($('#titleEditZone').attr('data-zone'), $('#titleEditZone').attr('data-zone-type')); return false;">Convert Zone</a></li>
+                                                        <li id="lnkCloneZone"><a href="#" onclick="showCloneZoneModal($('#titleEditZone').attr('data-zone')); return false;">Clone Zone</a></li>
                                                         <li id="lnkZoneOptions"><a href="#" onclick="$('#btnSaveZoneOptions').attr('data-zones-row-id', null); showZoneOptionsModal($('#titleEditZone').attr('data-zone')); return false;">Zone Options</a></li>
                                                     </ul>
                                                 </div>
@@ -500,26 +519,40 @@
                                             <div style="clear: both;"></div>
                                         </div>
 
-                                        <div class="form-inline">
-                                            <form class="pull-right">
-                                                <div class="form-group">
-                                                    <label for="txtEditZonePageNumber">Page Number</label>
-                                                    <input id="txtEditZonePageNumber" class="form-control" style="width: 100px;" type="number" />
+                                        <div class="form-inline well" style="padding: 10px 10px 0 10px;margin-bottom: 10px;">
+                                            <form>
+                                                <div class="pull-left">
+                                                    <div class="form-group">
+                                                        <label for="txtEditZoneFilterName">Name</label>
+                                                        <input id="txtEditZoneFilterName" class="form-control" style="width: 300px;" type="text" />
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="txtEditZoneFilterType">Type</label>
+                                                        <input id="txtEditZoneFilterType" class="form-control" style="width: 130px;" type="text" />
+                                                    </div>
                                                 </div>
-                                                <div class="form-group">
-                                                    <label for="optEditZoneRecordsPerPage">Records Per Page</label>
-                                                    <select class="form-control" id="optEditZoneRecordsPerPage">
-                                                        <option selected>10</option>
-                                                        <option>25</option>
-                                                        <option>50</option>
-                                                        <option>100</option>
-                                                        <option>250</option>
-                                                        <option>500</option>
-                                                    </select>
+
+                                                <div class="pull-right">
+                                                    <div class="form-group">
+                                                        <label for="txtEditZonePageNumber">Page Number</label>
+                                                        <input id="txtEditZonePageNumber" class="form-control" style="width: 100px;" type="number" />
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="optEditZoneRecordsPerPage">Records Per Page</label>
+                                                        <select class="form-control" id="optEditZoneRecordsPerPage">
+                                                            <option selected>10</option>
+                                                            <option>25</option>
+                                                            <option>50</option>
+                                                            <option>100</option>
+                                                            <option>250</option>
+                                                            <option>500</option>
+                                                        </select>
+                                                    </div>
+                                                    <button type="submit" class="btn btn-primary form-group" style="margin-right: 0px;" onclick="showEditZonePage(); return false;">Go</button>
                                                 </div>
-                                                <button type="submit" class="btn btn-primary form-group" style="margin-right: 0px;" onclick="showEditZonePage(); return false;">Go</button>
+
+                                                <div class="clearfix"></div>
                                             </form>
-                                            <div class="clearfix"></div>
                                         </div>
 
                                         <div style="padding: 8px;">
@@ -984,8 +1017,8 @@
                                                         <div class="form-group">
                                                             <label for="txtDefaultRecordTtl" class="col-sm-3 control-label">Default Record TTL</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtDefaultRecordTtl" placeholder="TTL" style="width: 100px; display: inline;">
-                                                                <span>seconds (default 3600)</span>
+                                                                <input type="text" class="form-control" id="txtDefaultRecordTtl" placeholder="TTL" style="width: 100px; display: inline;">
+                                                                <span>seconds (default 3600/1h)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The default TTL value to use if not specified when adding or updating records in a Zone.</div>
                                                         </div>
@@ -1013,8 +1046,8 @@
                                                         <div class="form-group">
                                                             <label for="txtMinSoaRefresh" class="col-sm-3 control-label">Minimum SOA Refresh</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtMinSoaRefresh" placeholder="TTL" style="width: 100px; display: inline;">
-                                                                <span>seconds (default 300)</span>
+                                                                <input type="text" class="form-control" id="txtMinSoaRefresh" placeholder="TTL" style="width: 100px; display: inline;">
+                                                                <span>seconds (default 300/5m)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The minimum Refresh interval to be used by Secondary, Stub, Secondary Forwarder, and Secondary Catalog zones. This minimum value will be used if a zone's SOA Refresh value is less than it.</div>
                                                         </div>
@@ -1022,8 +1055,8 @@
                                                         <div class="form-group">
                                                             <label for="txtMinSoaRetry" class="col-sm-3 control-label">Minimum SOA Retry</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtMinSoaRetry" placeholder="TTL" style="width: 100px; display: inline;">
-                                                                <span>seconds (default 300)</span>
+                                                                <input type="text" class="form-control" id="txtMinSoaRetry" placeholder="TTL" style="width: 100px; display: inline;">
+                                                                <span>seconds (default 300/5m)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The minimum Retry interval to be used by Secondary, Stub, Secondary Forwarder, and Secondary Catalog zones zones. This minimum value will be used if a zone's SOA Retry value is less than it.</div>
                                                         </div>
@@ -1620,15 +1653,10 @@
                                                                     </label>
                                                                 </div>
                                                                 <div style="padding-top: 5px; padding-left: 20px;">Enables <a href="https://datatracker.ietf.org/doc/rfc9156/" target="_blank">QNAME minimization</a> for recursive resolution to improve privacy.</div>
-
-                                                                <div class="checkbox">
-                                                                    <label>
-                                                                        <input id="chkNsRevalidation" type="checkbox"> NS Revalidation
-                                                                    </label>
-                                                                </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enables <a href="https://datatracker.ietf.org/doc/draft-ietf-dnsop-ns-revalidation/" target="_blank">Delegation Revalidation</a> for recursive resolution.</div>
                                                             </div>
                                                         </div>
+
+                                                        <div>Warning! Enabling the <b>Randomize Name</b> option may cause some domain names to fail to resolve due to their name servers dropping the requests or sending the QNAME in response with a different case causing mismatch. The DNS server can already detect DNS spoofing attack attempts and switch to TCP protocol automatically so its safe to not use this feature.</div>
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
@@ -1703,8 +1731,8 @@
                                                         <div class="form-group">
                                                             <label for="txtServeStaleTtl" class="col-sm-3 control-label">Serve Stale TTL</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtServeStaleTtl" placeholder="seconds" style="width: 100px; display: inline;">
-                                                                <span>seconds (recommended 259200 i.e. 3 days)</span>
+                                                                <input type="text" class="form-control" id="txtServeStaleTtl" placeholder="seconds" style="width: 100px; display: inline;">
+                                                                <span>seconds (recommended 259200/3d)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value in seconds which should be used for cached records that are expired. When the serve stale TTL too expires for a stale record, it gets removed from the cache. Recommended value is between 1-3 days and maximum supported value is 7 days.</div>
                                                         </div>
@@ -1712,8 +1740,8 @@
                                                         <div class="form-group">
                                                             <label for="txtServeStaleAnswerTtl" class="col-sm-3 control-label">Serve Stale Answer TTL</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtServeStaleAnswerTtl" placeholder="seconds" style="width: 100px; display: inline;">
-                                                                <span>seconds (valid range 0-300; recommended 30)</span>
+                                                                <input type="text" class="form-control" id="txtServeStaleAnswerTtl" placeholder="seconds" style="width: 100px; display: inline;">
+                                                                <span>seconds (valid range 0-300/5m; recommended 30)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value in seconds which should be used for the records in a stale response. This is the TTL value that the client will be using to cache the stale records.</div>
                                                         </div>
@@ -1721,8 +1749,8 @@
                                                         <div class="form-group">
                                                             <label for="txtServeStaleResetTtl" class="col-sm-3 control-label">Serve Stale Reset TTL</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtServeStaleResetTtl" placeholder="seconds" style="width: 100px; display: inline;">
-                                                                <span>seconds (valid range 10-900; recommended 30)</span>
+                                                                <input type="text" class="form-control" id="txtServeStaleResetTtl" placeholder="seconds" style="width: 100px; display: inline;">
+                                                                <span>seconds (valid range 10-900/15m; recommended 30)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value in seconds which should be used to reset the stale record's TTL value in the cache when the resolver fails to refresh the data. The TTL reset causes the stale records to become valid again so that they can be used to serve requests normally. This reset effectively prevents the resolver from attempting to frequently update the stale records.</div>
                                                         </div>
@@ -1750,7 +1778,7 @@
                                                         <div class="form-group">
                                                             <label for="txtCacheMinimumRecordTtl" class="col-sm-3 control-label">Cache Minimum TTL</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtCacheMinimumRecordTtl" placeholder="min TTL" style="width: 100px; display: inline;">
+                                                                <input type="text" class="form-control" id="txtCacheMinimumRecordTtl" placeholder="min TTL" style="width: 100px; display: inline;">
                                                                 <span>seconds (recommended 10)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The minimum TTL value that a record can have in the cache. Set a value to make sure that the records with TTL value less than that stays in cache for a minimum duration.</div>
@@ -1759,8 +1787,8 @@
                                                         <div class="form-group">
                                                             <label for="txtCacheMaximumRecordTtl" class="col-sm-3 control-label">Cache Maximum TTL</label>
                                                             <div class="col-sm-8">
-                                                                <input type="number" class="form-control" id="txtCacheMaximumRecordTtl" placeholder="max TTL" style="width: 100px; display: inline;">
-                                                                <span>seconds (default 604800)</span>
+                                                                <input type="text" class="form-control" id="txtCacheMaximumRecordTtl" placeholder="max TTL" style="width: 100px; display: inline;">
+                                                                <span>seconds (default 604800/1w)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum TTL value that a record can have in the cache. Set a lower value to allow the records to expire early.</div>
                                                         </div>
@@ -1768,8 +1796,8 @@
                                                         <div class="form-group">
                                                             <label for="txtCacheNegativeRecordTtl" class="col-sm-3 control-label">Cache Negative TTL</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtCacheNegativeRecordTtl" placeholder="-ve TTL" style="width: 100px; display: inline;">
-                                                                <span>seconds (recommended 300)</span>
+                                                                <input type="text" class="form-control" id="txtCacheNegativeRecordTtl" placeholder="-ve TTL" style="width: 100px; display: inline;">
+                                                                <span>seconds (recommended 300/5m)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The negative TTL value to use when there is no SOA MINIMUM value available. Negative caching stores records in cache for <code>NXDOMAIN</code> and <code>NODATA</code> responses.</div>
                                                         </div>
@@ -1777,7 +1805,7 @@
                                                         <div class="form-group">
                                                             <label for="txtCacheFailureRecordTtl" class="col-sm-3 control-label">Cache Failure TTL</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtCacheFailureRecordTtl" placeholder="fail TTL" style="width: 100px; display: inline;">
+                                                                <input type="text" class="form-control" id="txtCacheFailureRecordTtl" placeholder="fail TTL" style="width: 100px; display: inline;">
                                                                 <span>seconds (recommended 10)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The failure TTL value to be used for caching failure responses. This allows storing failure record in cache and prevent frequent recursive resolution requests to the name servers that are responding with <code>ServerFailure</code> or failing to respond.</div>
@@ -1903,7 +1931,7 @@
                                                         <div class="form-group">
                                                             <label for="txtBlockingAnswerTtl" class="col-sm-3 control-label">Blocking Answer TTL</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtBlockingAnswerTtl" placeholder="ttl" style="width: 100px; display: inline;">
+                                                                <input type="text" class="form-control" id="txtBlockingAnswerTtl" placeholder="ttl" style="width: 100px; display: inline;">
                                                                 <span>seconds (default 30)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value in seconds that must be used for the records in a blocking response. This is the TTL value that the client will use to cache the blocking response.</div>
@@ -2223,15 +2251,42 @@
                                                 <div id="settingsTabPaneLogging" role="tabpanel" class="tab-pane">
                                                     <div class="well well-sm form-horizontal">
                                                         <div class="form-group">
-                                                            <label class="col-sm-3 control-label">Logging</label>
+                                                            <label class="col-sm-3 control-label">Enable Logging To</label>
                                                             <div class="col-sm-8">
-                                                                <div class="checkbox">
+                                                                <div class="radio">
                                                                     <label>
-                                                                        <input id="chkEnableLogging" type="checkbox"> Enable Logging
+                                                                        <input type="radio" name="rdLoggingType" id="rdLoggingTypeNone" value="None">
+                                                                        None
                                                                     </label>
+                                                                    <div style="padding-top: 5px; padding-left: 20px;">Disables all logging including error logs and audit logs.</div>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to log error and audit logs into the log file.</div>
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdLoggingType" id="rdLoggingTypeFile" value="File">
+                                                                        File
+                                                                    </label>
+                                                                    <div style="padding-top: 5px; padding-left: 20px;">Enables logging errors and audit logs to the log file.</div>
+                                                                </div>
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdLoggingType" id="rdLoggingTypeConsole" value="Console">
+                                                                        Console
+                                                                    </label>
+                                                                    <div style="padding-top: 5px; padding-left: 20px;">Enables logging errors and audit logs to the console.</div>
+                                                                </div>
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdLoggingType" id="rdLoggingTypeFileAndConsole" value="FileAndConsole">
+                                                                        Both File And Console
+                                                                    </label>
+                                                                    <div style="padding-top: 5px; padding-left: 20px;">Enables logging errors and audit logs to both the log file and console.</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
 
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Logging Options</label>
+                                                            <div class="col-sm-8">
                                                                 <div class="checkbox">
                                                                     <label>
                                                                         <input id="chkIgnoreResolverLogs" type="checkbox"> Ignore Resolver Error Logs
@@ -2507,9 +2562,9 @@
 
                                                         <div class="form-group">
                                                             <label for="txtDhcpScopeDnsTtl" class="col-sm-3 control-label">DNS TTL</label>
-                                                            <div class="col-sm-3">
-                                                                <input type="number" class="form-control" style="width: 100px; display: inline;" id="txtDhcpScopeDnsTtl" placeholder="DNS TTL">
-                                                                <span>seconds (default 900)</span>
+                                                            <div class="col-sm-8">
+                                                                <input type="text" class="form-control" style="width: 100px; display: inline;" id="txtDhcpScopeDnsTtl" placeholder="DNS TTL">
+                                                                <span>seconds (default 900/15m)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value of the DNS records updated for the above provided domain name.</div>
                                                         </div>
@@ -2988,7 +3043,7 @@
                                                         <option>Cached</option>
                                                         <option>Blocked</option>
                                                         <option>UpstreamBlocked</option>
-                                                        <option>CacheBlocked</option>
+                                                        <option>UpstreamBlockedCached</option>
                                                     </select>
                                                 </div>
 
@@ -3059,7 +3114,7 @@
                                                     <div class="clearfix"></div>
                                                 </div>
 
-                                                <table class="table table-hover">
+                                                <table class="table table-hover query-logs">
                                                     <thead>
                                                         <tr>
                                                             <th>#</th>
@@ -3109,7 +3164,7 @@
                                 <div id="mainPanelTabPaneAbout" role="tabpanel" class="tab-pane" style="padding: 40px 0 20px 0;">
 
                                     <div class="about" style="text-align: center;">
-                                        <img src="/img/logo.png" alt="Technitium Logo" />
+                                        <img src="img/logo.png" alt="Technitium Logo" />
                                         <h1>Technitium DNS Server</h1>
                                         <p>Version <span id="lblAboutVersion"></span></p>
                                         <p>Server up since <span id="lblAboutUptime"></span></p>
@@ -3770,8 +3825,8 @@ ns1.example.com ([2001:db8::])
                             <div class="form-group">
                                 <label for="txtAddEditRecordTtl" class="col-sm-4 control-label">TTL</label>
                                 <div class="col-sm-7">
-                                    <input id="txtAddEditRecordTtl" type="number" class="form-control" placeholder="3600" style="width: 100px; display: inline;">
-                                    <span>seconds</span>
+                                    <input id="txtAddEditRecordTtl" type="text" class="form-control" placeholder="3600" style="width: 100px; display: inline;">
+                                    <span>seconds (default 3600/1h)</span>
                                 </div>
                             </div>
 
@@ -3855,25 +3910,29 @@ ns1.example.com ([2001:db8::])
                                 <div class="form-group">
                                     <label for="txtEditRecordDataSoaRefresh" class="col-sm-4 control-label">Refresh</label>
                                     <div class="col-sm-7">
-                                        <input id="txtEditRecordDataSoaRefresh" type="number" class="form-control" style="width: 100px;">
+                                        <input id="txtEditRecordDataSoaRefresh" type="text" class="form-control" style="width: 100px; display: inline;">
+                                        <span>seconds</span>
                                     </div>
                                 </div>
                                 <div class="form-group">
                                     <label for="txtEditRecordDataSoaRetry" class="col-sm-4 control-label">Retry</label>
                                     <div class="col-sm-7">
-                                        <input id="txtEditRecordDataSoaRetry" type="number" class="form-control" style="width: 100px;">
+                                        <input id="txtEditRecordDataSoaRetry" type="text" class="form-control" style="width: 100px; display: inline;">
+                                        <span>seconds</span>
                                     </div>
                                 </div>
                                 <div class="form-group">
                                     <label for="txtEditRecordDataSoaExpire" class="col-sm-4 control-label">Expire</label>
                                     <div class="col-sm-7">
-                                        <input id="txtEditRecordDataSoaExpire" type="number" class="form-control" style="width: 100px;">
+                                        <input id="txtEditRecordDataSoaExpire" type="text" class="form-control" style="width: 100px; display: inline;">
+                                        <span>seconds</span>
                                     </div>
                                 </div>
                                 <div class="form-group">
                                     <label for="txtEditRecordDataSoaMinimum" class="col-sm-4 control-label">Minimum</label>
                                     <div class="col-sm-7">
-                                        <input id="txtEditRecordDataSoaMinimum" type="number" class="form-control" style="width: 100px;">
+                                        <input id="txtEditRecordDataSoaMinimum" type="text" class="form-control" style="width: 100px; display: inline;">
+                                        <span>seconds</span>
                                     </div>
                                 </div>
                             </div>
@@ -4005,14 +4064,14 @@ ns1.example.com ([2001:db8::])
                                     <label for="optAddEditRecordDataDsAlgorithm" class="col-sm-4 control-label">DNSSEC Algorithm</label>
                                     <div class="col-sm-7">
                                         <select id="optAddEditRecordDataDsAlgorithm" class="form-control">
-                                            <option>RSAMD5</option>
-                                            <option>RSASHA1</option>
-                                            <option>RSASHA256</option>
-                                            <option>RSASHA512</option>
-                                            <option>ECDSAP256SHA256</option>
-                                            <option>ECDSAP384SHA384</option>
-                                            <option>ED25519</option>
-                                            <option>ED448</option>
+                                            <option value="RSAMD5">RSAMD5 (1)</option>
+                                            <option value="RSASHA1">RSASHA1 (5)</option>
+                                            <option value="RSASHA256">RSASHA256 (8)</option>
+                                            <option value="RSASHA512">RSASHA512 (10)</option>
+                                            <option value="ECDSAP256SHA256">ECDSAP256SHA256 (13)</option>
+                                            <option value="ECDSAP384SHA384">ECDSAP384SHA384 (14)</option>
+                                            <option value="ED25519">ED25519 (15)</option>
+                                            <option value="ED448">ED448 (16)</option>
                                         </select>
                                     </div>
                                 </div>
@@ -4020,9 +4079,9 @@ ns1.example.com ([2001:db8::])
                                     <label for="optAddEditRecordDataDsDigestType" class="col-sm-4 control-label">Digest Type</label>
                                     <div class="col-sm-7">
                                         <select id="optAddEditRecordDataDsDigestType" class="form-control">
-                                            <option>SHA1</option>
-                                            <option>SHA256</option>
-                                            <option>SHA384</option>
+                                            <option value="SHA1">SHA1 (1)</option>
+                                            <option value="SHA256">SHA256 (2)</option>
+                                            <option value="SHA384">SHA384 (4)</option>
                                         </select>
                                     </div>
                                 </div>
@@ -4389,7 +4448,7 @@ MII...
                             <div class="form-group" id="divAddEditRecordExpiryTtl">
                                 <label for="txtAddEditRecordExpiryTtl" class="col-sm-4 control-label">Expiry TTL</label>
                                 <div class="col-sm-7">
-                                    <input id="txtAddEditRecordExpiryTtl" type="number" class="form-control" placeholder="0" style="width: 100px; display: inline;">
+                                    <input id="txtAddEditRecordExpiryTtl" type="text" class="form-control" placeholder="0" style="width: 100px; display: inline;">
                                     <span>seconds (set 0 to disable)</span>
                                 </div>
                                 <div class="col-sm-offset-4 col-sm-7" style="padding-top: 5px;">Set to automatically delete the record when the value in seconds elapses since the record’s last modified time.</div>
@@ -4416,32 +4475,60 @@ MII...
                 <div class="modal-body">
                     <div id="divImportZoneAlert"></div>
 
-                    <p>Enter the records to be imported below in standard zone file format:</p>
+                    <div class="form-horizontal">
+                        <div class="form-group">
+                            <label class="col-sm-4 control-label">Import Type</label>
+                            <div class="col-sm-8">
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdImportZoneType" id="rdImportZoneTypeFile" value="File">
+                                        Zone File
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdImportZoneType" id="rdImportZoneTypeText" value="Text">
+                                        Text Editor
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
 
-                    <div class="form-group">
-                        <label for="txtImportZoneFile" class="control-label">Zone File</label>
-                        <textarea id="txtImportZoneFile" class="form-control" rows="15" spellcheck="false"></textarea>
-                    </div>
+                        <div class="form-group">
+                            <label class="col-sm-4 control-label">Import Options</label>
+                            <div class="col-sm-8">
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkImportZoneOverwrite" type="checkbox"> Overwrite existing records
+                                    </label>
+                                    <div style="padding-top: 5px; padding-left: 20px;">Enable this option to overwrite existing records for the record types being imported.</div>
+                                </div>
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkImportZoneOverwriteSoaSerial" type="checkbox"> Overwrite SOA Serial
+                                    </label>
+                                    <div style="padding-top: 5px; padding-left: 20px;">Enable this option to overwrite existing SOA record serial with the imported SOA record serial.</div>
+                                </div>
+                            </div>
+                        </div>
 
-                    <div class="form-group">
-                        <div class="checkbox">
-                            <label>
-                                <input id="chkImportZoneOverwrite" type="checkbox"> Overwrite existing records
-                            </label>
-                            <div style="padding-top: 5px; padding-left: 20px;">Enable this option to overwrite existing records for the record types being imported.</div>
+                        <div id="divImportZoneFile" class="form-group">
+                            <label for="fileImportZone" class="col-sm-4 control-label">Zone File</label>
+                            <div class="col-sm-6">
+                                <input type="file" class="form-control" id="fileImportZone">
+                            </div>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <div class="checkbox">
-                            <label>
-                                <input id="chkImportZoneOverwriteSoaSerial" type="checkbox"> Overwrite SOA Serial
-                            </label>
-                            <div style="padding-top: 5px; padding-left: 20px;">Enable this option to overwrite existing SOA record serial with the imported SOA record serial.</div>
+                    <div id="divImportZoneTextEditor">
+                        <div class="form-group">
+                            <label for="txtImportZoneText" class="control-label">Text Editor</label>
+                            <textarea id="txtImportZoneText" class="form-control" rows="15" spellcheck="false"></textarea>
+                            <div style="padding-top: 5px;">Enter the records to be imported above in standard zone file format.</div>
                         </div>
                     </div>
 
-                    <p>Note: The <code>$ORIGIN</code> and <code>$TTL</code> values will be automatically set if not specified.</p>
+                    <p>Note! The <code>$ORIGIN</code> and <code>$TTL</code> values will be automatically set if not specified.</p>
                     <p>Warning! Overwrite SOA serial option when used to set a lower SOA serial value than the current SOA serial will cause secondary zones to fail to sync.</p>
                 </div>
                 <div class="modal-footer">
@@ -4964,6 +5051,12 @@ ns1.example.com ([2001:db8::])
                                         ECDSA (recommended)
                                     </label>
                                 </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdDnssecSignZoneAlgorithm" id="rdDnssecSignZoneAlgorithmEddsa" value="EDDSA">
+                                        EdDSA
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
@@ -4979,34 +5072,6 @@ ns1.example.com ([2001:db8::])
                                     </select>
                                 </div>
                             </div>
-
-                            <div class="form-group">
-                                <label for="optDnssecSignZoneRsaKSKKeySize" class="col-sm-4 control-label">Key Signing Key (KSK) Size</label>
-                                <div class="col-sm-8">
-                                    <select id="optDnssecSignZoneRsaKSKKeySize" class="form-control" style="width: auto;">
-                                        <option>1024</option>
-                                        <option>1280</option>
-                                        <option>1536</option>
-                                        <option value="2048">2048 (recommended)</option>
-                                        <option>3072</option>
-                                        <option>4096</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="optDnssecSignZoneRsaZSKKeySize" class="col-sm-4 control-label">Zone Signing Key (ZSK) Size</label>
-                                <div class="col-sm-8">
-                                    <select id="optDnssecSignZoneRsaZSKKeySize" class="form-control" style="width: auto;">
-                                        <option>1024</option>
-                                        <option value="1280">1280 (default)</option>
-                                        <option>1536</option>
-                                        <option>2048</option>
-                                        <option>3072</option>
-                                        <option>4096</option>
-                                    </select>
-                                </div>
-                            </div>
                         </div>
 
                         <div id="divDnssecSignZoneEcdsaParameters">
@@ -5017,6 +5082,112 @@ ns1.example.com ([2001:db8::])
                                         <option value="P256">P256 (default)</option>
                                         <option>P384</option>
                                     </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="divDnssecSignZoneEddsaParameters">
+                            <div class="form-group">
+                                <label for="optDnssecSignZoneEddsaCurve" class="col-sm-4 control-label">EdDSA Curve</label>
+                                <div class="col-sm-8">
+                                    <select id="optDnssecSignZoneEddsaCurve" class="form-control" style="width: auto;">
+                                        <option value="ED25519">Ed25519 (default)</option>
+                                        <option value="ED448">Ed448</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="col-sm-4 control-label">Key Signing Key (KSK)</label>
+                            <div class="col-sm-8">
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdDnssecSignZoneKskGeneration" id="rdDnssecSignZoneKskGenerationAutomatic" value="Automatic">
+                                        Automatic Private Key Generation (default)
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdDnssecSignZoneKskGeneration" id="rdDnssecSignZoneKskGenerationUseSpecified" value="UseSpecified">
+                                        Use Specified Private Key
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="divDnssecSignZoneRsaKskKeySize">
+                            <div class="form-group">
+                                <label for="optDnssecSignZoneRsaKskKeySize" class="col-sm-4 control-label">KSK Size</label>
+                                <div class="col-sm-8">
+                                    <select id="optDnssecSignZoneRsaKskKeySize" class="form-control" style="width: auto; display: inline;">
+                                        <option>1024</option>
+                                        <option>1280</option>
+                                        <option>1536</option>
+                                        <option>2048</option>
+                                        <option>3072</option>
+                                        <option>4096</option>
+                                    </select>
+                                    <span>bits (recommended 2048)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="divDnssecSignZonePemKskPrivateKey">
+                            <div class="form-group">
+                                <label for="txtDnssecSignZonePemKskPrivateKey" class="col-sm-4 control-label">KSK Private Key</label>
+                                <div class="col-sm-7">
+                                    <textarea id="txtDnssecSignZonePemKskPrivateKey" class="form-control" rows="4" spellcheck="false" placeholder="-----BEGIN PRIVATE KEY-----
+MII...
+-----END PRIVATE KEY-----"></textarea>
+                                    <div style="padding-top: 5px;">Enter a private key in PEM format.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="col-sm-4 control-label">Zone Signing Key (ZSK)</label>
+                            <div class="col-sm-8">
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdDnssecSignZoneZskGeneration" id="rdDnssecSignZoneZskGenerationAutomatic" value="Automatic">
+                                        Automatic Private Key Generation (default)
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdDnssecSignZoneZskGeneration" id="rdDnssecSignZoneZskGenerationUseSpecified" value="UseSpecified">
+                                        Use Specified Private Key
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="divDnssecSignZoneRsaZskKeySize">
+                            <div class="form-group">
+                                <label for="optDnssecSignZoneRsaZskKeySize" class="col-sm-4 control-label">ZSK Size</label>
+                                <div class="col-sm-8">
+                                    <select id="optDnssecSignZoneRsaZskKeySize" class="form-control" style="width: auto; display: inline;">
+                                        <option>1024</option>
+                                        <option>1280</option>
+                                        <option>1536</option>
+                                        <option>2048</option>
+                                        <option>3072</option>
+                                        <option>4096</option>
+                                    </select>
+                                    <span>bits (default 1280)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="divDnssecSignZonePemZskPrivateKey">
+                            <div class="form-group">
+                                <label for="txtDnssecSignZonePemZskPrivateKey" class="col-sm-4 control-label">ZSK Private Key</label>
+                                <div class="col-sm-7">
+                                    <textarea id="txtDnssecSignZonePemZskPrivateKey" class="form-control" rows="4" spellcheck="false" placeholder="-----BEGIN PRIVATE KEY-----
+MII...
+-----END PRIVATE KEY-----"></textarea>
+                                    <div style="padding-top: 5px;">Enter a private key in PEM format.</div>
                                 </div>
                             </div>
                         </div>
@@ -5072,8 +5243,8 @@ ns1.example.com ([2001:db8::])
                         <div class="form-group">
                             <label for="txtDnssecSignZoneDnsKeyTtl" class="col-sm-4 control-label">DNSKEY TTL</label>
                             <div class="col-sm-8">
-                                <input id="txtDnssecSignZoneDnsKeyTtl" type="number" class="form-control" placeholder="ttl" style="width: 100px; display: inline;">
-                                <span>seconds (default 3600)</span>
+                                <input id="txtDnssecSignZoneDnsKeyTtl" type="text" class="form-control" placeholder="ttl" style="width: 100px; display: inline;">
+                                <span>seconds (default 3600/1h)</span>
                             </div>
                             <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
                                 The TTL value to be used for DNSKEY records. A lower value will allow quicker addition or rollover to a new DNS Key at the cost of increased frequency of DNSKEY queries by resolvers.
@@ -5087,7 +5258,7 @@ ns1.example.com ([2001:db8::])
                                 <span>days (valid range 0-365; default 30; set 0 to disable)</span>
                             </div>
                             <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
-                                The frequency at which the DNS server must automatically rollover all Zone Signing Key (ZSK) keys.
+                                The frequency at which the DNS server must automatically rollover the Zone Signing Key (ZSK).
                             </div>
                         </div>
                     </div>
@@ -5153,6 +5324,7 @@ ns1.example.com ([2001:db8::])
                                 <li>The Key State for a newly published DNS Key must be <code>Ready</code> before you can add a DS record for it. Adding DS record for a DNS Key with <code>Published</code> Key State may cause DNSSEC validation to fail for some DNS resolvers. A "ready by" timestamp is displayed to let you know when a DS record can be added for a DNS Key that is not "Ready" yet.</li>
                                 <li>You should add only one DS record for each Key Tag. That is, do not create multiple DS records for each Digest Type, instead use the Digest Type that is supported by your Domain Registrar.</li>
                                 <li>Use the provided Public Key if the Domain Registrar requires it instead of the Digest.</li>
+                                <li>When doing a Key Signing Key (KSK) rollover, you can immediately delete the old DS record after adding the new DS record.</li>
                             </ul>
                         </p>
 
@@ -5209,16 +5381,16 @@ ns1.example.com ([2001:db8::])
                             </table>
 
                             <div>
-                                <button type="button" class="btn btn-primary" style="padding: 2px 0; width: 120px;" data-toggle="collapse" data-target="#divDnssecPropertiesGenerateKey" aria-expanded="false" aria-controls="divDnssecPropertiesGenerateKey">Add Private Key</button>
+                                <button type="button" class="btn btn-primary" style="padding: 2px 0; width: 120px;" data-toggle="collapse" data-target="#divDnssecPropertiesAddKey" aria-expanded="false" aria-controls="divDnssecPropertiesAddKey">Add Private Key</button>
                                 <button id="btnDnssecPropertiesPublishKeys" type="button" class="btn btn-warning" style="padding: 2px 0; width: 120px;" data-loading-text="Publishing..." onclick="publishAllDnssecPrivateKeys(this);">Publish All Keys</button>
                             </div>
 
-                            <div id="divDnssecPropertiesGenerateKey" class="collapse">
+                            <div id="divDnssecPropertiesAddKey" class="collapse">
                                 <div class="panel panel-default" style="margin-bottom: 0px; margin-top: 10px; padding-top: 15px;">
                                     <div class="form-group">
-                                        <label for="optDnssecPropertiesGenerateKeyKeyType" class="col-sm-4 control-label">Key Type</label>
+                                        <label for="optDnssecPropertiesAddKeyKeyType" class="col-sm-4 control-label">Key Type</label>
                                         <div class="col-sm-8">
-                                            <select id="optDnssecPropertiesGenerateKeyKeyType" class="form-control" style="width: auto;">
+                                            <select id="optDnssecPropertiesAddKeyKeyType" class="form-control" style="width: auto;">
                                                 <option value="KeySigningKey">Key Signing Key (KSK)</option>
                                                 <option value="ZoneSigningKey">Zone Signing Key (ZSK)</option>
                                             </select>
@@ -5226,20 +5398,21 @@ ns1.example.com ([2001:db8::])
                                     </div>
 
                                     <div class="form-group">
-                                        <label for="optDnssecPropertiesGenerateKeyAlgorithm" class="col-sm-4 control-label">Algorithm</label>
+                                        <label for="optDnssecPropertiesAddKeyAlgorithm" class="col-sm-4 control-label">Algorithm</label>
                                         <div class="col-sm-8">
-                                            <select id="optDnssecPropertiesGenerateKeyAlgorithm" class="form-control" style="width: auto;">
+                                            <select id="optDnssecPropertiesAddKeyAlgorithm" class="form-control" style="width: auto;">
                                                 <option>RSA</option>
                                                 <option value="ECDSA">ECDSA (recommended)</option>
+                                                <option value="EDDSA">EdDSA</option>
                                             </select>
                                         </div>
                                     </div>
 
-                                    <div id="divDnssecPropertiesGenerateKeyRsaParameters">
+                                    <div id="divDnssecPropertiesAddKeyRsaParameters">
                                         <div class="form-group">
-                                            <label for="optDnssecPropertiesGenerateKeyRsaHashAlgorithm" class="col-sm-4 control-label">Hash Algorithm</label>
+                                            <label for="optDnssecPropertiesAddKeyRsaHashAlgorithm" class="col-sm-4 control-label">Hash Algorithm</label>
                                             <div class="col-sm-8">
-                                                <select id="optDnssecPropertiesGenerateKeyRsaHashAlgorithm" class="form-control" style="width: auto;">
+                                                <select id="optDnssecPropertiesAddKeyRsaHashAlgorithm" class="form-control" style="width: auto;">
                                                     <option value="MD5">MD5 (obsolete)</option>
                                                     <option>SHA1</option>
                                                     <option value="SHA256">SHA256 (default)</option>
@@ -5247,27 +5420,13 @@ ns1.example.com ([2001:db8::])
                                                 </select>
                                             </div>
                                         </div>
-
-                                        <div class="form-group">
-                                            <label for="optDnssecPropertiesGenerateKeyRsaKeySize" class="col-sm-4 control-label">Key Size</label>
-                                            <div class="col-sm-8">
-                                                <select id="optDnssecPropertiesGenerateKeyRsaKeySize" class="form-control" style="width: auto;">
-                                                    <option>1024</option>
-                                                    <option>1280</option>
-                                                    <option>1536</option>
-                                                    <option>2048</option>
-                                                    <option>3072</option>
-                                                    <option>4096</option>
-                                                </select>
-                                            </div>
-                                        </div>
                                     </div>
 
-                                    <div id="divDnssecPropertiesGenerateKeyEcdsaParameters">
+                                    <div id="divDnssecPropertiesAddKeyEcdsaParameters">
                                         <div class="form-group">
-                                            <label for="optDnssecPropertiesGenerateKeyEcdsaCurve" class="col-sm-4 control-label">ECDSA Curve</label>
+                                            <label for="optDnssecPropertiesAddKeyEcdsaCurve" class="col-sm-4 control-label">ECDSA Curve</label>
                                             <div class="col-sm-8">
-                                                <select id="optDnssecPropertiesGenerateKeyEcdsaCurve" class="form-control" style="width: auto;">
+                                                <select id="optDnssecPropertiesAddKeyEcdsaCurve" class="form-control" style="width: auto;">
                                                     <option value="P256">P256 (default)</option>
                                                     <option>P384</option>
                                                 </select>
@@ -5275,11 +5434,70 @@ ns1.example.com ([2001:db8::])
                                         </div>
                                     </div>
 
-                                    <div id="divDnssecPropertiesGenerateKeyAutomaticRollover" class="form-group">
-                                        <label for="txtDnssecPropertiesGenerateKeyAutomaticRollover" class="col-sm-4 control-label">Automatic Key Rollover</label>
+                                    <div id="divDnssecPropertiesAddKeyEddsaParameters">
+                                        <div class="form-group">
+                                            <label for="optDnssecPropertiesAddKeyEddsaCurve" class="col-sm-4 control-label">EdDSA Curve</label>
+                                            <div class="col-sm-8">
+                                                <select id="optDnssecPropertiesAddKeyEddsaCurve" class="form-control" style="width: auto;">
+                                                    <option value="ED25519">Ed25519 (default)</option>
+                                                    <option value="ED448">Ed448</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="col-sm-4 control-label">Key Generation</label>
+                                        <div class="col-sm-8">
+                                            <div class="radio">
+                                                <label>
+                                                    <input type="radio" name="rdDnssecPropertiesKeyGeneration" id="rdDnssecPropertiesKeyGenerationAutomatic" value="Automatic">
+                                                    Automatic Private Key Generation (default)
+                                                </label>
+                                            </div>
+                                            <div class="radio">
+                                                <label>
+                                                    <input type="radio" name="rdDnssecPropertiesKeyGeneration" id="rdDnssecPropertiesKeyGenerationUseSpecified" value="UseSpecified">
+                                                    Use Specified Private Key
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="divDnssecPropertiesAddKeyRsaKeySize">
+                                        <div class="form-group">
+                                            <label for="optDnssecPropertiesAddKeyRsaKeySize" class="col-sm-4 control-label">Key Size</label>
+                                            <div class="col-sm-8">
+                                                <select id="optDnssecPropertiesAddKeyRsaKeySize" class="form-control" style="width: auto; display: inline;">
+                                                    <option>1024</option>
+                                                    <option>1280</option>
+                                                    <option>1536</option>
+                                                    <option>2048</option>
+                                                    <option>3072</option>
+                                                    <option>4096</option>
+                                                </select>
+                                                <span>bits</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="divDnssecPropertiesPemPrivateKey">
+                                        <div class="form-group">
+                                            <label for="txtDnssecPropertiesPemPrivateKey" class="col-sm-4 control-label">Private Key</label>
+                                            <div class="col-sm-7">
+                                                <textarea id="txtDnssecPropertiesPemPrivateKey" class="form-control" rows="4" spellcheck="false" placeholder="-----BEGIN PRIVATE KEY-----
+MII...
+-----END PRIVATE KEY-----"></textarea>
+                                                <div style="padding-top: 5px;">Enter a private key in PEM format.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="divDnssecPropertiesAddKeyAutomaticRollover" class="form-group">
+                                        <label for="txtDnssecPropertiesAddKeyAutomaticRollover" class="col-sm-4 control-label">Automatic Key Rollover</label>
                                         <div class="col-sm-8">
                                             <div>
-                                                <input id="txtDnssecPropertiesGenerateKeyAutomaticRollover" type="number" class="form-control" placeholder="days" style="width: 100px; display: inline;">
+                                                <input id="txtDnssecPropertiesAddKeyAutomaticRollover" type="number" class="form-control" placeholder="days" style="width: 100px; display: inline;">
                                                 <span>days (valid range 0-365; default 30; set 0 to disable)</span>
                                             </div>
                                         </div>
@@ -5290,10 +5508,20 @@ ns1.example.com ([2001:db8::])
 
                                     <div class="form-group">
                                         <div class="col-sm-offset-4 col-sm-8">
-                                            <button type="button" class="btn btn-primary" style="padding: 2px 0; width: 150px;" data-loading-text="Generating..." onclick="generateAndAddDnssecPrivateKey(this);">Generate & Add Key</button>
+                                            <button type="button" class="btn btn-primary" style="padding: 2px 10px;" data-loading-text="Generating..." onclick="addDnssecPrivateKey(this);">Add Key</button>
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+
+                            <div id="divDnssecPropertiesNoteReadyBy" style="margin-top: 10px; display: none;">
+                                Note! The Key State for a newly published Key Signing Key (KSK) must be <code>Ready</code> before you can add a DS record for it. Use the <b>View DS Info</b> option for more details on adding DS record.
+                            </div>
+                            <div id="divDnssecPropertiesNoteActiveBy" style="margin-top: 10px; display: none;">
+                                Note! The Key State for a Key Signing Key (KSK) will automatically switch from <code>Ready</code> to <code>Active</code> once you have added DS record for it and the DNS server is able to detect it. Use the <b>View DS Info</b> option for more details on adding DS record.
+                            </div>
+                            <div id="divDnssecPropertiesNoteRetiredRevoked" style="margin-top: 10px; display: none;">
+                                Note! The keys with <code>Retired</code> or <code>Revoked</code> Key State will be automatically unpublished and removed when its safe to do so.
                             </div>
                         </div>
 
@@ -5358,8 +5586,8 @@ ns1.example.com ([2001:db8::])
                                 <label for="txtDnssecPropertiesDnsKeyTtl" class="col-sm-4 control-label">DNSKEY TTL</label>
                                 <div class="col-sm-8">
                                     <div>
-                                        <input id="txtDnssecPropertiesDnsKeyTtl" type="number" class="form-control" placeholder="ttl" style="width: 100px; display: inline;">
-                                        <span>seconds (default 3600)</span>
+                                        <input id="txtDnssecPropertiesDnsKeyTtl" type="text" class="form-control" placeholder="ttl" style="width: 100px; display: inline;">
+                                        <span>seconds (default 3600/1h)</span>
                                     </div>
                                     <div style="margin-top: 10px;">
                                         <button type="button" class="btn btn-default" style="padding: 2px 0; width: 100px;" data-loading-text="Updating..." onclick="updateDnssecDnsKeyTtl(this);">Update TTL</button>
