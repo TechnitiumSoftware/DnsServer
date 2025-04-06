@@ -1,234 +1,238 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <Authors>Shreyas Zare</Authors>
-    <Company>Technitium</Company>
-    <Product>Technitium DNS Server</Product>
-    <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-    <RepositoryType></RepositoryType>
-    <Description></Description>
-    <PackageId>DnsServer</PackageId>
-    <Version>13.4.3</Version>
-    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<Authors>Shreyas Zare</Authors>
+		<Company>Technitium</Company>
+		<Product>Technitium DNS Server</Product>
+		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
+		<RepositoryType></RepositoryType>
+		<Description></Description>
+		<PackageId>DnsServer</PackageId>
+		<Version>13.5</Version>
+		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
-  </ItemGroup>
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <Reference Include="TechnitiumLibrary">
-      <HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.dll</HintPath>
-    </Reference>
-    <Reference Include="TechnitiumLibrary.ByteTree">
-      <HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.ByteTree.dll</HintPath>
-    </Reference>
-    <Reference Include="TechnitiumLibrary.IO">
-      <HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
-    </Reference>
-    <Reference Include="TechnitiumLibrary.Net">
-      <HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
-    </Reference>
-  </ItemGroup>
+	<ItemGroup>
+		<Reference Include="TechnitiumLibrary">
+			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.dll</HintPath>
+		</Reference>
+		<Reference Include="TechnitiumLibrary.ByteTree">
+			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.ByteTree.dll</HintPath>
+		</Reference>
+		<Reference Include="TechnitiumLibrary.IO">
+			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
+		</Reference>
+		<Reference Include="TechnitiumLibrary.Net">
+			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
+		</Reference>
+	</ItemGroup>
 
-  <ItemGroup>
-    <None Remove="dohwww\css\bootstrap.min.css" />
-    <None Remove="dohwww\css\bootstrap.min.css.map" />
-    <None Remove="dohwww\css\main.css" />
-    <None Remove="dohwww\favicon.ico" />
-    <None Remove="dohwww\img\firefox-doh.png" />
-    <None Remove="dohwww\img\logo.png" />
-    <None Remove="dohwww\index.html" />
-    <None Remove="dohwww\js\jquery.min.js" />
-    <None Remove="dohwww\js\main.js" />
-    <None Remove="dohwww\robots.txt" />
-    <None Remove="named.root" />
-    <None Remove="root-anchors.xml" />
-    <None Remove="www\css\bootstrap-theme.min.css" />
-    <None Remove="www\css\bootstrap-theme.min.css.map" />
-    <None Remove="www\css\bootstrap.min.css" />
-    <None Remove="www\css\bootstrap.min.css.map" />
-    <None Remove="www\css\font-awesome.min.css" />
-    <None Remove="www\css\main.css" />
-    <None Remove="www\favicon.ico" />
-    <None Remove="www\fonts\fontawesome-webfont.eot" />
-    <None Remove="www\fonts\fontawesome-webfont.svg" />
-    <None Remove="www\fonts\fontawesome-webfont.ttf" />
-    <None Remove="www\fonts\fontawesome-webfont.woff" />
-    <None Remove="www\fonts\fontawesome-webfont.woff2" />
-    <None Remove="www\fonts\FontAwesome.otf" />
-    <None Remove="www\fonts\glyphicons-halflings-regular.eot" />
-    <None Remove="www\fonts\glyphicons-halflings-regular.svg" />
-    <None Remove="www\fonts\glyphicons-halflings-regular.ttf" />
-    <None Remove="www\fonts\glyphicons-halflings-regular.woff" />
-    <None Remove="www\fonts\glyphicons-halflings-regular.woff2" />
-    <None Remove="www\img\loader-small.gif" />
-    <None Remove="www\img\loader.gif" />
-    <None Remove="www\img\logo.png" />
-    <None Remove="www\img\logo25x25.png" />
-    <None Remove="www\index.html" />
-    <None Remove="www\js\apps.js" />
-    <None Remove="www\js\auth.js" />
-    <None Remove="www\js\bootstrap.min.js" />
-    <None Remove="www\js\Chart.min.js" />
-    <None Remove="www\js\common.js" />
-    <None Remove="www\js\dhcp.js" />
-    <None Remove="www\js\jquery.min.js" />
-    <None Remove="www\js\logs.js" />
-    <None Remove="www\js\main.js" />
-    <None Remove="www\js\moment.min.js" />
-    <None Remove="www\js\other-zones.js" />
-    <None Remove="www\js\zone.js" />
-    <None Remove="www\robots.txt" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="BouncyCastle.Cryptography" Version="2.5.1" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <Content Include="dohwww\css\bootstrap.min.css">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="dohwww\css\bootstrap.min.css.map">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="dohwww\css\main.css">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="dohwww\favicon.ico">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="dohwww\img\firefox-doh.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="dohwww\img\logo.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="dohwww\index.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="dohwww\js\jquery.min.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="dohwww\js\main.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="dohwww\robots.txt">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="named.root">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="root-anchors.xml">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\favicon.ico">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\css\bootstrap.min.css">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\css\bootstrap.min.css.map">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\css\font-awesome.min.css">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\css\main.css">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\fontawesome-webfont.eot">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\fontawesome-webfont.svg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\fontawesome-webfont.ttf">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\fontawesome-webfont.woff">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\fontawesome-webfont.woff2">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\FontAwesome.otf">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\glyphicons-halflings-regular.eot">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\glyphicons-halflings-regular.svg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\glyphicons-halflings-regular.ttf">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\glyphicons-halflings-regular.woff">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\glyphicons-halflings-regular.woff2">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\img\loader-small.gif">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\img\loader.gif">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\img\logo.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\img\logo25x25.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\index.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\apps.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\auth.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\bootstrap.min.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\Chart.min.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\common.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\jquery.min.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\logs.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\main.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\moment.min.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\other-zones.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\zone.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\dhcp.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\robots.txt">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
+	<ItemGroup>
+		<None Remove="dohwww\css\bootstrap.min.css" />
+		<None Remove="dohwww\css\bootstrap.min.css.map" />
+		<None Remove="dohwww\css\main.css" />
+		<None Remove="dohwww\favicon.ico" />
+		<None Remove="dohwww\img\firefox-doh.png" />
+		<None Remove="dohwww\img\logo.png" />
+		<None Remove="dohwww\index.html" />
+		<None Remove="dohwww\js\jquery.min.js" />
+		<None Remove="dohwww\js\main.js" />
+		<None Remove="dohwww\robots.txt" />
+		<None Remove="named.root" />
+		<None Remove="root-anchors.xml" />
+		<None Remove="www\css\bootstrap-theme.min.css" />
+		<None Remove="www\css\bootstrap-theme.min.css.map" />
+		<None Remove="www\css\bootstrap.min.css" />
+		<None Remove="www\css\bootstrap.min.css.map" />
+		<None Remove="www\css\font-awesome.min.css" />
+		<None Remove="www\css\main.css" />
+		<None Remove="www\favicon.ico" />
+		<None Remove="www\fonts\fontawesome-webfont.eot" />
+		<None Remove="www\fonts\fontawesome-webfont.svg" />
+		<None Remove="www\fonts\fontawesome-webfont.ttf" />
+		<None Remove="www\fonts\fontawesome-webfont.woff" />
+		<None Remove="www\fonts\fontawesome-webfont.woff2" />
+		<None Remove="www\fonts\FontAwesome.otf" />
+		<None Remove="www\fonts\glyphicons-halflings-regular.eot" />
+		<None Remove="www\fonts\glyphicons-halflings-regular.svg" />
+		<None Remove="www\fonts\glyphicons-halflings-regular.ttf" />
+		<None Remove="www\fonts\glyphicons-halflings-regular.woff" />
+		<None Remove="www\fonts\glyphicons-halflings-regular.woff2" />
+		<None Remove="www\img\loader-small.gif" />
+		<None Remove="www\img\loader.gif" />
+		<None Remove="www\img\logo.png" />
+		<None Remove="www\img\logo25x25.png" />
+		<None Remove="www\index.html" />
+		<None Remove="www\js\apps.js" />
+		<None Remove="www\js\auth.js" />
+		<None Remove="www\js\bootstrap.min.js" />
+		<None Remove="www\js\Chart.min.js" />
+		<None Remove="www\js\common.js" />
+		<None Remove="www\js\dhcp.js" />
+		<None Remove="www\js\jquery.min.js" />
+		<None Remove="www\js\logs.js" />
+		<None Remove="www\js\main.js" />
+		<None Remove="www\js\moment.min.js" />
+		<None Remove="www\js\other-zones.js" />
+		<None Remove="www\js\zone.js" />
+		<None Remove="www\robots.txt" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Content Include="dohwww\css\bootstrap.min.css">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="dohwww\css\bootstrap.min.css.map">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="dohwww\css\main.css">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="dohwww\favicon.ico">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="dohwww\img\firefox-doh.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="dohwww\img\logo.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="dohwww\index.html">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="dohwww\js\jquery.min.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="dohwww\js\main.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="dohwww\robots.txt">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="named.root">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="root-anchors.xml">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\favicon.ico">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\css\bootstrap.min.css">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\css\bootstrap.min.css.map">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\css\font-awesome.min.css">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\css\main.css">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\fontawesome-webfont.eot">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\fontawesome-webfont.svg">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\fontawesome-webfont.ttf">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\fontawesome-webfont.woff">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\fontawesome-webfont.woff2">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\FontAwesome.otf">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\glyphicons-halflings-regular.eot">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\glyphicons-halflings-regular.svg">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\glyphicons-halflings-regular.ttf">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\glyphicons-halflings-regular.woff">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\glyphicons-halflings-regular.woff2">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\img\loader-small.gif">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\img\loader.gif">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\img\logo.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\img\logo25x25.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\index.html">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\apps.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\auth.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\bootstrap.min.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\Chart.min.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\common.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\jquery.min.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\logs.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\main.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\moment.min.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\other-zones.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\zone.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\dhcp.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\robots.txt">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
 
 </Project>
