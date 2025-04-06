@@ -315,7 +315,7 @@ namespace DnsServerSystemTrayApp
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error occured while loading config file. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Error occurred while loading config file. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -338,7 +338,7 @@ namespace DnsServerSystemTrayApp
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error occured while saving config file. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Error occurred while saving config file. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -367,7 +367,7 @@ namespace DnsServerSystemTrayApp
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error occured while setting " + dnsProvider.Name + " as network DNS server. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Error occurred while setting " + dnsProvider.Name + " as network DNS server. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -471,7 +471,7 @@ namespace DnsServerSystemTrayApp
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error occured while setting auto firewall registry entry value. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Error occurred while setting auto firewall registry entry value. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -725,7 +725,7 @@ namespace DnsServerSystemTrayApp
             catch (Exception ex)
             {
                 if (!silent)
-                    MessageBox.Show("Error occured while setting default network DNS servers. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Error occurred while setting default network DNS servers. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -779,7 +779,7 @@ namespace DnsServerSystemTrayApp
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error occured while starting service. " + ex.Message, "Service Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Error occurred while starting service. " + ex.Message, "Service Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -806,7 +806,7 @@ namespace DnsServerSystemTrayApp
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error occured while restarting service. " + ex.Message, "Service Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Error occurred while restarting service. " + ex.Message, "Service Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -831,7 +831,7 @@ namespace DnsServerSystemTrayApp
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error occured while stopping service. " + ex.Message, "Service Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Error occurred while stopping service. " + ex.Message, "Service Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -869,7 +869,7 @@ namespace DnsServerSystemTrayApp
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error occured while removing auto start registry entry. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Error occurred while removing auto start registry entry. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             else
@@ -885,7 +885,7 @@ namespace DnsServerSystemTrayApp
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Error occured while adding auto start registry entry. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Error occurred while adding auto start registry entry. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
