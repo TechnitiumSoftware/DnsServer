@@ -1,5 +1,23 @@
 # Technitium DNS Server Change Log
 
+## Version 13.5
+Release Date: 6 April 2025
+
+- Implemented [RFC 8080](https://datatracker.ietf.org/doc/rfc8080/) to add support for Ed25519 (15) and Ed448 (16) DNSSEC algorithms for both signing and validation.
+- Added support for user specified DNSSEC private keys. This adds option to specify private key in PEM format when signing zone or when doing a key rollover.
+- Added feature to filter records in the zone editor based on its name or type to allow ease of searching records in large zones.
+- Added support for writing DNS logs to Console (STDOUT) along with existing option to write to a file.
+- Updated Import Zone option to allow importing directly from a given file along with existing option to enter records to import with a text editor.
+- Updated zone file parser to support BIND extended zone file format.
+- Updated Query Logs view to show records with background color based on the type of log entry.
+- Implemented [draft-fujiwara-dnsop-resolver-update](https://datatracker.ietf.org/doc/draft-fujiwara-dnsop-resolver-update/) to cache parent side NS records and child side authoritative NS records separately in DNS cache.
+- Removed [NS Revalidation (draft-ietf-dnsop-ns-revalidation)](https://datatracker.ietf.org/doc/draft-ietf-dnsop-ns-revalidation/) feature implementation. This featured caused increase in complexity and number of requests to name servers increasing load on the resolver. It also caused few domain names to fail to resolve when the zone's child NS records were different from parent NS records which would have otherwise resolved correctly. It did not add any benefit for the resolver operator but created operational issues. Read the discussion thread [here](https://mailarchive.ietf.org/arch/msg/dnsop/s8KBhilK4bCrmSBRMyKaxll02lk/) to understand more about this decision.
+- Added `IDnsApplicationPreference` interface to allow applications to be ordered based on their user configured app preference value.
+- Advanced Forwarding App, DNS64 App, NXDOMAIN App, Split Horizon App and Zone Alias App: Updated these apps to implement app preference feature in config with new `appPreference` option.
+- Log Exporter App: Updated app to allow configuring HTTP headers without validation to allow adding non-standard header values.
+- Updated the DNS admin panel web app to use relative paths to allow using the DNS admin panel with any URL path on a reverse proxy.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 13.4.3
 Release Date: 23 February 2025
 
