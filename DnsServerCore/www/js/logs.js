@@ -385,7 +385,7 @@ function queryLogs(pageNumber) {
                 }
 
                 tableHtml += "<tr" + (trbgcolor == null ? "" : " style=\"background-color: " + trbgcolor + ";\"") + "><td>" + responseJSON.response.entries[i].rowNumber + "</td><td>" +
-                    moment(responseJSON.response.entries[i].timestamp).local().format("YYYY-MM-DD HH:mm:ss") + "</td><td style=\"word-break: break-all;\">" +
+                    moment(responseJSON.response.entries[i].timestamp).local().format("YYYY-MM-DD HH:mm:ss") + "</td><td style=\"word-break: break-all; min-width: 125px;\">" +
                     responseJSON.response.entries[i].clientIpAddress + "</td><td>" +
                     responseJSON.response.entries[i].protocol + "</td><td>" +
                     responseJSON.response.entries[i].responseType + (responseJSON.response.entries[i].responseRtt == null ? "" : "<div style=\"font-size: 12px;\">(" + responseJSON.response.entries[i].responseRtt.toFixed(2) + " ms)</div>") + "</td><td>" +
