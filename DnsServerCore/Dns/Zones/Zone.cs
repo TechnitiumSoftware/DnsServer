@@ -82,7 +82,7 @@ namespace DnsServerCore.Dns.Zones
 
                 case AddressFamily.InterNetworkV6:
                     for (int i = 0; i < addressByteCount; i++)
-                        reverseZone = (addressBytes[i] & 0x0F).ToString("X") + "." + (addressBytes[i] >> 4).ToString("X") + "." + reverseZone;
+                        reverseZone = (addressBytes[i] & 0x0F).ToString("x") + "." + (addressBytes[i] >> 4).ToString("x") + "." + reverseZone;
 
                     reverseZone += "ip6.arpa";
                     break;
