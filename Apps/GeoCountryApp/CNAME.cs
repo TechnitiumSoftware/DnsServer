@@ -84,6 +84,7 @@ namespace GeoCountry
             using JsonDocument jsonDocument = JsonDocument.Parse(appRecordData);
             JsonElement jsonAppRecordData = jsonDocument.RootElement;
             JsonElement jsonCountry = default;
+            string isoCode = "xx";
 
             byte scopePrefixLength = 0;
             EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
@@ -98,6 +99,7 @@ namespace GeoCountry
 
                 if (_maxMind.CountryReader.TryCountry(requestECS.Address, out CountryResponse csResponse))
                 {
+                    isoCode = csResponse.Country.IsoCode;
                     if (!jsonAppRecordData.TryGetProperty(csResponse.Country.IsoCode, out jsonCountry))
                         jsonAppRecordData.TryGetProperty("default", out jsonCountry);
                 }
@@ -122,6 +124,8 @@ namespace GeoCountry
             string cname = jsonCountry.GetString();
             if (string.IsNullOrEmpty(cname))
                 return Task.FromResult<DnsDatagram>(null);
+            else
+                cname = cname.Replace("{IsoCode}", isoCode, StringComparison.OrdinalIgnoreCase);
 
             IReadOnlyList<DnsResourceRecord> answers;
 

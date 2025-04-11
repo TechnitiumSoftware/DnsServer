@@ -84,6 +84,7 @@ namespace GeoContinent
             using JsonDocument jsonDocument = JsonDocument.Parse(appRecordData);
             JsonElement jsonAppRecordData = jsonDocument.RootElement;
             JsonElement jsonContinent = default;
+            string continentCode = "world";
 
             byte scopePrefixLength = 0;
             EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
@@ -107,6 +108,7 @@ namespace GeoContinent
             {
                 if (_maxMind.CountryReader.TryCountry(remoteEP.Address, out CountryResponse response))
                 {
+                    continentCode = response.Continent.Code;
                     if (!jsonAppRecordData.TryGetProperty(response.Continent.Code, out jsonContinent))
                         jsonAppRecordData.TryGetProperty("default", out jsonContinent);
                 }
@@ -122,6 +124,8 @@ namespace GeoContinent
             string cname = jsonContinent.GetString();
             if (string.IsNullOrEmpty(cname))
                 return Task.FromResult<DnsDatagram>(null);
+            else
+                cname = cname.Replace("{ContinentCode}", continentCode, StringComparison.OrdinalIgnoreCase);
 
             IReadOnlyList<DnsResourceRecord> answers;
 
