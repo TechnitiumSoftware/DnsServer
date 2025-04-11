@@ -108,7 +108,7 @@ namespace GeoContinent
             {
                 if (_maxMind.CountryReader.TryCountry(remoteEP.Address, out CountryResponse response))
                 {
-                    continentCode = response.Continent.Code;
+                    continentCode = response.Continent.Code.ToLowerInvariant();
                     if (!jsonAppRecordData.TryGetProperty(response.Continent.Code, out jsonContinent))
                         jsonAppRecordData.TryGetProperty("default", out jsonContinent);
                 }

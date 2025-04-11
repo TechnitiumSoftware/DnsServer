@@ -99,7 +99,7 @@ namespace GeoCountry
 
                 if (_maxMind.CountryReader.TryCountry(requestECS.Address, out CountryResponse csResponse))
                 {
-                    isoCode = csResponse.Country.IsoCode;
+                    isoCode = csResponse.Country.IsoCode.ToLowerInvariant();
                     if (!jsonAppRecordData.TryGetProperty(csResponse.Country.IsoCode, out jsonCountry))
                         jsonAppRecordData.TryGetProperty("default", out jsonCountry);
                 }
