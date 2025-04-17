@@ -3253,9 +3253,12 @@ function showEditZonePage(pageNumber) {
                 filterType = filterType.toUpperCase();
 
             for (var i = 0; i < editZoneRecords.length; i++) {
-                if ((filterDomain != null) && (editZoneRecords[i].name !== filterDomain))
-                    continue;
-
+                if (filterDomain != null)
+                    var splittedDomainFilter = filterDomain.trim().split(".")[0].toLowerCase();
+                    var recordName = editZoneRecords[i].name.toLowerCase();
+                    if (!recordName.includes(splittedDomainFilter))
+                        continue;
+                        
                 if ((filterType != null) && (editZoneRecords[i].type !== filterType))
                     continue;
 
