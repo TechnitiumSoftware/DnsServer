@@ -18,8 +18,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.Auth;
+using DnsServerCore.Dns;
 using DnsServerCore.Dns.Dnssec;
 using DnsServerCore.Dns.ResourceRecords;
+using DnsServerCore.Dns.ZoneManagers;
 using DnsServerCore.Dns.Zones;
 using Microsoft.AspNetCore.Http;
 using System;
@@ -1173,6 +1175,119 @@ namespace DnsServerCore
                 }
             }
 
+            private async Task<List<DnsResourceRecord>> ReadRecordsToImportFromAsync(string zoneName, TextReader zoneFile)
+            {
+                List<DnsResourceRecord> records = await ZoneFile.ReadZoneFileFromAsync(zoneFile, zoneName, _dnsWebService._zonesApi.DefaultRecordTtl);
+                List<DnsResourceRecord> newRecords = new List<DnsResourceRecord>(records.Count);
+
+                foreach (DnsResourceRecord record in records)
+                {
+                    if (record.Class != DnsClass.IN)
+                        throw new DnsWebServiceException("Cannot import records: only IN class is supported by the DNS server.");
+
+                    if (!AuthZoneManager.DomainBelongsToZone(zoneName, record.Name))
+                    {
+                        switch (record.Type)
+                        {
+                            case DnsResourceRecordType.A:
+                            case DnsResourceRecordType.AAAA:
+                                continue; //glue records
+
+                            default:
+                                throw new DnsServerException("Cannot import records: the domain name '" + record.Name + "' does not belong to the zone '" + zoneName + "'.");
+                        }
+                    }
+
+                    switch (record.Type)
+                    {
+                        case DnsResourceRecordType.DNSKEY:
+                        case DnsResourceRecordType.RRSIG:
+                        case DnsResourceRecordType.NSEC:
+                        case DnsResourceRecordType.NSEC3:
+                        case DnsResourceRecordType.NSEC3PARAM:
+                            continue; //skip DNSSEC records
+
+                        case DnsResourceRecordType.NS:
+                            {
+                                if (record.Tag is string comments)
+                                {
+                                    NSRecordInfo rrInfo = new NSRecordInfo();
+                                    rrInfo.Comments = comments;
+
+                                    record.Tag = rrInfo;
+                                }
+
+                                record.SyncGlueRecords(records);
+
+                                newRecords.Add(record);
+                            }
+                            break;
+
+                        case DnsResourceRecordType.SOA:
+                            {
+                                if (record.Tag is string comments)
+                                {
+                                    SOARecordInfo rrInfo = new SOARecordInfo();
+                                    rrInfo.Comments = comments;
+
+                                    record.Tag = rrInfo;
+                                }
+
+                                newRecords.Add(record);
+                            }
+                            break;
+
+                        case DnsResourceRecordType.SVCB:
+                        case DnsResourceRecordType.HTTPS:
+                            {
+                                if (record.Tag is string comments)
+                                {
+                                    SVCBRecordInfo rrInfo = new SVCBRecordInfo();
+                                    rrInfo.Comments = comments;
+
+                                    record.Tag = rrInfo;
+                                }
+
+                                if (record.RDATA is DnsSVCBRecordData rdata && (rdata.AutoIpv4Hint || rdata.AutoIpv6Hint))
+                                {
+                                    if (rdata.AutoIpv4Hint)
+                                        record.GetAuthSVCBRecordInfo().AutoIpv4Hint = true;
+
+                                    if (rdata.AutoIpv6Hint)
+                                        record.GetAuthSVCBRecordInfo().AutoIpv6Hint = true;
+
+                                    Dictionary<DnsSvcParamKey, DnsSvcParamValue> svcParams = new Dictionary<DnsSvcParamKey, DnsSvcParamValue>(rdata.SvcParams);
+                                    DnsResourceRecord newRecord = new DnsResourceRecord(record.Name, record.Type, record.Class, record.TTL, new DnsSVCBRecordData(rdata.SvcPriority, rdata.TargetName, svcParams)) { Tag = record.Tag };
+
+                                    ResolveSvcbAutoHints(zoneName, record, rdata.AutoIpv4Hint, rdata.AutoIpv6Hint, svcParams, records);
+
+                                    newRecords.Add(newRecord);
+                                    break;
+                                }
+
+                                newRecords.Add(record);
+                            }
+                            break;
+
+                        default:
+                            {
+                                if (record.Tag is string comments)
+                                {
+                                    GenericRecordInfo rrInfo = new GenericRecordInfo();
+                                    rrInfo.Comments = comments;
+
+                                    record.Tag = rrInfo;
+                                }
+
+                                newRecords.Add(record);
+                            }
+                            break;
+                    }
+                }
+
+                return newRecords;
+            }
+
             #endregion
 
             #region public
@@ -1293,6 +1408,26 @@ namespace DnsServerCore
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
 
                 AuthZoneType type = request.GetQueryOrFormEnum("type", AuthZoneType.Primary);
+
+                //read records to import, if any
+                List<DnsResourceRecord> importRecords = null;
+
+                switch (type)
+                {
+                    case AuthZoneType.Primary:
+                    case AuthZoneType.Forwarder:
+                        if (request.HasFormContentType && (request.Form.Files.Count > 0))
+                        {
+                            using (TextReader zoneFile = new StreamReader(request.Form.Files[0].OpenReadStream()))
+                            {
+                                importRecords = await ReadRecordsToImportFromAsync(zoneName, zoneFile);
+                            }
+                        }
+
+                        break;
+                }
+
+                //create zone
                 AuthZoneInfo zoneInfo;
 
                 switch (type)
@@ -1393,30 +1528,7 @@ namespace DnsServerCore
 
                     case AuthZoneType.Forwarder:
                         {
-                            DnsTransportProtocol forwarderProtocol = request.GetQueryOrFormEnum("protocol", DnsTransportProtocol.Udp);
-                            string forwarder = request.GetQueryOrForm("forwarder");
-                            bool dnssecValidation = request.GetQueryOrForm("dnssecValidation", bool.Parse, false);
-                            DnsForwarderRecordProxyType proxyType = request.GetQueryOrFormEnum("proxyType", DnsForwarderRecordProxyType.DefaultProxy);
-
-                            string proxyAddress = null;
-                            ushort proxyPort = 0;
-                            string proxyUsername = null;
-                            string proxyPassword = null;
-
-                            switch (proxyType)
-                            {
-                                case DnsForwarderRecordProxyType.Http:
-                                case DnsForwarderRecordProxyType.Socks5:
-                                    proxyAddress = request.GetQueryOrForm("proxyAddress");
-                                    proxyPort = request.GetQueryOrForm("proxyPort", ushort.Parse);
-                                    proxyUsername = request.QueryOrForm("proxyUsername");
-                                    proxyPassword = request.QueryOrForm("proxyPassword");
-                                    break;
-                            }
-
-                            if (forwarderProtocol == DnsTransportProtocol.Quic)
-                                DnsWebService.ValidateQuicSupport();
-
+                            bool initializeForwarder = request.GetQueryOrForm("initializeForwarder", bool.Parse, true);
                             string catalogZoneName = request.GetQueryOrForm("catalog", null);
 
                             AuthZoneInfo catalogZoneInfo = null;
@@ -1431,9 +1543,42 @@ namespace DnsServerCore
                                     throw new DnsWebServiceException("Access was denied to use Catalog zone: " + catalogZoneInfo.Name);
                             }
 
-                            zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.CreateForwarderZone(zoneName, forwarderProtocol, forwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword, null);
-                            if (zoneInfo is null)
-                                throw new DnsWebServiceException("Zone already exists: " + zoneName);
+                            if (initializeForwarder)
+                            {
+                                DnsTransportProtocol forwarderProtocol = request.GetQueryOrFormEnum("protocol", DnsTransportProtocol.Udp);
+                                string forwarder = request.GetQueryOrForm("forwarder");
+                                bool dnssecValidation = request.GetQueryOrForm("dnssecValidation", bool.Parse, false);
+                                DnsForwarderRecordProxyType proxyType = request.GetQueryOrFormEnum("proxyType", DnsForwarderRecordProxyType.DefaultProxy);
+
+                                string proxyAddress = null;
+                                ushort proxyPort = 0;
+                                string proxyUsername = null;
+                                string proxyPassword = null;
+
+                                switch (proxyType)
+                                {
+                                    case DnsForwarderRecordProxyType.Http:
+                                    case DnsForwarderRecordProxyType.Socks5:
+                                        proxyAddress = request.GetQueryOrForm("proxyAddress");
+                                        proxyPort = request.GetQueryOrForm("proxyPort", ushort.Parse);
+                                        proxyUsername = request.QueryOrForm("proxyUsername");
+                                        proxyPassword = request.QueryOrForm("proxyPassword");
+                                        break;
+                                }
+
+                                if (forwarderProtocol == DnsTransportProtocol.Quic)
+                                    DnsWebService.ValidateQuicSupport();
+
+                                zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.CreateForwarderZone(zoneName, forwarderProtocol, forwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword, null);
+                                if (zoneInfo is null)
+                                    throw new DnsWebServiceException("Zone already exists: " + zoneName);
+                            }
+                            else
+                            {
+                                zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.CreateForwarderZone(zoneName);
+                                if (zoneInfo is null)
+                                    throw new DnsWebServiceException("Zone already exists: " + zoneName);
+                            }
 
                             //set permissions
                             _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.ViewModifyDelete);
@@ -1518,6 +1663,25 @@ namespace DnsServerCore
                 //delete cache for this zone to allow rebuilding cache data as needed by stub or forwarder zones
                 _dnsWebService._dnsServer.CacheZoneManager.DeleteZone(zoneInfo.Name);
 
+                //import records, if any
+                if (importRecords is not null)
+                {
+                    //delete existing NS/FWD record 
+                    switch (type)
+                    {
+                        case AuthZoneType.Primary:
+                            _dnsWebService._dnsServer.AuthZoneManager.DeleteRecords(zoneInfo.Name, zoneInfo.Name, DnsResourceRecordType.NS);
+                            break;
+
+                        case AuthZoneType.Forwarder:
+                            _dnsWebService._dnsServer.AuthZoneManager.DeleteRecords(zoneInfo.Name, zoneInfo.Name, DnsResourceRecordType.FWD);
+                            break;
+                    }
+
+                    //import records
+                    _dnsWebService._dnsServer.AuthZoneManager.ImportRecords(zoneInfo.Name, importRecords, false, false);
+                }
+
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 jsonWriter.WriteString("domain", string.IsNullOrEmpty(zoneInfo.Name) ? "." : zoneInfo.Name);
             }
@@ -1554,7 +1718,7 @@ namespace DnsServerCore
                 switch (importType.ToUpperInvariant())
                 {
                     case "FILE":
-                        if (request.Form.Files.Count == 0)
+                        if (!request.HasFormContentType || (request.Form.Files.Count == 0))
                             throw new DnsWebServiceException("The zone file to import is missing.");
 
                         textReader = new StreamReader(request.Form.Files[0].OpenReadStream());
@@ -1581,76 +1745,16 @@ namespace DnsServerCore
                         throw new DnsWebServiceException("Import type is not supported: " + importType);
                 }
 
-                using TextReader zoneReader = textReader;
+                List<DnsResourceRecord> records;
 
-                List<DnsResourceRecord> records = await ZoneFile.ReadZoneFileFromAsync(zoneReader, zoneInfo.Name, _dnsWebService._zonesApi.DefaultRecordTtl);
-                List<DnsResourceRecord> newRecords = new List<DnsResourceRecord>(records.Count);
-
-                foreach (DnsResourceRecord record in records)
+                using (TextReader zoneFile = textReader)
                 {
-                    if (record.Class != DnsClass.IN)
-                        throw new DnsWebServiceException("Cannot import records: only IN class is supported by the DNS server.");
-
-                    switch (record.Type)
-                    {
-                        case DnsResourceRecordType.DNSKEY:
-                        case DnsResourceRecordType.RRSIG:
-                        case DnsResourceRecordType.NSEC:
-                        case DnsResourceRecordType.NSEC3:
-                        case DnsResourceRecordType.NSEC3PARAM:
-                            continue; //skip DNSSEC records
-
-                        case DnsResourceRecordType.SVCB:
-                        case DnsResourceRecordType.HTTPS:
-                            {
-                                if (record.Tag is string comments)
-                                {
-                                    SVCBRecordInfo rrInfo = new SVCBRecordInfo();
-                                    rrInfo.Comments = comments;
-
-                                    record.Tag = rrInfo;
-                                }
-
-                                if (record.RDATA is DnsSVCBRecordData rdata && (rdata.AutoIpv4Hint || rdata.AutoIpv6Hint))
-                                {
-                                    if (rdata.AutoIpv4Hint)
-                                        record.GetAuthSVCBRecordInfo().AutoIpv4Hint = true;
-
-                                    if (rdata.AutoIpv6Hint)
-                                        record.GetAuthSVCBRecordInfo().AutoIpv6Hint = true;
-
-                                    Dictionary<DnsSvcParamKey, DnsSvcParamValue> svcParams = new Dictionary<DnsSvcParamKey, DnsSvcParamValue>(rdata.SvcParams);
-                                    DnsResourceRecord newRecord = new DnsResourceRecord(record.Name, record.Type, record.Class, record.TTL, new DnsSVCBRecordData(rdata.SvcPriority, rdata.TargetName, svcParams)) { Tag = record.Tag };
-
-                                    ResolveSvcbAutoHints(zoneInfo.Name, record, rdata.AutoIpv4Hint, rdata.AutoIpv6Hint, svcParams, records);
-
-                                    newRecords.Add(newRecord);
-                                    break;
-                                }
-
-                                newRecords.Add(record);
-                            }
-                            break;
-
-                        default:
-                            {
-                                if (record.Tag is string comments)
-                                {
-                                    GenericRecordInfo rrInfo = new GenericRecordInfo();
-                                    rrInfo.Comments = comments;
-
-                                    record.Tag = rrInfo;
-                                }
-
-                                newRecords.Add(record);
-                            }
-                            break;
-                    }
+                    records = await ReadRecordsToImportFromAsync(zoneInfo.Name, zoneFile);
                 }
 
-                _dnsWebService._dnsServer.AuthZoneManager.ImportRecords(zoneInfo.Name, newRecords, overwrite, overwriteSoaSerial);
+                _dnsWebService._dnsServer.AuthZoneManager.ImportRecords(zoneInfo.Name, records, overwrite, overwriteSoaSerial);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Total " + newRecords.Count + " record(s) were imported successfully into " + zoneInfo.TypeName + " zone: " + zoneInfo.DisplayName);
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Total " + records.Count + " record(s) were imported successfully into " + zoneInfo.TypeName + " zone: " + zoneInfo.DisplayName);
             }
 
             public async Task ExportZoneAsync(HttpContext context)
@@ -3792,9 +3896,14 @@ namespace DnsServerCore
 
                 //add record
                 if (overwrite)
+                {
                     _dnsWebService._dnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                }
                 else
-                    _dnsWebService._dnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
+                {
+                    if (!_dnsWebService._dnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord))
+                        throw new DnsWebServiceException("Cannot add record: record already exists.");
+                }
 
                 //additional processing
                 if ((type == DnsResourceRecordType.A) || (type == DnsResourceRecordType.AAAA))
