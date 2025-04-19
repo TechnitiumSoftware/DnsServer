@@ -30,7 +30,15 @@ namespace DnsServerApp
             string configFolder = null;
 
             if (args.Length == 1)
+            {
+                if (args[0] == "--icu-test")
+                {
+                    _ = System.Globalization.CultureInfo.CurrentCulture;
+                    return;
+                }
+
                 configFolder = args[0];
+            }
 
             ManualResetEvent waitHandle = new ManualResetEvent(false);
             ManualResetEvent exitHandle = new ManualResetEvent(false);
