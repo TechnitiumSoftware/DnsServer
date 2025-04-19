@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -84,7 +84,7 @@ namespace GeoCountry
             using JsonDocument jsonDocument = JsonDocument.Parse(appRecordData);
             JsonElement jsonAppRecordData = jsonDocument.RootElement;
             JsonElement jsonCountry = default;
-            string isoCode = "xx";
+            string countryCode = null;
 
             byte scopePrefixLength = 0;
             EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
@@ -99,9 +99,13 @@ namespace GeoCountry
 
                 if (_maxMind.CountryReader.TryCountry(requestECS.Address, out CountryResponse csResponse))
                 {
-                    isoCode = csResponse.Country.IsoCode.ToLowerInvariant();
-                    if (!jsonAppRecordData.TryGetProperty(csResponse.Country.IsoCode, out jsonCountry))
+                    string cc = csResponse.Country.IsoCode;
+
+                    if (!jsonAppRecordData.TryGetProperty(cc, out jsonCountry))
+                    {
                         jsonAppRecordData.TryGetProperty("default", out jsonCountry);
+                        countryCode = cc is null ? "unknown" : cc.ToLowerInvariant();
+                    }
                 }
             }
 
@@ -109,12 +113,18 @@ namespace GeoCountry
             {
                 if (_maxMind.CountryReader.TryCountry(remoteEP.Address, out CountryResponse response))
                 {
-                    if (!jsonAppRecordData.TryGetProperty(response.Country.IsoCode, out jsonCountry))
+                    string cc = response.Country.IsoCode;
+
+                    if (!jsonAppRecordData.TryGetProperty(cc, out jsonCountry))
+                    {
                         jsonAppRecordData.TryGetProperty("default", out jsonCountry);
+                        countryCode = cc is null ? "unknown" : cc.ToLowerInvariant();
+                    }
                 }
                 else
                 {
                     jsonAppRecordData.TryGetProperty("default", out jsonCountry);
+                    countryCode = "unknown";
                 }
 
                 if (jsonCountry.ValueKind == JsonValueKind.Undefined)
@@ -124,8 +134,9 @@ namespace GeoCountry
             string cname = jsonCountry.GetString();
             if (string.IsNullOrEmpty(cname))
                 return Task.FromResult<DnsDatagram>(null);
-            else
-                cname = cname.Replace("{IsoCode}", isoCode, StringComparison.OrdinalIgnoreCase);
+
+            if (countryCode is not null)
+                cname = cname.Replace("{CountryCode}", countryCode, StringComparison.OrdinalIgnoreCase);
 
             IReadOnlyList<DnsResourceRecord> answers;
 
@@ -147,7 +158,7 @@ namespace GeoCountry
         #region properties
 
         public string Description
-        { get { return "Returns CNAME record based on the country the client queries from using MaxMind GeoIP2 Country database. Note that the app will return ANAME record for an APP record at zone apex. Use the two-character ISO 3166-1 alpha code for the country."; } }
+        { get { return "Returns CNAME record based on the country the client queries from using MaxMind GeoIP2 Country database. Note that the app will return ANAME record for an APP record at zone apex. Use the two-character ISO 3166-1 alpha code for the country. You can also use '{CountryCode}' variable in the default case domain name which will get replaced by the app using the client's actual ISO country code."; } }
 
         public string ApplicationRecordDataTemplate
         {
