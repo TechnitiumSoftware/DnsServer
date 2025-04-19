@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -853,7 +853,7 @@ namespace DnsServerCore.Dns.Trees
 
                 AuthZoneNode authZoneNode = FindZoneNode(key, false, out Node currentNode, out _, out Node closestAuthorityNode, out _, out _, out ApexZone closestAuthority);
                 if (authZoneNode is not null)
-                    throw new InvalidOperationException(); //domain exists! cannot prove non-existence
+                    throw new InvalidOperationException($"Cannot prove non-existence: The domain name '{domain}' exists and probably got added just now."); //domain exists! cannot prove non-existence
 
                 Node previousNode = GetPreviousSubDomainZoneNode(key, currentNode, closestAuthorityNode.Depth);
                 if (previousNode is not null)
@@ -978,7 +978,7 @@ namespace DnsServerCore.Dns.Trees
                 {
                     //subdomain that contains only NSEC3 record does not really exists: RFC5155 section 7.2.8    
                     if ((authZoneNode.ApexZone is not null) || ((authZoneNode.ParentSideZone is not null) && !authZoneNode.ParentSideZone.HasOnlyNSec3Records()))
-                        throw new InvalidOperationException(); //domain exists! cannot prove non-existence
+                        throw new InvalidOperationException($"Cannot prove non-existence: The domain name '{domain}' exists and probably got added just now."); //domain exists! cannot prove non-existence
 
                     //continue to prove non-existence of this nsec3 owner name
                     closestEncloser = closestAuthority.Name;
