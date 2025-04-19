@@ -72,7 +72,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public override void AddRecord(DnsResourceRecord record)
+        public override bool AddRecord(DnsResourceRecord record)
         {
             switch (record.Type)
             {
@@ -95,8 +95,11 @@ namespace DnsServerCore.Dns.Zones
                         _forwarderZone.CommitAndIncrementSerial(deletedRecords, addedRecords);
 
                         _forwarderZone.TriggerNotify();
+
+                        return true;
                     }
-                    break;
+
+                    return false;
             }
         }
 

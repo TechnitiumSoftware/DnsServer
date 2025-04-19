@@ -48,7 +48,7 @@ namespace DnsServerCore.Dns.Zones
             throw new InvalidOperationException("Cannot set records in " + _secondaryZone.GetZoneTypeName() + " zone.");
         }
 
-        public override void AddRecord(DnsResourceRecord record)
+        public override bool AddRecord(DnsResourceRecord record)
         {
             throw new InvalidOperationException("Cannot add record in " + _secondaryZone.GetZoneTypeName() + " zone.");
         }

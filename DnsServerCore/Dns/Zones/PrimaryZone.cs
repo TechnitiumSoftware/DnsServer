@@ -2545,7 +2545,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public override void AddRecord(DnsResourceRecord record)
+        public override bool AddRecord(DnsResourceRecord record)
         {
             if (_dnssecStatus != AuthZoneDnssecStatus.Unsigned)
             {
@@ -2595,8 +2595,11 @@ namespace DnsServerCore.Dns.Zones
                             UpdateDnssecRecordsFor(this, record.Type);
 
                         TriggerNotify();
+
+                        return true;
                     }
-                    break;
+
+                    return false;
             }
         }
 

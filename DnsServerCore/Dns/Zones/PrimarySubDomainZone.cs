@@ -106,7 +106,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public override void AddRecord(DnsResourceRecord record)
+        public override bool AddRecord(DnsResourceRecord record)
         {
             if (_primaryZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned)
             {
@@ -150,8 +150,11 @@ namespace DnsServerCore.Dns.Zones
                             _primaryZone.UpdateDnssecRecordsFor(this, record.Type);
 
                         _primaryZone.TriggerNotify();
+
+                        return true;
                     }
-                    break;
+
+                    return false;
             }
         }
 
