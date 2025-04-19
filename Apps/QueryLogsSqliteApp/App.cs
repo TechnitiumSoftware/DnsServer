@@ -44,6 +44,7 @@ namespace QueryLogsSqlite
         int _maxQueueSize;
         int _maxLogDays;
         int _maxLogRecords;
+        bool _enableVacuum;
         bool _useInMemoryDb;
         string _connectionString;
 
@@ -93,6 +94,8 @@ namespace QueryLogsSqlite
                     {
                         await connection.OpenAsync();
 
+                        int deletedRecords = 0;
+
                         if (_maxLogRecords > 0)
                         {
                             await using (SqliteCommand command = connection.CreateCommand())
@@ -101,7 +104,7 @@ namespace QueryLogsSqlite
 
                                 command.Parameters.AddWithValue("@maxLogRecords", _maxLogRecords);
 
-                                await command.ExecuteNonQueryAsync();
+                                deletedRecords += await command.ExecuteNonQueryAsync();
                             }
                         }
 
@@ -112,6 +115,16 @@ namespace QueryLogsSqlite
                                 command.CommandText = "DELETE FROM dns_logs WHERE timestamp < @timestamp;";
 
                                 command.Parameters.AddWithValue("@timestamp", DateTime.UtcNow.AddDays(_maxLogDays * -1));
+
+                                deletedRecords += await command.ExecuteNonQueryAsync();
+                            }
+                        }
+
+                        if (_enableVacuum && (deletedRecords > 0))
+                        {
+                            await using (SqliteCommand command = connection.CreateCommand())
+                            {
+                                command.CommandText = "VACUUM;";
 
                                 await command.ExecuteNonQueryAsync();
                             }
@@ -293,6 +306,7 @@ namespace QueryLogsSqlite
             _maxQueueSize = jsonConfig.GetPropertyValue("maxQueueSize", 200000);
             _maxLogDays = jsonConfig.GetPropertyValue("maxLogDays", 0);
             _maxLogRecords = jsonConfig.GetPropertyValue("maxLogRecords", 0);
+            _enableVacuum = jsonConfig.GetPropertyValue("enableVacuum", false);
             _useInMemoryDb = jsonConfig.GetPropertyValue("useInMemoryDb", false);
 
             if (_useInMemoryDb)
@@ -457,6 +471,13 @@ CREATE TABLE IF NOT EXISTS dns_logs
             if (!jsonConfig.TryGetProperty("maxLogRecords", out _))
             {
                 config = config.Replace("\"sqliteDbPath\"", "\"maxLogRecords\": 0,\r\n  \"useInMemoryDb\": false,\r\n  \"sqliteDbPath\"");
+
+                await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
+            }
+
+            if (!jsonConfig.TryGetProperty("enableVacuum", out _))
+            {
+                config = config.Replace("\"useInMemoryDb\"", "\"enableVacuum\": false,\r\n  \"useInMemoryDb\"");
 
                 await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
             }
@@ -687,7 +708,7 @@ ORDER BY row_num" + (descendingOrder ? " DESC" : "");
         #region properties
 
         public string Description
-        { get { return "Logs all incoming DNS requests and their responses in a Sqlite database that can be queried from the DNS Server web console. The query logging throughput is limited by the disk throughput on which the Sqlite db file is stored. This app is not recommended to be used with very high throughput (more than 20,000 requests/second)."; } }
+        { get { return "Logs all incoming DNS requests and their responses in a Sqlite database that can be queried from the DNS Server web console."; } }
 
         #endregion
 
