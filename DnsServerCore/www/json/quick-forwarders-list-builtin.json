@@ -1,0 +1,350 @@
+[
+  {
+    "name": "Cloudflare (DNS-over-UDP)",
+    "protocol": "UDP",
+    "addresses": [
+      "1.1.1.1",
+      "1.0.0.1"
+    ]
+  },
+  {
+    "name": "Cloudflare (DNS-over-UDP IPv6)",
+    "protocol": "UDP",
+    "addresses": [
+      "[2606:4700:4700::1111]",
+      "[2606:4700:4700::1001]"
+    ]
+  },
+  {
+    "name": "Cloudflare (DNS-over-TCP)",
+    "protocol": "TCP",
+    "addresses": [
+      "1.1.1.1",
+      "1.0.0.1"
+    ]
+  },
+  {
+    "name": "Cloudflare (DNS-over-TCP IPv6)",
+    "protocol": "TCP",
+    "addresses": [
+      "[2606:4700:4700::1111]",
+      "[2606:4700:4700::1001]"
+    ]
+  },
+  {
+    "name": "Cloudflare (DNS-over-TLS)",
+    "protocol": "TLS",
+    "addresses": [
+      "cloudflare-dns.com (1.1.1.1:853)",
+      "cloudflare-dns.com (1.0.0.1:853)"
+    ]
+  },
+  {
+    "name": "Cloudflare (DNS-over-TLS IPv6)",
+    "protocol": "TLS",
+    "addresses": [
+      "cloudflare-dns.com ([2606:4700:4700::1111]:853)",
+      "cloudflare-dns.com ([2606:4700:4700::1001]:853)"
+    ]
+  },
+  {
+    "name": "Cloudflare (DNS-over-HTTPS)",
+    "protocol": "HTTPS",
+    "addresses": [
+      "https://cloudflare-dns.com/dns-query (1.1.1.1)",
+      "https://cloudflare-dns.com/dns-query (1.0.0.1)"
+    ]
+  },
+  {
+    "name": "Cloudflare (DNS-over-HTTPS IPv6)",
+    "protocol": "HTTPS",
+    "addresses": [
+      "https://cloudflare-dns.com/dns-query ([2606:4700:4700::1111])",
+      "https://cloudflare-dns.com/dns-query ([2606:4700:4700::1001])"
+    ]
+  },
+  {
+    "name": "Cloudflare (DNS-over-TOR!)",
+    "protocol": "TCP",
+    "addresses": [
+      "dns4torpnlfs2ifuz2s2yf3fc7rdmsbhm6rw75euj35pac6ap25zgqad.onion"
+    ],
+    "proxyType": "SOCKS5",
+    "proxyAddress": "127.0.0.1",
+    "proxyPort": 9150,
+    "proxyUsername": "",
+    "proxyPassword": ""
+  },
+  {
+    "name": "Google (DNS-over-UDP)",
+    "protocol": "UDP",
+    "addresses": [
+      "8.8.8.8",
+      "8.8.4.4"
+    ]
+  },
+  {
+    "name": "Google (DNS-over-UDP IPv6)",
+    "protocol": "UDP",
+    "addresses": [
+      "[2001:4860:4860::8888]",
+      "[2001:4860:4860::8844]"
+    ]
+  },
+  {
+    "name": "Google (DNS-over-TCP)",
+    "protocol": "TCP",
+    "addresses": [
+      "8.8.8.8",
+      "8.8.4.4"
+    ]
+  },
+  {
+    "name": "Google (DNS-over-TCP IPv6)",
+    "protocol": "TCP",
+    "addresses": [
+      "[2001:4860:4860::8888]",
+      "[2001:4860:4860::8844]"
+    ]
+  },
+  {
+    "name": "Google (DNS-over-TLS)",
+    "protocol": "TLS",
+    "addresses": [
+      "dns.google (8.8.8.8:853)",
+      "dns.google (8.8.4.4:853)"
+    ]
+  },
+  {
+    "name": "Google (DNS-over-TLS IPv6)",
+    "protocol": "TLS",
+    "addresses": [
+      "dns.google ([2001:4860:4860::8888]:853)",
+      "dns.google ([2001:4860:4860::8844]:853)"
+    ]
+  },
+  {
+    "name": "Google (DNS-over-HTTPS)",
+    "protocol": "HTTPS",
+    "addresses": [
+      "https://dns.google/dns-query (8.8.8.8)",
+      "https://dns.google/dns-query (8.8.4.4)"
+    ]
+  },
+  {
+    "name": "Google (DNS-over-HTTPS IPv6)",
+    "protocol": "HTTPS",
+    "addresses": [
+      "https://dns.google/dns-query ([2001:4860:4860::8888])",
+      "https://dns.google/dns-query ([2001:4860:4860::8844])"
+    ]
+  },
+  {
+    "name": "Quad9 Secure (DNS-over-UDP)",
+    "protocol": "UDP",
+    "addresses": [
+      "9.9.9.9",
+      "149.112.112.112"
+    ]
+  },
+  {
+    "name": "Quad9 Secure (DNS-over-UDP IPv6)",
+    "protocol": "UDP",
+    "addresses": [
+      "[2620:fe::fe]",
+      "[2620:fe::9]"
+    ]
+  },
+  {
+    "name": "Quad9 Secure (DNS-over-TCP)",
+    "protocol": "TCP",
+    "addresses": [
+      "9.9.9.9",
+      "149.112.112.112"
+    ]
+  },
+  {
+    "name": "Quad9 Secure (DNS-over-TCP IPv6)",
+    "protocol": "TCP",
+    "addresses": [
+      "[2620:fe::fe]",
+      "[2620:fe::9]"
+    ]
+  },
+  {
+    "name": "Quad9 Secure (DNS-over-TLS)",
+    "protocol": "TLS",
+    "addresses": [
+      "dns.quad9.net (9.9.9.9:853)",
+      "dns.quad9.net (149.112.112.112:853)"
+    ]
+  },
+  {
+    "name": "Quad9 Secure (DNS-over-TLS IPv6)",
+    "protocol": "TLS",
+    "addresses": [
+      "dns.quad9.net ([2620:fe::fe]:853)",
+      "dns.quad9.net ([2620:fe::9]:853)"
+    ]
+  },
+  {
+    "name": "Quad9 Secure (DNS-over-HTTPS)",
+    "protocol": "HTTPS",
+    "addresses": [
+      "https://dns.quad9.net/dns-query (9.9.9.9)",
+      "https://dns.quad9.net/dns-query (149.112.112.112)"
+    ]
+  },
+  {
+    "name": "Quad9 Secure (DNS-over-HTTPS IPv6)",
+    "protocol": "HTTPS",
+    "addresses": [
+      "https://dns.quad9.net/dns-query ([2620:fe::fe])",
+      "https://dns.quad9.net/dns-query ([2620:fe::9])"
+    ]
+  },
+  {
+    "name": "OpenDNS (DNS-over-UDP)",
+    "protocol": "UDP",
+    "addresses": [
+      "208.67.222.222",
+      "208.67.220.220"
+    ]
+  },
+  {
+    "name": "OpenDNS (DNS-over-UDP IPv6)",
+    "protocol": "UDP",
+    "addresses": [
+      "[2620:0:ccc::2]",
+      "[2620:0:ccd::2]"
+    ]
+  },
+  {
+    "name": "OpenDNS (DNS-over-TCP)",
+    "protocol": "TCP",
+    "addresses": [
+      "208.67.222.222",
+      "208.67.220.220"
+    ]
+  },
+  {
+    "name": "OpenDNS (DNS-over-TCP IPv6)",
+    "protocol": "TCP",
+    "addresses": [
+      "[2620:0:ccc::2]",
+      "[2620:0:ccd::2]"
+    ]
+  },
+  {
+    "name": "OpenDNS (DNS-over-TLS)",
+    "protocol": "TLS",
+    "addresses": [
+      "dns.opendns.com (208.67.222.222:853)",
+      "dns.opendns.com (208.67.220.220:853)"
+    ]
+  },
+  {
+    "name": "OpenDNS (DNS-over-TLS IPv6)",
+    "protocol": "TLS",
+    "addresses": [
+      "dns.opendns.com ([2620:0:ccc::2]:853)",
+      "dns.opendns.com ([2620:0:ccd::2]:853)"
+    ]
+  },
+  {
+    "name": "OpenDNS (DNS-over-HTTPS)",
+    "protocol": "HTTPS",
+    "addresses": [
+      "https://doh.opendns.com/dns-query (208.67.222.222)",
+      "https://doh.opendns.com/dns-query (208.67.220.220)"
+    ]
+  },
+  {
+    "name": "OpenDNS (DNS-over-HTTPS IPv6)",
+    "protocol": "HTTPS",
+    "addresses": [
+      "https://doh.opendns.com/dns-query ([2620:0:ccc::2])",
+      "https://doh.opendns.com/dns-query ([2620:0:ccd::2])"
+    ]
+  },
+  {
+    "name": "AdGuard (DNS-over-UDP)",
+    "protocol": "UDP",
+    "addresses": [
+      "94.140.14.14",
+      "94.140.15.15"
+    ]
+  },
+  {
+    "name": "AdGuard (DNS-over-UDP IPv6)",
+    "protocol": "UDP",
+    "addresses": [
+      "[2a10:50c0::ad1:ff]",
+      "[2a10:50c0::ad2:ff]"
+    ]
+  },
+  {
+    "name": "AdGuard (DNS-over-TCP)",
+    "protocol": "TCP",
+    "addresses": [
+      "94.140.14.14",
+      "94.140.15.15"
+    ]
+  },
+  {
+    "name": "AdGuard (DNS-over-TCP IPv6)",
+    "protocol": "TCP",
+    "addresses": [
+      "[2a10:50c0::ad1:ff]",
+      "[2a10:50c0::ad2:ff]"
+    ]
+  },
+  {
+    "name": "AdGuard (DNS-over-TLS)",
+    "protocol": "TLS",
+    "addresses": [
+      "dns.adguard-dns.com (94.140.14.14:853)",
+      "dns.adguard-dns.com (94.140.15.15:853)"
+    ]
+  },
+  {
+    "name": "AdGuard (DNS-over-TLS IPv6)",
+    "protocol": "TLS",
+    "addresses": [
+      "dns.adguard-dns.com ([2a10:50c0::ad1:ff]:853)",
+      "dns.adguard-dns.com ([2a10:50c0::ad2:ff]:853)"
+    ]
+  },
+  {
+    "name": "AdGuard (DNS-over-HTTPS)",
+    "protocol": "HTTPS",
+    "addresses": [
+      "https://dns.adguard-dns.com/dns-query (94.140.14.14)",
+      "https://dns.adguard-dns.com/dns-query (94.140.15.15)"
+    ]
+  },
+  {
+    "name": "AdGuard (DNS-over-HTTPS IPv6)",
+    "protocol": "HTTPS",
+    "addresses": [
+      "https://dns.adguard-dns.com/dns-query ([2a10:50c0::ad1:ff])",
+      "https://dns.adguard-dns.com/dns-query ([2a10:50c0::ad2:ff])"
+    ]
+  },
+  {
+    "name": "AdGuard (DNS-over-QUIC)",
+    "protocol": "QUIC",
+    "addresses": [
+      "dns.adguard-dns.com (94.140.14.14:853)",
+      "dns.adguard-dns.com (94.140.15.15:853)"
+    ]
+  },
+  {
+    "name": "AdGuard (DNS-over-QUIC IPv6)",
+    "protocol": "QUIC",
+    "addresses": [
+      "dns.adguard-dns.com ([2a10:50c0::ad1:ff]:853)",
+      "dns.adguard-dns.com ([2a10:50c0::ad2:ff]:853)"
+    ]
+  }
+]
