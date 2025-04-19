@@ -430,6 +430,8 @@ namespace DnsServerCore
                             if (record.Name.Equals(zoneInfo.Name, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + zoneInfo.Name, StringComparison.OrdinalIgnoreCase) || (zoneInfo.Name.Length == 0))
                             {
                                 record.RemoveExpiry();
+                                record.Tag = null; //remove cache zone record info
+
                                 importRecords.Add(record);
 
                                 if (record.Type == DnsResourceRecordType.NS)
@@ -442,6 +444,8 @@ namespace DnsServerCore
                             if (record.Name.Equals(zoneInfo.Name, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + zoneInfo.Name, StringComparison.OrdinalIgnoreCase) || (zoneInfo.Name.Length == 0))
                             {
                                 record.RemoveExpiry();
+                                record.Tag = null; //remove cache zone record info
+
                                 importRecords.Add(record);
 
                                 if (record.Type == DnsResourceRecordType.NS)
