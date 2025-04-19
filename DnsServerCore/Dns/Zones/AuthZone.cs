@@ -819,9 +819,11 @@ namespace DnsServerCore.Dns.Zones
             _entries[type] = records;
         }
 
-        public virtual void AddRecord(DnsResourceRecord record)
+        public virtual bool AddRecord(DnsResourceRecord record)
         {
-            AddRecord(record, out _, out _);
+            AddRecord(record, out IReadOnlyList<DnsResourceRecord> addedRecords, out _);
+
+            return addedRecords.Count > 0;
         }
 
         public virtual bool DeleteRecords(DnsResourceRecordType type)
