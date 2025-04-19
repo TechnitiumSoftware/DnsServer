@@ -43,6 +43,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="js/zone.js"></script>
     <script src="js/other-zones.js"></script>
     <script src="js/apps.js"></script>
+    <script src="js/dnsclient.js"></script>
     <script src="js/dhcp.js"></script>
     <script src="js/logs.js"></script>
 </head>
@@ -524,7 +525,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                 <div class="pull-left">
                                                     <div class="form-group">
                                                         <label for="txtEditZoneFilterName">Name</label>
-                                                        <input id="txtEditZoneFilterName" class="form-control" style="width: 300px;" type="text" />
+                                                        <input id="txtEditZoneFilterName" class="form-control" style="width: 300px;" type="text" placeholder="abc or a* or *b*" />
                                                     </div>
                                                     <div class="form-group">
                                                         <label for="txtEditZoneFilterType">Type</label>
@@ -760,92 +761,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                 <div class="input-group dropdown">
                                                     <input type="text" class="form-control dropdown-toggle" style="min-width: 270px; border-right: 0px;" id="txtDnsClientNameServer" value="This Server {this-server}">
                                                     <ul id="optDnsClientNameServers" class="dropdown-menu" style="max-height: 500px; overflow-y: scroll;">
-                                                        <li><a href="#">This Server {this-server}</a></li>
-                                                        <li><a href="#">Recursive Query {recursive-resolver}</a></li>
-                                                        <li><a href="#">System DNS {system-dns}</a></li>
-                                                        <li><a href="#">Cloudflare {1.1.1.1}</a></li>
-                                                        <li><a href="#">Cloudflare {1.0.0.1}</a></li>
-                                                        <li><a href="#">Cloudflare {[2606:4700:4700::1111]}</a></li>
-                                                        <li><a href="#">Cloudflare {[2606:4700:4700::1001]}</a></li>
-                                                        <li><a href="#">Cloudflare TLS {cloudflare-dns.com (1.1.1.1:853)}</a></li>
-                                                        <li><a href="#">Cloudflare TLS {cloudflare-dns.com (1.0.0.1:853)}</a></li>
-                                                        <li><a href="#">Cloudflare TLS {cloudflare-dns.com ([2606:4700:4700::1111]:853)}</a></li>
-                                                        <li><a href="#">Cloudflare TLS {cloudflare-dns.com ([2606:4700:4700::1001]:853)}</a></li>
-                                                        <li><a href="#">Cloudflare HTTPS {https://cloudflare-dns.com/dns-query (1.1.1.1)}</a></li>
-                                                        <li><a href="#">Google {8.8.8.8}</a></li>
-                                                        <li><a href="#">Google {8.8.4.4}</a></li>
-                                                        <li><a href="#">Google {[2001:4860:4860::8888]}</a></li>
-                                                        <li><a href="#">Google {[2001:4860:4860::8844]}</a></li>
-                                                        <li><a href="#">Google TLS {dns.google (8.8.8.8:853)}</a></li>
-                                                        <li><a href="#">Google TLS {dns.google (8.8.4.4:853)}</a></li>
-                                                        <li><a href="#">Google TLS {dns.google ([2001:4860:4860::8888]:853)}</a></li>
-                                                        <li><a href="#">Google TLS {dns.google ([2001:4860:4860::8844]:853)}</a></li>
-                                                        <li><a href="#">Google HTTPS {https://dns.google/dns-query (8.8.8.8)}</a></li>
-                                                        <li><a href="#">Quad9 Secure {9.9.9.9}</a></li>
-                                                        <li><a href="#">Quad9 Secure {[2620:fe::fe]}</a></li>
-                                                        <li><a href="#">Quad9 Secure TLS {dns.quad9.net (9.9.9.9:853)}</a></li>
-                                                        <li><a href="#">Quad9 Secure TLS {dns.quad9.net ([2620:fe::fe]:853)}</a></li>
-                                                        <li><a href="#">Quad9 Secure HTTPS {https://dns.quad9.net/dns-query (9.9.9.9)}</a></li>
-                                                        <li><a href="#">Quad9 Unsecure {9.9.9.10}</a></li>
-                                                        <li><a href="#">Quad9 Unsecure {[2620:fe::10]}</a></li>
-                                                        <li><a href="#">Quad9 Unsecure TLS {dns10.quad9.net (9.9.9.10:853)}</a></li>
-                                                        <li><a href="#">Quad9 Unsecure TLS {dns10.quad9.net ([2620:fe::10]:853)}</a></li>
-                                                        <li><a href="#">Quad9 Unsecure HTTPS {https://dns10.quad9.net/dns-query (9.9.9.10)}</a></li>
-                                                        <li><a href="#">OpenDNS {208.67.222.222}</a></li>
-                                                        <li><a href="#">OpenDNS {208.67.220.220}</a></li>
-                                                        <li><a href="#">OpenDNS {[2620:0:ccc::2]}</a></li>
-                                                        <li><a href="#">OpenDNS {[2620:0:ccd::2]}</a></li>
-                                                        <li><a href="#">OpenDNS TLS {dns.opendns.com (208.67.222.222:853)}</a></li>
-                                                        <li><a href="#">OpenDNS TLS {dns.opendns.com (208.67.220.220:853)}</a></li>
-                                                        <li><a href="#">OpenDNS TLS {dns.opendns.com ([2620:0:ccc::2]:853)}</a></li>
-                                                        <li><a href="#">OpenDNS TLS {dns.opendns.com ([2620:0:ccd::2]:853)}</a></li>
-                                                        <li><a href="#">OpenDNS HTTPS {https://doh.opendns.com/dns-query}</a></li>
-                                                        <li><a href="#">OpenDNS FamilyShield {208.67.222.123}</a></li>
-                                                        <li><a href="#">OpenDNS FamilyShield {208.67.220.123}</a></li>
-                                                        <li><a href="#">OpenDNS FamilyShield {[2620:119:35::123]}</a></li>
-                                                        <li><a href="#">OpenDNS FamilyShield {[2620:119:53::123]}</a></li>
-                                                        <li><a href="#">OpenDNS FamilyShield TLS {familyshield.opendns.com (208.67.222.123:853)}</a></li>
-                                                        <li><a href="#">OpenDNS FamilyShield TLS {familyshield.opendns.com (208.67.220.123:853)}</a></li>
-                                                        <li><a href="#">OpenDNS FamilyShield TLS {familyshield.opendns.com ([2620:119:35::123]:853)}</a></li>
-                                                        <li><a href="#">OpenDNS FamilyShield TLS {familyshield.opendns.com ([2620:119:53::123]:853)}</a></li>
-                                                        <li><a href="#">OpenDNS FamilyShield HTTPS {https://doh.familyshield.opendns.com/dns-query}</a></li>
-                                                        <li><a href="#">AdGuard {94.140.14.14}</a></li>
-                                                        <li><a href="#">AdGuard {94.140.15.15}</a></li>
-                                                        <li><a href="#">AdGuard {[2a10:50c0::ad1:ff]}</a></li>
-                                                        <li><a href="#">AdGuard {[2a10:50c0::ad2:ff]}</a></li>
-                                                        <li><a href="#">AdGuard TLS {dns.adguard-dns.com (94.140.14.14:853)}</a></li>
-                                                        <li><a href="#">AdGuard TLS {dns.adguard-dns.com ([2a10:50c0::ad1:ff]:853)}</a></li>
-                                                        <li><a href="#">AdGuard HTTPS {https://dns.adguard-dns.com/dns-query}</a></li>
-                                                        <li><a href="#">AdGuard QUIC {dns.adguard-dns.com (94.140.14.14:853)}</a></li>
-                                                        <li><a href="#">AdGuard QUIC {dns.adguard-dns.com ([2a10:50c0::ad1:ff]:853)}</a></li>
-                                                        <li><a href="#">AdGuard Family Protection {94.140.14.15}</a></li>
-                                                        <li><a href="#">AdGuard Family Protection {94.140.15.16}</a></li>
-                                                        <li><a href="#">AdGuard Family Protection {[2a10:50c0::bad1:ff]}</a></li>
-                                                        <li><a href="#">AdGuard Family Protection {[2a10:50c0::bad2:ff]}</a></li>
-                                                        <li><a href="#">AdGuard Family Protection TLS {dns.adguard-dns.com (94.140.14.15:853)}</a></li>
-                                                        <li><a href="#">AdGuard Family Protection TLS {dns.adguard-dns.com ([2a10:50c0::bad1:ff]:853)}</a></li>
-                                                        <li><a href="#">AdGuard Family Protection HTTPS {https://dns.adguard-dns.com/dns-query}</a></li>
-                                                        <li><a href="#">AdGuard Family Protection QUIC {dns.adguard-dns.com (94.140.14.15:853)}</a></li>
-                                                        <li><a href="#">AdGuard Family Protection QUIC {dns.adguard-dns.com ([2a10:50c0::bad1:ff]:853)}</a></li>
-                                                        <li><a href="#">Level3 {4.2.2.1}</a></li>
-                                                        <li><a href="#">Level3 {4.2.2.2}</a></li>
-                                                        <li><a href="#">Ultra {156.154.70.1}</a></li>
-                                                        <li><a href="#">Ultra {156.154.71.1}</a></li>
-                                                        <li><a href="#">Dyn {216.146.35.35}</a></li>
-                                                        <li><a href="#">Dyn {216.146.36.36}</a></li>
-                                                        <li><a href="#">a.root-servers.net</a></li>
-                                                        <li><a href="#">b.root-servers.net</a></li>
-                                                        <li><a href="#">c.root-servers.net</a></li>
-                                                        <li><a href="#">d.root-servers.net</a></li>
-                                                        <li><a href="#">e.root-servers.net</a></li>
-                                                        <li><a href="#">f.root-servers.net</a></li>
-                                                        <li><a href="#">g.root-servers.net</a></li>
-                                                        <li><a href="#">h.root-servers.net</a></li>
-                                                        <li><a href="#">i.root-servers.net</a></li>
-                                                        <li><a href="#">j.root-servers.net</a></li>
-                                                        <li><a href="#">k.root-servers.net</a></li>
-                                                        <li><a href="#">l.root-servers.net</a></li>
-                                                        <li><a href="#">m.root-servers.net</a></li>
                                                     </ul>
                                                     <span role="button" class="input-group-addon dropdown-toggle" style="background-color: white;" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span class="caret"></span></span>
                                                 </div>
@@ -1770,7 +1685,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <label for="txtCacheMaximumEntries" class="col-sm-3 control-label">Cache Maximum Entries</label>
                                                             <div class="col-sm-6">
                                                                 <input type="number" class="form-control" id="txtCacheMaximumEntries" placeholder="entries" style="width: 125px; display: inline;">
-                                                                <span>(default 10000; set 0 to disable)</span>
+                                                                <span>(default 10000; set 0 for unlimited entries)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum number of entries that the cache can store. A relevant value should be configured by monitoring the Cache entries value on Dashboard and the server's memory usage to limit the amount of RAM used by the DNS server. A cache entry is a complete Resource Record Set (RR Set) which is a group of records with the same type for a given domain name. When a value is configured, the DNS server will trigger a clean up operation every few minutes and remove least recently used entries to maintain the maximum allowed entries in cache.</div>
                                                         </div>
@@ -1944,38 +1859,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
                                                                 <label for="optQuickBlockList" class="control-label">Quick Add</label>
                                                                 <select id="optQuickBlockList" class="form-control" style="width: 100%;">
-                                                                    <option value="blank" selected></option>
-                                                                    <option value="none">None</option>
-                                                                    <option value="default">Default</option>
-
-                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts">Steven Black [adware + malware] (https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts)</option>
-                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews/hosts">Steven Black [adware + malware + fakenews] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews/hosts)</option>
-                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling/hosts">Steven Black [adware + malware + gambling] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling/hosts)</option>
-                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts">Steven Black [adware + malware + porn] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts)</option>
-                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/social/hosts">Steven Black [adware + malware + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/social/hosts)</option>
-                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling/hosts">Steven Black [adware + malware + fakenews + gambling] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling/hosts)</option>
-                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-porn/hosts">Steven Black [adware + malware + fakenews + porn] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-porn/hosts)</option>
-                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-social/hosts">Steven Black [adware + malware + fakenews + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-social/hosts)</option>
-                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn/hosts">Steven Black [adware + malware + gambling + porn] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn/hosts)</option>
-                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-social/hosts">Steven Black [adware + malware + gambling + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-social/hosts)</option>
-                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-social/hosts">Steven Black [adware + malware + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-social/hosts)</option>
-                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts">Steven Black [adware + malware + fakenews + gambling + porn] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts)</option>
-                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-social/hosts">Steven Black [adware + malware + fakenews + gambling + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-social/hosts)</option>
-                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-porn-social/hosts">Steven Black [adware + malware + fakenews + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-porn-social/hosts)</option>
-                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn-social/hosts">Steven Black [adware + malware + gambling + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn-social/hosts)</option>
-                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn-social/hosts">Steven Black [adware + malware + fakenews + gambling + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn-social/hosts)</option>
-
-                                                                    <option value="https://big.oisd.nl/">OISD Big [Adblock Plus] (https://big.oisd.nl/)</option>
-                                                                    <option value="https://nsfw.oisd.nl/">OISD NSFW [Adblock Plus] (https://nsfw.oisd.nl/)</option>
-
-                                                                    <option value="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/light-onlydomains.txt">Hagezi [Multi Light - Basic protection] (https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/light-onlydomains.txt)</option>
-                                                                    <option value="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/multi-onlydomains.txt">Hagezi [Multi Normal - All-round protection] (https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/multi-onlydomains.txt)</option>
-                                                                    <option value="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro-onlydomains.txt">Hagezi [Multi PRO - Extended protection] (https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro-onlydomains.txt)</option>
-                                                                    <option value="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro.plus-onlydomains.txt">Hagezi [Multi PRO++ - Maximum protection] (https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro.plus-onlydomains.txt)</option>
-                                                                    <option value="https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/ultimate-onlydomains.txt">Hagezi [Multi ULTIMATE - Aggressive protection] (https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/ultimate-onlydomains.txt)</option>
-
-                                                                    <option value="https://shreshtait.com/newly-registered-domains/nrd-1w">Shreshta - Newly Registered Domains (past week) Community Feed (https://shreshtait.com/newly-registered-domains/nrd-1w)</option>
-                                                                    <option value="https://shreshtait.com/newly-registered-domains/nrd-1m">Shreshta - Newly Registered Domains (past month) Community Feed (https://shreshtait.com/newly-registered-domains/nrd-1m)</option>
                                                                 </select>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">
@@ -2081,81 +1964,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
                                                                 <label for="optQuickForwarders" class="control-label">Quick Select</label>
                                                                 <select id="optQuickForwarders" class="form-control" style="width: 100%;">
-                                                                    <option value="blank" selected></option>
-                                                                    <option value="none">None</option>
-
-                                                                    <option value="cloudflare-udp">Cloudflare (DNS-over-UDP)</option>
-                                                                    <option value="cloudflare-udp-ipv6">Cloudflare (DNS-over-UDP IPv6)</option>
-                                                                    <option value="cloudflare-tcp">Cloudflare (DNS-over-TCP)</option>
-                                                                    <option value="cloudflare-tcp-ipv6">Cloudflare (DNS-over-TCP IPv6)</option>
-                                                                    <option value="cloudflare-tls">Cloudflare (DNS-over-TLS)</option>
-                                                                    <option value="cloudflare-tls-ipv6">Cloudflare (DNS-over-TLS IPv6)</option>
-                                                                    <option value="cloudflare-https">Cloudflare (DNS-over-HTTPS)</option>
-                                                                    <option value="cloudflare-https-ipv6">Cloudflare (DNS-over-HTTPS IPv6)</option>
-                                                                    <option value="cloudflare-tor">Cloudflare (DNS-over-TOR!)</option>
-
-                                                                    <option value="google-udp">Google (DNS-over-UDP)</option>
-                                                                    <option value="google-udp-ipv6">Google (DNS-over-UDP IPv6)</option>
-                                                                    <option value="google-tcp">Google (DNS-over-TCP)</option>
-                                                                    <option value="google-tcp-ipv6">Google (DNS-over-TCP IPv6)</option>
-                                                                    <option value="google-tls">Google (DNS-over-TLS)</option>
-                                                                    <option value="google-tls-ipv6">Google (DNS-over-TLS IPv6)</option>
-                                                                    <option value="google-https">Google (DNS-over-HTTPS)</option>
-                                                                    <option value="google-https-ipv6">Google (DNS-over-HTTPS IPv6)</option>
-
-                                                                    <option value="quad9-udp">Quad9 Secure (DNS-over-UDP)</option>
-                                                                    <option value="quad9-udp-ipv6">Quad9 Secure (DNS-over-UDP IPv6)</option>
-                                                                    <option value="quad9-tcp">Quad9 Secure (DNS-over-TCP)</option>
-                                                                    <option value="quad9-tcp-ipv6">Quad9 Secure (DNS-over-TCP IPv6)</option>
-                                                                    <option value="quad9-tls">Quad9 Secure (DNS-over-TLS)</option>
-                                                                    <option value="quad9-tls-ipv6">Quad9 Secure (DNS-over-TLS IPv6)</option>
-                                                                    <option value="quad9-https">Quad9 Secure (DNS-over-HTTPS)</option>
-                                                                    <option value="quad9-https-ipv6">Quad9 Secure (DNS-over-HTTPS IPv6)</option>
-
-                                                                    <option value="quad9-unsecure-udp">Quad9 Unsecure (DNS-over-UDP)</option>
-                                                                    <option value="quad9-unsecure-udp-ipv6">Quad9 Unsecure (DNS-over-UDP IPv6)</option>
-                                                                    <option value="quad9-unsecure-tcp">Quad9 Unsecure (DNS-over-TCP)</option>
-                                                                    <option value="quad9-unsecure-tcp-ipv6">Quad9 Unsecure (DNS-over-TCP IPv6)</option>
-                                                                    <option value="quad9-unsecure-tls">Quad9 Unsecure (DNS-over-TLS)</option>
-                                                                    <option value="quad9-unsecure-tls-ipv6">Quad9 Unsecure (DNS-over-TLS IPv6)</option>
-                                                                    <option value="quad9-unsecure-https">Quad9 Unsecure (DNS-over-HTTPS)</option>
-                                                                    <option value="quad9-unsecure-https-ipv6">Quad9 Unsecure (DNS-over-HTTPS IPv6)</option>
-
-                                                                    <option value="opendns-udp">OpenDNS (DNS-over-UDP)</option>
-                                                                    <option value="opendns-udp-ipv6">OpenDNS (DNS-over-UDP IPv6)</option>
-                                                                    <option value="opendns-tcp">OpenDNS (DNS-over-TCP)</option>
-                                                                    <option value="opendns-tcp-ipv6">OpenDNS (DNS-over-TCP IPv6)</option>
-                                                                    <option value="opendns-tls">OpenDNS (DNS-over-TLS)</option>
-                                                                    <option value="opendns-tls-ipv6">OpenDNS (DNS-over-TLS IPv6)</option>
-                                                                    <option value="opendns-https">OpenDNS (DNS-over-HTTPS)</option>
-
-                                                                    <option value="opendns-fs-udp">OpenDNS FamilyShield (DNS-over-UDP)</option>
-                                                                    <option value="opendns-fs-udp-ipv6">OpenDNS FamilyShield (DNS-over-UDP IPv6)</option>
-                                                                    <option value="opendns-fs-tcp">OpenDNS FamilyShield (DNS-over-TCP)</option>
-                                                                    <option value="opendns-fs-tcp-ipv6">OpenDNS FamilyShield (DNS-over-TCP IPv6)</option>
-                                                                    <option value="opendns-fs-tls">OpenDNS FamilyShield (DNS-over-TLS)</option>
-                                                                    <option value="opendns-fs-tls-ipv6">OpenDNS FamilyShield (DNS-over-TLS IPv6)</option>
-                                                                    <option value="opendns-fs-https">OpenDNS FamilyShield (DNS-over-HTTPS)</option>
-
-                                                                    <option value="adguard-udp">AdGuard (DNS-over-UDP)</option>
-                                                                    <option value="adguard-udp-ipv6">AdGuard (DNS-over-UDP IPv6)</option>
-                                                                    <option value="adguard-tcp">AdGuard (DNS-over-TCP)</option>
-                                                                    <option value="adguard-tcp-ipv6">AdGuard (DNS-over-TCP IPv6)</option>
-                                                                    <option value="adguard-tls">AdGuard (DNS-over-TLS)</option>
-                                                                    <option value="adguard-tls-ipv6">AdGuard (DNS-over-TLS IPv6)</option>
-                                                                    <option value="adguard-https">AdGuard (DNS-over-HTTPS)</option>
-                                                                    <option value="adguard-quic">AdGuard (DNS-over-QUIC)</option>
-                                                                    <option value="adguard-quic-ipv6">AdGuard (DNS-over-QUIC IPv6)</option>
-
-                                                                    <option value="adguard-f-udp">AdGuard Family Protection (DNS-over-UDP)</option>
-                                                                    <option value="adguard-f-udp-ipv6">AdGuard Family Protection (DNS-over-UDP IPv6)</option>
-                                                                    <option value="adguard-f-tcp">AdGuard Family Protection (DNS-over-TCP)</option>
-                                                                    <option value="adguard-f-tcp-ipv6">AdGuard Family Protection (DNS-over-TCP IPv6)</option>
-                                                                    <option value="adguard-f-tls">AdGuard Family Protection (DNS-over-TLS)</option>
-                                                                    <option value="adguard-f-tls-ipv6">AdGuard Family Protection (DNS-over-TLS IPv6)</option>
-                                                                    <option value="adguard-f-https">AdGuard Family Protection (DNS-over-HTTPS)</option>
-                                                                    <option value="adguard-f-quic">AdGuard Family Protection (DNS-over-QUIC)</option>
-                                                                    <option value="adguard-f-quic-ipv6">AdGuard Family Protection (DNS-over-QUIC IPv6)</option>
                                                                 </select>
 
                                                                 <div style="padding-top: 5px;">Enter forwarder DNS Server IP addresses or URLs one below another in above text field or use the Quick Select list to select desired forwarder.</div>
@@ -3560,6 +3368,26 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             </div>
 
 
+                            <div class="form-group" id="divAddZoneInitializeForwarder">
+                                <label class="col-sm-4 control-label">Conditional Forwarder</label>
+                                <div class="col-sm-7">
+                                    <div class="checkbox" style="margin-bottom: 6px;">
+                                        <label>
+                                            <input id="chkAddZoneInitializeForwarder" type="checkbox"> Initialize Forwarder (FWD) Record
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+
+                            <div id="divAddZoneImportZoneFile" class="form-group">
+                                <label for="fileAddZoneImportZone" class="col-sm-4 control-label">Import Zone File (Optional)</label>
+                                <div class="col-sm-7">
+                                    <input type="file" class="form-control" id="fileAddZoneImportZone">
+                                </div>
+                            </div>
+
+
                             <div class="form-group" id="divAddZoneUseSoaSerialDateScheme">
                                 <label class="col-sm-4 control-label">Zone Serial</label>
                                 <div class="col-sm-7">
@@ -4477,24 +4305,6 @@ MII...
 
                     <div class="form-horizontal">
                         <div class="form-group">
-                            <label class="col-sm-4 control-label">Import Type</label>
-                            <div class="col-sm-8">
-                                <div class="radio">
-                                    <label>
-                                        <input type="radio" name="rdImportZoneType" id="rdImportZoneTypeFile" value="File">
-                                        Zone File
-                                    </label>
-                                </div>
-                                <div class="radio">
-                                    <label>
-                                        <input type="radio" name="rdImportZoneType" id="rdImportZoneTypeText" value="Text">
-                                        Text Editor
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
                             <label class="col-sm-4 control-label">Import Options</label>
                             <div class="col-sm-8">
                                 <div class="checkbox">
@@ -4508,6 +4318,24 @@ MII...
                                         <input id="chkImportZoneOverwriteSoaSerial" type="checkbox"> Overwrite SOA Serial
                                     </label>
                                     <div style="padding-top: 5px; padding-left: 20px;">Enable this option to overwrite existing SOA record serial with the imported SOA record serial.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="col-sm-4 control-label">Import Type</label>
+                            <div class="col-sm-8">
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdImportZoneType" id="rdImportZoneTypeFile" value="File">
+                                        Zone File
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdImportZoneType" id="rdImportZoneTypeText" value="Text">
+                                        Text Editor
+                                    </label>
                                 </div>
                             </div>
                         </div>
