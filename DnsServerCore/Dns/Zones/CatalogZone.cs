@@ -357,7 +357,7 @@ namespace DnsServerCore.Dns.Zones
 
         }
 
-        public override void AddRecord(DnsResourceRecord record)
+        public override bool AddRecord(DnsResourceRecord record)
         {
             throw new InvalidOperationException("Cannot add record in Catalog zone.");
         }

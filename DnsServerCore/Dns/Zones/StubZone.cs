@@ -415,7 +415,7 @@ namespace DnsServerCore.Dns.Zones
             throw new InvalidOperationException("Cannot set records in Stub zone.");
         }
 
-        public override void AddRecord(DnsResourceRecord record)
+        public override bool AddRecord(DnsResourceRecord record)
         {
             throw new InvalidOperationException("Cannot add record in Stub zone.");
         }
