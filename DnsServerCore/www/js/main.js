@@ -19,6 +19,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 var refreshTimerHandle;
 var reverseProxyDetected = false;
+var quickBlockLists = null;
+var quickForwardersList = null;
 
 function showPageLogin() {
     hideAlert();
@@ -233,31 +235,8 @@ $(function () {
     $("#header").html("<div class=\"title\"><a href=\".\"><img src=\"img/logo25x25.png\" alt=\"Technitium Logo\" /><span class=\"text\" style=\"color: #ffffff;\">Technitium</span></a>" + headerHtml + "</div>");
     $("#footer").html("<div class=\"content\"><a href=\"https://technitium.com/\" target=\"_blank\">Technitium</a> | <a href=\"https://blog.technitium.com/\" target=\"_blank\">Blog</a> | <a href=\"https://go.technitium.com/?id=35\" target=\"_blank\">Donate</a> | <a href=\"https://dnsclient.net/\" target=\"_blank\">DNS Client</a> | <a href=\"https://github.com/TechnitiumSoftware/DnsServer\" target=\"_blank\"><i class=\"fa fa-github\"></i>&nbsp;GitHub</a> | <a href=\"#\" onclick=\"showAbout(); return false;\">About</a></div>");
 
-    //dropdown list box support
-    $('.dropdown').on('click', 'a', function (e) {
-        e.preventDefault();
-
-        var itemText = $(this).text();
-        $(this).closest('.dropdown').find('input').val(itemText);
-
-        if (itemText.indexOf("QUIC") !== -1)
-            $("#optDnsClientProtocol").val("QUIC");
-        else if ((itemText.indexOf("TLS") !== -1) || (itemText.indexOf(":853") !== -1))
-            $("#optDnsClientProtocol").val("TLS");
-        else if ((itemText.indexOf("HTTPS") !== -1) || (itemText.indexOf("http://") !== -1) || (itemText.indexOf("https://") !== -1))
-            $("#optDnsClientProtocol").val("HTTPS");
-        else {
-            switch ($("#optDnsClientProtocol").val()) {
-                case "UDP":
-                case "TCP":
-                    break;
-
-                default:
-                    $("#optDnsClientProtocol").val("UDP");
-                    break;
-            }
-        }
-    });
+    loadQuickBlockLists();
+    loadQuickForwardersList();
 
     $("#chkEDnsClientSubnet").click(function () {
         var eDnsClientSubnet = $("#chkEDnsClientSubnet").prop("checked");
@@ -401,8 +380,7 @@ $(function () {
         $("#txtServeStaleTtl").prop("disabled", !serveStale);
     });
 
-    $("#optQuickBlockList").change(function () {
-
+    $("#optQuickBlockList").on("change", function () {
         var selectedOption = $("#optQuickBlockList").val();
 
         switch (selectedOption) {
@@ -413,391 +391,120 @@ $(function () {
                 $("#txtBlockListUrls").val("");
                 break;
 
-            case "default":
-                var defaultList = "";
-
-                defaultList += "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts\n";
-
-                $("#txtBlockListUrls").val(defaultList);
-                break;
-
             default:
-                var existingList = $("#txtBlockListUrls").val();
+                for (var i = 0; i < quickBlockLists.length; i++) {
+                    if (quickBlockLists[i].name === selectedOption) {
+                        var existingList;
 
-                if (existingList.indexOf(selectedOption) < 0) {
-                    existingList += selectedOption + "\n";
-                    $("#txtBlockListUrls").val(existingList);
+                        if (selectedOption.toLowerCase() == "default")
+                            existingList = "";
+                        else
+                            existingList = $("#txtBlockListUrls").val();
+
+                        var newList = existingList;
+
+                        for (var j = 0; j < quickBlockLists[i].urls.length; j++) {
+                            var url = quickBlockLists[i].urls[j];
+
+                            if (existingList.indexOf(url) < 0)
+                                newList += url + "\n";
+                        }
+
+                        $("#txtBlockListUrls").val(newList);
+                        break;
+                    }
                 }
 
                 break;
         }
     });
 
-    $("#optQuickForwarders").change(function () {
-
+    $("#optQuickForwarders").on("change", function () {
         var selectedOption = $("#optQuickForwarders").val();
 
-        if (selectedOption !== "blank") {
-            if (($('input[name=rdProxyType]:checked').val() === "Socks5") && ($("#txtProxyAddress").val() === "127.0.0.1") && ($("#txtProxyPort").val() === "9150")) {
-                $("#rdProxyTypeNone").prop("checked", true);
-                $("#txtProxyAddress").prop("disabled", true);
-                $("#txtProxyPort").prop("disabled", true);
-                $("#txtProxyUsername").prop("disabled", true);
-                $("#txtProxyPassword").prop("disabled", true);
-                $("#txtProxyAddress").val("");
-                $("#txtProxyPort").val("");
-                $("#txtProxyUsername").val("");
-                $("#txtProxyPassword").val("");
-            }
-        }
-
         switch (selectedOption) {
-            case "cloudflare-udp":
-                $("#txtForwarders").val("1.1.1.1\r\n1.0.0.1");
-                $("#rdForwarderProtocolUdp").prop("checked", true);
+            case "blank":
                 break;
-
-            case "cloudflare-udp-ipv6":
-                $("#txtForwarders").val("[2606:4700:4700::1111]\r\n[2606:4700:4700::1001]");
-                $("#rdForwarderProtocolUdp").prop("checked", true);
-                break;
-
-            case "cloudflare-tcp":
-                $("#txtForwarders").val("1.1.1.1\r\n1.0.0.1");
-                $("#rdForwarderProtocolTcp").prop("checked", true);
-                break;
-
-            case "cloudflare-tcp-ipv6":
-                $("#txtForwarders").val("[2606:4700:4700::1111]\r\n[2606:4700:4700::1001]");
-                $("#rdForwarderProtocolTcp").prop("checked", true);
-                break;
-
-            case "cloudflare-tls":
-                $("#txtForwarders").val("cloudflare-dns.com (1.1.1.1:853)\r\ncloudflare-dns.com (1.0.0.1:853)");
-                $("#rdForwarderProtocolTls").prop("checked", true);
-                break;
-
-            case "cloudflare-tls-ipv6":
-                $("#txtForwarders").val("cloudflare-dns.com ([2606:4700:4700::1111]:853)\r\ncloudflare-dns.com ([2606:4700:4700::1001]:853)");
-                $("#rdForwarderProtocolTls").prop("checked", true);
-                break;
-
-            case "cloudflare-https":
-                $("#txtForwarders").val("https://cloudflare-dns.com/dns-query (1.1.1.1)\r\nhttps://cloudflare-dns.com/dns-query (1.0.0.1)");
-                $("#rdForwarderProtocolHttps").prop("checked", true);
-                break;
-
-            case "cloudflare-https-ipv6":
-                $("#txtForwarders").val("https://cloudflare-dns.com/dns-query ([2606:4700:4700::1111])\r\nhttps://cloudflare-dns.com/dns-query ([2606:4700:4700::1001])");
-                $("#rdForwarderProtocolHttps").prop("checked", true);
-                break;
-
-            case "cloudflare-tor":
-                $("#txtForwarders").val("dns4torpnlfs2ifuz2s2yf3fc7rdmsbhm6rw75euj35pac6ap25zgqad.onion");
-                $("#rdForwarderProtocolTcp").prop("checked", true);
-
-                if ($('input[name=rdProxyType]:checked').val() !== "Socks5") {
-                    $("#rdProxyTypeSocks5").prop("checked", true);
-                    $("#txtProxyAddress").val("127.0.0.1");
-                    $("#txtProxyPort").val("9150");
-                    $("#txtProxyAddress").prop("disabled", false);
-                    $("#txtProxyPort").prop("disabled", false);
-                    $("#txtProxyUsername").prop("disabled", false);
-                    $("#txtProxyPassword").prop("disabled", false);
-                }
-
-                break;
-
-            case "google-udp":
-                $("#txtForwarders").val("8.8.8.8\r\n8.8.4.4");
-                $("#rdForwarderProtocolUdp").prop("checked", true);
-                break;
-
-            case "google-udp-ipv6":
-                $("#txtForwarders").val("[2001:4860:4860::8888]\r\n[2001:4860:4860::8844]");
-                $("#rdForwarderProtocolUdp").prop("checked", true);
-                break;
-
-            case "google-tcp":
-                $("#txtForwarders").val("8.8.8.8\r\n8.8.4.4");
-                $("#rdForwarderProtocolTcp").prop("checked", true);
-                break;
-
-            case "google-tcp-ipv6":
-                $("#txtForwarders").val("[2001:4860:4860::8888]\r\n[2001:4860:4860::8844]");
-                $("#rdForwarderProtocolTcp").prop("checked", true);
-                break;
-
-            case "google-tls":
-                $("#txtForwarders").val("dns.google (8.8.8.8:853)\r\ndns.google (8.8.4.4:853)");
-                $("#rdForwarderProtocolTls").prop("checked", true);
-                break;
-
-            case "google-tls-ipv6":
-                $("#txtForwarders").val("dns.google ([2001:4860:4860::8888]:853)\r\ndns.google ([2001:4860:4860::8844]:853)");
-                $("#rdForwarderProtocolTls").prop("checked", true);
-                break;
-
-            case "google-https":
-                $("#txtForwarders").val("https://dns.google/dns-query (8.8.8.8)\r\nhttps://dns.google/dns-query (8.8.4.4)");
-                $("#rdForwarderProtocolHttps").prop("checked", true);
-                break;
-
-            case "google-https-ipv6":
-                $("#txtForwarders").val("https://dns.google/dns-query ([2001:4860:4860::8888])\r\nhttps://dns.google/dns-query ([2001:4860:4860::8844])");
-                $("#rdForwarderProtocolHttps").prop("checked", true);
-                break;
-
-
-            case "quad9-udp":
-                $("#txtForwarders").val("9.9.9.9\r\n149.112.112.112");
-                $("#rdForwarderProtocolUdp").prop("checked", true);
-                break;
-
-            case "quad9-udp-ipv6":
-                $("#txtForwarders").val("[2620:fe::fe]\r\n[2620:fe::9]");
-                $("#rdForwarderProtocolUdp").prop("checked", true);
-                break;
-
-            case "quad9-tcp":
-                $("#txtForwarders").val("9.9.9.9\r\n149.112.112.112");
-                $("#rdForwarderProtocolTcp").prop("checked", true);
-                break;
-
-            case "quad9-tcp-ipv6":
-                $("#txtForwarders").val("[2620:fe::fe]\r\n[2620:fe::9]");
-                $("#rdForwarderProtocolTcp").prop("checked", true);
-                break;
-
-            case "quad9-tls":
-                $("#txtForwarders").val("dns.quad9.net (9.9.9.9:853)\r\ndns.quad9.net (149.112.112.112:853)");
-                $("#rdForwarderProtocolTls").prop("checked", true);
-                break;
-
-            case "quad9-tls-ipv6":
-                $("#txtForwarders").val("dns.quad9.net ([2620:fe::fe]:853)\r\ndns.quad9.net ([2620:fe::9]:853)");
-                $("#rdForwarderProtocolTls").prop("checked", true);
-                break;
-
-            case "quad9-https":
-                $("#txtForwarders").val("https://dns.quad9.net/dns-query (9.9.9.9)\r\nhttps://dns.quad9.net/dns-query (149.112.112.112)");
-                $("#rdForwarderProtocolHttps").prop("checked", true);
-                break;
-
-            case "quad9-https-ipv6":
-                $("#txtForwarders").val("https://dns.quad9.net/dns-query ([2620:fe::fe])\r\nhttps://dns.quad9.net/dns-query ([2620:fe::9])");
-                $("#rdForwarderProtocolHttps").prop("checked", true);
-                break;
-
-
-            case "quad9-unsecure-udp":
-                $("#txtForwarders").val("9.9.9.10\r\n149.112.112.10");
-                $("#rdForwarderProtocolUdp").prop("checked", true);
-                break;
-
-            case "quad9-unsecure-udp-ipv6":
-                $("#txtForwarders").val("[2620:fe::10]\r\n[2620:fe::fe:10]");
-                $("#rdForwarderProtocolUdp").prop("checked", true);
-                break;
-
-            case "quad9-unsecure-tcp":
-                $("#txtForwarders").val("9.9.9.10\r\n149.112.112.10");
-                $("#rdForwarderProtocolTcp").prop("checked", true);
-                break;
-
-            case "quad9-unsecure-tcp-ipv6":
-                $("#txtForwarders").val("[2620:fe::10]\r\n[2620:fe::fe:10]");
-                $("#rdForwarderProtocolTcp").prop("checked", true);
-                break;
-
-            case "quad9-unsecure-tls":
-                $("#txtForwarders").val("dns10.quad9.net (9.9.9.10:853)\r\ndns10.quad9.net (149.112.112.10:853)");
-                $("#rdForwarderProtocolTls").prop("checked", true);
-                break;
-
-            case "quad9-unsecure-tls-ipv6":
-                $("#txtForwarders").val("dns10.quad9.net ([2620:fe::10]:853)\r\ndns10.quad9.net ([2620:fe::fe:10]:853)");
-                $("#rdForwarderProtocolTls").prop("checked", true);
-                break;
-
-            case "quad9-unsecure-https":
-                $("#txtForwarders").val("https://dns10.quad9.net/dns-query (9.9.9.10)\r\nhttps://dns10.quad9.net/dns-query (149.112.112.10)");
-                $("#rdForwarderProtocolHttps").prop("checked", true);
-                break;
-
-            case "quad9-unsecure-https-ipv6":
-                $("#txtForwarders").val("https://dns10.quad9.net/dns-query ([2620:fe::10])\r\nhttps://dns10.quad9.net/dns-query ([2620:fe::fe:10])");
-                $("#rdForwarderProtocolHttps").prop("checked", true);
-                break;
-
-
-            case "opendns-udp":
-                $("#txtForwarders").val("208.67.222.222\r\n208.67.220.220");
-                $("#rdForwarderProtocolUdp").prop("checked", true);
-                break;
-
-            case "opendns-udp-ipv6":
-                $("#txtForwarders").val("[2620:0:ccc::2]\r\n[2620:0:ccd::2]");
-                $("#rdForwarderProtocolUdp").prop("checked", true);
-                break;
-
-            case "opendns-tcp":
-                $("#txtForwarders").val("208.67.222.222\r\n208.67.220.220");
-                $("#rdForwarderProtocolTcp").prop("checked", true);
-                break;
-
-            case "opendns-tcp-ipv6":
-                $("#txtForwarders").val("[2620:0:ccc::2]\r\n[2620:0:ccd::2]");
-                $("#rdForwarderProtocolTcp").prop("checked", true);
-                break;
-
-            case "opendns-tls":
-                $("#txtForwarders").val("dns.opendns.com (208.67.222.222:853)\r\ndns.opendns.com (208.67.220.220:853)");
-                $("#rdForwarderProtocolTls").prop("checked", true);
-                break;
-
-            case "opendns-tls-ipv6":
-                $("#txtForwarders").val("dns.opendns.com ([2620:0:ccc::2]:853)\r\ndns.opendns.com ([2620:0:ccd::2]:853)");
-                $("#rdForwarderProtocolTls").prop("checked", true);
-                break;
-
-            case "opendns-https":
-                $("#txtForwarders").val("https://doh.opendns.com/dns-query");
-                $("#rdForwarderProtocolHttps").prop("checked", true);
-                break;
-
-
-            case "opendns-fs-udp":
-                $("#txtForwarders").val("208.67.222.123\r\n208.67.220.123");
-                $("#rdForwarderProtocolUdp").prop("checked", true);
-                break;
-
-            case "opendns-fs-udp-ipv6":
-                $("#txtForwarders").val("[2620:119:35::123]\r\n[2620:119:53::123]");
-                $("#rdForwarderProtocolUdp").prop("checked", true);
-                break;
-
-            case "opendns-fs-tcp":
-                $("#txtForwarders").val("208.67.222.123\r\n208.67.220.123");
-                $("#rdForwarderProtocolTcp").prop("checked", true);
-                break;
-
-            case "opendns-fs-tcp-ipv6":
-                $("#txtForwarders").val("[2620:119:35::123]\r\n[2620:119:53::123]");
-                $("#rdForwarderProtocolTcp").prop("checked", true);
-                break;
-
-            case "opendns-fs-tls":
-                $("#txtForwarders").val("dns.opendns.com (208.67.222.123:853)\r\ndns.opendns.com (208.67.220.123:853)");
-                $("#rdForwarderProtocolTls").prop("checked", true);
-                break;
-
-            case "opendns-fs-tls-ipv6":
-                $("#txtForwarders").val("dns.opendns.com ([2620:119:35::123]:853)\r\ndns.opendns.com ([2620:119:53::123]:853)");
-                $("#rdForwarderProtocolTls").prop("checked", true);
-                break;
-
-            case "opendns-fs-https":
-                $("#txtForwarders").val("https://doh.familyshield.opendns.com/dns-query");
-                $("#rdForwarderProtocolHttps").prop("checked", true);
-                break;
-
-
-            case "adguard-udp":
-                $("#txtForwarders").val("94.140.14.14\r\n94.140.15.15");
-                $("#rdForwarderProtocolUdp").prop("checked", true);
-                break;
-
-            case "adguard-udp-ipv6":
-                $("#txtForwarders").val("[2a10:50c0::ad1:ff]\r\n[2a10:50c0::ad2:ff]");
-                $("#rdForwarderProtocolUdp").prop("checked", true);
-                break;
-
-            case "adguard-tcp":
-                $("#txtForwarders").val("94.140.14.14\r\n94.140.15.15");
-                $("#rdForwarderProtocolTcp").prop("checked", true);
-                break;
-
-            case "adguard-tcp-ipv6":
-                $("#txtForwarders").val("[2a10:50c0::ad1:ff]\r\n[2a10:50c0::ad2:ff]");
-                $("#rdForwarderProtocolTcp").prop("checked", true);
-                break;
-
-            case "adguard-tls":
-                $("#txtForwarders").val("dns.adguard-dns.com (94.140.14.14:853)\r\ndns.adguard-dns.com (94.140.15.15:853)");
-                $("#rdForwarderProtocolTls").prop("checked", true);
-                break;
-
-            case "adguard-tls-ipv6":
-                $("#txtForwarders").val("dns.adguard-dns.com ([2a10:50c0::ad1:ff]:853)\r\ndns.adguard-dns.com ([2a10:50c0::ad2:ff]:853)");
-                $("#rdForwarderProtocolTls").prop("checked", true);
-                break;
-
-            case "adguard-https":
-                $("#txtForwarders").val("https://dns.adguard-dns.com/dns-query");
-                $("#rdForwarderProtocolHttps").prop("checked", true);
-                break;
-
-            case "adguard-quic":
-                $("#txtForwarders").val("dns.adguard-dns.com (94.140.14.14:853)\r\ndns.adguard-dns.com (94.140.15.15:853)");
-                $("#rdForwarderProtocolQuic").prop("checked", true);
-                break;
-
-            case "adguard-quic-ipv6":
-                $("#txtForwarders").val("dns.adguard-dns.com ([2a10:50c0::ad1:ff]:853)\r\ndns.adguard-dns.com ([2a10:50c0::ad2:ff]:853)");
-                $("#rdForwarderProtocolQuic").prop("checked", true);
-                break;
-
-
-            case "adguard-f-udp":
-                $("#txtForwarders").val("94.140.14.15\r\n94.140.15.16");
-                $("#rdForwarderProtocolUdp").prop("checked", true);
-                break;
-
-            case "adguard-f-udp-ipv6":
-                $("#txtForwarders").val("[2a10:50c0::bad1:ff]\r\n[2a10:50c0::bad2:ff]");
-                $("#rdForwarderProtocolUdp").prop("checked", true);
-                break;
-
-            case "adguard-f-tcp":
-                $("#txtForwarders").val("94.140.14.15\r\n94.140.15.16");
-                $("#rdForwarderProtocolTcp").prop("checked", true);
-                break;
-
-            case "adguard-f-tcp-ipv6":
-                $("#txtForwarders").val("[2a10:50c0::bad1:ff]\r\n[2a10:50c0::bad2:ff]");
-                $("#rdForwarderProtocolTcp").prop("checked", true);
-                break;
-
-            case "adguard-f-tls":
-                $("#txtForwarders").val("family.adguard-dns.com (94.140.14.15:853)\r\nfamily.adguard-dns.com (94.140.15.16:853)");
-                $("#rdForwarderProtocolTls").prop("checked", true);
-                break;
-
-            case "adguard-f-tls-ipv6":
-                $("#txtForwarders").val("family.adguard-dns.com ([2a10:50c0::bad1:ff]:853)\r\nfamily.adguard-dns.com ([2a10:50c0::bad2:ff]:853)");
-                $("#rdForwarderProtocolTls").prop("checked", true);
-                break;
-
-            case "adguard-f-https":
-                $("#txtForwarders").val("https://family.adguard-dns.com/dns-query");
-                $("#rdForwarderProtocolHttps").prop("checked", true);
-                break;
-
-            case "adguard-f-quic":
-                $("#txtForwarders").val("family.adguard-dns.com (94.140.14.15:853)\r\nfamily.adguard-dns.com (94.140.15.16:853)");
-                $("#rdForwarderProtocolQuic").prop("checked", true);
-                break;
-
-            case "adguard-f-quic-ipv6":
-                $("#txtForwarders").val("family.adguard-dns.com ([2a10:50c0::bad1:ff]:853)\r\nfamily.adguard-dns.com ([2a10:50c0::bad2:ff]:853)");
-                $("#rdForwarderProtocolQuic").prop("checked", true);
-                break;
-
 
             case "none":
                 $("#txtForwarders").val("");
                 $("#rdForwarderProtocolUdp").prop("checked", true);
+                break;
+
+            default:
+                for (var i = 0; i < quickForwardersList.length; i++) {
+                    if (quickForwardersList[i].name === selectedOption) {
+                        var forwarders = "";
+
+                        for (var j = 0; j < quickForwardersList[i].addresses.length; j++) {
+                            forwarders += quickForwardersList[i].addresses[j] + "\n";
+                        }
+
+                        $("#txtForwarders").val(forwarders);
+
+                        switch (quickForwardersList[i].protocol.toUpperCase()) {
+                            case "TCP":
+                                $("#rdForwarderProtocolTcp").prop("checked", true);
+                                break;
+
+                            case "TLS":
+                                $("#rdForwarderProtocolTls").prop("checked", true);
+                                break;
+
+                            case "HTTPS":
+                                $("#rdForwarderProtocolHttps").prop("checked", true);
+                                break;
+
+                            case "QUIC":
+                                $("#rdForwarderProtocolQuic").prop("checked", true);
+                                break;
+
+                            default:
+                                $("#rdForwarderProtocolUdp").prop("checked", true);
+                                break;
+                        }
+
+                        if (quickForwardersList[i].proxyType == null)
+                            quickForwardersList[i].proxyType = "DefaultProxy";
+
+                        switch (quickForwardersList[i].proxyType.toUpperCase()) {
+                            case "SOCKS5":
+                            case "HTTP":
+                                if (quickForwardersList[i].proxyType.toUpperCase() == "SOCKS5")
+                                    $("#rdProxyTypeSocks5").prop("checked", true);
+                                else
+                                    $("#rdProxyTypeHttp").prop("checked", true);
+
+                                $("#txtProxyAddress").val(quickForwardersList[i].proxyAddress);
+                                $("#txtProxyPort").val(quickForwardersList[i].proxyPort);
+                                $("#txtProxyUsername").val(quickForwardersList[i].proxyUsername);
+                                $("#txtProxyPassword").val(quickForwardersList[i].proxyPassword);
+
+                                $("#txtProxyAddress").prop("disabled", false);
+                                $("#txtProxyPort").prop("disabled", false);
+                                $("#txtProxyUsername").prop("disabled", false);
+                                $("#txtProxyPassword").prop("disabled", false);
+                                break;
+
+                            case "NONE":
+                                $("#rdProxyTypeNone").prop("checked", true);
+
+                                $("#txtProxyAddress").prop("disabled", true);
+                                $("#txtProxyPort").prop("disabled", true);
+                                $("#txtProxyUsername").prop("disabled", true);
+                                $("#txtProxyPassword").prop("disabled", true);
+
+                                $("#txtProxyAddress").val("");
+                                $("#txtProxyPort").val("");
+                                $("#txtProxyUsername").val("");
+                                $("#txtProxyPassword").val("");
+                                break;
+                        }
+
+                        break;
+                    }
+                }
+
                 break;
         }
     });
@@ -945,6 +652,84 @@ function checkForUpdate() {
             showPageLogin();
         }
     });
+}
+
+function loadQuickBlockLists() {
+    $.ajax({
+        type: "GET",
+        url: "json/quick-block-lists-custom.json",
+        dataType: "json",
+        cache: false,
+        async: false,
+        success: function (responseJSON, status, jqXHR) {
+            loadQuickBlockListsFrom(responseJSON);
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+            $.ajax({
+                type: "GET",
+                url: "json/quick-block-lists-builtin.json",
+                dataType: "json",
+                cache: false,
+                async: false,
+                success: function (responseJSON, status, jqXHR) {
+                    loadQuickBlockListsFrom(responseJSON);
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    showAlert("danger", "Error!", "Failed to load Quick Forwarders list: " + jqXHR.status + " " + jqXHR.statusText);
+                }
+            });
+        }
+    });
+}
+
+function loadQuickBlockListsFrom(responseJSON) {
+    var htmlList = "<option value=\"blank\" selected></option><option value=\"none\">None</option>";
+
+    for (var i = 0; i < responseJSON.length; i++) {
+        htmlList += "<option>" + htmlEncode(responseJSON[i].name) + "</option>";
+    }
+
+    quickBlockLists = responseJSON;
+    $("#optQuickBlockList").html(htmlList);
+}
+
+function loadQuickForwardersList() {
+    $.ajax({
+        type: "GET",
+        url: "json/quick-forwarders-list-custom.json",
+        dataType: "json",
+        cache: false,
+        async: false,
+        success: function (responseJSON, status, jqXHR) {
+            loadQuickForwardersListFrom(responseJSON);
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+            $.ajax({
+                type: "GET",
+                url: "json/quick-forwarders-list-builtin.json",
+                dataType: "json",
+                cache: false,
+                async: false,
+                success: function (responseJSON, status, jqXHR) {
+                    loadQuickForwardersListFrom(responseJSON);
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    showAlert("danger", "Error!", "Failed to load Quick Forwarders list: " + jqXHR.status + " " + jqXHR.statusText);
+                }
+            });
+        }
+    });
+}
+
+function loadQuickForwardersListFrom(responseJSON) {
+    var htmlList = "<option value=\"blank\" selected></option><option value=\"none\">None</option>";
+
+    for (var i = 0; i < responseJSON.length; i++) {
+        htmlList += "<option>" + htmlEncode(responseJSON[i].name) + "</option>";
+    }
+
+    quickForwardersList = responseJSON;
+    $("#optQuickForwarders").html(htmlList);
 }
 
 function refreshDnsSettings() {
@@ -2596,164 +2381,6 @@ function showTopStats(statsType, limit) {
         objLoaderPlaceholder: divTopStatsLoader,
         objAlertPlaceholder: divTopStatsAlert
     });
-}
-
-function resolveQuery(importRecords) {
-    if (importRecords == null)
-        importRecords = false;
-
-    var server = $("#txtDnsClientNameServer").val();
-
-    if ((server.indexOf("recursive-resolver") !== -1) || (server.indexOf("system-dns") !== -1))
-        $("#optDnsClientProtocol").val("UDP");
-
-    var domain = $("#txtDnsClientDomain").val();
-    var type = $("#optDnsClientType").val();
-    var protocol = $("#optDnsClientProtocol").val();
-    var dnssecValidation = $("#chkDnsClientDnssecValidation").prop("checked");
-    var eDnsClientSubnet = $("#txtDnsClientEDnsClientSubnet").val();
-
-    {
-        var i = server.indexOf("{");
-        if (i > -1) {
-            var j = server.lastIndexOf("}");
-            server = server.substring(i + 1, j);
-        }
-    }
-
-    server = server.trim();
-
-    if ((server === null) || (server === "")) {
-        showAlert("warning", "Missing!", "Please enter a valid Name Server.");
-        $("#txtDnsClientNameServer").focus();
-        return;
-    }
-
-    if ((domain === null) || (domain === "")) {
-        showAlert("warning", "Missing!", "Please enter a domain name to query.");
-        $("#txtDnsClientDomain").focus();
-        return;
-    }
-
-    {
-        var i = domain.indexOf("://");
-        if (i > -1) {
-            var j = domain.indexOf(":", i + 3);
-
-            if (j < 0)
-                j = domain.indexOf("/", i + 3);
-
-            if (j > -1)
-                domain = domain.substring(i + 3, j);
-            else
-                domain = domain.substring(i + 3);
-
-            $("#txtDnsClientDomain").val(domain);
-        }
-    }
-
-    if (importRecords) {
-        if (!confirm("Importing all the records from the response of this query will add them into an existing primary or conditional forwarder zone. If a matching zone does not exists, a new primary zone for '" + domain + "' will be created.\n\nAre you sure you want to import all records?"))
-            return;
-    }
-
-    var btn = $(importRecords ? "#btnDnsClientImport" : "#btnDnsClientResolve").button("loading");
-    var btnOther = $(importRecords ? "#btnDnsClientResolve" : "#btnDnsClientImport").prop("disabled", true);
-
-    var divDnsClientLoader = $("#divDnsClientLoader");
-    var divDnsClientOutputAccordion = $("#divDnsClientOutputAccordion");
-
-    divDnsClientOutputAccordion.hide();
-    divDnsClientLoader.show();
-
-    HTTPRequest({
-        url: "api/dnsClient/resolve?token=" + sessionData.token + "&server=" + encodeURIComponent(server) + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&protocol=" + protocol + "&dnssec=" + dnssecValidation + "&eDnsClientSubnet=" + encodeURIComponent(eDnsClientSubnet) + (importRecords ? "&import=true" : ""),
-        success: function (responseJSON) {
-            divDnsClientLoader.hide();
-            btn.button("reset");
-            btnOther.prop("disabled", false);
-
-            $("#preDnsClientFinalResponse").text(JSON.stringify(responseJSON.response.result, null, 2));
-            $("#divDnsClientFinalResponseCollapse").collapse("show");
-            $("#divDnsClientRawResponsesCollapse").collapse("hide");
-            divDnsClientOutputAccordion.show();
-
-            if ((responseJSON.response.rawResponses != null)) {
-                if (responseJSON.response.rawResponses.length == 0) {
-                    $("#divDnsClientRawResponsePanel").hide();
-                }
-                else {
-                    var rawListHtml = "";
-
-                    for (var i = 0; i < responseJSON.response.rawResponses.length; i++) {
-                        rawListHtml += "<li class=\"list-group-item\"><pre style=\"margin-top: 5px; margin-bottom: 5px;\">" + JSON.stringify(responseJSON.response.rawResponses[i], null, 2) + "</pre></li>";
-                    }
-
-                    $("#spanDnsClientRawResponsesCount").text(responseJSON.response.rawResponses.length);
-                    $("#ulDnsClientRawResponsesList").html(rawListHtml);
-                    $("#divDnsClientRawResponsesCollapse").collapse("hide");
-                    $("#divDnsClientRawResponsePanel").show();
-                }
-            }
-
-            if (responseJSON.response.warningMessage != null) {
-                showAlert("warning", "Warning!", responseJSON.response.warningMessage);
-            }
-            else if (importRecords) {
-                showAlert("success", "Records Imported!", "Resource records resolved by this DNS client query were successfully imported into this server.");
-            }
-        },
-        error: function () {
-            divDnsClientLoader.hide();
-            btn.button('reset');
-            btnOther.prop("disabled", false);
-        },
-        invalidToken: function () {
-            divDnsClientLoader.hide();
-            btn.button('reset');
-            btnOther.prop("disabled", false);
-            showPageLogin();
-        },
-        objLoaderPlaceholder: divDnsClientLoader,
-        showInnerError: true
-    });
-
-    //add server name to list if doesnt exists
-    var txtServerName = $("#txtDnsClientNameServer").val();
-    var containsServer = false;
-
-    $("#optDnsClientNameServers a").each(function () {
-        if ($(this).html() === txtServerName)
-            containsServer = true;
-    });
-
-    if (!containsServer)
-        $("#optDnsClientNameServers").prepend('<li><a href="#">' + htmlEncode(txtServerName) + '</a></li>');
-}
-
-function queryDnsServer(domain, type) {
-    if (type == null)
-        type = "A";
-
-    $("#txtDnsClientNameServer").val("This Server {this-server}");
-    $("#txtDnsClientDomain").val(domain);
-    $("#optDnsClientType").val(type);
-    $("#optDnsClientProtocol").val("UDP");
-    $("#txtDnsClientEDnsClientSubnet").val("");
-    $("#chkDnsClientDnssecValidation").prop("checked", false);
-
-    $("#mainPanelTabListDashboard").removeClass("active");
-    $("#mainPanelTabPaneDashboard").removeClass("active");
-
-    $("#mainPanelTabListLogs").removeClass("active");
-    $("#mainPanelTabPaneLogs").removeClass("active");
-
-    $("#mainPanelTabListDnsClient").addClass("active");
-    $("#mainPanelTabPaneDnsClient").addClass("active");
-
-    $("#modalTopStats").modal("hide");
-
-    resolveQuery();
 }
 
 function resetBackupSettingsModal() {
