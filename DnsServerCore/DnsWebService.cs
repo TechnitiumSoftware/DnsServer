@@ -657,6 +657,7 @@ namespace DnsServerCore
                     return;
 
                 default:
+                    if (context.Request.Path.Value.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
                     {
                         if (!TryGetSession(context, out UserSession session))
                             throw new InvalidTokenWebServiceException("Invalid token or session expired.");
@@ -664,6 +665,13 @@ namespace DnsServerCore
                         context.Items["session"] = session;
                         needsJsonResponseObject = true;
                     }
+                    else
+                    {
+                        context.Response.StatusCode = StatusCodes.Status404NotFound;
+                        context.Response.ContentLength = 0;
+                        return;
+                    }
+
                     break;
             }
 
