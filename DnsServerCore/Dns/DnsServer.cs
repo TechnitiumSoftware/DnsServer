@@ -44,6 +44,7 @@ using System.Net.Sockets;
 using System.Runtime.ExceptionServices;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
@@ -85,6 +86,13 @@ namespace DnsServerCore.Dns
             Starting = 1,
             Running = 2,
             Stopping = 3
+        }
+
+        enum DoHType
+        {
+            UNKNOWN = 0,
+            DNS_MESSAGE = 1,
+            JSON_DNS = 2,
         }
 
         #endregion
@@ -975,80 +983,24 @@ namespace DnsServerCore.Dns
                     return;
                 }
 
-                switch (request.Method)
+                DoHType dohType = this.GetDoHType(request);
+                switch (dohType)
                 {
-                    case "GET":
-                        bool acceptsDoH = false;
-
-                        string requestAccept = request.Headers.Accept;
-                        if (string.IsNullOrEmpty(requestAccept))
-                        {
-                            acceptsDoH = true;
-                        }
-                        else
-                        {
-                            foreach (string mediaType in requestAccept.Split(','))
-                            {
-                                if (mediaType.Equals("application/dns-message", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    acceptsDoH = true;
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (!acceptsDoH)
-                        {
-                            response.Redirect((request.IsHttps ? "https://" : "http://") + request.Headers.Host);
-                            return;
-                        }
-
-                        string dnsRequestBase64Url = request.Query["dns"];
-                        if (string.IsNullOrEmpty(dnsRequestBase64Url))
-                        {
-                            response.StatusCode = 400;
-                            await response.WriteAsync("Bad Request");
-                            return;
-                        }
-
-                        //convert from base64url to base64
-                        dnsRequestBase64Url = dnsRequestBase64Url.Replace('-', '+');
-                        dnsRequestBase64Url = dnsRequestBase64Url.Replace('_', '/');
-
-                        //add padding
-                        int x = dnsRequestBase64Url.Length % 4;
-                        if (x > 0)
-                            dnsRequestBase64Url = dnsRequestBase64Url.PadRight(dnsRequestBase64Url.Length - x + 4, '=');
-
-                        using (MemoryStream mS = new MemoryStream(Convert.FromBase64String(dnsRequestBase64Url)))
-                        {
-                            dnsRequest = DnsDatagram.ReadFrom(mS);
-                            dnsRequest.SetMetadata(new NameServerAddress(new Uri(context.Request.GetDisplayUrl()), context.GetLocalIpAddress()));
-                        }
-
+                    case DoHType.DNS_MESSAGE:
+                        dnsRequest = await this.ProcessWireformatRequest(context);
                         break;
-
-                    case "POST":
-                        if (!string.Equals(request.Headers.ContentType, "application/dns-message", StringComparison.OrdinalIgnoreCase))
-                        {
-                            response.StatusCode = 415;
-                            await response.WriteAsync("Unsupported Media Type");
-                            return;
-                        }
-
-                        using (MemoryStream mS = new MemoryStream(32))
-                        {
-                            await request.Body.CopyToAsync(mS, 32);
-
-                            mS.Position = 0;
-                            dnsRequest = DnsDatagram.ReadFrom(mS);
-                            dnsRequest.SetMetadata(new NameServerAddress(new Uri(context.Request.GetDisplayUrl()), context.GetLocalIpAddress()));
-                        }
-
+                    case DoHType.JSON_DNS:
+                        dnsRequest = await this.ProcessJsonformatRequest(context);
                         break;
-
                     default:
-                        throw new InvalidOperationException();
+                        response.Redirect((request.IsHttps ? "https://" : "http://") + request.Headers.Host);
+                        return;
+                }
+
+                if (dnsRequest is null)
+                {
+                    // Error was already sent to client in process method
+                    return;
                 }
 
                 DnsDatagram dnsResponse = await ProcessRequestAsync(dnsRequest, remoteEP, DnsTransportProtocol.Https, IsRecursionAllowed(remoteEP.Address));
@@ -1061,21 +1013,14 @@ namespace DnsServerCore.Dns
                     return;
                 }
 
-                using (MemoryStream mS = new MemoryStream(512))
+                switch (dohType)
                 {
-                    dnsResponse.WriteTo(mS);
-
-                    mS.Position = 0;
-                    response.ContentType = "application/dns-message";
-                    response.ContentLength = mS.Length;
-
-                    await TechnitiumLibrary.TaskExtensions.TimeoutAsync(async delegate (CancellationToken cancellationToken1)
-                    {
-                        await using (Stream s = response.Body)
-                        {
-                            await mS.CopyToAsync(s, 512, cancellationToken1);
-                        }
-                    }, _tcpSendTimeout);
+                    case DoHType.DNS_MESSAGE:
+                        await this.WriteWireformatResponse(response, dnsResponse);
+                        break;
+                    case DoHType.JSON_DNS:
+                        await this.WriteJsonformatResponse(response, dnsResponse);
+                        break;
                 }
 
                 _queryLog?.Write(remoteEP, DnsTransportProtocol.Https, dnsRequest, dnsResponse);
@@ -1091,6 +1036,199 @@ namespace DnsServerCore.Dns
                     _queryLog?.Write(remoteEP, DnsTransportProtocol.Https, dnsRequest, null);
 
                 _log?.Write(remoteEP, DnsTransportProtocol.Https, ex);
+            }
+        }
+
+        private DoHType GetDoHType(HttpRequest request)
+        {
+            switch (request.Method)
+            {
+                case "GET":
+                    string requestAccept = request.Headers.Accept;
+                    foreach (string mediaType in requestAccept.Split(','))
+                    {
+                        if (mediaType.Equals("application/dns-message", StringComparison.OrdinalIgnoreCase))
+                        {
+                            return DoHType.DNS_MESSAGE;
+                        }
+                        if (mediaType.Equals("application/dns-json", StringComparison.OrdinalIgnoreCase))
+                        {
+                            return DoHType.JSON_DNS;
+                        }
+                    }
+                    break;
+
+                case "POST":
+                    if (string.Equals(request.Headers.ContentType, "application/dns-message", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return DoHType.DNS_MESSAGE;
+                    }
+                    break;
+            }
+            return DoHType.UNKNOWN;
+        }
+
+        private async Task<DnsDatagram> ProcessWireformatRequest(HttpContext context)
+        {
+            DnsDatagram dnsRequest = null;
+            HttpRequest request = context.Request;
+            HttpResponse response = context.Response;
+            switch (request.Method)
+            {
+                case "GET":
+                    string dnsRequestBase64Url = request.Query["dns"];
+                    if (string.IsNullOrEmpty(dnsRequestBase64Url))
+                    {
+                        response.StatusCode = 400;
+                        await response.WriteAsync("Bad Request");
+                        return null;
+                    }
+
+                    //convert from base64url to base64
+                    dnsRequestBase64Url = dnsRequestBase64Url.Replace('-', '+');
+                    dnsRequestBase64Url = dnsRequestBase64Url.Replace('_', '/');
+
+                    //add padding
+                    int x = dnsRequestBase64Url.Length % 4;
+                    if (x > 0)
+                        dnsRequestBase64Url = dnsRequestBase64Url.PadRight(dnsRequestBase64Url.Length - x + 4, '=');
+
+                    using (MemoryStream mS = new MemoryStream(Convert.FromBase64String(dnsRequestBase64Url)))
+                    {
+                        dnsRequest = DnsDatagram.ReadFrom(mS);
+                        dnsRequest.SetMetadata(new NameServerAddress(new Uri(context.Request.GetDisplayUrl()), context.GetLocalIpAddress()));
+                    }
+
+                    break;
+
+                case "POST":
+                    using (MemoryStream mS = new MemoryStream(32))
+                    {
+                        await request.Body.CopyToAsync(mS, 32);
+
+                        mS.Position = 0;
+                        dnsRequest = DnsDatagram.ReadFrom(mS);
+                        dnsRequest.SetMetadata(new NameServerAddress(new Uri(context.Request.GetDisplayUrl()), context.GetLocalIpAddress()));
+                    }
+
+                    break;
+
+                default:
+                    throw new InvalidOperationException();
+            }
+            return dnsRequest;
+        }
+
+        private async Task WriteWireformatResponse(HttpResponse response, DnsDatagram dnsResponse)
+        {
+            using (MemoryStream mS = new MemoryStream(512))
+            {
+                dnsResponse.WriteTo(mS);
+
+                mS.Position = 0;
+                response.ContentType = "application/dns-message";
+                response.ContentLength = mS.Length;
+
+                await TechnitiumLibrary.TaskExtensions.TimeoutAsync(async delegate (CancellationToken cancellationToken1)
+                {
+                    await using (Stream s = response.Body)
+                    {
+                        await mS.CopyToAsync(s, 512, cancellationToken1);
+                    }
+                }, _tcpSendTimeout);
+            }
+        }
+
+        private async Task<DnsDatagram> ProcessJsonformatRequest(HttpContext context)
+        {
+            HttpRequest request = context.Request;
+            HttpResponse response = context.Response;
+            switch (request.Method)
+            {
+                case "GET":
+                    string name = request.GetQueryOrForm("name", "");
+                    if (string.IsNullOrEmpty(name))
+                    {
+                        response.StatusCode = 400;
+                        await response.WriteAsync("Bad Request");
+                        return null;
+                    }
+
+                    DnsResourceRecordType type = request.GetQueryOrFormEnum<DnsResourceRecordType>("type", DnsResourceRecordType.A);
+                    bool checkingDisabled = request.GetQueryOrForm("cd", bool.Parse, false);
+                    bool dnssecOk = request.GetQueryOrForm("do", bool.Parse, false);
+                    DnsDatagram diagram = new DnsDatagram(
+                        0,
+                        false,
+                        DnsOpcode.StandardQuery,
+                        false,
+                        false, 
+                        true,
+                        false, 
+                        false, 
+                        checkingDisabled, 
+                        DnsResponseCode.NoError, 
+                        [new DnsQuestionRecord(name, type, DnsClass.IN)], 
+                        udpPayloadSize: DnsDatagram.EDNS_DEFAULT_UDP_PAYLOAD_SIZE,
+                        ednsFlags: dnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None
+                    );
+                    diagram.SetRandomIdentifier();
+                    return diagram;
+                default:
+                    throw new InvalidOperationException();
+            }
+        }
+
+        private async Task WriteJsonformatResponse(HttpResponse response, DnsDatagram dnsResponse)
+        {
+            using (MemoryStream mS = new MemoryStream(512))
+            {
+                Utf8JsonWriter jsonWriter = new Utf8JsonWriter(mS);
+                jsonWriter.WriteStartObject();
+
+                jsonWriter.WriteNumber("Status", (int) dnsResponse.RCODE);
+                jsonWriter.WriteBoolean("TC", dnsResponse.Truncation);
+                jsonWriter.WriteBoolean("RD", dnsResponse.RecursionDesired);
+                jsonWriter.WriteBoolean("RA", dnsResponse.RecursionAvailable);
+                jsonWriter.WriteBoolean("AD", dnsResponse.AuthenticData);
+                jsonWriter.WriteBoolean("CD", dnsResponse.CheckingDisabled);
+
+                jsonWriter.WriteStartArray("Question");
+                foreach (var question in dnsResponse.Question)
+                {
+                    jsonWriter.WriteStartObject();
+                    jsonWriter.WriteString("name", question.Name);
+                    jsonWriter.WriteNumber("type", (int) question.Type);
+                    jsonWriter.WriteEndObject();
+                }
+                jsonWriter.WriteEndArray();
+
+                jsonWriter.WriteStartArray("Answer");
+                foreach (var answer in dnsResponse.Answer)
+                {
+                    jsonWriter.WriteStartObject();
+                    jsonWriter.WriteString("name", answer.Name);
+                    jsonWriter.WriteNumber("type", (int)answer.Type);
+                    jsonWriter.WriteNumber("TTL", answer.TTL);
+                    jsonWriter.WriteString("data", answer.RDATA.ToString());
+                    jsonWriter.WriteEndObject();
+                }
+                jsonWriter.WriteEndArray();
+
+                jsonWriter.WriteEndObject();
+                jsonWriter.Flush();
+                mS.Position = 0;
+                response.StatusCode = StatusCodes.Status200OK;
+                response.ContentType = "application/dns-json";
+                response.ContentLength = mS.Length;
+
+                await TechnitiumLibrary.TaskExtensions.TimeoutAsync(async delegate (CancellationToken cancellationToken1)
+                {
+                    await using (Stream s = response.Body)
+                    {
+                        await mS.CopyToAsync(s, 512, cancellationToken1);
+                    }
+                }, _tcpSendTimeout);
             }
         }
 
