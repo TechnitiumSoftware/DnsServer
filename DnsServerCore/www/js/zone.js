@@ -25,6 +25,9 @@ var editZoneFilteredRecords;
 $(function () {
     $("input[type=radio][name=rdAddZoneType]").change(function () {
         $("#txtAddZone").prop("disabled", false);
+        $("#divAddZoneCatalogZone").hide();
+        $("#divAddZoneInitializeForwarder").hide();
+        $("#divAddZoneImportZoneFile").hide();
         $("#divAddZoneUseSoaSerialDateScheme").hide();
         $("#divAddZonePrimaryNameServerAddresses").hide();
         $("#lblAddZonePrimaryNameServerAddresses").text("Primary Name Server Addresses (Optional)");
@@ -36,7 +39,6 @@ $(function () {
         $("#divAddZoneForwarder").hide();
         $("#divAddZoneForwarderDnssecValidation").hide();
         $("#divAddZoneForwarderProxy").hide();
-        $("#divAddZoneCatalogZone").hide();
 
         var zoneType = $('input[name=rdAddZoneType]:checked').val();
         switch (zoneType) {
@@ -44,6 +46,7 @@ $(function () {
                 if ($("#optAddZoneCatalogZoneName").attr("hasItems") == "true")
                     $("#divAddZoneCatalogZone").show();
 
+                $("#divAddZoneImportZoneFile").show();
                 $("#divAddZoneUseSoaSerialDateScheme").show();
                 break;
 
@@ -67,10 +70,26 @@ $(function () {
                 if ($("#optAddZoneCatalogZoneName").attr("hasItems") == "true")
                     $("#divAddZoneCatalogZone").show();
 
-                $("#divAddZoneForwarderProtocol").show();
-                $("#divAddZoneForwarder").show();
-                $("#divAddZoneForwarderDnssecValidation").show();
-                $("#divAddZoneForwarderProxy").show();
+                $("#divAddZoneInitializeForwarder").show();
+
+                var initializeForwarder = $("#chkAddZoneInitializeForwarder").prop("checked");
+
+                if (initializeForwarder) {
+                    $("#divAddZoneImportZoneFile").hide();
+
+                    $("#divAddZoneForwarderProtocol").show();
+                    $("#divAddZoneForwarder").show();
+                    $("#divAddZoneForwarderDnssecValidation").show();
+                    $("#divAddZoneForwarderProxy").show();
+                } else {
+                    $("#divAddZoneImportZoneFile").show();
+
+                    $("#divAddZoneForwarderProtocol").hide();
+                    $("#divAddZoneForwarder").hide();
+                    $("#divAddZoneForwarderDnssecValidation").hide();
+                    $("#divAddZoneForwarderProxy").hide();
+                }
+
                 break;
 
             case "SecondaryForwarder":
@@ -88,6 +107,26 @@ $(function () {
                 $("#txtAddZone").prop("disabled", true);
                 $("#txtAddZone").val(".");
                 break;
+        }
+    });
+
+    $("#chkAddZoneInitializeForwarder").click(function () {
+        var initializeForwarder = $("#chkAddZoneInitializeForwarder").prop("checked");
+
+        if (initializeForwarder) {
+            $("#divAddZoneImportZoneFile").hide();
+
+            $("#divAddZoneForwarderProtocol").show();
+            $("#divAddZoneForwarder").show();
+            $("#divAddZoneForwarderDnssecValidation").show();
+            $("#divAddZoneForwarderProxy").show();
+        } else {
+            $("#divAddZoneImportZoneFile").show();
+
+            $("#divAddZoneForwarderProtocol").hide();
+            $("#divAddZoneForwarder").hide();
+            $("#divAddZoneForwarderDnssecValidation").hide();
+            $("#divAddZoneForwarderProxy").hide();
         }
     });
 
@@ -1108,7 +1147,7 @@ function importZone() {
             }
 
             formData = new FormData();
-            formData.append("fileImportZone", $("#fileImportZone")[0].files[0]);
+            formData.append("fileImportZone", fileImportZone[0].files[0]);
             contentType = false;
             break;
 
@@ -2497,7 +2536,8 @@ function showAddZoneModal() {
     $("#txtAddZone").val("");
     $("#txtAddZone").prop("disabled", false);
     $("#rdAddZoneTypePrimary").prop("checked", true);
-    $("#divAddZoneCatalogZone").hide();
+    $("#chkAddZoneInitializeForwarder").prop("checked", true);
+    $("#fileAddZoneImportZone").val("");
     $("#chkAddZoneUseSoaSerialDateScheme").prop("checked", $("#chkUseSoaSerialDateScheme").prop("checked"));
     $("#txtAddZonePrimaryNameServerAddresses").val("");
     $("#rdAddZoneZoneTransferProtocolTcp").prop("checked", true);
@@ -2520,6 +2560,9 @@ function showAddZoneModal() {
     $("#txtAddZoneForwarderProxyUsername").val("");
     $("#txtAddZoneForwarderProxyPassword").val("");
 
+    $("#divAddZoneCatalogZone").hide();
+    $("#divAddZoneInitializeForwarder").hide();
+    $("#divAddZoneImportZoneFile").show();
     $("#divAddZoneUseSoaSerialDateScheme").show();
     $("#divAddZonePrimaryNameServerAddresses").hide();
     $("#divAddZoneZoneTransferProtocol").hide();
@@ -2698,48 +2741,57 @@ function addZone() {
 
         case "Forwarder":
             var catalog = $("#optAddZoneCatalogZoneName").val();
-            var protocol = $("input[name=rdAddZoneForwarderProtocol]:checked").val();
+            var initializeForwarder = $("#chkAddZoneInitializeForwarder").prop("checked");
 
-            var forwarder = $("#txtAddZoneForwarder").val();
-            if ((forwarder == null) || (forwarder === "")) {
-                showAlert("warning", "Missing!", "Please enter a forwarder server address to add zone.", divAddZoneAlert);
-                $("#txtAddZoneForwarder").focus();
-                return;
-            }
+            if (initializeForwarder) {
+                var protocol = $("input[name=rdAddZoneForwarderProtocol]:checked").val();
 
-            var dnssecValidation = $("#chkAddZoneForwarderDnssecValidation").prop("checked");
-
-            parameters = "&catalog=" + catalog + "&protocol=" + protocol + "&forwarder=" + encodeURIComponent(forwarder) + "&dnssecValidation=" + dnssecValidation;
-
-            if (forwarder !== "this-server") {
-                var proxyType = $("input[name=rdAddZoneForwarderProxyType]:checked").val();
-
-                parameters += "&proxyType=" + proxyType;
-
-                switch (proxyType) {
-                    case "Http":
-                    case "Socks5":
-                        var proxyAddress = $("#txtAddZoneForwarderProxyAddress").val();
-                        var proxyPort = $("#txtAddZoneForwarderProxyPort").val();
-                        var proxyUsername = $("#txtAddZoneForwarderProxyUsername").val();
-                        var proxyPassword = $("#txtAddZoneForwarderProxyPassword").val();
-
-                        if ((proxyAddress == null) || (proxyAddress === "")) {
-                            showAlert("warning", "Missing!", "Please enter a domain name or IP address for Proxy Server Address to add zone.", divAddZoneAlert);
-                            $("#txtAddZoneForwarderProxyAddress").focus();
-                            return;
-                        }
-
-                        if ((proxyPort == null) || (proxyPort === "")) {
-                            showAlert("warning", "Missing!", "Please enter a port number for Proxy Server Port to add zone.", divAddZoneAlert);
-                            $("#txtAddZoneForwarderProxyPort").focus();
-                            return;
-                        }
-
-                        parameters += "&proxyAddress=" + encodeURIComponent(proxyAddress) + "&proxyPort=" + proxyPort + "&proxyUsername=" + encodeURIComponent(proxyUsername) + "&proxyPassword=" + encodeURIComponent(proxyPassword);
-                        break;
+                var forwarder = $("#txtAddZoneForwarder").val();
+                if ((forwarder == null) || (forwarder === "")) {
+                    showAlert("warning", "Missing!", "Please enter a forwarder server address to add zone.", divAddZoneAlert);
+                    $("#txtAddZoneForwarder").focus();
+                    return;
                 }
+
+                var dnssecValidation = $("#chkAddZoneForwarderDnssecValidation").prop("checked");
+
+                parameters = "&catalog=" + catalog + "&protocol=" + protocol + "&forwarder=" + encodeURIComponent(forwarder) + "&dnssecValidation=" + dnssecValidation;
+
+                if (forwarder !== "this-server") {
+                    var proxyType = $("input[name=rdAddZoneForwarderProxyType]:checked").val();
+
+                    parameters += "&proxyType=" + proxyType;
+
+                    switch (proxyType) {
+                        case "Http":
+                        case "Socks5":
+                            var proxyAddress = $("#txtAddZoneForwarderProxyAddress").val();
+                            var proxyPort = $("#txtAddZoneForwarderProxyPort").val();
+                            var proxyUsername = $("#txtAddZoneForwarderProxyUsername").val();
+                            var proxyPassword = $("#txtAddZoneForwarderProxyPassword").val();
+
+                            if ((proxyAddress == null) || (proxyAddress === "")) {
+                                showAlert("warning", "Missing!", "Please enter a domain name or IP address for Proxy Server Address to add zone.", divAddZoneAlert);
+                                $("#txtAddZoneForwarderProxyAddress").focus();
+                                return;
+                            }
+
+                            if ((proxyPort == null) || (proxyPort === "")) {
+                                showAlert("warning", "Missing!", "Please enter a port number for Proxy Server Port to add zone.", divAddZoneAlert);
+                                $("#txtAddZoneForwarderProxyPort").focus();
+                                return;
+                            }
+
+                            parameters += "&proxyAddress=" + encodeURIComponent(proxyAddress) + "&proxyPort=" + proxyPort + "&proxyUsername=" + encodeURIComponent(proxyUsername) + "&proxyPassword=" + encodeURIComponent(proxyPassword);
+                            break;
+                    }
+                }
+
+                parameters += "&initializeForwarder=true";
+            } else {
+                parameters = "&initializeForwarder=false";
             }
+
             break;
 
         case "SecondaryForwarder":
@@ -2768,10 +2820,28 @@ function addZone() {
             break;
     }
 
+    var formData;
+
+    switch (type) {
+        case "Primary":
+        case "Forwarder":
+            var fileAddZoneImportZone = $("#fileAddZoneImportZone");
+
+            if (fileAddZoneImportZone[0].files.length > 0) {
+                formData = new FormData();
+                formData.append("fileImportZone", fileAddZoneImportZone[0].files[0]);
+            }
+            break;
+    }
+
     var btn = $("#btnAddZone").button('loading');
 
     HTTPRequest({
         url: "api/zones/create?token=" + sessionData.token + "&zone=" + zone + "&type=" + type + parameters,
+        method: "POST",
+        data: formData,
+        contentType: false,
+        processData: false,
         success: function (responseJSON) {
             $("#modalAddZone").modal("hide");
             showEditZone(responseJSON.response.domain);
@@ -3233,6 +3303,7 @@ function showEditZonePage(pageNumber) {
         if ((filterName != null) || (filterType != null)) {
             editZoneFilteredRecords = [];
             var filterDomain = null;
+            var filterRegex = null;
 
             if (filterName != null) {
                 filterDomain = filterName.toLowerCase();
@@ -3247,14 +3318,22 @@ function showEditZonePage(pageNumber) {
                     else
                         filterDomain += "." + zone;
                 }
+
+                if ((filterName !== "*") && !filterName.startsWith("*.") && (filterName.indexOf("*") > -1))
+                    filterRegex = new RegExp("^" + filterDomain.replace(/\*/g, '.*') + "$");
             }
 
             if (filterType != null)
                 filterType = filterType.toUpperCase();
 
             for (var i = 0; i < editZoneRecords.length; i++) {
-                if ((filterDomain != null) && (editZoneRecords[i].name !== filterDomain))
+                if (filterRegex == null) {
+                    if ((filterDomain != null) && (editZoneRecords[i].name !== filterDomain))
+                        continue;
+                }
+                else if (!filterRegex.test(editZoneRecords[i].name)) {
                     continue;
+                }
 
                 if ((filterType != null) && (editZoneRecords[i].type !== filterType))
                     continue;
@@ -3344,10 +3423,15 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
     if (name === "")
         name = ".";
 
-    if (name.toLowerCase() === zone)
+    var lowerName = name.toLowerCase();
+
+    if (lowerName === zone) {
         name = "@";
-    else
-        name = name.replace("." + zone, "");
+    } else {
+        var i = lowerName.lastIndexOf("." + zone)
+        if (i > -1)
+            name = name.substring(0, i);
+    }
 
     var tableHtmlRow = "<tr id=\"trZoneRecord" + index + "\"><td>" + (index + 1) + "</td><td>" + htmlEncode(name) + "</td>";
     tableHtmlRow += "<td>" + record.type + "</td>";
