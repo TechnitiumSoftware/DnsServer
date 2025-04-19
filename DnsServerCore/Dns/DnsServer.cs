@@ -804,6 +804,10 @@ namespace DnsServerCore.Dns
 
                         _ = ProcessQuicConnectionAsync(quicConnection);
                     }
+                    catch (AuthenticationException)
+                    {
+                        //ignore failed connection handshake
+                    }
                     catch (QuicException ex)
                     {
                         if (ex.InnerException is OperationCanceledException)
