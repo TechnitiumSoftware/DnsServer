@@ -3319,8 +3319,16 @@ function showEditZonePage(pageNumber) {
                         filterDomain += "." + zone;
                 }
 
-                if ((filterName !== "*") && !filterName.startsWith("*.") && (filterName.indexOf("*") > -1))
-                    filterRegex = new RegExp("^" + filterDomain.replace(/\*/g, '.*') + "$");
+                if ((filterName.indexOf("*") > -1) || (filterName.indexOf("?") > -1)) {
+                    filterDomain = filterDomain.replace(/\./g, "\\\.");
+                    filterDomain = filterDomain.replace(/\*/g, ".*");
+                    filterDomain = filterDomain.replace(/\?/g, ".");
+
+                    if (filterDomain.startsWith(".*\\\."))
+                        filterDomain = "\\\*" + filterDomain.substring(2);
+
+                    filterRegex = new RegExp("^" + filterDomain + "$");
+                }
             }
 
             if (filterType != null)
