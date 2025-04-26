@@ -1,55 +1,55 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <UseWindowsForms>true</UseWindowsForms>
-    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <RootNamespace>DnsServerSystemTrayApp</RootNamespace>
-    <AssemblyName>DnsServerSystemTrayApp</AssemblyName>
-    <Authors>Shreyas Zare</Authors>
-    <ApplicationIcon>logo2.ico</ApplicationIcon>
-    <Version>5.2.2</Version>
-    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-    <Company>Technitium</Company>
-    <Product>Technitium DNS Server</Product>
-    <Description></Description>
-    <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-  </PropertyGroup>
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net8.0-windows</TargetFramework>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<UseWindowsForms>true</UseWindowsForms>
+		<GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+		<RootNamespace>DnsServerSystemTrayApp</RootNamespace>
+		<AssemblyName>DnsServerSystemTrayApp</AssemblyName>
+		<Authors>Shreyas Zare</Authors>
+		<ApplicationIcon>logo2.ico</ApplicationIcon>
+		<Version>5.2.3</Version>
+		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+		<Company>Technitium</Company>
+		<Product>Technitium DNS Server</Product>
+		<Description></Description>
+		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <Reference Include="TechnitiumLibrary.IO">
-      <HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
-    </Reference>
-    <Reference Include="TechnitiumLibrary.Net">
-      <HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
-    </Reference>
-  </ItemGroup>
+	<ItemGroup>
+		<Reference Include="TechnitiumLibrary.IO">
+			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
+		</Reference>
+		<Reference Include="TechnitiumLibrary.Net">
+			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
+		</Reference>
+	</ItemGroup>
 
-  <ItemGroup>
-    <Compile Update="Properties\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Resources.resx</DependentUpon>
-      <DesignTime>True</DesignTime>
-    </Compile>
-  </ItemGroup>
+	<ItemGroup>
+		<Compile Update="Properties\Resources.Designer.cs">
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Resources.resx</DependentUpon>
+			<DesignTime>True</DesignTime>
+		</Compile>
+	</ItemGroup>
 
-  <ItemGroup>
-    <Content Include="logo2.ico" />
-  </ItemGroup>
+	<ItemGroup>
+		<Content Include="logo2.ico" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="System.Management" Version="9.0.1" />
-    <PackageReference Include="System.ServiceProcess.ServiceController" Version="9.0.1" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="System.Management" Version="9.0.4" />
+		<PackageReference Include="System.ServiceProcess.ServiceController" Version="9.0.4" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <EmbeddedResource Update="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
-  </ItemGroup>
+	<ItemGroup>
+		<EmbeddedResource Update="Properties\Resources.resx">
+			<Generator>ResXFileCodeGenerator</Generator>
+			<LastGenOutput>Resources.Designer.cs</LastGenOutput>
+		</EmbeddedResource>
+	</ItemGroup>
 </Project>
