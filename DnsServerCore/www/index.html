@@ -525,7 +525,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                 <div class="pull-left">
                                                     <div class="form-group">
                                                         <label for="txtEditZoneFilterName">Name</label>
-                                                        <input id="txtEditZoneFilterName" class="form-control" style="width: 300px;" type="text" placeholder="abc or a* or *b*" />
+                                                        <input id="txtEditZoneFilterName" class="form-control" style="width: 300px;" type="text" placeholder="abc or a* or *b* or a?c" />
                                                     </div>
                                                     <div class="form-group">
                                                         <label for="txtEditZoneFilterType">Type</label>
@@ -914,7 +914,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtDnsServerIPv4SourceAddresses" class="form-control" rows="3" spellcheck="false"></textarea>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv4 source addresses that the DNS server must use for making all outbound DNS requests when the server is connected to two or more networks. Network addresses are also accepted. By default, the IPv4 address of the network with a default route will be used as the source address.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv4 source addresses that the DNS server must use for making all outbound DNS requests when the server is connected to two or more networks. Network addresses are also accepted.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -922,10 +922,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtDnsServerIPv6SourceAddresses" class="form-control" rows="3" spellcheck="false"></textarea>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv6 source addresses that the DNS server must use for making all outbound DNS requests when the server is connected to two or more networks. Network addresses are also accepted. By default, the IPv6 address of the network with a default route will be used as the source address. Note that this option will be used only when <code>Prefer IPv6</code> option is enabled.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv6 source addresses that the DNS server must use for making all outbound DNS requests when the server is connected to two or more networks. Network addresses are also accepted. Note that this option will be used only when <code>Prefer IPv6</code> option is enabled.</div>
                                                         </div>
 
-                                                        <div>Note! The DNS Server local end point changes will be automatically applied and so you do not need to manually restart the main service.</div>
+                                                        <div>
+                                                            <p>Note! The DNS Server local end point changes will be automatically applied and so you do not need to manually restart the main service.</p>
+                                                            <p>Note! The source adddresses configured above must be the IP addresses that are configured on the local system's network interface. When using source addresses option, its also necessary to ensure that the system has a default route or a specific route for the source address to be able to reach the destination network. When source addresses are not configured, the IP address of the interface with a default route will be used as the source address.</p>
+                                                        </div>
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
