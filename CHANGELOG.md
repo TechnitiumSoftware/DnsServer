@@ -1,5 +1,16 @@
 # Technitium DNS Server Change Log
 
+## Version 13.6
+Release Date: 26 April 2025
+
+- Added option to import a zone file when adding a Primary or Forwarder zone. This allows using a template zone file when creating new zones.
+- Updated the web GUI to support custom lists for DNS Client server list, quick block drop down list and quick forwarders drop down list. To create a customized list, read the instructions given in the `www/json/readme.txt` file found in the installation folder.
+- Updated the record filtering option in zone edit view to support wildcard based search.
+- Fixed issue in DNS-over-QUIC service that caused the service to stop working due to failed connection handshake.
+- Query Logs (Sqlite) App: Updated app to support VACCUM option to allow trimming database file on disk to reduce its size.
+- Geo Continent App and Geo Country App: Updated both apps to support macro variable to simplify APP record data JSON configuration.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 13.5
 Release Date: 6 April 2025
 
