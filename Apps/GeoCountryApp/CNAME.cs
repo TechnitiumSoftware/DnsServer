@@ -104,7 +104,7 @@ namespace GeoCountry
                     if (!jsonAppRecordData.TryGetProperty(cc, out jsonCountry))
                     {
                         jsonAppRecordData.TryGetProperty("default", out jsonCountry);
-                        countryCode = cc is null ? "unknown" : cc.ToLowerInvariant();
+                        countryCode = cc is null ? "default" : cc.ToLowerInvariant();
                     }
                 }
             }
@@ -118,13 +118,13 @@ namespace GeoCountry
                     if (!jsonAppRecordData.TryGetProperty(cc, out jsonCountry))
                     {
                         jsonAppRecordData.TryGetProperty("default", out jsonCountry);
-                        countryCode = cc is null ? "unknown" : cc.ToLowerInvariant();
+                        countryCode = cc is null ? "default" : cc.ToLowerInvariant();
                     }
                 }
                 else
                 {
                     jsonAppRecordData.TryGetProperty("default", out jsonCountry);
-                    countryCode = "unknown";
+                    countryCode = "default";
                 }
 
                 if (jsonCountry.ValueKind == JsonValueKind.Undefined)
@@ -158,7 +158,7 @@ namespace GeoCountry
         #region properties
 
         public string Description
-        { get { return "Returns CNAME record based on the country the client queries from using MaxMind GeoIP2 Country database. Note that the app will return ANAME record for an APP record at zone apex. Use the two-character ISO 3166-1 alpha code for the country. You can also use '{CountryCode}' variable in the default case domain name which will get replaced by the app using the client's actual ISO country code."; } }
+        { get { return "Returns CNAME record based on the country the client queries from using MaxMind GeoIP2 Country database. Note that the app will return ANAME record for an APP record at zone apex. Use the two-character ISO 3166-1 alpha code for the country. You can also use '{CountryCode}' variable in the default case domain name which will get replaced by the app using the client's actual ISO country code or 'default' if not found."; } }
 
         public string ApplicationRecordDataTemplate
         {
