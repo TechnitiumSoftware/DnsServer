@@ -12,7 +12,7 @@
 		<RepositoryType></RepositoryType>
 		<Description></Description>
 		<PackageId>DnsServer</PackageId>
-		<Version>13.5</Version>
+		<Version>13.6</Version>
 		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 	</PropertyGroup>
 
@@ -79,12 +79,16 @@
 		<None Remove="www\img\logo.png" />
 		<None Remove="www\img\logo25x25.png" />
 		<None Remove="www\index.html" />
+		<None Remove="www\json\quick-block-lists-builtin.json" />
+		<None Remove="www\json\quick-forwarders-list-builtin.json" />
+		<None Remove="www\json\readme.txt" />
 		<None Remove="www\js\apps.js" />
 		<None Remove="www\js\auth.js" />
 		<None Remove="www\js\bootstrap.min.js" />
 		<None Remove="www\js\Chart.min.js" />
 		<None Remove="www\js\common.js" />
 		<None Remove="www\js\dhcp.js" />
+		<None Remove="www\js\dnsclient.js" />
 		<None Remove="www\js\jquery.min.js" />
 		<None Remove="www\js\logs.js" />
 		<None Remove="www\js\main.js" />
@@ -194,6 +198,18 @@
 		<Content Include="www\index.html">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
+		<Content Include="www\json\quick-block-lists-builtin.json">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\json\quick-forwarders-list-builtin.json">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\json\readme.txt">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\json\dnsclient-server-list-builtin.json">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
 		<Content Include="www\js\apps.js">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
@@ -208,6 +224,9 @@
 		</Content>
 		<Content Include="www\js\common.js">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\dnsclient.js">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\js\jquery.min.js">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
