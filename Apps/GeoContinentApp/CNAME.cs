@@ -104,7 +104,7 @@ namespace GeoContinent
                     if (!jsonAppRecordData.TryGetProperty(cc, out jsonContinent))
                     {
                         jsonAppRecordData.TryGetProperty("default", out jsonContinent);
-                        continentCode = cc is null ? "unknown" : cc.ToLowerInvariant();
+                        continentCode = cc is null ? "default" : cc.ToLowerInvariant();
                     }
                 }
             }
@@ -118,13 +118,13 @@ namespace GeoContinent
                     if (!jsonAppRecordData.TryGetProperty(cc, out jsonContinent))
                     {
                         jsonAppRecordData.TryGetProperty("default", out jsonContinent);
-                        continentCode = cc is null ? "unknown" : cc.ToLowerInvariant();
+                        continentCode = cc is null ? "default" : cc.ToLowerInvariant();
                     }
                 }
                 else
                 {
                     jsonAppRecordData.TryGetProperty("default", out jsonContinent);
-                    continentCode = "unknown";
+                    continentCode = "default";
                 }
 
                 if (jsonContinent.ValueKind == JsonValueKind.Undefined)
@@ -158,7 +158,7 @@ namespace GeoContinent
         #region properties
 
         public string Description
-        { get { return "Returns CNAME record based on the continent the client queries from using MaxMind GeoIP2 Country database. Note that the app will return ANAME record for an APP record at zone apex. Use the two character continent code like \"NA\" (North America) or \"OC\" (Oceania). You can also use '{ContinentCode}' variable in the default case domain name which will get replaced by the app using the client's actual continent code."; } }
+        { get { return "Returns CNAME record based on the continent the client queries from using MaxMind GeoIP2 Country database. Note that the app will return ANAME record for an APP record at zone apex. Use the two character continent code like \"NA\" (North America) or \"OC\" (Oceania). You can also use '{ContinentCode}' variable in the default case domain name which will get replaced by the app using the client's actual continent code or 'default' if not found."; } }
 
         public string ApplicationRecordDataTemplate
         {
