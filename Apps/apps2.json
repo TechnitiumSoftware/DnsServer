@@ -608,6 +608,12 @@
 				"version": "8.0",
 				"url": "https://download.technitium.com/dns/apps/GeoContinentApp-v8.zip",
 				"size": "8.35 MB"
+			},
+			{
+				"serverVersion": "13.6",
+				"version": "8.1",
+				"url": "https://download.technitium.com/dns/apps/GeoContinentApp-v8.1.zip",
+				"size": "8.35 MB"
 			}
 		]
 	},
@@ -673,6 +679,12 @@
 				"serverVersion": "13.0",
 				"version": "8.0",
 				"url": "https://download.technitium.com/dns/apps/GeoCountryApp-v8.zip",
+				"size": "8.35 MB"
+			},
+			{
+				"serverVersion": "13.6",
+				"version": "8.1",
+				"url": "https://download.technitium.com/dns/apps/GeoCountryApp-v8.1.zip",
 				"size": "8.35 MB"
 			}
 		]
@@ -757,6 +769,12 @@
 				"serverVersion": "13.5",
 				"version": "1.0.1",
 				"url": "https://download.technitium.com/dns/apps/LogExporterApp-v1.0.1.zip",
+				"size": "202 KB"
+			},
+			{
+				"serverVersion": "13.6",
+				"version": "1.0.2",
+				"url": "https://download.technitium.com/dns/apps/LogExporterApp-v1.0.2.zip",
 				"size": "202 KB"
 			}
 		]
@@ -998,6 +1016,12 @@
 				"version": "7.0",
 				"url": "https://download.technitium.com/dns/apps/QueryLogsSqliteApp-v7.zip",
 				"size": "14.3 MB"
+			},
+			{
+				"serverVersion": "13.6",
+				"version": "7.1",
+				"url": "https://download.technitium.com/dns/apps/QueryLogsSqliteApp-v7.1.zip",
+				"size": "14.3 MB"
 			}
 		]
 	},
@@ -1027,6 +1051,12 @@
 				"serverVersion": "13.5",
 				"version": "1.2.1",
 				"url": "https://download.technitium.com/dns/apps/QueryLogsSqlServerApp-v1.2.1.zip",
+				"size": "4.67 MB"
+			},
+			{
+				"serverVersion": "13.6",
+				"version": "1.2.2",
+				"url": "https://download.technitium.com/dns/apps/QueryLogsSqlServerApp-v1.2.2.zip",
 				"size": "4.67 MB"
 			}
 		]
