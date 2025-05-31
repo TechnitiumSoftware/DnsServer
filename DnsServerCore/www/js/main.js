@@ -32,10 +32,13 @@ function showPageLogin() {
 
     $("#txtUser").val("");
     $("#txtPass").val("");
-    $("#btnLogin").button('reset');
+    $("#txtPass").prop("disabled", false);
+    $("#div2FAOTP").hide();
+    $("#txt2FATOTP").val("");
+    $("#btnLogin").button("reset");
     $("#pageLogin").show();
 
-    $("#txtUser").focus();
+    $("#txtUser").trigger("focus");
 
     if (refreshTimerHandle != null) {
         clearInterval(refreshTimerHandle);
@@ -797,6 +800,8 @@ function loadDnsSettings(responseJSON) {
     $("#chkDnsAppsEnableAutomaticUpdate").prop("checked", responseJSON.response.dnsAppsEnableAutomaticUpdate);
 
     $("#chkPreferIPv6").prop("checked", responseJSON.response.preferIPv6);
+    $("#chkEnableUdpSocketPool").prop("checked", responseJSON.response.enableUdpSocketPool);
+    $("#txtUdpSocketPoolExcludedPorts").val(getArrayAsString(responseJSON.response.socketPoolExcludedPorts));
     $("#txtEdnsUdpPayloadSize").val(responseJSON.response.udpPayloadSize);
     $("#chkDnssecValidation").prop("checked", responseJSON.response.dnssecValidation);
 
@@ -811,11 +816,24 @@ function loadDnsSettings(responseJSON) {
     $("#txtEDnsClientSubnetIpv4Override").val(responseJSON.response.eDnsClientSubnetIpv4Override);
     $("#txtEDnsClientSubnetIpv6Override").val(responseJSON.response.eDnsClientSubnetIpv6Override);
 
-    $("#txtQpmLimitRequests").val(responseJSON.response.qpmLimitRequests);
-    $("#txtQpmLimitErrors").val(responseJSON.response.qpmLimitErrors);
+    $("#tableQpmPrefixLimitsIPv4").html("");
+
+    if (responseJSON.response.qpmPrefixLimitsIPv4 != null) {
+        for (var i = 0; i < responseJSON.response.qpmPrefixLimitsIPv4.length; i++) {
+            addQpmPrefixLimitsIPv4Row(responseJSON.response.qpmPrefixLimitsIPv4[i].prefix, responseJSON.response.qpmPrefixLimitsIPv4[i].udpLimit, responseJSON.response.qpmPrefixLimitsIPv4[i].tcpLimit);
+        }
+    }
+
+    $("#tableQpmPrefixLimitsIPv6").html("");
+
+    if (responseJSON.response.qpmPrefixLimitsIPv6 != null) {
+        for (var i = 0; i < responseJSON.response.qpmPrefixLimitsIPv6.length; i++) {
+            addQpmPrefixLimitsIPv6Row(responseJSON.response.qpmPrefixLimitsIPv6[i].prefix, responseJSON.response.qpmPrefixLimitsIPv6[i].udpLimit, responseJSON.response.qpmPrefixLimitsIPv6[i].tcpLimit);
+        }
+    }
+
     $("#txtQpmLimitSampleMinutes").val(responseJSON.response.qpmLimitSampleMinutes);
-    $("#txtQpmLimitIPv4PrefixLength").val(responseJSON.response.qpmLimitIPv4PrefixLength);
-    $("#txtQpmLimitIPv6PrefixLength").val(responseJSON.response.qpmLimitIPv6PrefixLength);
+    $("#txtQpmLimitUdpTruncation").val(responseJSON.response.qpmLimitUdpTruncationPercentage);
     $("#txtQpmLimitBypassList").val(getArrayAsString(responseJSON.response.qpmLimitBypassList));
 
     $("#txtClientTimeout").val(responseJSON.response.clientTimeout);
@@ -1209,6 +1227,14 @@ function saveDnsSettings() {
 
     var dnsAppsEnableAutomaticUpdate = $("#chkDnsAppsEnableAutomaticUpdate").prop('checked');
     var preferIPv6 = $("#chkPreferIPv6").prop('checked');
+    var enableUdpSocketPool = $("#chkEnableUdpSocketPool").prop("checked");
+
+    var socketPoolExcludedPorts = cleanTextList($("#txtUdpSocketPoolExcludedPorts").val());
+    if ((socketPoolExcludedPorts.length == 0) || (socketPoolExcludedPorts === ","))
+        socketPoolExcludedPorts = false;
+    else
+        $("#txtUdpSocketPoolExcludedPorts").val(socketPoolExcludedPorts.replace(/,/g, "\n") + "\n");
+
     var udpPayloadSize = $("#txtEdnsUdpPayloadSize").val();
     var dnssecValidation = $("#chkDnssecValidation").prop('checked');
 
@@ -1231,19 +1257,19 @@ function saveDnsSettings() {
     var eDnsClientSubnetIpv4Override = $("#txtEDnsClientSubnetIpv4Override").val();
     var eDnsClientSubnetIpv6Override = $("#txtEDnsClientSubnetIpv6Override").val();
 
-    var qpmLimitRequests = $("#txtQpmLimitRequests").val();
-    if ((qpmLimitRequests == null) || (qpmLimitRequests === "")) {
-        showAlert("warning", "Missing!", "Please enter Queries Per Minute (QPM) request limit value.");
-        $("#txtQpmLimitRequests").focus();
+    var qpmPrefixLimitsIPv4 = serializeTableData($("#tableQpmPrefixLimitsIPv4"), 3);
+    if (qpmPrefixLimitsIPv4 === false)
         return;
-    }
 
-    var qpmLimitErrors = $("#txtQpmLimitErrors").val();
-    if ((qpmLimitErrors == null) || (qpmLimitErrors === "")) {
-        showAlert("warning", "Missing!", "Please enter Queries Per Minute (QPM) error limit value.");
-        $("#txtQpmLimitErrors").focus();
+    if (qpmPrefixLimitsIPv4.length === 0)
+        qpmPrefixLimitsIPv4 = false;
+
+    var qpmPrefixLimitsIPv6 = serializeTableData($("#tableQpmPrefixLimitsIPv6"), 3);
+    if (qpmPrefixLimitsIPv6 === false)
         return;
-    }
+
+    if (qpmPrefixLimitsIPv6.length === 0)
+        qpmPrefixLimitsIPv6 = false;
 
     var qpmLimitSampleMinutes = $("#txtQpmLimitSampleMinutes").val();
     if ((qpmLimitSampleMinutes == null) || (qpmLimitSampleMinutes === "")) {
@@ -1252,17 +1278,10 @@ function saveDnsSettings() {
         return;
     }
 
-    var qpmLimitIPv4PrefixLength = $("#txtQpmLimitIPv4PrefixLength").val();
-    if ((qpmLimitIPv4PrefixLength == null) || (qpmLimitIPv4PrefixLength === "")) {
-        showAlert("warning", "Missing!", "Please enter Queries Per Minute (QPM) limit IPv4 prefix length.");
-        $("#txtQpmLimitIPv4PrefixLength").focus();
-        return;
-    }
-
-    var qpmLimitIPv6PrefixLength = $("#txtQpmLimitIPv6PrefixLength").val();
-    if ((qpmLimitIPv6PrefixLength == null) || (qpmLimitIPv6PrefixLength === "")) {
-        showAlert("warning", "Missing!", "Please enter Queries Per Minute (QPM) limit IPv6 prefix length.");
-        $("#txtQpmLimitIPv6PrefixLength").focus();
+    var qpmLimitUdpTruncationPercentage = $("#txtQpmLimitUdpTruncation").val();
+    if ((qpmLimitUdpTruncationPercentage == null) || (qpmLimitUdpTruncationPercentage === "")) {
+        showAlert("warning", "Missing!", "Please enter Queries Per Minute (QPM) limit UDP truncation percentage value.");
+        $("#txtQpmLimitUdpTruncation").focus();
         return;
     }
 
@@ -1639,9 +1658,9 @@ function saveDnsSettings() {
         url: "api/settings/set",
         method: "POST",
         data: "token=" + sessionData.token + "&dnsServerDomain=" + dnsServerDomain + "&dnsServerLocalEndPoints=" + encodeURIComponent(dnsServerLocalEndPoints) + "&dnsServerIPv4SourceAddresses=" + encodeURIComponent(dnsServerIPv4SourceAddresses) + "&dnsServerIPv6SourceAddresses=" + encodeURIComponent(dnsServerIPv6SourceAddresses)
-            + "&defaultRecordTtl=" + defaultRecordTtl + "&defaultResponsiblePerson=" + encodeURIComponent(defaultResponsiblePerson) + "&useSoaSerialDateScheme=" + useSoaSerialDateScheme + "&minSoaRefresh=" + minSoaRefresh + "&minSoaRetry=" + minSoaRetry + "&zoneTransferAllowedNetworks=" + encodeURIComponent(zoneTransferAllowedNetworks) + "&notifyAllowedNetworks=" + encodeURIComponent(notifyAllowedNetworks) + "&dnsAppsEnableAutomaticUpdate=" + dnsAppsEnableAutomaticUpdate + "&preferIPv6=" + preferIPv6 + "&udpPayloadSize=" + udpPayloadSize + "&dnssecValidation=" + dnssecValidation
+            + "&defaultRecordTtl=" + defaultRecordTtl + "&defaultResponsiblePerson=" + encodeURIComponent(defaultResponsiblePerson) + "&useSoaSerialDateScheme=" + useSoaSerialDateScheme + "&minSoaRefresh=" + minSoaRefresh + "&minSoaRetry=" + minSoaRetry + "&zoneTransferAllowedNetworks=" + encodeURIComponent(zoneTransferAllowedNetworks) + "&notifyAllowedNetworks=" + encodeURIComponent(notifyAllowedNetworks) + "&dnsAppsEnableAutomaticUpdate=" + dnsAppsEnableAutomaticUpdate + "&preferIPv6=" + preferIPv6 + "&enableUdpSocketPool=" + enableUdpSocketPool + "&socketPoolExcludedPorts=" + encodeURIComponent(socketPoolExcludedPorts) + "&udpPayloadSize=" + udpPayloadSize + "&dnssecValidation=" + dnssecValidation
             + "&eDnsClientSubnet=" + eDnsClientSubnet + "&eDnsClientSubnetIPv4PrefixLength=" + eDnsClientSubnetIPv4PrefixLength + "&eDnsClientSubnetIPv6PrefixLength=" + eDnsClientSubnetIPv6PrefixLength + "&eDnsClientSubnetIpv4Override=" + encodeURIComponent(eDnsClientSubnetIpv4Override) + "&eDnsClientSubnetIpv6Override=" + encodeURIComponent(eDnsClientSubnetIpv6Override)
-            + "&qpmLimitRequests=" + qpmLimitRequests + "&qpmLimitErrors=" + qpmLimitErrors + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitIPv4PrefixLength=" + qpmLimitIPv4PrefixLength + "&qpmLimitIPv6PrefixLength=" + qpmLimitIPv6PrefixLength + "&qpmLimitBypassList=" + encodeURIComponent(qpmLimitBypassList)
+            + "&qpmPrefixLimitsIPv4=" + encodeURIComponent(qpmPrefixLimitsIPv4) + "&qpmPrefixLimitsIPv6=" + encodeURIComponent(qpmPrefixLimitsIPv6) + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitUdpTruncationPercentage=" + qpmLimitUdpTruncationPercentage + "&qpmLimitBypassList=" + encodeURIComponent(qpmLimitBypassList)
             + "&clientTimeout=" + clientTimeout + "&tcpSendTimeout=" + tcpSendTimeout + "&tcpReceiveTimeout=" + tcpReceiveTimeout + "&quicIdleTimeout=" + quicIdleTimeout + "&quicMaxInboundStreams=" + quicMaxInboundStreams + "&listenBacklog=" + listenBacklog + "&maxConcurrentResolutionsPerCore=" + maxConcurrentResolutionsPerCore
             + "&webServiceLocalAddresses=" + encodeURIComponent(webServiceLocalAddresses) + "&webServiceHttpPort=" + webServiceHttpPort + "&webServiceEnableTls=" + webServiceEnableTls + "&webServiceEnableHttp3=" + webServiceEnableHttp3 + "&webServiceHttpToTlsRedirect=" + webServiceHttpToTlsRedirect + "&webServiceUseSelfSignedTlsCertificate=" + webServiceUseSelfSignedTlsCertificate + "&webServiceTlsPort=" + webServiceTlsPort + "&webServiceTlsCertificatePath=" + encodeURIComponent(webServiceTlsCertificatePath) + "&webServiceTlsCertificatePassword=" + encodeURIComponent(webServiceTlsCertificatePassword) + "&webServiceRealIpHeader=" + encodeURIComponent(webServiceRealIpHeader)
             + "&enableDnsOverUdpProxy=" + enableDnsOverUdpProxy + "&enableDnsOverTcpProxy=" + enableDnsOverTcpProxy + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&enableDnsOverHttp3=" + enableDnsOverHttp3 + "&enableDnsOverQuic=" + enableDnsOverQuic + "&dnsOverUdpProxyPort=" + dnsOverUdpProxyPort + "&dnsOverTcpProxyPort=" + dnsOverTcpProxyPort + "&dnsOverHttpPort=" + dnsOverHttpPort + "&dnsOverTlsPort=" + dnsOverTlsPort + "&dnsOverHttpsPort=" + dnsOverHttpsPort + "&dnsOverQuicPort=" + dnsOverQuicPort + "&reverseProxyNetworkACL=" + encodeURIComponent(reverseProxyNetworkACL) + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword) + "&dnsOverHttpRealIpHeader=" + encodeURIComponent(dnsOverHttpRealIpHeader)
@@ -1671,8 +1690,31 @@ function saveDnsSettings() {
     });
 }
 
-function addTsigKeyRow(keyName, sharedSecret, algorithmName) {
+function addQpmPrefixLimitsIPv4Row(prefix, udpLimit, tcpLimit) {
+    var id = Math.floor(Math.random() * 10000);
 
+    var tableHtmlRows = "<tr id=\"tableQpmPrefixLimitsIPv4Row" + id + "\"><td><input type=\"number\" class=\"form-control\" value=\"" + htmlEncode(prefix) + "\"></td>";
+    tableHtmlRows += "<td><input type=\"number\" class=\"form-control\" value=\"" + htmlEncode(udpLimit) + "\"></td>";
+    tableHtmlRows += "<td><input type=\"number\" class=\"form-control\" value=\"" + htmlEncode(tcpLimit) + "\"></td>";
+
+    tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-danger\" onclick=\"$('#tableQpmPrefixLimitsIPv4Row" + id + "').remove();\">Delete</button></td></tr>";
+
+    $("#tableQpmPrefixLimitsIPv4").append(tableHtmlRows);
+}
+
+function addQpmPrefixLimitsIPv6Row(prefix, udpLimit, tcpLimit) {
+    var id = Math.floor(Math.random() * 10000);
+
+    var tableHtmlRows = "<tr id=\"tableQpmPrefixLimitsIPv6Row" + id + "\"><td><input type=\"number\" class=\"form-control\" value=\"" + htmlEncode(prefix) + "\"></td>";
+    tableHtmlRows += "<td><input type=\"number\" class=\"form-control\" value=\"" + htmlEncode(udpLimit) + "\"></td>";
+    tableHtmlRows += "<td><input type=\"number\" class=\"form-control\" value=\"" + htmlEncode(tcpLimit) + "\"></td>";
+
+    tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-danger\" onclick=\"$('#tableQpmPrefixLimitsIPv6Row" + id + "').remove();\">Delete</button></td></tr>";
+
+    $("#tableQpmPrefixLimitsIPv6").append(tableHtmlRows);
+}
+
+function addTsigKeyRow(keyName, sharedSecret, algorithmName) {
     var id = Math.floor(Math.random() * 10000);
 
     var tableHtmlRows = "<tr id=\"tableTsigKeyRow" + id + "\"><td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(keyName) + "\"></td>";
