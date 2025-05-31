@@ -1160,7 +1160,7 @@ function importZone() {
     var btn = $("#btnImportZone").button("loading");
 
     HTTPRequest({
-        url: "api/zones/import?token=" + sessionData.token + "&zone=" + zone + "&importType=" + importType + "&overwrite=" + overwrite + "&overwriteSoaSerial=" + overwriteSoaSerial,
+        url: "api/zones/import?token=" + sessionData.token + "&zone=" + zone + "&overwrite=" + overwrite + "&overwriteSoaSerial=" + overwriteSoaSerial,
         method: "POST",
         data: formData,
         contentType: contentType,
@@ -2864,7 +2864,7 @@ function toggleHideDnssecRecords(hideDnssecRecords) {
     showEditZone($("#titleEditZone").attr("data-zone"));
 }
 
-function showEditZone(zone, showPageNumber) {
+function showEditZone(zone, showPageNumber, zoneFilterName, zoneFilterType) {
     if (zone == null) {
         zone = $("#txtZonesEdit").val();
         if (zone === "") {
@@ -2876,6 +2876,12 @@ function showEditZone(zone, showPageNumber) {
 
     if (showPageNumber == null)
         showPageNumber = 1;
+
+    if (zoneFilterName == null)
+        zoneFilterName = "";
+
+    if (zoneFilterType == null)
+        zoneFilterType = "";
 
     var divViewZonesLoader = $("#divViewZonesLoader");
     var divViewZones = $("#divViewZones");
@@ -3257,8 +3263,8 @@ function showEditZone(zone, showPageNumber) {
             $("#titleEditZone").attr("data-zone", zone);
             $("#titleEditZone").attr("data-zone-type", zoneType);
 
-            $("#txtEditZoneFilterName").val("");
-            $("#txtEditZoneFilterType").val("");
+            $("#txtEditZoneFilterName").val(zoneFilterName);
+            $("#txtEditZoneFilterType").val(zoneFilterType);
             editZoneFilteredRecords = null; //to evaluate filters again
 
             showEditZonePage(showPageNumber);
