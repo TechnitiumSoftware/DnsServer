@@ -1198,6 +1198,35 @@ namespace DnsServerCore
                         }
                     }
 
+                    bool disabled = false;
+                    string comments = null;
+
+                    if (record.Tag is string tagValue)
+                    {
+                        if (tagValue.TrimStart().StartsWith('{'))
+                        {
+                            try
+                            {
+                                using JsonDocument jsonDocument = JsonDocument.Parse(tagValue);
+                                JsonElement json = jsonDocument.RootElement;
+
+                                if (json.TryGetProperty("disabled", out JsonElement jsonDisabled))
+                                    disabled = jsonDisabled.ValueKind == JsonValueKind.True;
+
+                                if (json.TryGetProperty("comments", out JsonElement jsonComments) && (jsonComments.ValueKind == JsonValueKind.String))
+                                    comments = jsonComments.GetString();
+                            }
+                            catch
+                            {
+                                comments = tagValue.Replace("\\r", "").Replace("\\n", "\n");
+                            }
+                        }
+                        else
+                        {
+                            comments = tagValue.Replace("\\r", "").Replace("\\n", "\n");
+                        }
+                    }
+
                     switch (record.Type)
                     {
                         case DnsResourceRecordType.DNSKEY:
@@ -1209,9 +1238,11 @@ namespace DnsServerCore
 
                         case DnsResourceRecordType.NS:
                             {
-                                if (record.Tag is string comments)
+                                if (record.Tag is string)
                                 {
                                     NSRecordInfo rrInfo = new NSRecordInfo();
+
+                                    rrInfo.Disabled = disabled;
                                     rrInfo.Comments = comments;
 
                                     record.Tag = rrInfo;
@@ -1225,7 +1256,7 @@ namespace DnsServerCore
 
                         case DnsResourceRecordType.SOA:
                             {
-                                if (record.Tag is string comments)
+                                if (record.Tag is string)
                                 {
                                     SOARecordInfo rrInfo = new SOARecordInfo();
                                     rrInfo.Comments = comments;
@@ -1240,9 +1271,11 @@ namespace DnsServerCore
                         case DnsResourceRecordType.SVCB:
                         case DnsResourceRecordType.HTTPS:
                             {
-                                if (record.Tag is string comments)
+                                if (record.Tag is string)
                                 {
                                     SVCBRecordInfo rrInfo = new SVCBRecordInfo();
+
+                                    rrInfo.Disabled = disabled;
                                     rrInfo.Comments = comments;
 
                                     record.Tag = rrInfo;
@@ -1271,9 +1304,11 @@ namespace DnsServerCore
 
                         default:
                             {
-                                if (record.Tag is string comments)
+                                if (record.Tag is string)
                                 {
                                     GenericRecordInfo rrInfo = new GenericRecordInfo();
+
+                                    rrInfo.Disabled = disabled;
                                     rrInfo.Comments = comments;
 
                                     record.Tag = rrInfo;
@@ -1709,40 +1744,28 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
-                string importType = request.GetQueryOrForm("importType", "Text");
                 bool overwrite = request.GetQueryOrForm("overwrite", bool.Parse, true);
                 bool overwriteSoaSerial = request.GetQueryOrForm("overwriteSoaSerial", bool.Parse, false);
 
                 TextReader textReader;
 
-                switch (importType.ToUpperInvariant())
+                switch (request.ContentType?.ToLowerInvariant())
                 {
-                    case "FILE":
+                    case "application/x-www-form-urlencoded":
+                        string zoneRecords = request.GetQueryOrForm("records");
+                        textReader = new StringReader(zoneRecords);
+                        break;
+
+                    case "text/plain":
+                        textReader = new StreamReader(request.Body);
+                        break;
+
+                    default:
                         if (!request.HasFormContentType || (request.Form.Files.Count == 0))
                             throw new DnsWebServiceException("The zone file to import is missing.");
 
                         textReader = new StreamReader(request.Form.Files[0].OpenReadStream());
                         break;
-
-                    case "TEXT":
-                        switch (request.ContentType?.ToLowerInvariant())
-                        {
-                            case "application/x-www-form-urlencoded":
-                                string zoneRecords = request.GetQueryOrForm("records");
-                                textReader = new StringReader(zoneRecords);
-                                break;
-
-                            case "text/plain":
-                                textReader = new StreamReader(request.Body);
-                                break;
-
-                            default:
-                                throw new DnsWebServiceException("Content type is not supported: " + request.ContentType);
-                        }
-                        break;
-
-                    default:
-                        throw new DnsWebServiceException("Import type is not supported: " + importType);
                 }
 
                 List<DnsResourceRecord> records;
@@ -1814,7 +1837,26 @@ namespace DnsServerCore
                         if (record.Tag is null)
                             return null;
 
-                        return record.GetAuthGenericRecordInfo().Comments;
+                        GenericRecordInfo recordInfo = record.GetAuthGenericRecordInfo();
+
+                        if (recordInfo.Disabled || ((recordInfo.Comments is not null) && recordInfo.Comments.TrimStart().StartsWith('{')))
+                        {
+                            using (MemoryStream mS = new MemoryStream())
+                            {
+                                Utf8JsonWriter jsonWriter = new Utf8JsonWriter(mS);
+
+                                jsonWriter.WriteStartObject();
+                                jsonWriter.WriteBoolean("disabled", recordInfo.Disabled);
+                                jsonWriter.WriteString("comments", recordInfo.Comments);
+                                jsonWriter.WriteEndObject();
+
+                                jsonWriter.Flush();
+
+                                return Encoding.UTF8.GetString(mS.ToArray());
+                            }
+                        }
+
+                        return recordInfo.Comments?.Replace("\r", "").Replace("\n", "\\n");
                     });
                 }
             }
