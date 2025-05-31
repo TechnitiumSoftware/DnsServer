@@ -27,17 +27,25 @@ namespace DnsServerApp
     {
         static void Main(string[] args)
         {
+            bool throwIfBindFails = false;
             string configFolder = null;
 
-            if (args.Length == 1)
+            foreach (string arg in args)
             {
-                if (args[0] == "--icu-test")
+                switch (arg)
                 {
-                    _ = System.Globalization.CultureInfo.CurrentCulture;
-                    return;
-                }
+                    case "--icu-test":
+                        _ = System.Globalization.CultureInfo.CurrentCulture;
+                        return;
 
-                configFolder = args[0];
+                    case "--stop-if-bind-fails":
+                        throwIfBindFails = true;
+                        break;
+
+                    default:
+                        configFolder = arg;
+                        break;
+                }
             }
 
             ManualResetEvent waitHandle = new ManualResetEvent(false);
@@ -60,7 +68,7 @@ namespace DnsServerApp
                 }
 
                 service = new DnsWebService(configFolder, updateCheckUri, new Uri("https://go.technitium.com/?id=44"));
-                service.Start();
+                service.Start(throwIfBindFails);
 
                 Console.CancelKeyPress += delegate (object sender, ConsoleCancelEventArgs e)
                 {
