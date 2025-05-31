@@ -512,7 +512,9 @@ namespace DnsServerCore
                             jsonWriter.WriteString("domain", clientDomain);
 
                         jsonWriter.WriteNumber("hits", item.Value);
-                        jsonWriter.WriteBoolean("rateLimited", _dnsWebService._dnsServer.IsQpmLimitCrossed(IPAddress.Parse(item.Key)));
+
+                        IPAddress ip = IPAddress.Parse(item.Key);
+                        jsonWriter.WriteBoolean("rateLimited", _dnsWebService._dnsServer.HasQpmLimitExceeded(ip, DnsTransportProtocol.Udp) || _dnsWebService._dnsServer.HasQpmLimitExceeded(ip, DnsTransportProtocol.Tcp));
 
                         jsonWriter.WriteEndObject();
                     }
@@ -651,7 +653,8 @@ namespace DnsServerCore
 
                             foreach (KeyValuePair<string, long> item in topStatsData)
                             {
-                                bool rateLimited = _dnsWebService._dnsServer.IsQpmLimitCrossed(IPAddress.Parse(item.Key));
+                                IPAddress ip = IPAddress.Parse(item.Key);
+                                bool rateLimited = _dnsWebService._dnsServer.HasQpmLimitExceeded(ip, DnsTransportProtocol.Udp) || _dnsWebService._dnsServer.HasQpmLimitExceeded(ip, DnsTransportProtocol.Tcp);
 
                                 if (onlyRateLimitedClients && !rateLimited)
                                     continue;
