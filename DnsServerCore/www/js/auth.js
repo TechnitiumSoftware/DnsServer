@@ -191,20 +191,30 @@ function login(username, password) {
 
     if ((username === null) || (username === "")) {
         showAlert("warning", "Missing!", "Please enter an username.");
-        $("#txtUser").focus();
+        $("#txtUser").trigger("focus");
         return;
     }
 
     if ((password === null) || (password === "")) {
         showAlert("warning", "Missing!", "Please enter a password.");
-        $("#txtPass").focus();
+        $("#txtPass").trigger("focus");
         return;
     }
 
-    var btn = $("#btnLogin").button('loading');
+    var totp = $("#txt2FATOTP").val();
+
+    if ($("#div2FAOTP").is(":visible")) {
+        if ((totp == null) || (totp.length != 6)) {
+            showAlert("warning", "Missing!", "Please enter the 6-digit OTP that you see in your authenticator app.");
+            $("#txt2FATOTP").trigger("focus");
+            return;
+        }
+    }
+
+    var btn = $("#btnLogin").button("loading");
 
     HTTPRequest({
-        url: "api/user/login?user=" + encodeURIComponent(username) + "&pass=" + encodeURIComponent(password) + "&includeInfo=true",
+        url: "api/user/login?user=" + encodeURIComponent(username) + "&pass=" + encodeURIComponent(password) + "&totp=" + encodeURIComponent(totp) + "&includeInfo=true",
         success: function (responseJSON) {
             sessionData = responseJSON;
             localStorage.setItem("token", sessionData.token);
@@ -222,11 +232,30 @@ function login(username, password) {
                 showChangePasswordModal();
         },
         error: function () {
-            btn.button('reset');
-            $("#txtUser").focus();
+            btn.button("reset");
+
+            if ($("#div2FAOTP").is(":visible")) {
+                $("#txt2FATOTP").val("");
+                $("#txt2FATOTP").trigger("focus");
+            }
+            else {
+                $("#txtUser").trigger("focus");
+            }
 
             if (autoLogin)
                 hideAlert();
+        },
+        twoFactorAuthRequired: function () {
+            btn.button("reset");
+
+            if (autoLogin) {
+                $("#txtUser").trigger("focus");
+            }
+            else {
+                $("#txtPass").prop("disabled", true);
+                $("#div2FAOTP").show();
+                $("#txt2FATOTP").trigger("focus");
+            }
         }
     });
 }
@@ -255,6 +284,14 @@ function showCreateMyApiTokenModal() {
     $("#optCreateApiTokenUsername").hide();
     $("#divCreateApiTokenPassword").show();
 
+    if (sessionData.totpEnabled) {
+        $("#txtCreateApiToken2FATOTP").val("");
+        $("#divCreateApiToken2FAOTP").show();
+    }
+    else {
+        $("#divCreateApiToken2FAOTP").hide();
+    }
+
     $("#divCreateApiTokenLoader").hide();
     $("#divCreateApiTokenForm").show();
     $("#divCreateApiTokenOutput").hide();
@@ -277,26 +314,35 @@ function createMyApiToken(objBtn) {
 
     var user = $("#txtCreateApiTokenUsername").val();
     var password = $("#txtCreateApiTokenPassword").val();
+    var totp = $("#txtCreateApiToken2FATOTP").val();
     var tokenName = $("#txtCreateApiTokenName").val();
 
     if (password === "") {
         showAlert("warning", "Missing!", "Please enter a password.", divCreateApiTokenAlert);
-        $("#txtCreateApiTokenPassword").focus();
+        $("#txtCreateApiTokenPassword").trigger("focus");
         return;
+    }
+
+    if (sessionData.totpEnabled) {
+        if (totp.length != 6) {
+            showAlert("warning", "Missing!", "Please enter the 6-digit OTP that you see in your authenticator app.", divCreateApiTokenAlert);
+            $("#txtCreateApiToken2FATOTP").trigger("focus");
+            return;
+        }
     }
 
     if (tokenName === "") {
         showAlert("warning", "Missing!", "Please enter a token name.", divCreateApiTokenAlert);
-        $("#txtCreateApiTokenName").focus();
+        $("#txtCreateApiTokenName").trigger("focus");
         return;
     }
 
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
-        url: "api/user/createToken?user=" + encodeURIComponent(user) + "&pass=" + encodeURIComponent(password) + "&tokenName=" + encodeURIComponent(tokenName),
+        url: "api/user/createToken?user=" + encodeURIComponent(user) + "&pass=" + encodeURIComponent(password) + "&totp=" + encodeURIComponent(totp) + "&tokenName=" + encodeURIComponent(tokenName),
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
             btn.hide();
 
             $("#lblCreateApiTokenOutputUsername").text(responseJSON.username);
@@ -309,10 +355,10 @@ function createMyApiToken(objBtn) {
             showAlert("success", "Token Created!", "API token was created successfully.", divCreateApiTokenAlert);
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalCreateApiToken").hide("");
             showPageLogin();
         },
@@ -380,9 +426,148 @@ function changePassword(objBtn) {
         },
         invalidToken: function () {
             btn.button('reset');
+            $("#modalChangePassword").modal("hide");
             showPageLogin();
         },
         objAlertPlaceholder: divChangePasswordAlert
+    });
+}
+
+function showConfigure2FAModal() {
+    var divConfigure2FAAlert = $("#divConfigure2FAAlert");
+    var divConfigure2FALoader = $("#divConfigure2FALoader");
+    var divConfigure2FAViewer = $("#divConfigure2FAViewer");
+    var btnEnable2FA = $("#btnEnable2FA");
+    var btnDisable2FA = $("#btnDisable2FA");
+
+    divConfigure2FALoader.show();
+    divConfigure2FAViewer.hide();
+
+    btnEnable2FA.hide();
+    btnDisable2FA.hide();
+
+    var modalConfigure2FA = $("#modalConfigure2FA");
+    modalConfigure2FA.modal("show");
+
+    HTTPRequest({
+        url: "api/user/2fa/init?token=" + sessionData.token,
+        success: function (responseJSON) {
+            $("#txtConfigure2FAUsername").val(sessionData.username);
+            $("#lblConfigure2FAStatus").text(responseJSON.response.totpEnabled ? "Enabled" : "Disabled");
+
+            if (responseJSON.response.totpEnabled) {
+                $("#divConfigure2FAInitialize").hide();
+
+                divConfigure2FALoader.hide();
+                divConfigure2FAViewer.show();
+
+                btnDisable2FA.show();
+            }
+            else {
+                var secret = "";
+
+                for (var i = 0; i < responseJSON.response.secret.length; i++) {
+                    if ((i > 0) && (i % 4) == 0)
+                        secret += " ";
+
+                    secret += responseJSON.response.secret.substring(i, i + 1);
+                }
+
+                $("#lblConfigure2FAQRCode").html("<img src=\"data:image/png;base64, " + responseJSON.response.qrCodePngImage + "\" />");
+                $("#lblConfigure2FASecret").text(secret);
+                $("#txtConfigure2FATOTP").val("");
+
+                $("#divConfigure2FAInitialize").show();
+
+                divConfigure2FALoader.hide();
+                divConfigure2FAViewer.show();
+
+                btnEnable2FA.show();
+
+                setTimeout(function () {
+                    $("#txtConfigure2FATOTP").trigger("focus");
+                }, 1000);
+            }
+        },
+        error: function () {
+            divConfigure2FALoader.hide();
+        },
+        invalidToken: function () {
+            modalConfigure2FA.modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divConfigure2FAAlert,
+        objLoaderPlaceholder: divConfigure2FALoader
+    });
+}
+
+function enable2FA(objBtn) {
+    var btn = $(objBtn);
+
+    var divConfigure2FAAlert = $("#divConfigure2FAAlert");
+    var totp = $("#txtConfigure2FATOTP").val();
+
+    if ((totp == null) || (totp.length != 6)) {
+        showAlert("warning", "Missing!", "Please enter the 6-digit OTP that you see in your authenticator app.", divConfigure2FAAlert);
+        $("#txtConfigure2FATOTP").trigger("focus");
+        return;
+    }
+
+    btn.button("loading");
+
+    HTTPRequest({
+        url: "api/user/2fa/enable?token=" + sessionData.token + "&totp=" + encodeURIComponent(totp),
+        success: function (responseJSON) {
+            sessionData.totpEnabled = true;
+
+            $("#modalConfigure2FA").modal("hide");
+            btn.button("reset");
+
+            showAlert("success", "2FA Enabled!", "Two-factor authentication (2FA) was enabled successfully.");
+        },
+        error: function () {
+            btn.button("reset");
+            $("#txtConfigure2FATOTP").val("");
+            $("#txtConfigure2FATOTP").trigger("focus");
+        },
+        invalidToken: function () {
+            btn.button("reset");
+            $("#modalConfigure2FA").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divConfigure2FAAlert
+    });
+}
+
+function disable2FA(objBtn) {
+    if (!confirm("Are you sure you want to disable Two-factor authentication (2FA) ?"))
+        return;
+
+    var btn = $(objBtn);
+
+    var divConfigure2FAAlert = $("#divConfigure2FAAlert");
+
+    btn.button("loading");
+
+    HTTPRequest({
+        url: "api/user/2fa/disable?token=" + sessionData.token,
+        success: function (responseJSON) {
+            sessionData.totpEnabled = false;
+
+            $("#modalConfigure2FA").modal("hide");
+            btn.button("reset");
+
+            showAlert("success", "2FA Disabled!", "Two-factor authentication (2FA) was disabled successfully.");
+        },
+        error: function () {
+            btn.button("reset");
+        },
+        invalidToken: function () {
+            btn.button("reset");
+            $("#modalConfigure2FA").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divConfigure2FAAlert
     });
 }
 
@@ -402,10 +587,13 @@ function showMyProfileModal() {
         success: function (responseJSON) {
             sessionData.displayName = responseJSON.response.displayName;
             sessionData.username = responseJSON.response.username;
+            sessionData.totpEnabled = responseJSON.response.totpEnabled;
+
             $("#mnuUserDisplayName").text(sessionData.displayName);
 
             $("#txtMyProfileDisplayName").val(responseJSON.response.displayName);
             $("#txtMyProfileUsername").val(responseJSON.response.username);
+            $("#lblMyProfile2FAStatus").text(responseJSON.response.totpEnabled ? "Enabled" : "Disabled");
             $("#txtMyProfileSessionTimeout").val(responseJSON.response.sessionTimeoutSeconds);
 
             {
@@ -663,6 +851,7 @@ function showCreateApiTokenModal() {
             $("#optCreateApiTokenUsername").show();
             $("#txtCreateApiTokenUsername").hide();
             $("#divCreateApiTokenPassword").hide();
+            $("#divCreateApiToken2FAOTP").hide();
             $("#txtCreateApiTokenName").val("");
 
             divCreateApiTokenLoader.hide();
@@ -799,6 +988,12 @@ function refreshAdminUsers() {
 }
 
 function getAdminUsersRowHtml(id, user) {
+    var totpStatus = "";
+    if (user.totpEnabled)
+        totpStatus += "<span class=\"label label-success\">Enabled</span>";
+    else
+        totpStatus += "<span class=\"label label-default\">Disabled</span>";
+
     var status = "";
     if (user.disabled)
         status += "<span class=\"label label-warning\">Disabled</span>";
@@ -807,6 +1002,7 @@ function getAdminUsersRowHtml(id, user) {
 
     var tableHtmlRows = "<tr id=\"trAdminUsers" + id + "\"><td style=\"word-wrap: anywhere;\"><a href=\"#\" data-id=\"" + id + "\" data-username=\"" + htmlEncode(user.username) + "\" onclick=\"showUserDetailsModal(this); return false;\">" + htmlEncode(user.username) + "</a></td><td style=\"word-wrap: anywhere;\">" +
         htmlEncode(user.displayName) + "</td><td>" +
+        totpStatus + "</td><td>" +
         status + "</td><td>" +
         htmlEncode(moment(user.recentSessionLoggedOn).local().format("YYYY-MM-DD HH:mm:ss")) + " from " + htmlEncode(user.recentSessionRemoteAddress) + "</td><td>" +
         htmlEncode(moment(user.previousSessionLoggedOn).local().format("YYYY-MM-DD HH:mm:ss")) + " from " + htmlEncode(user.previousSessionRemoteAddress);
@@ -816,6 +1012,10 @@ function getAdminUsersRowHtml(id, user) {
     tableHtmlRows += "<li id=\"mnuAdminUserRowEnable" + id + "\"" + (user.disabled ? "" : " style=\"display: none;\"") + "><a href=\"#\" data-id=\"" + id + "\" data-username=\"" + htmlEncode(user.username) + "\" onclick=\"enableUser(this); return false;\">Enable</a></li>";
     tableHtmlRows += "<li id=\"mnuAdminUserRowDisable" + id + "\"" + (!user.disabled ? "" : " style=\"display: none;\"") + "><a href=\"#\" data-id=\"" + id + "\" data-username=\"" + htmlEncode(user.username) + "\" onclick=\"disableUser(this); return false;\">Disable</a></li>";
     tableHtmlRows += "<li><a href=\"#\" data-id=\"" + id + "\" data-username=\"" + htmlEncode(user.username) + "\" onclick=\"showResetUserPasswordModal(this); return false;\">Reset Password</a></li>";
+
+    if (user.totpEnabled)
+        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + id + "\" data-username=\"" + htmlEncode(user.username) + "\" onclick=\"adminDisable2FA(this); return false;\">Disable 2FA</a></li>";
+
     tableHtmlRows += "<li role=\"separator\" class=\"divider\"></li>";
     tableHtmlRows += "<li><a href=\"#\" data-id=\"" + id + "\" data-username=\"" + htmlEncode(user.username) + "\" onclick=\"deleteUser(this); return false;\">Delete User</a></li>";
     tableHtmlRows += "</ul></div></td></tr>";
@@ -923,6 +1123,7 @@ function showUserDetailsModal(objMenuItem) {
         success: function (responseJSON) {
             $("#txtUserDetailsDisplayName").val(responseJSON.response.displayName);
             $("#txtUserDetailsUsername").val(responseJSON.response.username);
+            $("#lblUserDetails2FAStatus").text(responseJSON.response.totpEnabled ? "Enabled" : "Disabled");
             $("#chkUserDetailsDisableAccount").prop("checked", responseJSON.response.disabled);
             $("#txtUserDetailsSessionTimeout").val(responseJSON.response.sessionTimeoutSeconds);
 
@@ -1121,7 +1322,7 @@ function disableUser(objMenuItem) {
             var tableHtmlRow = getAdminUsersRowHtml(id, responseJSON.response);
             $("#trAdminUsers" + id).replaceWith(tableHtmlRow);
 
-            showAlert("success", "User Disabled!", "User account was disabled successfully.");
+            showAlert("success", "User Disabled!", "User [" + username + "] account was disabled successfully.");
         },
         error: function () {
             btn.prop("disabled", false);
@@ -1150,7 +1351,7 @@ function enableUser(objMenuItem) {
             var tableHtmlRow = getAdminUsersRowHtml(id, responseJSON.response);
             $("#trAdminUsers" + id).replaceWith(tableHtmlRow);
 
-            showAlert("success", "User Enabled!", "User account was enabled successfully.");
+            showAlert("success", "User Enabled!", "User [" + username + "] account was enabled successfully.");
         },
         error: function () {
             btn.prop("disabled", false);
@@ -1231,6 +1432,41 @@ function resetUserPassword(objBtn) {
             showPageLogin();
         },
         objAlertPlaceholder: divChangePasswordAlert
+    });
+}
+
+function adminDisable2FA(objMenuItem) {
+    var mnuItem = $(objMenuItem);
+
+    var id = mnuItem.attr("data-id");
+    var username = mnuItem.attr("data-username");
+
+    if (!confirm("Are you sure you want to disable Two-factor authentication (2FA) for user [" + username + "] ?"))
+        return;
+
+    var btn = $("#btnAdminUserRowOption" + id);
+    var originalBtnHtml = btn.html();
+    btn.prop("disabled", true);
+    btn.html("<img src='/img/loader-small.gif'/>");
+
+    HTTPRequest({
+        url: "api/admin/users/set?token=" + sessionData.token + "&user=" + encodeURIComponent(username) + "&totpEnabled=false",
+        success: function (responseJSON) {
+            if (username == sessionData.username)
+                sessionData.totpEnabled = false;
+
+            var tableHtmlRow = getAdminUsersRowHtml(id, responseJSON.response);
+            $("#trAdminUsers" + id).replaceWith(tableHtmlRow);
+
+            showAlert("success", "2FA Disabled!", "Two-factor authentication was disabled successfully for user [" + username + "].");
+        },
+        error: function () {
+            btn.prop("disabled", false);
+            btn.html(originalBtnHtml);
+        },
+        invalidToken: function () {
+            showPageLogin();
+        }
     });
 }
 
