@@ -347,7 +347,7 @@ function showEditDhcpScope(scopeName) {
     divDhcpViewScopesLoader.show();
 
     HTTPRequest({
-        url: "api/dhcp/scopes/get?token=" + sessionData.token + "&name=" + scopeName,
+        url: "api/dhcp/scopes/get?token=" + sessionData.token + "&name=" + encodeURIComponent(scopeName),
         success: function (responseJSON) {
             $("#txtDhcpScopeName").attr("data-name", responseJSON.response.name);
             $("#txtDhcpScopeName").val(responseJSON.response.name);
@@ -555,7 +555,7 @@ function disableDhcpScope(scopeName) {
     divDhcpViewScopesLoader.show();
 
     HTTPRequest({
-        url: "api/dhcp/scopes/disable?token=" + sessionData.token + "&name=" + scopeName,
+        url: "api/dhcp/scopes/disable?token=" + sessionData.token + "&name=" + encodeURIComponent(scopeName),
         success: function (responseJSON) {
             refreshDhcpScopes();
             showAlert("success", "Scope Disabled!", "DHCP Scope was disabled successfully.");
@@ -581,7 +581,7 @@ function enableDhcpScope(scopeName) {
     divDhcpViewScopesLoader.show();
 
     HTTPRequest({
-        url: "api/dhcp/scopes/enable?token=" + sessionData.token + "&name=" + scopeName,
+        url: "api/dhcp/scopes/enable?token=" + sessionData.token + "&name=" + encodeURIComponent(scopeName),
         success: function (responseJSON) {
             refreshDhcpScopes();
             showAlert("success", "Scope Enabled!", "DHCP Scope was enabled successfully.");
@@ -610,7 +610,7 @@ function deleteDhcpScope(index, scopeName) {
     divDhcpViewScopesLoader.show();
 
     HTTPRequest({
-        url: "api/dhcp/scopes/delete?token=" + sessionData.token + "&name=" + scopeName,
+        url: "api/dhcp/scopes/delete?token=" + sessionData.token + "&name=" + encodeURIComponent(scopeName),
         success: function (responseJSON) {
             $("#trDhcpScopeRow" + index).remove();
 
