@@ -43,6 +43,7 @@ using System.Net.Security;
 using System.Net.Sockets;
 using System.Runtime.ExceptionServices;
 using System.Security.Authentication;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -135,6 +136,7 @@ namespace DnsServerCore.Dns
         IReadOnlyCollection<NetworkAddress> _zoneTransferAllowedNetworks;
         IReadOnlyCollection<NetworkAddress> _notifyAllowedNetworks;
         bool _preferIPv6;
+        bool _enableUdpSocketPool;
         ushort _udpPayloadSize = DnsDatagram.EDNS_DEFAULT_UDP_PAYLOAD_SIZE;
         bool _dnssecValidation = true;
 
@@ -144,11 +146,23 @@ namespace DnsServerCore.Dns
         NetworkAddress _eDnsClientSubnetIpv4Override;
         NetworkAddress _eDnsClientSubnetIpv6Override;
 
-        int _qpmLimitRequests = 6000; //100qps
-        int _qpmLimitErrors = 600; //10qps
+        //ipv4 prefix: udp, tcp
+        IReadOnlyDictionary<int, (int, int)> _qpmPrefixLimitsIPv4 = new Dictionary<int, (int, int)>()
+        {
+            { 32, (600, 600) },
+            { 24, (6000, 6000) }
+        };
+
+        //ipv6 prefix: udp, tcp
+        IReadOnlyDictionary<int, (int, int)> _qpmPrefixLimitsIPv6 = new Dictionary<int, (int, int)>()
+        {
+            { 128, (600, 600) },
+            { 64, (1200, 1200) },
+            { 56, (6000, 6000) }
+        };
+
         int _qpmLimitSampleMinutes = 5;
-        int _qpmLimitIPv4PrefixLength = 24;
-        int _qpmLimitIPv6PrefixLength = 56;
+        int _qpmLimitUdpTruncationPercentage = 50; //percentage of requests that are responded with TC when QPM limit exceeds for UDP (Slip)
         IReadOnlyCollection<NetworkAddress> _qpmLimitBypassList;
 
         int _clientTimeout = 2000;
@@ -234,8 +248,7 @@ namespace DnsServerCore.Dns
         Timer _qpmLimitSamplingTimer;
         readonly object _qpmLimitSamplingTimerLock = new object();
         const int QPM_LIMIT_SAMPLING_TIMER_INTERVAL = 10000;
-        IReadOnlyDictionary<IPAddress, long> _qpmLimitClientSubnetStats;
-        IReadOnlyDictionary<IPAddress, long> _qpmLimitErrorClientSubnetStats;
+        IReadOnlyDictionary<NetworkAddress, ValueTuple<long, long>> _qpmLimitClientSubnetStats;
 
         readonly IndependentTaskScheduler _queryTaskScheduler = new IndependentTaskScheduler(threadName: "QueryThreadPool");
 
@@ -337,6 +350,7 @@ namespace DnsServerCore.Dns
 
         private async Task ReadUdpRequestAsync(Socket udpListener, DnsTransportProtocol protocol)
         {
+            bool sendTruncationResponse;
             byte[] recvBuffer;
 
             if (protocol == DnsTransportProtocol.UdpProxy)
@@ -419,16 +433,27 @@ namespace DnsServerCore.Dns
                                 recvBufferStream.Position = proxyStream.DataOffset;
                             }
 
-                            if (IsQpmLimitCrossed(remoteEP.Address))
+                            if (HasQpmLimitExceeded(remoteEP.Address, DnsTransportProtocol.Udp))
                             {
-                                _stats.QueueUpdate(null, remoteEP, protocol, null, true);
-                                continue;
+                                if (SendQpmLimitExceededTruncationResponse())
+                                {
+                                    sendTruncationResponse = true;
+                                }
+                                else
+                                {
+                                    _stats.QueueUpdate(null, remoteEP, protocol, null, true);
+                                    continue;
+                                }
+                            }
+                            else
+                            {
+                                sendTruncationResponse = false;
                             }
 
                             DnsDatagram request = DnsDatagram.ReadFrom(recvBufferStream);
                             request.SetMetadata(new NameServerAddress(new IPEndPoint(result.PacketInformation.Address, localPort), DnsTransportProtocol.Udp));
 
-                            _ = ProcessUdpRequestAsync(udpListener, remoteEP, returnEP, protocol, request);
+                            _ = ProcessUdpRequestAsync(udpListener, remoteEP, returnEP, protocol, request, sendTruncationResponse);
                         }
                         catch (EndOfStreamException)
                         {
@@ -470,17 +495,27 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task ProcessUdpRequestAsync(Socket udpListener, IPEndPoint remoteEP, IPEndPoint returnEP, DnsTransportProtocol protocol, DnsDatagram request)
+        private async Task ProcessUdpRequestAsync(Socket udpListener, IPEndPoint remoteEP, IPEndPoint returnEP, DnsTransportProtocol protocol, DnsDatagram request, bool sendTruncationResponse)
         {
             byte[] sendBuffer = null;
 
             try
             {
-                DnsDatagram response = await ProcessRequestAsync(request, remoteEP, protocol, IsRecursionAllowed(remoteEP.Address));
-                if (response is null)
+                bool recursionAllowed = IsRecursionAllowed(remoteEP.Address);
+                DnsDatagram response;
+
+                if (sendTruncationResponse)
                 {
-                    _stats.QueueUpdate(null, remoteEP, protocol, null, false);
-                    return; //drop request
+                    response = new DnsDatagram(request.Identifier, true, request.OPCODE, false, true, request.RecursionDesired, recursionAllowed, false, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, null, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize) { Tag = DnsServerResponseType.Authoritative };
+                }
+                else
+                {
+                    response = await ProcessRequestAsync(request, remoteEP, protocol, recursionAllowed);
+                    if (response is null)
+                    {
+                        _stats.QueueUpdate(null, remoteEP, protocol, null, false);
+                        return; //drop request
+                    }
                 }
 
                 //send response
@@ -699,7 +734,7 @@ namespace DnsServerCore.Dns
 
                 while (true)
                 {
-                    if (IsQpmLimitCrossed(remoteEP.Address))
+                    if (HasQpmLimitExceeded(remoteEP.Address, DnsTransportProtocol.Tcp))
                     {
                         _stats.QueueUpdate(null, remoteEP, protocol, null, true);
                         break;
@@ -843,7 +878,7 @@ namespace DnsServerCore.Dns
 
                 while (true)
                 {
-                    if (IsQpmLimitCrossed(quicConnection.RemoteEndPoint.Address))
+                    if (HasQpmLimitExceeded(quicConnection.RemoteEndPoint.Address, DnsTransportProtocol.Tcp))
                     {
                         _stats.QueueUpdate(null, quicConnection.RemoteEndPoint, DnsTransportProtocol.Quic, null, true);
                         break;
@@ -966,7 +1001,7 @@ namespace DnsServerCore.Dns
                     }
                 }
 
-                if (IsQpmLimitCrossed(remoteEP.Address))
+                if (HasQpmLimitExceeded(remoteEP.Address, DnsTransportProtocol.Tcp))
                 {
                     _stats.QueueUpdate(null, remoteEP, DnsTransportProtocol.Https, null, true);
 
@@ -4420,42 +4455,59 @@ namespace DnsServerCore.Dns
             return false;
         }
 
-        internal bool IsQpmLimitCrossed(IPAddress remoteIP)
+        private bool HasQpmLimitExceeded(NetworkAddress clientSubnet, DnsTransportProtocol protocol, (int, int) qpmLimits, IReadOnlyDictionary<NetworkAddress, (long, long)> qpmLimitClientSubnetStats, out int qpmLimit, out int currentQpm)
         {
-            if ((_qpmLimitRequests < 1) && (_qpmLimitErrors < 1))
+            qpmLimit = protocol == DnsTransportProtocol.Udp ? qpmLimits.Item1 : qpmLimits.Item2;
+
+            if ((qpmLimit > 0) && qpmLimitClientSubnetStats.TryGetValue(clientSubnet, out (long, long) countPerSampleTuple))
+            {
+                long countPerSample = protocol == DnsTransportProtocol.Udp ? countPerSampleTuple.Item1 : countPerSampleTuple.Item2;
+
+                long averageCountPerMinute = countPerSample / _qpmLimitSampleMinutes;
+                if (averageCountPerMinute >= qpmLimit)
+                {
+                    currentQpm = (int)averageCountPerMinute;
+                    return true;
+                }
+            }
+
+            currentQpm = 0;
+            return false;
+        }
+
+        internal bool HasQpmLimitExceeded(IPAddress remoteIP, DnsTransportProtocol protocol)
+        {
+            if (_qpmLimitClientSubnetStats is null)
+                return false;
+
+            if ((_qpmPrefixLimitsIPv4.Count < 1) && (_qpmPrefixLimitsIPv6.Count < 1))
                 return false;
 
             if (IsQpmLimitBypassed(remoteIP))
                 return false;
 
-            IPAddress remoteSubnet;
-
             switch (remoteIP.AddressFamily)
             {
                 case AddressFamily.InterNetwork:
-                    remoteSubnet = remoteIP.GetNetworkAddress(_qpmLimitIPv4PrefixLength);
+                    foreach (KeyValuePair<int, (int, int)> qpmPrefixLimit in _qpmPrefixLimitsIPv4)
+                    {
+                        if (HasQpmLimitExceeded(new NetworkAddress(remoteIP, (byte)qpmPrefixLimit.Key), protocol, qpmPrefixLimit.Value, _qpmLimitClientSubnetStats, out _, out _))
+                            return true;
+                    }
+
                     break;
 
                 case AddressFamily.InterNetworkV6:
-                    remoteSubnet = remoteIP.GetNetworkAddress(_qpmLimitIPv6PrefixLength);
+                    foreach (KeyValuePair<int, (int, int)> qpmPrefixLimit in _qpmPrefixLimitsIPv6)
+                    {
+                        if (HasQpmLimitExceeded(new NetworkAddress(remoteIP, (byte)qpmPrefixLimit.Key), protocol, qpmPrefixLimit.Value, _qpmLimitClientSubnetStats, out _, out _))
+                            return true;
+                    }
+
                     break;
 
                 default:
                     throw new NotSupportedException("AddressFamily not supported.");
-            }
-
-            if ((_qpmLimitErrors > 0) && (_qpmLimitErrorClientSubnetStats is not null) && _qpmLimitErrorClientSubnetStats.TryGetValue(remoteSubnet, out long errorCountPerSample))
-            {
-                long averageErrorCountPerMinute = errorCountPerSample / _qpmLimitSampleMinutes;
-                if (averageErrorCountPerMinute >= _qpmLimitErrors)
-                    return true;
-            }
-
-            if ((_qpmLimitRequests > 0) && (_qpmLimitClientSubnetStats is not null) && _qpmLimitClientSubnetStats.TryGetValue(remoteSubnet, out long countPerSample))
-            {
-                long averageCountPerMinute = countPerSample / _qpmLimitSampleMinutes;
-                if (averageCountPerMinute >= _qpmLimitRequests)
-                    return true;
             }
 
             return false;
@@ -4465,16 +4517,11 @@ namespace DnsServerCore.Dns
         {
             try
             {
-                _stats.GetLatestClientSubnetStats(_qpmLimitSampleMinutes, _qpmLimitIPv4PrefixLength, _qpmLimitIPv6PrefixLength, out IReadOnlyDictionary<IPAddress, long> qpmLimitClientSubnetStats, out IReadOnlyDictionary<IPAddress, long> qpmLimitErrorClientSubnetStats);
+                Dictionary<NetworkAddress, (long, long)> qpmLimitClientSubnetStats = _stats.GetLatestClientSubnetStats(_qpmLimitSampleMinutes, _qpmPrefixLimitsIPv4.Keys, _qpmPrefixLimitsIPv6.Keys);
 
-                if (_qpmLimitErrors > 0)
-                    WriteClientSubnetRateLimitLog(_qpmLimitErrorClientSubnetStats, qpmLimitErrorClientSubnetStats, _qpmLimitErrors, "errors");
-
-                if (_qpmLimitRequests > 0)
-                    WriteClientSubnetRateLimitLog(_qpmLimitClientSubnetStats, qpmLimitClientSubnetStats, _qpmLimitRequests, "requests");
+                WriteClientSubnetRateLimitLog(_qpmLimitClientSubnetStats, qpmLimitClientSubnetStats);
 
                 _qpmLimitClientSubnetStats = qpmLimitClientSubnetStats;
-                _qpmLimitErrorClientSubnetStats = qpmLimitErrorClientSubnetStats;
             }
             catch (Exception ex)
             {
@@ -4489,61 +4536,134 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private void WriteClientSubnetRateLimitLog(IReadOnlyDictionary<IPAddress, long> oldQpmLimitClientSubnetStats, IReadOnlyDictionary<IPAddress, long> newQpmLimitClientSubnetStats, long qpmLimit, string limitType)
+        private void WriteClientSubnetRateLimitLog(IReadOnlyDictionary<NetworkAddress, (long, long)> oldQpmLimitClientSubnetStats, Dictionary<NetworkAddress, (long, long)> newQpmLimitClientSubnetStats)
         {
+            if (_log is null)
+                return;
+
             if (oldQpmLimitClientSubnetStats is not null)
             {
-                foreach (KeyValuePair<IPAddress, long> sampleEntry in oldQpmLimitClientSubnetStats)
+                foreach (KeyValuePair<NetworkAddress, (long, long)> sampleEntry in oldQpmLimitClientSubnetStats)
                 {
-                    long oldAverageCountPerMinute = sampleEntry.Value / _qpmLimitSampleMinutes;
-                    if (oldAverageCountPerMinute >= qpmLimit)
+                    if (IsQpmLimitBypassed(sampleEntry.Key.GetLastAddress()))
+                        continue; //network bypassed
+
+                    IReadOnlyDictionary<int, (int, int)> qpmPrefixLimits;
+
+                    switch (sampleEntry.Key.AddressFamily)
                     {
-                        //previously over limit
-                        if (IsQpmLimitBypassed(sampleEntry.Key))
-                            continue; //network bypassed
+                        case AddressFamily.InterNetwork:
+                            qpmPrefixLimits = _qpmPrefixLimitsIPv4;
+                            break;
 
-                        long averageCountPerMinute = 0;
+                        case AddressFamily.InterNetworkV6:
+                            qpmPrefixLimits = _qpmPrefixLimitsIPv6;
+                            break;
 
-                        if (newQpmLimitClientSubnetStats.TryGetValue(sampleEntry.Key, out long newCountPerSample))
-                            averageCountPerMinute = newCountPerSample / _qpmLimitSampleMinutes;
+                        default:
+                            continue;
+                    }
 
-                        if (averageCountPerMinute < qpmLimit) //currently under limit
-                            _log?.Write("Client subnet '" + sampleEntry.Key + "/" + (sampleEntry.Key.AddressFamily == AddressFamily.InterNetwork ? _qpmLimitIPv4PrefixLength : _qpmLimitIPv6PrefixLength) + "' is no longer being rate limited (" + averageCountPerMinute + " qpm for " + limitType + ").");
+                    if (qpmPrefixLimits.TryGetValue(sampleEntry.Key.PrefixLength, out (int, int) qpmPrefixLimitValue))
+                    {
+                        //for udp
+                        if (HasQpmLimitExceeded(sampleEntry.Key, DnsTransportProtocol.Udp, qpmPrefixLimitValue, oldQpmLimitClientSubnetStats, out _, out _))
+                        {
+                            //previously over limit
+                            if (!HasQpmLimitExceeded(sampleEntry.Key, DnsTransportProtocol.Udp, qpmPrefixLimitValue, newQpmLimitClientSubnetStats, out int qpmLimitUdp, out int currentQpmUdp))
+                            {
+                                //currently under limit
+                                _log.Write("Client subnet '" + sampleEntry.Key + "' is no longer being rate limited for UDP services since current query rate (" + currentQpmUdp + " qpm) is below " + qpmLimitUdp + " qpm limit.");
+                            }
+                        }
+
+                        //for tcp
+                        if (HasQpmLimitExceeded(sampleEntry.Key, DnsTransportProtocol.Tcp, qpmPrefixLimitValue, oldQpmLimitClientSubnetStats, out _, out _))
+                        {
+                            //previously over limit
+                            if (!HasQpmLimitExceeded(sampleEntry.Key, DnsTransportProtocol.Tcp, qpmPrefixLimitValue, newQpmLimitClientSubnetStats, out int qpmLimitTcp, out int currentQpmTcp))
+                            {
+                                //currently under limit
+                                _log.Write("Client subnet '" + sampleEntry.Key + "' is no longer being rate limited for TCP services since current query rate (" + currentQpmTcp + " qpm) is below " + qpmLimitTcp + " qpm limit.");
+                            }
+                        }
                     }
                 }
             }
 
-            foreach (KeyValuePair<IPAddress, long> sampleEntry in newQpmLimitClientSubnetStats)
+            foreach (KeyValuePair<NetworkAddress, (long, long)> sampleEntry in newQpmLimitClientSubnetStats)
             {
-                long averageCountPerMinute = sampleEntry.Value / _qpmLimitSampleMinutes;
-                if (averageCountPerMinute >= qpmLimit)
-                {
-                    //currently over limit
-                    if (IsQpmLimitBypassed(sampleEntry.Key))
-                        continue; //network bypassed
+                if (IsQpmLimitBypassed(sampleEntry.Key.GetLastAddress()))
+                    continue; //network bypassed
 
-                    if ((oldQpmLimitClientSubnetStats is not null) && oldQpmLimitClientSubnetStats.TryGetValue(sampleEntry.Key, out long oldCountPerSample))
+                IReadOnlyDictionary<int, (int, int)> qpmPrefixLimits;
+
+                switch (sampleEntry.Key.AddressFamily)
+                {
+                    case AddressFamily.InterNetwork:
+                        qpmPrefixLimits = _qpmPrefixLimitsIPv4;
+                        break;
+
+                    case AddressFamily.InterNetworkV6:
+                        qpmPrefixLimits = _qpmPrefixLimitsIPv6;
+                        break;
+
+                    default:
+                        continue;
+                }
+
+                if (qpmPrefixLimits.TryGetValue(sampleEntry.Key.PrefixLength, out (int, int) qpmPrefixLimitValue))
+                {
+                    //for udp
+                    if (HasQpmLimitExceeded(sampleEntry.Key, DnsTransportProtocol.Udp, qpmPrefixLimitValue, newQpmLimitClientSubnetStats, out int qpmLimitUdp, out int currentQpmUdp))
                     {
-                        long oldAverageCountPerMinute = oldCountPerSample / _qpmLimitSampleMinutes;
-                        if (oldAverageCountPerMinute >= qpmLimit)
-                            continue; //previously over limit too
+                        //currently over limit
+                        if ((oldQpmLimitClientSubnetStats is null) || !HasQpmLimitExceeded(sampleEntry.Key, DnsTransportProtocol.Udp, qpmPrefixLimitValue, oldQpmLimitClientSubnetStats, out _, out _))
+                        {
+                            //previously under limit
+                            _log.Write("Client subnet '" + sampleEntry.Key + "' is being rate limited for UDP services till the current query rate (" + currentQpmUdp + " qpm) falls below " + qpmLimitUdp + " qpm limit.");
+                        }
                     }
 
-                    _log?.Write("Client subnet '" + sampleEntry.Key + "/" + (sampleEntry.Key.AddressFamily == AddressFamily.InterNetwork ? _qpmLimitIPv4PrefixLength : _qpmLimitIPv6PrefixLength) + "' is being rate limited till the query rate limit (" + averageCountPerMinute + " qpm for " + limitType + ") falls below " + qpmLimit + " qpm.");
+                    //for tcp
+                    if (HasQpmLimitExceeded(sampleEntry.Key, DnsTransportProtocol.Tcp, qpmPrefixLimitValue, newQpmLimitClientSubnetStats, out int qpmLimitTcp, out int currentQpmTcp))
+                    {
+                        //currently over limit
+                        if ((oldQpmLimitClientSubnetStats is null) || !HasQpmLimitExceeded(sampleEntry.Key, DnsTransportProtocol.Tcp, qpmPrefixLimitValue, oldQpmLimitClientSubnetStats, out _, out _))
+                        {
+                            //previously under limit
+                            _log.Write("Client subnet '" + sampleEntry.Key + "' is being rate limited for TCP services till the current query rate (" + currentQpmTcp + " qpm) falls below " + qpmLimitTcp + " qpm limit.");
+                        }
+                    }
                 }
+            }
+        }
+
+        private bool SendQpmLimitExceededTruncationResponse()
+        {
+            switch (_qpmLimitUdpTruncationPercentage)
+            {
+                case 0:
+                    return false;
+
+                case 100:
+                    return true;
+
+                default:
+                    int p = RandomNumberGenerator.GetInt32(100);
+                    return p < _qpmLimitUdpTruncationPercentage;
             }
         }
 
         private void ResetQpsLimitTimer()
         {
-            if ((_qpmLimitRequests < 1) && (_qpmLimitErrors < 1))
+            if ((_qpmPrefixLimitsIPv4.Count < 1) && (_qpmPrefixLimitsIPv6.Count < 1))
             {
                 lock (_qpmLimitSamplingTimerLock)
                 {
                     _qpmLimitSamplingTimer?.Change(Timeout.Infinite, Timeout.Infinite);
 
                     _qpmLimitClientSubnetStats = null;
-                    _qpmLimitErrorClientSubnetStats = null;
                 }
             }
             else if (_state == ServiceState.Running)
@@ -4606,7 +4726,7 @@ namespace DnsServerCore.Dns
 
         #region doh web service
 
-        private async Task StartDoHAsync()
+        private async Task StartDoHAsync(bool throwIfBindFails)
         {
             IReadOnlyList<IPAddress> localAddresses = WebUtilities.GetValidKestrelLocalAddresses(_localEndPoints.Convert(delegate (IPEndPoint ep) { return ep.Address; }));
 
@@ -4717,6 +4837,9 @@ namespace DnsServerCore.Dns
 
                     _log?.Write(ex);
                 }
+
+                if (throwIfBindFails)
+                    throw;
             }
         }
 
@@ -4759,7 +4882,7 @@ namespace DnsServerCore.Dns
 
         #region public
 
-        public async Task StartAsync()
+        public async Task StartAsync(bool throwIfBindFails = false)
         {
             if (_disposed)
                 ObjectDisposedException.ThrowIf(_disposed, this);
@@ -4824,6 +4947,9 @@ namespace DnsServerCore.Dns
                     _log?.Write(localEP, DnsTransportProtocol.Udp, "DNS Server failed to bind.\r\n" + ex.ToString());
 
                     udpListener?.Dispose();
+
+                    if (throwIfBindFails)
+                        throw;
                 }
 
                 if (_enableDnsOverUdpProxy)
@@ -4865,6 +4991,9 @@ namespace DnsServerCore.Dns
                         _log?.Write(udpProxyEP, DnsTransportProtocol.UdpProxy, "DNS Server failed to bind.\r\n" + ex.ToString());
 
                         udpProxyListener?.Dispose();
+
+                        if (throwIfBindFails)
+                            throw;
                     }
                 }
 
@@ -4889,6 +5018,9 @@ namespace DnsServerCore.Dns
                     _log?.Write(localEP, DnsTransportProtocol.Tcp, "DNS Server failed to bind.\r\n" + ex.ToString());
 
                     tcpListener?.Dispose();
+
+                    if (throwIfBindFails)
+                        throw;
                 }
 
                 if (_enableDnsOverTcpProxy)
@@ -4915,6 +5047,9 @@ namespace DnsServerCore.Dns
                         _log?.Write(tcpProxyEP, DnsTransportProtocol.TcpProxy, "DNS Server failed to bind.\r\n" + ex.ToString());
 
                         tcpProxyListner?.Dispose();
+
+                        if (throwIfBindFails)
+                            throw;
                     }
                 }
 
@@ -4942,6 +5077,9 @@ namespace DnsServerCore.Dns
                         _log?.Write(tlsEP, DnsTransportProtocol.Tls, "DNS Server failed to bind.\r\n" + ex.ToString());
 
                         tlsListener?.Dispose();
+
+                        if (throwIfBindFails)
+                            throw;
                     }
                 }
 
@@ -4985,6 +5123,9 @@ namespace DnsServerCore.Dns
 
                         if (quicListener is not null)
                             await quicListener.DisposeAsync();
+
+                        if (throwIfBindFails)
+                            throw;
                     }
                 }
             }
@@ -5059,7 +5200,7 @@ namespace DnsServerCore.Dns
             }
 
             if (_enableDnsOverHttp || (_enableDnsOverHttps && (_certificateCollection is not null)))
-                await StartDoHAsync();
+                await StartDoHAsync(throwIfBindFails);
 
             _cachePrefetchSamplingTimer = new Timer(CachePrefetchSamplingTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
             _cachePrefetchRefreshTimer = new Timer(CachePrefetchRefreshTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
@@ -5071,15 +5212,6 @@ namespace DnsServerCore.Dns
             UpdateThisServer();
             ResetPrefetchTimers();
             ResetQpsLimitTimer();
-
-            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-            {
-                //init udp socket pool async for port randomization
-                ThreadPool.QueueUserWorkItem(delegate (object state)
-                {
-                    UdpClientConnection.CreateSocketPool(_preferIPv6);
-                });
-            }
         }
 
         public async Task StopAsync()
@@ -5361,8 +5493,29 @@ namespace DnsServerCore.Dns
                     //init udp socket pool async for port randomization
                     ThreadPool.QueueUserWorkItem(delegate (object state)
                     {
-                        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                        if (_enableUdpSocketPool)
                             UdpClientConnection.CreateSocketPool(_preferIPv6);
+                    });
+                }
+            }
+        }
+
+        public bool EnableUdpSocketPool
+        {
+            get { return _enableUdpSocketPool; }
+            set
+            {
+                if (_enableUdpSocketPool != value)
+                {
+                    _enableUdpSocketPool = value;
+
+                    //init udp socket pool async for port randomization
+                    ThreadPool.QueueUserWorkItem(delegate (object state)
+                    {
+                        if (_enableUdpSocketPool)
+                            UdpClientConnection.CreateSocketPool(_preferIPv6);
+                        else
+                            UdpClientConnection.DisposeSocketPool();
                     });
                 }
             }
@@ -5475,48 +5628,60 @@ namespace DnsServerCore.Dns
             }
         }
 
-        public int QpmLimitRequests
+        public IReadOnlyDictionary<int, (int, int)> QpmPrefixLimitsIPv4
         {
-            get { return _qpmLimitRequests; }
+            get { return _qpmPrefixLimitsIPv4; }
             set
             {
-                if (value < 0)
-                    throw new ArgumentOutOfRangeException(nameof(QpmLimitRequests), "Value cannot be less than 0.");
-
-                if (_qpmLimitRequests != value)
+                if (value is null)
                 {
-                    if ((_qpmLimitRequests == 0) || (value == 0))
+                    _qpmPrefixLimitsIPv4 = new Dictionary<int, (int, int)>();
+                }
+                else if (value.Count > byte.MaxValue)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(QpmPrefixLimitsIPv4), "QPM Prefix Limits for IPv4 cannot have more than 255 entries.");
+                }
+                else
+                {
+                    foreach (KeyValuePair<int, (int, int)> qpmPrefixLimit in value)
                     {
-                        _qpmLimitRequests = value;
-                        ResetQpsLimitTimer();
+                        if ((qpmPrefixLimit.Key < 0) || (qpmPrefixLimit.Key > 32))
+                            throw new ArgumentOutOfRangeException(nameof(QpmPrefixLimitsIPv4), "QPM limit IPv4 prefix valid range is between 0 and 32.");
+
+                        if ((qpmPrefixLimit.Value.Item1 < 0) || (qpmPrefixLimit.Value.Item2 < 0))
+                            throw new ArgumentOutOfRangeException(nameof(QpmPrefixLimitsIPv4), "QPM limit value cannot be less than 0.");
                     }
-                    else
-                    {
-                        _qpmLimitRequests = value;
-                    }
+
+                    _qpmPrefixLimitsIPv4 = value;
                 }
             }
         }
 
-        public int QpmLimitErrors
+        public IReadOnlyDictionary<int, (int, int)> QpmPrefixLimitsIPv6
         {
-            get { return _qpmLimitErrors; }
+            get { return _qpmPrefixLimitsIPv6; }
             set
             {
-                if (value < 0)
-                    throw new ArgumentOutOfRangeException(nameof(QpmLimitErrors), "Value cannot be less than 0.");
-
-                if (_qpmLimitErrors != value)
+                if (value is null)
                 {
-                    if ((_qpmLimitErrors == 0) || (value == 0))
+                    _qpmPrefixLimitsIPv6 = new Dictionary<int, (int, int)>();
+                }
+                else if (value.Count > byte.MaxValue)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(QpmPrefixLimitsIPv6), "QPM Prefix Limits for IPv6 cannot have more than 255 entries.");
+                }
+                else
+                {
+                    foreach (KeyValuePair<int, (int, int)> qpmPrefixLimit in value)
                     {
-                        _qpmLimitErrors = value;
-                        ResetQpsLimitTimer();
+                        if ((qpmPrefixLimit.Key < 0) || (qpmPrefixLimit.Key > 128))
+                            throw new ArgumentOutOfRangeException(nameof(QpmPrefixLimitsIPv6), "QPM limit IPv6 prefix valid range is between 0 and 128.");
+
+                        if ((qpmPrefixLimit.Value.Item1 < 0) || (qpmPrefixLimit.Value.Item2 < 0))
+                            throw new ArgumentOutOfRangeException(nameof(QpmPrefixLimitsIPv6), "QPM limit value cannot be less than 0.");
                     }
-                    else
-                    {
-                        _qpmLimitErrors = value;
-                    }
+
+                    _qpmPrefixLimitsIPv6 = value;
                 }
             }
         }
@@ -5533,27 +5698,15 @@ namespace DnsServerCore.Dns
             }
         }
 
-        public int QpmLimitIPv4PrefixLength
+        public int QpmLimitUdpTruncationPercentage
         {
-            get { return _qpmLimitIPv4PrefixLength; }
+            get { return _qpmLimitUdpTruncationPercentage; }
             set
             {
-                if ((value < 0) || (value > 32))
-                    throw new ArgumentOutOfRangeException(nameof(QpmLimitIPv4PrefixLength), "Valid range is between 0 and 32.");
+                if ((value < 0) || (value > 100))
+                    throw new ArgumentOutOfRangeException(nameof(QpmLimitUdpTruncationPercentage), "Percentage value valid range is between 0 and 100.");
 
-                _qpmLimitIPv4PrefixLength = value;
-            }
-        }
-
-        public int QpmLimitIPv6PrefixLength
-        {
-            get { return _qpmLimitIPv6PrefixLength; }
-            set
-            {
-                if ((value < 0) || (value > 64))
-                    throw new ArgumentOutOfRangeException(nameof(QpmLimitIPv6PrefixLength), "Valid range is between 0 and 64.");
-
-                _qpmLimitIPv6PrefixLength = value;
+                _qpmLimitUdpTruncationPercentage = value;
             }
         }
 
