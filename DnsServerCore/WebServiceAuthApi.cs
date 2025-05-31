@@ -24,6 +24,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
+using TechnitiumLibrary.Security.OTP;
 
 namespace DnsServerCore
 {
@@ -60,6 +61,7 @@ namespace DnsServerCore
                 {
                     jsonWriter.WriteString("displayName", currentSession.User.DisplayName);
                     jsonWriter.WriteString("username", currentSession.User.Username);
+                    jsonWriter.WriteBoolean("totpEnabled", currentSession.User.TOTPEnabled);
                     jsonWriter.WriteString("token", currentSession.Token);
                 }
 
@@ -102,6 +104,7 @@ namespace DnsServerCore
             {
                 jsonWriter.WriteString("displayName", user.DisplayName);
                 jsonWriter.WriteString("username", user.Username);
+                jsonWriter.WriteBoolean("totpEnabled", user.TOTPEnabled);
                 jsonWriter.WriteBoolean("disabled", user.Disabled);
                 jsonWriter.WriteString("previousSessionLoggedOn", user.PreviousSessionLoggedOn);
                 jsonWriter.WriteString("previousSessionRemoteAddress", user.PreviousSessionRemoteAddress.ToString());
@@ -301,11 +304,12 @@ namespace DnsServerCore
 
                 string username = request.GetQueryOrForm("user");
                 string password = request.GetQueryOrForm("pass");
+                string totp = request.GetQueryOrForm("totp", null);
                 string tokenName = (sessionType == UserSessionType.ApiToken) ? request.GetQueryOrForm("tokenName") : null;
                 bool includeInfo = request.GetQueryOrForm("includeInfo", bool.Parse, false);
                 IPEndPoint remoteEP = context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader);
 
-                UserSession session = await _dnsWebService._authManager.CreateSessionAsync(sessionType, tokenName, username, password, remoteEP.Address, request.Headers.UserAgent);
+                UserSession session = await _dnsWebService._authManager.CreateSessionAsync(sessionType, tokenName, username, password, totp, remoteEP.Address, request.Headers.UserAgent);
 
                 _dnsWebService._log.Write(remoteEP, "[" + session.User.Username + "] User logged in.");
 
@@ -347,6 +351,63 @@ namespace DnsServerCore
                 session.User.ChangePassword(password);
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Password was changed successfully.");
+
+                _dnsWebService._authManager.SaveConfigFile();
+            }
+
+            public void Initialize2FA(HttpContext context)
+            {
+                UserSession session = context.GetCurrentSession();
+
+                if (session.Type != UserSessionType.Standard)
+                    throw new DnsWebServiceException("Access was denied.");
+
+                Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+
+                if (session.User.TOTPEnabled)
+                {
+                    jsonWriter.WriteBoolean("totpEnabled", true);
+                }
+                else
+                {
+                    AuthenticatorKeyUri totpKeyUri = session.User.InitializedTOTP(_dnsWebService._dnsServer.ServerDomain);
+
+                    jsonWriter.WriteBoolean("totpEnabled", false);
+                    jsonWriter.WriteString("qrCodePngImage", Convert.ToBase64String(totpKeyUri.GetQRCodePngImage(3)));
+                    jsonWriter.WriteString("secret", totpKeyUri.Secret);
+
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Two-factor Authentication (2FA) using Time-based one-time password (TOTP) was initialized successfully.");
+
+                    _dnsWebService._authManager.SaveConfigFile();
+                }
+            }
+
+            public void Enable2FA(HttpContext context)
+            {
+                UserSession session = context.GetCurrentSession();
+
+                if (session.Type != UserSessionType.Standard)
+                    throw new DnsWebServiceException("Access was denied.");
+
+                string totp = context.Request.GetQueryOrForm("totp");
+
+                session.User.EnableTOTP(totp);
+
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Two-factor Authentication (2FA) using Time-based one-time password (TOTP) was enabled successfully.");
+
+                _dnsWebService._authManager.SaveConfigFile();
+            }
+
+            public void Disable2FA(HttpContext context)
+            {
+                UserSession session = context.GetCurrentSession();
+
+                if (session.Type != UserSessionType.Standard)
+                    throw new DnsWebServiceException("Access was denied.");
+
+                session.User.DisableTOTP();
+
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Two-factor Authentication (2FA) using Time-based one-time password (TOTP) was disabled successfully.");
 
                 _dnsWebService._authManager.SaveConfigFile();
             }
@@ -559,75 +620,88 @@ namespace DnsServerCore
                 if (user is null)
                     throw new DnsWebServiceException("No such user exists: " + username);
 
-                if (request.TryGetQueryOrForm("displayName", out string displayName))
-                    user.DisplayName = displayName;
-
-                if (request.TryGetQueryOrForm("newUser", out string newUsername))
-                    _dnsWebService._authManager.ChangeUsername(user, newUsername);
-
-                if (request.TryGetQueryOrForm("disabled", bool.Parse, out bool disabled) && (session.User != user)) //to avoid self lockout
+                try
                 {
-                    user.Disabled = disabled;
+                    if (request.TryGetQueryOrForm("displayName", out string displayName))
+                        user.DisplayName = displayName;
 
-                    if (user.Disabled)
+                    if (request.TryGetQueryOrForm("newUser", out string newUsername))
+                        _dnsWebService._authManager.ChangeUsername(user, newUsername);
+
+                    if (request.TryGetQueryOrForm("totpEnabled", bool.Parse, out bool totpEnabled))
                     {
-                        foreach (UserSession userSession in _dnsWebService._authManager.Sessions)
-                        {
-                            if (userSession.Type == UserSessionType.ApiToken)
-                                continue;
+                        if (totpEnabled)
+                            throw new InvalidOperationException("Time-based one-time password (TOTP) can be enabled only by the user themself.");
 
-                            if (userSession.User == user)
-                                _dnsWebService._authManager.DeleteSession(userSession.Token);
+                        user.DisableTOTP();
+                    }
+
+                    if (request.TryGetQueryOrForm("disabled", bool.Parse, out bool disabled) && (session.User != user)) //to avoid self lockout
+                    {
+                        user.Disabled = disabled;
+
+                        if (user.Disabled)
+                        {
+                            foreach (UserSession userSession in _dnsWebService._authManager.Sessions)
+                            {
+                                if (userSession.Type == UserSessionType.ApiToken)
+                                    continue;
+
+                                if (userSession.User == user)
+                                    _dnsWebService._authManager.DeleteSession(userSession.Token);
+                            }
                         }
                     }
-                }
 
-                if (request.TryGetQueryOrForm("sessionTimeoutSeconds", int.Parse, out int sessionTimeoutSeconds))
-                    user.SessionTimeoutSeconds = sessionTimeoutSeconds;
+                    if (request.TryGetQueryOrForm("sessionTimeoutSeconds", int.Parse, out int sessionTimeoutSeconds))
+                        user.SessionTimeoutSeconds = sessionTimeoutSeconds;
 
-                string newPassword = request.QueryOrForm("newPass");
-                if (!string.IsNullOrWhiteSpace(newPassword))
-                {
-                    int iterations = request.GetQueryOrForm("iterations", int.Parse, User.DEFAULT_ITERATIONS);
-
-                    user.ChangePassword(newPassword, iterations);
-                }
-
-                string memberOfGroups = request.QueryOrForm("memberOfGroups");
-                if (memberOfGroups is not null)
-                {
-                    string[] parts = memberOfGroups.Split(',');
-                    Dictionary<string, Group> groups = new Dictionary<string, Group>(parts.Length);
-
-                    foreach (string part in parts)
+                    string newPassword = request.QueryOrForm("newPass");
+                    if (!string.IsNullOrWhiteSpace(newPassword))
                     {
-                        if (part.Length == 0)
-                            continue;
+                        int iterations = request.GetQueryOrForm("iterations", int.Parse, User.DEFAULT_ITERATIONS);
 
-                        Group group = _dnsWebService._authManager.GetGroup(part);
-                        if (group is null)
-                            throw new DnsWebServiceException("No such group exists: " + part);
-
-                        groups.Add(group.Name.ToLowerInvariant(), group);
+                        user.ChangePassword(newPassword, iterations);
                     }
 
-                    //ensure user is member of everyone group
-                    Group everyone = _dnsWebService._authManager.GetGroup(Group.EVERYONE);
-                    groups[everyone.Name.ToLowerInvariant()] = everyone;
-
-                    if (session.User == user)
+                    string memberOfGroups = request.QueryOrForm("memberOfGroups");
+                    if (memberOfGroups is not null)
                     {
-                        //ensure current admin user is member of administrators group to avoid self lockout
-                        Group admins = _dnsWebService._authManager.GetGroup(Group.ADMINISTRATORS);
-                        groups[admins.Name.ToLowerInvariant()] = admins;
+                        string[] parts = memberOfGroups.Split(',');
+                        Dictionary<string, Group> groups = new Dictionary<string, Group>(parts.Length);
+
+                        foreach (string part in parts)
+                        {
+                            if (part.Length == 0)
+                                continue;
+
+                            Group group = _dnsWebService._authManager.GetGroup(part);
+                            if (group is null)
+                                throw new DnsWebServiceException("No such group exists: " + part);
+
+                            groups.Add(group.Name.ToLowerInvariant(), group);
+                        }
+
+                        //ensure user is member of everyone group
+                        Group everyone = _dnsWebService._authManager.GetGroup(Group.EVERYONE);
+                        groups[everyone.Name.ToLowerInvariant()] = everyone;
+
+                        if (session.User == user)
+                        {
+                            //ensure current admin user is member of administrators group to avoid self lockout
+                            Group admins = _dnsWebService._authManager.GetGroup(Group.ADMINISTRATORS);
+                            groups[admins.Name.ToLowerInvariant()] = admins;
+                        }
+
+                        user.SyncGroups(groups);
                     }
-
-                    user.SyncGroups(groups);
                 }
+                finally
+                {
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User account details were updated successfully for user: " + username);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User account details were updated successfully for user: " + username);
-
-                _dnsWebService._authManager.SaveConfigFile();
+                    _dnsWebService._authManager.SaveConfigFile();
+                }
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteUserDetails(jsonWriter, user, null, true, false);
