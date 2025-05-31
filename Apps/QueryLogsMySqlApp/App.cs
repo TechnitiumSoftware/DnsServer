@@ -333,7 +333,7 @@ CREATE TABLE IF NOT EXISTS dns_logs
     server varchar(255),
     timestamp DATETIME NOT NULL,
     client_ip VARCHAR(39) NOT NULL,
-    protocol TINYINT NOT NULL,
+    protocol TINYINT UNSIGNED NOT NULL,
     response_type TINYINT NOT NULL,
     response_rtt REAL,
     rcode TINYINT NOT NULL,
@@ -350,6 +350,18 @@ CREATE TABLE IF NOT EXISTS dns_logs
                     await using (MySqlCommand command = connection.CreateCommand())
                     {
                         command.CommandText = "ALTER TABLE dns_logs ADD server varchar(255);";
+
+                        try
+                        {
+                            await command.ExecuteNonQueryAsync();
+                        }
+                        catch
+                        { }
+                    }
+
+                    await using (MySqlCommand command = connection.CreateCommand())
+                    {
+                        command.CommandText = "ALTER TABLE dns_logs MODIFY protocol TINYINT UNSIGNED NOT NULL;";
 
                         try
                         {
