@@ -246,6 +246,18 @@ namespace DnsServerCore
                 jsonWriter.WriteBoolean("dnsAppsEnableAutomaticUpdate", _dnsWebService._appsApi.EnableAutomaticUpdate);
 
                 jsonWriter.WriteBoolean("preferIPv6", _dnsWebService._dnsServer.PreferIPv6);
+                jsonWriter.WriteBoolean("enableUdpSocketPool", _dnsWebService._dnsServer.EnableUdpSocketPool);
+
+                jsonWriter.WriteStartArray("socketPoolExcludedPorts");
+
+                ushort[] socketPoolExcludedPorts = UdpClientConnection.SocketPoolExcludedPorts;
+                if (socketPoolExcludedPorts is not null)
+                {
+                    foreach (ushort excludedPort in socketPoolExcludedPorts)
+                        jsonWriter.WriteNumberValue(excludedPort);
+                }
+
+                jsonWriter.WriteEndArray();
 
                 jsonWriter.WriteNumber("udpPayloadSize", _dnsWebService._dnsServer.UdpPayloadSize);
 
@@ -257,11 +269,38 @@ namespace DnsServerCore
                 jsonWriter.WriteString("eDnsClientSubnetIpv4Override", _dnsWebService._dnsServer.EDnsClientSubnetIpv4Override?.ToString());
                 jsonWriter.WriteString("eDnsClientSubnetIpv6Override", _dnsWebService._dnsServer.EDnsClientSubnetIpv6Override?.ToString());
 
-                jsonWriter.WriteNumber("qpmLimitRequests", _dnsWebService._dnsServer.QpmLimitRequests);
-                jsonWriter.WriteNumber("qpmLimitErrors", _dnsWebService._dnsServer.QpmLimitErrors);
+                jsonWriter.WriteStartArray("qpmPrefixLimitsIPv4");
+
+                foreach (KeyValuePair<int, (int, int)> qpmPrefixLimit in _dnsWebService._dnsServer.QpmPrefixLimitsIPv4)
+                {
+                    jsonWriter.WriteStartObject();
+
+                    jsonWriter.WriteNumber("prefix", qpmPrefixLimit.Key);
+                    jsonWriter.WriteNumber("udpLimit", qpmPrefixLimit.Value.Item1);
+                    jsonWriter.WriteNumber("tcpLimit", qpmPrefixLimit.Value.Item2);
+
+                    jsonWriter.WriteEndObject();
+                }
+
+                jsonWriter.WriteEndArray();
+
+                jsonWriter.WriteStartArray("qpmPrefixLimitsIPv6");
+
+                foreach (KeyValuePair<int, (int, int)> qpmPrefixLimit in _dnsWebService._dnsServer.QpmPrefixLimitsIPv6)
+                {
+                    jsonWriter.WriteStartObject();
+
+                    jsonWriter.WriteNumber("prefix", qpmPrefixLimit.Key);
+                    jsonWriter.WriteNumber("udpLimit", qpmPrefixLimit.Value.Item1);
+                    jsonWriter.WriteNumber("tcpLimit", qpmPrefixLimit.Value.Item2);
+
+                    jsonWriter.WriteEndObject();
+                }
+
+                jsonWriter.WriteEndArray();
+
                 jsonWriter.WriteNumber("qpmLimitSampleMinutes", _dnsWebService._dnsServer.QpmLimitSampleMinutes);
-                jsonWriter.WriteNumber("qpmLimitIPv4PrefixLength", _dnsWebService._dnsServer.QpmLimitIPv4PrefixLength);
-                jsonWriter.WriteNumber("qpmLimitIPv6PrefixLength", _dnsWebService._dnsServer.QpmLimitIPv6PrefixLength);
+                jsonWriter.WriteNumber("qpmLimitUdpTruncationPercentage", _dnsWebService._dnsServer.QpmLimitUdpTruncationPercentage);
 
                 jsonWriter.WritePropertyName("qpmLimitBypassList");
                 jsonWriter.WriteStartArray();
@@ -655,6 +694,12 @@ namespace DnsServerCore
                     if (request.TryGetQueryOrForm("preferIPv6", bool.Parse, out bool preferIPv6))
                         _dnsWebService._dnsServer.PreferIPv6 = preferIPv6;
 
+                    if (request.TryGetQueryOrForm("enableUdpSocketPool", bool.Parse, out bool enableUdpSocketPool))
+                        _dnsWebService._dnsServer.EnableUdpSocketPool = enableUdpSocketPool;
+
+                    if (request.TryGetQueryOrFormArray("socketPoolExcludedPorts", ushort.Parse, out ushort[] socketPoolExcludedPorts))
+                        UdpClientConnection.SocketPoolExcludedPorts = socketPoolExcludedPorts;
+
                     if (request.TryGetQueryOrForm("udpPayloadSize", ushort.Parse, out ushort udpPayloadSize))
                         _dnsWebService._dnsServer.UdpPayloadSize = udpPayloadSize;
 
@@ -688,20 +733,75 @@ namespace DnsServerCore
                             _dnsWebService._dnsServer.EDnsClientSubnetIpv6Override = NetworkAddress.Parse(eDnsClientSubnetIpv6Override);
                     }
 
-                    if (request.TryGetQueryOrForm("qpmLimitRequests", int.Parse, out int qpmLimitRequests))
-                        _dnsWebService._dnsServer.QpmLimitRequests = qpmLimitRequests;
+                    if (request.TryGetQueryOrFormArray("qpmPrefixLimitsIPv4", delegate (JsonElement jsonObject)
+                        {
+                            int prefix = jsonObject.GetProperty("prefix").GetInt32();
+                            int udpLimit = jsonObject.GetProperty("udpLimit").GetInt32();
+                            int tcpLimit = jsonObject.GetProperty("tcpLimit").GetInt32();
 
-                    if (request.TryGetQueryOrForm("qpmLimitErrors", int.Parse, out int qpmLimitErrors))
-                        _dnsWebService._dnsServer.QpmLimitErrors = qpmLimitErrors;
+                            return new KeyValuePair<int, (int, int)>(prefix, (udpLimit, tcpLimit));
+                        }, delegate (ArraySegment<string> tableRow)
+                        {
+                            int prefix = int.Parse(tableRow[0]);
+                            int udpLimit = int.Parse(tableRow[1]);
+                            int tcpLimit = int.Parse(tableRow[2]);
+
+                            return new KeyValuePair<int, (int, int)>(prefix, (udpLimit, tcpLimit));
+                        },
+                        3, out KeyValuePair<int, (int, int)>[] qpmPrefixLimitsIPv4, '|'))
+                    {
+                        if ((qpmPrefixLimitsIPv4 is null) || (qpmPrefixLimitsIPv4.Length == 0))
+                        {
+                            _dnsWebService._dnsServer.QpmPrefixLimitsIPv4 = null;
+                        }
+                        else
+                        {
+                            Dictionary<int, (int, int)> qpmPrefixLimitsIPv4Map = new Dictionary<int, (int, int)>(qpmPrefixLimitsIPv4.Length);
+
+                            foreach (KeyValuePair<int, (int, int)> qpmPrefixLimit in qpmPrefixLimitsIPv4)
+                                qpmPrefixLimitsIPv4Map.Add(qpmPrefixLimit.Key, qpmPrefixLimit.Value);
+
+                            _dnsWebService._dnsServer.QpmPrefixLimitsIPv4 = qpmPrefixLimitsIPv4Map;
+                        }
+                    }
+
+                    if (request.TryGetQueryOrFormArray("qpmPrefixLimitsIPv6", delegate (JsonElement jsonObject)
+                    {
+                        int prefix = jsonObject.GetProperty("prefix").GetInt32();
+                        int udpLimit = jsonObject.GetProperty("udpLimit").GetInt32();
+                        int tcpLimit = jsonObject.GetProperty("tcpLimit").GetInt32();
+
+                        return new KeyValuePair<int, (int, int)>(prefix, (udpLimit, tcpLimit));
+                    }, delegate (ArraySegment<string> tableRow)
+                    {
+                        int prefix = int.Parse(tableRow[0]);
+                        int udpLimit = int.Parse(tableRow[1]);
+                        int tcpLimit = int.Parse(tableRow[2]);
+
+                        return new KeyValuePair<int, (int, int)>(prefix, (udpLimit, tcpLimit));
+                    },
+                        3, out KeyValuePair<int, (int, int)>[] qpmPrefixLimitsIPv6, '|'))
+                    {
+                        if ((qpmPrefixLimitsIPv6 is null) || (qpmPrefixLimitsIPv6.Length == 0))
+                        {
+                            _dnsWebService._dnsServer.QpmPrefixLimitsIPv6 = null;
+                        }
+                        else
+                        {
+                            Dictionary<int, (int, int)> qpmPrefixLimitsIPv6Map = new Dictionary<int, (int, int)>(qpmPrefixLimitsIPv6.Length);
+
+                            foreach (KeyValuePair<int, (int, int)> qpmPrefixLimit in qpmPrefixLimitsIPv6)
+                                qpmPrefixLimitsIPv6Map.Add(qpmPrefixLimit.Key, qpmPrefixLimit.Value);
+
+                            _dnsWebService._dnsServer.QpmPrefixLimitsIPv6 = qpmPrefixLimitsIPv6Map;
+                        }
+                    }
 
                     if (request.TryGetQueryOrForm("qpmLimitSampleMinutes", int.Parse, out int qpmLimitSampleMinutes))
                         _dnsWebService._dnsServer.QpmLimitSampleMinutes = qpmLimitSampleMinutes;
 
-                    if (request.TryGetQueryOrForm("qpmLimitIPv4PrefixLength", int.Parse, out int qpmLimitIPv4PrefixLength))
-                        _dnsWebService._dnsServer.QpmLimitIPv4PrefixLength = qpmLimitIPv4PrefixLength;
-
-                    if (request.TryGetQueryOrForm("qpmLimitIPv6PrefixLength", int.Parse, out int qpmLimitIPv6PrefixLength))
-                        _dnsWebService._dnsServer.QpmLimitIPv6PrefixLength = qpmLimitIPv6PrefixLength;
+                    if (request.TryGetQueryOrForm("qpmLimitUdpTruncationPercentage", int.Parse, out int qpmLimitUdpTruncationPercentage))
+                        _dnsWebService._dnsServer.QpmLimitUdpTruncationPercentage = qpmLimitUdpTruncationPercentage;
 
                     if (request.TryGetQueryOrFormArray("qpmLimitBypassList", NetworkAddress.Parse, out NetworkAddress[] qpmLimitBypassList))
                         _dnsWebService._dnsServer.QpmLimitBypassList = qpmLimitBypassList;
