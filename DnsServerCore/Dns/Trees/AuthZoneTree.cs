@@ -836,7 +836,7 @@ namespace DnsServerCore.Dns.Trees
             if (nextAuthZone is null)
                 return false;
 
-            return nextAuthZone.Name.EndsWith("." + domain);
+            return nextAuthZone.Name.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase);
         }
 
         #endregion
