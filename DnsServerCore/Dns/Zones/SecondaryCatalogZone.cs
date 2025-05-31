@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -269,7 +269,7 @@ namespace DnsServerCore.Dns.Zones
                                     string memberZoneDomain = labels[1] + "." + labels[0] + "." + _name;
                                     DnsResourceRecord prevHistoryRecord = historyRecords[i - 1];
 
-                                    if (prevHistoryRecord.Name.EndsWith(memberZoneDomain))
+                                    if (prevHistoryRecord.Name.EndsWith(memberZoneDomain, StringComparison.OrdinalIgnoreCase))
                                         break; //skip since its same member zone's custom property
 
                                     IReadOnlyList<DnsResourceRecord> ptrRecords = _dnsServer.AuthZoneManager.GetRecords(_name, memberZoneDomain, DnsResourceRecordType.PTR);
