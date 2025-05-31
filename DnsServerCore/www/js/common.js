@@ -25,7 +25,7 @@ function htmlDecode(value) {
     return $('<div/>').html(value).text();
 }
 
-function HTTPRequest(url, method, data, isTextResponse, success, error, invalidToken, objAlertPlaceholder, objLoaderPlaceholder, processData, contentType, dontHideAlert, showInnerError) {
+function HTTPRequest(url, method, data, isTextResponse, success, error, invalidToken, twoFactorAuthRequired, objAlertPlaceholder, objLoaderPlaceholder, processData, contentType, dontHideAlert, showInnerError) {
     var finalUrl;
 
     if ((url != null) && (url.url != null))
@@ -64,6 +64,9 @@ function HTTPRequest(url, method, data, isTextResponse, success, error, invalidT
 
     if (invalidToken == null)
         invalidToken = arguments[0].invalidToken;
+
+    if (twoFactorAuthRequired == null)
+        twoFactorAuthRequired = arguments[0].twoFactorAuthRequired;
 
     if (objAlertPlaceholder == null)
         objAlertPlaceholder = arguments[0].objAlertPlaceholder;
@@ -126,10 +129,26 @@ function HTTPRequest(url, method, data, isTextResponse, success, error, invalidT
                     case "invalid-token":
                         if (invalidToken != null)
                             invalidToken();
-                        else if (error != null)
-                            error();
-                        else
-                            window.location = "/";
+                        else {
+                            showAlert("danger", "Error!", response.errorMessage + (showInnerError && (response.innerErrorMessage != null) ? " " + response.innerErrorMessage : ""), objAlertPlaceholder);
+
+                            if (error != null)
+                                error();
+                            else
+                                window.location = "/";
+                        }
+                        break;
+
+                    case "2fa-required":
+                        if (twoFactorAuthRequired != null) {
+                            twoFactorAuthRequired();
+                        }
+                        else {
+                            showAlert("danger", "Error!", response.errorMessage + (showInnerError && (response.innerErrorMessage != null) ? " " + response.innerErrorMessage : ""), objAlertPlaceholder);
+
+                            if (error != null)
+                                error();
+                        }
 
                         break;
 
