@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net;
+using TechnitiumLibrary.Security.OTP;
 
 namespace DnsServerCore.Auth
 {
@@ -102,7 +103,7 @@ namespace DnsServerCore.Auth
             {
                 _saveTimer?.Dispose();
 
-                //always save config here
+                //always save config here to write user login timestamps details
                 try
                 {
                     SaveConfigFileInternal();
@@ -658,7 +659,7 @@ namespace DnsServerCore.Auth
             return userSessions;
         }
 
-        public async Task<UserSession> CreateSessionAsync(UserSessionType type, string tokenName, string username, string password, IPAddress remoteAddress, string userAgent)
+        public async Task<UserSession> CreateSessionAsync(UserSessionType type, string tokenName, string username, string password, string totp, IPAddress remoteAddress, string userAgent)
         {
             IPAddress network = GetClientNetwork(remoteAddress);
 
@@ -675,11 +676,31 @@ namespace DnsServerCore.Auth
 
                     if (HasLoginAttemptExceedLimit(network, MAX_LOGIN_ATTEMPTS))
                         BlockNetwork(network, BLOCK_NETWORK_INTERVAL);
-
-                    await Task.Delay(1000);
                 }
 
+                await Task.Delay(1000);
+
                 throw new DnsWebServiceException("Invalid username or password for user: " + username);
+            }
+
+            if (user.TOTPEnabled)
+            {
+                if (string.IsNullOrEmpty(totp))
+                    throw new TwoFactorAuthRequiredWebServiceException("A time-based one-time password (TOTP) is required for user: " + username);
+
+                Authenticator authenticator = new Authenticator(user.TOTPKeyUri);
+
+                if (!authenticator.IsTOTPValid(totp))
+                {
+                    MarkFailedLoginAttempt(network);
+
+                    if (HasLoginAttemptExceedLimit(network, MAX_LOGIN_ATTEMPTS))
+                        BlockNetwork(network, BLOCK_NETWORK_INTERVAL);
+
+                    await Task.Delay(1000);
+
+                    throw new DnsWebServiceException("Invalid time-based one-time password (TOTP) was attempted for user: " + username);
+                }
             }
 
             ResetFailedLoginAttempts(network);
