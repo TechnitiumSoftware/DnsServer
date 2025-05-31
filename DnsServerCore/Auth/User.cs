@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@ using System.Security.Cryptography;
 using System.Text;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
+using TechnitiumLibrary.Security.OTP;
 
 namespace DnsServerCore.Auth
 {
@@ -48,6 +49,8 @@ namespace DnsServerCore.Auth
         int _iterations;
         byte[] _salt;
         string _passwordHash;
+        AuthenticatorKeyUri _totpKeyUri;
+        bool _totpEnabled;
         bool _disabled;
         int _sessionTimeoutSeconds = 30 * 60; //default 30 mins
 
@@ -77,15 +80,27 @@ namespace DnsServerCore.Auth
 
         public User(BinaryReader bR, AuthManager authManager)
         {
-            switch (bR.ReadByte())
+            int version = bR.ReadByte();
+            switch (version)
             {
                 case 1:
+                case 2:
                     _displayName = bR.ReadShortString();
                     _username = bR.ReadShortString();
                     _passwordHashType = (UserPasswordHashType)bR.ReadByte();
                     _iterations = bR.ReadInt32();
                     _salt = bR.ReadBuffer();
                     _passwordHash = bR.ReadShortString();
+
+                    if (version >= 2)
+                    {
+                        string otpKeyUri = bR.ReadString();
+                        if (!string.IsNullOrEmpty(otpKeyUri))
+                            _totpKeyUri = AuthenticatorKeyUri.Parse(otpKeyUri);
+
+                        _totpEnabled = bR.ReadBoolean();
+                    }
+
                     _disabled = bR.ReadBoolean();
                     _sessionTimeoutSeconds = bR.ReadInt32();
 
@@ -161,6 +176,41 @@ namespace DnsServerCore.Auth
             _passwordHash = passwordHash;
         }
 
+        public AuthenticatorKeyUri InitializedTOTP(string issuer)
+        {
+            if (_totpEnabled)
+                throw new InvalidOperationException("Time-based one-time password (TOTP) is already enabled for user: " + _username);
+
+            _totpKeyUri = AuthenticatorKeyUri.Generate(issuer, _username);
+
+            return _totpKeyUri;
+        }
+
+        public void EnableTOTP(string totp)
+        {
+            if (_totpKeyUri is null)
+                throw new InvalidOperationException("Time-based one-time password (TOTP) was not initialized for user: " + _username);
+
+            if (_totpEnabled)
+                throw new InvalidOperationException("Time-based one-time password (TOTP) is already enabled for user: " + _username);
+
+            Authenticator authenticator = new Authenticator(_totpKeyUri);
+
+            if (!authenticator.IsTOTPValid(totp))
+                throw new Exception("Invalid time-based one-time password (TOTP) was attempted for user: " + _username);
+
+            _totpEnabled = true;
+        }
+
+        public void DisableTOTP()
+        {
+            if (!_totpEnabled)
+                throw new InvalidOperationException("Time-based one-time password (TOTP) is already disabled for user: " + _username);
+
+            _totpKeyUri = null;
+            _totpEnabled = false;
+        }
+
         public void LoggedInFrom(IPAddress remoteAddress)
         {
             if (remoteAddress.IsIPv4MappedToIPv6)
@@ -210,13 +260,20 @@ namespace DnsServerCore.Auth
 
         public void WriteTo(BinaryWriter bW)
         {
-            bW.Write((byte)1);
+            bW.Write((byte)2);
             bW.WriteShortString(_displayName);
             bW.WriteShortString(_username);
             bW.Write((byte)_passwordHashType);
             bW.Write(_iterations);
             bW.WriteBuffer(_salt);
             bW.WriteShortString(_passwordHash);
+
+            if (_totpKeyUri is null)
+                bW.Write("");
+            else
+                bW.Write(_totpKeyUri.ToString());
+
+            bW.Write(_totpEnabled);
             bW.Write(_disabled);
             bW.Write(_sessionTimeoutSeconds);
 
@@ -319,6 +376,12 @@ namespace DnsServerCore.Auth
 
         public string PasswordHash
         { get { return _passwordHash; } }
+
+        public AuthenticatorKeyUri TOTPKeyUri
+        { get { return _totpKeyUri; } }
+
+        public bool TOTPEnabled
+        { get { return _totpEnabled; } }
 
         public bool Disabled
         {
