@@ -121,6 +121,8 @@ namespace DnsServerCore
         readonly Timer _saveTimer;
         const int SAVE_TIMER_INITIAL_INTERVAL = 10000;
 
+        bool _isRunning;
+
         #endregion
 
         #region constructor
@@ -286,7 +288,7 @@ namespace DnsServerCore
             {
                 _webServiceLocalAddresses = WebUtilities.GetValidKestrelLocalAddresses(_webServiceLocalAddresses);
 
-                await StartWebServiceAsync(_webServiceLocalAddresses, _webServiceHttpPort, _webServiceTlsPort, false);
+                await StartWebServiceAsync(false);
                 return;
             }
             catch (Exception ex)
@@ -302,7 +304,7 @@ namespace DnsServerCore
                 _webServiceHttpPort = oldWebServiceHttpPort;
                 _webServiceTlsPort = oldWebServiceTlsPort;
 
-                await StartWebServiceAsync(_webServiceLocalAddresses, _webServiceHttpPort, _webServiceTlsPort, false);
+                await StartWebServiceAsync(false);
 
                 SaveConfigFileInternal(); //save reverted changes
                 return;
@@ -318,7 +320,7 @@ namespace DnsServerCore
             {
                 _webServiceLocalAddresses = new IPAddress[] { IPAddress.Any };
 
-                await StartWebServiceAsync(_webServiceLocalAddresses, _webServiceHttpPort, _webServiceTlsPort, true);
+                await StartWebServiceAsync(true);
                 return;
             }
             catch (Exception ex3)
@@ -330,10 +332,10 @@ namespace DnsServerCore
 
             _webServiceLocalAddresses = new IPAddress[] { IPAddress.Loopback };
 
-            await StartWebServiceAsync(_webServiceLocalAddresses, _webServiceHttpPort, _webServiceTlsPort, true);
+            await StartWebServiceAsync(true);
         }
 
-        private async Task StartWebServiceAsync(IReadOnlyList<IPAddress> webServiceLocalAddresses, int webServiceHttpPort, int webServiceTlsPort, bool httpOnlyMode)
+        private async Task StartWebServiceAsync(bool httpOnlyMode)
         {
             WebApplicationBuilder builder = WebApplication.CreateBuilder();
 
@@ -352,15 +354,15 @@ namespace DnsServerCore
             builder.WebHost.ConfigureKestrel(delegate (WebHostBuilderContext context, KestrelServerOptions serverOptions)
             {
                 //http
-                foreach (IPAddress webServiceLocalAddress in webServiceLocalAddresses)
-                    serverOptions.Listen(webServiceLocalAddress, webServiceHttpPort);
+                foreach (IPAddress webServiceLocalAddress in _webServiceLocalAddresses)
+                    serverOptions.Listen(webServiceLocalAddress, _webServiceHttpPort);
 
                 //https
                 if (!httpOnlyMode && _webServiceEnableTls && (_webServiceCertificateCollection is not null))
                 {
-                    foreach (IPAddress webServiceLocalAddress in webServiceLocalAddresses)
+                    foreach (IPAddress webServiceLocalAddress in _webServiceLocalAddresses)
                     {
-                        serverOptions.Listen(webServiceLocalAddress, webServiceTlsPort, delegate (ListenOptions listenOptions)
+                        serverOptions.Listen(webServiceLocalAddress, _webServiceTlsPort, delegate (ListenOptions listenOptions)
                         {
                             if (_webServiceEnableHttp3)
                                 listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
@@ -410,24 +412,24 @@ namespace DnsServerCore
             {
                 await _webService.StartAsync();
 
-                foreach (IPAddress webServiceLocalAddress in webServiceLocalAddresses)
+                foreach (IPAddress webServiceLocalAddress in _webServiceLocalAddresses)
                 {
-                    _log?.Write(new IPEndPoint(webServiceLocalAddress, webServiceHttpPort), "Http", "Web Service was bound successfully.");
+                    _log?.Write(new IPEndPoint(webServiceLocalAddress, _webServiceHttpPort), "Http", "Web Service was bound successfully.");
 
                     if (!httpOnlyMode && _webServiceEnableTls && (_webServiceCertificateCollection is not null))
-                        _log?.Write(new IPEndPoint(webServiceLocalAddress, webServiceTlsPort), "Https", "Web Service was bound successfully.");
+                        _log?.Write(new IPEndPoint(webServiceLocalAddress, _webServiceTlsPort), "Https", "Web Service was bound successfully.");
                 }
             }
             catch
             {
                 await StopWebServiceAsync();
 
-                foreach (IPAddress webServiceLocalAddress in webServiceLocalAddresses)
+                foreach (IPAddress webServiceLocalAddress in _webServiceLocalAddresses)
                 {
-                    _log?.Write(new IPEndPoint(webServiceLocalAddress, webServiceHttpPort), "Http", "Web Service failed to bind.");
+                    _log?.Write(new IPEndPoint(webServiceLocalAddress, _webServiceHttpPort), "Http", "Web Service failed to bind.");
 
                     if (!httpOnlyMode && _webServiceEnableTls && (_webServiceCertificateCollection is not null))
-                        _log?.Write(new IPEndPoint(webServiceLocalAddress, webServiceTlsPort), "Https", "Web Service failed to bind.");
+                        _log?.Write(new IPEndPoint(webServiceLocalAddress, _webServiceTlsPort), "Https", "Web Service failed to bind.");
                 }
 
                 throw;
@@ -478,6 +480,9 @@ namespace DnsServerCore
             _webService.MapGetAndPost("/api/user/session/get", _authApi.GetCurrentSessionDetails);
             _webService.MapGetAndPost("/api/user/session/delete", delegate (HttpContext context) { _authApi.DeleteSession(context, false); });
             _webService.MapGetAndPost("/api/user/changePassword", _authApi.ChangePassword);
+            _webService.MapGetAndPost("/api/user/2fa/init", _authApi.Initialize2FA);
+            _webService.MapGetAndPost("/api/user/2fa/enable", _authApi.Enable2FA);
+            _webService.MapGetAndPost("/api/user/2fa/disable", _authApi.Disable2FA);
             _webService.MapGetAndPost("/api/user/profile/get", _authApi.GetProfile);
             _webService.MapGetAndPost("/api/user/profile/set", _authApi.SetProfile);
             _webService.MapGetAndPost("/api/user/checkForUpdate", _api.CheckForUpdateAsync);
@@ -732,6 +737,11 @@ namespace DnsServerCore
                         if (ex is InvalidTokenWebServiceException)
                         {
                             jsonWriter.WriteString("status", "invalid-token");
+                            jsonWriter.WriteString("errorMessage", ex.Message);
+                        }
+                        else if (ex is TwoFactorAuthRequiredWebServiceException)
+                        {
+                            jsonWriter.WriteString("status", "2fa-required");
                             jsonWriter.WriteString("errorMessage", ex.Message);
                         }
                         else
@@ -1058,6 +1068,9 @@ namespace DnsServerCore
                 if (!string.IsNullOrEmpty(webServiceTlsPort))
                     _webServiceTlsPort = int.Parse(webServiceTlsPort);
 
+                _dnsServer.EnableUdpSocketPool = Environment.OSVersion.Platform == PlatformID.Win32NT;
+                UdpClientConnection.SocketPoolExcludedPorts = [(ushort)_webServiceTlsPort];
+
                 string webServiceEnableTls = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_ENABLE_HTTPS");
                 if (!string.IsNullOrEmpty(webServiceEnableTls))
                     _webServiceEnableTls = bool.Parse(webServiceEnableTls);
@@ -1185,9 +1198,6 @@ namespace DnsServerCore
                 _log.Write("Note: You may try deleting the config file to fix this issue. However, you will lose DNS settings but, zone data wont be affected.");
                 throw;
             }
-
-            //exclude web service TLS port to prevent socket pool from occupying it
-            UdpClientConnection.SocketPoolExcludedPorts = new int[] { _webServiceTlsPort };
         }
 
         private void CreateForwarderZoneToDisableDnssecForNTP()
@@ -1291,7 +1301,7 @@ namespace DnsServerCore
 
             int version = bR.ReadByte();
 
-            if ((version >= 28) && (version <= 41))
+            if ((version >= 28) && (version <= 42))
             {
                 ReadConfigFrom(bR, version);
             }
@@ -1302,6 +1312,8 @@ namespace DnsServerCore
                 //new default settings
                 DnsClientConnection.IPv4SourceAddresses = null;
                 DnsClientConnection.IPv6SourceAddresses = null;
+                _dnsServer.EnableUdpSocketPool = Environment.OSVersion.Platform == PlatformID.Win32NT;
+                UdpClientConnection.SocketPoolExcludedPorts = [(ushort)_webServiceTlsPort];
                 _dnsServer.MaxConcurrentResolutionsPerCore = 100;
                 _appsApi.EnableAutomaticUpdate = true;
                 _webServiceEnableHttp3 = _webServiceEnableTls && IsQuicSupported();
@@ -1495,6 +1507,25 @@ namespace DnsServerCore
                 _appsApi.EnableAutomaticUpdate = bR.ReadBoolean();
 
                 _dnsServer.PreferIPv6 = bR.ReadBoolean();
+
+                if (version >= 42)
+                {
+                    _dnsServer.EnableUdpSocketPool = bR.ReadBoolean();
+
+                    int count = bR.ReadUInt16();
+                    ushort[] socketPoolExcludedPorts = new ushort[count];
+
+                    for (int i = 0; i < count; i++)
+                        socketPoolExcludedPorts[i] = bR.ReadUInt16();
+
+                    UdpClientConnection.SocketPoolExcludedPorts = socketPoolExcludedPorts;
+                }
+                else
+                {
+                    _dnsServer.EnableUdpSocketPool = Environment.OSVersion.Platform == PlatformID.Win32NT;
+                    UdpClientConnection.SocketPoolExcludedPorts = [(ushort)_webServiceTlsPort];
+                }
+
                 _dnsServer.UdpPayloadSize = bR.ReadUInt16();
                 _dnsServer.DnssecValidation = bR.ReadBoolean();
 
@@ -1529,11 +1560,52 @@ namespace DnsServerCore
                     _dnsServer.EDnsClientSubnetIpv6Override = null;
                 }
 
-                _dnsServer.QpmLimitRequests = bR.ReadInt32();
-                _dnsServer.QpmLimitErrors = bR.ReadInt32();
+                if (version >= 42)
+                {
+                    {
+                        int count = bR.ReadByte();
+                        Dictionary<int, (int, int)> qpmPrefixLimitsIPv4 = new Dictionary<int, (int, int)>(count);
+
+                        for (int i = 0; i < count; i++)
+                            qpmPrefixLimitsIPv4.Add(bR.ReadInt32(), (bR.ReadInt32(), bR.ReadInt32()));
+
+                        _dnsServer.QpmPrefixLimitsIPv4 = qpmPrefixLimitsIPv4;
+                    }
+
+                    {
+                        int count = bR.ReadByte();
+                        Dictionary<int, (int, int)> qpmPrefixLimitsIPv6 = new Dictionary<int, (int, int)>(count);
+
+                        for (int i = 0; i < count; i++)
+                            qpmPrefixLimitsIPv6.Add(bR.ReadInt32(), (bR.ReadInt32(), bR.ReadInt32()));
+
+                        _dnsServer.QpmPrefixLimitsIPv6 = qpmPrefixLimitsIPv6;
+                    }
+
                 _dnsServer.QpmLimitSampleMinutes = bR.ReadInt32();
-                _dnsServer.QpmLimitIPv4PrefixLength = bR.ReadInt32();
-                _dnsServer.QpmLimitIPv6PrefixLength = bR.ReadInt32();
+                    _dnsServer.QpmLimitUdpTruncationPercentage = bR.ReadInt32();
+                }
+                else
+                {
+                    int qpmLimitRequests = bR.ReadInt32();
+                    _ = bR.ReadInt32(); //obsolete qpmLimitErrors
+                    int qpmLimitSampleMinutes = bR.ReadInt32();
+                    int qpmLimitIPv4PrefixLength = bR.ReadInt32();
+                    int qpmLimitIPv6PrefixLength = bR.ReadInt32();
+
+                    _dnsServer.QpmPrefixLimitsIPv4 = new Dictionary<int, (int, int)>()
+                    {
+                        { qpmLimitIPv4PrefixLength, (qpmLimitRequests, qpmLimitRequests) }
+                    };
+
+                    _dnsServer.QpmPrefixLimitsIPv6 = new Dictionary<int, (int, int)>()
+                    {
+                        { qpmLimitIPv6PrefixLength, (qpmLimitRequests, qpmLimitRequests) }
+                    };
+
+                    _dnsServer.QpmLimitSampleMinutes = qpmLimitSampleMinutes;
+                    _dnsServer.QpmLimitUdpTruncationPercentage = 0;
+                }
 
                 if (version >= 34)
                     _dnsServer.QpmLimitBypassList = AuthZoneInfo.ReadNetworkAddressesFrom(bR);
@@ -2020,7 +2092,7 @@ namespace DnsServerCore
             {
                 _dnsServer.Recursion = (DnsServerRecursion)bR.ReadByte();
 
-                NetworkAddress[] recursionDeniedNetworks = null;
+                NetworkAddress[] recursionDeniedNetworks;
                 {
                     int count = bR.ReadByte();
                     if (count > 0)
@@ -2038,7 +2110,7 @@ namespace DnsServerCore
                     }
                 }
 
-                NetworkAddress[] recursionAllowedNetworks = null;
+                NetworkAddress[] recursionAllowedNetworks;
                 {
                     int count = bR.ReadByte();
                     if (count > 0)
@@ -2093,25 +2165,61 @@ namespace DnsServerCore
 
             if (version >= 20)
             {
-                _dnsServer.QpmLimitRequests = bR.ReadInt32();
-                _dnsServer.QpmLimitErrors = bR.ReadInt32();
-                _dnsServer.QpmLimitSampleMinutes = bR.ReadInt32();
-                _dnsServer.QpmLimitIPv4PrefixLength = bR.ReadInt32();
-                _dnsServer.QpmLimitIPv6PrefixLength = bR.ReadInt32();
+                int qpmLimitRequests = bR.ReadInt32();
+                _ = bR.ReadInt32(); //obsolete qpmLimitErrors
+                int qpmLimitSampleMinutes = bR.ReadInt32();
+                int qpmLimitIPv4PrefixLength = bR.ReadInt32();
+                int qpmLimitIPv6PrefixLength = bR.ReadInt32();
+
+                _dnsServer.QpmPrefixLimitsIPv4 = new Dictionary<int, (int, int)>()
+                {
+                    { qpmLimitIPv4PrefixLength, (qpmLimitRequests, qpmLimitRequests) }
+                };
+
+                _dnsServer.QpmPrefixLimitsIPv6 = new Dictionary<int, (int, int)>()
+                {
+                    { qpmLimitIPv6PrefixLength, (qpmLimitRequests, qpmLimitRequests) }
+                };
+
+                _dnsServer.QpmLimitSampleMinutes = qpmLimitSampleMinutes;
+                _dnsServer.QpmLimitUdpTruncationPercentage = 0;
             }
             else if (version >= 17)
             {
-                _dnsServer.QpmLimitRequests = bR.ReadInt32();
-                _dnsServer.QpmLimitSampleMinutes = bR.ReadInt32();
+                int qpmLimitRequests = bR.ReadInt32();
+                int qpmLimitSampleMinutes = bR.ReadInt32();
                 _ = bR.ReadInt32(); //read obsolete value _dnsServer.QpmLimitSamplingIntervalInMinutes
+
+                _dnsServer.QpmPrefixLimitsIPv4 = new Dictionary<int, (int, int)>()
+                {
+                    { 24, (qpmLimitRequests, qpmLimitRequests) }
+                };
+
+                _dnsServer.QpmPrefixLimitsIPv6 = new Dictionary<int, (int, int)>()
+                {
+                    { 56, (qpmLimitRequests, qpmLimitRequests) }
+                };
+
+                _dnsServer.QpmLimitSampleMinutes = qpmLimitSampleMinutes;
+                _dnsServer.QpmLimitUdpTruncationPercentage = 0;
             }
             else
             {
-                _dnsServer.QpmLimitRequests = 0;
-                _dnsServer.QpmLimitErrors = 0;
-                _dnsServer.QpmLimitSampleMinutes = 1;
-                _dnsServer.QpmLimitIPv4PrefixLength = 24;
-                _dnsServer.QpmLimitIPv6PrefixLength = 56;
+                _dnsServer.QpmPrefixLimitsIPv4 = new Dictionary<int, (int, int)>()
+                {
+                    { 32, (600, 600) },
+                    { 24, (6000, 6000) }
+                };
+
+                _dnsServer.QpmPrefixLimitsIPv6 = new Dictionary<int, (int, int)>()
+                {
+                    { 128, (600, 600) },
+                    { 64, (1200, 1200) },
+                    { 56, (6000, 6000) }
+                };
+
+                _dnsServer.QpmLimitSampleMinutes = 5;
+                _dnsServer.QpmLimitUdpTruncationPercentage = 50;
             }
 
             if (version >= 13)
@@ -2547,7 +2655,7 @@ namespace DnsServerCore
         private void WriteConfigTo(BinaryWriter bW)
         {
             bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-            bW.Write((byte)41); //version
+            bW.Write((byte)42); //version
 
             //web service
             {
@@ -2611,6 +2719,21 @@ namespace DnsServerCore
                 bW.Write(_appsApi.EnableAutomaticUpdate);
 
                 bW.Write(_dnsServer.PreferIPv6);
+                bW.Write(_dnsServer.EnableUdpSocketPool);
+
+                ushort[] socketPoolExcludedPorts = UdpClientConnection.SocketPoolExcludedPorts;
+                if (socketPoolExcludedPorts is null)
+                {
+                    bW.Write(ushort.MinValue);
+                }
+                else
+                {
+                    bW.Write(Convert.ToUInt16(socketPoolExcludedPorts.Length));
+
+                    foreach (ushort excludedPort in socketPoolExcludedPorts)
+                        bW.Write(excludedPort);
+                }
+
                 bW.Write(_dnsServer.UdpPayloadSize);
                 bW.Write(_dnsServer.DnssecValidation);
 
@@ -2638,11 +2761,40 @@ namespace DnsServerCore
                     _dnsServer.EDnsClientSubnetIpv6Override.WriteTo(bW);
                 }
 
-                bW.Write(_dnsServer.QpmLimitRequests);
-                bW.Write(_dnsServer.QpmLimitErrors);
+                if (_dnsServer.QpmPrefixLimitsIPv4.Count == 0)
+                {
+                    bW.Write((byte)0);
+                }
+                else
+                {
+                    bW.Write(Convert.ToByte(_dnsServer.QpmPrefixLimitsIPv4.Count));
+
+                    foreach (KeyValuePair<int, (int, int)> qpmPrefixLimit in _dnsServer.QpmPrefixLimitsIPv4)
+                    {
+                        bW.Write(qpmPrefixLimit.Key);
+                        bW.Write(qpmPrefixLimit.Value.Item1);
+                        bW.Write(qpmPrefixLimit.Value.Item2);
+                    }
+                }
+
+                if (_dnsServer.QpmPrefixLimitsIPv6.Count == 0)
+                {
+                    bW.Write((byte)0);
+                }
+                else
+                {
+                    bW.Write(Convert.ToByte(_dnsServer.QpmPrefixLimitsIPv6.Count));
+
+                    foreach (KeyValuePair<int, (int, int)> qpmPrefixLimit in _dnsServer.QpmPrefixLimitsIPv6)
+                    {
+                        bW.Write(qpmPrefixLimit.Key);
+                        bW.Write(qpmPrefixLimit.Value.Item1);
+                        bW.Write(qpmPrefixLimit.Value.Item2);
+                    }
+                }
+
                 bW.Write(_dnsServer.QpmLimitSampleMinutes);
-                bW.Write(_dnsServer.QpmLimitIPv4PrefixLength);
-                bW.Write(_dnsServer.QpmLimitIPv6PrefixLength);
+                bW.Write(_dnsServer.QpmLimitUdpTruncationPercentage);
 
                 AuthZoneInfo.WriteNetworkAddressesTo(_dnsServer.QpmLimitBypassList, bW);
 
@@ -2856,10 +3008,13 @@ namespace DnsServerCore
 
         #region public
 
-        public async Task StartAsync()
+        public async Task StartAsync(bool throwIfBindFails = false)
         {
             if (_disposed)
                 ObjectDisposedException.ThrowIf(_disposed, this);
+
+            if (_isRunning)
+                throw new DnsWebServiceException("The DNS web service is already running.");
 
             try
             {
@@ -2945,13 +3100,17 @@ namespace DnsServerCore
                 }
 
                 //start web service
+                if (throwIfBindFails)
+                    await StartWebServiceAsync(false);
+                else
                 await TryStartWebServiceAsync([IPAddress.Any, IPAddress.IPv6Any], 5380, 53443);
 
                 //start dns and dhcp
-                await _dnsServer.StartAsync();
+                await _dnsServer.StartAsync(throwIfBindFails);
                 _dhcpServer.Start();
 
                 _log.Write("DNS Server (v" + _currentVersion.ToString() + ") was started successfully.");
+                _isRunning = true;
             }
             catch (Exception ex)
             {
@@ -2962,7 +3121,7 @@ namespace DnsServerCore
 
         public async Task StopAsync()
         {
-            if (_disposed || (_dnsServer is null))
+            if (!_isRunning || _disposed)
                 return;
 
             try
@@ -2999,6 +3158,7 @@ namespace DnsServerCore
                 }
 
                 _log?.Write("DNS Server (v" + _currentVersion.ToString() + ") was stopped successfully.");
+                _isRunning = false;
             }
             catch (Exception ex)
             {
@@ -3007,9 +3167,9 @@ namespace DnsServerCore
             }
         }
 
-        public void Start()
+        public void Start(bool throwIfBindFails = false)
         {
-            StartAsync().Sync();
+            StartAsync(throwIfBindFails).Sync();
         }
 
         public void Stop()
