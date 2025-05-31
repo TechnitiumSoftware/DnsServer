@@ -1801,6 +1801,12 @@ namespace DnsServerCore.Dns.Zones
                     if ((rrsetType == DnsResourceRecordType.NS) && (records[0].Name.Length > _name.Length))
                         return Array.Empty<DnsResourceRecord>(); //referrer NS records are not signed
 
+                    foreach (DnsResourceRecord record in records)
+                    {
+                        if (record.GetAuthGenericRecordInfo().Disabled)
+                            throw new DnsServerException("Cannot sign RRSet: Signing disabled records is not supported.");
+                    }
+
                     lock (_dnssecPrivateKeys)
                     {
                         foreach (KeyValuePair<ushort, DnssecPrivateKey> privateKeyEntry in _dnssecPrivateKeys)
@@ -2233,8 +2239,8 @@ namespace DnsServerCore.Dns.Zones
 
         private uint GetSignatureValidityPeriod()
         {
-            //SOA EXPIRE + 3 days
-            return GetZoneSoaExpire() + (3 * 24 * 60 * 60);
+            //SOA EXPIRE * 2
+            return GetZoneSoaExpire() * 2;
         }
 
         private uint GetPropagationDelay()
