@@ -61,6 +61,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 <li><a href="#" onclick="showMyProfileModal(); return false;">My Profile</a></li>
                 <li><a href="#" onclick="showCreateMyApiTokenModal(); return false;">Create API Token</a></li>
                 <li><a href="#" onclick="showChangePasswordModal(); return false;">Change Password</a></li>
+                <li><a href="#" onclick="showConfigure2FAModal(); return false;">Configure 2FA</a></li>
                 <li role="separator" class="divider"></li>
                 <li><a href="#" onclick="logout(); return false;">Logout</a></li>
             </ul>
@@ -89,6 +90,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 <label for="txtPass" class="col-sm-3 control-label">Password</label>
                                 <div class="col-sm-8">
                                     <input type="password" class="form-control" id="txtPass" placeholder="password">
+                                </div>
+                            </div>
+
+                            <div class="form-group" id="div2FAOTP">
+                                <label for="txt2FATOTP" class="col-sm-3 control-label">Enter OTP</label>
+                                <div class="col-sm-8">
+                                    <input id="txt2FATOTP" type="text" class="form-control" style="width: 100px;" placeholder="OTP" maxlength="6">
+                                    <div style="padding-top: 5px;">Enter the 6-digit code you see in your authenticator app.</div>
                                 </div>
                             </div>
 
@@ -476,7 +485,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                         </ul>
 
                                         <div style="padding: 10px 0px;">
-                                            <h3 style="margin: 4px 0;"><span id="titleEditZone" style="margin-right: 10px;">example.com</span><a href="#" onclick="showEditZone($('#titleEditZone').attr('data-zone')); return false;"><span class="glyphicon glyphicon-refresh" style="font-size: 20px;" aria-hidden="true"></span></a></h3>
+                                            <h3 style="margin: 4px 0;"><span id="titleEditZone" style="margin-right: 10px;">example.com</span><a href="#" onclick="showEditZone($('#titleEditZone').attr('data-zone'), $('#txtEditZonePageNumber').val(), $('#txtEditZoneFilterName').val(), $('#txtEditZoneFilterType').val()); return false;"><span class="glyphicon glyphicon-refresh" style="font-size: 20px;" aria-hidden="true"></span></a></h3>
                                             <div style="float: left;">
                                                 <span id="titleEditZoneType" class="label label-default">Primary</span>
                                                 <span id="titleEditZoneDnssecStatus" class="label label-default">DNSSEC</span>
@@ -1019,11 +1028,35 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                         <input id="chkPreferIPv6" type="checkbox"> Prefer IPv6
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">DNS Server will use IPv6 for querying whenever possible with this option enabled.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">The DNS Server will use IPv6 for querying whenever possible with this option enabled.</div>
                                                             </div>
                                                         </div>
 
                                                         <div>Warning! Use this option only if this DNS server has native IPv6 Internet access otherwise it will affect performance.</div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">UDP Socket Pool</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkEnableUdpSocketPool" type="checkbox"> Enable UDP Socket Pool
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">The DNS Server will use UDP socket pool for all outbound DNS-over-UDP requests when enabled.</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtUdpSocketPoolExcludedPorts" class="col-sm-3 control-label">UDP Socket Pool Excluded Ports</label>
+                                                            <div class="col-sm-6">
+                                                                <textarea id="txtUdpSocketPoolExcludedPorts" class="form-control" rows="5" spellcheck="false"></textarea>
+                                                                <div style="padding-top: 5px;">Enter port numbers one below other to be excluded from being used by the UDP socket pool.</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div>Note! Enabling UDP socket pool provides port randomization for all outbound DNS-over-UDP requests to mitigate spoofing attacks. It is recommended to enable UDP socket pool on Windows platform. On Linux, ports are fairly random and thus socket pool may be enabled if more randomization is desired. The DNS server can already detect DNS spoofing attack attempts and switch to TCP protocol automatically anyways.</div>
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
@@ -1046,7 +1079,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                         <input id="chkDnssecValidation" type="checkbox" checked> Enable DNSSEC Validation
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">DNS Server will validate all responses from name servers or forwarders when this option is enabled.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">The DNS Server will validate all responses from name servers or forwarders when this option is enabled.</div>
                                                             </div>
                                                         </div>
 
@@ -1066,7 +1099,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                         <input id="chkEDnsClientSubnet" type="checkbox"> Enable EDNS Client Subnet
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">DNS Server will use the public IP address of the request with a prefix length, or the existing Client Subnet option from the request.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">The DNS Server will use the public IP address of the request with a prefix length, or the existing Client Subnet option from the request.</div>
                                                             </div>
                                                         </div>
 
@@ -1113,21 +1146,39 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
                                                     <div class="well well-sm form-horizontal">
                                                         <div class="form-group">
-                                                            <label for="txtQpmLimitRequests" class="col-sm-3 control-label">Queries Per Minute (QPM) Limit (Requests)</label>
+                                                            <label class="col-sm-3 control-label">Queries Per Minute (QPM) Limits (IPv4)</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtQpmLimitRequests" placeholder="limit" style="width: 100px; display: inline;">
-                                                                <span>(set 0 to disable)</span>
+                                                                <table class="table table-hover" style="margin-bottom: 0px;">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th style="width: 100px;">IPv4 Prefix</th>
+                                                                            <th>UDP Limit</th>
+                                                                            <th>TCP Limit</th>
+                                                                            <th style="width: 84px;"><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addQpmPrefixLimitsIPv4Row('', '', '');">Add</button></th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody id="tableQpmPrefixLimitsIPv4"></tbody>
+                                                                </table>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum queries a client subnet can make per minute on average based on the sample size.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum queries an IPv4 client subnet can make to DNS-over-UDP and DNS-over-TCP protocol services per minute on average based on the sample size. Set limit value to <code>0</code> to allow unlimited queries.</div>
                                                         </div>
 
                                                         <div class="form-group">
-                                                            <label for="txtQpmLimitErrors" class="col-sm-3 control-label">Queries Per Minute (QPM) Limit (Errors)</label>
+                                                            <label class="col-sm-3 control-label">Queries Per Minute (QPM) Limits (IPv6)</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtQpmLimitErrors" placeholder="limit" style="width: 100px; display: inline;">
-                                                                <span>(set 0 to disable)</span>
+                                                                <table class="table table-hover" style="margin-bottom: 0px;">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th style="width: 100px;">IPv6 Prefix</th>
+                                                                            <th>UDP Limit</th>
+                                                                            <th>TCP Limit</th>
+                                                                            <th style="width: 84px;"><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addQpmPrefixLimitsIPv6Row('', '', '');">Add</button></th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody id="tableQpmPrefixLimitsIPv6"></tbody>
+                                                                </table>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum queries that generate an error response a client subnet can make per minute on average based on the sample size. Responses with RCODE as <code>FormatError</code>, <code>ServerFailure</code>, or <code>Refused</code> are considered as error responses.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum queries an IPv6 client subnet can make to DNS-over-UDP and DNS-over-TCP protocol services per minute on average based on the sample size. Set limit value to <code>0</code> to allow unlimited queries.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1140,32 +1191,26 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
 
                                                         <div class="form-group">
-                                                            <label for="txtQpmLimitIPv4PrefixLength" class="col-sm-3 control-label">QPM Limit IPv4 Prefix Length</label>
-                                                            <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtQpmLimitIPv4PrefixLength" placeholder="prefix" style="width: 100px; display: inline;">
-                                                                <span>(valid range 0-32; default 24)</span>
+                                                            <label for="txtQpmLimitUdpTruncation" class="col-sm-3 control-label">QPM Limit UDP Truncation</label>
+                                                            <div class="col-sm-8">
+                                                                <input type="number" class="form-control" id="txtQpmLimitUdpTruncation" placeholder="%" style="width: 100px; display: inline;">
+                                                                <span>% (valid range 0-100; default 50)</span>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv4 prefix length to define the client subnet.</div>
-                                                        </div>
-
-                                                        <div class="form-group">
-                                                            <label for="txtQpmLimitIPv6PrefixLength" class="col-sm-3 control-label">QPM Limit IPv6 Prefix Length</label>
-                                                            <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtQpmLimitIPv6PrefixLength" placeholder="prefix" style="width: 100px; display: inline;">
-                                                                <span>(valid range 0-64; default 56)</span>
-                                                            </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv6 prefix length to define the client subnet.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The percentage of requests that are responded with a truncation (TC) response when QPM limit exceeds for DNS-over-UDP protocol service while the rest of the requests are dropped. A TC response will cause a real client to retry to DNS-over-TCP protocol service.</div>
                                                         </div>
 
                                                         <div class="form-group">
                                                             <label for="txtQpmLimitBypassList" class="col-sm-3 control-label">QPM Limit Bypass List</label>
                                                             <div class="col-sm-6">
-                                                                <textarea id="txtQpmLimitBypassList" class="form-control" rows="3" spellcheck="false"></textarea>
+                                                                <textarea id="txtQpmLimitBypassList" class="form-control" rows="5" spellcheck="false"></textarea>
                                                                 <div style="padding-top: 5px;">Enter IP addresses or network addresses one below another that are allowed to bypass the QPM limit.</div>
                                                             </div>
                                                         </div>
 
-                                                        <div>Note! Queries Per Minute (QPM) feature will limit requests from a client subnet based on its IP address and the specified subnet prefix lengths except for loopback IP addresses. The QPM limit configured will be compared with the average count from the sample size which means a client may exceed the QPM limit for a given minute but won't exceed for the given sample size in minutes. Rate limited clients will be listed in orange color on the dashboard top clients table.</div>
+                                                        <div>
+                                                            <p>Note! Queries Per Minute (QPM) feature will limit requests from a client subnet based on its IP address and the specified subnet prefix lengths except for loopback IP addresses. The QPM limit configured will be compared with the average count from the sample size which means a client may exceed the QPM limit for a given minute but won't exceed for the given sample size in minutes. Rate limited clients will be listed in orange color on the dashboard top clients table.</p>
+                                                            <p>Note! The configured TCP limits apply to the DNS-over-TCP protocol service as well as to the DNS-over-TLS, DNS-over-HTTPS and DNS-over-QUIC optional protocol services.</p>
+                                                        </div>
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
@@ -1241,7 +1286,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtWebServiceLocalAddresses" class="form-control" rows="3" spellcheck="false"></textarea>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local addresses are the network interface IP addresses you want the web service to listen for requests. ANY addresses (0.0.0.0 &amp; [::]) cannot be used together with unicast IP addresses. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the web service to listen on specific networks. Configured unicast IP addresses will be included as Subject Alternative Name (SAN) in the self signed TLS certificate.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local addresses are the network interface IP addresses you want the web service to listen for requests. ANY addresses (0.0.0.0 &amp; [::]) cannot be used together with unicast IP addresses. The web server uses dual-mode sockets by default so the IPv6 ANY address ([::]) works for IPv4 too. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the web service to listen on specific networks. Configured unicast IP addresses will be included as Subject Alternative Name (SAN) in the self signed TLS certificate.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1338,21 +1383,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                         <input id="chkEnableDnsOverUdpProxy" type="checkbox"> Enable DNS-over-UDP-PROXY
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-UDP-PROXY requests. It implements the <a href="https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt" target="_blank">PROXY Protocol</a> for both version 1 &amp; 2 over UDP datagram. Configure <b>Reverse Proxy Network ACL</b> below to allow only requests coming from your reverse proxy server.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-UDP-PROXY requests. It implements the <a href="https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt" target="_blank">PROXY Protocol</a> for both version 1 &amp; 2 over UDP datagram. It is mandatory to configure <b>Reverse Proxy Network ACL</b> below to allow requests coming from your reverse proxy server.</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
                                                                         <input id="chkEnableDnsOverTcpProxy" type="checkbox"> Enable DNS-over-TCP-PROXY
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-TCP-PROXY requests. It implements the <a href="https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt" target="_blank">PROXY Protocol</a> for both version 1 &amp; 2 over TCP connection. Configure <b>Reverse Proxy Network ACL</b> below to allow only requests coming from your reverse proxy server.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-TCP-PROXY requests. It implements the <a href="https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt" target="_blank">PROXY Protocol</a> for both version 1 &amp; 2 over TCP connection. It is mandatory to configure <b>Reverse Proxy Network ACL</b> below to allow requests coming from your reverse proxy server.</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
                                                                         <input id="chkEnableDnsOverHttp" type="checkbox"> Enable DNS-over-HTTP
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTP requests. It must be used with a TLS terminating reverse proxy like nginx. Configure <b>Reverse Proxy Network ACL</b> below to allow only requests coming from your reverse proxy server. Enabling this option also allows automatic TLS certificate renewal with HTTP challenge (webroot) for DNS-over-HTTPS service when DNS-over-HTTP port is set to 80.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTP requests. It must be used with a TLS terminating reverse proxy like nginx. It is mandatory to configure <b>Reverse Proxy Network ACL</b> below to allow requests coming from your reverse proxy server. Enabling this option also allows automatic TLS certificate renewal with HTTP challenge (webroot) for DNS-over-HTTPS service when DNS-over-HTTP port is set to 80.</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
@@ -1890,6 +1935,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
 
                                                         <div style="margin-top: 10px;">Note! DNS Server will use the data returned by the block list URLs to update the block list zone automatically. The expected file format is standard <code>hosts</code> file format, plain text file containing list of domains to block, wildcard block list file format, or <code>Adblock Plus</code> file format.</div>
+                                                        <div style="margin-top: 10px;">Note! To customize the Quick Add drop down list, read the instructions given in the <code>www/json/readme.txt</code> file found in the installation folder.</div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/10/blocking-internet-ads-using-dns-sinkhole.html" target="_blank">Help: Blocking Internet Ads Using DNS Sinkhole</a></div>
                                                     </div>
                                                 </div>
@@ -2034,6 +2080,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
                                                         <div style="margin-top: 10px;">Note! Forwarders are upstream DNS servers which this DNS Server must use to resolve domain names. If no forwarders are configured then the DNS server will use preconfigured ROOT HINTS to perform recursive resolution to resolve domain names.</div>
                                                         <div style="margin-top: 10px;">Note! The <code>https</code> URL scheme supports only DNS-over-HTTPS/2 and DNS-over-HTTPS/1.1 protocols. For DNS-over-HTTPS/3, use <code>h3</code> URL scheme instead of <code>https</code> but note that there wont be any protocol fallback if the connection attempt fails.</div>
+                                                        <div style="margin-top: 10px;">Note! To customize the Quick Select drop down list, read the instructions given in the <code>www/json/readme.txt</code> file found in the installation folder.</div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/06/configuring-dns-server-for-privacy.html" target="_blank">Help: Configuring DNS Server For Privacy & Security</a></div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2023/02/configuring-dns-over-quic-and-https3.html" target="_blank">Help: Configuring DNS-over-QUIC and HTTPS/3 For Technitium DNS Server</a></div>
                                                     </div>
@@ -2674,16 +2721,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <tr>
                                                             <th><a href="#" onclick="sortTable('tbodyAdminUsers', 0); return false;">Username</a></th>
                                                             <th><a href="#" onclick="sortTable('tbodyAdminUsers', 1); return false;">Display Name</a></th>
-                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 2); return false;">Status</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 2); return false;">2FA Status</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 3); return false;">Status</a></th>
                                                             <th><a href="#" onclick="sortTable('tbodyAdminUsers', 4); return false;">Recent Login</a></th>
-                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 4); return false;">Previous Login</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 5); return false;">Previous Login</a></th>
                                                             <th style="width: 36px;"></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="tbodyAdminUsers">
                                                     </tbody>
                                                     <tfoot>
-                                                        <tr><th colspan="6" id="tfootAdminUsers"></th></tr>
+                                                        <tr><th colspan="7" id="tfootAdminUsers"></th></tr>
                                                     </tfoot>
                                                 </table>
                                             </div>
@@ -3051,6 +3099,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             </div>
 
                             <div class="form-group">
+                                <label for="lblMyProfile2FAStatus" class="col-sm-4 control-label">2FA Status</label>
+                                <div class="col-sm-7">
+                                    <div id="lblMyProfile2FAStatus" style="padding: 6px 0; font-weight: bold;"></div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
                                 <label for="txtMyProfileSessionTimeout" class="col-sm-4 control-label">Session Timeout</label>
                                 <div class="col-sm-7">
                                     <input id="txtMyProfileSessionTimeout" type="number" class="form-control" placeholder="1800" style="width: 100px; display: inline;">
@@ -3136,6 +3191,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 </div>
                             </div>
 
+                            <div class="form-group" id="divCreateApiToken2FAOTP">
+                                <label for="txtCreateApiToken2FATOTP" class="col-sm-4 control-label">Enter OTP</label>
+                                <div class="col-sm-7">
+                                    <input id="txtCreateApiToken2FATOTP" type="text" class="form-control" style="width: 100px;" placeholder="OTP" maxlength="6">
+                                    <div style="padding-top: 5px;">Enter the 6-digit code you see in your authenticator app.</div>
+                                </div>
+                            </div>
+
                             <div class="form-group">
                                 <label for="txtCreateApiTokenName" class="col-sm-4 control-label">Token Name</label>
                                 <div class="col-sm-7">
@@ -3218,6 +3281,68 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                     <div class="modal-footer">
                         <button id="btnChangePassword" type="submit" class="btn btn-primary" data-loading-text="Working...">Change</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="modalConfigure2FA" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document" style="width: 750px;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">Configure Two-factor Authentication (2FA)</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divConfigure2FAAlert"></div>
+
+                        <div id="divConfigure2FALoader" style="height: 400px;"></div>
+
+                        <div id="divConfigure2FAViewer">
+                            <div>
+                                <p>When you enable Two-factor Authentication (2FA) using Time-based One-time Password (TOTP), you will be required to enter a one-time password (OTP) in addition to your password when you login. You will need to use an authenticator app like <b>Microsoft Authenticator</b> or <b>Google Authenticator</b> to generate the OTP when you login.</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txtConfigure2FAUsername" class="col-sm-3 control-label">Username</label>
+                                <div class="col-sm-7">
+                                    <input id="txtConfigure2FAUsername" type="text" class="form-control" placeholder="username" disabled>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="lblConfigure2FAStatus" class="col-sm-3 control-label">2FA Status</label>
+                                <div class="col-sm-8">
+                                    <div id="lblConfigure2FAStatus" style="padding: 6px 0; font-weight: bold;"></div>
+                                </div>
+                            </div>
+
+                            <div id="divConfigure2FAInitialize">
+                                <div class="form-group">
+                                    <label class="col-sm-3 control-label">Secret Key</label>
+                                    <div class="col-sm-8">
+                                        <div id="lblConfigure2FAQRCode" style="margin: -6px 0px 0px -12px;"></div>
+                                        <div id="lblConfigure2FASecret" style="padding: 4px 0; font-weight: bold;"></div>
+                                        <div style="padding-top: 5px;">Scan the QR Code or manually enter the secret key (spaces don't matter) given above in your authenticator app.</div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="txtConfigure2FATOTP" class="col-sm-3 control-label">Enter OTP</label>
+                                    <div class="col-sm-8">
+                                        <input id="txtConfigure2FATOTP" type="text" class="form-control" style="width: 100px;" placeholder="OTP" maxlength="6">
+                                        <div style="padding-top: 5px;">Enter the 6-digit code you see in your authenticator app.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="btnEnable2FA" type="submit" class="btn btn-primary" data-loading-text="Working..." onclick="enable2FA(this); return false;">Enable</button>
+                        <button id="btnDisable2FA" type="button" class="btn btn-warning" data-loading-text="Working..." onclick="disable2FA(this); return false;">Disable</button>
                         <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                     </div>
                 </div>
@@ -4897,7 +5022,7 @@ ns1.example.com ([2001:db8::])
                                 <div class="col-sm-8">
                                     <select id="optDnssecSignZoneRsaHashAlgorithm" class="form-control" style="width: auto;">
                                         <option value="MD5">MD5 (obsolete)</option>
-                                        <option>SHA1</option>
+                                        <option value="SHA1">SHA1 (obsolete)</option>
                                         <option value="SHA256">SHA256 (default)</option>
                                         <option>SHA512</option>
                                     </select>
@@ -5245,7 +5370,7 @@ MII...
                                             <div class="col-sm-8">
                                                 <select id="optDnssecPropertiesAddKeyRsaHashAlgorithm" class="form-control" style="width: auto;">
                                                     <option value="MD5">MD5 (obsolete)</option>
-                                                    <option>SHA1</option>
+                                                    <option value="SHA1">SHA1 (obsolete)</option>
                                                     <option value="SHA256">SHA256 (default)</option>
                                                     <option>SHA512</option>
                                                 </select>
@@ -6019,8 +6144,15 @@ MII...
                             </div>
 
                             <div class="form-group">
+                                <label for="lblUserDetails2FAStatus" class="col-sm-4 control-label">2FA Status</label>
+                                <div class="col-sm-7">
+                                    <div id="lblUserDetails2FAStatus" style="padding: 6px 0; font-weight: bold;"></div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
                                 <div class="col-sm-offset-4 col-sm-7">
-                                    <div class="checkbox">
+                                    <div class="checkbox" style="padding: 0px;">
                                         <label>
                                             <input id="chkUserDetailsDisableAccount" type="checkbox"> Disable User Account
                                         </label>
