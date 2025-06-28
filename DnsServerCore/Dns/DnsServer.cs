@@ -236,8 +236,7 @@ namespace DnsServerCore.Dns
 
         Timer _cachePrefetchRefreshTimer;
         readonly object _cachePrefetchRefreshTimerLock = new object();
-        const int CACHE_PREFETCH_REFRESH_TIMER_INITIAL_INTEVAL = 10000;
-        DateTime _cachePrefetchSamplingTimerTriggersOn;
+        const int CACHE_PREFETCH_REFRESH_TIMER_INTEVAL = 10000;
         IList<CacheRefreshSample> _cacheRefreshSampleList;
 
         Timer _cacheMaintenanceTimer;
@@ -280,16 +279,22 @@ namespace DnsServerCore.Dns
             }
         }
 
-        public DnsServer(string serverDomain, string configFolder, string dohwwwFolder, LogManager log = null)
-            : this(serverDomain, configFolder, dohwwwFolder, new IPEndPoint[] { new IPEndPoint(IPAddress.Any, 53), new IPEndPoint(IPAddress.IPv6Any, 53) }, log)
+        public DnsServer(string configFolder, string dohwwwFolder, string serverDomain = null, LogManager log = null)
+            : this(configFolder, dohwwwFolder, [new IPEndPoint(IPAddress.Any, 53), new IPEndPoint(IPAddress.IPv6Any, 53)], serverDomain, log)
         { }
 
-        public DnsServer(string serverDomain, string configFolder, string dohwwwFolder, IPEndPoint localEndPoint, LogManager log = null)
-            : this(serverDomain, configFolder, dohwwwFolder, new IPEndPoint[] { localEndPoint }, log)
+        public DnsServer(string configFolder, string dohwwwFolder, IPEndPoint localEndPoint, string serverDomain = null, LogManager log = null)
+            : this(configFolder, dohwwwFolder, [localEndPoint], serverDomain, log)
         { }
 
-        public DnsServer(string serverDomain, string configFolder, string dohwwwFolder, IReadOnlyList<IPEndPoint> localEndPoints, LogManager log = null)
+        public DnsServer(string configFolder, string dohwwwFolder, IReadOnlyList<IPEndPoint> localEndPoints, string serverDomain = null, LogManager log = null)
         {
+            if (string.IsNullOrEmpty(serverDomain))
+                serverDomain = Environment.MachineName.ToLowerInvariant();
+
+            if (!DnsClient.IsDomainNameValid(serverDomain) || IPAddress.TryParse(serverDomain, out _))
+                serverDomain = "dns-server-1"; //use this name instead since machine name is not a valid domain name
+
             _serverDomain = serverDomain;
             _configFolder = configFolder;
             _dohwwwFolder = dohwwwFolder;
@@ -821,7 +826,7 @@ namespace DnsServerCore.Dns
             catch (Exception ex)
             {
                 if (request is not null)
-                    _queryLog.Write(remoteEP, protocol, request, null);
+                    _queryLog?.Write(remoteEP, protocol, request, null);
 
                 _log?.Write(remoteEP, protocol, ex);
             }
@@ -959,7 +964,7 @@ namespace DnsServerCore.Dns
             catch (Exception ex)
             {
                 if (request is not null)
-                    _queryLog.Write(remoteEP, DnsTransportProtocol.Quic, request, null);
+                    _queryLog?.Write(remoteEP, DnsTransportProtocol.Quic, request, null);
 
                 _log?.Write(remoteEP, DnsTransportProtocol.Quic, ex);
             }
@@ -2194,7 +2199,7 @@ namespace DnsServerCore.Dns
                             switch (lastRR.Type)
                             {
                                 case DnsResourceRecordType.CNAME:
-                                    return await ProcessCNAMEAsync(request, response, remoteEP, protocol, isRecursionAllowed, false, skipDnsAppAuthoritativeRequestHandlers);
+                                    return await ProcessCNAMEAsync(request, response, remoteEP, protocol, isRecursionAllowed, skipDnsAppAuthoritativeRequestHandlers);
 
                                 case DnsResourceRecordType.ANAME:
                                 case DnsResourceRecordType.ALIAS:
@@ -2346,7 +2351,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task<DnsDatagram> ProcessCNAMEAsync(DnsDatagram request, DnsDatagram response, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, bool cacheRefreshOperation, bool skipDnsAppAuthoritativeRequestHandlers)
+        private async Task<DnsDatagram> ProcessCNAMEAsync(DnsDatagram request, DnsDatagram response, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, bool skipDnsAppAuthoritativeRequestHandlers)
         {
             List<DnsResourceRecord> newAnswer = new List<DnsResourceRecord>(response.Answer.Count + 4);
             newAnswer.AddRange(response.Answer);
@@ -2409,7 +2414,7 @@ namespace DnsServerCore.Dns
                     if (newRequest.RecursionDesired && isRecursionAllowed)
                     {
                         //do recursion
-                        newResponse = await RecursiveResolveAsync(newRequest, remoteEP, null, _dnssecValidation, false, cacheRefreshOperation, skipDnsAppAuthoritativeRequestHandlers);
+                        newResponse = await RecursiveResolveAsync(newRequest, remoteEP, null, _dnssecValidation, false, false, skipDnsAppAuthoritativeRequestHandlers); //CNAME expansion does not need to use cache refresh operation and should use data from cache instead
                         if (newResponse is null)
                             return null; //drop request
 
@@ -2973,7 +2978,7 @@ namespace DnsServerCore.Dns
 
                 if ((lastRR.Type != questionType) && (lastRR.Type == DnsResourceRecordType.CNAME) && (questionType != DnsResourceRecordType.ANY))
                 {
-                    response = await ProcessCNAMEAsync(request, response, remoteEP, protocol, true, cacheRefreshOperation, skipDnsAppAuthoritativeRequestHandlers);
+                    response = await ProcessCNAMEAsync(request, response, remoteEP, protocol, true, skipDnsAppAuthoritativeRequestHandlers);
                     if (response is null)
                         return null; //drop request
                 }
@@ -3146,10 +3151,10 @@ namespace DnsServerCore.Dns
                         //inspect response TTL values to decide if prefetch trigger is needed
                         foreach (DnsResourceRecord answer in cacheResponse.Answer)
                         {
-                            if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && (answer.TTL <= _cachePrefetchTrigger))
+                            if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && ((answer.TTL <= _cachePrefetchTrigger) || answer.IsStale))
                             {
-                                //trigger prefetch async
-                                _ = PrefetchCacheAsync(request, remoteEP, conditionalForwarders);
+                                //trigger prefetch async for this specific answer record
+                                _ = PrefetchCacheAsync(new DnsQuestionRecord(answer.Name, question.Type, question.Class), remoteEP, conditionalForwarders);
                                 break;
                             }
                         }
@@ -4148,10 +4153,11 @@ namespace DnsServerCore.Dns
             return null;
         }
 
-        private async Task PrefetchCacheAsync(DnsDatagram request, IPEndPoint remoteEP, IReadOnlyList<DnsResourceRecord> conditionalForwarders)
+        private async Task PrefetchCacheAsync(DnsQuestionRecord question, IPEndPoint remoteEP, IReadOnlyList<DnsResourceRecord> conditionalForwarders)
         {
             try
             {
+                DnsDatagram request = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, [question]);
                 _ = await RecursiveResolveAsync(request, remoteEP, conditionalForwarders, _dnssecValidation, true, false, false);
             }
             catch (Exception ex)
@@ -4160,99 +4166,45 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task RefreshCacheAsync(IList<CacheRefreshSample> cacheRefreshSampleList, CacheRefreshSample sample, int sampleQuestionIndex)
+        private async Task RefreshCacheAsync(DnsQuestionRecord neededQuestion, IList<CacheRefreshSample> cacheRefreshSampleList, CacheRefreshSample sample, int sampleQuestionIndex)
         {
             try
             {
                 //refresh cache
-                bool addBackToSampleList = false;
-
-                DnsDatagram request = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { sample.SampleQuestion });
-                DnsDatagram response = await ProcessRecursiveQueryAsync(request, IPENDPOINT_ANY_0, DnsTransportProtocol.Udp, sample.ConditionalForwarders, _dnssecValidation, true, false);
-                if (response is null)
-                {
-                    addBackToSampleList = true;
-                }
-                else
-                {
-                    DateTime utcNow = DateTime.UtcNow;
-
-                    foreach (DnsResourceRecord answer in response.Answer)
-                    {
-                        if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && (utcNow.AddSeconds(answer.TTL) < _cachePrefetchSamplingTimerTriggersOn))
-                        {
-                            //answer expires before next sampling so add back to the list to allow refreshing it
-                            addBackToSampleList = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (addBackToSampleList)
-                    cacheRefreshSampleList[sampleQuestionIndex] = sample; //put back into sample list to allow refreshing it again
+                DnsDatagram request = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, [neededQuestion]);
+                _ = await ProcessRecursiveQueryAsync(request, IPENDPOINT_ANY_0, DnsTransportProtocol.Udp, sample.ConditionalForwarders, _dnssecValidation, true, false);
             }
             catch (Exception ex)
             {
                 _resolverLog?.Write(ex);
-
+            }
+            finally
+            {
                 cacheRefreshSampleList[sampleQuestionIndex] = sample; //put back into sample list to allow refreshing it again
             }
         }
 
         private async Task<DnsQuestionRecord> GetCacheRefreshNeededQueryAsync(DnsQuestionRecord question, int trigger)
         {
-            int queryCount = 0;
-
-            while (true)
-            {
-                DnsDatagram cacheResponse = await QueryCacheAsync(new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }), false, false);
-                if (cacheResponse is null)
-                    return question; //cache expired so refresh question
-
-                if (cacheResponse.Answer.Count == 0)
-                    return null; //dont refresh empty responses
-
-                //inspect response TTL values to decide if refresh is needed
-                foreach (DnsResourceRecord answer in cacheResponse.Answer)
-                {
-                    if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && (answer.TTL <= trigger))
-                        return question; //TTL eligible and less than trigger so refresh question
-                }
-
-                DnsResourceRecord lastRR = cacheResponse.GetLastAnswerRecord();
-
-                if (lastRR.Type == question.Type)
-                    return null; //answer was resolved
-
-                if (lastRR.Type != DnsResourceRecordType.CNAME)
-                    return null; //invalid response so ignore question
-
-                queryCount++;
-                if (queryCount >= MAX_CNAME_HOPS)
-                    return null; //too many hops so ignore question
-
-                //follow CNAME chain to inspect TTL further
-                question = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecordData).Domain, question.Type, question.Class);
-            }
-        }
-
-        private async Task<bool> IsCacheRefreshNeededAsync(DnsQuestionRecord question, int trigger)
-        {
             DnsDatagram cacheResponse = await QueryCacheAsync(new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }), false, false);
             if (cacheResponse is null)
-                return true; //cache expired so refresh needed
+                return question; //cache expired so refresh question
 
             if (cacheResponse.Answer.Count == 0)
-                return false; //dont refresh empty responses
+                return null; //dont refresh empty responses
 
             //inspect response TTL values to decide if refresh is needed
             foreach (DnsResourceRecord answer in cacheResponse.Answer)
             {
-                if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && (answer.TTL <= trigger))
-                    return true; //TTL eligible less than trigger so refresh
+                if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && ((answer.TTL <= trigger) || answer.IsStale))
+                    return new DnsQuestionRecord(answer.Name, question.Type, question.Class); //TTL eligible and less than trigger so refresh for current answer record
             }
 
-            return false; //no need to refresh for this query
+            DnsResourceRecord lastRR = cacheResponse.Answer[cacheResponse.Answer.Count - 1];
+            if (lastRR.Type == DnsResourceRecordType.CNAME)
+                return new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecordData).Domain, question.Type, question.Class); //found incomplete response; refresh the last CNAME domain name
+
+            return null; //refresh not needed
         }
 
         private async void CachePrefetchSamplingTimerCallback(object state)
@@ -4261,7 +4213,7 @@ namespace DnsServerCore.Dns
             {
                 List<KeyValuePair<DnsQuestionRecord, long>> eligibleQueries = _stats.GetLastHourEligibleQueries(_cachePrefetchSampleEligibilityHitsPerHour);
                 List<CacheRefreshSample> cacheRefreshSampleList = new List<CacheRefreshSample>(eligibleQueries.Count);
-                int cacheRefreshTrigger = (_cachePrefetchSampleIntervalInMinutes + 1) * 60;
+                int cacheRefreshTrigger = (_cachePrefetchSampleIntervalInMinutes + 1) * 60; //extra 1 min to account for any delays in next sampling
 
                 foreach (KeyValuePair<DnsQuestionRecord, long> eligibleQuery in eligibleQueries)
                 {
@@ -4320,7 +4272,21 @@ namespace DnsServerCore.Dns
                     while (reQueryAuthZone && (++queryCount < MAX_CNAME_HOPS));
 
                     if (refreshQuery is not null)
-                        cacheRefreshSampleList.Add(new CacheRefreshSample(refreshQuery, conditionalForwarders));
+                    {
+                        bool alreadyExists = false;
+
+                        foreach (CacheRefreshSample cacheRefreshSample in cacheRefreshSampleList)
+                        {
+                            if (cacheRefreshSample.SampleQuestion.Equals(refreshQuery))
+                            {
+                                alreadyExists = true;
+                                break; //already exists in sample list
+                            }
+                        }
+
+                        if (!alreadyExists)
+                            cacheRefreshSampleList.Add(new CacheRefreshSample(refreshQuery, conditionalForwarders));
+                    }
                 }
 
                 _cacheRefreshSampleList = cacheRefreshSampleList;
@@ -4333,11 +4299,7 @@ namespace DnsServerCore.Dns
             {
                 lock (_cachePrefetchSamplingTimerLock)
                 {
-                    if (_cachePrefetchSamplingTimer is not null)
-                    {
-                        _cachePrefetchSamplingTimer.Change(_cachePrefetchSampleIntervalInMinutes * 60 * 1000, Timeout.Infinite);
-                        _cachePrefetchSamplingTimerTriggersOn = DateTime.UtcNow.AddMinutes(_cachePrefetchSampleIntervalInMinutes);
-                    }
+                    _cachePrefetchSamplingTimer?.Change(_cachePrefetchSampleIntervalInMinutes * 60 * 1000, Timeout.Infinite);
                 }
             }
         }
@@ -4349,19 +4311,23 @@ namespace DnsServerCore.Dns
                 IList<CacheRefreshSample> cacheRefreshSampleList = _cacheRefreshSampleList;
                 if (cacheRefreshSampleList is not null)
                 {
+                    const int MIN_TRIGGER = 10 + 4; //minimum trigger is 10 (timer interval) + 4 (additional margin for resolution delays to avoid record expiry)
+                    int cacheRefreshTrigger = _cachePrefetchTrigger < MIN_TRIGGER ? MIN_TRIGGER : _cachePrefetchTrigger;
+
                     for (int i = 0; i < cacheRefreshSampleList.Count; i++)
                     {
                         CacheRefreshSample sample = cacheRefreshSampleList[i];
                         if (sample is null)
-                            continue;
+                            continue; //currently being refreshed
 
-                        if (!await IsCacheRefreshNeededAsync(sample.SampleQuestion, _cachePrefetchTrigger + 1))
-                            continue;
+                        DnsQuestionRecord neededQuestion = await GetCacheRefreshNeededQueryAsync(sample.SampleQuestion, cacheRefreshTrigger);
+                        if (neededQuestion is null)
+                            continue; //no need to refresh for this query
 
                         //run in resolver thread pool
                         if (_resolverTaskPool.TryQueueTask(delegate (object state)
                             {
-                                return RefreshCacheAsync(cacheRefreshSampleList, sample, (int)state);
+                                return RefreshCacheAsync(neededQuestion, cacheRefreshSampleList, sample, (int)state);
                             }, i)
                         )
                         {
@@ -4379,7 +4345,7 @@ namespace DnsServerCore.Dns
             {
                 lock (_cachePrefetchRefreshTimerLock)
                 {
-                    _cachePrefetchRefreshTimer?.Change((_cachePrefetchTrigger + 1) * 1000, Timeout.Infinite);
+                    _cachePrefetchRefreshTimer?.Change(CACHE_PREFETCH_REFRESH_TIMER_INTEVAL, Timeout.Infinite);
                 }
             }
         }
@@ -4424,16 +4390,12 @@ namespace DnsServerCore.Dns
             {
                 lock (_cachePrefetchSamplingTimerLock)
                 {
-                    if (_cachePrefetchSamplingTimer is not null)
-                    {
-                        _cachePrefetchSamplingTimer.Change(CACHE_PREFETCH_SAMPLING_TIMER_INITIAL_INTEVAL, Timeout.Infinite);
-                        _cachePrefetchSamplingTimerTriggersOn = DateTime.UtcNow.AddMilliseconds(CACHE_PREFETCH_SAMPLING_TIMER_INITIAL_INTEVAL);
-                    }
+                    _cachePrefetchSamplingTimer?.Change(CACHE_PREFETCH_SAMPLING_TIMER_INITIAL_INTEVAL, Timeout.Infinite);
                 }
 
                 lock (_cachePrefetchRefreshTimerLock)
                 {
-                    _cachePrefetchRefreshTimer?.Change(CACHE_PREFETCH_REFRESH_TIMER_INITIAL_INTEVAL, Timeout.Infinite);
+                    _cachePrefetchRefreshTimer?.Change(CACHE_PREFETCH_REFRESH_TIMER_INTEVAL, Timeout.Infinite);
                 }
             }
         }
