@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dns.ZoneManagers;
 using DnsServerCore.Dns.Zones;
 using System;
 using System.Collections.Generic;
@@ -847,33 +848,8 @@ namespace DnsServerCore.Dns.Trees
         {
             List<DnsResourceRecord> nsecRecords = new List<DnsResourceRecord>(2 * 2);
 
-            void AddProofOfCoverFor(string domain)
-            {
-                byte[] key = ConvertToByteKey(domain);
-
-                AuthZoneNode authZoneNode = FindZoneNode(key, false, out Node currentNode, out _, out Node closestAuthorityNode, out _, out _, out ApexZone closestAuthority);
-                if (authZoneNode is not null)
-                    throw new InvalidOperationException($"Cannot prove non-existence: The domain name '{domain}' exists and probably got added just now."); //domain exists! cannot prove non-existence
-
-                Node previousNode = GetPreviousSubDomainZoneNode(key, currentNode, closestAuthorityNode.Depth);
-                if (previousNode is not null)
-                {
-                    AuthZone authZone = GetAuthZoneFromNode(previousNode, closestAuthority.Name);
-                    if (authZone is not null)
-                    {
-                        IReadOnlyList<DnsResourceRecord> proofOfCoverRecords = authZone.QueryRecords(DnsResourceRecordType.NSEC, true);
-
-                        foreach (DnsResourceRecord proofOfCoverRecord in proofOfCoverRecords)
-                        {
-                            if (!nsecRecords.Contains(proofOfCoverRecord))
-                                nsecRecords.Add(proofOfCoverRecord);
-                        }
-                    }
-                }
-            }
-
             //add proof of cover for domain
-            AddProofOfCoverFor(domain);
+            NSecAddProofOfCoverFor(domain, nsecRecords);
 
             if (isWildcardAnswer)
                 return nsecRecords;
@@ -887,7 +863,7 @@ namespace DnsServerCore.Dns.Trees
                 string wildcardName = DnsNSECRecordData.GetWildcardFor(nsecRecord, domain);
 
                 if (!DnsNSECRecordData.IsDomainCovered(nsecRecord.Name, nsec.NextDomainName, wildcardName))
-                    AddProofOfCoverFor(wildcardName);
+                    NSecAddProofOfCoverFor(wildcardName, nsecRecords);
             }
 
             return nsecRecords;
@@ -896,73 +872,6 @@ namespace DnsServerCore.Dns.Trees
         public IReadOnlyList<DnsResourceRecord> FindNSec3ProofOfNonExistenceNxDomain(string domain, bool isWildcardAnswer)
         {
             List<DnsResourceRecord> nsec3Records = new List<DnsResourceRecord>(3 * 2);
-
-            void AddProofOfCoverFor(string hashedOwnerName, string zoneName)
-            {
-                //find previous NSEC3 for the hashed owner name
-                IReadOnlyList<DnsResourceRecord> proofOfCoverRecords = null;
-                string currentOwnerName = hashedOwnerName;
-
-                while (true)
-                {
-                    AuthZone previousNSec3Zone = FindPreviousSubDomainZone(zoneName, currentOwnerName);
-                    if (previousNSec3Zone is null)
-                        break;
-
-                    IReadOnlyList<DnsResourceRecord> previousNSec3Records = previousNSec3Zone.QueryRecords(DnsResourceRecordType.NSEC3, true);
-                    if (previousNSec3Records.Count > 0)
-                    {
-                        proofOfCoverRecords = previousNSec3Records;
-                        break;
-                    }
-
-                    currentOwnerName = previousNSec3Zone.Name;
-                }
-
-                if (proofOfCoverRecords is null)
-                {
-                    //didnt find previous NSEC3; find the last NSEC3
-                    currentOwnerName = hashedOwnerName;
-
-                    //find first auth zone
-                    AuthZone nextNSec3Zone = GetAuthZone(zoneName, currentOwnerName);
-                    if (nextNSec3Zone is null)
-                        nextNSec3Zone = FindNextSubDomainZone(zoneName, currentOwnerName);
-
-                    while (nextNSec3Zone is not null)
-                    {
-                        IReadOnlyList<DnsResourceRecord> nextNSec3Records = nextNSec3Zone.QueryRecords(DnsResourceRecordType.NSEC3, true);
-                        if (nextNSec3Records.Count > 0)
-                        {
-                            proofOfCoverRecords = nextNSec3Records;
-                            DnsResourceRecord previousNSec3Record = nextNSec3Records[0];
-
-                            string nextHashedOwnerNameString = (previousNSec3Record.RDATA as DnsNSEC3RecordData).NextHashedOwnerName + (zoneName.Length > 0 ? "." + zoneName : "");
-                            if (DnsNSECRecordData.CanonicalComparison(previousNSec3Record.Name, nextHashedOwnerNameString) >= 0)
-                                break; //found last NSEC3
-
-                            //jump to next hashed owner
-                            currentOwnerName = nextHashedOwnerNameString;
-                        }
-                        else
-                        {
-                            currentOwnerName = nextNSec3Zone.Name;
-                        }
-
-                        //find next auth zone
-                        nextNSec3Zone = FindNextSubDomainZone(zoneName, currentOwnerName);
-                    }
-                }
-
-                if (proofOfCoverRecords is null)
-                    throw new InvalidOperationException();
-
-                foreach (DnsResourceRecord proofOfCoverRecord in proofOfCoverRecords)
-                {
-                    if (!nsec3Records.Contains(proofOfCoverRecord))
-                        nsec3Records.Add(proofOfCoverRecord);
-                }
-            }
 
             byte[] key = ConvertToByteKey(domain);
             string closestEncloser;
@@ -1025,7 +934,7 @@ namespace DnsServerCore.Dns.Trees
             if (isWildcardAnswer)
             {
                 //add proof of cover for the domain to prove non-existence (wildcard)
-                AddProofOfCoverFor(hashedNextCloserName, closestAuthority.Name);
+                NSec3AddProofOfCoverFor(hashedNextCloserName, closestAuthority.Name, nsec3Records);
             }
             else
             {
@@ -1047,35 +956,76 @@ namespace DnsServerCore.Dns.Trees
 
                 //add proof of cover for the next closer name
                 if (!DnsNSECRecordData.IsDomainCovered(closestEncloserProofRecord.Name, closestEncloserProof.NextHashedOwnerName + (closestAuthority.Name.Length > 0 ? "." + closestAuthority.Name : ""), hashedNextCloserName))
-                    AddProofOfCoverFor(hashedNextCloserName, closestAuthority.Name);
+                    NSec3AddProofOfCoverFor(hashedNextCloserName, closestAuthority.Name, nsec3Records);
 
                 //add proof of cover to prove that a wildcard expansion was not possible
                 string wildcardDomain = closestEncloser.Length > 0 ? "*." + closestEncloser : "*";
                 string hashedWildcardDomainName = nsec3Param.ComputeHashedOwnerNameBase32HexString(wildcardDomain) + (closestAuthority.Name.Length > 0 ? "." + closestAuthority.Name : "");
 
                 if (!DnsNSECRecordData.IsDomainCovered(closestEncloserProofRecord.Name, closestEncloserProof.NextHashedOwnerName + (closestAuthority.Name.Length > 0 ? "." + closestAuthority.Name : ""), hashedWildcardDomainName))
-                    AddProofOfCoverFor(hashedWildcardDomainName, closestAuthority.Name);
+                    NSec3AddProofOfCoverFor(hashedWildcardDomainName, closestAuthority.Name, nsec3Records);
             }
 
             return nsec3Records;
         }
 
-        public static IReadOnlyList<DnsResourceRecord> FindNSecProofOfNonExistenceNoData(AuthZone zone)
+        public IReadOnlyList<DnsResourceRecord> FindNSecProofOfNonExistenceNoData(string domain, AuthZone zone)
         {
-            IReadOnlyList<DnsResourceRecord> nsecRecords = zone.QueryRecords(DnsResourceRecordType.NSEC, true);
-            if (nsecRecords.Count == 0)
+            List<DnsResourceRecord> nsecRecords = null;
+
+            if (zone.Name.StartsWith("*.") || zone.Name.Equals('*'))
+            {
+                //for wildcard case, we need to add proof of cover since validator wont be able to match qname to the NO DATA NSEC record
+                nsecRecords = new List<DnsResourceRecord>(4);
+
+                NSecAddProofOfCoverFor(domain, nsecRecords);
+            }
+
+            IReadOnlyList<DnsResourceRecord> nsecRecordsNoData = zone.QueryRecords(DnsResourceRecordType.NSEC, true);
+            if (nsecRecordsNoData.Count == 0)
                 throw new InvalidOperationException("Zone does not have NSEC deployed correctly.");
+
+            if (nsecRecords is null)
+                return nsecRecordsNoData;
+
+            foreach (DnsResourceRecord nsecRecord in nsecRecordsNoData)
+            {
+                if (!nsecRecords.Contains(nsecRecord))
+                    nsecRecords.Add(nsecRecord);
+            }
 
             return nsecRecords;
         }
 
-        public IReadOnlyList<DnsResourceRecord> FindNSec3ProofOfNonExistenceNoData(AuthZone zone, ApexZone apexZone)
+        public IReadOnlyList<DnsResourceRecord> FindNSec3ProofOfNonExistenceNoData(string domain, AuthZone zone, ApexZone apexZone)
         {
             IReadOnlyList<DnsResourceRecord> nsec3ParamRecords = apexZone.GetRecords(DnsResourceRecordType.NSEC3PARAM);
             if (nsec3ParamRecords.Count == 0)
                 throw new InvalidOperationException("Zone does not have NSEC3 deployed.");
 
             DnsNSEC3PARAMRecordData nsec3Param = nsec3ParamRecords[0].RDATA as DnsNSEC3PARAMRecordData;
+            List<DnsResourceRecord> nsec3Records = null;
+
+            if (zone.Name.StartsWith("*.") || zone.Name.Equals('*'))
+            {
+                //for wildcard case, we need to add the closest encloser and add proof of cover since validator wont be able to match qname hashed owner name to the NO DATA NSEC3 record
+                string closestEncloser = AuthZoneManager.GetParentZone(zone.Name);
+                if (closestEncloser is null)
+                    closestEncloser = "";
+
+                string closestEncloserHashedOwnerName = nsec3Param.ComputeHashedOwnerNameBase32HexString(closestEncloser) + (apexZone.Name.Length > 0 ? "." + apexZone.Name : "");
+
+                AuthZone nsec3ZoneClosestEncloser = GetAuthZone(apexZone.Name, closestEncloserHashedOwnerName);
+                if (nsec3ZoneClosestEncloser is not null)
+                {
+                    nsec3Records = new List<DnsResourceRecord>(4);
+                    nsec3Records.AddRange(FindNSec3ProofOfNonExistenceNoData(nsec3ZoneClosestEncloser));
+
+                    string qnameHashedOwnerName = nsec3Param.ComputeHashedOwnerNameBase32HexString(domain) + (apexZone.Name.Length > 0 ? "." + apexZone.Name : "");
+                    NSec3AddProofOfCoverFor(qnameHashedOwnerName, apexZone.Name, nsec3Records);
+                }
+            }
+
             string hashedOwnerName = nsec3Param.ComputeHashedOwnerNameBase32HexString(zone.Name) + (apexZone.Name.Length > 0 ? "." + apexZone.Name : "");
 
             AuthZone nsec3Zone = GetAuthZone(apexZone.Name, hashedOwnerName);
@@ -1085,7 +1035,18 @@ namespace DnsServerCore.Dns.Trees
                 return FindNSec3ProofOfNonExistenceNxDomain(zone.Name, false);
             }
 
-            return FindNSec3ProofOfNonExistenceNoData(nsec3Zone);
+            IReadOnlyList<DnsResourceRecord> nsec3RecordsNoData = FindNSec3ProofOfNonExistenceNoData(nsec3Zone);
+
+            if (nsec3Records is null)
+                return nsec3RecordsNoData;
+
+            foreach (DnsResourceRecord nsec3Record in nsec3RecordsNoData)
+            {
+                if (!nsec3Records.Contains(nsec3Record))
+                    nsec3Records.Add(nsec3Record);
+            }
+
+            return nsec3Records;
         }
 
         private static IReadOnlyList<DnsResourceRecord> FindNSec3ProofOfNonExistenceNoData(AuthZone nsec3Zone)
@@ -1095,6 +1056,98 @@ namespace DnsServerCore.Dns.Trees
                 return nsec3Records;
 
             return Array.Empty<DnsResourceRecord>();
+        }
+
+        private void NSecAddProofOfCoverFor(string domain, List<DnsResourceRecord> nsecRecords)
+        {
+            byte[] key = ConvertToByteKey(domain);
+
+            AuthZoneNode authZoneNode = FindZoneNode(key, false, out Node currentNode, out _, out Node closestAuthorityNode, out _, out _, out ApexZone closestAuthority);
+            if (authZoneNode is not null)
+                throw new InvalidOperationException($"Cannot prove non-existence: The domain name '{domain}' exists and probably got added just now."); //domain exists! cannot prove non-existence
+
+            Node previousNode = GetPreviousSubDomainZoneNode(key, currentNode, closestAuthorityNode.Depth);
+            if (previousNode is not null)
+            {
+                AuthZone authZone = GetAuthZoneFromNode(previousNode, closestAuthority.Name);
+                if (authZone is not null)
+                {
+                    IReadOnlyList<DnsResourceRecord> proofOfCoverRecords = authZone.QueryRecords(DnsResourceRecordType.NSEC, true);
+
+                    foreach (DnsResourceRecord proofOfCoverRecord in proofOfCoverRecords)
+                    {
+                        if (!nsecRecords.Contains(proofOfCoverRecord))
+                            nsecRecords.Add(proofOfCoverRecord);
+                    }
+                }
+            }
+        }
+
+        private void NSec3AddProofOfCoverFor(string hashedOwnerName, string zoneName, List<DnsResourceRecord> nsec3Records)
+        {
+            //find previous NSEC3 for the hashed owner name
+            IReadOnlyList<DnsResourceRecord> proofOfCoverRecords = null;
+            string currentOwnerName = hashedOwnerName;
+
+            while (true)
+            {
+                AuthZone previousNSec3Zone = FindPreviousSubDomainZone(zoneName, currentOwnerName);
+                if (previousNSec3Zone is null)
+                    break;
+
+                IReadOnlyList<DnsResourceRecord> previousNSec3Records = previousNSec3Zone.QueryRecords(DnsResourceRecordType.NSEC3, true);
+                if (previousNSec3Records.Count > 0)
+                {
+                    proofOfCoverRecords = previousNSec3Records;
+                    break;
+                }
+
+                currentOwnerName = previousNSec3Zone.Name;
+            }
+
+            if (proofOfCoverRecords is null)
+            {
+                //didnt find previous NSEC3; find the last NSEC3
+                currentOwnerName = hashedOwnerName;
+
+                //find first auth zone
+                AuthZone nextNSec3Zone = GetAuthZone(zoneName, currentOwnerName);
+                if (nextNSec3Zone is null)
+                    nextNSec3Zone = FindNextSubDomainZone(zoneName, currentOwnerName);
+
+                while (nextNSec3Zone is not null)
+                {
+                    IReadOnlyList<DnsResourceRecord> nextNSec3Records = nextNSec3Zone.QueryRecords(DnsResourceRecordType.NSEC3, true);
+                    if (nextNSec3Records.Count > 0)
+                    {
+                        proofOfCoverRecords = nextNSec3Records;
+                        DnsResourceRecord previousNSec3Record = nextNSec3Records[0];
+
+                        string nextHashedOwnerNameString = (previousNSec3Record.RDATA as DnsNSEC3RecordData).NextHashedOwnerName + (zoneName.Length > 0 ? "." + zoneName : "");
+                        if (DnsNSECRecordData.CanonicalComparison(previousNSec3Record.Name, nextHashedOwnerNameString) >= 0)
+                            break; //found last NSEC3
+
+                        //jump to next hashed owner
+                        currentOwnerName = nextHashedOwnerNameString;
+                    }
+                    else
+                    {
+                        currentOwnerName = nextNSec3Zone.Name;
+                    }
+
+                    //find next auth zone
+                    nextNSec3Zone = FindNextSubDomainZone(zoneName, currentOwnerName);
+                }
+            }
+
+            if (proofOfCoverRecords is null)
+                throw new InvalidOperationException();
+
+            foreach (DnsResourceRecord proofOfCoverRecord in proofOfCoverRecords)
+            {
+                if (!nsec3Records.Contains(proofOfCoverRecord))
+                    nsec3Records.Add(proofOfCoverRecord);
+            }
         }
 
         #endregion
