@@ -1,0 +1,444 @@
+html, body {
+    height: 100% !important;
+    background: #181a1b !important;
+    color: #e0e0e0 !important;
+}
+
+body {
+    margin: 0px !important;
+    line-height: 1.42857143 !important;
+    background: #181a1b !important;
+    color: #e0e0e0 !important;
+}
+
+a {
+    color: #80b3ff;
+}
+
+    a:hover {
+        color: #a3d1ff;
+    }
+
+th a {
+    color: #e0e0e0;
+}
+
+    th a:hover {
+        color: #e0e0e0;
+        text-decoration: none;
+    }
+
+#header {
+    background-color: #222c3c;
+    height: 32px;
+    margin-bottom: -32px;
+    box-shadow: 0px 1px 15px 0px #111a22;
+    width: 100%;
+    min-width: 970px;
+}
+
+    #header .title {
+        margin: 0 auto;
+        color: #ffffff;
+        padding: 0px 15px 0px 15px;
+    }
+
+        #header .title img {
+            vertical-align: text-bottom;
+        }
+
+        #header .title .text {
+            font-size: 24px;
+            font-weight: 600;
+            font-family: Arial;
+            margin-left: 4px;
+        }
+
+    #header .menu {
+        float: right;
+        padding: 6px;
+    }
+
+        #header .menu .menu-title {
+            color: #e0e0e0;
+            font-family: Arial;
+            font-size: 16px;
+        }
+
+#content {
+    min-height: 100%;
+    background: #23272a;
+}
+
+.container {
+    margin-left: auto;
+    margin-right: auto;
+    padding: 55px 15px 60px 15px;
+    word-wrap: break-word;
+    min-width: 970px;
+    background: #23272a;
+    color: #e0e0e0;
+}
+
+    .container .pageLogin {
+        display: none;
+        margin: auto;
+        width: 500px;
+        padding: 150px 0 0 0;
+    }
+
+    .container .page {
+        display: none;
+    }
+
+.auto-resize-img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin-right: auto;
+    margin-left: auto;
+}
+
+.center-iframe {
+    display: block;
+    margin-right: auto;
+    margin-left: auto;
+    max-width: 640px;
+    max-height: 480px;
+}
+
+    .center-iframe iframe {
+        width: 100%;
+        height: 100%;
+    }
+
+#footer {
+    background-color: #23272a;
+    padding: 20px 0px 20px 0px;
+    margin-top: -55px;
+    box-shadow: 0px 2px 15px 1px #111a22;
+    clear: both;
+    position: relative;
+    height: 55px;
+    min-width: 970px;
+}
+
+    #footer .content {
+        margin: 0 auto;
+        color: #b0b0b0;
+        font-family: Arial, sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        text-align: center;
+    }
+
+        #footer .content a {
+            color: #80b3ff;
+            text-decoration: none;
+        }
+
+            #footer .content a:hover {
+                color: #a3d1ff;
+            }
+
+@media (min-width: 992px) {
+    #header .title, .container, #footer .content {
+        width: 970px;
+    }
+}
+
+@media (min-width: 1200px) {
+    #header .title, .container, #footer .content {
+        width: 1170px;
+    }
+}
+
+.form-inline .form-group {
+    margin-right: 10px;
+    margin-bottom: 10px;
+}
+
+.AlertPlaceholder {
+    position: fixed;
+    width: 800px;
+    margin: auto;
+    left: 0;
+    right: 0;
+    top: 45px;
+    z-index: 1000;
+}
+
+.zone-list-pane {
+    float: left;
+    width: 24%;
+    background: #23272a;
+}
+
+.zones {
+    font-size: 14px;
+    color: #e0e0e0;
+}
+
+    .zones .zone {
+        padding: 4px;
+    }
+
+.zone-viewer-pane {
+    float: right;
+    width: 75%;
+    display: none;
+    background: #23272a;
+}
+
+.log-list-pane {
+    float: left;
+    width: 17%;
+    background: #23272a;
+}
+
+.logs {
+    font-size: 12px;
+    color: #e0e0e0;
+}
+
+    .logs .log {
+        padding: 2px;
+    }
+
+.log-viewer-pane {
+    float: right;
+    width: 82%;
+    display: none;
+    background: #23272a;
+}
+
+.query-logs tr:hover {
+    backdrop-filter: brightness(80%);
+}
+
+.stats-panel {
+    height: 80px;
+    padding: 6px 0 6px 0;
+}
+
+    .stats-panel .total-queries {
+        background-color: rgba(80, 120, 200, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .no-error {
+        background-color: rgba(60, 160, 60, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .server-failure {
+        background-color: rgba(200, 60, 60, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .nxdomain {
+        background-color: rgba(80, 80, 80, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .refused {
+        background-color: rgba(60, 160, 200, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .auth-hit {
+        background-color: rgba(180, 180, 60, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .cache-hit {
+        background-color: rgba(120, 80, 180, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .blocked {
+        background-color: rgba(255, 180, 60, 0.7);
+        color: #23272a;
+    }
+
+    .stats-panel .dropped {
+        background-color: rgba(40, 40, 40, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .recursions {
+        background-color: rgba(40, 180, 200, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .clients {
+        background-color: rgba(60, 120, 200, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .stats-last-item {
+        margin-right: 0% !important;
+    }
+
+    .stats-panel .stats-item {
+        width: 8.818%;
+        float: left;
+        padding: 4px;
+        margin-right: 0.3%;
+    }
+
+        .stats-panel .stats-item .number {
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .stats-panel .stats-item .percentage {
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .stats-panel .stats-item .title {
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+.zone-stats-panel {
+    margin-bottom: 15px;
+}
+
+    .zone-stats-panel .stats-last-item {
+        margin-right: 0% !important;
+    }
+
+    .zone-stats-panel .stats-item {
+        width: 16.125%;
+        float: left;
+        padding: 6px 4px;
+        margin-right: 0.65%;
+        background-color: rgba(60, 120, 200, 0.7);
+        color: #ffffff;
+    }
+
+        .zone-stats-panel .stats-item .number {
+            font-size: 14px;
+            font-weight: bold;
+            padding: 6px 0;
+        }
+
+        .zone-stats-panel .stats-item .title {
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+.about p {
+    color: #b0b0b0;
+    text-align: center;
+}
+
+/* Force dark background for the whole page */
+body {
+  background-color: #181a1b !important;
+  color: #e0e0e0 !important;
+}
+
+/* Override any inline white backgrounds */
+[style*="background-color: white"] {
+  background-color: #23272e !important;
+  color: #e0e0e0 !important;
+}
+
+/* Override any inline black backgrounds (if you want a slightly lighter dark) */
+[style*="background-color: black"] {
+  background-color: #181a1b !important;
+}
+
+/* Override red text for alerts, etc. */
+[style*="color: red"] {
+  color: #ff6b6b !important;
+}
+
+/* Panel and container backgrounds */
+.panel,
+.panel-default,
+.well,
+.container,
+.form-control,
+.dropdown-menu,
+.table,
+.table-hover,
+.panel-body,
+.panel-heading {
+  background-color: #23272e !important;
+  color: #e0e0e0 !important;
+  border-color: #444 !important;
+}
+
+/* Buttons */
+.btn,
+.btn-default,
+.btn-primary,
+.btn-warning,
+.btn-danger {
+  background-color: #23272e !important;
+  color: #e0e0e0 !important;
+  border-color: #444 !important;
+}
+.btn-primary {
+  background-color: #3b82f6 !important;
+  color: #fff !important;
+  border-color: #2563eb !important;
+}
+.btn-warning {
+  background-color: #f59e42 !important;
+  color: #23272e !important;
+  border-color: #b45309 !important;
+}
+.btn-danger {
+  background-color: #ef4444 !important;
+  color: #fff !important;
+  border-color: #991b1b !important;
+}
+
+/* Table rows and hover */
+.table-hover > tbody > tr:hover {
+  background-color: #2d323a !important;
+}
+
+/* Dropdown menus */
+.dropdown-menu {
+  background-color: #23272e !important;
+  color: #e0e0e0 !important;
+  border-color: #444 !important;
+}
+
+/* Inputs and textareas */
+input,
+textarea,
+select {
+  background-color: #23272e !important;
+  color: #e0e0e0 !important;
+  border-color: #444 !important;
+}
+
+/* Links */
+a {
+  color: #60aaff !important;
+}
+a:hover, a:focus {
+  color: #a5d6ff !important;
+  text-decoration: underline !important;
+}
+
+/* Caret and icons */
+.caret,
+.glyphicon {
+  color: #e0e0e0 !important;
+}
+
+/* Miscellaneous: override any other inline color */
+[style*="color: black"] {
+  color: #e0e0e0 !important;
+}
+[style*="color: white"] {
+  color: #e0e0e0 !important;
+}
