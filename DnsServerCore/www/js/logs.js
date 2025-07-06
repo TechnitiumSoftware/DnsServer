@@ -280,7 +280,7 @@ function queryLogs(pageNumber) {
 
     var name = $("#optQueryLogsAppName").val();
     if (name == null) {
-        showAlert("warning", "Missing!", "Please install the 'Query Logs (Sqlite)' DNS App or any other DNS app that supports query logging feature.");
+        showAlert("warning", "Missing!", "Please install the 'Query Logs (Sqlite)' DNS App or any other DNS app that supports query logging feature from the Apps section.");
         $("#optQueryLogsAppName").focus();
         return false;
     }
