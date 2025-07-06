@@ -1085,59 +1085,29 @@ namespace DnsServerCore.Dns.Trees
 
         private void NSec3AddProofOfCoverFor(string hashedOwnerName, string zoneName, List<DnsResourceRecord> nsec3Records)
         {
-            //find previous NSEC3 for the hashed owner name
-            IReadOnlyList<DnsResourceRecord> proofOfCoverRecords = null;
-
+            IReadOnlyList<DnsResourceRecord> TryFindPreviousNSec3Records(string ownerName)
             {
-                string currentOwnerName = hashedOwnerName;
-
                 while (true)
                 {
-                    AuthZone zone = FindPreviousSubDomainZone(zoneName, currentOwnerName);
+                    AuthZone zone = FindPreviousSubDomainZone(zoneName, ownerName);
                     if (zone is null)
-                        break; //no previous auth zone found
+                        return null; //no previous auth zone found
 
                     IReadOnlyList<DnsResourceRecord> previousNSec3Records = zone.QueryRecords(DnsResourceRecordType.NSEC3, true);
                     if (previousNSec3Records.Count > 0)
-                    {
-                        proofOfCoverRecords = previousNSec3Records;
-                        break; //found proof of cover
-                    }
+                        return previousNSec3Records; //found proof of cover
 
-                    currentOwnerName = zone.Name;
+                    ownerName = zone.Name;
                 }
             }
+
+            //find previous NSEC3 for the hashed owner name
+            IReadOnlyList<DnsResourceRecord> proofOfCoverRecords = TryFindPreviousNSec3Records(hashedOwnerName);
 
             if (proofOfCoverRecords is null)
             {
                 //didnt find previous NSEC3; find the last NSEC3 which will give the proof of cover
-
-                //find first auth zone to begin
-                AuthZone zone = GetAuthZone(zoneName, hashedOwnerName);
-                if (zone is null)
-                    zone = FindNextSubDomainZone(zoneName, hashedOwnerName);
-
-                while (zone is not null)
-                {
-                    IReadOnlyList<DnsResourceRecord> nextNSec3Records = zone.QueryRecords(DnsResourceRecordType.NSEC3, true);
-                    if (nextNSec3Records.Count > 0)
-                    {
-                        proofOfCoverRecords = nextNSec3Records;
-                        DnsResourceRecord previousNSec3Record = nextNSec3Records[0];
-
-                        string nextHashedOwnerNameString = (previousNSec3Record.RDATA as DnsNSEC3RecordData).NextHashedOwnerName + (zoneName.Length > 0 ? "." + zoneName : "");
-                        if (DnsNSECRecordData.CanonicalComparison(previousNSec3Record.Name, nextHashedOwnerNameString) >= 0)
-                            break; //found last NSEC3
-
-                        //jump to next hashed owner NSEC3 zone
-                        zone = GetAuthZone(zoneName, nextHashedOwnerNameString);
-                    }
-                    else
-                    {
-                        //find next auth zone
-                        zone = FindNextSubDomainZone(zoneName, zone.Name);
-                    }
-                }
+                proofOfCoverRecords = TryFindPreviousNSec3Records("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz0" + (zoneName.Length > 0 ? "." + zoneName : ""));
             }
 
             if (proofOfCoverRecords is null)
