@@ -72,12 +72,12 @@ namespace DnsServerCore
             {
                 if ((_checkForUpdateJsonData is null) || (DateTime.UtcNow > _checkForUpdateJsonDataUpdatedOn.AddSeconds(CHECK_FOR_UPDATE_JSON_DATA_CACHE_TIME_SECONDS)))
                 {
-                    SocketsHttpHandler handler = new SocketsHttpHandler();
+                    HttpClientNetworkHandler handler = new HttpClientNetworkHandler();
                     handler.Proxy = _dnsWebService._dnsServer.Proxy;
-                    handler.UseProxy = _dnsWebService._dnsServer.Proxy is not null;
-                    handler.AutomaticDecompression = DecompressionMethods.All;
+                    handler.NetworkType = _dnsWebService._dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default;
+                    handler.DnsClient = _dnsWebService._dnsServer;
 
-                    using (HttpClient http = new HttpClient(new HttpClientNetworkHandler(handler, _dnsWebService._dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default, _dnsWebService._dnsServer)))
+                    using (HttpClient http = new HttpClient(handler))
                     {
                         _checkForUpdateJsonData = await http.GetStringAsync(_updateCheckUri);
                         _checkForUpdateJsonDataUpdatedOn = DateTime.UtcNow;
@@ -381,7 +381,11 @@ namespace DnsServerCore
                     }
 
                     AuthZoneInfo zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.FindAuthZoneInfo(domain);
-                    if ((zoneInfo is null) || ((zoneInfo.Type != AuthZoneType.Primary) && !zoneInfo.Name.Equals(domain, StringComparison.OrdinalIgnoreCase)) || (isZoneImport && !zoneInfo.Name.Equals(domain, StringComparison.OrdinalIgnoreCase)))
+                    if (
+                        (zoneInfo is null) ||
+                        ((zoneInfo.Type != AuthZoneType.Primary) && (zoneInfo.Type != AuthZoneType.Forwarder) && !zoneInfo.Name.Equals(domain, StringComparison.OrdinalIgnoreCase)) ||
+                        (isZoneImport && !zoneInfo.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                       )
                     {
                         if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
                             throw new DnsWebServiceException("Access was denied.");
