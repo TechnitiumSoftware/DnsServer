@@ -190,6 +190,8 @@ namespace DnsServerCore
                     rcode = Enum.Parse<DnsResponseCode>(strRcode, true);
 
                 string qname = request.GetQueryOrForm("qname", null);
+                if (qname is not null)
+                    qname = qname.TrimEnd('.');
 
                 DnsResourceRecordType? qtype = null;
                 string strQtype = request.QueryOrForm("qtype");
