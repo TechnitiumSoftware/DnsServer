@@ -846,6 +846,9 @@ namespace DnsServerCore.Dns.Zones
                 partialNSec3Records.Add(zone.GetPartialNSec3Record(_name, ttl, iterations, salt));
 
                 int zoneLabelCount = DnsRRSIGRecordData.GetLabelCount(zone.Name);
+                if (zone.Name.StartsWith("*."))
+                    zoneLabelCount++; //need to consider wildcard label for ENT detection
+
                 if ((zoneLabelCount - apexLabelCount) > 1)
                 {
                     //empty non-terminal (ENT) may exists
@@ -1882,6 +1885,8 @@ namespace DnsServerCore.Dns.Zones
 
                     int apexLabelCount = DnsRRSIGRecordData.GetLabelCount(_name);
                     int zoneLabelCount = DnsRRSIGRecordData.GetLabelCount(zone.Name);
+                    if (zone.Name.StartsWith("*.") || zone.Name.Equals('*'))
+                        zoneLabelCount++; //need to consider wildcard label for ENT detection
 
                     if ((zoneLabelCount - apexLabelCount) > 1)
                     {
