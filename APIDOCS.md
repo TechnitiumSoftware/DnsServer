@@ -18,6 +18,7 @@ The `status` property can have following values:
 - `ok`: This indicates that the call was successful.
 - `error`: This response tells the call failed and provides additional properties that provide details about the error.
 - `invalid-token`: When a session has expired or an invalid token was provided this response is received.
+- `2fa-required`: When a user has two-factor authentication enabled and the OTP was not provided during login.
 
 A successful response will look as shown below. Note that there will be other properties in the response which are specific to the request that was made.
 
