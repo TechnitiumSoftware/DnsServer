@@ -1,170 +1,197 @@
 [
-  {
-    "name": "Recursive Query",
-    "addresses": [ "recursive-resolver" ]
-  },
-  {
-    "name": "System DNS",
-    "addresses": [ "system-dns" ]
-  },
-  {
-    "name": "Cloudflare",
-    "addresses": [
-      "1.1.1.1",
-      "1.0.0.1",
-      "[2606:4700:4700::1111]",
-      "[2606:4700:4700::1001]"
-    ]
-  },
-  {
-    "name": "Cloudflare TLS",
-    "addresses": [
-      "cloudflare-dns.com (1.1.1.1:853)",
-      "cloudflare-dns.com (1.0.0.1:853)",
-      "cloudflare-dns.com ([2606:4700:4700::1111]:853)",
-      "cloudflare-dns.com ([2606:4700:4700::1001]:853)"
-    ]
-  },
-  {
-    "name": "Cloudflare HTTPS",
-    "addresses": [
-      "https://cloudflare-dns.com/dns-query (1.1.1.1)"
-    ]
-  },
-  {
-    "name": "Google",
-    "addresses": [
-      "8.8.8.8",
-      "8.8.4.4",
-      "[2001:4860:4860::8888]",
-      "[2001:4860:4860::8844]"
-    ]
-  },
-  {
-    "name": "Google TLS",
-    "addresses": [
-      "dns.google (8.8.8.8:853)",
-      "dns.google (8.8.4.4:853)",
-      "dns.google ([2001:4860:4860::8888]:853)",
-      "dns.google ([2001:4860:4860::8844]:853)"
-    ]
-  },
-  {
-    "name": "Google HTTPS",
-    "addresses": [
-      "https://dns.google/dns-query (8.8.8.8)"
-    ]
-  },
-  {
-    "name": "Quad9 Secure",
-    "addresses": [
-      "9.9.9.9",
-      "[2620:fe::fe]"
-    ]
-  },
-  {
-    "name": "Quad9 Secure TLS",
-    "addresses": [
-      "dns.quad9.net (9.9.9.9:853)",
-      "dns.quad9.net ([2620:fe::fe]:853)"
-    ]
-  },
-  {
-    "name": "Quad9 Secure HTTPS",
-    "addresses": [
-      "https://dns.quad9.net/dns-query (9.9.9.9)"
-    ]
-  },
-  {
-    "name": "OpenDNS",
-    "addresses": [
-      "208.67.222.222",
-      "208.67.220.220",
-      "[2620:0:ccc::2]",
-      "[2620:0:ccd::2]"
-    ]
-  },
-  {
-    "name": "OpenDNS TLS",
-    "addresses": [
-      "dns.opendns.com (208.67.222.222:853)",
-      "dns.opendns.com (208.67.220.220:853)",
-      "dns.opendns.com ([2620:0:ccc::2]:853)",
-      "dns.opendns.com ([2620:0:ccd::2]:853)"
-    ]
-  },
-  {
-    "name": "OpenDNS HTTPS",
-    "addresses": [
-      "https://doh.opendns.com/dns-query (208.67.222.222)"
-    ]
-  },
-  {
-    "name": "AdGuard",
-    "addresses": [
-      "94.140.14.14",
-      "94.140.15.15",
-      "[2a10:50c0::ad1:ff]",
-      "[2a10:50c0::ad2:ff]"
-    ]
-  },
-  {
-    "name": "AdGuard TLS",
-    "addresses": [
-      "dns.adguard-dns.com (94.140.14.14:853)",
-      "dns.adguard-dns.com ([2a10:50c0::ad1:ff]:853)"
-    ]
-  },
-  {
-    "name": "AdGuard HTTPS",
-    "addresses": [
-      "https://dns.adguard-dns.com/dns-query (94.140.14.14)"
-    ]
-  },
-  {
-    "name": "AdGuard QUIC",
-    "addresses": [
-      "dns.adguard-dns.com (94.140.14.14:853)",
-      "dns.adguard-dns.com ([2a10:50c0::ad1:ff]:853)"
-    ]
-  },
-  {
-    "name": "Level3",
-    "addresses": [
-      "4.2.2.1",
-      "4.2.2.2"
-    ]
-  },
-  {
-    "name": "Ultra",
-    "addresses": [
-      "156.154.70.1",
-      "156.154.71.1"
-    ]
-  },
-  {
-    "name": "Dyn",
-    "addresses": [
-      "216.146.35.35",
-      "216.146.36.36"
-    ]
-  },
-  {
-    "name": null,
-    "addresses": [
-      "a.root-servers.net",
-      "b.root-servers.net",
-      "c.root-servers.net",
-      "d.root-servers.net",
-      "e.root-servers.net",
-      "f.root-servers.net",
-      "g.root-servers.net",
-      "h.root-servers.net",
-      "i.root-servers.net",
-      "j.root-servers.net",
-      "k.root-servers.net",
-      "l.root-servers.net",
-      "m.root-servers.net"
-    ]
-  }
+	{
+		"name": "Recursive Query",
+		"addresses": [
+			"recursive-resolver"
+		]
+	},
+	{
+		"name": "System DNS",
+		"addresses": [
+			"system-dns"
+		]
+	},
+	{
+		"name": "Cloudflare",
+		"addresses": [
+			"1.1.1.1",
+			"1.0.0.1",
+			"[2606:4700:4700::1111]",
+			"[2606:4700:4700::1001]"
+		]
+	},
+	{
+		"name": "Cloudflare TLS",
+		"addresses": [
+			"cloudflare-dns.com (1.1.1.1:853)",
+			"cloudflare-dns.com (1.0.0.1:853)",
+			"cloudflare-dns.com ([2606:4700:4700::1111]:853)",
+			"cloudflare-dns.com ([2606:4700:4700::1001]:853)"
+		]
+	},
+	{
+		"name": "Cloudflare HTTPS",
+		"addresses": [
+			"https://cloudflare-dns.com/dns-query (1.1.1.1)"
+		]
+	},
+	{
+		"name": "Google",
+		"addresses": [
+			"8.8.8.8",
+			"8.8.4.4",
+			"[2001:4860:4860::8888]",
+			"[2001:4860:4860::8844]"
+		]
+	},
+	{
+		"name": "Google TLS",
+		"addresses": [
+			"dns.google (8.8.8.8:853)",
+			"dns.google (8.8.4.4:853)",
+			"dns.google ([2001:4860:4860::8888]:853)",
+			"dns.google ([2001:4860:4860::8844]:853)"
+		]
+	},
+	{
+		"name": "Google HTTPS",
+		"addresses": [
+			"https://dns.google/dns-query (8.8.8.8)"
+		]
+	},
+	{
+		"name": "Quad9 Secure",
+		"addresses": [
+			"9.9.9.9",
+			"[2620:fe::fe]"
+		]
+	},
+	{
+		"name": "Quad9 Secure TLS",
+		"addresses": [
+			"dns.quad9.net (9.9.9.9:853)",
+			"dns.quad9.net ([2620:fe::fe]:853)"
+		]
+	},
+	{
+		"name": "Quad9 Secure HTTPS",
+		"addresses": [
+			"https://dns.quad9.net/dns-query (9.9.9.9)"
+		]
+	},
+	{
+		"name": "OpenDNS",
+		"addresses": [
+			"208.67.222.222",
+			"208.67.220.220",
+			"[2620:0:ccc::2]",
+			"[2620:0:ccd::2]"
+		]
+	},
+	{
+		"name": "OpenDNS TLS",
+		"addresses": [
+			"dns.opendns.com (208.67.222.222:853)",
+			"dns.opendns.com (208.67.220.220:853)",
+			"dns.opendns.com ([2620:0:ccc::2]:853)",
+			"dns.opendns.com ([2620:0:ccd::2]:853)"
+		]
+	},
+	{
+		"name": "OpenDNS HTTPS",
+		"addresses": [
+			"https://doh.opendns.com/dns-query (208.67.222.222)"
+		]
+	},
+	{
+		"name": "AdGuard",
+		"addresses": [
+			"94.140.14.14",
+			"94.140.15.15",
+			"[2a10:50c0::ad1:ff]",
+			"[2a10:50c0::ad2:ff]"
+		]
+	},
+	{
+		"name": "AdGuard TLS",
+		"addresses": [
+			"dns.adguard-dns.com (94.140.14.14:853)",
+			"dns.adguard-dns.com ([2a10:50c0::ad1:ff]:853)"
+		]
+	},
+	{
+		"name": "AdGuard HTTPS",
+		"addresses": [
+			"https://dns.adguard-dns.com/dns-query (94.140.14.14)"
+		]
+	},
+	{
+		"name": "AdGuard QUIC",
+		"addresses": [
+			"dns.adguard-dns.com (94.140.14.14:853)",
+			"dns.adguard-dns.com ([2a10:50c0::ad1:ff]:853)"
+		]
+	},
+	{
+		"name": "DNS4EU",
+		"addresses": [
+			"86.54.11.1",
+			"86.54.11.201",
+			"[2a13:1001::86:54:11:1]",
+			"[2a13:1001::86:54:11:201]"
+		]
+	},
+	{
+		"name": "DNS4EU TLS",
+		"addresses": [
+			"protective.joindns4.eu (86.54.11.1:853)",
+			"protective.joindns4.eu ([2a13:1001::86:54:11:1]:853)"
+		]
+	},
+	{
+		"name": "DNS4EU HTTPS",
+		"addresses": [
+			"https://protective.joindns4.eu/dns-query (86.54.11.1)",
+			"https://protective.joindns4.eu/dns-query ([2a13:1001::86:54:11:1])"
+		]
+	},
+	{
+		"name": "Level3",
+		"addresses": [
+			"4.2.2.1",
+			"4.2.2.2"
+		]
+	},
+	{
+		"name": "Ultra",
+		"addresses": [
+			"156.154.70.1",
+			"156.154.71.1"
+		]
+	},
+	{
+		"name": "Dyn",
+		"addresses": [
+			"216.146.35.35",
+			"216.146.36.36"
+		]
+	},
+	{
+		"name": null,
+		"addresses": [
+			"a.root-servers.net",
+			"b.root-servers.net",
+			"c.root-servers.net",
+			"d.root-servers.net",
+			"e.root-servers.net",
+			"f.root-servers.net",
+			"g.root-servers.net",
+			"h.root-servers.net",
+			"i.root-servers.net",
+			"j.root-servers.net",
+			"k.root-servers.net",
+			"l.root-servers.net",
+			"m.root-servers.net"
+		]
+	}
 ]
