@@ -241,6 +241,12 @@ $(function () {
     loadQuickBlockLists();
     loadQuickForwardersList();
 
+    $("#chkEnableUdpSocketPool").click(function () {
+        var enableUdpSocketPool = $("#chkEnableUdpSocketPool").prop("checked");
+
+        $("#txtUdpSocketPoolExcludedPorts").prop("disabled", !enableUdpSocketPool);
+    });
+
     $("#chkEDnsClientSubnet").click(function () {
         var eDnsClientSubnet = $("#chkEDnsClientSubnet").prop("checked");
 
@@ -801,6 +807,7 @@ function loadDnsSettings(responseJSON) {
 
     $("#chkPreferIPv6").prop("checked", responseJSON.response.preferIPv6);
     $("#chkEnableUdpSocketPool").prop("checked", responseJSON.response.enableUdpSocketPool);
+    $("#txtUdpSocketPoolExcludedPorts").prop("disabled", !responseJSON.response.enableUdpSocketPool);
     $("#txtUdpSocketPoolExcludedPorts").val(getArrayAsString(responseJSON.response.socketPoolExcludedPorts));
     $("#txtEdnsUdpPayloadSize").val(responseJSON.response.udpPayloadSize);
     $("#chkDnssecValidation").prop("checked", responseJSON.response.dnssecValidation);
