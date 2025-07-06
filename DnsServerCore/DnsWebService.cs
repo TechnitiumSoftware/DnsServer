@@ -734,14 +734,14 @@ namespace DnsServerCore
                     {
                         jsonWriter.WriteStartObject();
 
-                        if (ex is InvalidTokenWebServiceException)
-                        {
-                            jsonWriter.WriteString("status", "invalid-token");
-                            jsonWriter.WriteString("errorMessage", ex.Message);
-                        }
-                        else if (ex is TwoFactorAuthRequiredWebServiceException)
+                        if (ex is TwoFactorAuthRequiredWebServiceException)
                         {
                             jsonWriter.WriteString("status", "2fa-required");
+                            jsonWriter.WriteString("errorMessage", ex.Message);
+                        }
+                        else if (ex is InvalidTokenWebServiceException)
+                        {
+                            jsonWriter.WriteString("status", "invalid-token");
                             jsonWriter.WriteString("errorMessage", ex.Message);
                         }
                         else
@@ -3018,13 +3018,8 @@ namespace DnsServerCore
 
             try
             {
-                //get initial server domain
-                string dnsServerDomain = Environment.MachineName.ToLowerInvariant();
-                if (!DnsClient.IsDomainNameValid(dnsServerDomain))
-                    dnsServerDomain = "dns-server-1"; //use this name instead since machine name is not a valid domain name
-
                 //init dns server
-                _dnsServer = new DnsServer(dnsServerDomain, _configFolder, Path.Combine(_appFolder, "dohwww"), _log);
+                _dnsServer = new DnsServer(_configFolder, Path.Combine(_appFolder, "dohwww"), log: _log);
 
                 //init dhcp server
                 _dhcpServer = new DhcpServer(Path.Combine(_configFolder, "scopes"), _log);
