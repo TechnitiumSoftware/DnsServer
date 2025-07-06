@@ -260,6 +260,9 @@ namespace DnsServerCore.Auth
                     {
                         adminUser.ChangePassword("admin");
                         adminUser.Disabled = false;
+
+                        if (adminUser.TOTPEnabled)
+                            adminUser.DisableTOTP();
                     }
 
                     adminUser.AddToGroup(GetGroup(Group.ADMINISTRATORS));
