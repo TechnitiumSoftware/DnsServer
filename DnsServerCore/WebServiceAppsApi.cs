@@ -24,7 +24,6 @@ using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
@@ -94,7 +93,7 @@ namespace DnsServerCore
 
                             _dnsWebService._log.Write("DNS Server has started automatic update check for DNS Apps.");
 
-                            string storeAppsJsonData = await GetStoreAppsJsonData(true);
+                            string storeAppsJsonData = await GetStoreAppsJsonData();
                             using JsonDocument jsonDocument = JsonDocument.Parse(storeAppsJsonData);
                             JsonElement jsonStoreAppsArray = jsonDocument.RootElement;
 
@@ -131,7 +130,7 @@ namespace DnsServerCore
                                         {
                                             try
                                             {
-                                                await DownloadAndUpdateAppAsync(application.Name, url, true);
+                                                await DownloadAndUpdateAppAsync(application.Name, url);
 
                                                 _dnsWebService._log.Write("DNS application '" + application.Name + "' was automatically updated successfully from: " + url);
                                             }
@@ -165,21 +164,16 @@ namespace DnsServerCore
                 }
             }
 
-            private async Task<string> GetStoreAppsJsonData(bool doRetry)
+            private async Task<string> GetStoreAppsJsonData()
             {
                 if ((_storeAppsJsonData is null) || (DateTime.UtcNow > _storeAppsJsonDataUpdatedOn.AddSeconds(STORE_APPS_JSON_DATA_CACHE_TIME_SECONDS)))
                 {
-                    SocketsHttpHandler handler = new SocketsHttpHandler();
+                    HttpClientNetworkHandler handler = new HttpClientNetworkHandler();
                     handler.Proxy = _dnsWebService._dnsServer.Proxy;
-                    handler.UseProxy = _dnsWebService._dnsServer.Proxy is not null;
-                    handler.AutomaticDecompression = DecompressionMethods.All;
+                    handler.NetworkType = _dnsWebService._dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default;
+                    handler.DnsClient = _dnsWebService._dnsServer;
 
-                    HttpClientNetworkHandler networkHandler = new HttpClientNetworkHandler(handler, _dnsWebService._dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default, _dnsWebService._dnsServer);
-
-                    if (!doRetry)
-                        networkHandler.Retries = 1;
-
-                    using (HttpClient http = new HttpClient(networkHandler))
+                    using (HttpClient http = new HttpClient(handler))
                     {
                         _storeAppsJsonData = await http.GetStringAsync(_appStoreUri);
                         _storeAppsJsonDataUpdatedOn = DateTime.UtcNow;
@@ -189,7 +183,7 @@ namespace DnsServerCore
                 return _storeAppsJsonData;
             }
 
-            private async Task<DnsApplication> DownloadAndUpdateAppAsync(string applicationName, string url, bool doRetry)
+            private async Task<DnsApplication> DownloadAndUpdateAppAsync(string applicationName, string url)
             {
                 string tmpFile = Path.GetTempFileName();
                 try
@@ -197,17 +191,12 @@ namespace DnsServerCore
                     using (FileStream fS = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite))
                     {
                         //download to temp file
-                        SocketsHttpHandler handler = new SocketsHttpHandler();
+                        HttpClientNetworkHandler handler = new HttpClientNetworkHandler();
                         handler.Proxy = _dnsWebService._dnsServer.Proxy;
-                        handler.UseProxy = _dnsWebService._dnsServer.Proxy is not null;
-                        handler.AutomaticDecompression = DecompressionMethods.All;
+                        handler.NetworkType = _dnsWebService._dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default;
+                        handler.DnsClient = _dnsWebService._dnsServer;
 
-                        HttpClientNetworkHandler networkHandler = new HttpClientNetworkHandler(handler, _dnsWebService._dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default, _dnsWebService._dnsServer);
-
-                        if (!doRetry)
-                            networkHandler.Retries = 1;
-
-                        using (HttpClient http = new HttpClient(networkHandler))
+                        using (HttpClient http = new HttpClient(handler))
                         {
                             using (Stream httpStream = await http.GetStreamAsync(url))
                             {
@@ -350,7 +339,7 @@ namespace DnsServerCore
                         {
                             string storeAppsJsonData = await TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
                             {
-                                return GetStoreAppsJsonData(false);
+                                return GetStoreAppsJsonData();
                             }, 5000);
 
                             jsonDocument = JsonDocument.Parse(storeAppsJsonData);
@@ -391,7 +380,7 @@ namespace DnsServerCore
 
                 string storeAppsJsonData = await TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
                 {
-                    return GetStoreAppsJsonData(false);
+                    return GetStoreAppsJsonData();
                 }, 30000);
 
                 using JsonDocument jsonDocument = JsonDocument.Parse(storeAppsJsonData);
@@ -479,12 +468,12 @@ namespace DnsServerCore
                     using (FileStream fS = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite))
                     {
                         //download to temp file
-                        SocketsHttpHandler handler = new SocketsHttpHandler();
+                        HttpClientNetworkHandler handler = new HttpClientNetworkHandler();
                         handler.Proxy = _dnsWebService._dnsServer.Proxy;
-                        handler.UseProxy = _dnsWebService._dnsServer.Proxy is not null;
-                        handler.AutomaticDecompression = DecompressionMethods.All;
+                        handler.NetworkType = _dnsWebService._dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default;
+                        handler.DnsClient = _dnsWebService._dnsServer;
 
-                        using (HttpClient http = new HttpClient(new HttpClientNetworkHandler(handler, _dnsWebService._dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default, _dnsWebService._dnsServer)))
+                        using (HttpClient http = new HttpClient(handler))
                         {
                             using (Stream httpStream = await http.GetStreamAsync(url))
                             {
@@ -532,7 +521,7 @@ namespace DnsServerCore
                 if (!url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                     throw new DnsWebServiceException("Parameter 'url' value must start with 'https://'.");
 
-                DnsApplication application = await DownloadAndUpdateAppAsync(name, url, false);
+                DnsApplication application = await DownloadAndUpdateAppAsync(name, url);
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DNS application '" + name + "' was updated successfully from: " + url);
 
