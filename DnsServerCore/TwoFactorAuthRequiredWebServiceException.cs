@@ -21,7 +21,7 @@ using System;
 
 namespace DnsServerCore
 {
-    public class TwoFactorAuthRequiredWebServiceException : DnsWebServiceException
+    public class TwoFactorAuthRequiredWebServiceException : InvalidTokenWebServiceException
     {
         #region constructors
 
