@@ -1032,7 +1032,26 @@ namespace DnsServerCore.Dhcp
                 dhcpEP = new IPEndPoint(scope.InterfaceAddress, 67);
 
                 if (!dhcpEP.Address.Equals(IPAddress.Any))
-                    BindUdpListener(dhcpEP);
+                {
+                    int tries = 0;
+
+                    do
+                    {
+                        try
+                        {
+                            BindUdpListener(dhcpEP);
+                            break;
+                        }
+                        catch
+                        {
+                            if (!waitForInterface || (++tries >= 3))
+                                throw;
+
+                            await Task.Delay(5000);
+                        }
+                    }
+                    while (waitForInterface);
+                }
 
                 try
                 {
