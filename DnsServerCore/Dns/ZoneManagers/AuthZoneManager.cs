@@ -2705,9 +2705,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                                     IReadOnlyList<DnsResourceRecord> nsecRecords;
 
                                     if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
-                                        nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(zone, apexZone);
+                                        nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(question.Name, zone, apexZone);
                                     else
-                                        nsecRecords = AuthZoneTree.FindNSecProofOfNonExistenceNoData(zone);
+                                        nsecRecords = _root.FindNSecProofOfNonExistenceNoData(question.Name, zone);
 
                                     if (nsecRecords.Count > 0)
                                     {
@@ -3124,9 +3124,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                         IReadOnlyList<DnsResourceRecord> nsecRecords;
 
                         if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
-                            nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(delegationZone, apexZone);
+                            nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(request.Question[0].Name, delegationZone, apexZone);
                         else
-                            nsecRecords = AuthZoneTree.FindNSecProofOfNonExistenceNoData(delegationZone);
+                            nsecRecords = _root.FindNSecProofOfNonExistenceNoData(request.Question[0].Name, delegationZone);
 
                         if (nsecRecords.Count > 0)
                         {
