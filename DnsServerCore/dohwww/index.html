@@ -8,7 +8,7 @@
 
     <link href="/css/main.css" rel="stylesheet" />
     <link href="/css/bootstrap.min.css" rel="stylesheet" />
-
+	<link href="favicon.png" rel="shortcut icon" />
     <script src="/js/jquery.min.js"></script>
     <script src="/js/main.js"></script>
 </head>
@@ -17,27 +17,132 @@
         <div class="container">
             <div class="features" style="text-align: center; margin-top: 60px;">
                 <a href="/">
-                    <img src="/img/logo.png" alt="Technitium Logo" />
+                    <img src="/img/logo.svg" height="120" height="120"	alt="bb Logo" />
                 </a>
                 <h1>Technitium DNS Server</h1>
-                <p style="max-width: 800px; margin-right: auto; margin-left: auto;">This server supports encrypted DNS protocol (DNS-over-HTTPS) that you can use with your web browser like Mozilla Firefox.</p>
 
-                <h3 style="margin-top: 40px;">The Encrypted DNS Service URL</h3>
-                <p>
-                    Use the following URL to configure your clients for consuming the DNS-over-HTTPS service.
-                </p>
-                <p style="font-size: 16px; font-weight: bold;">
-                    <a id="lnkDoH" href=""></a>
-                </p>
 
-                <h3 style="margin-top: 40px;">Mozilla Firefox Configuration</h3>
-                <p style="max-width: 800px; margin-right: auto; margin-left: auto;">
-                    To configure Firefox, go to <b>Settings &gt; Privacy &amp; Security</b> and scroll down to find <b>DNS over HTTPS</b> section. Click on the <b>Max Protection</b> option, select <b>Custom</b> option in the <b>Choose provider</b> drop down box, and enter the encrypted DNS service URL given above.
-                </p>
-                <img class="auto-resize-img shadow-screenshot" style="margin-top: 20px; margin-bottom: 20px;" src="img/firefox-doh.png" alt="Mozilla Firefox Custom DNS-over-HTTPS Option" />
-                <p style="max-width: 800px; margin-right: auto; margin-left: auto;">
-                    Note! This will work only for Firefox and all other applications on your computer will keep using the default DNS server configured in your network settings.
-                </p>
+                
+				
+				<p>DNS over HTTPS: <a class="lnkDoH" target="_blank"></a>&nbsp;|&nbsp; <span class="lnkDoHText"></span> <button class="btn btn-outline-secondary btn-sm copyBtn" data-type="doh">Copy</button></p>
+				<p>DNS over TLS: <a class="lnkDoT" target="_blank"></a>&nbsp;|&nbsp; <span class="lnkDoTText"></span> <button class="btn btn-outline-secondary btn-sm copyBtn" data-type="dot">Copy</button></p>
+				<p>DNS IPv4 : <a class="lnkDNSv4" target="_blank"></a>&nbsp;|&nbsp; <span class="lnkDNSv4Text"></span> <button class="btn btn-outline-secondary btn-sm copyBtn" data-type="v4">Copy</button></p>
+				<p>DNS IPv6 : <a class="lnkDNSv6" target="_blank"></a>&nbsp;|&nbsp; <span class="lnkDNSv6Text"></span> <button class="btn btn-outline-secondary btn-sm copyBtn" data-type="v6">Copy</button></p>
+
+				<p>.. <br></p>
+<button class="collapsible">Android</button>
+<div class="content">
+  <p><br>
+Open the  Settings app on your Android device.<br>
+<br>
+Select Network & Internet.<br>
+Select Private DNS.<br>
+Select Private DNS provider hostname<br>
+<br>
+Enter: <b><span class="lnkDoTText"></span></b><br>
+Press Save<br>
+<br>
+	<div style="position: relative; display: inline-block; max-width: 600px; margin-top: 40px;">
+	<img src="img/android-DoT.jpg" alt="Andriod Private DNS Settings" style="width: 100%;"><br></div>
+ </p></div>
+
+<button class="collapsible">Windows</button>
+<div class="content">
+	<p><br>
+	Right click on the Network icon (Wired or WiFi) in the system tray and click Open Network & Internet Settings.<br>
+	Click Change adapter options<br>
+	Select Properties.<br>
+	Select Internet Protocol Version 4 (TCP/IPv4). Then, click Properties.<br>
+	Select Use the following DNS server addresses.<br>
+	Enter: <b><span class="lnkDNSv4Text"></span></b> <br>
+		Click OK.<br><br>
+	<b>IPv6</b><br>
+	If your networks supports IPv6, it's also recommended to configure the BetBlocker IPv6 addresses. <br>
+	Select Internet Protocol Version 6 (TCP/IPv6)<br>
+	Click Properties.<br>
+	Select Use the following DNS server addresses.<br>
+	Enter: <b><span class="lnkDNSv6Text"></span></b>  <br>
+	Click OK.<br>
+	<br>
+	<div style="position: relative; display: inline-block; max-width: 600px; margin-top: 40px;">
+	<img src="img/windows-doh-dot.png" alt="Windows DNS Settings" style="width: 100%;"><br></div></p>
+</div>
+
+<button class="collapsible">iOS</button>
+<div class="content">
+  <p><br>Download the profile using Safari on your iOS device.<br> This will not work if downloaded with a different browser.<br><b><button id="downloadProfile" class="btn btn-primary">Download iOS Profile</button>
+</b><br>
+	Open Settings > Profile Downloaded and select the new profile<br>
+	Click Install.<br>
+	Enter your phone's passcode.<br>
+  </p>
+</div>
+<button class="collapsible">Mac</button>
+<div class="content">
+ <p><br>Click Apple menu > System Preferences > Network.<br>
+If the lock icon in the lower left-hand corner of the window is locked, click the icon to make changes, and when prompted to authenticate, enter your password.<br>
+Select the connection for which you want to configure DNS. For example:<br>
+To change the settings for a Wi-Fi connection, select Wi-Fi, and click Advanced.<br>
+To change the settings for an Ethernet connection, select Built-In Ethernet, and click Advanced.<br>
+Select the DNS tab.<br>
+Click + to replace any listed addresses with the DNS IP address: <b><span class="lnkDNSv4Text"></span></b> <br>
+Click OK > Apply.<br></p>
+</div>
+
+<button class="collapsible">Chrome for desktops</button>
+		<div class="content">
+		 <p><br>
+Click the "more" button (3 vertical dots) in the top right corner of Chrome.<br>
+Select "Settings...".<br>
+Click "Privacy and Security" in the right side panel.<br>
+Click on "Security"<br>
+Scroll down to the "Advanced" section.<br>
+Click "Use secure DNS" switch to enable.<br>
+Enter <b><span class="lnkDoHText"></span></b><br>
+  <img src="img/Chrome-DoH.png" alt="Chrome DoH Settings" style="width: 100%;">
+<small>  Note! This will work only for Chrome, all other applications on your computer will keep using the default DNS server configured in your network settings.
+              </small>
+</p>
+		</div>
+
+<button class="collapsible">Firefox for desktops</button>
+<div class="content">
+  <p><br>.</b>   To configure Firefox, go to <b>Settings &gt; Privacy &amp; Security</b> and scroll down to find <b>DNS over HTTPS</b> section. Click on the <b>Max Protection</b> option, select <b>Custom</b> option in the <b>Choose provider</b> drop down box, and enter <span class="lnkDoHText"></span>
+              <br>
+			  <div style="position: relative; display: inline-block; max-width: 600px; margin-top: 40px;">
+  <img src="img/firefox-DoH.png" alt="Firefox DNS Settings" style="width: 100%;">
+  
+
+              <small>  Note! This will work only for Firefox,all other applications on your computer will keep using the default DNS server configured in your network settings.
+              </small>
+			  
+</div>
+			  
+			   </p>
+</div>
+
+
+<button class="collapsible">Routers</button>
+<div class="content">
+  <p><br>How to change the DNS servers on a router to <b><span class="lnkDNSv4Text"></span></b><br>
+We do not have the resources to list every single make and model of the router on the market.<br>
+In general, the instructions below should suffice for most routers.<br>
+<br>1. Open the preferences for your router. Often, the preferences are set in your web browser, via a URL with numbers (example: http://192.168.0.1 or http://192.168.1.1). You may need a password.
+<br>2. Find the DNS server settings. Look for the letters DNS next to a field that allows two or three sets of numbers, each broken into four groups of one to three numbers.
+<br>3. Put in the BetBlocker server addresses <b><span class="lnkDNSv4Text"></span></b> as your DNS server settings and save/apply.
+<br>4. Check your Settings. Once you have configured your DNS, check the router has retained the settings.</p>
+</div>
+<script>
+$(function () {
+  $(".collapsible").on("click", function () {
+    $(this).toggleClass("active");
+    $(this).next().slideToggle();
+  });
+
+  $(".collapsible").next().hide();
+});
+</script>
+
             </div>
         </div>
     </div>
