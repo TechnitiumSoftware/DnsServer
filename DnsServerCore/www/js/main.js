@@ -2505,3 +2505,28 @@ function restoreSettings() {
         objAlertPlaceholder: divRestoreSettingsAlert
     });
 }
+
+function toggleDarkMode() {
+    var link = document.querySelector('link[href*="main-dark.css"], link[href*="main.css"]');
+    if (link) {
+        if (link.getAttribute('href').includes('main-dark.css')) {
+            link.setAttribute('href', 'css/main.css');
+            localStorage.setItem('theme', 'light');
+        } else {
+            link.setAttribute('href', 'css/main-dark.css');
+            localStorage.setItem('theme', 'dark');
+        }
+    }
+}
+
+// On page load, set theme from localStorage
+window.addEventListener('DOMContentLoaded', function() {
+    var theme = localStorage.getItem('theme');
+    var link = document.querySelector('link[href*="main-dark.css"], link[href*="main.css"]');
+    if (theme === 'dark' && link && !link.getAttribute('href').includes('main-dark.css')) {
+        link.setAttribute('href', 'css/main-dark.css');
+    }
+    if (theme === 'light' && link && !link.getAttribute('href').includes('main.css')) {
+        link.setAttribute('href', 'css/main.css');
+    }
+});
