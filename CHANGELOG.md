@@ -57,7 +57,7 @@ Release Date: 2 February 2025
 ## Version 13.4
 Release Date: 26 January 2025
 
-- Added implementation to detect spoofed DNS responses over UDP transport and switch to TCP transport to mitigate cache poisoning attempts.
+- Added implementation to detect spoofed DNS responses over UDP transport and switch to TCP transport to mitigate cache poisoning attempts. This is a mitigation for RebirthDay Attack [CVE-2024-56089] reported by Xiang Li, AOSP Lab of Nankai University.
 - Added support for reading minute stats for given custom date time range (for max 2 hours range difference).
 - Added HTTP API and GUI option to export Query Logs as a CSV file.
 - Drop Requests App: Fixed bug that caused matching all requests when unknown record type was configured.
