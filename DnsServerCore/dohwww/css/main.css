@@ -23,7 +23,7 @@ a {
 .container {
     margin-left: auto;
     margin-right: auto;
-    padding: 55px 15px 60px 15px;
+    padding: 25px 15px 60px 15px;
     word-wrap: break-word;
 }
 
@@ -53,12 +53,12 @@ a {
 
     .features h3 {
         font-size: 22px;
-        text-align: center;
+        text-align: left;
     }
 
     .features p {
         color: rgb(119, 119, 119);
-        text-align: center;
+        text-align: left;
     }
 
     .features li {
@@ -91,4 +91,36 @@ a {
     .stats-panel .stats-item {
         padding: 6px !important;
     }
+}
+/* Style the button that is used to open and close the collapsible content */
+.collapsible {
+  background-color: #06a9b8;
+  color: white;
+  cursor: pointer;
+  padding: 18px;
+  width: 100%;
+  border: none;
+  text-align: left;
+  outline: none;
+  font-size: 15px;
+}
+
+.active, .collapsible:hover {
+  background-color:#06a9cc;
+}
+
+.collapsible:after {
+  content: '\002B';
+  color: white;
+  font-weight: bold;
+  float: right;
+  margin-left: 5px;
+}
+
+.active:after {
+  content: "\2212";
+}
+
+.content {
+  display: none; /* Let jQuery handle show/hide with slideToggle() */
 }
