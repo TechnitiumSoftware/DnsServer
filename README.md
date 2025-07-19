@@ -20,7 +20,6 @@ Be it a home network or an organization's network, having a locally running DNS 
 # Sponsored By
 <p align="center">
 	<a href="https://althatech.com/" target="_blank"><img src="https://technitium.com/img/logo-althatech.png" width="250" alt="Altha Technology - Censorship Resistant Data Services" title="Altha Technology - Censorship Resistant Data Services" /></a>
-	<a href="https://macarne.com/" target="_blank"><img src="https://technitium.com/img/logo-macarne.png" width="250" alt="Macarne - Worldwide Bare Metal Solutions" title="Macarne - Worldwide Bare Metal Solutions" /></a>
 </p>
 <p align="center">
 	<a href="https://www.bartellhotels.com/" target="_blank"><img src="https://technitium.com/img/logo-bartell-hotels.png" width="300" alt="Bartell Hotels - San Diego's Unforgettable Locations" title="Bartell Hotels - San Diego's Unforgettable Locations" /></a>
