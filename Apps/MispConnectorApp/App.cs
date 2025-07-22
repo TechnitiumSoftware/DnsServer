@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.ApplicationCommon;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -28,6 +29,7 @@ using System.Net.Http;
 using System.Net.Security;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
@@ -40,24 +42,18 @@ namespace MispConnector
     {
         #region variables
 
+        Config _config;
+
         readonly object _blocklistLock = new object();
 
         readonly HashSet<string> _globalBlocklist = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         readonly Random _random = new Random();
 
-        bool _allowTxtBlockingReport;
-
         string _cacheFilePath;
 
         IDnsServer _dnsServer;
-        bool _enableBlocking;
-
         HttpClient _httpClient;
-
-        string _maxIocAge;
-
-        string _mispApiKey;
 
         Uri _mispApiUrl;
 
@@ -90,22 +86,22 @@ namespace MispConnector
 
                 _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, _dnsServer.ResponsiblePerson.Address, 1, 14400, 3600, 604800, 60);
 
-                using JsonDocument jsonDocument = JsonDocument.Parse(config);
-                JsonElement jsonConfig = jsonDocument.RootElement;
+                JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                _config = JsonSerializer.Deserialize<Config>(config, options);
 
-                _enableBlocking = jsonConfig.GetProperty("enableBlocking").GetBoolean();
-                _allowTxtBlockingReport = jsonConfig.GetProperty("allowTxtBlockingReport").GetBoolean();
-                Uri mispServerUrl = new Uri(jsonConfig.GetProperty("mispServerUrl").GetString());
-                _mispApiKey = jsonConfig.GetProperty("mispApiKey").GetString();
-                bool disableTlsValidation = jsonConfig.GetProperty("disableTlsValidation").GetBoolean();
+                Validator.ValidateObject(_config, new ValidationContext(_config), validateAllProperties: true);
 
-                string updateIntervalString = jsonConfig.GetProperty("updateInterval").GetString();
-                _updateInterval = ParseUpdateInterval(updateIntervalString);
+                Directory.CreateDirectory(configDir);
+                _cacheFilePath = Path.Combine(configDir, "misp_domain_cache.txt");
 
-                _maxIocAge = jsonConfig.GetProperty("maxIocAge").GetString();
+                _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, _dnsServer.ResponsiblePerson.Address, 1, 14400, 3600, 604800, 60);
 
+                _updateInterval = ParseUpdateInterval(_config.UpdateInterval);
+
+                Uri mispServerUrl = new Uri(_config.MispServerUrl);
                 _mispApiUrl = new Uri(mispServerUrl, "/attributes/restSearch");
-                _httpClient = CreateHttpClient(mispServerUrl, disableTlsValidation);
+                _httpClient = CreateHttpClient(mispServerUrl, _config.DisableTlsValidation);
+                _httpClient.Timeout = TimeSpan.FromSeconds(15);
 
                 await LoadBlocklistFromCacheAsync();
                 _updateTimer = new Timer(async _ =>
@@ -119,7 +115,7 @@ namespace MispConnector
                         _dnsServer.WriteLog($"FATAL: The MispConnector update task failed unexpectedly. Error: {ex.Message}");
                         _dnsServer.WriteLog(ex);
                     }
-                }, null, TimeSpan.FromSeconds(1), Timeout.InfiniteTimeSpan);
+                }, null, TimeSpan.FromSeconds(_random.Next(5,30)), Timeout.InfiniteTimeSpan);
             }
             catch (Exception ex)
             {
@@ -135,7 +131,7 @@ namespace MispConnector
 
         public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP)
         {
-            if (!_enableBlocking)
+            if (_config == null || !_config.EnableBlocking)
                 return Task.FromResult<DnsDatagram>(null);
 
             DnsQuestionRecord question = request.Question[0];
@@ -144,7 +140,7 @@ namespace MispConnector
                 return Task.FromResult<DnsDatagram>(null);
             }
 
-            if (_allowTxtBlockingReport && question.Type == DnsResourceRecordType.TXT)
+            if (_config.AllowTxtBlockingReport && question.Type == DnsResourceRecordType.TXT)
             {
                 DnsResourceRecord[] answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData($"source=misp-connector;domain={blockedDomain}")) };
                 return Task.FromResult(new DnsDatagram(
@@ -251,7 +247,7 @@ namespace MispConnector
                 to_ids = true,
                 deleted = false,
                 limit = 1000,
-                last = _maxIocAge
+                last = _config.MaxIocAge
             };
             StringContent requestContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
 
@@ -262,7 +258,7 @@ namespace MispConnector
                     Content = requestContent
                 };
 
-                request.Headers.Add("Authorization", _mispApiKey);
+                request.Headers.Add("Authorization", _config.MispApiKey);
                 request.Headers.Add("Accept", "application/json");
 
                 _dnsServer.WriteLog($"Sending API request to {_mispApiUrl}...");
@@ -404,5 +400,37 @@ namespace MispConnector
             }
         }
         #endregion
+
+        public class Config
+        {
+            [JsonPropertyName("enableBlocking")]
+            public bool EnableBlocking { get; set; } = true;
+
+            [JsonPropertyName("allowTxtBlockingReport")]
+            public bool AllowTxtBlockingReport { get; set; } = true;
+
+            [JsonPropertyName("mispServerUrl")]
+            [Required(ErrorMessage = "mispServerUrl is a required configuration property.")]
+            [Url(ErrorMessage = "mispServerUrl must be a valid URL.")]
+            public string MispServerUrl { get; set; }
+
+            [JsonPropertyName("mispApiKey")]
+            [Required(ErrorMessage = "mispApiKey is a required configuration property.")]
+            [MinLength(1, ErrorMessage = "mispApiKey cannot be empty.")]
+            public string MispApiKey { get; set; }
+
+            [JsonPropertyName("disableTlsValidation")]
+            public bool DisableTlsValidation { get; set; } = false;
+
+            [JsonPropertyName("updateInterval")]
+            [Required(ErrorMessage = "updateInterval is a required configuration property.")]
+            [RegularExpression(@"^\d+[mhd]$", ErrorMessage = "Invalid interval format. Use a number followed by 'm', 'h', or 'd' (e.g., '90m', '2h', '7d').", MatchTimeoutInMilliseconds = 3000)]
+            public string UpdateInterval { get; set; }
+
+            [JsonPropertyName("maxIocAge")]
+            [Required(ErrorMessage = "maxIocAge is a required configuration property.")]
+            [RegularExpression(@"^\d+[mhd]$", ErrorMessage = "Invalid interval format. Use a number followed by 'm', 'h', or 'd' (e.g., '90m', '2h', '7d').", MatchTimeoutInMilliseconds = 3000)]
+            public string MaxIocAge { get; set; }
+        }
     }
 }
