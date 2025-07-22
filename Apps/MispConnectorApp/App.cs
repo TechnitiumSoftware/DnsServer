@@ -75,6 +75,10 @@ namespace MispConnector
             _httpClient?.Dispose();
         }
 
+        #endregion
+
+        #region public
+
         public async Task InitializeAsync(IDnsServer dnsServer, string config)
         {
             _dnsServer = dnsServer;
@@ -115,10 +119,6 @@ namespace MispConnector
                 _dnsServer.WriteLog(ex);
             }
         }
-
-        #endregion
-
-        #region public
 
         public Task<bool> IsAllowedAsync(DnsDatagram request, IPEndPoint remoteEP)
         {
