@@ -27,6 +27,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Security;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -91,17 +92,11 @@ namespace MispConnector
 
                 Validator.ValidateObject(_config, new ValidationContext(_config), validateAllProperties: true);
 
-                Directory.CreateDirectory(configDir);
-                _cacheFilePath = Path.Combine(configDir, "misp_domain_cache.txt");
-
-                _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, _dnsServer.ResponsiblePerson.Address, 1, 14400, 3600, 604800, 60);
-
                 _updateInterval = ParseUpdateInterval(_config.UpdateInterval);
 
                 Uri mispServerUrl = new Uri(_config.MispServerUrl);
                 _mispApiUrl = new Uri(mispServerUrl, "/attributes/restSearch");
                 _httpClient = CreateHttpClient(mispServerUrl, _config.DisableTlsValidation);
-                _httpClient.Timeout = TimeSpan.FromSeconds(15);
 
                 await LoadBlocklistFromCacheAsync();
                 _updateTimer = new Timer(async _ =>
@@ -223,7 +218,8 @@ namespace MispConnector
             {
                 Proxy = _dnsServer.Proxy,
                 UseProxy = _dnsServer.Proxy != null,
-                SslOptions = new SslClientAuthenticationOptions()
+                SslOptions = new SslClientAuthenticationOptions(),
+                ConnectTimeout = TimeSpan.FromSeconds(15)
             };
 
             if (disableTlsValidation)
@@ -240,7 +236,6 @@ namespace MispConnector
 
         private async Task<HashSet<string>> FetchDomainsFromMispAsync()
         {
-            // The request body can be constructed once.
             var requestBody = new
             {
                 type = "domain",
@@ -363,10 +358,50 @@ namespace MispConnector
             }
         }
 
+        private async Task<bool> CheckTcpPortAsync(Uri serverUri)
+        {
+            var host = serverUri.DnsSafeHost;
+            var port = serverUri.Port;
+            var timeout = TimeSpan.FromSeconds(5);
+
+            _dnsServer.WriteLog($"Performing pre-flight TCP check for {host}:{port} with a {timeout.TotalSeconds}-second timeout...");
+
+            try
+            {
+                using var cts = new CancellationTokenSource(timeout);
+                using var client = new TcpClient();
+
+                await client.ConnectAsync(host, port, cts.Token);
+
+                _dnsServer.WriteLog($"Pre-flight TCP check successful for {host}:{port}.");
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                _dnsServer.WriteLog($"ERROR: Pre-flight TCP check failed: Connection to {host}:{port} timed out after {timeout.TotalSeconds} seconds. Check firewall rules or network route.");
+                return false;
+            }
+            catch (SocketException ex)
+            {
+                _dnsServer.WriteLog($"ERROR: Pre-flight TCP check failed: A network error occurred for {host}:{port}. Error: {ex.Message}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _dnsServer.WriteLog($"ERROR: An unexpected error occurred during the pre-flight TCP check for {host}:{port}. Error: {ex.Message}");
+                return false;
+            }
+        }
+
         private async Task UpdateIocsAsync()
         {
             try
             {
+                if (!await CheckTcpPortAsync(new Uri(_config.MispServerUrl)))
+                {
+                    return;
+                }
+
                 _dnsServer.WriteLog("MISP Connector: Starting IOC update...");
                 HashSet<string> domains = await FetchDomainsFromMispAsync();
                 await WriteDomainsToCacheAsync(domains);
