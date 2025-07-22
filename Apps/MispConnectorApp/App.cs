@@ -108,10 +108,18 @@ namespace MispConnector
                 _httpClient = CreateHttpClient(mispServerUrl, disableTlsValidation);
 
                 await LoadBlocklistFromCacheAsync();
-                await using Timer _ = _updateTimer = new Timer(async _ =>
+                _updateTimer = new Timer(async _ =>
                 {
-                    await UpdateIocsAsync();
-                }, null, TimeSpan.FromSeconds(10), Timeout.InfiniteTimeSpan);
+                    try
+                    {
+                        await UpdateIocsAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        _dnsServer.WriteLog($"FATAL: The MispConnector update task failed unexpectedly. Error: {ex.Message}");
+                        _dnsServer.WriteLog(ex);
+                    }
+                }, null, TimeSpan.FromSeconds(1), Timeout.InfiniteTimeSpan);
             }
             catch (Exception ex)
             {
@@ -236,48 +244,81 @@ namespace MispConnector
 
         private async Task<HashSet<string>> FetchDomainsFromMispAsync()
         {
+            // The request body can be constructed once.
             var requestBody = new
             {
                 type = "domain",
                 to_ids = true,
                 deleted = false,
+                limit = 1000,
                 last = _maxIocAge
             };
-
             StringContent requestContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
 
-            using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, _mispApiUrl)
+            try
             {
-                Content = requestContent
-            };
-
-            request.Headers.Add("Authorization", _mispApiKey);
-            request.Headers.Add("Accept", "application/json");
-
-            using HttpResponseMessage response = await _httpClient.SendAsync(request);
-            response.EnsureSuccessStatusCode();
-
-            using Stream responseStream = await response.Content.ReadAsStreamAsync();
-            using JsonDocument jsonDoc = await JsonDocument.ParseAsync(responseStream);
-
-            HashSet<string> domains = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (jsonDoc.RootElement.TryGetProperty("response", out JsonElement responseElement) &&
-                responseElement.TryGetProperty("Attribute", out JsonElement attributeArray) &&
-                attributeArray.ValueKind == JsonValueKind.Array)
-            {
-                foreach (JsonElement attributeElement in attributeArray.EnumerateArray())
+                using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, _mispApiUrl)
                 {
-                    if (attributeElement.TryGetProperty("value", out JsonElement valueElement) && valueElement.ValueKind == JsonValueKind.String)
+                    Content = requestContent
+                };
+
+                request.Headers.Add("Authorization", _mispApiKey);
+                request.Headers.Add("Accept", "application/json");
+
+                _dnsServer.WriteLog($"Sending API request to {_mispApiUrl}...");
+                using HttpResponseMessage response = await _httpClient.SendAsync(request);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    string errorBody = await response.Content.ReadAsStringAsync();
+                    _dnsServer.WriteLog($"ERROR: MISP API returned a non-success status code: {(int)response.StatusCode} {response.ReasonPhrase}. Response Body: {errorBody}");
+
+                    throw new HttpRequestException($"MISP API request failed with status code {response.StatusCode}.", null, response.StatusCode);
+                }
+
+                _dnsServer.WriteLog("API request successful. Parsing response...");
+                await using Stream responseStream = await response.Content.ReadAsStreamAsync();
+                using JsonDocument jsonDoc = await JsonDocument.ParseAsync(responseStream);
+
+                HashSet<string> domains = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (jsonDoc.RootElement.TryGetProperty("response", out JsonElement responseElement) &&
+                    responseElement.TryGetProperty("Attribute", out JsonElement attributeArray) &&
+                    attributeArray.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (JsonElement attributeElement in attributeArray.EnumerateArray())
                     {
-                        string domain = valueElement.GetString()?.Trim().ToLowerInvariant();
-                        if (!string.IsNullOrEmpty(domain) && DnsClient.IsDomainNameValid(domain))
+                        if (attributeElement.TryGetProperty("value", out JsonElement valueElement) && valueElement.ValueKind == JsonValueKind.String)
                         {
-                            domains.Add(domain);
+                            string domain = valueElement.GetString()?.Trim().ToLowerInvariant();
+                            if (!string.IsNullOrEmpty(domain) && DnsClient.IsDomainNameValid(domain))
+                            {
+                                domains.Add(domain);
+                            }
                         }
                     }
                 }
+                else
+                {
+                    _dnsServer.WriteLog("WARNING: MISP API response was successful but did not contain the expected 'response.Attribute' array structure.");
+                }
+
+                return domains;
             }
-            return domains;
+            catch (HttpRequestException ex)
+            {
+                _dnsServer.WriteLog($"ERROR: A network or HTTP error occurred while communicating with MISP. Error: {ex.Message}");
+                throw;
+            }
+            catch (JsonException ex)
+            {
+                _dnsServer.WriteLog($"ERROR: Failed to parse the JSON response from MISP. The response may not be valid JSON. Error: {ex.Message}");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _dnsServer.WriteLog($"ERROR: An unexpected error occurred during the fetch process. Error: {ex.Message}");
+                throw;
+            }
         }
 
         private bool IsDomainBlocked(string domain, out string foundZone)
