@@ -453,7 +453,6 @@ namespace MispConnector
 
             _dnsServer.WriteLog("MISP Connector: Starting IOC update...");
             FrozenSet<string> domains = await FetchDomainsFromMispAsync(cancellationToken);
-            await WriteDomainsToCacheAsync(domains, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
             if (!domains.SetEquals(_globalBlocklist))
