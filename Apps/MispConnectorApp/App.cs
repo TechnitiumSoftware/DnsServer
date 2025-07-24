@@ -365,29 +365,25 @@ namespace MispConnector
             HashSet<string> currentBlocklist = _globalBlocklist;
             Thread.MemoryBarrier();
 
-            ReadOnlySpan<char> domainSpan = domain.AsSpan();
+            ReadOnlySpan<char> currentSpan = domain.AsSpan();
 
-            lock (_blocklistLock)
+            while (true)
             {
-                ReadOnlySpan<char> currentSpan = domainSpan;
-                while (true)
+                // To look up in a HashSet<string>, we must provide a string.
+                string key = new string(currentSpan);
+                if (currentBlocklist.TryGetValue(key, out foundZone))
                 {
-                    // To look up in a HashSet<string>, we must provide a string.
-                    string key = new string(currentSpan);
-                    if (currentBlocklist.TryGetValue(key, out foundZone))
-                    {
-                        return true;
-                    }
-
-                    int dotIndex = currentSpan.IndexOf('.');
-                    if (dotIndex == -1)
-                    {
-                        break; // No more parent domains.
-                    }
-
-                    // Slice to the parent domain view. No allocation here.
-                    currentSpan = currentSpan.Slice(dotIndex + 1);
+                    return true;
                 }
+
+                int dotIndex = currentSpan.IndexOf('.');
+                if (dotIndex == -1)
+                {
+                    break; // No more parent domains.
+                }
+
+                // Slice to the parent domain view. No allocation here.
+                currentSpan = currentSpan.Slice(dotIndex + 1);
             }
 
             foundZone = null;
