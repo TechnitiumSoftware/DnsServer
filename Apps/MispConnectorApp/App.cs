@@ -44,17 +44,12 @@ namespace MispConnector
     {
         #region variables
 
-        Config _config;
-
         readonly object _blocklistLock = new object();
-
-        volatile HashSet<string> _globalBlocklist = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
         readonly Random _random = new Random();
-
         string _cacheFilePath;
-
+        Config _config;
         IDnsServer _dnsServer;
+        volatile HashSet<string> _globalBlocklist = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         HttpClient _httpClient;
 
         Uri _mispApiUrl;
@@ -63,7 +58,8 @@ namespace MispConnector
         TimeSpan _updateInterval;
 
         Timer _updateTimer;
-        #endregion
+
+        #endregion variables
 
         #region IDisposable
 
@@ -73,7 +69,7 @@ namespace MispConnector
             _httpClient?.Dispose();
         }
 
-        #endregion
+        #endregion IDisposable
 
         #region public
 
@@ -189,9 +185,10 @@ namespace MispConnector
                         ));
         }
 
-        #endregion
+        #endregion public
 
         #region private
+
         private static string GetParentZone(string domain)
         {
             int i = domain.IndexOf('.');
@@ -217,12 +214,50 @@ namespace MispConnector
             {
                 case "m":
                     return TimeSpan.FromMinutes(value);
+
                 case "h":
                     return TimeSpan.FromHours(value);
+
                 case "d":
                     return TimeSpan.FromDays(value);
+
                 default:
                     throw new FormatException($"Invalid unit '{unit}' in update interval. Allowed units are 'm', 'h', 'd'.");
+            }
+        }
+
+        private async Task<bool> CheckTcpPortAsync(Uri serverUri)
+        {
+            string host = serverUri.DnsSafeHost;
+            int port = serverUri.Port;
+            TimeSpan timeout = TimeSpan.FromSeconds(5);
+
+            _dnsServer.WriteLog($"Performing pre-flight TCP check for {host}:{port} with a {timeout.TotalSeconds}-second timeout...");
+
+            try
+            {
+                using CancellationTokenSource cts = new CancellationTokenSource(timeout);
+                using TcpClient client = new TcpClient();
+
+                await client.ConnectAsync(host, port, cts.Token);
+
+                _dnsServer.WriteLog($"Pre-flight TCP check successful for {host}:{port}.");
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                _dnsServer.WriteLog($"ERROR: Pre-flight TCP check failed: Connection to {host}:{port} timed out after {timeout.TotalSeconds} seconds. Check firewall rules or network route.");
+                return false;
+            }
+            catch (SocketException ex)
+            {
+                _dnsServer.WriteLog($"ERROR: Pre-flight TCP check failed: A network error occurred for {host}:{port}. Error: {ex.Message}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _dnsServer.WriteLog($"ERROR: An unexpected error occurred during the pre-flight TCP check for {host}:{port}. Error: {ex.Message}");
+                return false;
             }
         }
 
@@ -325,7 +360,6 @@ namespace MispConnector
             return domains;
         }
 
-
         private bool IsDomainBlocked(string domain, out string foundZone)
         {
             HashSet<string> currentBlocklist = _globalBlocklist;
@@ -380,42 +414,6 @@ namespace MispConnector
             Thread.MemoryBarrier();
             _globalBlocklist = newBlocklist;
         }
-
-        private async Task<bool> CheckTcpPortAsync(Uri serverUri)
-        {
-            string host = serverUri.DnsSafeHost;
-            int port = serverUri.Port;
-            TimeSpan timeout = TimeSpan.FromSeconds(5);
-
-            _dnsServer.WriteLog($"Performing pre-flight TCP check for {host}:{port} with a {timeout.TotalSeconds}-second timeout...");
-
-            try
-            {
-                using CancellationTokenSource cts = new CancellationTokenSource(timeout);
-                using TcpClient client = new TcpClient();
-
-                await client.ConnectAsync(host, port, cts.Token);
-
-                _dnsServer.WriteLog($"Pre-flight TCP check successful for {host}:{port}.");
-                return true;
-            }
-            catch (OperationCanceledException)
-            {
-                _dnsServer.WriteLog($"ERROR: Pre-flight TCP check failed: Connection to {host}:{port} timed out after {timeout.TotalSeconds} seconds. Check firewall rules or network route.");
-                return false;
-            }
-            catch (SocketException ex)
-            {
-                _dnsServer.WriteLog($"ERROR: Pre-flight TCP check failed: A network error occurred for {host}:{port}. Error: {ex.Message}");
-                return false;
-            }
-            catch (Exception ex)
-            {
-                _dnsServer.WriteLog($"ERROR: An unexpected error occurred during the pre-flight TCP check for {host}:{port}. Error: {ex.Message}");
-                return false;
-            }
-        }
-
         private async Task UpdateIocsAsync()
         {
             try
@@ -441,15 +439,18 @@ namespace MispConnector
                 _updateTimer?.Change(nextInterval, Timeout.InfiniteTimeSpan);
             }
         }
+
         private async Task WriteDomainsToCacheAsync(HashSet<string> domains)
         {
             string tempPath = _cacheFilePath + ".tmp";
             await File.WriteAllLinesAsync(tempPath, domains);
             File.Move(tempPath, _cacheFilePath, true);
         }
-        #endregion
+
+        #endregion private
 
         #region properties
+
         public string Description
         {
             get
@@ -457,71 +458,53 @@ namespace MispConnector
                 return "A focused connector that imports domain IOCs from a MISP server to block malicious domains using direct REST API calls.";
             }
         }
-        #endregion
+
+        #endregion properties
 
         public class Config
         {
-            [JsonPropertyName("enableBlocking")]
-            public bool EnableBlocking { get; set; } = true;
+            [JsonPropertyName("addExtendedDnsError")]
+            public bool AddExtendedDnsError { get; set; } = true;
 
             [JsonPropertyName("allowTxtBlockingReport")]
             public bool AllowTxtBlockingReport { get; set; } = true;
 
-            [JsonPropertyName("mispServerUrl")]
-            [Required(ErrorMessage = "mispServerUrl is a required configuration property.")]
-            [Url(ErrorMessage = "mispServerUrl must be a valid URL.")]
-            public string MispServerUrl { get; set; }
+            [JsonPropertyName("disableTlsValidation")]
+            public bool DisableTlsValidation { get; set; } = false;
+
+            [JsonPropertyName("enableBlocking")]
+            public bool EnableBlocking { get; set; } = true;
+            [JsonPropertyName("maxIocAge")]
+            [Required(ErrorMessage = "maxIocAge is a required configuration property.")]
+            [RegularExpression(@"^\d+[mhd]$", ErrorMessage = "Invalid interval format. Use a number followed by 'm', 'h', or 'd' (e.g., '90m', '2h', '7d').", MatchTimeoutInMilliseconds = 3000)]
+            public string MaxIocAge { get; set; }
 
             [JsonPropertyName("mispApiKey")]
             [Required(ErrorMessage = "mispApiKey is a required configuration property.")]
             [MinLength(1, ErrorMessage = "mispApiKey cannot be empty.")]
             public string MispApiKey { get; set; }
 
-            [JsonPropertyName("disableTlsValidation")]
-            public bool DisableTlsValidation { get; set; } = false;
+            [JsonPropertyName("mispServerUrl")]
+            [Required(ErrorMessage = "mispServerUrl is a required configuration property.")]
+            [Url(ErrorMessage = "mispServerUrl must be a valid URL.")]
+            public string MispServerUrl { get; set; }
+            [JsonPropertyName("paginationLimit")]
+            public int PaginationLimit { get; set; } = 5000;
 
             [JsonPropertyName("updateInterval")]
             [Required(ErrorMessage = "updateInterval is a required configuration property.")]
             [RegularExpression(@"^\d+[mhd]$", ErrorMessage = "Invalid interval format. Use a number followed by 'm', 'h', or 'd' (e.g., '90m', '2h', '7d').", MatchTimeoutInMilliseconds = 3000)]
             public string UpdateInterval { get; set; }
-
-            [JsonPropertyName("maxIocAge")]
-            [Required(ErrorMessage = "maxIocAge is a required configuration property.")]
-            [RegularExpression(@"^\d+[mhd]$", ErrorMessage = "Invalid interval format. Use a number followed by 'm', 'h', or 'd' (e.g., '90m', '2h', '7d').", MatchTimeoutInMilliseconds = 3000)]
-            public string MaxIocAge { get; set; }
-
-            [JsonPropertyName("paginationLimit")]
-            public int PaginationLimit { get; set; } = 5000;
-
-            [JsonPropertyName("addExtendedDnsError")]
-            public bool AddExtendedDnsError { get; set; } = true;
         }
 
-        class MispResponse
-        {
-            [JsonPropertyName("response")]
-            public MispResponseData Response { get; set; }
-        }
-
-        class MispResponseData
-        {
-            [JsonPropertyName("Attribute")]
-            public List<MispAttribute> Attribute { get; set; }
-        }
-
-        class MispAttribute
+        private class MispAttribute
         {
             [JsonPropertyName("value")]
             public string Value { get; set; }
         }
-        class MispRequestBody
+
+        private class MispRequestBody
         {
-            [JsonPropertyName("type")]
-            public string Type { get; set; }
-
-            [JsonPropertyName("to_ids")]
-            public bool To_ids { get; set; }
-
             [JsonPropertyName("deleted")]
             public bool Deleted { get; set; }
 
@@ -533,6 +516,24 @@ namespace MispConnector
 
             [JsonPropertyName("page")]
             public int Page { get; set; }
+
+            [JsonPropertyName("to_ids")]
+            public bool To_ids { get; set; }
+
+            [JsonPropertyName("type")]
+            public string Type { get; set; }
+        }
+
+        private class MispResponse
+        {
+            [JsonPropertyName("response")]
+            public MispResponseData Response { get; set; }
+        }
+
+        private class MispResponseData
+        {
+            [JsonPropertyName("Attribute")]
+            public List<MispAttribute> Attribute { get; set; }
         }
     }
 }
