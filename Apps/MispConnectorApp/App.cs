@@ -328,19 +328,31 @@ namespace MispConnector
 
         private bool IsDomainBlocked(string domain, out string foundZone)
         {
+            ReadOnlySpan<char> domainSpan = domain.AsSpan();
+
             lock (_blocklistLock)
             {
-                string currentDomain = domain.ToLowerInvariant();
-                do
+                ReadOnlySpan<char> currentSpan = domainSpan;
+                while (true)
                 {
-                    if (_globalBlocklist.Contains(currentDomain))
+                    // To look up in a HashSet<string>, we must provide a string.
+                    string key = new string(currentSpan);
+                    if (_globalBlocklist.TryGetValue(key, out foundZone))
                     {
-                        foundZone = currentDomain;
                         return true;
                     }
-                    currentDomain = GetParentZone(currentDomain);
-                } while (currentDomain != null);
+
+                    int dotIndex = currentSpan.IndexOf('.');
+                    if (dotIndex == -1)
+                    {
+                        break; // No more parent domains.
+                    }
+
+                    // Slice to the parent domain view. No allocation here.
+                    currentSpan = currentSpan.Slice(dotIndex + 1);
+                }
             }
+
             foundZone = null;
             return false;
         }
