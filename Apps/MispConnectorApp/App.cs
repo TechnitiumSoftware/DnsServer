@@ -285,68 +285,92 @@ namespace MispConnector
             bool hasMorePages = true;
 
             _dnsServer.WriteLog($"Starting paginated fetch from MISP API with a page size of {limit}...");
+            const int maxRetries = 3;
 
             while (hasMorePages)
             {
-                MispRequestBody requestBody = new MispRequestBody();
-                requestBody.Type = "domain";
-                requestBody.To_ids = true;
-                requestBody.Deleted = false;
-                requestBody.Last = _config.MaxIocAge;
-                requestBody.Limit = limit;
-                requestBody.Page = page;
+                int attempt = 0;
+                MispResponse mispResponse = null;
 
-                StringContent requestContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
-
-                try
+                while (attempt < maxRetries)
                 {
-                    using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, _mispApiUrl) { Content = requestContent };
-                    request.Headers.Add("Authorization", _config.MispApiKey);
-                    request.Headers.Add("Accept", "application/json");
-
-                    _dnsServer.WriteLog($"Fetching page {page}...");
-                    using HttpResponseMessage response = await _httpClient.SendAsync(request);
-
-                    if (!response.IsSuccessStatusCode)
+                    attempt++;
+                    try
                     {
-                        string errorBody = await response.Content.ReadAsStringAsync();
-                        throw new HttpRequestException($"MISP API request failed on page {page} with status code {response.StatusCode}. Body: {errorBody}", null, response.StatusCode);
-                    }
-
-                    await using Stream responseStream = await response.Content.ReadAsStreamAsync();
-                    MispResponse mispResponse = await JsonSerializer.DeserializeAsync<MispResponse>(responseStream);
-
-                    List<MispAttribute> attributes = mispResponse?.Response?.Attribute;
-                    if (attributes?.Count == 0)
-                    {
-                        // No more attributes found, we're done.
-                        hasMorePages = false;
-                        continue;
-                    }
-
-                    foreach (MispAttribute attribute in attributes)
-                    {
-                        string domain = attribute.Value?.Trim().ToLowerInvariant();
-                        if (!string.IsNullOrEmpty(domain) && DnsClient.IsDomainNameValid(domain))
+                        MispRequestBody requestBody = new MispRequestBody
                         {
-                            domains.Add(domain);
+                            Type = "domain",
+                            To_ids = true,
+                            Deleted = false,
+                            Last = _config.MaxIocAge,
+                            Limit = limit,
+                            Page = page
+                        };
+                        StringContent requestContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+
+                        using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, _mispApiUrl) { Content = requestContent };
+                        request.Headers.Add("Authorization", _config.MispApiKey);
+                        request.Headers.Add("Accept", "application/json");
+
+                        _dnsServer.WriteLog($"Fetching page {page}, attempt {attempt}/{maxRetries}...");
+                        using HttpResponseMessage response = await _httpClient.SendAsync(request);
+
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            // This is a definitive failure from the server (e.g., 403, 500).
+                            // We should not retry this. Abort immediately.
+                            string errorBody = await response.Content.ReadAsStringAsync();
+                            throw new HttpRequestException($"MISP API returned a non-success status code: {(int)response.StatusCode}. Body: {errorBody}", null, response.StatusCode);
+                        }
+
+                        await using Stream responseStream = await response.Content.ReadAsStreamAsync();
+                        mispResponse = await JsonSerializer.DeserializeAsync<MispResponse>(responseStream);
+
+                        break;
+                    }
+                    catch (Exception ex) when (ex is HttpRequestException || ex is SocketException || ex is OperationCanceledException)
+                    {
+                        // These are likely transient network errors, so we should retry.
+                        _dnsServer.WriteLog($"WARNING: A transient network error occurred on page {page}, attempt {attempt}/{maxRetries}. Error: {ex.Message}");
+                        if (attempt < maxRetries)
+                        {
+                            TimeSpan delay = TimeSpan.FromSeconds(Math.Pow(2, attempt)) + TimeSpan.FromMilliseconds(Random.Shared.Next(0, 1000));
+                            _dnsServer.WriteLog($"Waiting for {delay.TotalSeconds:F1} seconds before retrying...");
+                            await Task.Delay(delay);
+                        }
+                        else
+                        {
+                            // All retries have failed for this page.
+                            _dnsServer.WriteLog($"ERROR: Failed to fetch page {page} after {maxRetries} attempts. Aborting entire update cycle.");
+                            throw;
                         }
                     }
+                }
 
-                    // Assumption: If we received fewer items than our limit, it must be the last page.
-                    if (attributes.Count < limit)
+                List<MispAttribute> attributes = mispResponse?.Response?.Attribute;
+                if (attributes == null || attributes.Count == 0)
+                {
+                    hasMorePages = false;
+                    continue;
+                }
+
+                foreach (MispAttribute attribute in attributes)
+                {
+                    string domain = attribute.Value?.Trim().ToLowerInvariant();
+                    if (!string.IsNullOrEmpty(domain) && DnsClient.IsDomainNameValid(domain))
                     {
-                        hasMorePages = false;
-                    }
-                    else
-                    {
-                        page++;
+                        domains.Add(domain);
                     }
                 }
-                catch (Exception ex)
+
+                // Assumption: If we received fewer items than our limit, it must be the last page.
+                if (attributes.Count < limit)
                 {
-                    _dnsServer.WriteLog($"ERROR: Failed while fetching page {page}. Halting update cycle. Error: {ex.Message}");
-                    throw;
+                    hasMorePages = false;
+                }
+                else
+                {
+                    page++;
                 }
             }
 
