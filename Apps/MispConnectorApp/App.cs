@@ -126,7 +126,7 @@ namespace MispConnector
 
         public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP)
         {
-            if (_config == null || !_config.EnableBlocking)
+            if (_config?.EnableBlocking != true)
                 return Task.FromResult<DnsDatagram>(null);
 
             DnsQuestionRecord question = request.Question[0];
@@ -236,81 +236,82 @@ namespace MispConnector
 
         private async Task<HashSet<string>> FetchDomainsFromMispAsync()
         {
-            var requestBody = new
-            {
-                type = "domain",
-                to_ids = true,
-                deleted = false,
-                limit = 1000,
-                last = _config.MaxIocAge
-            };
-            StringContent requestContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+            HashSet<string> domains = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            int page = 1;
+            int limit = _config.PaginationLimit;
+            bool hasMorePages = true;
 
-            try
+            _dnsServer.WriteLog($"Starting paginated fetch from MISP API with a page size of {limit}...");
+
+            while (hasMorePages)
             {
-                using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, _mispApiUrl)
+                var requestBody = new
                 {
-                    Content = requestContent
+                    type = "domain",
+                    to_ids = true,
+                    deleted = false,
+                    last = _config.MaxIocAge,
+                    limit,
+                    page
                 };
+                StringContent requestContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
 
-                request.Headers.Add("Authorization", _config.MispApiKey);
-                request.Headers.Add("Accept", "application/json");
-
-                _dnsServer.WriteLog($"Sending API request to {_mispApiUrl}...");
-                using HttpResponseMessage response = await _httpClient.SendAsync(request);
-
-                if (!response.IsSuccessStatusCode)
+                try
                 {
-                    string errorBody = await response.Content.ReadAsStringAsync();
-                    _dnsServer.WriteLog($"ERROR: MISP API returned a non-success status code: {(int)response.StatusCode} {response.ReasonPhrase}. Response Body: {errorBody}");
+                    using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, _mispApiUrl) { Content = requestContent };
+                    request.Headers.Add("Authorization", _config.MispApiKey);
+                    request.Headers.Add("Accept", "application/json");
 
-                    throw new HttpRequestException($"MISP API request failed with status code {response.StatusCode}.", null, response.StatusCode);
-                }
+                    _dnsServer.WriteLog($"Fetching page {page}...");
+                    using HttpResponseMessage response = await _httpClient.SendAsync(request);
 
-                _dnsServer.WriteLog("API request successful. Parsing response...");
-                await using Stream responseStream = await response.Content.ReadAsStreamAsync();
-                using JsonDocument jsonDoc = await JsonDocument.ParseAsync(responseStream);
-
-                HashSet<string> domains = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                if (jsonDoc.RootElement.TryGetProperty("response", out JsonElement responseElement) &&
-                    responseElement.TryGetProperty("Attribute", out JsonElement attributeArray) &&
-                    attributeArray.ValueKind == JsonValueKind.Array)
-                {
-                    foreach (JsonElement attributeElement in attributeArray.EnumerateArray())
+                    if (!response.IsSuccessStatusCode)
                     {
-                        if (attributeElement.TryGetProperty("value", out JsonElement valueElement) && valueElement.ValueKind == JsonValueKind.String)
+                        string errorBody = await response.Content.ReadAsStringAsync();
+                        throw new HttpRequestException($"MISP API request failed on page {page} with status code {response.StatusCode}. Body: {errorBody}", null, response.StatusCode);
+                    }
+
+                    await using Stream responseStream = await response.Content.ReadAsStreamAsync();
+                    MispResponse mispResponse = await JsonSerializer.DeserializeAsync<MispResponse>(responseStream);
+
+                    List<MispAttribute> attributes = mispResponse?.Response?.Attribute;
+                    if (attributes?.Count == 0)
+                    {
+                        // No more attributes found, we're done.
+                        hasMorePages = false;
+                        continue;
+                    }
+
+                    foreach (MispAttribute attribute in attributes)
+                    {
+                        string domain = attribute.Value?.Trim().ToLowerInvariant();
+                        if (!string.IsNullOrEmpty(domain) && DnsClient.IsDomainNameValid(domain))
                         {
-                            string domain = valueElement.GetString()?.Trim().ToLowerInvariant();
-                            if (!string.IsNullOrEmpty(domain) && DnsClient.IsDomainNameValid(domain))
-                            {
-                                domains.Add(domain);
-                            }
+                            domains.Add(domain);
                         }
                     }
-                }
-                else
-                {
-                    _dnsServer.WriteLog("WARNING: MISP API response was successful but did not contain the expected 'response.Attribute' array structure.");
-                }
 
-                return domains;
+                    // Assumption: If we received fewer items than our limit, it must be the last page.
+                    if (attributes.Count < limit)
+                    {
+                        hasMorePages = false;
+                    }
+                    else
+                    {
+                        page++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer.WriteLog($"ERROR: Failed while fetching page {page}. Halting update cycle. Error: {ex.Message}");
+                    throw;
+                }
             }
-            catch (HttpRequestException ex)
-            {
-                _dnsServer.WriteLog($"ERROR: A network or HTTP error occurred while communicating with MISP. Error: {ex.Message}");
-                throw;
-            }
-            catch (JsonException ex)
-            {
-                _dnsServer.WriteLog($"ERROR: Failed to parse the JSON response from MISP. The response may not be valid JSON. Error: {ex.Message}");
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _dnsServer.WriteLog($"ERROR: An unexpected error occurred during the fetch process. Error: {ex.Message}");
-                throw;
-            }
+
+            _dnsServer.WriteLog($"Finished paginated fetch. Total unique domains collected: {domains.Count}");
+            return domains;
         }
+
 
         private bool IsDomainBlocked(string domain, out string foundZone)
         {
@@ -360,16 +361,16 @@ namespace MispConnector
 
         private async Task<bool> CheckTcpPortAsync(Uri serverUri)
         {
-            var host = serverUri.DnsSafeHost;
-            var port = serverUri.Port;
-            var timeout = TimeSpan.FromSeconds(5);
+            string host = serverUri.DnsSafeHost;
+            int port = serverUri.Port;
+            TimeSpan timeout = TimeSpan.FromSeconds(5);
 
             _dnsServer.WriteLog($"Performing pre-flight TCP check for {host}:{port} with a {timeout.TotalSeconds}-second timeout...");
 
             try
             {
-                using var cts = new CancellationTokenSource(timeout);
-                using var client = new TcpClient();
+                using CancellationTokenSource cts = new CancellationTokenSource(timeout);
+                using TcpClient client = new TcpClient();
 
                 await client.ConnectAsync(host, port, cts.Token);
 
@@ -466,6 +467,27 @@ namespace MispConnector
             [Required(ErrorMessage = "maxIocAge is a required configuration property.")]
             [RegularExpression(@"^\d+[mhd]$", ErrorMessage = "Invalid interval format. Use a number followed by 'm', 'h', or 'd' (e.g., '90m', '2h', '7d').", MatchTimeoutInMilliseconds = 3000)]
             public string MaxIocAge { get; set; }
+
+            [JsonPropertyName("paginationLimit")]
+            public int PaginationLimit { get; set; } = 5000;
+        }
+
+        class MispResponse
+        {
+            [JsonPropertyName("response")]
+            public MispResponseData Response { get; set; }
+        }
+
+        class MispResponseData
+        {
+            [JsonPropertyName("Attribute")]
+            public List<MispAttribute> Attribute { get; set; }
+        }
+
+        class MispAttribute
+        {
+            [JsonPropertyName("value")]
+            public string Value { get; set; }
         }
     }
 }
