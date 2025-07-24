@@ -48,7 +48,7 @@ namespace MispConnector
 
         readonly object _blocklistLock = new object();
 
-        readonly HashSet<string> _globalBlocklist = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        volatile HashSet<string> _globalBlocklist = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         readonly Random _random = new Random();
 
@@ -259,7 +259,7 @@ namespace MispConnector
 
             while (hasMorePages)
             {
-                var requestBody = new MispRequestBody();
+                MispRequestBody requestBody = new MispRequestBody();
                 requestBody.Type = "domain";
                 requestBody.To_ids = true;
                 requestBody.Deleted = false;
@@ -328,6 +328,9 @@ namespace MispConnector
 
         private bool IsDomainBlocked(string domain, out string foundZone)
         {
+            HashSet<string> currentBlocklist = _globalBlocklist;
+            Thread.MemoryBarrier();
+
             ReadOnlySpan<char> domainSpan = domain.AsSpan();
 
             lock (_blocklistLock)
@@ -337,7 +340,7 @@ namespace MispConnector
                 {
                     // To look up in a HashSet<string>, we must provide a string.
                     string key = new string(currentSpan);
-                    if (_globalBlocklist.TryGetValue(key, out foundZone))
+                    if (currentBlocklist.TryGetValue(key, out foundZone))
                     {
                         return true;
                     }
@@ -372,16 +375,10 @@ namespace MispConnector
             }
         }
 
-        private void ReloadBlocklist(HashSet<string> domains)
+        private void ReloadBlocklist(HashSet<string> newBlocklist)
         {
-            lock (_blocklistLock)
-            {
-                _globalBlocklist.Clear();
-                foreach (string domain in domains)
-                {
-                    _globalBlocklist.Add(domain);
-                }
-            }
+            Thread.MemoryBarrier();
+            _globalBlocklist = newBlocklist;
         }
 
         private async Task<bool> CheckTcpPortAsync(Uri serverUri)
