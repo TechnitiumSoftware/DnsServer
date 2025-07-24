@@ -163,7 +163,7 @@ namespace MispConnector
                                 ));
             }
 
-            DnsResourceRecord[] authority = new DnsResourceRecord[] { new DnsResourceRecord(GetParentZone(blockedDomain) ?? string.Empty, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) };
+            DnsResourceRecord[] authority = { new DnsResourceRecord(blockedDomain, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) };
             return Task.FromResult(new DnsDatagram(
                             ID: request.Identifier,
                             isResponse: true,
@@ -188,12 +188,6 @@ namespace MispConnector
         #endregion public
 
         #region private
-
-        private static string GetParentZone(string domain)
-        {
-            int i = domain.IndexOf('.');
-            return (i > -1) ? domain.Substring(i + 1) : null;
-        }
 
         private static TimeSpan ParseUpdateInterval(string interval)
         {
