@@ -56,7 +56,7 @@ namespace MispConnector
         DnsSOARecordData _soaRecord;
         TimeSpan _updateInterval;
 
-        Timer _updateTimer;
+        CancellationTokenSource _appShutdownCts;
 
         #endregion variables
 
@@ -64,7 +64,8 @@ namespace MispConnector
 
         public void Dispose()
         {
-            _updateTimer?.Dispose();
+            _appShutdownCts?.Cancel();
+            _appShutdownCts?.Dispose();
             _httpClient?.Dispose();
         }
 
@@ -95,18 +96,11 @@ namespace MispConnector
                 _httpClient = CreateHttpClient(mispServerUrl, _config.DisableTlsValidation);
 
                 await LoadBlocklistFromCacheAsync();
-                _updateTimer = new Timer(async _ =>
-                {
-                    try
-                    {
-                        await UpdateIocsAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        _dnsServer.WriteLog($"FATAL: The MispConnector update task failed unexpectedly. Error: {ex.Message}");
-                        _dnsServer.WriteLog(ex);
-                    }
-                }, null, TimeSpan.FromSeconds(Random.Shared.Next(5, 30)), Timeout.InfiniteTimeSpan);
+                _appShutdownCts = new CancellationTokenSource();
+
+                // 2. Start the new, long-running update loop task.
+                // We do not await this, as it's designed to run for the lifetime of the app.
+                _ = StartUpdateLoopAsync(_appShutdownCts.Token);
             }
             catch (Exception ex)
             {
@@ -187,7 +181,31 @@ namespace MispConnector
         #endregion public
 
         #region private
+        private async Task StartUpdateLoopAsync(CancellationToken cancellationToken)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(Random.Shared.Next(5, 30)), cancellationToken);
+            using var timer = new PeriodicTimer(_updateInterval);
 
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    await UpdateIocsAsync(cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    _dnsServer.WriteLog("Update loop is shutting down gracefully.");
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer.WriteLog($"FATAL: The MispConnector update task failed unexpectedly. Error: {ex.Message}");
+                    _dnsServer.WriteLog(ex);
+                }
+
+                await timer.WaitForNextTickAsync(cancellationToken);
+            }
+        }
         private static TimeSpan ParseUpdateInterval(string interval)
         {
             if (string.IsNullOrWhiteSpace(interval) || interval.Length < 2)
@@ -219,7 +237,7 @@ namespace MispConnector
             }
         }
 
-        private async Task<bool> CheckTcpPortAsync(Uri serverUri)
+        private async Task<bool> CheckTcpPortAsync(Uri serverUri, CancellationToken cancellationToken)
         {
             string host = serverUri.DnsSafeHost;
             int port = serverUri.Port;
@@ -229,7 +247,7 @@ namespace MispConnector
 
             try
             {
-                using CancellationTokenSource cts = new CancellationTokenSource(timeout);
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, new CancellationTokenSource(timeout).Token);
                 using TcpClient client = new TcpClient();
 
                 await client.ConnectAsync(host, port, cts.Token);
@@ -276,7 +294,7 @@ namespace MispConnector
             return new HttpClient(new HttpClientNetworkHandler(handler, _dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default, _dnsServer));
         }
 
-        private async Task<FrozenSet<string>> FetchDomainsFromMispAsync()
+        private async Task<FrozenSet<string>> FetchDomainsFromMispAsync(CancellationToken cancellationToken)
         {
             HashSet<string> domains = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             int page = 1;
@@ -335,7 +353,7 @@ namespace MispConnector
                         {
                             TimeSpan delay = TimeSpan.FromSeconds(Math.Pow(2, attempt)) + TimeSpan.FromMilliseconds(Random.Shared.Next(0, 1000));
                             _dnsServer.WriteLog($"Waiting for {delay.TotalSeconds:F1} seconds before retrying...");
-                            await Task.Delay(delay);
+                            await Task.Delay(delay, cancellationToken);
                         }
                         else
                         {
@@ -426,36 +444,34 @@ namespace MispConnector
             Interlocked.Exchange(ref _globalBlocklist, newBlocklist);
         }
 
-        private async Task UpdateIocsAsync()
+        private async Task UpdateIocsAsync(CancellationToken cancellationToken)
         {
-            try
+            if (!await CheckTcpPortAsync(new Uri(_config.MispServerUrl), cancellationToken))
             {
-                if (!await CheckTcpPortAsync(new Uri(_config.MispServerUrl)))
-                {
-                    return;
-                }
+                return;
+            }
 
-                _dnsServer.WriteLog("MISP Connector: Starting IOC update...");
-                FrozenSet<string> domains = await FetchDomainsFromMispAsync();
-                await WriteDomainsToCacheAsync(domains);
+            _dnsServer.WriteLog("MISP Connector: Starting IOC update...");
+            FrozenSet<string> domains = await FetchDomainsFromMispAsync(cancellationToken);
+            await WriteDomainsToCacheAsync(domains, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!domains.SetEquals(_globalBlocklist))
+            {
+                await WriteDomainsToCacheAsync(domains, cancellationToken);
                 ReloadBlocklist(domains);
                 _dnsServer.WriteLog($"MISP Connector: Successfully updated blocklist with {domains.Count} domains.");
             }
-            catch (Exception ex)
+            else
             {
-                _dnsServer.WriteLog($"ERROR: MISP Connector failed to update IOCs. Error: {ex.Message}");
-            }
-            finally
-            {
-                TimeSpan nextInterval = _updateInterval + TimeSpan.FromSeconds(Random.Shared.Next(0, 60));
-                _updateTimer?.Change(nextInterval, Timeout.InfiniteTimeSpan);
+                _dnsServer.WriteLog("MISP data has not changed. No update to blocklist or cache is necessary.");
             }
         }
 
-        private async Task WriteDomainsToCacheAsync(FrozenSet<string> domains)
+        private async Task WriteDomainsToCacheAsync(FrozenSet<string> domains, CancellationToken cancellationToken)
         {
             string tempPath = _cacheFilePath + ".tmp";
-            await File.WriteAllLinesAsync(tempPath, domains);
+            await File.WriteAllLinesAsync(tempPath, domains, cancellationToken);
             File.Move(tempPath, _cacheFilePath, true);
         }
 
