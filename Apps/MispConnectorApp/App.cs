@@ -136,21 +136,16 @@ namespace MispConnector
                 return Task.FromResult<DnsDatagram>(null);
             }
 
-            List<EDnsOption> options = null;
+            string blockingReport = $"source=misp-connector;domain={blockedDomain}";
+            EDnsOption[] options = null;
             if (_config.AddExtendedDnsError && request.EDNS is not null)
             {
-                options = new List<EDnsOption>
-                {
-                    new EDnsOption(
-                        EDnsOptionCode.EXTENDED_DNS_ERROR,
-                        new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Blocked, "Blocked by MISP Connector")
-                    )
-                };
+                options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Blocked, blockingReport)) };
             }
 
             if (_config.AllowTxtBlockingReport && question.Type == DnsResourceRecordType.TXT)
             {
-                DnsResourceRecord[] answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData($"source=misp-connector;domain={blockedDomain}")) };
+                DnsResourceRecord[] answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData(blockingReport)) };
                 return Task.FromResult(new DnsDatagram(
                                     ID: request.Identifier,
                                     isResponse: true,
