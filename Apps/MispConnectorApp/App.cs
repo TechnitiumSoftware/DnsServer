@@ -264,15 +264,14 @@ namespace MispConnector
 
             while (hasMorePages)
             {
-                var requestBody = new
-                {
-                    type = "domain",
-                    to_ids = true,
-                    deleted = false,
-                    last = _config.MaxIocAge,
-                    limit,
-                    page
-                };
+                var requestBody = new MispRequestBody();
+                requestBody.Type = "domain";
+                requestBody.To_ids = true;
+                requestBody.Deleted = false;
+                requestBody.Last = _config.MaxIocAge;
+                requestBody.Limit = limit;
+                requestBody.Page = page;
+
                 StringContent requestContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
 
                 try
@@ -510,6 +509,26 @@ namespace MispConnector
         {
             [JsonPropertyName("value")]
             public string Value { get; set; }
+        }
+        class MispRequestBody
+        {
+            [JsonPropertyName("type")]
+            public string Type { get; set; }
+
+            [JsonPropertyName("to_ids")]
+            public bool To_ids { get; set; }
+
+            [JsonPropertyName("deleted")]
+            public bool Deleted { get; set; }
+
+            [JsonPropertyName("last")]
+            public string Last { get; set; }
+
+            [JsonPropertyName("limit")]
+            public int Limit { get; set; }
+
+            [JsonPropertyName("page")]
+            public int Page { get; set; }
         }
     }
 }
