@@ -34,6 +34,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 using TechnitiumLibrary.Net.Http.Client;
 
@@ -110,7 +111,7 @@ namespace MispConnector
                         _dnsServer.WriteLog($"FATAL: The MispConnector update task failed unexpectedly. Error: {ex.Message}");
                         _dnsServer.WriteLog(ex);
                     }
-                }, null, TimeSpan.FromSeconds(_random.Next(5,30)), Timeout.InfiniteTimeSpan);
+                }, null, TimeSpan.FromSeconds(_random.Next(5, 30)), Timeout.InfiniteTimeSpan);
             }
             catch (Exception ex)
             {
@@ -135,6 +136,18 @@ namespace MispConnector
                 return Task.FromResult<DnsDatagram>(null);
             }
 
+            List<EDnsOption> options = null;
+            if (_config.AddExtendedDnsError && request.EDNS is not null)
+            {
+                options = new List<EDnsOption>
+                {
+                    new EDnsOption(
+                        EDnsOptionCode.EXTENDED_DNS_ERROR,
+                        new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Blocked, "Blocked by MISP Connector")
+                    )
+                };
+            }
+
             if (_config.AllowTxtBlockingReport && question.Type == DnsResourceRecordType.TXT)
             {
                 DnsResourceRecord[] answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData($"source=misp-connector;domain={blockedDomain}")) };
@@ -152,7 +165,10 @@ namespace MispConnector
                                     question: request.Question,
                                     answer: answer,
                                     authority: null,
-                                    additional: null
+                                    additional: null,
+                                    udpPayloadSize: request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize,
+                                    ednsFlags: EDnsHeaderFlags.None,
+                                    options: options
                                 ));
             }
 
@@ -171,7 +187,10 @@ namespace MispConnector
                             question: request.Question,
                             answer: null,
                             authority: authority,
-                            additional: null
+                            additional: null,
+                            udpPayloadSize: request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize,
+                            ednsFlags: EDnsHeaderFlags.None,
+                            options: options
                         ));
         }
 
@@ -470,6 +489,9 @@ namespace MispConnector
 
             [JsonPropertyName("paginationLimit")]
             public int PaginationLimit { get; set; } = 5000;
+
+            [JsonPropertyName("addExtendedDnsError")]
+            public bool AddExtendedDnsError { get; set; } = true;
         }
 
         class MispResponse
