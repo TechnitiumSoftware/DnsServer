@@ -45,7 +45,6 @@ namespace MispConnector
     {
         #region variables
 
-        readonly Random _random = new Random();
         string _cacheFilePath;
         Config _config;
         IDnsServer _dnsServer;
@@ -107,7 +106,7 @@ namespace MispConnector
                         _dnsServer.WriteLog($"FATAL: The MispConnector update task failed unexpectedly. Error: {ex.Message}");
                         _dnsServer.WriteLog(ex);
                     }
-                }, null, TimeSpan.FromSeconds(_random.Next(5, 30)), Timeout.InfiniteTimeSpan);
+                }, null, TimeSpan.FromSeconds(Random.Shared.Next(5, 30)), Timeout.InfiniteTimeSpan);
             }
             catch (Exception ex)
             {
@@ -448,7 +447,7 @@ namespace MispConnector
             }
             finally
             {
-                TimeSpan nextInterval = _updateInterval + TimeSpan.FromSeconds(_random.Next(0, 60));
+                TimeSpan nextInterval = _updateInterval + TimeSpan.FromSeconds(Random.Shared.Next(0, 60));
                 _updateTimer?.Change(nextInterval, Timeout.InfiniteTimeSpan);
             }
         }
