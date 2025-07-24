@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore.ApplicationCommon;
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
@@ -44,12 +45,11 @@ namespace MispConnector
     {
         #region variables
 
-        readonly object _blocklistLock = new object();
         readonly Random _random = new Random();
         string _cacheFilePath;
         Config _config;
         IDnsServer _dnsServer;
-        volatile HashSet<string> _globalBlocklist = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private FrozenSet<string> _globalBlocklist = FrozenSet<string>.Empty;
         HttpClient _httpClient;
 
         Uri _mispApiUrl;
@@ -277,7 +277,7 @@ namespace MispConnector
             return new HttpClient(new HttpClientNetworkHandler(handler, _dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default, _dnsServer));
         }
 
-        private async Task<HashSet<string>> FetchDomainsFromMispAsync()
+        private async Task<FrozenSet<string>> FetchDomainsFromMispAsync()
         {
             HashSet<string> domains = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             int page = 1;
@@ -350,14 +350,13 @@ namespace MispConnector
                 }
             }
 
-            _dnsServer.WriteLog($"Finished paginated fetch. Total unique domains collected: {domains.Count}");
-            return domains;
+            _dnsServer.WriteLog($"Finished paginated fetch. Freezing {domains.Count} domains for optimal read performance...");
+            return domains.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
         }
 
         private bool IsDomainBlocked(string domain, out string foundZone)
         {
-            HashSet<string> currentBlocklist = _globalBlocklist;
-            Thread.MemoryBarrier();
+            FrozenSet<string> currentBlocklist = _globalBlocklist;
 
             ReadOnlySpan<char> currentSpan = domain.AsSpan();
 
@@ -389,7 +388,7 @@ namespace MispConnector
             if (!File.Exists(_cacheFilePath)) return;
             try
             {
-                HashSet<string> domains = (await File.ReadAllLinesAsync(_cacheFilePath)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                FrozenSet<string> domains = (await File.ReadAllLinesAsync(_cacheFilePath)).ToHashSet(StringComparer.OrdinalIgnoreCase).ToFrozenSet(StringComparer.OrdinalIgnoreCase);
                 ReloadBlocklist(domains);
                 _dnsServer.WriteLog($"MISP Connector: Loaded {domains.Count} domains from cache.");
             }
@@ -399,11 +398,11 @@ namespace MispConnector
             }
         }
 
-        private void ReloadBlocklist(HashSet<string> newBlocklist)
+        private void ReloadBlocklist(FrozenSet<string> newBlocklist)
         {
-            Thread.MemoryBarrier();
-            _globalBlocklist = newBlocklist;
+            Interlocked.Exchange(ref _globalBlocklist, newBlocklist);
         }
+
         private async Task UpdateIocsAsync()
         {
             try
@@ -414,7 +413,7 @@ namespace MispConnector
                 }
 
                 _dnsServer.WriteLog("MISP Connector: Starting IOC update...");
-                HashSet<string> domains = await FetchDomainsFromMispAsync();
+                FrozenSet<string> domains = await FetchDomainsFromMispAsync();
                 await WriteDomainsToCacheAsync(domains);
                 ReloadBlocklist(domains);
                 _dnsServer.WriteLog($"MISP Connector: Successfully updated blocklist with {domains.Count} domains.");
@@ -430,7 +429,7 @@ namespace MispConnector
             }
         }
 
-        private async Task WriteDomainsToCacheAsync(HashSet<string> domains)
+        private async Task WriteDomainsToCacheAsync(FrozenSet<string> domains)
         {
             string tempPath = _cacheFilePath + ".tmp";
             await File.WriteAllLinesAsync(tempPath, domains);
