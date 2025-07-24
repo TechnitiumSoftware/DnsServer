@@ -451,7 +451,7 @@ namespace MispConnector
 
         #endregion properties
 
-        public class Config
+        private class Config
         {
             [JsonPropertyName("addExtendedDnsError")]
             public bool AddExtendedDnsError { get; set; } = true;
