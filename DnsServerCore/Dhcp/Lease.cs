@@ -46,6 +46,7 @@ namespace DnsServerCore.Dhcp
         readonly byte[] _hardwareAddress;
         readonly IPAddress _address;
         string _comments;
+        bool _isEnabled;
         readonly DateTime _leaseObtained;
         DateTime _leaseExpires;
 
@@ -53,7 +54,7 @@ namespace DnsServerCore.Dhcp
 
         #region constructor
 
-        internal Lease(LeaseType type, ClientIdentifierOption clientIdentifier, string hostName, byte[] hardwareAddress, IPAddress address, string comments, uint leaseTime)
+        internal Lease(LeaseType type, ClientIdentifierOption clientIdentifier, string hostName, byte[] hardwareAddress, IPAddress address, string comments, uint leaseTime, bool isEnabled)
         {
             _type = type;
             _clientIdentifier = clientIdentifier;
@@ -61,17 +62,18 @@ namespace DnsServerCore.Dhcp
             _hardwareAddress = hardwareAddress;
             _address = address;
             _comments = comments;
+            _isEnabled = isEnabled;
             _leaseObtained = DateTime.UtcNow;
 
             ExtendLease(leaseTime);
         }
 
-        internal Lease(LeaseType type, string hostName, DhcpMessageHardwareAddressType hardwareAddressType, byte[] hardwareAddress, IPAddress address, string comments)
-            : this(type, new ClientIdentifierOption((byte)hardwareAddressType, hardwareAddress), hostName, hardwareAddress, address, comments, 0)
+        internal Lease(LeaseType type, string hostName, DhcpMessageHardwareAddressType hardwareAddressType, byte[] hardwareAddress, IPAddress address, string comments, bool isEnabled)
+            : this(type, new ClientIdentifierOption((byte)hardwareAddressType, hardwareAddress), hostName, hardwareAddress, address, comments, 0, isEnabled)
         { }
 
-        internal Lease(LeaseType type, string hostName, DhcpMessageHardwareAddressType hardwareAddressType, string hardwareAddress, IPAddress address, string comments)
-            : this(type, hostName, hardwareAddressType, ParseHardwareAddress(hardwareAddress), address, comments)
+        internal Lease(LeaseType type, string hostName, DhcpMessageHardwareAddressType hardwareAddressType, string hardwareAddress, IPAddress address, string comments, bool isEnabled)
+            : this(type, hostName, hardwareAddressType, ParseHardwareAddress(hardwareAddress), address, comments, isEnabled)
         { }
 
         internal Lease(BinaryReader bR)
@@ -101,6 +103,7 @@ namespace DnsServerCore.Dhcp
 
                     _leaseObtained = bR.ReadDateTime();
                     _leaseExpires = bR.ReadDateTime();
+                    _isEnabled = bR.ReadBoolean();
                     break;
 
                 default:
@@ -169,6 +172,7 @@ namespace DnsServerCore.Dhcp
 
             bW.Write(_leaseObtained);
             bW.Write(_leaseExpires);
+            bW.Write(_isEnabled);
         }
 
         public string GetClientInfo()
@@ -204,6 +208,9 @@ namespace DnsServerCore.Dhcp
 
         public IPAddress Address
         { get { return _address; } }
+
+        public bool IsEnabled
+        { get { return _isEnabled; } }
 
         public string Comments
         {
