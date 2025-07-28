@@ -612,7 +612,7 @@ namespace DnsServerCore.Dhcp
             lease.ConvertToReserved();
 
             //add reserved lease
-            Lease reservedLease = new Lease(LeaseType.Reserved, null, DhcpMessageHardwareAddressType.Ethernet, lease.HardwareAddress, lease.Address, null);
+            Lease reservedLease = new Lease(LeaseType.Reserved, null, DhcpMessageHardwareAddressType.Ethernet, lease.HardwareAddress, lease.Address, null, lease.IsEnabled);
             _reservedLeases[reservedLease.ClientIdentifier] = reservedLease;
         }
 
@@ -622,7 +622,7 @@ namespace DnsServerCore.Dhcp
             lease.ConvertToDynamic();
 
             //remove reserved lease
-            Lease reservedLease = new Lease(LeaseType.Reserved, null, DhcpMessageHardwareAddressType.Ethernet, lease.HardwareAddress, lease.Address, null);
+            Lease reservedLease = new Lease(LeaseType.Reserved, null, DhcpMessageHardwareAddressType.Ethernet, lease.HardwareAddress, lease.Address, null, lease.IsEnabled);
             _reservedLeases.TryRemove(reservedLease.ClientIdentifier, out _);
 
             //remove any old single address exclusion entry
@@ -908,7 +908,7 @@ namespace DnsServerCore.Dhcp
         {
             foreach (KeyValuePair<ClientIdentifierOption, Lease> reservedLease in _reservedLeases)
             {
-                if (address.Equals(reservedLease.Value.Address))
+                if (address.Equals(reservedLease.Value.Address) && reservedLease.Value.IsEnabled)
                     return true;
             }
 
@@ -951,7 +951,7 @@ namespace DnsServerCore.Dhcp
                 if (existingLease.Type == LeaseType.Reserved)
                 {
                     Lease existingReservedLease = GetReservedLease(request);
-                    if ((existingReservedLease is not null) && (existingReservedLease.Address == existingLease.Address))
+                    if ((existingReservedLease is not null) && (existingReservedLease.Address == existingLease.Address) && (existingReservedLease.IsEnabled))
                         return existingLease; //return existing reserved lease
 
                     //reserved lease address was changed; proceed to offer new lease
@@ -975,9 +975,17 @@ namespace DnsServerCore.Dhcp
             Lease reservedLease = GetReservedLease(request);
             if (reservedLease != null)
             {
-                Lease reservedOffer = new Lease(LeaseType.Reserved, clientIdentifier, null, request.ClientHardwareAddress, reservedLease.Address, null, GetLeaseTime());
-                _offers[clientIdentifier] = reservedOffer;
-                return reservedOffer;
+                if (reservedLease.IsEnabled)
+                {
+                    Lease reservedOffer = new Lease(LeaseType.Reserved, clientIdentifier, null, request.ClientHardwareAddress, reservedLease.Address, null, GetLeaseTime(), reservedLease.IsEnabled);
+                    _offers[clientIdentifier] = reservedOffer;
+                    return reservedOffer;
+                }
+                else
+                {
+                    if (_log is not null)
+                        _log.Write("DHCP Server skipped to offer IP address to " + request.GetClientFullIdentifier() + " for scope '" + _name + "': the reserved lease is disabled.");
+                }
             }
 
             if (_allowOnlyReservedLeases)
@@ -999,7 +1007,7 @@ namespace DnsServerCore.Dhcp
                 }
             }
 
-            Lease dummyOffer = new Lease(LeaseType.None, null, null, null, null, null, 0);
+            Lease dummyOffer = new Lease(LeaseType.None, null, null, null, null, null, 0, false);
             Lease existingOffer = _offers.GetOrAdd(clientIdentifier, dummyOffer);
 
             if (dummyOffer != existingOffer)
@@ -1076,7 +1084,7 @@ namespace DnsServerCore.Dhcp
                 }
             }
 
-            Lease offerLease = new Lease(LeaseType.Dynamic, clientIdentifier, null, request.ClientHardwareAddress, offerAddress, null, GetLeaseTime());
+            Lease offerLease = new Lease(LeaseType.Dynamic, clientIdentifier, null, request.ClientHardwareAddress, offerAddress, null, GetLeaseTime(), true);
             return _offers[clientIdentifier] = offerLease;
         }
 
