@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <AssemblyName>TxtRateLimitApp</AssemblyName>
+    <RootNamespace>TxtRateLimitApp</RootNamespace>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <Company>Technitium</Company>
+    <Product>Technitium DNS Server</Product>
+    <Authors>Kez</Authors>
+    <Description>Rate limits DNS TXT queries per client IP.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="TechnitiumLibrary">
+      <HintPath>..\DnsServer\TechnitiumLibrary.dll</HintPath>
+    </Reference>
+    <Reference Include="TechnitiumLibrary.DnsServer">
+      <HintPath>..\DnsServer\TechnitiumLibrary.DnsServer.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
