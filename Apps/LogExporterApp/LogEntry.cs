@@ -1,6 +1,7 @@
 ﻿/*
 Technitium DNS Server
 Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Zafer Balkan (zafer@zaferbalkan.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -31,16 +32,7 @@ namespace LogExporter
 {
     public class LogEntry
     {
-        public DateTime Timestamp { get; private set; }
-        public string ClientIp { get; private set; }
-        public DnsTransportProtocol Protocol { get; private set; }
-        public DnsServerResponseType ResponseType { get; private set; }
-        public double? ResponseRtt { get; private set; }
-        public DnsResponseCode ResponseCode { get; private set; }
-        public DnsQuestion? Question { get; private set; }
-        public List<DnsResourceRecord> Answers { get; private set; }
-
-        public LogEntry(DateTime timestamp, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram request, DnsDatagram response)
+        public LogEntry(DateTime timestamp, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram request, DnsDatagram response, bool ednsLogging = false)
         {
             // Assign timestamp and ensure it's in UTC
             Timestamp = timestamp.Kind == DateTimeKind.Utc ? timestamp : timestamp.ToUniversalTime();
@@ -82,31 +74,75 @@ namespace LogExporter
                     DnssecStatus = record.DnssecStatus,
                 }));
             }
+
+            EDNS = new List<EDNSLog>();
+            if (ednsLogging && response.EDNS != null)
+            {
+                foreach (var log in response.EDNS.Options)
+                {
+                    string[] extractedData = log.Data.ToString().Replace("[", string.Empty).Replace("]", string.Empty).Split(":", StringSplitOptions.TrimEntries);
+
+                    EDNS.Add(new EDNSLog
+                    {
+                        Code = Enum.GetName(log.Code)!,
+                        ErrType = extractedData[0],
+                        Message = extractedData[1]
+                    });
+                }
+            }
         }
 
-        public class DnsQuestion
-        {
-            public required string QuestionName { get; set; }
-            public DnsResourceRecordType QuestionType { get; set; }
-            public DnsClass QuestionClass { get; set; }
-        }
-
-        public class DnsResourceRecord
-        {
-            public required string Name { get; set; }
-            public DnsResourceRecordType RecordType { get; set; }
-            public DnsClass RecordClass { get; set; }
-            public uint RecordTtl { get; set; }
-            public required string RecordData { get; set; }
-            public DnssecStatus DnssecStatus { get; set; }
-        }
-
+        public List<DnsResourceRecord> Answers { get; private set; }
+        public string ClientIp { get; private set; }
+        public List<EDNSLog> EDNS { get; private set; }
+        public DnsTransportProtocol Protocol { get; private set; }
+        public DnsQuestion? Question { get; private set; }
+        public DnsResponseCode ResponseCode { get; private set; }
+        public double? ResponseRtt { get; private set; }
+        public DnsServerResponseType ResponseType { get; private set; }
+        public DateTime Timestamp { get; private set; }
         public override string ToString()
         {
             return JsonSerializer.Serialize(this, DnsLogSerializerOptions.Default);
         }
 
-        // Custom DateTime converter to handle UTC serialization in ISO 8601 format
+        public static class DnsLogSerializerOptions
+        {
+            public static readonly JsonSerializerOptions Default = new JsonSerializerOptions
+            {
+                WriteIndented = false, // Newline delimited logs should not be multiline
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase, // Convert properties to camelCase
+                Converters = { new JsonStringEnumConverter(), new JsonDateTimeConverter() }, // Handle enums and DateTime conversion
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping, // For safe encoding
+                NumberHandling = JsonNumberHandling.Strict,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull // Ignore null values
+            };
+        }
+
+        public class DnsQuestion
+        {
+            public DnsClass QuestionClass { get; set; }
+            public required string QuestionName { get; set; }
+            public DnsResourceRecordType QuestionType { get; set; }
+        }
+
+        public class DnsResourceRecord
+        {
+            public DnssecStatus DnssecStatus { get; set; }
+            public required string Name { get; set; }
+            public DnsClass RecordClass { get; set; }
+            public required string RecordData { get; set; }
+            public uint RecordTtl { get; set; }
+            public DnsResourceRecordType RecordType { get; set; }
+        }
+
+        public class EDNSLog
+        {
+            public string Code { get; set; }
+            public string ErrType { get; set; }
+            public string Message { get; set; }
+        }
+
         public class JsonDateTimeConverter : JsonConverter<DateTime>
         {
             public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -119,20 +155,6 @@ namespace LogExporter
             {
                 writer.WriteStringValue(value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ"));
             }
-        }
-
-        // Setup reusable options with a single instance
-        public static class DnsLogSerializerOptions
-        {
-            public static readonly JsonSerializerOptions Default = new JsonSerializerOptions
-            {
-                WriteIndented = false, // Newline delimited logs should not be multiline
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase, // Convert properties to camelCase
-                Converters = { new JsonStringEnumConverter(), new JsonDateTimeConverter() }, // Handle enums and DateTime conversion
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping, // For safe encoding
-                NumberHandling = JsonNumberHandling.Strict,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull // Ignore null values
-            };
         }
     }
 }
