@@ -1,6 +1,7 @@
 ﻿/*
 Technitium DNS Server
 Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Zafer Balkan (zafer@zaferbalkan.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -118,7 +119,7 @@ namespace LogExporter.Strategy
                 properties.Add(new LogEventProperty("qType", new ScalarValue(question.QuestionType.ToString())));
                 properties.Add(new LogEventProperty("qClass", new ScalarValue(question.QuestionClass.ToString())));
 
-                string questionSummary = $"QNAME: {question.QuestionName}, QTYPE: {question.QuestionType.ToString()}, QCLASS: {question.QuestionClass.ToString()}";
+                string questionSummary = $"QNAME: {question.QuestionName}, QTYPE: {question.QuestionType}, QCLASS: {question.QuestionClass}";
                 properties.Add(new LogEventProperty("questionsSummary", new ScalarValue(questionSummary)));
             }
             else
@@ -148,6 +149,18 @@ namespace LogExporter.Strategy
             else
             {
                 properties.Add(new LogEventProperty("answersSummary", new ScalarValue(string.Empty)));
+            }
+
+            // Add EDNS logs
+            if (log.EDNS.Count > 0)
+            {
+                for (int i = 0; i < log.EDNS.Count; i++)
+                {
+                    var ednsLog = log.EDNS[i];
+                    properties.Add(new LogEventProperty($"ednsErrType_{i}", new ScalarValue(ednsLog.ErrType)));
+                    properties.Add(new LogEventProperty($"ednsMessage_{i}", new ScalarValue(ednsLog.Message)));
+
+                }
             }
 
             // Define the message template to match the original summary format
