@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 Copyright (C) 2025  Zafer Balkan (zafer@zaferbalkan.com)
 
 This program is free software: you can redistribute it and/or modify
@@ -45,19 +45,19 @@ namespace MispConnector
     {
         #region variables
 
-        string _cacheFilePath;
+        string _domainCacheFilePath;
         Config _config;
         IDnsServer _dnsServer;
-        private FrozenSet<string> _globalBlocklist = FrozenSet<string>.Empty;
+        FrozenSet<string> _domainBlocklist = FrozenSet<string>.Empty;
         HttpClient _httpClient;
 
         Uri _mispApiUrl;
 
         DnsSOARecordData _soaRecord;
         TimeSpan _updateInterval;
+        Task _updateLoopTask;
 
         CancellationTokenSource _appShutdownCts;
-
         #endregion variables
 
         #region IDisposable
@@ -65,8 +65,21 @@ namespace MispConnector
         public void Dispose()
         {
             _appShutdownCts?.Cancel();
-            _appShutdownCts?.Dispose();
-            _httpClient?.Dispose();
+            try
+            {
+                if (_updateLoopTask != null)
+                {
+                    _ = Task.WhenAny(_updateLoopTask, Task.Delay(TimeSpan.FromSeconds(2))).GetAwaiter().GetResult();
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                _appShutdownCts?.Dispose();
+                _httpClient?.Dispose();
+            }
         }
 
         #endregion IDisposable
@@ -78,16 +91,16 @@ namespace MispConnector
             _dnsServer = dnsServer;
             try
             {
-                string configDir = _dnsServer.ApplicationFolder;
-                Directory.CreateDirectory(configDir);
-                _cacheFilePath = Path.Combine(configDir, "misp_domain_cache.txt");
-
                 _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, _dnsServer.ResponsiblePerson.Address, 1, 14400, 3600, 604800, 60);
 
                 JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                 _config = JsonSerializer.Deserialize<Config>(config, options);
 
                 Validator.ValidateObject(_config, new ValidationContext(_config), validateAllProperties: true);
+
+                string configDir = _dnsServer.ApplicationFolder;
+                Directory.CreateDirectory(configDir);
+                _domainCacheFilePath = Path.Combine(configDir, "misp_domain_cache.txt");
 
                 _updateInterval = ParseUpdateInterval(_config.UpdateInterval);
 
@@ -98,9 +111,16 @@ namespace MispConnector
                 await LoadBlocklistFromCacheAsync();
                 _appShutdownCts = new CancellationTokenSource();
 
-                // 2. Start the new, long-running update loop task.
                 // We do not await this, as it's designed to run for the lifetime of the app.
-                _ = StartUpdateLoopAsync(_appShutdownCts.Token);
+                _updateLoopTask = StartUpdateLoopAsync(_appShutdownCts.Token);
+                Task _ = _updateLoopTask.ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                    {
+                        _dnsServer.WriteLog($"FATAL: Update loop terminated unexpectedly: {t.Exception?.GetBaseException().Message}");
+                        _dnsServer.WriteLog(t.Exception);
+                    }
+                }, TaskContinuationOptions.OnlyOnFaulted);
             }
             catch (Exception ex)
             {
@@ -117,24 +137,28 @@ namespace MispConnector
         public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP)
         {
             if (_config?.EnableBlocking != true)
+            {
                 return Task.FromResult<DnsDatagram>(null);
+            }
 
             DnsQuestionRecord question = request.Question[0];
-            if (!IsDomainBlocked(question.Name, out string blockedDomain))
+            bool domainBlocked = IsDomainBlocked(question.Name, out string blockedDomain);
+            if (!domainBlocked)
             {
                 return Task.FromResult<DnsDatagram>(null);
             }
 
             string blockingReport = $"source=misp-connector;domain={blockedDomain}";
+
             EDnsOption[] options = null;
             if (_config.AddExtendedDnsError && request.EDNS is not null)
             {
-                options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Blocked, blockingReport)) };
+                options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Blocked, string.Empty)) };
             }
 
             if (_config.AllowTxtBlockingReport && question.Type == DnsResourceRecordType.TXT)
             {
-                DnsResourceRecord[] answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData(blockingReport)) };
+                DnsResourceRecord[] answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData(string.Empty)) };
                 return Task.FromResult(new DnsDatagram(
                                     ID: request.Identifier,
                                     isResponse: true,
@@ -156,7 +180,7 @@ namespace MispConnector
                                 ));
             }
 
-            DnsResourceRecord[] authority = { new DnsResourceRecord(blockedDomain, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) };
+            DnsResourceRecord[] authority = { new DnsResourceRecord(question.Name, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) };
             return Task.FromResult(new DnsDatagram(
                             ID: request.Identifier,
                             isResponse: true,
@@ -184,26 +208,27 @@ namespace MispConnector
         private async Task StartUpdateLoopAsync(CancellationToken cancellationToken)
         {
             await Task.Delay(TimeSpan.FromSeconds(Random.Shared.Next(5, 30)), cancellationToken);
-            using var timer = new PeriodicTimer(_updateInterval);
-
-            while (!cancellationToken.IsCancellationRequested)
+            using (PeriodicTimer timer = new PeriodicTimer(_updateInterval))
             {
-                try
+                while (!cancellationToken.IsCancellationRequested)
                 {
-                    await UpdateIocsAsync(cancellationToken);
-                }
-                catch (OperationCanceledException)
-                {
-                    _dnsServer.WriteLog("Update loop is shutting down gracefully.");
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    _dnsServer.WriteLog($"FATAL: The MispConnector update task failed unexpectedly. Error: {ex.Message}");
-                    _dnsServer.WriteLog(ex);
-                }
+                    try
+                    {
+                        await UpdateIocsAsync(cancellationToken);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        _dnsServer.WriteLog("Update loop is shutting down gracefully.");
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        _dnsServer.WriteLog($"FATAL: The MispConnector update task failed unexpectedly. Error: {ex.Message}");
+                        _dnsServer.WriteLog(ex);
+                    }
 
-                await timer.WaitForNextTickAsync(cancellationToken);
+                    await timer.WaitForNextTickAsync(cancellationToken);
+                }
             }
         }
         private static TimeSpan ParseUpdateInterval(string interval)
@@ -247,10 +272,11 @@ namespace MispConnector
 
             try
             {
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, new CancellationTokenSource(timeout).Token);
-                using TcpClient client = new TcpClient();
-
-                await client.ConnectAsync(host, port, cts.Token);
+                using (CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, new CancellationTokenSource(timeout).Token))
+                using (TcpClient client = new TcpClient())
+                {
+                    await client.ConnectAsync(host, port, cts.Token);
+                }
 
                 _dnsServer.WriteLog($"Pre-flight TCP check successful for {host}:{port}.");
                 return true;
@@ -284,19 +310,16 @@ namespace MispConnector
 
             if (disableTlsValidation)
             {
-                handler.SslOptions.RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) =>
-                {
-                    return true;
-                };
+                handler.SslOptions.RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true;
                 _dnsServer.WriteLog($"WARNING: TLS certificate validation is DISABLED for MISP server: {serverUrl}");
             }
 
             return new HttpClient(new HttpClientNetworkHandler(handler, _dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default, _dnsServer));
         }
 
-        private async Task<FrozenSet<string>> FetchDomainsFromMispAsync(CancellationToken cancellationToken)
+        private async Task<HashSet<string>> FetchIocFromMispAsync(CancellationToken cancellationToken)
         {
-            HashSet<string> domains = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> iocSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             int page = 1;
             int limit = _config.PaginationLimit;
             bool hasMorePages = true;
@@ -330,18 +353,18 @@ namespace MispConnector
                         request.Headers.Add("Accept", "application/json");
 
                         _dnsServer.WriteLog($"Fetching page {page}, attempt {attempt}/{maxRetries}...");
-                        using HttpResponseMessage response = await _httpClient.SendAsync(request);
+                        using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
 
                         if (!response.IsSuccessStatusCode)
                         {
                             // This is a definitive failure from the server (e.g., 403, 500).
                             // We should not retry this. Abort immediately.
-                            string errorBody = await response.Content.ReadAsStringAsync();
+                            string errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
                             throw new HttpRequestException($"MISP API returned a non-success status code: {(int)response.StatusCode}. Body: {errorBody}", null, response.StatusCode);
                         }
 
-                        await using Stream responseStream = await response.Content.ReadAsStreamAsync();
-                        mispResponse = await JsonSerializer.DeserializeAsync<MispResponse>(responseStream);
+                        await using (Stream responseStream = await response.Content.ReadAsStreamAsync(cancellationToken))
+                            mispResponse = await JsonSerializer.DeserializeAsync<MispResponse>(responseStream, cancellationToken: cancellationToken);
 
                         break;
                     }
@@ -373,10 +396,13 @@ namespace MispConnector
 
                 foreach (MispAttribute attribute in attributes)
                 {
-                    string domain = attribute.Value?.Trim().ToLowerInvariant();
-                    if (!string.IsNullOrEmpty(domain) && DnsClient.IsDomainNameValid(domain))
+                    string ioc = attribute.Value?.Trim().ToLowerInvariant();
+                    if (!string.IsNullOrEmpty(ioc))
                     {
-                        domains.Add(domain);
+                        if (DnsClient.IsDomainNameValid(ioc))
+                        {
+                            iocSet.Add(ioc);
+                        }
                     }
                 }
 
@@ -391,13 +417,13 @@ namespace MispConnector
                 }
             }
 
-            _dnsServer.WriteLog($"Finished paginated fetch. Freezing {domains.Count} domains for optimal read performance...");
-            return domains.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+            _dnsServer.WriteLog($"Finished paginated fetch. Freezing {iocSet.Count} IOCs for optimal read performance...");
+            return iocSet;
         }
 
         private bool IsDomainBlocked(string domain, out string foundZone)
         {
-            FrozenSet<string> currentBlocklist = _globalBlocklist;
+            FrozenSet<string> currentBlocklist = _domainBlocklist;
 
             ReadOnlySpan<char> currentSpan = domain.AsSpan();
 
@@ -426,22 +452,19 @@ namespace MispConnector
 
         private async Task LoadBlocklistFromCacheAsync()
         {
-            if (!File.Exists(_cacheFilePath)) return;
-            try
+            if (File.Exists(_domainCacheFilePath))
             {
-                FrozenSet<string> domains = (await File.ReadAllLinesAsync(_cacheFilePath)).ToHashSet(StringComparer.OrdinalIgnoreCase).ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-                ReloadBlocklist(domains);
-                _dnsServer.WriteLog($"MISP Connector: Loaded {domains.Count} domains from cache.");
+                try
+                {
+                    FrozenSet<string> domains = (await File.ReadAllLinesAsync(_domainCacheFilePath)).ToHashSet(StringComparer.OrdinalIgnoreCase).ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+                    Interlocked.Exchange(ref _domainBlocklist, domains);
+                    _dnsServer.WriteLog($"MISP Connector: Loaded {domains.Count} domains from cache.");
+                }
+                catch (IOException ex)
+                {
+                    _dnsServer.WriteLog($"ERROR: Failed to read cache file '{_domainCacheFilePath}'. Error: {ex.Message}");
+                }
             }
-            catch (IOException ex)
-            {
-                _dnsServer.WriteLog($"ERROR: Failed to read cache file '{_cacheFilePath}'. Error: {ex.Message}");
-            }
-        }
-
-        private void ReloadBlocklist(FrozenSet<string> newBlocklist)
-        {
-            Interlocked.Exchange(ref _globalBlocklist, newBlocklist);
         }
 
         private async Task UpdateIocsAsync(CancellationToken cancellationToken)
@@ -452,13 +475,15 @@ namespace MispConnector
             }
 
             _dnsServer.WriteLog("MISP Connector: Starting IOC update...");
-            FrozenSet<string> domains = await FetchDomainsFromMispAsync(cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
 
-            if (!domains.SetEquals(_globalBlocklist))
+            HashSet<string> tmpDomains = await FetchIocFromMispAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            FrozenSet<string> domains = tmpDomains.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+
+            if (!domains.SetEquals(_domainBlocklist))
             {
-                await WriteDomainsToCacheAsync(domains, cancellationToken);
-                ReloadBlocklist(domains);
+                await WriteIocsToCacheAsync(domains, cancellationToken);
+                Interlocked.Exchange(ref _domainBlocklist, domains);
                 _dnsServer.WriteLog($"MISP Connector: Successfully updated blocklist with {domains.Count} domains.");
             }
             else
@@ -467,11 +492,11 @@ namespace MispConnector
             }
         }
 
-        private async Task WriteDomainsToCacheAsync(FrozenSet<string> domains, CancellationToken cancellationToken)
+        private async Task WriteIocsToCacheAsync(FrozenSet<string> iocs, CancellationToken cancellationToken)
         {
-            string tempPath = _cacheFilePath + ".tmp";
-            await File.WriteAllLinesAsync(tempPath, domains, cancellationToken);
-            File.Move(tempPath, _cacheFilePath, true);
+            string tempPath = _domainCacheFilePath + ".tmp";
+            await File.WriteAllLinesAsync(tempPath, iocs, cancellationToken);
+            File.Move(tempPath, _domainCacheFilePath, true);
         }
 
         #endregion private
