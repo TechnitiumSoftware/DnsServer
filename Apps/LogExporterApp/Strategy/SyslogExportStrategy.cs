@@ -119,7 +119,7 @@ namespace LogExporter.Strategy
                 properties.Add(new LogEventProperty("qType", new ScalarValue(question.QuestionType.ToString())));
                 properties.Add(new LogEventProperty("qClass", new ScalarValue(question.QuestionClass.ToString())));
 
-                string questionSummary = $"QNAME: {question.QuestionName}, QTYPE: {question.QuestionType.ToString()}, QCLASS: {question.QuestionClass.ToString()}";
+                string questionSummary = $"QNAME: {question.QuestionName}, QTYPE: {question.QuestionType}, QCLASS: {question.QuestionClass}";
                 properties.Add(new LogEventProperty("questionsSummary", new ScalarValue(questionSummary)));
             }
             else
@@ -157,7 +157,6 @@ namespace LogExporter.Strategy
                 for (int i = 0; i < log.EDNS.Count; i++)
                 {
                     var ednsLog = log.EDNS[i];
-                    properties.Add(new LogEventProperty($"ednsCode_{i}", new ScalarValue(ednsLog.Code)));
                     properties.Add(new LogEventProperty($"ednsErrType_{i}", new ScalarValue(ednsLog.ErrType)));
                     properties.Add(new LogEventProperty($"ednsMessage_{i}", new ScalarValue(ednsLog.Message)));
 

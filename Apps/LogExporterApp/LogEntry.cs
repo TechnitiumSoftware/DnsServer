@@ -76,19 +76,19 @@ namespace LogExporter
             }
 
             EDNS = new List<EDNSLog>();
-            if (ednsLogging && response.EDNS != null)
+            if (!ednsLogging || response.EDNS is null)
             {
-                foreach (var log in response.EDNS.Options)
-                {
-                    string[] extractedData = log.Data.ToString().Replace("[", string.Empty).Replace("]", string.Empty).Split(":", StringSplitOptions.TrimEntries);
+                return;
+            }
+            foreach (TechnitiumLibrary.Net.Dns.EDnsOptions.EDnsOption extendedErrorLog in response.EDNS.Options.Where(o => o.Code == TechnitiumLibrary.Net.Dns.EDnsOptions.EDnsOptionCode.EXTENDED_DNS_ERROR))
+            {
+                string[] extractedData = extendedErrorLog.Data.ToString().Replace("[", string.Empty).Replace("]", string.Empty).Split(":", StringSplitOptions.TrimEntries);
 
-                    EDNS.Add(new EDNSLog
-                    {
-                        Code = Enum.GetName(log.Code)!,
-                        ErrType = extractedData[0],
-                        Message = extractedData[1]
-                    });
-                }
+                EDNS.Add(new EDNSLog
+                {
+                    ErrType = extractedData[0],
+                    Message = extractedData[1]
+                });
             }
         }
 
@@ -110,12 +110,12 @@ namespace LogExporter
         {
             public static readonly JsonSerializerOptions Default = new JsonSerializerOptions
             {
-                WriteIndented = false, // Newline delimited logs should not be multiline
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase, // Convert properties to camelCase
-                Converters = { new JsonStringEnumConverter(), new JsonDateTimeConverter() }, // Handle enums and DateTime conversion
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping, // For safe encoding
+                WriteIndented = false,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                Converters = { new JsonStringEnumConverter(), new JsonDateTimeConverter() },
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
                 NumberHandling = JsonNumberHandling.Strict,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull // Ignore null values
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
             };
         }
 
@@ -138,7 +138,6 @@ namespace LogExporter
 
         public class EDNSLog
         {
-            public string Code { get; set; }
             public string ErrType { get; set; }
             public string Message { get; set; }
         }
