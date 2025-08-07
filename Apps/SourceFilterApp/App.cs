@@ -133,7 +133,7 @@ public sealed class App : IDnsApplication, IDnsPostProcessor
         private readonly NetworkSet include;
         private readonly string pattern;
         private readonly int specificity;
-        private readonly NetworkSet split;
+        private readonly SplitNetwork[] split;
         private readonly bool wildcard;
 
         public Rule(JsonElement json) : this(
@@ -147,13 +147,11 @@ public sealed class App : IDnsApplication, IDnsPostProcessor
         {
             this.pattern = Normalize(pattern);
             this.wildcard = this.pattern == "*" || this.pattern.StartsWith("*.");
-            this.specificity = this.wildcard
-                ? this.pattern == "*" ? 0 : this.pattern.Length - 2
-                : this.pattern.Length;
+            this.specificity = this.wildcard ? this.pattern == "*" ? 0 : this.pattern.Length - 2 : this.pattern.Length;
 
             this.include = new(GetNetworks(jsonRule, true, "includeNetworks", "include"));
             this.exclude = new(GetNetworks(jsonRule, false, "excludeNetworks", "exclude"));
-            this.split = new(GetNetworks(jsonRule, false, "splitNetworks"));
+            this.split = GetSplitNetworks(jsonRule);
         }
 
         private static List<NetworkAddress> GetNetworks(JsonElement json, bool addDefault, params string[] names)
@@ -211,9 +209,73 @@ public sealed class App : IDnsApplication, IDnsPostProcessor
             return true;
         }
 
+        private static SplitNetwork[] GetSplitNetworks(JsonElement json)
+        {
+            if (!json.TryGetProperty("splitNetworks", out var value) || value.ValueKind != JsonValueKind.Array)
+                return [];
+
+            var list = new List<SplitNetwork>();
+
+            foreach (var elem in value.EnumerateArray())
+            {
+                if (elem.ValueKind == JsonValueKind.String)
+                {
+                    if (NetworkAddress.TryParse(elem.GetString(), out var net))
+                        list.Add(new SplitNetwork(net, null));
+                }
+                else if (elem.ValueKind == JsonValueKind.Object)
+                {
+                    if (!elem.TryGetProperty("network", out var netProp) || netProp.ValueKind != JsonValueKind.String)
+                        continue;
+                    if (!NetworkAddress.TryParse(netProp.GetString(), out var net))
+                        continue;
+
+                    int? samePrefix = null;
+                    if (elem.TryGetProperty("samePrefix", out var prefProp) && prefProp.ValueKind == JsonValueKind.Number)
+                        samePrefix = prefProp.GetInt32();
+
+                    list.Add(new SplitNetwork(net, samePrefix));
+                }
+            }
+
+            return list.Count == 0 ? [] : list.ToArray();
+        }
+
+        private static bool TryParseSplitNetwork(string str, out SplitNetwork split)
+        {
+            split = default;
+
+            if (string.IsNullOrWhiteSpace(str))
+                return false;
+
+            var parts = str.Split('/');
+
+            if (parts.Length == 3)
+            {
+                var networkPart = $"{parts[0]}/{parts[1]}";
+
+                if (!NetworkAddress.TryParse(networkPart, out var net))
+                    return false;
+                if (!int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var samePrefix))
+                    return false;
+                split = new SplitNetwork(net, samePrefix);
+
+                return true;
+            }
+
+            if (NetworkAddress.TryParse(str, out var network))
+            {
+                split = new SplitNetwork(network, null);
+
+                return true;
+            }
+
+            return false;
+        }
+
         public bool PassesSplit(IPAddress clientIp, DnsResourceRecord record)
         {
-            if (this.split.IsEmpty)
+            if (this.split.Length == 0)
                 return true;
 
             var recordIp = record switch
@@ -226,10 +288,61 @@ public sealed class App : IDnsApplication, IDnsPostProcessor
             if (recordIp is null)
                 return true;
 
-            var clientInside = this.split.Contains(clientIp);
-            var recordInside = this.split.Contains(recordIp);
+            var clientInsideAny = false;
+            var recordInsideAny = false;
 
-            return clientInside == recordInside;
+            foreach (var sn in this.split)
+            {
+                var clientInside = sn.Network.Contains(clientIp);
+                var recordInside = sn.Network.Contains(recordIp);
+
+                if (clientInside && recordInside && sn.SamePrefix.HasValue && !IpPrefixEqual(clientIp, recordIp, sn.SamePrefix.Value))
+                    return false;
+
+                clientInsideAny |= clientInside;
+                recordInsideAny |= recordInside;
+            }
+
+            return clientInsideAny == recordInsideAny;
+        }
+
+        private static bool IpPrefixEqual(IPAddress a, IPAddress b, int prefixBits)
+        {
+            var aBytes = a.GetAddressBytes();
+            var bBytes = b.GetAddressBytes();
+
+            if (aBytes.Length != bBytes.Length || prefixBits < 0)
+                return false;
+
+            var maxBits = aBytes.Length * 8;
+            if (prefixBits > maxBits)
+                prefixBits = maxBits;
+
+            var bits = prefixBits;
+
+            for (var i = 0; i < aBytes.Length && bits > 0; i++)
+            {
+                var take = bits >= 8 ? 8 : bits;
+                var mask = (byte)(0xFF << (8 - take));
+
+                if ((aBytes[i] & mask) != (bBytes[i] & mask))
+                    return false;
+                bits -= take;
+            }
+
+            return true;
+        }
+
+        private readonly struct SplitNetwork
+        {
+            public SplitNetwork(NetworkAddress network, int? samePrefix)
+            {
+                this.Network = network;
+                this.SamePrefix = samePrefix;
+            }
+
+            public NetworkAddress Network { get; }
+            public int? SamePrefix { get; }
         }
     }
 
