@@ -2533,4 +2533,4 @@ function toggleTheme() {
     }
 
     return false;
-} stener('DOMContentLoaded', applyTheme);
+}
