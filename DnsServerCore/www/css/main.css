@@ -541,12 +541,16 @@ body.dark-mode {
 }
 
 .dark-mode #dpCustomDayWiseStart,
-.dark-mode #dpCustomDayWiseEnd {
+.dark-mode #dpCustomDayWiseEnd,
+.dark-mode #txtQueryLogStart,
+.dark-mode #txtQueryLogEnd {
     color-scheme: dark;
 }
 
     .dark-mode #dpCustomDayWiseStart::-webkit-calendar-picker-indicator,
-    .dark-mode #dpCustomDayWiseEnd::-webkit-calendar-picker-indicator {
+    .dark-mode #dpCustomDayWiseEnd::-webkit-calendar-picker-indicator,
+    .dark-mode #txtQueryLogStart::-webkit-calendar-picker-indicator,
+    .dark-mode #txtQueryLogEnd::-webkit-calendar-picker-indicator {
         filter: invert(1);
     }
 
