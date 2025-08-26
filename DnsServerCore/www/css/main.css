@@ -1,6 +1,7 @@
 ﻿
 html, body {
     height: 100% !important;
+    scrollbar-gutter: stable;
 }
 
 body {
@@ -323,6 +324,10 @@ th a {
     text-align: center;
 }
 
+.about h3 a {
+    color: rgb(51, 51, 51);
+}
+
 .dark-mode {
     scrollbar-width: thin;
     scrollbar-color: #555 #2c2c2e;
@@ -352,6 +357,10 @@ body.dark-mode {
     color: #8ab4f8 !important;
 }
 
+    .dark-mode a:hover {
+        color: #99c0ff !important;
+    }
+
 .dark-mode th a,
 .dark-mode th a:hover {
     color: #dcdcdc !important;
@@ -369,13 +378,20 @@ body.dark-mode {
     box-shadow: 0px 2px 15px 1px #000 !important;
 }
 
-.dark-mode .about h1,
-.dark-mode .about h3 a {
+    .dark-mode #footer .content {
+        color: #888888 !important;
+    }
+
+.dark-mode .about h1 {
     color: #f0f0f0 !important;
 }
 
 .dark-mode .about p {
     color: #a0a0a0 !important;
+}
+
+.dark-mode .about h3 a {
+    color: #f0f0f0 !important;
 }
 
 .dark-mode .panel,
@@ -509,10 +525,7 @@ body.dark-mode {
     border-color: #4a4a4c !important;
 }
 
-.dark-mode .stats-panel .stats-item {
-    color: #fff !important;
-}
-
+.dark-mode .stats-panel .stats-item,
 .dark-mode .zone-stats-panel .stats-item {
     color: #fff !important;
 }
