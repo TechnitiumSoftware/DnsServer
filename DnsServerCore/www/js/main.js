@@ -536,6 +536,8 @@ $(function () {
     $("#btnCustomDayWise").click(function () {
         refreshDashboard();
     });
+
+    applyTheme();
 });
 
 function showAbout() {
@@ -2505,3 +2507,30 @@ function restoreSettings() {
         objAlertPlaceholder: divRestoreSettingsAlert
     });
 }
+
+function applyTheme() {
+    const currentTheme = localStorage.getItem('theme');
+    if (currentTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+    } else {
+        document.body.classList.remove('dark-mode');
+    }
+}
+
+function toggleTheme() {
+    document.body.classList.toggle('dark-mode');
+    let theme = 'light';
+    if (document.body.classList.contains('dark-mode')) {
+        theme = 'dark';
+    }
+    localStorage.setItem('theme', theme);
+
+    if (window.chartDashboardMain) {
+        window.chartDashboardMain.update();
+        window.chartDashboardPie.update();
+        window.chartDashboardPie2.update();
+        window.chartDashboardPie3.update();
+    }
+
+    return false;
+} stener('DOMContentLoaded', applyTheme);
