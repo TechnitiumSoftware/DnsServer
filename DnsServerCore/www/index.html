@@ -1447,6 +1447,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
 
                                                         <div class="form-group">
+                                                            <label for="txtDnsOverHttpRealIpHeader" class="col-sm-3 control-label">Real IP Header</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" class="form-control" id="txtDnsOverHttpRealIpHeader" placeholder="X-Real-IP" maxlength="255">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The HTTP header that must be used to read client's actual IP address when the request comes from a reverse proxy. The Reverse Proxy Network ACL must be set otherwise this setting will be ignored and the real IP address will not be read.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
                                                             <label for="txtDnsTlsCertificatePath" class="col-sm-3 control-label">TLS Certificate File Path</label>
                                                             <div class="col-sm-6">
                                                                 <input type="text" class="form-control" id="txtDnsTlsCertificatePath" placeholder="DNS Service TLS Certificate File Path On Server" maxlength="255">
@@ -1460,14 +1468,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                 <input type="password" class="form-control" id="txtDnsTlsCertificatePassword" placeholder="DNS Service TLS Certificate Password" maxlength="255">
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enter the certificate (.pfx) password, if any.</div>
-                                                        </div>
-
-                                                        <div class="form-group">
-                                                            <label for="txtDnsOverHttpRealIpHeader" class="col-sm-3 control-label">Real IP Header</label>
-                                                            <div class="col-sm-6">
-                                                                <input type="text" class="form-control" id="txtDnsOverHttpRealIpHeader" placeholder="X-Real-IP" maxlength="255">
-                                                            </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The HTTP header that must be used to read client's actual IP address when the request comes from a reverse proxy.</div>
                                                         </div>
 
                                                         <div>
