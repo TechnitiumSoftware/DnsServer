@@ -1,0 +1,8 @@
+#!/sbin/openrc-run
+
+name=$RC_SVCNAME
+description="Technitium DNS Server"
+supervisor="supervise-daemon"
+command="/usr/bin/dotnet"
+command_args="/opt/technitium/dns/DnsServerApp.dll /etc/dns"
+supervise_daemon_args=" -d /opt/technitium/dns"
