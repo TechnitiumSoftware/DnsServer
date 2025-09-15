@@ -1,9 +1,10 @@
 #!/bin/sh
 
 cleanup() {
-    # On Alpine Linux get rid of virtual packages
+    # On Alpine Linux get rid of virtual packages installed in support for this script.
+    # If none was installed, just fail silently
     if $alpineLinux; then
-        apk del .deps >> $installLog 2>&1
+        apk del .deps > /dev/null 2>&1
     fi
 }
 
