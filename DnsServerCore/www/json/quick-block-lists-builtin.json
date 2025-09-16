@@ -156,40 +156,40 @@
     ]
   },
   {
-    "name": "xRuffKez - 14 Day (mini) Newly Registered Domains",
-    "urls": [
-      "https://raw.githubusercontent.com/xRuffKez/NRD/refs/heads/main/lists/14-day-mini/domains-only/nrd-14day-mini.txt"
-    ]
-  },
-  {
     "name": "xRuffKez - 14 Day Newly Registered Domains",
     "urls": [
-      "https://raw.githubusercontent.com/xRuffKez/NRD/refs/heads/main/lists/14-day/domains-only/nrd-14day.txt"
+      "https://raw.githubusercontent.com/DNSBunker/NRD/refs/heads/main/lists/14-day/domains-only/nrd-14day"
     ]
   },
   {
     "name": "xRuffKez - 14 Day Phishing Newly Registered Domains",
     "urls": [
-      "https://raw.githubusercontent.com/xRuffKez/NRD/refs/heads/main/lists/14-day_phishing/domains-only/nrd-phishing-14day.txt"
+      "https://raw.githubusercontent.com/DNSBunker/NRD/refs/heads/main/lists/14-day/domains-only/nrd-phishing-14day"
     ]
   },
   {
-    "name": "xRuffKez - 30 Day (mini) Newly Registered Domains",
+    "name": "xRuffKez - 14 Day Newly Registered High Entropy Domains",
     "urls": [
-      "https://raw.githubusercontent.com/xRuffKez/NRD/refs/heads/main/lists/30-day-mini/domains-only/nrd-30day-mini.txt"
+      "https://raw.githubusercontent.com/DNSBunker/NRD/refs/heads/main/lists/14-day/domains-only/nrd-entropy-14day"
     ]
   },
   {
     "name": "xRuffKez - 30 Day Newly Registered Domains",
     "urls": [
-      "https://raw.githubusercontent.com/xRuffKez/NRD/refs/heads/main/lists/30-day/domains-only/nrd-30day_part1.txt",
-      "https://raw.githubusercontent.com/xRuffKez/NRD/refs/heads/main/lists/30-day/domains-only/nrd-30day_part2.txt"
+      "https://raw.githubusercontent.com/DNSBunker/NRD/refs/heads/main/lists/30-day/domains-only/nrd-30day_part_aa",
+      "https://raw.githubusercontent.com/DNSBunker/NRD/refs/heads/main/lists/30-day/domains-only/nrd-30day_part_ab"
     ]
   },
   {
     "name": "xRuffKez - 30 Day Phishing Newly Registered Domains",
     "urls": [
-      "https://raw.githubusercontent.com/xRuffKez/NRD/refs/heads/main/lists/30-day_phishing/domains-only/nrd-phishing-30day.txt"
+      "https://raw.githubusercontent.com/DNSBunker/NRD/refs/heads/main/lists/30-day/domains-only/nrd-phishing-30day"
+    ]
+  },
+  {
+    "name": "xRuffKez - 30 Day Newly Registered High Entropy Domains",
+    "urls": [
+      "https://raw.githubusercontent.com/DNSBunker/NRD/refs/heads/main/lists/30-day/domains-only/nrd-entropy-30day"
     ]
   }
 ]
