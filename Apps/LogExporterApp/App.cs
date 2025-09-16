@@ -30,7 +30,7 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace LogExporter
 {
-    public sealed class App : IDnsApplication, IDnsQueryLogger
+    public sealed class App : IDnsApplication, IDnsQueryLogger, IDisposable
     {
         #region variables
 
@@ -41,7 +41,7 @@ namespace LogExporter
 
         bool _enableLogging;
 
-        readonly ConcurrentQueue<LogEntry> _queuedLogs = new ConcurrentQueue<LogEntry>();
+        ConcurrentQueue<LogEntry>? _queuedLogs;
         readonly Timer _queueTimer;
         const int QUEUE_TIMER_INTERVAL = 10000;
         const int BULK_INSERT_COUNT = 1000;
@@ -75,7 +75,7 @@ namespace LogExporter
                 {
                     _queueTimer?.Dispose();
 
-                    ExportLogsAsync().Sync(); //flush any pending logs
+                    ExportLogsAsync().Sync(); // flush any pending logs
 
                     _exportManager.Dispose();
                 }
@@ -96,6 +96,10 @@ namespace LogExporter
             if (_config is null)
                 throw new DnsClientException("Invalid application configuration.");
 
+            // Initialize bounded queue
+            _queuedLogs = new ConcurrentQueue<LogEntry>();
+
+            // File export strategy
             if (_config.FileTarget!.Enabled)
             {
                 _exportManager.RemoveStrategy(typeof(FileExportStrategy));
@@ -106,6 +110,7 @@ namespace LogExporter
                 _exportManager.RemoveStrategy(typeof(FileExportStrategy));
             }
 
+            // HTTP export strategy
             if (_config.HttpTarget!.Enabled)
             {
                 _exportManager.RemoveStrategy(typeof(HttpExportStrategy));
@@ -116,10 +121,14 @@ namespace LogExporter
                 _exportManager.RemoveStrategy(typeof(HttpExportStrategy));
             }
 
+            // Syslog export strategy
             if (_config.SyslogTarget!.Enabled)
             {
                 _exportManager.RemoveStrategy(typeof(SyslogExportStrategy));
-                _exportManager.AddStrategy(new SyslogExportStrategy(_config.SyslogTarget.Address, _config.SyslogTarget.Port, _config.SyslogTarget.Protocol));
+                _exportManager.AddStrategy(new SyslogExportStrategy(
+                    _config.SyslogTarget.Address,
+                    _config.SyslogTarget.Port,
+                    _config.SyslogTarget.Protocol));
             }
             else
             {
@@ -138,10 +147,12 @@ namespace LogExporter
 
         public Task InsertLogAsync(DateTime timestamp, DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
         {
-            if (_enableLogging)
+            if (_enableLogging && _queuedLogs is not null && _config is not null)
             {
-                if (_queuedLogs.Count < _config!.MaxQueueSize)
-                    _queuedLogs.Enqueue(new LogEntry(timestamp, remoteEP, protocol, request, response));
+                // Drop oldest when full
+                while (_queuedLogs.Count >= _config.MaxQueueSize && _queuedLogs.TryDequeue(out _)) { }
+
+                _queuedLogs.Enqueue(new LogEntry(timestamp, remoteEP, protocol, request, response));
             }
 
             return Task.CompletedTask;
@@ -153,24 +164,26 @@ namespace LogExporter
 
         private async Task ExportLogsAsync()
         {
+            if (_queuedLogs is null)
+                return;
+
             try
             {
                 List<LogEntry> logs = new List<LogEntry>(BULK_INSERT_COUNT);
 
-                while (true)
+                while (_queuedLogs.TryDequeue(out var log))
                 {
-                    while (logs.Count < BULK_INSERT_COUNT && _queuedLogs.TryDequeue(out LogEntry? log))
+                    logs.Add(log);
+
+                    if (logs.Count >= BULK_INSERT_COUNT)
                     {
-                        logs.Add(log);
+                        await _exportManager.ImplementStrategyAsync(logs);
+                        logs.Clear();
                     }
-
-                    if (logs.Count < 1)
-                        break;
-
-                    await _exportManager.ImplementStrategyAsync(logs);
-
-                    logs.Clear();
                 }
+
+                if (logs.Count > 0)
+                    await _exportManager.ImplementStrategyAsync(logs);
             }
             catch (Exception ex)
             {
@@ -182,7 +195,6 @@ namespace LogExporter
         {
             try
             {
-                // Process logs within the timer interval, then let the timer reschedule
                 await ExportLogsAsync();
             }
             catch (Exception ex)
@@ -206,7 +218,10 @@ namespace LogExporter
 
         public string Description
         {
-            get { return "Allows exporting query logs to third party sinks. It supports exporting to File, HTTP endpoint, and Syslog (UDP, TCP, TLS, and Local protocols)."; }
+            get
+            {
+                return "Allows exporting query logs to third party sinks. It supports exporting to File, HTTP endpoint, and Syslog (UDP, TCP, TLS, and Local protocols).";
+            }
         }
 
         #endregion
