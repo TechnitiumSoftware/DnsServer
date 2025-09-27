@@ -73,6 +73,8 @@ namespace DnsServerCore
                     jsonWriter.WriteString("version", _dnsWebService.GetServerVersion());
                     jsonWriter.WriteString("uptimestamp", _dnsWebService._uptimestamp);
                     jsonWriter.WriteString("dnsServerDomain", _dnsWebService._dnsServer.ServerDomain);
+                    jsonWriter.WriteBoolean("clusterInitialized", _dnsWebService._clusterManager.ClusterInitialized);
+                    jsonWriter.WriteString("clusterDomain", _dnsWebService._clusterManager.ClusterDomain);
                     jsonWriter.WriteNumber("defaultRecordTtl", _dnsWebService._zonesApi.DefaultRecordTtl);
                     jsonWriter.WriteBoolean("useSoaSerialDateScheme", _dnsWebService._dnsServer.AuthZoneManager.UseSoaSerialDateScheme);
                     jsonWriter.WriteBoolean("dnssecValidation", _dnsWebService._dnsServer.DnssecValidation);
@@ -353,6 +355,10 @@ namespace DnsServerCore
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Password was changed successfully.");
 
                 _dnsWebService._authManager.SaveConfigFile();
+
+                //trigger cluster update
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
             }
 
             public void Initialize2FA(HttpContext context)
@@ -396,6 +402,10 @@ namespace DnsServerCore
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Two-factor Authentication (2FA) using Time-based one-time password (TOTP) was enabled successfully.");
 
                 _dnsWebService._authManager.SaveConfigFile();
+
+                //trigger cluster update
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
             }
 
             public void Disable2FA(HttpContext context)
@@ -410,6 +420,10 @@ namespace DnsServerCore
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Two-factor Authentication (2FA) using Time-based one-time password (TOTP) was disabled successfully.");
 
                 _dnsWebService._authManager.SaveConfigFile();
+
+                //trigger cluster update
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
             }
 
             public void GetProfile(HttpContext context)
@@ -437,6 +451,10 @@ namespace DnsServerCore
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User profile was updated successfully.");
 
                 _dnsWebService._authManager.SaveConfigFile();
+
+                //trigger cluster update
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteUserDetails(jsonWriter, session.User, session, true, false);
@@ -486,6 +504,10 @@ namespace DnsServerCore
 
                 _dnsWebService._authManager.SaveConfigFile();
 
+                //trigger cluster update
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
+
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
                 jsonWriter.WriteString("username", createdSession.User.Username);
@@ -533,6 +555,10 @@ namespace DnsServerCore
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User session [" + strPartialToken + "] was deleted successfully for user: " + deletedSession.User.Username);
 
                 _dnsWebService._authManager.SaveConfigFile();
+
+                //trigger cluster update
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
             }
 
             public void ListUsers(HttpContext context)
@@ -571,8 +597,8 @@ namespace DnsServerCore
 
                 HttpRequest request = context.Request;
 
-                string displayName = request.QueryOrForm("displayName");
                 string username = request.GetQueryOrForm("user");
+                string displayName = request.GetQueryOrForm("displayName", username);
                 string password = request.GetQueryOrForm("pass");
 
                 User user = _dnsWebService._authManager.CreateUser(displayName, username, password);
@@ -580,6 +606,10 @@ namespace DnsServerCore
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User account was created successfully with username: " + user.Username);
 
                 _dnsWebService._authManager.SaveConfigFile();
+
+                //trigger cluster update
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteUserDetails(jsonWriter, user, null, false, false);
@@ -701,6 +731,10 @@ namespace DnsServerCore
                     _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User account details were updated successfully for user: " + username);
 
                     _dnsWebService._authManager.SaveConfigFile();
+
+                    //trigger cluster update
+                    if (_dnsWebService._clusterManager.ClusterInitialized)
+                        _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
                 }
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
@@ -725,6 +759,10 @@ namespace DnsServerCore
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User account was deleted successfully with username: " + username);
 
                 _dnsWebService._authManager.SaveConfigFile();
+
+                //trigger cluster update
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
             }
 
             public void ListGroups(HttpContext context)
@@ -774,6 +812,10 @@ namespace DnsServerCore
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Group was created successfully with name: " + group.Name);
 
                 _dnsWebService._authManager.SaveConfigFile();
+
+                //trigger cluster update
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteGroupDetails(jsonWriter, group, false, false);
@@ -848,6 +890,10 @@ namespace DnsServerCore
 
                 _dnsWebService._authManager.SaveConfigFile();
 
+                //trigger cluster update
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
+
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteGroupDetails(jsonWriter, group, true, false);
             }
@@ -867,6 +913,10 @@ namespace DnsServerCore
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Group was deleted successfully with name: " + groupName);
 
                 _dnsWebService._authManager.SaveConfigFile();
+
+                //trigger cluster update
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
             }
 
             public void ListPermissions(HttpContext context)
@@ -915,7 +965,7 @@ namespace DnsServerCore
                         if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
                             throw new DnsWebServiceException("Access was denied.");
 
-                        strSubItem = request.GetQueryOrForm("zone").TrimEnd('.');
+                        strSubItem = request.GetQueryOrForm("zone").Trim('.');
                         break;
 
                     default:
@@ -963,7 +1013,7 @@ namespace DnsServerCore
                         if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
                             throw new DnsWebServiceException("Access was denied.");
 
-                        strSubItem = request.GetQueryOrForm("zone").TrimEnd('.');
+                        strSubItem = request.GetQueryOrForm("zone").Trim('.');
                         break;
 
                     default:
@@ -1080,6 +1130,10 @@ namespace DnsServerCore
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Permissions were updated successfully for section: " + section.ToString() + (string.IsNullOrEmpty(strSubItem) ? "" : "/" + strSubItem));
 
                 _dnsWebService._authManager.SaveConfigFile();
+
+                //trigger cluster update
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WritePermissionDetails(jsonWriter, permission, strSubItem, false);
