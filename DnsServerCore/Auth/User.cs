@@ -78,7 +78,7 @@ namespace DnsServerCore.Auth
             _memberOfGroups = new ConcurrentDictionary<string, Group>(1, 2);
         }
 
-        public User(BinaryReader bR, AuthManager authManager)
+        public User(BinaryReader bR, IReadOnlyDictionary<string, Group> groups)
         {
             int version = bR.ReadByte();
             switch (version)
@@ -115,8 +115,7 @@ namespace DnsServerCore.Auth
 
                         for (int i = 0; i < count; i++)
                         {
-                            Group group = authManager.GetGroup(bR.ReadShortString());
-                            if (group is not null)
+                            if (groups.TryGetValue(bR.ReadShortString().ToLowerInvariant(), out Group group))
                                 _memberOfGroups.TryAdd(group.Name.ToLowerInvariant(), group);
                         }
                     }
@@ -320,13 +319,12 @@ namespace DnsServerCore.Auth
             get { return _displayName; }
             set
             {
-                if (value.Length > 255)
-                    throw new ArgumentException("Display name length cannot exceed 255 characters.", nameof(DisplayName));
-
-                _displayName = value;
-
                 if (string.IsNullOrWhiteSpace(_displayName))
                     _displayName = _username;
+                else if (value.Length > 255)
+                    throw new ArgumentException("Display name length cannot exceed 255 characters.", nameof(DisplayName));
+                else
+                    _displayName = value;
             }
         }
 
