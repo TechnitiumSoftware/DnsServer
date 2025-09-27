@@ -27,6 +27,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Threading.Channels;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
@@ -63,7 +64,8 @@ namespace DnsServerCore.Dns
         const int MAINTENANCE_TIMER_INITIAL_INTERVAL = 10000;
         const int MAINTENANCE_TIMER_PERIODIC_INTERVAL = 10000;
 
-        readonly BlockingCollection<StatsQueueItem> _queue = new BlockingCollection<StatsQueueItem>();
+        readonly Channel<StatsQueueItem> _channel;
+        readonly ChannelWriter<StatsQueueItem> _channelWriter;
         readonly Thread _consumerThread;
 
         readonly Timer _statsCleanupTimer;
@@ -90,6 +92,12 @@ namespace DnsServerCore.Dns
             if (!Directory.Exists(_statsFolder))
                 Directory.CreateDirectory(_statsFolder);
 
+            UnboundedChannelOptions options = new UnboundedChannelOptions();
+            options.SingleReader = true;
+
+            _channel = Channel.CreateUnbounded<StatsQueueItem>(options);
+            _channelWriter = _channel.Writer;
+
             //load stats
             LoadLastHourStats();
 
@@ -100,7 +108,7 @@ namespace DnsServerCore.Dns
             }
             catch (Exception ex)
             {
-                _dnsServer.LogManager?.Write(ex);
+                _dnsServer.LogManager.Write(ex);
             }
 
             //start periodic maintenance timer
@@ -112,17 +120,20 @@ namespace DnsServerCore.Dns
                 }
                 catch (Exception ex)
                 {
-                    _dnsServer.LogManager?.Write(ex);
+                    _dnsServer.LogManager.Write(ex);
                 }
             }, null, MAINTENANCE_TIMER_INITIAL_INTERVAL, MAINTENANCE_TIMER_PERIODIC_INTERVAL);
 
             //stats consumer thread
-            _consumerThread = new Thread(delegate ()
+            _consumerThread = new Thread(async delegate ()
             {
                 try
                 {
-                    foreach (StatsQueueItem item in _queue.GetConsumingEnumerable())
+                    await foreach (StatsQueueItem item in _channel.Reader.ReadAllAsync())
                     {
+                        if (_disposed)
+                            break;
+
                         StatCounter statCounter = _lastHourStatCounters[item._timestamp.Minute];
                         if (statCounter is not null)
                         {
@@ -146,7 +157,7 @@ namespace DnsServerCore.Dns
                         }
 
                         if ((item._request is null) || (item._response is null))
-                            continue; //skip dropped requests for apps to prevent DOS
+                            continue; //skip dropped requests for apps to prevent DoS
 
                         foreach (IDnsQueryLogger logger in _dnsServer.DnsApplicationManager.DnsQueryLoggers)
                         {
@@ -156,16 +167,14 @@ namespace DnsServerCore.Dns
                             }
                             catch (Exception ex)
                             {
-                                LogManager log = dnsServer.LogManager;
-                                if (log is not null)
-                                    log.Write(ex);
+                                dnsServer.LogManager.Write(ex);
                             }
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    _dnsServer.LogManager?.Write(ex);
+                    _dnsServer.LogManager.Write(ex);
                 }
             });
 
@@ -181,7 +190,6 @@ namespace DnsServerCore.Dns
                         return;
 
                     DateTime cutoffDate = DateTime.UtcNow.AddDays(_maxStatFileDays * -1).Date;
-                    LogManager log = dnsServer.LogManager;
 
                     //delete hourly logs
                     {
@@ -199,13 +207,11 @@ namespace DnsServerCore.Dns
                                 try
                                 {
                                     File.Delete(hourlyStatsFile);
-                                    if (log != null)
-                                        log.Write("StatsManager cleanup deleted the hourly stats file: " + hourlyStatsFile);
+                                    dnsServer.LogManager.Write("StatsManager cleanup deleted the hourly stats file: " + hourlyStatsFile);
                                 }
                                 catch (Exception ex)
                                 {
-                                    if (log != null)
-                                        log.Write(ex);
+                                    dnsServer.LogManager.Write(ex);
                                 }
                             }
                         }
@@ -227,13 +233,11 @@ namespace DnsServerCore.Dns
                                 try
                                 {
                                     File.Delete(dailyStatsFile);
-                                    if (log != null)
-                                        log.Write("StatsManager cleanup deleted the daily stats file: " + dailyStatsFile);
+                                    dnsServer.LogManager.Write("StatsManager cleanup deleted the daily stats file: " + dailyStatsFile);
                                 }
                                 catch (Exception ex)
                                 {
-                                    if (log != null)
-                                        log.Write(ex);
+                                    dnsServer.LogManager.Write(ex);
                                 }
                             }
                         }
@@ -241,7 +245,7 @@ namespace DnsServerCore.Dns
                 }
                 catch (Exception ex)
                 {
-                    _dnsServer.LogManager?.Write(ex);
+                    _dnsServer.LogManager.Write(ex);
                 }
             });
 
@@ -253,31 +257,21 @@ namespace DnsServerCore.Dns
         #region IDisposable
 
         bool _disposed;
-        readonly object _disposeLock = new object();
-
-        private void Dispose(bool disposing)
-        {
-            lock (_disposeLock)
-            {
-                if (_disposed)
-                    return;
-
-                if (disposing)
-                {
-                    _maintenanceTimer?.Dispose();
-                    _statsCleanupTimer?.Dispose();
-
-                    //do last maintenance
-                    DoMaintenance();
-                }
-
-                _disposed = true;
-            }
-        }
 
         public void Dispose()
         {
-            Dispose(true);
+            if (_disposed)
+                return;
+
+            _maintenanceTimer?.Dispose();
+            _statsCleanupTimer?.Dispose();
+
+            _channelWriter?.TryComplete();
+
+            DoMaintenance(); //do last maintenance
+
+            _disposed = true;
+            GC.SuppressFinalize(this);
         }
 
         #endregion
@@ -310,7 +304,7 @@ namespace DnsServerCore.Dns
             }
             catch (Exception ex)
             {
-                _dnsServer.LogManager?.Write(ex);
+                _dnsServer.LogManager.Write(ex);
             }
         }
 
@@ -429,7 +423,7 @@ namespace DnsServerCore.Dns
                     }
                     catch (Exception ex)
                     {
-                        _dnsServer.LogManager?.Write(ex);
+                        _dnsServer.LogManager.Write(ex);
 
                         if (ifNotExistsReturnEmptyHourlyStats)
                             hourlyStats = _emptyHourlyStats;
@@ -477,9 +471,7 @@ namespace DnsServerCore.Dns
                     }
                     catch (Exception ex)
                     {
-                        LogManager log = _dnsServer.LogManager;
-                        if (log != null)
-                            log.Write(ex);
+                        _dnsServer.LogManager.Write(ex);
                     }
                 }
 
@@ -524,9 +516,7 @@ namespace DnsServerCore.Dns
             }
             catch (Exception ex)
             {
-                LogManager log = _dnsServer.LogManager;
-                if (log != null)
-                    log.Write(ex);
+                _dnsServer.LogManager.Write(ex);
             }
         }
 
@@ -543,9 +533,7 @@ namespace DnsServerCore.Dns
             }
             catch (Exception ex)
             {
-                LogManager log = _dnsServer.LogManager;
-                if (log != null)
-                    log.Write(ex);
+                _dnsServer.LogManager.Write(ex);
             }
         }
 
@@ -586,7 +574,7 @@ namespace DnsServerCore.Dns
 
         public void QueueUpdate(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response, bool rateLimited)
         {
-            _queue.Add(new StatsQueueItem(request, remoteEP, protocol, response, rateLimited));
+            _channelWriter.TryWrite(new StatsQueueItem(request, remoteEP, protocol, response, rateLimited));
         }
 
         public Dictionary<string, List<KeyValuePair<string, long>>> GetLastHourMinuteWiseStats(bool utcFormat)
@@ -2339,7 +2327,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        class StatsQueueItem
+        readonly struct StatsQueueItem
         {
             #region variables
 
