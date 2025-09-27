@@ -67,7 +67,7 @@ namespace DnsServerApp
                         break;
                 }
 
-                service = new DnsWebService(configFolder, updateCheckUri, new Uri("https://go.technitium.com/?id=44"));
+                service = new DnsWebService(configFolder, updateCheckUri);
                 service.Start(throwIfBindFails);
 
                 Console.CancelKeyPress += delegate (object sender, ConsoleCancelEventArgs e)
