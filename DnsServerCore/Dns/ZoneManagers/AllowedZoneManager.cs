@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dns.ResourceRecords;
 using DnsServerCore.Dns.Zones;
 using System;
 using System.Collections.Generic;
@@ -35,15 +36,15 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         readonly DnsServer _dnsServer;
 
-        readonly AuthZoneManager _zoneManager;
+        AuthZoneManager _zoneManager;
 
-        DnsSOARecordData _soaRecord;
-        DnsNSRecordData _nsRecord;
+        readonly DnsSOARecordDataExtended _soaRecord;
+        readonly DnsNSRecordDataExtended _nsRecord;
 
         readonly object _saveLock = new object();
         bool _pendingSave;
         readonly Timer _saveTimer;
-        const int SAVE_TIMER_INITIAL_INTERVAL = 10000;
+        const int SAVE_TIMER_INITIAL_INTERVAL = 5000;
 
         #endregion
 
@@ -55,7 +56,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             _zoneManager = new AuthZoneManager(_dnsServer);
 
-            UpdateServerDomain();
+            _soaRecord = new DnsSOARecordDataExtended(_dnsServer.ServerDomain, _dnsServer.ResponsiblePerson.Address, 1, 900, 300, 604800, 60);
+            _nsRecord = new DnsNSRecordDataExtended(_dnsServer.ServerDomain);
 
             _saveTimer = new Timer(delegate (object state)
             {
@@ -117,90 +119,130 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         #endregion
 
-        #region private
+        #region zone file
 
-        internal void UpdateServerDomain()
+        public void LoadAllowedZoneFile()
         {
-            _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, _dnsServer.ResponsiblePerson.Address, 1, 900, 300, 604800, 60);
-            _nsRecord = new DnsNSRecordData(_dnsServer.ServerDomain);
+            string allowedZoneFile = Path.Combine(_dnsServer.ConfigFolder, "allowed.config");
 
-            _zoneManager.UpdateServerDomain();
+            try
+            {
+                using (FileStream fS = new FileStream(allowedZoneFile, FileMode.Open, FileAccess.Read))
+                {
+                    ReadConfigFrom(fS);
+                }
+
+                _dnsServer.LogManager.Write("DNS Server allowed zone file was loaded: " + allowedZoneFile);
+            }
+            catch (FileNotFoundException)
+            {
+                SaveZoneFileInternal();
+            }
+            catch (Exception ex)
+            {
+                _dnsServer.LogManager.Write("DNS Server encountered an error while loading allowed zone file: " + allowedZoneFile + "\r\n" + ex.ToString());
+            }
+        }
+
+        public void LoadAllowedZone(Stream s)
+        {
+            lock (_saveLock)
+            {
+                ReadConfigFrom(s);
+
+                SaveZoneFileInternal();
+
+                if (_pendingSave)
+                {
+                    _pendingSave = false;
+                    _saveTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                }
+            }
         }
 
         private void SaveZoneFileInternal()
         {
-            IReadOnlyList<AuthZoneInfo> allowedZones = _dnsServer.AllowedZoneManager.GetAllZones();
-
             string allowedZoneFile = Path.Combine(_dnsServer.ConfigFolder, "allowed.config");
 
             using (FileStream fS = new FileStream(allowedZoneFile, FileMode.Create, FileAccess.Write))
             {
-                BinaryWriter bW = new BinaryWriter(fS);
-
-                bW.Write(Encoding.ASCII.GetBytes("AZ")); //format
-                bW.Write((byte)1); //version
-
-                bW.Write(allowedZones.Count);
-
-                foreach (AuthZoneInfo zone in allowedZones)
-                    bW.WriteShortString(zone.Name);
+                WriteConfigTo(fS);
             }
 
-            _dnsServer.LogManager?.Write("DNS Server allowed zone file was saved: " + allowedZoneFile);
+            _dnsServer.LogManager.Write("DNS Server allowed zone file was saved: " + allowedZoneFile);
+        }
+
+        public void SaveZoneFile()
+        {
+            lock (_saveLock)
+            {
+                if (_pendingSave)
+                    return;
+
+                _pendingSave = true;
+                _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
+            }
+        }
+
+        private void ReadConfigFrom(Stream s)
+        {
+            BinaryReader bR = new BinaryReader(s);
+
+            if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "AZ") //format
+                throw new InvalidDataException("DnsServer allowed zone file format is invalid.");
+
+            byte version = bR.ReadByte();
+            switch (version)
+            {
+                case 1:
+                    int length = bR.ReadInt32();
+                    int i = 0;
+
+                    AuthZoneManager zoneManager = new AuthZoneManager(_dnsServer);
+
+                    zoneManager.LoadSpecialPrimaryZones(delegate ()
+                    {
+                        if (i++ < length)
+                            return bR.ReadShortString();
+
+                        return null;
+                    }, _soaRecord, _nsRecord);
+
+                    _zoneManager = zoneManager;
+                    break;
+
+                default:
+                    throw new InvalidDataException("DnsServer allowed zone file version not supported.");
+            }
+        }
+
+        private void WriteConfigTo(Stream s)
+        {
+            IReadOnlyList<AuthZoneInfo> allowedZones = _zoneManager.GetAllZones();
+            BinaryWriter bW = new BinaryWriter(s);
+
+            bW.Write(Encoding.ASCII.GetBytes("AZ")); //format
+            bW.Write((byte)1); //version
+
+            bW.Write(allowedZones.Count);
+
+            foreach (AuthZoneInfo zone in allowedZones)
+                bW.WriteShortString(zone.Name);
+        }
+
+        #endregion
+
+        #region private
+
+        internal void UpdateServerDomain()
+        {
+            _soaRecord.UpdatePrimaryNameServerAndMinimum(_dnsServer.ServerDomain, _dnsServer.BlockingAnswerTtl);
+            _nsRecord.UpdateNameServer(_dnsServer.ServerDomain);
         }
 
         #endregion
 
         #region public
-
-        public void LoadAllowedZoneFile()
-        {
-            _zoneManager.Flush();
-
-            string allowedZoneFile = Path.Combine(_dnsServer.ConfigFolder, "allowed.config");
-
-            try
-            {
-                _dnsServer.LogManager?.Write("DNS Server is loading allowed zone file: " + allowedZoneFile);
-
-                using (FileStream fS = new FileStream(allowedZoneFile, FileMode.Open, FileAccess.Read))
-                {
-                    BinaryReader bR = new BinaryReader(fS);
-
-                    if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "AZ") //format
-                        throw new InvalidDataException("DnsServer allowed zone file format is invalid.");
-
-                    byte version = bR.ReadByte();
-                    switch (version)
-                    {
-                        case 1:
-                            int length = bR.ReadInt32();
-                            int i = 0;
-
-                            _zoneManager.LoadSpecialPrimaryZones(delegate ()
-                            {
-                                if (i++ < length)
-                                    return bR.ReadShortString();
-
-                                return null;
-                            }, _soaRecord, _nsRecord);
-
-                            break;
-
-                        default:
-                            throw new InvalidDataException("DnsServer allowed zone file version not supported.");
-                    }
-                }
-
-                _dnsServer.LogManager?.Write("DNS Server allowed zone file was loaded: " + allowedZoneFile);
-            }
-            catch (FileNotFoundException)
-            { }
-            catch (Exception ex)
-            {
-                _dnsServer.LogManager?.Write("DNS Server encountered an error while loading allowed zone file: " + allowedZoneFile + "\r\n" + ex.ToString());
-            }
-        }
 
         public void ImportZones(string[] domains)
         {
@@ -241,18 +283,6 @@ namespace DnsServerCore.Dns.ZoneManagers
         public void ListSubDomains(string domain, List<string> subDomains)
         {
             _zoneManager.ListSubDomains(domain, subDomains);
-        }
-
-        public void SaveZoneFile()
-        {
-            lock (_saveLock)
-            {
-                if (_pendingSave)
-                    return;
-
-                _pendingSave = true;
-                _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
-            }
         }
 
         public bool IsAllowed(DnsDatagram request)
