@@ -23,8 +23,13 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Net.Http;
+using System.Reflection;
 using System.Text;
+using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
+using TechnitiumLibrary.Net.Http.Client;
 
 namespace DnsServerCore.Dns.Applications
 {
@@ -32,17 +37,27 @@ namespace DnsServerCore.Dns.Applications
     {
         #region variables
 
+        readonly static Uri APP_STORE_URI = new Uri("https://go.technitium.com/?id=44");
+
         readonly DnsServer _dnsServer;
 
         readonly string _appsPath;
 
         readonly ConcurrentDictionary<string, DnsApplication> _applications = new ConcurrentDictionary<string, DnsApplication>();
 
-        IReadOnlyList<IDnsRequestController> _dnsRequestControllers = Array.Empty<IDnsRequestController>();
-        IReadOnlyList<IDnsAuthoritativeRequestHandler> _dnsAuthoritativeRequestHandlers = Array.Empty<IDnsAuthoritativeRequestHandler>();
-        IReadOnlyList<IDnsRequestBlockingHandler> _dnsRequestBlockingHandlers = Array.Empty<IDnsRequestBlockingHandler>();
-        IReadOnlyList<IDnsQueryLogger> _dnsQueryLoggers = Array.Empty<IDnsQueryLogger>();
-        IReadOnlyList<IDnsPostProcessor> _dnsPostProcessors = Array.Empty<IDnsPostProcessor>();
+        IReadOnlyList<IDnsRequestController> _dnsRequestControllers = [];
+        IReadOnlyList<IDnsAuthoritativeRequestHandler> _dnsAuthoritativeRequestHandlers = [];
+        IReadOnlyList<IDnsRequestBlockingHandler> _dnsRequestBlockingHandlers = [];
+        IReadOnlyList<IDnsQueryLogger> _dnsQueryLoggers = [];
+        IReadOnlyList<IDnsPostProcessor> _dnsPostProcessors = [];
+
+        string _storeAppsJsonData;
+        DateTime _storeAppsJsonDataUpdatedOn;
+        const int STORE_APPS_JSON_DATA_CACHE_TIME_SECONDS = 900;
+
+        Timer _appUpdateTimer;
+        const int APP_UPDATE_TIMER_INITIAL_INTERVAL = 10000;
+        const int APP_UPDATE_TIMER_PERIODIC_INTERVAL = 86400000;
 
         #endregion
 
@@ -71,6 +86,8 @@ namespace DnsServerCore.Dns.Applications
 
             if (disposing)
             {
+                _appUpdateTimer?.Dispose();
+
                 if (_applications != null)
                     UnloadAllApplications();
             }
@@ -91,7 +108,7 @@ namespace DnsServerCore.Dns.Applications
         {
             string applicationName = Path.GetFileName(applicationFolder);
 
-            DnsApplication application = new DnsApplication(new DnsServerInternal(_dnsServer, applicationName, applicationFolder), applicationName);
+            DnsApplication application = new DnsApplication(new InternalDnsServer(_dnsServer, applicationName, applicationFolder), applicationName);
 
             await application.InitializeAsync();
 
@@ -184,6 +201,111 @@ namespace DnsServerCore.Dns.Applications
             return xp.CompareTo(yp);
         }
 
+        private void StartAutomaticUpdate()
+        {
+            if (_appUpdateTimer is null)
+            {
+                _appUpdateTimer = new Timer(async delegate (object state)
+                {
+                    try
+                    {
+                        if (_applications.IsEmpty)
+                            return;
+
+                        _dnsServer.LogManager.Write("DNS Server has started automatic update check for DNS Apps.");
+
+                        string storeAppsJsonData = await GetStoreAppsJsonData();
+                        using JsonDocument jsonDocument = JsonDocument.Parse(storeAppsJsonData);
+                        JsonElement jsonStoreAppsArray = jsonDocument.RootElement;
+
+                        Version currentVersion = Assembly.GetExecutingAssembly().GetName().Version;
+
+                        foreach (DnsApplication application in _applications.Values)
+                        {
+                            foreach (JsonElement jsonStoreApp in jsonStoreAppsArray.EnumerateArray())
+                            {
+                                string name = jsonStoreApp.GetProperty("name").GetString();
+                                if (name.Equals(application.Name))
+                                {
+                                    string url = null;
+                                    Version storeAppVersion = null;
+                                    Version lastServerVersion = null;
+
+                                    foreach (JsonElement jsonVersion in jsonStoreApp.GetProperty("versions").EnumerateArray())
+                                    {
+                                        string strServerVersion = jsonVersion.GetProperty("serverVersion").GetString();
+                                        Version requiredServerVersion = new Version(strServerVersion);
+
+                                        if (currentVersion < requiredServerVersion)
+                                            continue;
+
+                                        if ((lastServerVersion is not null) && (lastServerVersion > requiredServerVersion))
+                                            continue;
+
+                                        string version = jsonVersion.GetProperty("version").GetString();
+                                        url = jsonVersion.GetProperty("url").GetString();
+
+                                        storeAppVersion = new Version(version);
+                                        lastServerVersion = requiredServerVersion;
+                                    }
+
+                                    if ((storeAppVersion is not null) && (storeAppVersion > application.Version))
+                                    {
+                                        try
+                                        {
+                                            await DownloadAndUpdateAppAsync(application.Name, new Uri(url));
+
+                                            _dnsServer.LogManager.Write("DNS application '" + application.Name + "' was automatically updated successfully from: " + url);
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            _dnsServer.LogManager.Write("Failed to automatically download and update DNS application '" + application.Name + "': " + ex.ToString());
+                                        }
+                                    }
+
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _dnsServer.LogManager.Write(ex);
+                    }
+                });
+
+                _appUpdateTimer.Change(APP_UPDATE_TIMER_INITIAL_INTERVAL, APP_UPDATE_TIMER_PERIODIC_INTERVAL);
+            }
+        }
+
+        private void StopAutomaticUpdate()
+        {
+            if (_appUpdateTimer is not null)
+            {
+                _appUpdateTimer.Dispose();
+                _appUpdateTimer = null;
+            }
+        }
+
+        internal async Task<string> GetStoreAppsJsonData()
+        {
+            if ((_storeAppsJsonData is null) || (DateTime.UtcNow > _storeAppsJsonDataUpdatedOn.AddSeconds(STORE_APPS_JSON_DATA_CACHE_TIME_SECONDS)))
+            {
+                HttpClientNetworkHandler handler = new HttpClientNetworkHandler();
+                handler.Proxy = _dnsServer.Proxy;
+                handler.NetworkType = _dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default;
+                handler.DnsClient = _dnsServer;
+
+                using (HttpClient http = new HttpClient(handler))
+                {
+                    _storeAppsJsonData = await http.GetStringAsync(APP_STORE_URI);
+                    _storeAppsJsonDataUpdatedOn = DateTime.UtcNow;
+                }
+            }
+
+            return _storeAppsJsonData;
+        }
+
         #endregion
 
         #region public
@@ -198,9 +320,7 @@ namespace DnsServerCore.Dns.Applications
                 }
                 catch (Exception ex)
                 {
-                    LogManager log = _dnsServer.LogManager;
-                    if (log != null)
-                        log.Write(ex);
+                    _dnsServer.LogManager.Write(ex);
                 }
             }
 
@@ -224,15 +344,15 @@ namespace DnsServerCore.Dns.Applications
                 {
                     try
                     {
-                        _dnsServer.LogManager?.Write("DNS Server is loading DNS application: " + Path.GetFileName(applicationFolder));
+                        _dnsServer.LogManager.Write("DNS Server is loading DNS application: " + Path.GetFileName(applicationFolder));
 
                         _ = await LoadApplicationAsync(applicationFolder, false);
 
-                        _dnsServer.LogManager?.Write("DNS Server successfully loaded DNS application: " + Path.GetFileName(applicationFolder));
+                        _dnsServer.LogManager.Write("DNS Server successfully loaded DNS application: " + Path.GetFileName(applicationFolder));
                     }
                     catch (Exception ex)
                     {
-                        _dnsServer.LogManager?.Write("DNS Server failed to load DNS application: " + Path.GetFileName(applicationFolder) + "\r\n" + ex.ToString());
+                        _dnsServer.LogManager.Write("DNS Server failed to load DNS application: " + Path.GetFileName(applicationFolder) + "\r\n" + ex.ToString());
                     }
                 }));
             }
@@ -242,7 +362,7 @@ namespace DnsServerCore.Dns.Applications
             RefreshAppObjectLists();
         }
 
-        public async Task<DnsApplication> InstallApplicationAsync(string applicationName, Stream appStream)
+        public async Task<DnsApplication> InstallApplicationAsync(string applicationName, Stream appZipStream)
         {
             foreach (char invalidChar in Path.GetInvalidFileNameChars())
             {
@@ -253,58 +373,76 @@ namespace DnsServerCore.Dns.Applications
             if (_applications.ContainsKey(applicationName))
                 throw new DnsServerException("DNS application already exists: " + applicationName);
 
-            using (ZipArchive appZip = new ZipArchive(appStream, ZipArchiveMode.Read, false, Encoding.UTF8))
+            string applicationFolder = Path.Combine(_appsPath, applicationName);
+
+            if (Directory.Exists(applicationFolder))
+                Directory.Delete(applicationFolder, true);
+
+            Directory.CreateDirectory(applicationFolder);
+
+            //keep a copy of the zip file in the application folder for transferring to other nodes
+            await using (FileStream zipCopyStream = new FileStream(Path.Combine(applicationFolder, applicationName + ".zip"), FileMode.Create, FileAccess.ReadWrite))
             {
-                string applicationFolder = Path.Combine(_appsPath, applicationName);
+                await appZipStream.CopyToAsync(zipCopyStream);
 
-                if (Directory.Exists(applicationFolder))
-                    Directory.Delete(applicationFolder, true);
+                zipCopyStream.Position = 0;
 
-                try
+                using (ZipArchive appZip = new ZipArchive(zipCopyStream, ZipArchiveMode.Read, false, Encoding.UTF8))
                 {
-                    appZip.ExtractToDirectory(applicationFolder, true);
+                    try
+                    {
+                        appZip.ExtractToDirectory(applicationFolder, true);
 
-                    return await LoadApplicationAsync(applicationFolder, true);
-                }
-                catch
-                {
-                    if (Directory.Exists(applicationFolder))
-                        Directory.Delete(applicationFolder, true);
+                        return await LoadApplicationAsync(applicationFolder, true);
+                    }
+                    catch
+                    {
+                        if (Directory.Exists(applicationFolder))
+                            Directory.Delete(applicationFolder, true);
 
-                    throw;
+                        throw;
+                    }
                 }
             }
         }
 
-        public async Task<DnsApplication> UpdateApplicationAsync(string applicationName, Stream appStream)
+        public async Task<DnsApplication> UpdateApplicationAsync(string applicationName, Stream appZipStream)
         {
             if (!_applications.ContainsKey(applicationName))
                 throw new DnsServerException("DNS application does not exists: " + applicationName);
 
-            using (ZipArchive appZip = new ZipArchive(appStream, ZipArchiveMode.Read, false, Encoding.UTF8))
+            string applicationFolder = Path.Combine(_appsPath, applicationName);
+
+            //keep a copy of the zip file in the application folder for transferring to other nodes
+            await using (FileStream zipCopyStream = new FileStream(Path.Combine(applicationFolder, applicationName + ".zip"), FileMode.Create, FileAccess.ReadWrite))
             {
-                UnloadApplication(applicationName);
+                await appZipStream.CopyToAsync(zipCopyStream);
 
-                string applicationFolder = Path.Combine(_appsPath, applicationName);
+                zipCopyStream.Position = 0;
 
-                foreach (ZipArchiveEntry entry in appZip.Entries)
+                using (ZipArchive appZip = new ZipArchive(zipCopyStream, ZipArchiveMode.Read, false, Encoding.UTF8))
                 {
-                    string entryPath = entry.FullName;
+                    UnloadApplication(applicationName);
 
-                    if (Path.DirectorySeparatorChar != '/')
-                        entryPath = entryPath.Replace('/', '\\');
+                    foreach (ZipArchiveEntry entry in appZip.Entries)
+                    {
+                        string entryPath = entry.FullName;
 
-                    string filePath = Path.Combine(applicationFolder, entryPath);
+                        if (Path.DirectorySeparatorChar != '/')
+                            entryPath = entryPath.Replace('/', '\\');
 
-                    if ((entry.Name == "dnsApp.config") && File.Exists(filePath))
-                        continue; //avoid overwriting existing config file
+                        string filePath = Path.Combine(applicationFolder, entryPath);
 
-                    Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+                        if ((entry.Name == "dnsApp.config") && File.Exists(filePath))
+                            continue; //avoid overwriting existing config file
 
-                    entry.ExtractToFile(filePath, true);
+                        Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+
+                        entry.ExtractToFile(filePath, true);
+                    }
+
+                    return await LoadApplicationAsync(applicationFolder, true);
                 }
-
-                return await LoadApplicationAsync(applicationFolder, true);
             }
         }
 
@@ -325,8 +463,86 @@ namespace DnsServerCore.Dns.Applications
                     }
                     catch (Exception ex)
                     {
-                        _dnsServer.LogManager?.Write(ex);
+                        _dnsServer.LogManager.Write(ex);
                     }
+                }
+            }
+        }
+
+        public async Task<DnsApplication> DownloadAndInstallAppAsync(string applicationName, Uri uri)
+        {
+            string tmpFile = Path.GetTempFileName();
+            try
+            {
+                await using (FileStream fS = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite))
+                {
+                    //download to temp file
+                    HttpClientNetworkHandler handler = new HttpClientNetworkHandler();
+                    handler.Proxy = _dnsServer.Proxy;
+                    handler.NetworkType = _dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default;
+                    handler.DnsClient = _dnsServer;
+
+                    using (HttpClient http = new HttpClient(handler))
+                    {
+                        await using (Stream httpStream = await http.GetStreamAsync(uri))
+                        {
+                            await httpStream.CopyToAsync(fS);
+                        }
+                    }
+
+                    //install app
+                    fS.Position = 0;
+                    return await InstallApplicationAsync(applicationName, fS);
+                }
+            }
+            finally
+            {
+                try
+                {
+                    File.Delete(tmpFile);
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer.LogManager.Write(ex);
+                }
+            }
+        }
+
+        public async Task<DnsApplication> DownloadAndUpdateAppAsync(string applicationName, Uri uri)
+        {
+            string tmpFile = Path.GetTempFileName();
+            try
+            {
+                await using (FileStream fS = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite))
+                {
+                    //download to temp file
+                    HttpClientNetworkHandler handler = new HttpClientNetworkHandler();
+                    handler.Proxy = _dnsServer.Proxy;
+                    handler.NetworkType = _dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default;
+                    handler.DnsClient = _dnsServer;
+
+                    using (HttpClient http = new HttpClient(handler))
+                    {
+                        await using (Stream httpStream = await http.GetStreamAsync(uri))
+                        {
+                            await httpStream.CopyToAsync(fS);
+                        }
+                    }
+
+                    //update app
+                    fS.Position = 0;
+                    return await UpdateApplicationAsync(applicationName, fS);
+                }
+            }
+            finally
+            {
+                try
+                {
+                    File.Delete(tmpFile);
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer.LogManager.Write(ex);
                 }
             }
         }
@@ -352,6 +568,18 @@ namespace DnsServerCore.Dns.Applications
 
         public IReadOnlyList<IDnsPostProcessor> DnsPostProcessors
         { get { return _dnsPostProcessors; } }
+
+        public bool EnableAutomaticUpdate
+        {
+            get { return _appUpdateTimer is not null; }
+            set
+            {
+                if (value)
+                    StartAutomaticUpdate();
+                else
+                    StopAutomaticUpdate();
+            }
+        }
 
         #endregion
     }
