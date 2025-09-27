@@ -33,7 +33,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.ZoneManagers
 {
-    public sealed class CacheZoneManager : DnsCache
+    public sealed class CacheZoneManager : DnsCache, IDisposable
     {
         #region variables
 
@@ -56,6 +56,11 @@ namespace DnsServerCore.Dns.ZoneManagers
         long _maximumEntries;
         long _totalEntries;
 
+        Timer _cacheMaintenanceTimer;
+        readonly object _cacheMaintenanceTimerLock = new object();
+        const int CACHE_MAINTENANCE_TIMER_INITIAL_INTEVAL = 5 * 60 * 1000;
+        const int CACHE_MAINTENANCE_TIMER_PERIODIC_INTERVAL = 5 * 60 * 1000;
+
         #endregion
 
         #region constructor
@@ -64,6 +69,114 @@ namespace DnsServerCore.Dns.ZoneManagers
             : base(FAILURE_RECORD_TTL, NEGATIVE_RECORD_TTL, MINIMUM_RECORD_TTL, MAXIMUM_RECORD_TTL, SERVE_STALE_TTL, SERVE_STALE_ANSWER_TTL)
         {
             _dnsServer = dnsServer;
+
+            _cacheMaintenanceTimer = new Timer(CacheMaintenanceTimerCallback, null, CACHE_MAINTENANCE_TIMER_INITIAL_INTEVAL, Timeout.Infinite);
+        }
+
+        #endregion
+
+        #region IDisposable
+
+        bool _disposed;
+
+        public void Dispose()
+        {
+            if (_disposed)
+                return;
+
+            lock (_cacheMaintenanceTimerLock)
+            {
+                if (_cacheMaintenanceTimer is not null)
+                {
+                    _cacheMaintenanceTimer.Dispose();
+                    _cacheMaintenanceTimer = null;
+                }
+            }
+
+            _disposed = true;
+        }
+
+        #endregion
+
+        #region zone file
+
+        public void LoadCacheZoneFile()
+        {
+            string cacheZoneFile = Path.Combine(_dnsServer.ConfigFolder, "cache.bin");
+
+            if (!File.Exists(cacheZoneFile))
+                return;
+
+            _dnsServer.LogManager.Write("Loading DNS Cache from disk...");
+
+            using (FileStream fS = new FileStream(cacheZoneFile, FileMode.Open, FileAccess.Read))
+            {
+                BinaryReader bR = new BinaryReader(fS);
+
+                if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "CZ")
+                    throw new InvalidDataException("CacheZoneManager format is invalid.");
+
+                int version = bR.ReadByte();
+                switch (version)
+                {
+                    case 1:
+                        int addedEntries = 0;
+
+                        try
+                        {
+                            bool serveStale = _dnsServer.ServeStale;
+
+                            while (bR.BaseStream.Position < bR.BaseStream.Length)
+                            {
+                                CacheZone zone = CacheZone.ReadFrom(bR, serveStale);
+                                if (!zone.IsEmpty)
+                                {
+                                    if (_root.TryAdd(zone.Name, zone))
+                                        addedEntries += zone.TotalEntries;
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            if (addedEntries > 0)
+                                Interlocked.Add(ref _totalEntries, addedEntries);
+                        }
+                        break;
+
+                    default:
+                        throw new InvalidDataException("CacheZoneManager format version not supported: " + version);
+                }
+            }
+
+            _dnsServer.LogManager.Write("DNS Cache was loaded from disk successfully.");
+        }
+
+        public void SaveCacheZoneFile()
+        {
+            _dnsServer.LogManager.Write("Saving DNS Cache to disk...");
+
+            string cacheZoneFile = Path.Combine(_dnsServer.ConfigFolder, "cache.bin");
+
+            using (FileStream fS = new FileStream(cacheZoneFile, FileMode.Create, FileAccess.Write))
+            {
+                BinaryWriter bW = new BinaryWriter(fS);
+
+                bW.Write(Encoding.ASCII.GetBytes("CZ")); //format
+                bW.Write((byte)1); //version
+
+                foreach (CacheZone zone in _root)
+                    zone.WriteTo(bW);
+            }
+
+            _dnsServer.LogManager.Write("DNS Cache was saved to disk successfully.");
+        }
+
+        public void DeleteCacheZoneFile()
+        {
+            string cacheZoneFile = Path.Combine(_dnsServer.ConfigFolder, "cache.bin");
+
+            if (File.Exists(cacheZoneFile))
+                File.Delete(cacheZoneFile);
         }
 
         #endregion
@@ -179,6 +292,28 @@ namespace DnsServerCore.Dns.ZoneManagers
         #endregion
 
         #region private
+
+        private void CacheMaintenanceTimerCallback(object state)
+        {
+            try
+            {
+                RemoveExpiredRecords();
+
+                //force GC collection to remove old cache data from memory quickly
+                GC.Collect();
+            }
+            catch (Exception ex)
+            {
+                _dnsServer.LogManager.Write(ex);
+            }
+            finally
+            {
+                lock (_cacheMaintenanceTimerLock)
+                {
+                    _cacheMaintenanceTimer?.Change(CACHE_MAINTENANCE_TIMER_PERIODIC_INTERVAL, Timeout.Infinite);
+                }
+            }
+        }
 
         private static IReadOnlyList<DnsResourceRecord> AddDSRecordsTo(CacheZone delegation, bool serveStale, IReadOnlyList<DnsResourceRecord> nsRecords, NetworkAddress eDnsClientSubnet, bool advancedForwardingClientSubnet)
         {
@@ -1073,85 +1208,6 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             //no cached delegation found
             return Task.FromResult<DnsDatagram>(null);
-        }
-
-        public void LoadCacheZoneFile()
-        {
-            string cacheZoneFile = Path.Combine(_dnsServer.ConfigFolder, "cache.bin");
-
-            if (!File.Exists(cacheZoneFile))
-                return;
-
-            _dnsServer.LogManager?.Write("Loading DNS Cache from disk...");
-
-            using (FileStream fS = new FileStream(cacheZoneFile, FileMode.Open, FileAccess.Read))
-            {
-                BinaryReader bR = new BinaryReader(fS);
-
-                if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "CZ")
-                    throw new InvalidDataException("CacheZoneManager format is invalid.");
-
-                int version = bR.ReadByte();
-                switch (version)
-                {
-                    case 1:
-                        int addedEntries = 0;
-
-                        try
-                        {
-                            bool serveStale = _dnsServer.ServeStale;
-
-                            while (bR.BaseStream.Position < bR.BaseStream.Length)
-                            {
-                                CacheZone zone = CacheZone.ReadFrom(bR, serveStale);
-                                if (!zone.IsEmpty)
-                                {
-                                    if (_root.TryAdd(zone.Name, zone))
-                                        addedEntries += zone.TotalEntries;
-                                }
-                            }
-                        }
-                        finally
-                        {
-                            if (addedEntries > 0)
-                                Interlocked.Add(ref _totalEntries, addedEntries);
-                        }
-                        break;
-
-                    default:
-                        throw new InvalidDataException("CacheZoneManager format version not supported: " + version);
-                }
-            }
-
-            _dnsServer.LogManager?.Write("DNS Cache was loaded from disk successfully.");
-        }
-
-        public void SaveCacheZoneFile()
-        {
-            _dnsServer.LogManager?.Write("Saving DNS Cache to disk...");
-
-            string cacheZoneFile = Path.Combine(_dnsServer.ConfigFolder, "cache.bin");
-
-            using (FileStream fS = new FileStream(cacheZoneFile, FileMode.Create, FileAccess.Write))
-            {
-                BinaryWriter bW = new BinaryWriter(fS);
-
-                bW.Write(Encoding.ASCII.GetBytes("CZ")); //format
-                bW.Write((byte)1); //version
-
-                foreach (CacheZone zone in _root)
-                    zone.WriteTo(bW);
-            }
-
-            _dnsServer.LogManager?.Write("DNS Cache was saved to disk successfully.");
-        }
-
-        public void DeleteCacheZoneFile()
-        {
-            string cacheZoneFile = Path.Combine(_dnsServer.ConfigFolder, "cache.bin");
-
-            if (File.Exists(cacheZoneFile))
-                File.Delete(cacheZoneFile);
         }
 
         #endregion
