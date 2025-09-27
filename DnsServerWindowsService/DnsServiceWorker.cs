@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ namespace DnsServerWindowsService
             if (args.Length == 2)
                 configFolder = args[1];
 
-            _service = new DnsWebService(configFolder, new Uri("https://go.technitium.com/?id=43"), new Uri("https://go.technitium.com/?id=44"));
+            _service = new DnsWebService(configFolder, new Uri("https://go.technitium.com/?id=43"));
         }
 
         public override async Task StartAsync(CancellationToken cancellationToken)
