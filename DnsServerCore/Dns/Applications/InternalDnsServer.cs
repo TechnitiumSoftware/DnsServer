@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ using TechnitiumLibrary.Net.Proxy;
 
 namespace DnsServerCore.Dns.Applications
 {
-    class DnsServerInternal : IDnsServer
+    class InternalDnsServer : IDnsServer
     {
         #region variables
 
@@ -41,7 +41,7 @@ namespace DnsServerCore.Dns.Applications
 
         #region constructor
 
-        public DnsServerInternal(DnsServer dnsServer, string applicationName, string applicationFolder)
+        public InternalDnsServer(DnsServer dnsServer, string applicationName, string applicationFolder)
         {
             _dnsServer = dnsServer;
             _applicationName = applicationName;
@@ -52,14 +52,14 @@ namespace DnsServerCore.Dns.Applications
 
         #region public
 
-        public Task<DnsDatagram> DirectQueryAsync(DnsQuestionRecord question, int timeout = 4000)
+        public Task<DnsDatagram> DirectQueryAsync(DnsQuestionRecord question, int timeout = 4000, CancellationToken cancellationToken = default)
         {
-            return _dnsServer.DirectQueryAsync(question, timeout, true);
+            return _dnsServer.DirectQueryAsync(question, timeout, true, cancellationToken);
         }
 
-        public Task<DnsDatagram> DirectQueryAsync(DnsDatagram request, int timeout = 4000)
+        public Task<DnsDatagram> DirectQueryAsync(DnsDatagram request, int timeout = 4000, CancellationToken cancellationToken = default)
         {
-            return _dnsServer.DirectQueryAsync(request, timeout, true);
+            return _dnsServer.DirectQueryAsync(request, timeout, true, cancellationToken);
         }
 
         public Task<DnsDatagram> ResolveAsync(DnsQuestionRecord question, CancellationToken cancellationToken = default)
@@ -69,12 +69,12 @@ namespace DnsServerCore.Dns.Applications
 
         public void WriteLog(string message)
         {
-            _dnsServer.LogManager?.Write("DNS App [" + _applicationName + "]: " + message);
+            _dnsServer.LogManager.Write("DNS App [" + _applicationName + "]: " + message);
         }
 
         public void WriteLog(Exception ex)
         {
-            _dnsServer.LogManager?.Write("DNS App [" + _applicationName + "]: " + ex.ToString());
+            _dnsServer.LogManager.Write("DNS App [" + _applicationName + "]: " + ex.ToString());
         }
 
         #endregion
