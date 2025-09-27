@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -90,35 +90,31 @@ namespace DnsServerCore.Dns.Zones
             {
                 DnsDatagram soaResponse;
 
-                try
+                DnsQuestionRecord soaQuestion = new DnsQuestionRecord(name, DnsResourceRecordType.SOA, DnsClass.IN);
+
+                if (stubZone.PrimaryNameServerAddresses is null)
                 {
-                    DnsQuestionRecord soaQuestion = new DnsQuestionRecord(name, DnsResourceRecordType.SOA, DnsClass.IN);
-
-                    if (stubZone.PrimaryNameServerAddresses is null)
-                    {
-                        soaResponse = await stubZone._dnsServer.DirectQueryAsync(soaQuestion);
-                    }
-                    else
-                    {
-                        DnsClient dnsClient = new DnsClient(stubZone.PrimaryNameServerAddresses);
-
-                        foreach (NameServerAddress nameServerAddress in dnsClient.Servers)
-                        {
-                            if (nameServerAddress.IsIPEndPointStale)
-                                await nameServerAddress.ResolveIPAddressAsync(stubZone._dnsServer, stubZone._dnsServer.PreferIPv6);
-                        }
-
-                        dnsClient.Proxy = stubZone._dnsServer.Proxy;
-                        dnsClient.PreferIPv6 = stubZone._dnsServer.PreferIPv6;
-
-                        DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, [soaQuestion], null, null, null, dnsServer.UdpPayloadSize);
-
-                        soaResponse = await dnsClient.RawResolveAsync(soaRequest);
-                    }
+                    soaResponse = await stubZone._dnsServer.DirectQueryAsync(soaQuestion);
                 }
-                catch (Exception ex)
+                else
                 {
-                    throw new DnsServerException("DNS Server failed to find SOA record for: " + name, ex);
+                    DnsClient dnsClient = new DnsClient(stubZone.PrimaryNameServerAddresses);
+                    List<Task> tasks = new List<Task>(dnsClient.Servers.Count);
+
+                    foreach (NameServerAddress nameServerAddress in dnsClient.Servers)
+                    {
+                        if (nameServerAddress.IsIPEndPointStale)
+                            tasks.Add(nameServerAddress.ResolveIPAddressAsync(stubZone._dnsServer, stubZone._dnsServer.PreferIPv6));
+                    }
+
+                    await Task.WhenAll(tasks);
+
+                    dnsClient.Proxy = stubZone._dnsServer.Proxy;
+                    dnsClient.PreferIPv6 = stubZone._dnsServer.PreferIPv6;
+
+                    DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, [soaQuestion], null, null, null, dnsServer.UdpPayloadSize);
+
+                    soaResponse = await dnsClient.RawResolveAsync(soaRequest);
                 }
 
                 if ((soaResponse.Answer.Count == 0) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA))
@@ -202,7 +198,7 @@ namespace DnsServerCore.Dns.Zones
 
                     if (primaryNameServers.Count == 0)
                     {
-                        _dnsServer.LogManager?.Write("DNS Server could not find primary name server IP addresses for Stub zone: " + ToString());
+                        _dnsServer.LogManager.Write("DNS Server could not find primary name server IP addresses for Stub zone: " + ToString());
 
                         //set timer for retry
                         ResetRefreshTimer(Math.Max(GetZoneSoaRetry(), _dnsServer.AuthZoneManager.MinSoaRetry) * 1000);
@@ -230,7 +226,7 @@ namespace DnsServerCore.Dns.Zones
                 }
                 catch (Exception ex)
                 {
-                    _dnsServer.LogManager?.Write(ex);
+                    _dnsServer.LogManager.Write(ex);
 
                     //set timer for retry
                     ResetRefreshTimer(Math.Max(GetZoneSoaRetry(), _dnsServer.AuthZoneManager.MinSoaRetry) * 1000);
@@ -260,7 +256,7 @@ namespace DnsServerCore.Dns.Zones
         {
             try
             {
-                _dnsServer.LogManager?.Write("DNS Server has started zone refresh for Stub zone: " + ToString());
+                _dnsServer.LogManager.Write("DNS Server has started zone refresh for Stub zone: " + ToString());
 
                 DnsClient client = new DnsClient(nameServers);
 
@@ -275,14 +271,14 @@ namespace DnsServerCore.Dns.Zones
 
                 if (soaResponse.RCODE != DnsResponseCode.NoError)
                 {
-                    _dnsServer.LogManager?.Write("DNS Server received RCODE=" + soaResponse.RCODE.ToString() + " for '" + ToString() + "' Stub zone refresh from: " + soaResponse.Metadata.NameServer.ToString());
+                    _dnsServer.LogManager.Write("DNS Server received RCODE=" + soaResponse.RCODE.ToString() + " for '" + ToString() + "' Stub zone refresh from: " + soaResponse.Metadata.NameServer.ToString());
 
                     return false;
                 }
 
                 if ((soaResponse.Answer.Count < 1) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA) || !_name.Equals(soaResponse.Answer[0].Name, StringComparison.OrdinalIgnoreCase))
                 {
-                    _dnsServer.LogManager?.Write("DNS Server received an empty response for SOA query for '" + ToString() + "' Stub zone refresh from: " + soaResponse.Metadata.NameServer.ToString());
+                    _dnsServer.LogManager.Write("DNS Server received an empty response for SOA query for '" + ToString() + "' Stub zone refresh from: " + soaResponse.Metadata.NameServer.ToString());
 
                     return false;
                 }
@@ -296,7 +292,7 @@ namespace DnsServerCore.Dns.Zones
                 //compare using sequence space arithmetic
                 if (!_resync && !currentSoa.IsZoneUpdateAvailable(receivedSoa))
                 {
-                    _dnsServer.LogManager?.Write("DNS Server successfully checked for '" + ToString() + "' Stub zone update from: " + soaResponse.Metadata.NameServer.ToString());
+                    _dnsServer.LogManager.Write("DNS Server successfully checked for '" + ToString() + "' Stub zone update from: " + soaResponse.Metadata.NameServer.ToString());
 
                     return true;
                 }
@@ -320,14 +316,14 @@ namespace DnsServerCore.Dns.Zones
 
                 if (nsResponse.RCODE != DnsResponseCode.NoError)
                 {
-                    _dnsServer.LogManager?.Write("DNS Server received RCODE=" + nsResponse.RCODE.ToString() + " for '" + ToString() + "' Stub zone refresh from: " + nsResponse.Metadata.NameServer.ToString());
+                    _dnsServer.LogManager.Write("DNS Server received RCODE=" + nsResponse.RCODE.ToString() + " for '" + ToString() + "' Stub zone refresh from: " + nsResponse.Metadata.NameServer.ToString());
 
                     return false;
                 }
 
                 if (nsResponse.Answer.Count < 1)
                 {
-                    _dnsServer.LogManager?.Write("DNS Server received an empty response for NS query for '" + ToString() + "' Stub zone from: " + nsResponse.Metadata.NameServer.ToString());
+                    _dnsServer.LogManager.Write("DNS Server received an empty response for NS query for '" + ToString() + "' Stub zone from: " + nsResponse.Metadata.NameServer.ToString());
 
                     return false;
                 }
@@ -352,27 +348,23 @@ namespace DnsServerCore.Dns.Zones
 
                 _lastModified = DateTime.UtcNow;
 
-                _dnsServer.LogManager?.Write("DNS Server successfully refreshed '" + ToString() + "' Stub zone from: " + nsResponse.Metadata.NameServer.ToString());
+                _dnsServer.LogManager.Write("DNS Server successfully refreshed '" + ToString() + "' Stub zone from: " + nsResponse.Metadata.NameServer.ToString());
 
                 return true;
             }
             catch (Exception ex)
             {
-                LogManager log = _dnsServer.LogManager;
-                if (log != null)
+                string strNameServers = null;
+
+                foreach (NameServerAddress nameServer in nameServers)
                 {
-                    string strNameServers = null;
-
-                    foreach (NameServerAddress nameServer in nameServers)
-                    {
-                        if (strNameServers == null)
-                            strNameServers = nameServer.ToString();
-                        else
-                            strNameServers += ", " + nameServer.ToString();
-                    }
-
-                    log.Write("DNS Server failed to refresh '" + ToString() + "' Stub zone from: " + strNameServers + "\r\n" + ex.ToString());
+                    if (strNameServers == null)
+                        strNameServers = nameServer.ToString();
+                    else
+                        strNameServers += ", " + nameServer.ToString();
                 }
+
+                _dnsServer.LogManager.Write("DNS Server failed to refresh '" + ToString() + "' Stub zone from: " + strNameServers + "\r\n" + ex.ToString());
 
                 return false;
             }
