@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.Auth;
+using DnsServerCore.Cluster;
 using DnsServerCore.Dns;
 using DnsServerCore.Dns.Dnssec;
 using DnsServerCore.Dns.ResourceRecords;
@@ -940,6 +941,7 @@ namespace DnsServerCore
                     case AuthZoneType.Primary:
                     case AuthZoneType.Secondary:
                         jsonWriter.WriteString("dnssecStatus", zoneInfo.ApexZone.DnssecStatus.ToString());
+                        jsonWriter.WriteBoolean("hasDnssecPrivateKeys", (zoneInfo.DnssecPrivateKeys is not null) && (zoneInfo.DnssecPrivateKeys.Count > 0));
                         break;
                 }
 
@@ -984,6 +986,53 @@ namespace DnsServerCore
                         }
                         break;
                 }
+
+                jsonWriter.WriteEndObject();
+            }
+
+            private static void WriteDnssecPrivateKeyAsJson(DnssecPrivateKey dnssecPrivateKey, Utf8JsonWriter jsonWriter)
+            {
+                jsonWriter.WriteStartObject();
+
+                jsonWriter.WriteNumber("keyTag", dnssecPrivateKey.KeyTag);
+                jsonWriter.WriteString("keyType", dnssecPrivateKey.KeyType.ToString());
+
+                switch (dnssecPrivateKey.Algorithm)
+                {
+                    case DnssecAlgorithm.RSAMD5:
+                    case DnssecAlgorithm.RSASHA1:
+                    case DnssecAlgorithm.RSASHA1_NSEC3_SHA1:
+                    case DnssecAlgorithm.RSASHA256:
+                    case DnssecAlgorithm.RSASHA512:
+                        jsonWriter.WriteString("algorithm", dnssecPrivateKey.Algorithm.ToString() + " (" + (dnssecPrivateKey as DnssecRsaPrivateKey).KeySize + " bits)");
+                        break;
+
+                    default:
+                        jsonWriter.WriteString("algorithm", dnssecPrivateKey.Algorithm.ToString());
+                        break;
+                }
+
+                jsonWriter.WriteNumber("algorithmNumber", (byte)dnssecPrivateKey.Algorithm);
+
+                jsonWriter.WriteString("state", dnssecPrivateKey.State.ToString());
+                jsonWriter.WriteString("stateChangedOn", dnssecPrivateKey.StateChangedOn);
+
+                if (dnssecPrivateKey.State == DnssecPrivateKeyState.Published)
+                {
+                    switch (dnssecPrivateKey.KeyType)
+                    {
+                        case DnssecPrivateKeyType.KeySigningKey:
+                            jsonWriter.WriteString("stateReadyBy", dnssecPrivateKey.StateTransitionByWithDelays);
+                            break;
+
+                        case DnssecPrivateKeyType.ZoneSigningKey:
+                            jsonWriter.WriteString("stateActiveBy", dnssecPrivateKey.StateTransitionByWithDelays);
+                            break;
+                    }
+                }
+
+                jsonWriter.WriteBoolean("isRetiring", dnssecPrivateKey.IsRetiring);
+                jsonWriter.WriteNumber("rolloverDays", dnssecPrivateKey.RolloverDays);
 
                 jsonWriter.WriteEndObject();
             }
@@ -1175,7 +1224,7 @@ namespace DnsServerCore
                 }
             }
 
-            private async Task<List<DnsResourceRecord>> ReadRecordsToImportFromAsync(string zoneName, TextReader zoneFile)
+            private async Task<List<DnsResourceRecord>> ReadRecordsToImportFromAsync(string zoneName, AuthZoneType zoneType, string catalogZoneName, bool overwrite, TextReader zoneFile)
             {
                 List<DnsResourceRecord> records = await ZoneFile.ReadZoneFileFromAsync(zoneFile, zoneName, _dnsWebService._zonesApi.DefaultRecordTtl);
                 List<DnsResourceRecord> newRecords = new List<DnsResourceRecord>(records.Count);
@@ -1320,6 +1369,67 @@ namespace DnsServerCore
                     }
                 }
 
+                //validate records
+                if ((zoneType == AuthZoneType.Primary) && _dnsWebService._clusterManager.ClusterInitialized && _dnsWebService._clusterManager.IsClusterCatalogZone(catalogZoneName))
+                {
+                    int nsCount = 0;
+
+                    foreach (DnsResourceRecord newRecord in newRecords)
+                    {
+                        switch (newRecord.Type)
+                        {
+                            case DnsResourceRecordType.NS:
+                                if (zoneName.Equals(newRecord.Name, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    NSRecordInfo recordInfo = newRecord.GetAuthNSRecordInfo();
+
+                                    if (recordInfo.Disabled)
+                                        throw new DnsWebServiceException("Cannot import disabled NS records for Primary zones that are members of the Cluster Catalog zone. These NS records are automatically managed by the Cluster and only their TTL values can be updated.");
+
+                                    if (recordInfo.GlueRecords is not null)
+                                        throw new DnsWebServiceException("Cannot import NS records with glue addresses for Primary zones that are members of the Cluster Catalog zone. These NS records are automatically managed by the Cluster and only their TTL values can be updated.");
+
+                                    string nsDomain = (newRecord.RDATA as DnsNSRecordData).NameServer;
+                                    bool found = false;
+
+                                    foreach (KeyValuePair<int, ClusterNode> clusterNode in _dnsWebService._clusterManager.ClusterNodes)
+                                    {
+                                        if (nsDomain.Equals(clusterNode.Value.Name, StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            found = true;
+                                            break;
+                                        }
+                                    }
+
+                                    if (!found)
+                                        throw new DnsWebServiceException("Cannot import NS records for Primary zones that are members of the Cluster Catalog zone. These NS records are automatically managed by the Cluster and only their TTL values can be updated.");
+                                }
+
+                                nsCount++;
+                                break;
+
+                            case DnsResourceRecordType.SOA:
+                                DnsSOARecordData soa = newRecord.RDATA as DnsSOARecordData;
+
+                                if (!soa.PrimaryNameServer.Equals(_dnsWebService._dnsServer.ServerDomain, StringComparison.OrdinalIgnoreCase))
+                                    throw new DnsWebServiceException("Cannot import SOA record for Primary zones that are members of the Cluster Catalog zone. The SOA primary name server field must match the Cluster Primary node's domain name.");
+
+                                break;
+                        }
+                    }
+
+                    if (overwrite)
+                    {
+                        if ((nsCount > 0) && (nsCount != _dnsWebService._clusterManager.ClusterNodes.Count)) //check attempt to replace NS records
+                            throw new DnsWebServiceException("Cannot import NS records for Primary zones that are members of the Cluster Catalog zone. These NS records are automatically managed by the Cluster and only their TTL values can be updated.");
+                    }
+                    else
+                    {
+                        if (nsCount > 0) //check attempt to add NS records
+                            throw new DnsWebServiceException("Cannot import NS records for Primary zones that are members of the Cluster Catalog zone. These NS records are automatically managed by the Cluster and only their TTL values can be updated.");
+                    }
+                }
+
                 return newRecords;
             }
 
@@ -1421,28 +1531,39 @@ namespace DnsServerCore
                 HttpRequest request = context.Request;
 
                 string zoneName = request.GetQueryOrFormAlt("zone", "domain");
-                if (zoneName.Contains('*'))
-                    throw new DnsWebServiceException("Domain name for a zone cannot contain wildcard character.");
 
                 if (IPAddress.TryParse(zoneName, out IPAddress ipAddress))
                 {
                     zoneName = ipAddress.GetReverseDomain().ToLowerInvariant();
                 }
-                else if (zoneName.Contains('/'))
+                else
                 {
-                    string[] parts = zoneName.Split('/');
-                    if ((parts.Length == 2) && IPAddress.TryParse(parts[0], out ipAddress) && int.TryParse(parts[1], out int subnetMaskWidth))
-                        zoneName = Zone.GetReverseZone(ipAddress, subnetMaskWidth);
-                }
-                else if (zoneName.EndsWith('.'))
-                {
-                    zoneName = zoneName.Substring(0, zoneName.Length - 1);
-                }
+                    if (zoneName.Contains('/'))
+                    {
+                        string[] parts = zoneName.Split('/');
+                        if ((parts.Length == 2) && IPAddress.TryParse(parts[0], out ipAddress) && int.TryParse(parts[1], out int subnetMaskWidth))
+                            zoneName = Zone.GetReverseZone(ipAddress, subnetMaskWidth);
+                    }
+                    else
+                    {
+                        zoneName = zoneName.Trim('.');
+                    }
 
-                if (DnsClient.IsDomainNameUnicode(zoneName))
-                    zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+                    if (zoneName.Contains('*'))
+                        throw new DnsWebServiceException("Domain name for a zone cannot contain wildcard character.");
+
+                    foreach (char invalidChar in Path.GetInvalidFileNameChars())
+                    {
+                        if (zoneName.Contains(invalidChar))
+                            throw new DnsWebServiceException("The zone name contains an invalid character: " + invalidChar);
+                    }
+
+                    if (DnsClient.IsDomainNameUnicode(zoneName))
+                        zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+                }
 
                 AuthZoneType type = request.GetQueryOrFormEnum("type", AuthZoneType.Primary);
+                string catalogZoneName = request.GetQueryOrForm("catalog", null);
 
                 //read records to import, if any
                 List<DnsResourceRecord> importRecords = null;
@@ -1455,7 +1576,7 @@ namespace DnsServerCore
                         {
                             using (TextReader zoneFile = new StreamReader(request.Form.Files[0].OpenReadStream()))
                             {
-                                importRecords = await ReadRecordsToImportFromAsync(zoneName, zoneFile);
+                                importRecords = await ReadRecordsToImportFromAsync(zoneName, type, catalogZoneName, false, zoneFile);
                             }
                         }
 
@@ -1470,7 +1591,6 @@ namespace DnsServerCore
                     case AuthZoneType.Primary:
                         {
                             bool useSoaSerialDateScheme = request.GetQueryOrForm("useSoaSerialDateScheme", bool.Parse, _dnsWebService._dnsServer.AuthZoneManager.UseSoaSerialDateScheme);
-                            string catalogZoneName = request.GetQueryOrForm("catalog", null);
 
                             AuthZoneInfo catalogZoneInfo = null;
 
@@ -1496,7 +1616,12 @@ namespace DnsServerCore
 
                             //add membership for catalog zone
                             if (catalogZoneInfo is not null)
+                            {
                                 _dnsWebService._dnsServer.AuthZoneManager.AddCatalogMemberZone(catalogZoneInfo.Name, zoneInfo);
+
+                                if (_dnsWebService._clusterManager.ClusterInitialized && _dnsWebService._clusterManager.IsClusterCatalogZone(catalogZoneInfo.Name))
+                                    _dnsWebService._clusterManager.UpdateClusterRecordsFor(zoneInfo);
+                            }
 
                             _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Authoritative Primary zone was created: " + zoneInfo.DisplayName);
                         }
@@ -1529,7 +1654,6 @@ namespace DnsServerCore
                     case AuthZoneType.Stub:
                         {
                             string primaryNameServerAddresses = request.GetQueryOrForm("primaryNameServerAddresses", null);
-                            string catalogZoneName = request.GetQueryOrForm("catalog", null);
 
                             AuthZoneInfo catalogZoneInfo = null;
 
@@ -1564,7 +1688,6 @@ namespace DnsServerCore
                     case AuthZoneType.Forwarder:
                         {
                             bool initializeForwarder = request.GetQueryOrForm("initializeForwarder", bool.Parse, true);
-                            string catalogZoneName = request.GetQueryOrForm("catalog", null);
 
                             AuthZoneInfo catalogZoneInfo = null;
 
@@ -1730,7 +1853,7 @@ namespace DnsServerCore
 
                 HttpRequest request = context.Request;
 
-                string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
+                string zoneName = request.GetQueryOrForm("zone").Trim('.');
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
 
@@ -1772,7 +1895,7 @@ namespace DnsServerCore
 
                 using (TextReader zoneFile = textReader)
                 {
-                    records = await ReadRecordsToImportFromAsync(zoneInfo.Name, zoneFile);
+                    records = await ReadRecordsToImportFromAsync(zoneInfo.Name, zoneInfo.Type, zoneInfo.CatalogZoneName, overwrite, zoneFile);
                 }
 
                 _dnsWebService._dnsServer.AuthZoneManager.ImportRecords(zoneInfo.Name, records, overwrite, overwriteSoaSerial);
@@ -1789,7 +1912,7 @@ namespace DnsServerCore
 
                 HttpRequest request = context.Request;
 
-                string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
+                string zoneName = request.GetQueryOrForm("zone").Trim('.');
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
 
@@ -1870,11 +1993,11 @@ namespace DnsServerCore
 
                 HttpRequest request = context.Request;
 
-                string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
+                string zoneName = request.GetQueryOrForm("zone").Trim('.');
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
 
-                string sourceZoneName = request.GetQueryOrForm("sourceZone").TrimEnd('.');
+                string sourceZoneName = request.GetQueryOrForm("sourceZone").Trim('.');
                 if (DnsClient.IsDomainNameUnicode(sourceZoneName))
                     sourceZoneName = DnsClient.ConvertDomainNameToAscii(sourceZoneName);
 
@@ -1914,7 +2037,7 @@ namespace DnsServerCore
 
                 HttpRequest request = context.Request;
 
-                string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
+                string zoneName = request.GetQueryOrForm("zone").Trim('.');
                 AuthZoneType type = request.GetQueryOrFormEnum<AuthZoneType>("type");
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
@@ -1930,7 +2053,10 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
-                _dnsWebService._dnsServer.AuthZoneManager.ConvertZoneType(zoneInfo.Name, type);
+                if ((zoneInfo.Type == AuthZoneType.Primary) && _dnsWebService._clusterManager.ClusterInitialized && _dnsWebService._clusterManager.IsClusterPrimaryZone(zoneInfo.Name))
+                    throw new DnsWebServiceException("Cannot convert the Cluster Primary zone '" + zoneInfo.DisplayName + "'.");
+
+                _dnsWebService._dnsServer.AuthZoneManager.ConvertZoneTypeTo(zoneInfo.Name, type);
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] " + zoneInfo.TypeName + " zone '" + zoneInfo.DisplayName + "' was converted to " + AuthZoneInfo.GetZoneTypeName(type) + " zone sucessfully.");
             }
@@ -1944,7 +2070,7 @@ namespace DnsServerCore
 
                 HttpRequest request = context.Request;
 
-                string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
+                string zoneName = request.GetQueryOrForm("zone").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -2113,7 +2239,7 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
-                string zoneName = context.Request.GetQueryOrForm("zone").TrimEnd('.');
+                string zoneName = context.Request.GetQueryOrForm("zone").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -2133,7 +2259,7 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
-                string zoneName = context.Request.GetQueryOrForm("zone").TrimEnd('.');
+                string zoneName = context.Request.GetQueryOrForm("zone").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -2236,7 +2362,7 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
-                string zoneName = context.Request.GetQueryOrForm("zone").TrimEnd('.');
+                string zoneName = context.Request.GetQueryOrForm("zone").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -2291,51 +2417,7 @@ namespace DnsServerCore
                     });
 
                     foreach (DnssecPrivateKey dnssecPrivateKey in sortedDnssecPrivateKey)
-                    {
-                        jsonWriter.WriteStartObject();
-
-                        jsonWriter.WriteNumber("keyTag", dnssecPrivateKey.KeyTag);
-                        jsonWriter.WriteString("keyType", dnssecPrivateKey.KeyType.ToString());
-
-                        switch (dnssecPrivateKey.Algorithm)
-                        {
-                            case DnssecAlgorithm.RSAMD5:
-                            case DnssecAlgorithm.RSASHA1:
-                            case DnssecAlgorithm.RSASHA1_NSEC3_SHA1:
-                            case DnssecAlgorithm.RSASHA256:
-                            case DnssecAlgorithm.RSASHA512:
-                                jsonWriter.WriteString("algorithm", dnssecPrivateKey.Algorithm.ToString() + " (" + (dnssecPrivateKey as DnssecRsaPrivateKey).KeySize + " bits)");
-                                break;
-
-                            default:
-                                jsonWriter.WriteString("algorithm", dnssecPrivateKey.Algorithm.ToString());
-                                break;
-                        }
-
-                        jsonWriter.WriteNumber("algorithmNumber", (byte)dnssecPrivateKey.Algorithm);
-
-                        jsonWriter.WriteString("state", dnssecPrivateKey.State.ToString());
-                        jsonWriter.WriteString("stateChangedOn", dnssecPrivateKey.StateChangedOn);
-
-                        if (dnssecPrivateKey.State == DnssecPrivateKeyState.Published)
-                        {
-                            switch (dnssecPrivateKey.KeyType)
-                            {
-                                case DnssecPrivateKeyType.KeySigningKey:
-                                    jsonWriter.WriteString("stateReadyBy", dnssecPrivateKey.StateTransitionByWithDelays);
-                                    break;
-
-                                case DnssecPrivateKeyType.ZoneSigningKey:
-                                    jsonWriter.WriteString("stateActiveBy", dnssecPrivateKey.StateTransitionByWithDelays);
-                                    break;
-                            }
-                        }
-
-                        jsonWriter.WriteBoolean("isRetiring", dnssecPrivateKey.IsRetiring);
-                        jsonWriter.WriteNumber("rolloverDays", dnssecPrivateKey.RolloverDays);
-
-                        jsonWriter.WriteEndObject();
-                    }
+                        WriteDnssecPrivateKeyAsJson(dnssecPrivateKey, jsonWriter);
                 }
 
                 jsonWriter.WriteEndArray();
@@ -2348,7 +2430,7 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
-                string zoneName = context.Request.GetQueryOrForm("zone").TrimEnd('.');
+                string zoneName = context.Request.GetQueryOrForm("zone").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -2370,7 +2452,7 @@ namespace DnsServerCore
 
                 HttpRequest request = context.Request;
 
-                string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
+                string zoneName = request.GetQueryOrForm("zone").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -2395,7 +2477,7 @@ namespace DnsServerCore
 
                 HttpRequest request = context.Request;
 
-                string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
+                string zoneName = request.GetQueryOrForm("zone").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -2420,7 +2502,7 @@ namespace DnsServerCore
 
                 HttpRequest request = context.Request;
 
-                string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
+                string zoneName = request.GetQueryOrForm("zone").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -2444,7 +2526,7 @@ namespace DnsServerCore
 
                 HttpRequest request = context.Request;
 
-                string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
+                string zoneName = request.GetQueryOrForm("zone").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -2456,6 +2538,8 @@ namespace DnsServerCore
                 ushort rolloverDays = request.GetQueryOrForm("rolloverDays", ushort.Parse, (ushort)(keyType == DnssecPrivateKeyType.ZoneSigningKey ? 30 : 0));
                 string algorithm = request.GetQueryOrForm("algorithm");
                 string pemPrivateKey = request.GetQueryOrForm("pemPrivateKey", null);
+
+                DnssecPrivateKey privateKey;
 
                 switch (algorithm.ToUpper())
                 {
@@ -2491,11 +2575,11 @@ namespace DnsServerCore
                             {
                                 int keySize = request.GetQueryOrForm("keySize", int.Parse);
 
-                                _dnsWebService._dnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecPrivateKey(zoneName, keyType, dnssecAlgorithm, rolloverDays, keySize);
+                                privateKey = _dnsWebService._dnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecPrivateKey(zoneName, keyType, dnssecAlgorithm, rolloverDays, keySize);
                             }
                             else
                             {
-                                DnssecPrivateKey privateKey = DnssecPrivateKey.Create(dnssecAlgorithm, keyType, pemPrivateKey);
+                                privateKey = DnssecPrivateKey.Create(dnssecAlgorithm, keyType, pemPrivateKey);
                                 privateKey.RolloverDays = rolloverDays;
 
                                 _dnsWebService._dnsServer.AuthZoneManager.AddPrimaryZoneDnssecPrivateKey(zoneName, privateKey);
@@ -2525,11 +2609,11 @@ namespace DnsServerCore
 
                             if (pemPrivateKey is null)
                             {
-                                _dnsWebService._dnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecPrivateKey(zoneName, keyType, dnssecAlgorithm, rolloverDays);
+                                privateKey = _dnsWebService._dnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecPrivateKey(zoneName, keyType, dnssecAlgorithm, rolloverDays);
                             }
                             else
                             {
-                                DnssecPrivateKey privateKey = DnssecPrivateKey.Create(dnssecAlgorithm, keyType, pemPrivateKey);
+                                privateKey = DnssecPrivateKey.Create(dnssecAlgorithm, keyType, pemPrivateKey);
                                 privateKey.RolloverDays = rolloverDays;
 
                                 _dnsWebService._dnsServer.AuthZoneManager.AddPrimaryZoneDnssecPrivateKey(zoneName, privateKey);
@@ -2559,11 +2643,11 @@ namespace DnsServerCore
 
                             if (pemPrivateKey is null)
                             {
-                                _dnsWebService._dnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecPrivateKey(zoneName, keyType, dnssecAlgorithm, rolloverDays);
+                                privateKey = _dnsWebService._dnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecPrivateKey(zoneName, keyType, dnssecAlgorithm, rolloverDays);
                             }
                             else
                             {
-                                DnssecPrivateKey privateKey = DnssecPrivateKey.Create(dnssecAlgorithm, keyType, pemPrivateKey);
+                                privateKey = DnssecPrivateKey.Create(dnssecAlgorithm, keyType, pemPrivateKey);
                                 privateKey.RolloverDays = rolloverDays;
 
                                 _dnsWebService._dnsServer.AuthZoneManager.AddPrimaryZoneDnssecPrivateKey(zoneName, privateKey);
@@ -2574,6 +2658,11 @@ namespace DnsServerCore
                     default:
                         throw new NotSupportedException("Algorithm is not supported: " + algorithm);
                 }
+
+                Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+
+                jsonWriter.WritePropertyName("addedDnssecPrivateKey");
+                WriteDnssecPrivateKeyAsJson(privateKey, jsonWriter);
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DNSSEC private key was generated and added to the primary zone successfully: " + zoneName);
             }
@@ -2587,7 +2676,7 @@ namespace DnsServerCore
 
                 HttpRequest request = context.Request;
 
-                string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
+                string zoneName = request.GetQueryOrForm("zone").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -2598,7 +2687,12 @@ namespace DnsServerCore
                 ushort keyTag = request.GetQueryOrForm("keyTag", ushort.Parse);
                 ushort rolloverDays = request.GetQueryOrForm("rolloverDays", ushort.Parse);
 
-                _dnsWebService._dnsServer.AuthZoneManager.UpdatePrimaryZoneDnssecPrivateKey(zoneName, keyTag, rolloverDays);
+                DnssecPrivateKey privateKey = _dnsWebService._dnsServer.AuthZoneManager.UpdatePrimaryZoneDnssecPrivateKey(zoneName, keyTag, rolloverDays);
+
+                Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+
+                jsonWriter.WritePropertyName("updatedDnssecPrivateKey");
+                WriteDnssecPrivateKeyAsJson(privateKey, jsonWriter);
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Primary zone DNSSEC private key config was updated successfully: " + zoneName);
             }
@@ -2612,7 +2706,7 @@ namespace DnsServerCore
 
                 HttpRequest request = context.Request;
 
-                string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
+                string zoneName = request.GetQueryOrForm("zone").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -2634,7 +2728,7 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
-                string zoneName = context.Request.GetQueryOrForm("zone").TrimEnd('.');
+                string zoneName = context.Request.GetQueryOrForm("zone").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -2656,7 +2750,7 @@ namespace DnsServerCore
 
                 HttpRequest request = context.Request;
 
-                string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
+                string zoneName = request.GetQueryOrForm("zone").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -2680,7 +2774,7 @@ namespace DnsServerCore
 
                 HttpRequest request = context.Request;
 
-                string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
+                string zoneName = request.GetQueryOrForm("zone").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -2702,7 +2796,7 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
-                string zoneName = context.Request.GetQueryOrFormAlt("zone", "domain").TrimEnd('.');
+                string zoneName = context.Request.GetQueryOrFormAlt("zone", "domain").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -2717,8 +2811,23 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
+                switch (zoneInfo.Type)
+                {
+                    case AuthZoneType.Primary:
+                        if (_dnsWebService._clusterManager.ClusterInitialized && _dnsWebService._clusterManager.IsClusterPrimaryZone(zoneInfo.Name))
+                            throw new DnsWebServiceException("Cannot delete the Cluster Primary zone '" + zoneInfo.DisplayName + "'.");
+
+                        break;
+
+                    case AuthZoneType.Catalog:
+                        if (_dnsWebService._clusterManager.ClusterInitialized && _dnsWebService._clusterManager.IsClusterCatalogZone(zoneInfo.Name))
+                            throw new DnsWebServiceException("Cannot delete the Cluster Catalog zone '" + zoneInfo.DisplayName + "'.");
+
+                        break;
+                }
+
                 if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteZone(zoneInfo, true))
-                    throw new DnsWebServiceException("Failed to delete the zone: " + zoneInfo.DisplayName);
+                    throw new DnsWebServiceException("Failed to delete the zone '" + zoneInfo.DisplayName + "': no such zone exists.");
 
                 _dnsWebService._authManager.RemoveAllPermissions(PermissionSection.Zones, zoneInfo.Name);
                 _dnsWebService._authManager.SaveConfigFile();
@@ -2733,7 +2842,7 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
-                string zoneName = context.Request.GetQueryOrFormAlt("zone", "domain").TrimEnd('.');
+                string zoneName = context.Request.GetQueryOrFormAlt("zone", "domain").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -2764,7 +2873,7 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
-                string zoneName = context.Request.GetQueryOrFormAlt("zone", "domain").TrimEnd('.');
+                string zoneName = context.Request.GetQueryOrFormAlt("zone", "domain").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -2778,6 +2887,21 @@ namespace DnsServerCore
 
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
+
+                switch (zoneInfo.Type)
+                {
+                    case AuthZoneType.Primary:
+                        if (_dnsWebService._clusterManager.ClusterInitialized && _dnsWebService._clusterManager.IsClusterPrimaryZone(zoneInfo.Name))
+                            throw new DnsWebServiceException("Cannot disable the Cluster Primary zone '" + zoneInfo.DisplayName + "'.");
+
+                        break;
+
+                    case AuthZoneType.Catalog:
+                        if (_dnsWebService._clusterManager.ClusterInitialized && _dnsWebService._clusterManager.IsClusterCatalogZone(zoneInfo.Name))
+                            throw new DnsWebServiceException("Cannot disable the Cluster Catalog zone '" + zoneInfo.DisplayName + "'.");
+
+                        break;
+                }
 
                 zoneInfo.Disabled = true;
                 _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
@@ -2794,7 +2918,7 @@ namespace DnsServerCore
 
                 HttpRequest request = context.Request;
 
-                string zoneName = request.GetQueryOrFormAlt("zone", "domain").TrimEnd('.');
+                string zoneName = request.GetQueryOrFormAlt("zone", "domain").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -2983,8 +3107,8 @@ namespace DnsServerCore
 
                             if (zoneInfo.ZoneTransferTsigKeyNames is not null)
                             {
-                                foreach (KeyValuePair<string, object> tsigKeyName in zoneInfo.ZoneTransferTsigKeyNames)
-                                    jsonWriter.WriteStringValue(tsigKeyName.Key);
+                                foreach (string tsigKeyName in zoneInfo.ZoneTransferTsigKeyNames)
+                                    jsonWriter.WriteStringValue(tsigKeyName);
                             }
 
                             jsonWriter.WriteEndArray();
@@ -3133,7 +3257,7 @@ namespace DnsServerCore
 
                 HttpRequest request = context.Request;
 
-                string zoneName = request.GetQueryOrFormAlt("zone", "domain").TrimEnd('.');
+                string zoneName = request.GetQueryOrFormAlt("zone", "domain").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -3329,10 +3453,10 @@ namespace DnsServerCore
                             else
                             {
                                 string[] strZoneTransferTsigKeyNamesParts = strZoneTransferTsigKeyNames.Split(_commaSeparator, StringSplitOptions.RemoveEmptyEntries);
-                                Dictionary<string, object> zoneTransferTsigKeyNames = new Dictionary<string, object>(strZoneTransferTsigKeyNamesParts.Length);
+                                HashSet<string> zoneTransferTsigKeyNames = new HashSet<string>(strZoneTransferTsigKeyNamesParts.Length);
 
                                 for (int i = 0; i < strZoneTransferTsigKeyNamesParts.Length; i++)
-                                    zoneTransferTsigKeyNames.Add(strZoneTransferTsigKeyNamesParts[i].TrimEnd('.').ToLowerInvariant(), null);
+                                    zoneTransferTsigKeyNames.Add(strZoneTransferTsigKeyNamesParts[i].Trim('.').ToLowerInvariant());
 
                                 zoneInfo.ZoneTransferTsigKeyNames = zoneTransferTsigKeyNames;
                             }
@@ -3414,8 +3538,8 @@ namespace DnsServerCore
 
                                 for (int i = 0; i < strUpdateSecurityPoliciesParts.Length; i += 3)
                                 {
-                                    string tsigKeyName = strUpdateSecurityPoliciesParts[i].TrimEnd('.').ToLowerInvariant();
-                                    string domain = strUpdateSecurityPoliciesParts[i + 1].TrimEnd('.').ToLowerInvariant();
+                                    string tsigKeyName = strUpdateSecurityPoliciesParts[i].Trim('.').ToLowerInvariant();
+                                    string domain = strUpdateSecurityPoliciesParts[i + 1].Trim('.').ToLowerInvariant();
                                     string strTypes = strUpdateSecurityPoliciesParts[i + 2];
 
                                     if (!domain.Equals(zoneInfo.Name, StringComparison.OrdinalIgnoreCase) && !domain.EndsWith("." + zoneInfo.Name, StringComparison.OrdinalIgnoreCase))
@@ -3474,7 +3598,10 @@ namespace DnsServerCore
                                     if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, catalogZoneInfo.Name, session.User, PermissionFlag.Modify))
                                         throw new DnsWebServiceException("Access was denied to use Catalog zone: " + catalogZoneInfo.Name);
 
-                                    _dnsWebService._dnsServer.AuthZoneManager.AddCatalogMemberZone(catalogZoneName, zoneInfo);
+                                    _dnsWebService._dnsServer.AuthZoneManager.AddCatalogMemberZone(catalogZoneInfo.Name, zoneInfo);
+
+                                    if ((zoneInfo.Type == AuthZoneType.Primary) && _dnsWebService._clusterManager.ClusterInitialized && _dnsWebService._clusterManager.IsClusterCatalogZone(catalogZoneInfo.Name))
+                                        _dnsWebService._clusterManager.UpdateClusterRecordsFor(zoneInfo);
                                 }
                                 else if (!catalogZoneName.Equals(oldCatalogZoneName, StringComparison.OrdinalIgnoreCase))
                                 {
@@ -3486,7 +3613,10 @@ namespace DnsServerCore
                                     if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, catalogZoneInfo.Name, session.User, PermissionFlag.Modify))
                                         throw new DnsWebServiceException("Access was denied to use Catalog zone: " + catalogZoneInfo.Name);
 
-                                    _dnsWebService._dnsServer.AuthZoneManager.ChangeCatalogMemberZoneOwnership(zoneInfo, catalogZoneName);
+                                    _dnsWebService._dnsServer.AuthZoneManager.ChangeCatalogMemberZoneOwnership(zoneInfo, catalogZoneInfo.Name);
+
+                                    if ((zoneInfo.Type == AuthZoneType.Primary) && _dnsWebService._clusterManager.ClusterInitialized && _dnsWebService._clusterManager.IsClusterCatalogZone(catalogZoneInfo.Name))
+                                        _dnsWebService._clusterManager.UpdateClusterRecordsFor(zoneInfo);
                                 }
                             }
                         }
@@ -3509,7 +3639,7 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
-                string zoneName = context.Request.GetQueryOrFormAlt("zone", "domain").TrimEnd('.');
+                string zoneName = context.Request.GetQueryOrFormAlt("zone", "domain").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(zoneName))
                     zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -3542,7 +3672,7 @@ namespace DnsServerCore
             {
                 HttpRequest request = context.Request;
 
-                string domain = request.GetQueryOrForm("domain").TrimEnd('.');
+                string domain = request.GetQueryOrForm("domain").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(domain))
                     domain = DnsClient.ConvertDomainNameToAscii(domain);
@@ -3550,7 +3680,7 @@ namespace DnsServerCore
                 string zoneName = request.QueryOrForm("zone");
                 if (zoneName is not null)
                 {
-                    zoneName = zoneName.TrimEnd('.');
+                    zoneName = zoneName.Trim('.');
 
                     if (DnsClient.IsDomainNameUnicode(zoneName))
                         zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -3637,7 +3767,10 @@ namespace DnsServerCore
 
                     case DnsResourceRecordType.NS:
                         {
-                            string nameServer = request.GetQueryOrFormAlt("nameServer", "value").TrimEnd('.');
+                            if ((zoneInfo.Type == AuthZoneType.Primary) && zoneInfo.Name.Equals(domain, StringComparison.OrdinalIgnoreCase) && _dnsWebService._clusterManager.ClusterInitialized && _dnsWebService._clusterManager.IsClusterCatalogZone(zoneInfo.CatalogZoneName))
+                                throw new DnsWebServiceException("Cannot add NS records for Primary zones that are members of the Cluster Catalog zone. These NS records are automatically managed by the Cluster and only their TTL values can be updated.");
+
+                            string nameServer = request.GetQueryOrFormAlt("nameServer", "value").Trim('.');
                             string glueAddresses = request.GetQueryOrForm("glue", null);
 
                             newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsNSRecordData(nameServer));
@@ -3661,7 +3794,7 @@ namespace DnsServerCore
                                     throw new DnsWebServiceException("Record already exists. Use overwrite option if you wish to overwrite existing record.");
                             }
 
-                            string cname = request.GetQueryOrFormAlt("cname", "value").TrimEnd('.');
+                            string cname = request.GetQueryOrFormAlt("cname", "value").Trim('.');
 
                             if (cname.Equals(domain, StringComparison.OrdinalIgnoreCase))
                                 throw new DnsWebServiceException("CNAME domain name cannot be same as that of the record name.");
@@ -3674,7 +3807,7 @@ namespace DnsServerCore
 
                     case DnsResourceRecordType.PTR:
                         {
-                            string ptrName = request.GetQueryOrFormAlt("ptrName", "value").TrimEnd('.');
+                            string ptrName = request.GetQueryOrFormAlt("ptrName", "value").Trim('.');
 
                             newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsPTRRecordData(ptrName));
                         }
@@ -3683,7 +3816,7 @@ namespace DnsServerCore
                     case DnsResourceRecordType.MX:
                         {
                             ushort preference = request.GetQueryOrForm("preference", ushort.Parse);
-                            string exchange = request.GetQueryOrFormAlt("exchange", "value").TrimEnd('.');
+                            string exchange = request.GetQueryOrFormAlt("exchange", "value").Trim('.');
 
                             newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsMXRecordData(preference, exchange));
                         }
@@ -3700,8 +3833,8 @@ namespace DnsServerCore
 
                     case DnsResourceRecordType.RP:
                         {
-                            string mailbox = request.GetQueryOrForm("mailbox", "").TrimEnd('.');
-                            string txtDomain = request.GetQueryOrForm("txtDomain", "").TrimEnd('.');
+                            string mailbox = request.GetQueryOrForm("mailbox", "").Trim('.');
+                            string txtDomain = request.GetQueryOrForm("txtDomain", "").Trim('.');
 
                             newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsRPRecordData(mailbox, txtDomain));
                         }
@@ -3712,7 +3845,7 @@ namespace DnsServerCore
                             ushort priority = request.GetQueryOrForm("priority", ushort.Parse);
                             ushort weight = request.GetQueryOrForm("weight", ushort.Parse);
                             ushort port = request.GetQueryOrForm("port", ushort.Parse);
-                            string target = request.GetQueryOrFormAlt("target", "value").TrimEnd('.');
+                            string target = request.GetQueryOrFormAlt("target", "value").Trim('.');
 
                             newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSRVRecordData(priority, weight, port, target));
                         }
@@ -3725,7 +3858,7 @@ namespace DnsServerCore
                             string flags = request.GetQueryOrForm("naptrFlags", "");
                             string services = request.GetQueryOrForm("naptrServices", "");
                             string regexp = request.GetQueryOrForm("naptrRegexp", "");
-                            string replacement = request.GetQueryOrForm("naptrReplacement", "").TrimEnd('.');
+                            string replacement = request.GetQueryOrForm("naptrReplacement", "").Trim('.');
 
                             newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsNAPTRRecordData(order, preference, flags, services, regexp, replacement));
                         }
@@ -3740,7 +3873,7 @@ namespace DnsServerCore
                                     throw new DnsWebServiceException("Record already exists. Use overwrite option if you wish to overwrite existing record.");
                             }
 
-                            string dname = request.GetQueryOrFormAlt("dname", "value").TrimEnd('.');
+                            string dname = request.GetQueryOrFormAlt("dname", "value").Trim('.');
 
                             if (dname.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase))
                                 throw new DnsWebServiceException("DNAME domain name cannot be a sub domain of the record name.");
@@ -3790,7 +3923,7 @@ namespace DnsServerCore
                     case DnsResourceRecordType.HTTPS:
                         {
                             ushort svcPriority = request.GetQueryOrForm("svcPriority", ushort.Parse);
-                            string targetName = request.GetQueryOrForm("svcTargetName").TrimEnd('.');
+                            string targetName = request.GetQueryOrForm("svcTargetName").Trim('.');
                             string strSvcParams = request.GetQueryOrForm("svcParams");
                             bool autoIpv4Hint = request.GetQueryOrForm("autoIpv4Hint", bool.Parse, false);
                             bool autoIpv6Hint = request.GetQueryOrForm("autoIpv6Hint", bool.Parse, false);
@@ -3850,7 +3983,7 @@ namespace DnsServerCore
 
                     case DnsResourceRecordType.ANAME:
                         {
-                            string aname = request.GetQueryOrFormAlt("aname", "value").TrimEnd('.');
+                            string aname = request.GetQueryOrFormAlt("aname", "value").Trim('.');
 
                             newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsANAMERecordData(aname));
                         }
@@ -3973,7 +4106,7 @@ namespace DnsServerCore
             {
                 HttpRequest request = context.Request;
 
-                string domain = request.GetQueryOrForm("domain").TrimEnd('.');
+                string domain = request.GetQueryOrForm("domain").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(domain))
                     domain = DnsClient.ConvertDomainNameToAscii(domain);
@@ -3981,7 +4114,7 @@ namespace DnsServerCore
                 string zoneName = request.QueryOrForm("zone");
                 if (zoneName is not null)
                 {
-                    zoneName = zoneName.TrimEnd('.');
+                    zoneName = zoneName.Trim('.');
 
                     if (DnsClient.IsDomainNameUnicode(zoneName))
                         zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -4017,7 +4150,7 @@ namespace DnsServerCore
             {
                 HttpRequest request = context.Request;
 
-                string domain = request.GetQueryOrForm("domain").TrimEnd('.');
+                string domain = request.GetQueryOrForm("domain").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(domain))
                     domain = DnsClient.ConvertDomainNameToAscii(domain);
@@ -4025,7 +4158,7 @@ namespace DnsServerCore
                 string zoneName = request.QueryOrForm("zone");
                 if (zoneName is not null)
                 {
-                    zoneName = zoneName.TrimEnd('.');
+                    zoneName = zoneName.Trim('.');
 
                     if (DnsClient.IsDomainNameUnicode(zoneName))
                         zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -4090,7 +4223,10 @@ namespace DnsServerCore
 
                     case DnsResourceRecordType.NS:
                         {
-                            string nameServer = request.GetQueryOrFormAlt("nameServer", "value").TrimEnd('.');
+                            if ((zoneInfo.Type == AuthZoneType.Primary) && zoneInfo.Name.Equals(domain, StringComparison.OrdinalIgnoreCase) && _dnsWebService._clusterManager.ClusterInitialized && _dnsWebService._clusterManager.IsClusterCatalogZone(zoneInfo.CatalogZoneName))
+                                throw new DnsWebServiceException("Cannot delete NS records for Primary zones that are members of the Cluster Catalog zone. These NS records are automatically managed by the Cluster and only their TTL values can be updated.");
+
+                            string nameServer = request.GetQueryOrFormAlt("nameServer", "value").Trim('.');
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsNSRecordData(nameServer, false)))
                                 throw new DnsWebServiceException("Cannot delete record: no such record exists.");
@@ -4105,7 +4241,7 @@ namespace DnsServerCore
 
                     case DnsResourceRecordType.PTR:
                         {
-                            string ptrName = request.GetQueryOrFormAlt("ptrName", "value").TrimEnd('.');
+                            string ptrName = request.GetQueryOrFormAlt("ptrName", "value").Trim('.');
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsPTRRecordData(ptrName)))
                                 throw new DnsWebServiceException("Cannot delete record: no such record exists.");
@@ -4115,7 +4251,7 @@ namespace DnsServerCore
                     case DnsResourceRecordType.MX:
                         {
                             ushort preference = request.GetQueryOrForm("preference", ushort.Parse);
-                            string exchange = request.GetQueryOrFormAlt("exchange", "value").TrimEnd('.');
+                            string exchange = request.GetQueryOrFormAlt("exchange", "value").Trim('.');
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsMXRecordData(preference, exchange)))
                                 throw new DnsWebServiceException("Cannot delete record: no such record exists.");
@@ -4134,8 +4270,8 @@ namespace DnsServerCore
 
                     case DnsResourceRecordType.RP:
                         {
-                            string mailbox = request.GetQueryOrForm("mailbox", "").TrimEnd('.');
-                            string txtDomain = request.GetQueryOrForm("txtDomain", "").TrimEnd('.');
+                            string mailbox = request.GetQueryOrForm("mailbox", "").Trim('.');
+                            string txtDomain = request.GetQueryOrForm("txtDomain", "").Trim('.');
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsRPRecordData(mailbox, txtDomain)))
                                 throw new DnsWebServiceException("Cannot delete record: no such record exists.");
@@ -4147,7 +4283,7 @@ namespace DnsServerCore
                             ushort priority = request.GetQueryOrForm("priority", ushort.Parse);
                             ushort weight = request.GetQueryOrForm("weight", ushort.Parse);
                             ushort port = request.GetQueryOrForm("port", ushort.Parse);
-                            string target = request.GetQueryOrFormAlt("target", "value").TrimEnd('.');
+                            string target = request.GetQueryOrFormAlt("target", "value").Trim('.');
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSRVRecordData(priority, weight, port, target)))
                                 throw new DnsWebServiceException("Cannot delete record: no such record exists.");
@@ -4161,7 +4297,7 @@ namespace DnsServerCore
                             string flags = request.GetQueryOrForm("naptrFlags", "");
                             string services = request.GetQueryOrForm("naptrServices", "");
                             string regexp = request.GetQueryOrForm("naptrRegexp", "");
-                            string replacement = request.GetQueryOrForm("naptrReplacement", "").TrimEnd('.');
+                            string replacement = request.GetQueryOrForm("naptrReplacement", "").Trim('.');
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsNAPTRRecordData(order, preference, flags, services, regexp, replacement)))
                                 throw new DnsWebServiceException("Cannot delete record: no such record exists.");
@@ -4213,7 +4349,7 @@ namespace DnsServerCore
                     case DnsResourceRecordType.HTTPS:
                         {
                             ushort svcPriority = request.GetQueryOrForm("svcPriority", ushort.Parse);
-                            string targetName = request.GetQueryOrForm("svcTargetName").TrimEnd('.');
+                            string targetName = request.GetQueryOrForm("svcTargetName").Trim('.');
                             string strSvcParams = request.GetQueryOrForm("svcParams");
 
                             Dictionary<DnsSvcParamKey, DnsSvcParamValue> svcParams;
@@ -4265,7 +4401,7 @@ namespace DnsServerCore
 
                     case DnsResourceRecordType.ANAME:
                         {
-                            string aname = request.GetQueryOrFormAlt("aname", "value").TrimEnd('.');
+                            string aname = request.GetQueryOrFormAlt("aname", "value").Trim('.');
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsANAMERecordData(aname)))
                                 throw new DnsWebServiceException("Cannot delete record: no such record exists.");
@@ -4314,7 +4450,7 @@ namespace DnsServerCore
             {
                 HttpRequest request = context.Request;
 
-                string domain = request.GetQueryOrForm("domain").TrimEnd('.');
+                string domain = request.GetQueryOrForm("domain").Trim('.');
 
                 if (DnsClient.IsDomainNameUnicode(domain))
                     domain = DnsClient.ConvertDomainNameToAscii(domain);
@@ -4322,7 +4458,7 @@ namespace DnsServerCore
                 string zoneName = request.QueryOrForm("zone");
                 if (zoneName is not null)
                 {
-                    zoneName = zoneName.TrimEnd('.');
+                    zoneName = zoneName.Trim('.');
 
                     if (DnsClient.IsDomainNameUnicode(zoneName))
                         zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
@@ -4340,7 +4476,7 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
-                string newDomain = request.GetQueryOrForm("newDomain", domain).TrimEnd('.');
+                string newDomain = request.GetQueryOrForm("newDomain", domain).Trim('.');
                 uint ttl = request.GetQueryOrForm("ttl", ZoneFile.ParseTtl, _defaultRecordTtl);
                 bool disable = request.GetQueryOrForm("disable", bool.Parse, false);
                 string comments = request.QueryOrForm("comments");
@@ -4423,8 +4559,8 @@ namespace DnsServerCore
 
                     case DnsResourceRecordType.NS:
                         {
-                            string nameServer = request.GetQueryOrFormAlt("nameServer", "value").TrimEnd('.');
-                            string newNameServer = request.GetQueryOrFormAlt("newNameServer", "newValue", nameServer).TrimEnd('.');
+                            string nameServer = request.GetQueryOrFormAlt("nameServer", "value").Trim('.');
+                            string newNameServer = request.GetQueryOrFormAlt("newNameServer", "newValue", nameServer).Trim('.');
 
                             oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsNSRecordData(nameServer));
                             newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsNSRecordData(newNameServer));
@@ -4436,12 +4572,27 @@ namespace DnsServerCore
 
                                 newRecord.SetGlueRecords(glueAddresses);
                             }
+
+                            if ((zoneInfo.Type == AuthZoneType.Primary) && zoneInfo.Name.Equals(domain, StringComparison.OrdinalIgnoreCase) && _dnsWebService._clusterManager.ClusterInitialized && _dnsWebService._clusterManager.IsClusterCatalogZone(zoneInfo.CatalogZoneName))
+                            {
+                                if (disable)
+                                    throw new DnsWebServiceException("Cannot disable NS records for Primary zones that are members of the Cluster Catalog zone. These NS records are automatically managed by the Cluster and only their TTL values can be updated.");
+
+                                if (expiryTtl > 0)
+                                    throw new DnsWebServiceException("Cannot set automatic expiry TTL for NS records for Primary zones that are members of the Cluster Catalog zone. These NS records are automatically managed by the Cluster and only their TTL values can be updated.");
+
+                                if (!nameServer.Equals(newNameServer, StringComparison.OrdinalIgnoreCase))
+                                    throw new DnsWebServiceException("Cannot update NS records for Primary zones that are members of the Cluster Catalog zone. These NS records are automatically managed by the Cluster and only their TTL values can be updated.");
+
+                                if (!string.IsNullOrEmpty(glueAddresses))
+                                    throw new DnsWebServiceException("Cannot update NS records for Primary zones that are members of the Cluster Catalog zone. These NS records are automatically managed by the Cluster and only their TTL values can be updated.");
+                            }
                         }
                         break;
 
                     case DnsResourceRecordType.CNAME:
                         {
-                            string cname = request.GetQueryOrFormAlt("cname", "value").TrimEnd('.');
+                            string cname = request.GetQueryOrFormAlt("cname", "value").Trim('.');
 
                             if (cname.Equals(newDomain, StringComparison.OrdinalIgnoreCase))
                                 throw new DnsWebServiceException("CNAME domain name cannot be same as that of the record name.");
@@ -4453,13 +4604,19 @@ namespace DnsServerCore
 
                     case DnsResourceRecordType.SOA:
                         {
-                            string primaryNameServer = request.GetQueryOrForm("primaryNameServer").TrimEnd('.');
-                            string responsiblePerson = request.GetQueryOrForm("responsiblePerson").TrimEnd('.');
+                            string primaryNameServer = request.GetQueryOrForm("primaryNameServer").Trim('.');
+                            string responsiblePerson = request.GetQueryOrForm("responsiblePerson").Trim('.');
                             uint serial = request.GetQueryOrForm("serial", uint.Parse);
                             uint refresh = request.GetQueryOrForm("refresh", ZoneFile.ParseTtl);
                             uint retry = request.GetQueryOrForm("retry", ZoneFile.ParseTtl);
                             uint expire = request.GetQueryOrForm("expire", ZoneFile.ParseTtl);
                             uint minimum = request.GetQueryOrForm("minimum", ZoneFile.ParseTtl);
+
+                            if ((zoneInfo.Type == AuthZoneType.Primary) && _dnsWebService._clusterManager.ClusterInitialized && _dnsWebService._clusterManager.IsClusterCatalogZone(zoneInfo.CatalogZoneName))
+                            {
+                                if (!primaryNameServer.Equals(_dnsWebService._dnsServer.ServerDomain, StringComparison.OrdinalIgnoreCase))
+                                    throw new DnsWebServiceException("Cannot update SOA record for Primary zones that are members of the Cluster Catalog zone. The SOA primary name server field must match the Cluster Primary node's domain name.");
+                            }
 
                             newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSOARecordData(primaryNameServer, responsiblePerson, serial, refresh, retry, expire, minimum));
 
@@ -4479,8 +4636,8 @@ namespace DnsServerCore
 
                     case DnsResourceRecordType.PTR:
                         {
-                            string ptrName = request.GetQueryOrFormAlt("ptrName", "value").TrimEnd('.');
-                            string newPtrName = request.GetQueryOrFormAlt("newPtrName", "newValue", ptrName).TrimEnd('.');
+                            string ptrName = request.GetQueryOrFormAlt("ptrName", "value").Trim('.');
+                            string newPtrName = request.GetQueryOrFormAlt("newPtrName", "newValue", ptrName).Trim('.');
 
                             oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsPTRRecordData(ptrName));
                             newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsPTRRecordData(newPtrName));
@@ -4492,8 +4649,8 @@ namespace DnsServerCore
                             ushort preference = request.GetQueryOrForm("preference", ushort.Parse);
                             ushort newPreference = request.GetQueryOrForm("newPreference", ushort.Parse, preference);
 
-                            string exchange = request.GetQueryOrFormAlt("exchange", "value").TrimEnd('.');
-                            string newExchange = request.GetQueryOrFormAlt("newExchange", "newValue", exchange).TrimEnd('.');
+                            string exchange = request.GetQueryOrFormAlt("exchange", "value").Trim('.');
+                            string newExchange = request.GetQueryOrFormAlt("newExchange", "newValue", exchange).Trim('.');
 
                             oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsMXRecordData(preference, exchange));
                             newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsMXRecordData(newPreference, newExchange));
@@ -4515,11 +4672,11 @@ namespace DnsServerCore
 
                     case DnsResourceRecordType.RP:
                         {
-                            string mailbox = request.GetQueryOrForm("mailbox", "").TrimEnd('.');
-                            string newMailbox = request.GetQueryOrForm("newMailbox", mailbox).TrimEnd('.');
+                            string mailbox = request.GetQueryOrForm("mailbox", "").Trim('.');
+                            string newMailbox = request.GetQueryOrForm("newMailbox", mailbox).Trim('.');
 
-                            string txtDomain = request.GetQueryOrForm("txtDomain", "").TrimEnd('.');
-                            string newTxtDomain = request.GetQueryOrForm("newTxtDomain", txtDomain).TrimEnd('.');
+                            string txtDomain = request.GetQueryOrForm("txtDomain", "").Trim('.');
+                            string newTxtDomain = request.GetQueryOrForm("newTxtDomain", txtDomain).Trim('.');
 
                             oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsRPRecordData(mailbox, txtDomain));
                             newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsRPRecordData(newMailbox, newTxtDomain));
@@ -4537,8 +4694,8 @@ namespace DnsServerCore
                             ushort port = request.GetQueryOrForm("port", ushort.Parse);
                             ushort newPort = request.GetQueryOrForm("newPort", ushort.Parse, port);
 
-                            string target = request.GetQueryOrFormAlt("target", "value").TrimEnd('.');
-                            string newTarget = request.GetQueryOrFormAlt("newTarget", "newValue", target).TrimEnd('.');
+                            string target = request.GetQueryOrFormAlt("target", "value").Trim('.');
+                            string newTarget = request.GetQueryOrFormAlt("newTarget", "newValue", target).Trim('.');
 
                             oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsSRVRecordData(priority, weight, port, target));
                             newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsSRVRecordData(newPriority, newWeight, newPort, newTarget));
@@ -4562,8 +4719,8 @@ namespace DnsServerCore
                             string regexp = request.GetQueryOrForm("naptrRegexp", "");
                             string newRegexp = request.GetQueryOrForm("naptrNewRegexp", regexp);
 
-                            string replacement = request.GetQueryOrForm("naptrReplacement", "").TrimEnd('.');
-                            string newReplacement = request.GetQueryOrForm("naptrNewReplacement", replacement).TrimEnd('.');
+                            string replacement = request.GetQueryOrForm("naptrReplacement", "").Trim('.');
+                            string newReplacement = request.GetQueryOrForm("naptrNewReplacement", replacement).Trim('.');
 
                             oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsNAPTRRecordData(order, preference, flags, services, regexp, replacement));
                             newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsNAPTRRecordData(newOrder, newPreference, newFlags, newServices, newRegexp, newReplacement));
@@ -4572,7 +4729,7 @@ namespace DnsServerCore
 
                     case DnsResourceRecordType.DNAME:
                         {
-                            string dname = request.GetQueryOrFormAlt("dname", "value").TrimEnd('.');
+                            string dname = request.GetQueryOrFormAlt("dname", "value").Trim('.');
 
                             if (dname.EndsWith("." + newDomain, StringComparison.OrdinalIgnoreCase))
                                 throw new DnsWebServiceException("DNAME domain name cannot be a sub domain of the record name.");
@@ -4645,8 +4802,8 @@ namespace DnsServerCore
                             ushort svcPriority = request.GetQueryOrForm("svcPriority", ushort.Parse);
                             ushort newSvcPriority = request.GetQueryOrForm("newSvcPriority", ushort.Parse, svcPriority);
 
-                            string targetName = request.GetQueryOrForm("svcTargetName").TrimEnd('.');
-                            string newTargetName = request.GetQueryOrForm("newSvcTargetName", targetName).TrimEnd('.');
+                            string targetName = request.GetQueryOrForm("svcTargetName").Trim('.');
+                            string newTargetName = request.GetQueryOrForm("newSvcTargetName", targetName).Trim('.');
 
                             string strSvcParams = request.GetQueryOrForm("svcParams");
                             string strNewSvcParams = request.GetQueryOrForm("newSvcParams", strSvcParams);
@@ -4742,8 +4899,8 @@ namespace DnsServerCore
 
                     case DnsResourceRecordType.ANAME:
                         {
-                            string aname = request.GetQueryOrFormAlt("aname", "value").TrimEnd('.');
-                            string newAName = request.GetQueryOrFormAlt("newAName", "newValue", aname).TrimEnd('.');
+                            string aname = request.GetQueryOrFormAlt("aname", "value").Trim('.');
+                            string newAName = request.GetQueryOrFormAlt("newAName", "newValue", aname).Trim('.');
 
                             oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsANAMERecordData(aname));
                             newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsANAMERecordData(newAName));
