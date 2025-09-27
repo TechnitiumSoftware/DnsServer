@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ namespace DnsServerCore.Dns.Zones
 
         readonly AuthZoneTransfer _zoneTransfer;
         readonly IReadOnlyCollection<NetworkAccessControl> _zoneTransferNetworkACL;
-        readonly IReadOnlyDictionary<string, object> _zoneTransferTsigKeyNames;
+        readonly IReadOnlySet<string> _zoneTransferTsigKeyNames;
         readonly IReadOnlyList<DnsResourceRecord> _zoneHistory; //for IXFR support
 
         readonly AuthZoneNotify _notify;
@@ -291,10 +291,10 @@ namespace DnsServerCore.Dns.Zones
                                     if (version >= 4)
                                     {
                                         int count = bR.ReadByte();
-                                        Dictionary<string, object> tsigKeyNames = new Dictionary<string, object>(count);
+                                        HashSet<string> tsigKeyNames = new HashSet<string>(count);
 
                                         for (int i = 0; i < count; i++)
-                                            tsigKeyNames.Add(bR.ReadShortString(), null);
+                                            tsigKeyNames.Add(bR.ReadShortString());
 
                                         _zoneTransferTsigKeyNames = tsigKeyNames;
                                     }
@@ -400,10 +400,10 @@ namespace DnsServerCore.Dns.Zones
                                     if (version >= 4)
                                     {
                                         int count = bR.ReadByte();
-                                        Dictionary<string, object> tsigKeyNames = new Dictionary<string, object>(count);
+                                        HashSet<string> tsigKeyNames = new HashSet<string>(count);
 
                                         for (int i = 0; i < count; i++)
-                                            tsigKeyNames.Add(bR.ReadShortString(), null);
+                                            tsigKeyNames.Add(bR.ReadShortString());
 
                                         _zoneTransferTsigKeyNames = tsigKeyNames;
                                     }
@@ -472,6 +472,7 @@ namespace DnsServerCore.Dns.Zones
 
                 case 12:
                 case 13:
+                case 14:
                     {
                         _name = bR.ReadShortString();
                         _type = (AuthZoneType)bR.ReadByte();
@@ -529,6 +530,9 @@ namespace DnsServerCore.Dns.Zones
 
                                 _update = (AuthZoneUpdate)bR.ReadByte();
                                 _updateNetworkACL = ReadNetworkACLFrom(bR);
+
+                                if (version >= 14)
+                                    _dnssecPrivateKeys = ReadDnssecPrivateKeysFrom(bR);
 
                                 _primaryNameServerAddresses = ReadNameServerAddressesFrom(bR);
                                 _primaryZoneTransferProtocol = (DnsTransportProtocol)bR.ReadByte();
@@ -740,6 +744,8 @@ namespace DnsServerCore.Dns.Zones
 
                 _update = _apexZone.Update;
                 _updateNetworkACL = _apexZone.UpdateNetworkACL;
+
+                _dnssecPrivateKeys = secondaryZone.DnssecPrivateKeys;
 
                 _primaryNameServerAddresses = secondaryZone.PrimaryNameServerAddresses;
                 _primaryZoneTransferProtocol = secondaryZone.PrimaryZoneTransferProtocol;
@@ -970,33 +976,29 @@ namespace DnsServerCore.Dns.Zones
             return null;
         }
 
-        #endregion
-
-        #region private
-
-        private static Dictionary<string, object> ReadZoneTransferTsigKeyNamesFrom(BinaryReader bR)
+        private static HashSet<string> ReadZoneTransferTsigKeyNamesFrom(BinaryReader bR)
         {
             int count = bR.ReadByte();
-            Dictionary<string, object> zoneTransferTsigKeyNames = new Dictionary<string, object>(count);
+            HashSet<string> zoneTransferTsigKeyNames = new HashSet<string>(count);
 
             for (int i = 0; i < count; i++)
-                zoneTransferTsigKeyNames.Add(bR.ReadShortString(), null);
+                zoneTransferTsigKeyNames.Add(bR.ReadShortString());
 
             return zoneTransferTsigKeyNames;
         }
 
-        private void WriteZoneTransferTsigKeyNamesTo(BinaryWriter bW)
+        private static void WriteZoneTransferTsigKeyNamesTo(IReadOnlySet<string> zoneTransferTsigKeyNames, BinaryWriter bW)
         {
-            if (_zoneTransferTsigKeyNames is null)
+            if (zoneTransferTsigKeyNames is null)
             {
                 bW.Write((byte)0);
             }
             else
             {
-                bW.Write(Convert.ToByte(_zoneTransferTsigKeyNames.Count));
+                bW.Write(Convert.ToByte(zoneTransferTsigKeyNames.Count));
 
-                foreach (KeyValuePair<string, object> tsigKeyName in _zoneTransferTsigKeyNames)
-                    bW.WriteShortString(tsigKeyName.Key);
+                foreach (string tsigKeyName in zoneTransferTsigKeyNames)
+                    bW.WriteShortString(tsigKeyName);
             }
         }
 
@@ -1016,17 +1018,17 @@ namespace DnsServerCore.Dns.Zones
             return zoneHistory;
         }
 
-        private void WriteZoneHistoryTo(BinaryWriter bW)
+        private static void WriteZoneHistoryTo(IReadOnlyList<DnsResourceRecord> zoneHistory, BinaryWriter bW)
         {
-            if (_zoneHistory is null)
+            if (zoneHistory is null)
             {
                 bW.Write(0);
             }
             else
             {
-                bW.Write(_zoneHistory.Count);
+                bW.Write(zoneHistory.Count);
 
-                foreach (DnsResourceRecord record in _zoneHistory)
+                foreach (DnsResourceRecord record in zoneHistory)
                 {
                     record.WriteTo(bW.BaseStream);
 
@@ -1080,17 +1082,17 @@ namespace DnsServerCore.Dns.Zones
             return updateSecurityPolicies;
         }
 
-        private void WriteUpdateSecurityPoliciesTo(BinaryWriter bW)
+        private static void WriteUpdateSecurityPoliciesTo(IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> updateSecurityPolicies, BinaryWriter bW)
         {
-            if (_updateSecurityPolicies is null)
+            if (updateSecurityPolicies is null)
             {
                 bW.Write(0);
             }
             else
             {
-                bW.Write(_updateSecurityPolicies.Count);
+                bW.Write(updateSecurityPolicies.Count);
 
-                foreach (KeyValuePair<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> updateSecurityPolicy in _updateSecurityPolicies)
+                foreach (KeyValuePair<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> updateSecurityPolicy in updateSecurityPolicies)
                 {
                     bW.WriteShortString(updateSecurityPolicy.Key);
                     bW.Write(Convert.ToByte(updateSecurityPolicy.Value.Count));
@@ -1107,7 +1109,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        private static DnssecPrivateKey[] ReadDnssecPrivateKeysFrom(BinaryReader bR)
+        internal static DnssecPrivateKey[] ReadDnssecPrivateKeysFrom(BinaryReader bR)
         {
             int count = bR.ReadByte();
             if (count < 1)
@@ -1121,17 +1123,17 @@ namespace DnsServerCore.Dns.Zones
             return dnssecPrivateKeys;
         }
 
-        private void WriteDnssecPrivateKeysTo(BinaryWriter bW)
+        internal static void WriteDnssecPrivateKeysTo(IReadOnlyCollection<DnssecPrivateKey> dnssecPrivateKeys, BinaryWriter bW)
         {
-            if (_dnssecPrivateKeys is null)
+            if (dnssecPrivateKeys is null)
             {
                 bW.Write((byte)0);
             }
             else
             {
-                bW.Write(Convert.ToByte(_dnssecPrivateKeys.Count));
+                bW.Write(Convert.ToByte(dnssecPrivateKeys.Count));
 
-                foreach (DnssecPrivateKey dnssecPrivateKey in _dnssecPrivateKeys)
+                foreach (DnssecPrivateKey dnssecPrivateKey in dnssecPrivateKeys)
                     dnssecPrivateKey.WriteTo(bW);
             }
         }
@@ -1189,7 +1191,7 @@ namespace DnsServerCore.Dns.Zones
             if (_apexZone is null)
                 throw new InvalidOperationException();
 
-            bW.Write((byte)13); //version
+            bW.Write((byte)14); //version
 
             bW.WriteShortString(_name);
             bW.Write((byte)_type);
@@ -1209,17 +1211,17 @@ namespace DnsServerCore.Dns.Zones
 
                     bW.Write((byte)_zoneTransfer);
                     WriteNetworkACLTo(_zoneTransferNetworkACL, bW);
-                    WriteZoneTransferTsigKeyNamesTo(bW);
-                    WriteZoneHistoryTo(bW);
+                    WriteZoneTransferTsigKeyNamesTo(_zoneTransferTsigKeyNames, bW);
+                    WriteZoneHistoryTo(_zoneHistory, bW);
 
                     bW.Write((byte)_notify);
                     WriteIPAddressesTo(_notifyNameServers, bW);
 
                     bW.Write((byte)_update);
                     WriteNetworkACLTo(_updateNetworkACL, bW);
-                    WriteUpdateSecurityPoliciesTo(bW);
+                    WriteUpdateSecurityPoliciesTo(_updateSecurityPolicies, bW);
 
-                    WriteDnssecPrivateKeysTo(bW);
+                    WriteDnssecPrivateKeysTo(_dnssecPrivateKeys, bW);
                     break;
 
                 case AuthZoneType.Secondary:
@@ -1233,14 +1235,16 @@ namespace DnsServerCore.Dns.Zones
 
                     bW.Write((byte)_zoneTransfer);
                     WriteNetworkACLTo(_zoneTransferNetworkACL, bW);
-                    WriteZoneTransferTsigKeyNamesTo(bW);
-                    WriteZoneHistoryTo(bW);
+                    WriteZoneTransferTsigKeyNamesTo(_zoneTransferTsigKeyNames, bW);
+                    WriteZoneHistoryTo(_zoneHistory, bW);
 
                     bW.Write((byte)_notify);
                     WriteIPAddressesTo(_notifyNameServers, bW);
 
                     bW.Write((byte)_update);
                     WriteNetworkACLTo(_updateNetworkACL, bW);
+
+                    WriteDnssecPrivateKeysTo(_dnssecPrivateKeys, bW);
 
                     WriteNameServerAddressesTo(_primaryNameServerAddresses, bW);
                     bW.Write((byte)_primaryZoneTransferProtocol);
@@ -1274,15 +1278,15 @@ namespace DnsServerCore.Dns.Zones
 
                     bW.Write((byte)_zoneTransfer);
                     WriteNetworkACLTo(_zoneTransferNetworkACL, bW);
-                    WriteZoneTransferTsigKeyNamesTo(bW);
-                    WriteZoneHistoryTo(bW);
+                    WriteZoneTransferTsigKeyNamesTo(_zoneTransferTsigKeyNames, bW);
+                    WriteZoneHistoryTo(_zoneHistory, bW);
 
                     bW.Write((byte)_notify);
                     WriteIPAddressesTo(_notifyNameServers, bW);
 
                     bW.Write((byte)_update);
                     WriteNetworkACLTo(_updateNetworkACL, bW);
-                    WriteUpdateSecurityPoliciesTo(bW);
+                    WriteUpdateSecurityPoliciesTo(_updateSecurityPolicies, bW);
                     break;
 
                 case AuthZoneType.SecondaryForwarder:
@@ -1308,8 +1312,8 @@ namespace DnsServerCore.Dns.Zones
 
                     bW.Write((byte)_zoneTransfer);
                     WriteNetworkACLTo(_zoneTransferNetworkACL, bW);
-                    WriteZoneTransferTsigKeyNamesTo(bW);
-                    WriteZoneHistoryTo(bW);
+                    WriteZoneTransferTsigKeyNamesTo(_zoneTransferTsigKeyNames, bW);
+                    WriteZoneHistoryTo(_zoneHistory, bW);
 
                     bW.Write((byte)_notify);
                     WriteIPAddressesTo(_notifyNameServers, bW);
@@ -1322,7 +1326,7 @@ namespace DnsServerCore.Dns.Zones
 
                     bW.Write((byte)_zoneTransfer);
                     WriteNetworkACLTo(_zoneTransferNetworkACL, bW);
-                    WriteZoneTransferTsigKeyNamesTo(bW);
+                    WriteZoneTransferTsigKeyNamesTo(_zoneTransferTsigKeyNames, bW);
 
                     WriteNameServerAddressesTo(_primaryNameServerAddresses, bW);
                     bW.Write((byte)_primaryZoneTransferProtocol);
@@ -1581,7 +1585,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public IReadOnlyDictionary<string, object> ZoneTransferTsigKeyNames
+        public IReadOnlySet<string> ZoneTransferTsigKeyNames
         {
             get
             {
@@ -1749,6 +1753,9 @@ namespace DnsServerCore.Dns.Zones
                 {
                     case AuthZoneType.Primary:
                         return (_apexZone as PrimaryZone).DnssecPrivateKeys;
+
+                    case AuthZoneType.Secondary:
+                        return (_apexZone as SecondaryZone).DnssecPrivateKeys;
 
                     default:
                         throw new InvalidOperationException();
