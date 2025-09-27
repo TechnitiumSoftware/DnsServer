@@ -52,6 +52,31 @@ namespace DnsServerCore.Dns
 
         #region private
 
+        private async Task<DnsDatagram> AuthoritativeQueryClosestDelegation(DnsDatagram request)
+        {
+            DnsDatagram authResponse = _dnsServer.AuthZoneManager.QueryClosestDelegation(request);
+
+            DnsDatagram appResponse = await DnsApplicationQueryClosestDelegationAsync(request);
+
+            if ((authResponse is not null) && (authResponse.Authority.Count > 0))
+            {
+                if ((appResponse is not null) && (appResponse.Authority.Count > 0))
+                {
+                    DnsResourceRecord authResponseFirstAuthority = authResponse.FindFirstAuthorityRecord();
+                    DnsResourceRecord appResponseFirstAuthority = appResponse.FindFirstAuthorityRecord();
+
+                    if (appResponseFirstAuthority.Name.Length > authResponseFirstAuthority.Name.Length)
+                        return appResponse;
+                }
+
+                return authResponse;
+            }
+            else
+            {
+                return appResponse;
+            }
+        }
+
         private async Task<DnsDatagram> DnsApplicationQueryClosestDelegationAsync(DnsDatagram request)
         {
             if (_skipDnsAppAuthoritativeRequestHandlers || (_dnsServer.DnsApplicationManager.DnsAuthoritativeRequestHandlers.Count < 1) || (request.Question.Count != 1))
@@ -84,7 +109,7 @@ namespace DnsServerCore.Dns
                     }
                     catch (Exception ex)
                     {
-                        _dnsServer.LogManager?.Write(ex);
+                        _dnsServer.LogManager.Write(ex);
                     }
                 }
 
@@ -134,9 +159,7 @@ namespace DnsServerCore.Dns
 
         protected async Task<DnsDatagram> QueryClosestDelegationAsync(DnsDatagram request)
         {
-            DnsDatagram authResponse = _dnsServer.AuthZoneManager.QueryClosestDelegation(request);
-            if (authResponse is null)
-                authResponse = await DnsApplicationQueryClosestDelegationAsync(request);
+            DnsDatagram authResponse = await AuthoritativeQueryClosestDelegation(request);
 
             DnsDatagram cacheResponse = await _dnsServer.CacheZoneManager.QueryClosestDelegationAsync(request);
 
@@ -165,35 +188,7 @@ namespace DnsServerCore.Dns
 
         public virtual async Task<DnsDatagram> QueryAsync(DnsDatagram request, bool serveStale, bool findClosestNameServers = false, bool resetExpiry = false)
         {
-            DnsDatagram authResponse = _dnsServer.AuthZoneManager.Query(request, true);
-            if (authResponse is not null)
-            {
-                if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || authResponse.IsFirstAuthoritySOA())
-                    return authResponse;
-            }
-            else if (!_skipDnsAppAuthoritativeRequestHandlers)
-            {
-                foreach (IDnsAuthoritativeRequestHandler requestHandler in _dnsServer.DnsApplicationManager.DnsAuthoritativeRequestHandlers)
-                {
-                    try
-                    {
-                        authResponse = await requestHandler.ProcessRequestAsync(request, new IPEndPoint(IPAddress.Any, 0), DnsTransportProtocol.Tcp, true);
-                        if (authResponse is not null)
-                        {
-                            if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || authResponse.IsFirstAuthoritySOA())
-                                return authResponse;
-                        }
-                    }
-                    catch (DnsClientException ex)
-                    {
-                        _dnsServer.ResolverLogManager?.Write(ex);
-                    }
-                    catch (Exception ex)
-                    {
-                        _dnsServer.LogManager?.Write(ex);
-                    }
-                }
-            }
+            DnsDatagram authResponse = await _dnsServer.AuthoritativeQueryAsync(request, DnsTransportProtocol.Tcp, true, _skipDnsAppAuthoritativeRequestHandlers);
 
             DnsDatagram cacheResponse = await _dnsServer.CacheZoneManager.QueryAsync(request, serveStale, findClosestNameServers, resetExpiry);
             if (cacheResponse is not null)
