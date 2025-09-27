@@ -130,7 +130,7 @@ namespace DnsServerCore.Dns.Zones
             string version = GetVersion();
             if ((version is null) || !version.Equals("2", StringComparison.OrdinalIgnoreCase))
             {
-                _dnsServer.LogManager?.Write("Failed to provision Secondary Catalog zone '" + ToString() + "': catalog version not supported.");
+                _dnsServer.LogManager.Write("Failed to provision Secondary Catalog zone '" + ToString() + "': catalog version not supported.");
                 return;
             }
 
@@ -193,7 +193,7 @@ namespace DnsServerCore.Dns.Zones
             string version = GetVersion();
             if ((version is null) || !version.Equals("2", StringComparison.OrdinalIgnoreCase))
             {
-                _dnsServer.LogManager?.Write("Failed to provision Secondary Catalog zone '" + ToString() + "': catalog version not supported.");
+                _dnsServer.LogManager.Write("Failed to provision Secondary Catalog zone '" + ToString() + "': catalog version not supported.");
                 return;
             }
 
@@ -325,7 +325,8 @@ namespace DnsServerCore.Dns.Zones
             }
 
             //add zones
-            List<Task<AuthZoneInfo>> addZoneTasks = new List<Task<AuthZoneInfo>>();
+            //use task pool to limit concurrency and queue tasks for avoiding resolution timeout issues due to processing delays due to too many tasks
+            using TaskPool taskPool = new TaskPool(maximumConcurrencyLevel: Environment.ProcessorCount * _dnsServer.MaxConcurrentResolutionsPerCore, taskScheduler: _dnsServer._resolverTaskScheduler);
 
             foreach (KeyValuePair<string, string> addMember in membersToAdd)
             {
@@ -337,77 +338,105 @@ namespace DnsServerCore.Dns.Zones
                     switch (zoneType)
                     {
                         case AuthZoneType.Primary:
+                            taskPool.TryQueueTask(async delegate (object state)
                             {
                                 //create secondary zone
-                                IReadOnlyList<NameServerAddress> primaryNameServerAddresses;
-                                DnsTransportProtocol primaryZoneTransferProtocol;
-                                string primaryZoneTransferTsigKeyName;
-
-                                IReadOnlyList<Tuple<IPAddress, string>> primaries = GetPrimariesProperty(addMember.Value);
-                                if (primaries.Count == 0)
-                                    primaries = GetPrimariesProperty(_name);
-
-                                if (primaries.Count == 0)
+                                try
                                 {
-                                    primaryNameServerAddresses = PrimaryNameServerAddresses;
-                                    primaryZoneTransferProtocol = PrimaryZoneTransferProtocol;
-                                    primaryZoneTransferTsigKeyName = PrimaryZoneTransferTsigKeyName;
+                                    IReadOnlyList<NameServerAddress> primaryNameServerAddresses;
+                                    DnsTransportProtocol primaryZoneTransferProtocol;
+                                    string primaryZoneTransferTsigKeyName;
+
+                                    List<Tuple<IPAddress, string>> primaries = GetPrimariesProperty(addMember.Value);
+                                    if (primaries.Count == 0)
+                                        primaries = GetPrimariesProperty(_name);
+
+                                    if (primaries.Count == 0)
+                                    {
+                                        primaryNameServerAddresses = PrimaryNameServerAddresses;
+                                        primaryZoneTransferProtocol = PrimaryZoneTransferProtocol;
+                                        primaryZoneTransferTsigKeyName = PrimaryZoneTransferTsigKeyName;
+                                    }
+                                    else
+                                    {
+                                        Tuple<IPAddress, string> primary = primaries[0];
+
+                                        primaryNameServerAddresses = [new NameServerAddress(primary.Item1, DnsTransportProtocol.Tcp)];
+                                        primaryZoneTransferProtocol = DnsTransportProtocol.Tcp;
+                                        primaryZoneTransferTsigKeyName = primary.Item2;
+                                    }
+
+                                    AuthZoneInfo zoneInfo = await _dnsServer.AuthZoneManager.CreateSecondaryZoneAsync(addMember.Key, primaryNameServerAddresses, primaryZoneTransferProtocol, primaryZoneTransferTsigKeyName, false, true);
+
+                                    //set as catalog zone member
+                                    zoneInfo.ApexZone.CatalogZoneName = _name;
+
+                                    //raise event
+                                    ZoneAdded?.Invoke(this, new SecondaryCatalogEventArgs(zoneInfo));
+
+                                    //write log
+                                    _dnsServer.LogManager.Write(zoneInfo.TypeName + " zone '" + zoneInfo.DisplayName + "' was added via Secondary Catalog zone '" + ToString() + "' sucessfully.");
                                 }
-                                else
+                                catch (Exception ex)
                                 {
-                                    Tuple<IPAddress, string> primary = primaries[0];
-
-                                    primaryNameServerAddresses = [new NameServerAddress(primary.Item1, DnsTransportProtocol.Tcp)];
-                                    primaryZoneTransferProtocol = DnsTransportProtocol.Tcp;
-                                    primaryZoneTransferTsigKeyName = primary.Item2;
+                                    _dnsServer.LogManager.Write(ex);
                                 }
-
-                                addZoneTasks.Add(_dnsServer.AuthZoneManager.CreateSecondaryZoneAsync(addMember.Key, primaryNameServerAddresses, primaryZoneTransferProtocol, primaryZoneTransferTsigKeyName, false, true));
-                            }
+                            });
                             break;
 
                         case AuthZoneType.Stub:
+                            taskPool.TryQueueTask(async delegate (object state)
                             {
                                 //create stub zone
-                                IReadOnlyList<NameServerAddress> primaryNameServerAddresses = GetPrimaryAddressesProperty(addMember.Value);
+                                try
+                                {
+                                    IReadOnlyList<NameServerAddress> primaryNameServerAddresses = GetPrimaryAddressesProperty(addMember.Value);
 
-                                addZoneTasks.Add(_dnsServer.AuthZoneManager.CreateStubZoneAsync(addMember.Key, primaryNameServerAddresses, true));
-                            }
+                                    AuthZoneInfo zoneInfo = await _dnsServer.AuthZoneManager.CreateStubZoneAsync(addMember.Key, primaryNameServerAddresses, true);
+
+                                    //set as catalog zone member
+                                    zoneInfo.ApexZone.CatalogZoneName = _name;
+
+                                    //raise event
+                                    ZoneAdded?.Invoke(this, new SecondaryCatalogEventArgs(zoneInfo));
+
+                                    //write log
+                                    _dnsServer.LogManager.Write(zoneInfo.TypeName + " zone '" + zoneInfo.DisplayName + "' was added via Secondary Catalog zone '" + ToString() + "' sucessfully.");
+                                }
+                                catch (Exception ex)
+                                {
+                                    _dnsServer.LogManager.Write(ex);
+                                }
+                            });
                             break;
 
                         case AuthZoneType.Forwarder:
                             {
                                 //create secondary forwarder zone
-                                addZoneTasks.Add(Task.FromResult(_dnsServer.AuthZoneManager.CreateSecondaryForwarderZone(addMember.Key, PrimaryNameServerAddresses, PrimaryZoneTransferProtocol, PrimaryZoneTransferTsigKeyName)));
+                                try
+                                {
+                                    AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.CreateSecondaryForwarderZone(addMember.Key, PrimaryNameServerAddresses, PrimaryZoneTransferProtocol, PrimaryZoneTransferTsigKeyName);
+
+                                    //set as catalog zone member
+                                    zoneInfo.ApexZone.CatalogZoneName = _name;
+
+                                    //raise event
+                                    ZoneAdded?.Invoke(this, new SecondaryCatalogEventArgs(zoneInfo));
+
+                                    //write log
+                                    _dnsServer.LogManager.Write(zoneInfo.TypeName + " zone '" + zoneInfo.DisplayName + "' was added via Secondary Catalog zone '" + ToString() + "' sucessfully.");
+                                }
+                                catch (Exception ex)
+                                {
+                                    _dnsServer.LogManager.Write(ex);
+                                }
                             }
                             break;
                     }
                 }
             }
 
-            await Task.WhenAll(addZoneTasks);
-
-            //finalize add zone tasks
-            foreach (Task<AuthZoneInfo> task in addZoneTasks)
-            {
-                try
-                {
-                    AuthZoneInfo zoneInfo = await task;
-
-                    //set as catalog zone member
-                    zoneInfo.ApexZone.CatalogZoneName = _name;
-
-                    //raise event
-                    ZoneAdded?.Invoke(this, new SecondaryCatalogEventArgs(zoneInfo));
-
-                    //write log
-                    _dnsServer.LogManager?.Write(zoneInfo.TypeName + " zone '" + zoneInfo.DisplayName + "' was added via Secondary Catalog zone '" + ToString() + "' sucessfully.");
-                }
-                catch (Exception ex)
-                {
-                    _dnsServer.LogManager?.Write(ex);
-                }
-            }
+            await taskPool.StopAndWaitForCompletionAsync();
         }
 
         private void UpdateGlobalAllowQueryProperty()
@@ -543,7 +572,7 @@ namespace DnsServerCore.Dns.Zones
                     else if (memberApexZone is SecondaryZone secondaryZone)
                     {
                         //primaries property
-                        IReadOnlyList<Tuple<IPAddress, string>> primaries = GetPrimariesProperty(updatedMemberEntry.Value);
+                        List<Tuple<IPAddress, string>> primaries = GetPrimariesProperty(updatedMemberEntry.Value);
                         if (primaries.Count == 0)
                             primaries = GetPrimariesProperty(_name);
 
@@ -612,7 +641,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 ZoneRemoved?.Invoke(this, new SecondaryCatalogEventArgs(zoneInfo));
 
-                _dnsServer.LogManager?.Write(apexZone.GetZoneTypeName() + " zone '" + apexZone.ToString() + "' was removed via Secondary Catalog zone '" + ToString() + "' sucessfully.");
+                _dnsServer.LogManager.Write(apexZone.GetZoneTypeName() + " zone '" + apexZone.ToString() + "' was removed via Secondary Catalog zone '" + ToString() + "' sucessfully.");
             }
         }
 
@@ -723,15 +752,15 @@ namespace DnsServerCore.Dns.Zones
             return [];
         }
 
-        private Dictionary<string, object> GetZoneTransferTsigKeyNamesProperty(string memberZoneDomain)
+        private HashSet<string> GetZoneTransferTsigKeyNamesProperty(string memberZoneDomain)
         {
             string domain = "transfer-tsig-key-names.ext." + memberZoneDomain;
 
             IReadOnlyList<DnsResourceRecord> records = _dnsServer.AuthZoneManager.GetRecords(_name, domain, DnsResourceRecordType.PTR);
-            Dictionary<string, object> keyNames = new Dictionary<string, object>(records.Count);
+            HashSet<string> keyNames = new HashSet<string>(records.Count);
 
             foreach (DnsResourceRecord record in records)
-                keyNames.TryAdd((record.RDATA as DnsPTRRecordData).Domain.ToLowerInvariant(), null);
+                keyNames.Add((record.RDATA as DnsPTRRecordData).Domain.ToLowerInvariant());
 
             return keyNames;
         }
