@@ -268,6 +268,18 @@ namespace DnsServerCore
                 string webServiceUseSelfSignedTlsCertificate = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_USE_SELF_SIGNED_CERT");
                 if (!string.IsNullOrEmpty(webServiceUseSelfSignedTlsCertificate))
                     _webServiceUseSelfSignedTlsCertificate = bool.Parse(webServiceUseSelfSignedTlsCertificate);
+                
+                string webServiceTlsCertificatePath = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_TLS_CERTIFICATE_PATH");
+                if (!string.IsNullOrEmpty(webServiceTlsCertificatePath))
+                    _webServiceTlsCertificatePath = webServiceTlsCertificatePath;
+
+                string webServiceTlsCertificatePassword = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_TLS_CERTIFICATE_PASSWORD");
+                if (!string.IsNullOrEmpty(webServiceTlsCertificatePassword))
+                    _webServiceTlsCertificatePassword = webServiceTlsCertificatePassword;
+
+                string webServiceHttpToTlsRedirect = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_HTTP_TO_TLS_REDIRECT");
+                if (!string.IsNullOrEmpty(webServiceHttpToTlsRedirect))
+                    _webServiceHttpToTlsRedirect = bool.Parse(webServiceHttpToTlsRedirect);
 
                 SaveConfigFileInternal();
             }
