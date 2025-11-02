@@ -31,7 +31,7 @@ namespace DnsServerCore.HttpApi.Models
         public ushort ConfigRefreshIntervalSeconds { get; set; }
         public ushort ConfigRetryIntervalSeconds { get; set; }
         public DateTime? ConfigLastSynced { get; set; }
-        public List<ClusterNodeInfo>? Nodes { get; set; }
+        public List<ClusterNodeInfo>? ClusterNodes { get; set; }
 
         public class ClusterNodeInfo
         {
@@ -41,7 +41,8 @@ namespace DnsServerCore.HttpApi.Models
             public required string IPAddress { get; set; }
             public required string Type { get; set; }
             public required string State { get; set; }
-            public required DateTime LastSeen { get; set; }
+            public DateTime? UpSince { get; set; }
+            public DateTime? LastSeen { get; set; }
         }
     }
 }
