@@ -50,15 +50,14 @@ namespace DnsServerCore
                 {
                     BinaryReader bR = new BinaryReader(fS);
 
-                    string format = Encoding.ASCII.GetString(bR.ReadBytes(2));
-
-                    if (format == "DS")
+                    if (Encoding.ASCII.GetString(bR.ReadBytes(2)) == "DS")
                     {
                         int version = bR.ReadByte();
 
                         ReadOldConfigFrom(bR, version);
 
-                        _dnsServer.SaveConfigFile();
+                        fS.Dispose();
+                        _dnsServer.SaveConfigFileInternal();
 
                         _log.Write("Old DNS config file was loaded: " + configFile);
                     }
@@ -240,7 +239,7 @@ namespace DnsServerCore
                     DnsClientConnection.IPv6SourceAddresses = null;
                 }
 
-                _zonesApi.DefaultRecordTtl = bR.ReadUInt32();
+                _dnsServer.AuthZoneManager.DefaultRecordTtl = bR.ReadUInt32();
 
                 if (version >= 36)
                 {
@@ -1326,12 +1325,12 @@ namespace DnsServerCore
             if (version >= 23)
             {
                 _dnsServer.AllowTxtBlockingReport = bR.ReadBoolean();
-                _zonesApi.DefaultRecordTtl = bR.ReadUInt32();
+                _dnsServer.AuthZoneManager.DefaultRecordTtl = bR.ReadUInt32();
             }
             else
             {
                 _dnsServer.AllowTxtBlockingReport = true;
-                _zonesApi.DefaultRecordTtl = 3600;
+                _dnsServer.AuthZoneManager.DefaultRecordTtl = 3600;
             }
 
             if (version >= 24)
