@@ -64,7 +64,7 @@ namespace DnsServerCore.Dns.Applications
 
         public Task<DnsDatagram> ResolveAsync(DnsQuestionRecord question, CancellationToken cancellationToken = default)
         {
-            return DirectQueryAsync(question);
+            return DirectQueryAsync(question, cancellationToken: cancellationToken);
         }
 
         public void WriteLog(string message)
