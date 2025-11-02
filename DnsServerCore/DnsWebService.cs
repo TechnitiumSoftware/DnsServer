@@ -86,8 +86,6 @@ namespace DnsServerCore
         readonly WebServiceLogsApi _logsApi;
 
         WebApplication _webService;
-        X509Certificate2Collection _webServiceCertificateCollection;
-        SslServerAuthenticationOptions _webServiceSslServerAuthenticationOptions;
 
         ClusterManager _clusterManager;
         DnsServer _dnsServer;
@@ -103,12 +101,14 @@ namespace DnsServerCore
         bool _webServiceUseSelfSignedTlsCertificate;
         string _webServiceTlsCertificatePath;
         string _webServiceTlsCertificatePassword;
-        DateTime _webServiceTlsCertificateLastModifiedOn;
         string _webServiceRealIpHeader = "X-Real-IP";
 
         Timer _tlsCertificateUpdateTimer;
         const int TLS_CERTIFICATE_UPDATE_TIMER_INITIAL_INTERVAL = 60000;
         const int TLS_CERTIFICATE_UPDATE_TIMER_INTERVAL = 60000;
+
+        DateTime _webServiceCertificateLastModifiedOn;
+        SslServerAuthenticationOptions _webServiceSslServerAuthenticationOptions;
 
         List<string> _configDisabledZones;
 
@@ -235,7 +235,7 @@ namespace DnsServerCore
             {
                 using (FileStream fS = new FileStream(webServiceConfigFile, FileMode.Open, FileAccess.Read))
                 {
-                    ReadConfigFrom(fS, false);
+                    ReadConfigFrom(fS);
                 }
 
                 _log.Write("Web Service config file was loaded: " + webServiceConfigFile);
@@ -279,11 +279,11 @@ namespace DnsServerCore
             }
         }
 
-        public void LoadConfig(Stream s, bool isConfigTransfer)
+        public void LoadConfig(Stream s)
         {
             lock (_saveLock)
             {
-                ReadConfigFrom(s, isConfigTransfer);
+                ReadConfigFrom(s);
 
                 SaveConfigFileInternal();
 
@@ -389,7 +389,7 @@ namespace DnsServerCore
             _authManager.SaveConfigFile();
         }
 
-        private void ReadConfigFrom(Stream s, bool isConfigTransfer)
+        private void ReadConfigFrom(Stream s)
         {
             BinaryReader bR = new BinaryReader(s);
 
@@ -400,13 +400,8 @@ namespace DnsServerCore
             if (version > 1)
                 throw new InvalidDataException("Web Service config version not supported.");
 
-            int webServiceHttpPort = bR.ReadInt32();
-            if (!isConfigTransfer)
-                _webServiceHttpPort = webServiceHttpPort;
-
-            int webServiceTlsPort = bR.ReadInt32();
-            if (!isConfigTransfer)
-                _webServiceTlsPort = webServiceTlsPort;
+            _webServiceHttpPort = bR.ReadInt32();
+            _webServiceTlsPort = bR.ReadInt32();
 
             {
                 IPAddress[] webServiceLocalAddresses;
@@ -426,8 +421,7 @@ namespace DnsServerCore
                     webServiceLocalAddresses = [IPAddress.Any, IPAddress.IPv6Any];
                 }
 
-                if (!isConfigTransfer)
-                    _webServiceLocalAddresses = webServiceLocalAddresses;
+                _webServiceLocalAddresses = webServiceLocalAddresses;
             }
 
             _webServiceEnableTls = bR.ReadBoolean();
@@ -435,43 +429,35 @@ namespace DnsServerCore
             _webServiceHttpToTlsRedirect = bR.ReadBoolean();
             _webServiceUseSelfSignedTlsCertificate = bR.ReadBoolean();
 
-            string webServiceTlsCertificatePath = bR.ReadShortString();
-            string webServiceTlsCertificatePassword = bR.ReadShortString();
+            _webServiceTlsCertificatePath = bR.ReadShortString();
+            _webServiceTlsCertificatePassword = bR.ReadShortString();
 
-            if (!isConfigTransfer)
+            if (_webServiceTlsCertificatePath.Length == 0)
+                _webServiceTlsCertificatePath = null;
+
+            if (_webServiceTlsCertificatePath is null)
             {
-                _webServiceTlsCertificatePath = webServiceTlsCertificatePath;
-                _webServiceTlsCertificatePassword = webServiceTlsCertificatePassword;
+                StopTlsCertificateUpdateTimer();
+            }
+            else
+            {
+                string webServiceTlsCertificateAbsolutePath = ConvertToAbsolutePath(_webServiceTlsCertificatePath);
 
-                if (_webServiceTlsCertificatePath.Length == 0)
-                    _webServiceTlsCertificatePath = null;
-
-                if (_webServiceTlsCertificatePath is null)
+                try
                 {
-                    StopTlsCertificateUpdateTimer();
+                    LoadWebServiceTlsCertificate(webServiceTlsCertificateAbsolutePath, _webServiceTlsCertificatePassword);
                 }
-                else
+                catch (Exception ex)
                 {
-                    string webServiceTlsCertificateAbsolutePath = ConvertToAbsolutePath(_webServiceTlsCertificatePath);
-
-                    try
-                    {
-                        LoadWebServiceTlsCertificate(webServiceTlsCertificateAbsolutePath, _webServiceTlsCertificatePassword);
-                    }
-                    catch (Exception ex)
-                    {
-                        _log.Write("DNS Server encountered an error while loading Web Service TLS certificate: " + webServiceTlsCertificateAbsolutePath + "\r\n" + ex.ToString());
-                    }
-
-                    StartTlsCertificateUpdateTimer();
+                    _log.Write("DNS Server encountered an error while loading Web Service TLS certificate: " + webServiceTlsCertificateAbsolutePath + "\r\n" + ex.ToString());
                 }
+
+                StartTlsCertificateUpdateTimer();
             }
 
             CheckAndLoadSelfSignedCertificate(false, false);
 
             _webServiceRealIpHeader = bR.ReadShortString();
-
-            _zonesApi.DefaultRecordTtl = bR.ReadUInt32();
         }
 
         private void WriteConfigTo(Stream s)
@@ -507,24 +493,22 @@ namespace DnsServerCore
                 bW.WriteShortString(_webServiceTlsCertificatePassword);
 
             bW.WriteShortString(_webServiceRealIpHeader);
-
-            bW.Write(_zonesApi.DefaultRecordTtl);
         }
 
         #endregion
 
         #region backup and restore config
 
-        internal async Task BackupConfigAsync(Stream zipStream, bool authConfig, bool clusterConfig, bool webServiceConfig, bool dnsSettings, bool logSettings, bool zones, bool allowedZones, bool blockedZones, bool blockLists, bool apps, bool scopes, bool stats, bool logs, bool isConfigTransfer = false, DateTime ifModifiedSince = default, IReadOnlyCollection<string> includeZones = null)
+        internal async Task BackupConfigAsync(Stream zipStream, bool authConfig, bool clusterConfig, bool webServiceSettings, bool dnsSettings, bool logSettings, bool zones, bool allowedZones, bool blockedZones, bool blockLists, bool apps, bool scopes, bool stats, bool logs, bool isConfigTransfer = false, DateTime ifModifiedSince = default, IReadOnlyCollection<string> includeZones = null)
         {
             using (ZipArchive backupZip = new ZipArchive(zipStream, ZipArchiveMode.Create, true, Encoding.UTF8))
             {
                 if (authConfig)
                 {
-                    string authSettingsFile = Path.Combine(_configFolder, "auth.config");
+                    string authConfigFile = Path.Combine(_configFolder, "auth.config");
 
-                    if (File.Exists(authSettingsFile) && (File.GetLastWriteTimeUtc(authSettingsFile) > ifModifiedSince))
-                        backupZip.CreateEntryFromFile(authSettingsFile, "auth.config");
+                    if (File.Exists(authConfigFile) && (File.GetLastWriteTimeUtc(authConfigFile) > ifModifiedSince))
+                        backupZip.CreateEntryFromFile(authConfigFile, "auth.config");
                 }
 
                 if (clusterConfig && !isConfigTransfer)
@@ -535,7 +519,7 @@ namespace DnsServerCore
                         backupZip.CreateEntryFromFile(clusterConfigFile, "cluster.config");
                 }
 
-                if (webServiceConfig)
+                if (webServiceSettings && !isConfigTransfer)
                 {
                     string webServiceConfigFile = Path.Combine(_configFolder, "webservice.config");
 
@@ -557,10 +541,10 @@ namespace DnsServerCore
 
                 if (dnsSettings)
                 {
-                    string dnsSettingsFile = Path.Combine(_configFolder, "dns.config");
+                    string dnsConfigFile = Path.Combine(_configFolder, "dns.config");
 
-                    if (File.Exists(dnsSettingsFile) && (File.GetLastWriteTimeUtc(dnsSettingsFile) > ifModifiedSince))
-                        backupZip.CreateEntryFromFile(dnsSettingsFile, "dns.config");
+                    if (File.Exists(dnsConfigFile) && (File.GetLastWriteTimeUtc(dnsConfigFile) > ifModifiedSince))
+                        backupZip.CreateEntryFromFile(dnsConfigFile, "dns.config");
 
                     //backup optional protocols cert
                     if (!isConfigTransfer && !string.IsNullOrEmpty(_dnsServer.DnsTlsCertificatePath))
@@ -575,12 +559,12 @@ namespace DnsServerCore
                     }
                 }
 
-                if (logSettings)
+                if (logSettings && !isConfigTransfer)
                 {
-                    string logSettingsFile = Path.Combine(_configFolder, "log.config");
+                    string logConfigFile = Path.Combine(_configFolder, "log.config");
 
-                    if (File.Exists(logSettingsFile) && (File.GetLastWriteTimeUtc(logSettingsFile) > ifModifiedSince))
-                        backupZip.CreateEntryFromFile(logSettingsFile, "log.config");
+                    if (File.Exists(logConfigFile) && (File.GetLastWriteTimeUtc(logConfigFile) > ifModifiedSince))
+                        backupZip.CreateEntryFromFile(logConfigFile, "log.config");
                 }
 
                 if (zones)
@@ -784,11 +768,11 @@ namespace DnsServerCore
             }
         }
 
-        internal async Task RestoreConfigAsync(Stream zipStream, bool authConfig, bool clusterConfig, bool webServiceConfig, bool dnsSettings, bool logSettings, bool zones, bool allowedZones, bool blockedZones, bool blockLists, bool apps, bool scopes, bool stats, bool logs, bool deleteExistingFiles, UserSession implantSession = null, bool isConfigTransfer = false)
+        internal async Task RestoreConfigAsync(Stream zipStream, bool authConfig, bool clusterConfig, bool webServiceSettings, bool dnsSettings, bool logSettings, bool zones, bool allowedZones, bool blockedZones, bool blockLists, bool apps, bool scopes, bool stats, bool logs, bool deleteExistingFiles, UserSession implantSession = null, bool isConfigTransfer = false)
         {
             using (ZipArchive backupZip = new ZipArchive(zipStream, ZipArchiveMode.Read, false, Encoding.UTF8))
             {
-                if (logSettings)
+                if (logSettings && !isConfigTransfer)
                 {
                     ZipArchiveEntry entry = backupZip.GetEntry("log.config");
                     if (entry is not null)
@@ -796,7 +780,7 @@ namespace DnsServerCore
                         //dynamically load and apply logger config
                         await using (Stream stream = entry.Open())
                         {
-                            _log.LoadConfig(stream, isConfigTransfer);
+                            _log.LoadConfig(stream);
                         }
                     }
                 }
@@ -867,7 +851,7 @@ namespace DnsServerCore
                     }
                 }
 
-                if (!isConfigTransfer && (webServiceConfig || dnsSettings))
+                if ((webServiceSettings || dnsSettings) && !isConfigTransfer)
                 {
                     //extract any certs
                     foreach (ZipArchiveEntry certEntry in backupZip.Entries)
@@ -893,7 +877,7 @@ namespace DnsServerCore
                     }
                 }
 
-                if (webServiceConfig)
+                if (webServiceSettings && !isConfigTransfer)
                 {
                     ZipArchiveEntry entry = backupZip.GetEntry("webservice.config");
                     if (entry is not null)
@@ -901,7 +885,7 @@ namespace DnsServerCore
                         //dynamically load and apply web service config
                         await using (Stream stream = entry.Open())
                         {
-                            LoadConfig(stream, isConfigTransfer);
+                            LoadConfig(stream);
                         }
                     }
                 }
@@ -1249,7 +1233,7 @@ namespace DnsServerCore
                     }
                 }
 
-                if (scopes)
+                if (scopes && !isConfigTransfer)
                 {
                     //stop dhcp server
                     _dhcpServer.Stop();
@@ -1297,7 +1281,7 @@ namespace DnsServerCore
                     }
                 }
 
-                if (stats)
+                if (stats && !isConfigTransfer)
                 {
                     if (deleteExistingFiles)
                     {
@@ -1500,7 +1484,7 @@ namespace DnsServerCore
                     serverOptions.Listen(webServiceLocalAddress, _webServiceHttpPort);
 
                 //https
-                if (!httpOnlyMode && _webServiceEnableTls && (_webServiceCertificateCollection is not null))
+                if (!httpOnlyMode && _webServiceEnableTls && (_webServiceSslServerAuthenticationOptions is not null))
                 {
                     foreach (IPAddress webServiceLocalAddress in _webServiceLocalAddresses)
                     {
@@ -1534,7 +1518,7 @@ namespace DnsServerCore
 
             _webService = builder.Build();
 
-            if (_webServiceHttpToTlsRedirect && !httpOnlyMode && _webServiceEnableTls && (_webServiceCertificateCollection is not null))
+            if (_webServiceHttpToTlsRedirect && !httpOnlyMode && _webServiceEnableTls && (_webServiceSslServerAuthenticationOptions is not null))
                 _webService.Use(WebServiceHttpsRedirectionMiddleware);
 
             _webService.UseDefaultFiles();
@@ -1558,7 +1542,7 @@ namespace DnsServerCore
                 {
                     _log.Write(new IPEndPoint(webServiceLocalAddress, _webServiceHttpPort), "Http", "Web Service was bound successfully.");
 
-                    if (!httpOnlyMode && _webServiceEnableTls && (_webServiceCertificateCollection is not null))
+                    if (!httpOnlyMode && _webServiceEnableTls && (_webServiceSslServerAuthenticationOptions is not null))
                         _log.Write(new IPEndPoint(webServiceLocalAddress, _webServiceTlsPort), "Https", "Web Service was bound successfully.");
                 }
             }
@@ -1570,7 +1554,7 @@ namespace DnsServerCore
                 {
                     _log.Write(new IPEndPoint(webServiceLocalAddress, _webServiceHttpPort), "Http", "Web Service failed to bind.");
 
-                    if (!httpOnlyMode && _webServiceEnableTls && (_webServiceCertificateCollection is not null))
+                    if (!httpOnlyMode && _webServiceEnableTls && (_webServiceSslServerAuthenticationOptions is not null))
                         _log.Write(new IPEndPoint(webServiceLocalAddress, _webServiceTlsPort), "Https", "Web Service failed to bind.");
                 }
 
@@ -1621,7 +1605,7 @@ namespace DnsServerCore
             //user
             _webService.MapGetAndPost("/api/user/session/get", _authApi.GetCurrentSessionDetails);
             _webService.MapGetAndPost("/api/user/session/delete", delegate (HttpContext context) { _authApi.DeleteSession(context, false); });
-            _webService.MapGetAndPost("/api/user/changePassword", _authApi.ChangePassword);
+            _webService.MapGetAndPost("/api/user/changePassword", _authApi.ChangePasswordAsync);
             _webService.MapGetAndPost("/api/user/2fa/init", _authApi.Initialize2FA);
             _webService.MapGetAndPost("/api/user/2fa/enable", _authApi.Enable2FA);
             _webService.MapGetAndPost("/api/user/2fa/disable", _authApi.Disable2FA);
@@ -1709,8 +1693,8 @@ namespace DnsServerCore
             _webService.MapGetAndPost("/api/settings/get", _settingsApi.GetDnsSettings);
             _webService.MapGetAndPost("/api/settings/set", _settingsApi.SetDnsSettingsAsync);
             _webService.MapGetAndPost("/api/settings/getTsigKeyNames", _settingsApi.GetTsigKeyNames);
-            _webService.MapGetAndPost("/api/settings/forceUpdateBlockLists", _settingsApi.ForceUpdateBlockLists);
-            _webService.MapGetAndPost("/api/settings/temporaryDisableBlocking", _settingsApi.TemporaryDisableBlocking);
+            _webService.MapGetAndPost("/api/settings/forceUpdateBlockLists", _settingsApi.ForceUpdateBlockListsAsync);
+            _webService.MapGetAndPost("/api/settings/temporaryDisableBlocking", _settingsApi.TemporaryDisableBlockingAsync);
             _webService.MapGetAndPost("/api/settings/backup", _settingsApi.BackupSettingsAsync);
             _webService.MapPost("/api/settings/restore", _settingsApi.RestoreSettingsAsync);
 
@@ -1769,6 +1753,61 @@ namespace DnsServerCore
             _webService.MapGetAndPost("/api/logs/deleteAll", _logsApi.DeleteAllLogs);
             _webService.MapGetAndPost("/api/logs/query", _logsApi.QueryLogsAsync);
             _webService.MapGetAndPost("/api/logs/export", _logsApi.ExportLogsAsync);
+
+            //fallback
+            _webService.MapFallback("/api/{*path}", delegate (HttpContext context)
+            {
+                //mark api fallback
+                context.Items["apiFallback"] = string.Empty;
+            });
+        }
+
+        private static ClusterNodeType GetClusterNodeTypeForPath(string path)
+        {
+            switch (path)
+            {
+                case "/api/user/createToken":
+                case "/api/user/changePassword":
+                case "/api/user/2fa/init":
+                case "/api/user/2fa/enable":
+                case "/api/user/2fa/disable":
+                case "/api/user/profile/set":
+
+                case "/api/allowed/add":
+                case "/api/allowed/delete":
+                case "/api/allowed/flush":
+                case "/api/allowed/import":
+
+                case "/api/blocked/add":
+                case "/api/blocked/delete":
+                case "/api/blocked/flush":
+                case "/api/blocked/import":
+
+                case "/api/apps/downloadAndInstall":
+                case "/api/apps/downloadAndUpdate":
+                case "/api/apps/install":
+                case "/api/apps/update":
+                case "/api/apps/uninstall":
+                case "/api/apps/config/set":
+
+                case "/api/admin/sessions/createToken":
+                case "/api/admin/users/create":
+                case "/api/admin/users/set":
+                case "/api/admin/users/delete":
+                case "/api/admin/groups/create":
+                case "/api/admin/groups/set":
+                case "/api/admin/groups/delete":
+                    return ClusterNodeType.Primary; //this api can be called only on primary node
+
+                case "/api/user/login":
+                case "/api/user/logout":
+                case "/api/user/session/get":
+                case "/api/user/session/delete":
+                    return ClusterNodeType.Secondary; //this api must be called on current node
+
+                default:
+                    return ClusterNodeType.Unknown; //this api can be called on any specified node
+            }
         }
 
         private Task WebServiceHttpsRedirectionMiddleware(HttpContext context, RequestDelegate next)
@@ -1782,9 +1821,53 @@ namespace DnsServerCore
 
         private async Task WebServiceApiMiddleware(HttpContext context, RequestDelegate next)
         {
+            HttpRequest request = context.Request;
+
+            if (_clusterManager.ClusterInitialized)
+            {
+                ClusterNodeType pathNodeType = GetClusterNodeTypeForPath(request.Path);
+                switch (pathNodeType)
+                {
+                    case ClusterNodeType.Primary:
+                        //this api can be called only on primary node
+                        ClusterNode selfNode = _clusterManager.GetSelfNode();
+                        if (selfNode.Type == ClusterNodeType.Secondary)
+                        {
+                            //proxy to primary node
+                            ClusterNode primaryNode = _clusterManager.GetPrimaryNode();
+                            await primaryNode.ProxyRequest(context);
+                            return;
+                        }
+
+                        break;
+
+                    case ClusterNodeType.Secondary:
+                        //this api must be called on current node
+                        break;
+
+                    default:
+                        //this api can be called on any specified node
+                        string nodeName = request.GetQueryOrForm("node", null);
+                        if (!string.IsNullOrEmpty(nodeName) && (nodeName != "cluster"))
+                        {
+                            if (!_clusterManager.TryGetClusterNode(nodeName, out ClusterNode node))
+                                throw new DnsWebServiceException("No such node exists in the Cluster by name: " + nodeName);
+
+                            if (node.State != ClusterNodeState.Self)
+                            {
+                                //proxy request to the specified cluster node
+                                await node.ProxyRequest(context);
+                                return;
+                            }
+                        }
+
+                        break;
+                }
+            }
+
             bool needsJsonResponseObject;
 
-            switch (context.Request.Path)
+            switch (request.Path)
             {
                 case "/api/user/login":
                 case "/api/user/createToken":
@@ -1821,7 +1904,7 @@ namespace DnsServerCore
                     return;
 
                 default:
-                    if (context.Request.Path.Value.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
+                    if (request.Path.Value.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
                     {
                         if (!TryGetSession(context, out UserSession session))
                             throw new InvalidTokenWebServiceException("Invalid token or session expired.");
@@ -1860,6 +1943,7 @@ namespace DnsServerCore
                     await next(context);
                 }
 
+                jsonWriter.WriteString("server", _dnsServer.ServerDomain);
                 jsonWriter.WriteString("status", "ok");
 
                 jsonWriter.WriteEndObject();
@@ -1869,11 +1953,20 @@ namespace DnsServerCore
 
                 HttpResponse response = context.Response;
 
-                response.StatusCode = StatusCodes.Status200OK;
-                response.ContentType = "application/json; charset=utf-8";
-                response.ContentLength = mS.Length;
+                object apiFallback = context.Items["apiFallback"]; //check api fallback mark
+                if (apiFallback is null)
+                {
+                    response.StatusCode = StatusCodes.Status200OK;
+                    response.ContentType = "application/json; charset=utf-8";
+                    response.ContentLength = mS.Length;
 
-                await mS.CopyToAsync(response.Body);
+                    await mS.CopyToAsync(response.Body);
+                }
+                else
+                {
+                    context.Response.StatusCode = StatusCodes.Status404NotFound;
+                    context.Response.ContentLength = 0;
+                }
             }
         }
 
@@ -1892,6 +1985,8 @@ namespace DnsServerCore
                     await using (Utf8JsonWriter jsonWriter = new Utf8JsonWriter(context.Response.Body))
                     {
                         jsonWriter.WriteStartObject();
+
+                        jsonWriter.WriteString("server", _dnsServer.ServerDomain);
 
                         if (ex is TwoFactorAuthRequiredWebServiceException)
                         {
@@ -1959,12 +2054,12 @@ namespace DnsServerCore
                         {
                             FileInfo fileInfo = new FileInfo(webServiceTlsCertificatePath);
 
-                            if (fileInfo.Exists && (fileInfo.LastWriteTimeUtc != _webServiceTlsCertificateLastModifiedOn))
+                            if (fileInfo.Exists && (fileInfo.LastWriteTimeUtc != _webServiceCertificateLastModifiedOn))
                             {
                                 LoadWebServiceTlsCertificate(webServiceTlsCertificatePath, _webServiceTlsCertificatePassword);
 
                                 if (_clusterManager.ClusterInitialized)
-                                    _clusterManager.UpdateSelfNodeCertificate();
+                                    _clusterManager.UpdateSelfNodeUrlAndCertificate();
                             }
                         }
                         catch (Exception ex)
@@ -2019,9 +2114,6 @@ namespace DnsServerCore
             if (serverCertificate is null)
                 throw new ArgumentException("Web Service TLS certificate file must contain a certificate with private key.");
 
-            _webServiceCertificateCollection = certificateCollection;
-            _webServiceTlsCertificateLastModifiedOn = fileInfo.LastWriteTimeUtc;
-
             List<SslApplicationProtocol> applicationProtocols = new List<SslApplicationProtocol>();
 
             if (_webServiceEnableHttp3)
@@ -2035,15 +2127,16 @@ namespace DnsServerCore
             _webServiceSslServerAuthenticationOptions = new SslServerAuthenticationOptions
             {
                 ApplicationProtocols = applicationProtocols,
-                ServerCertificateContext = SslStreamCertificateContext.Create(serverCertificate, _webServiceCertificateCollection, false)
+                ServerCertificateContext = SslStreamCertificateContext.Create(serverCertificate, certificateCollection, false)
             };
+
+            _webServiceCertificateLastModifiedOn = fileInfo.LastWriteTimeUtc;
 
             _log.Write("Web Service TLS certificate was loaded: " + tlsCertificatePath);
         }
 
         private void RemoveWebServiceTlsCertificate()
         {
-            _webServiceCertificateCollection = null;
             _webServiceSslServerAuthenticationOptions = null;
 
             _webServiceTlsCertificatePath = null;
@@ -2130,7 +2223,7 @@ namespace DnsServerCore
                                 CheckAndLoadSelfSignedCertificate(true, throwException); //force generate new cert
 
                                 if (_clusterManager.ClusterInitialized)
-                                    _clusterManager.UpdateSelfNodeCertificate();
+                                    _clusterManager.UpdateSelfNodeUrlAndCertificate();
                             }
                         }
                     }
@@ -2322,16 +2415,6 @@ namespace DnsServerCore
             }
         }
 
-        public void Start(bool throwIfBindFails = false)
-        {
-            StartAsync(throwIfBindFails).Sync();
-        }
-
-        public void Stop()
-        {
-            StopAsync().Sync();
-        }
-
         #endregion
 
         #region properties
@@ -2339,11 +2422,11 @@ namespace DnsServerCore
         public DnsServer DnsServer
         { get { return _dnsServer; } }
 
+        public DateTime UpTimeStamp
+        { get { return _uptimestamp; } }
+
         public string ConfigFolder
         { get { return _configFolder; } }
-
-        public uint DefaultRecordTtl
-        { get { return _zonesApi.DefaultRecordTtl; } }
 
         public int WebServiceHttpPort
         { get { return _webServiceHttpPort; } }
