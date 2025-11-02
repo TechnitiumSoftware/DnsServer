@@ -18,6 +18,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.HttpApi.Models;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Primitives;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -26,6 +28,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -59,11 +62,11 @@ namespace DnsServerCore.HttpApi
             _serializerOptions.PropertyNameCaseInsensitive = true;
         }
 
-        public HttpApiClient(string serverUrl, NetProxy? proxy = null, bool preferIPv6 = false, bool ignoreCertErrors = false, IDnsClient? dnsClient = null)
-            : this(new Uri(serverUrl), proxy, preferIPv6, ignoreCertErrors, dnsClient)
+        public HttpApiClient(string serverUrl, NetProxy? proxy = null, bool preferIPv6 = false, bool ignoreCertificateErrors = false, IDnsClient? dnsClient = null)
+            : this(new Uri(serverUrl), proxy, preferIPv6, ignoreCertificateErrors, dnsClient)
         { }
 
-        public HttpApiClient(Uri serverUrl, NetProxy? proxy = null, bool preferIPv6 = false, bool ignoreCertErrors = false, IDnsClient? dnsClient = null)
+        public HttpApiClient(Uri serverUrl, NetProxy? proxy = null, bool preferIPv6 = false, bool ignoreCertificateErrors = false, IDnsClient? dnsClient = null)
         {
             _serverUrl = serverUrl;
 
@@ -72,7 +75,7 @@ namespace DnsServerCore.HttpApi
             handler.NetworkType = preferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default;
             handler.DnsClient = dnsClient;
 
-            if (ignoreCertErrors)
+            if (ignoreCertificateErrors)
             {
                 handler.InnerHandler.SslOptions.RemoteCertificateValidationCallback = delegate (object sender, X509Certificate? certificate, X509Chain? chain, SslPolicyErrors sslPolicyErrors)
                 {
@@ -215,6 +218,115 @@ namespace DnsServerCore.HttpApi
 
             _token = token;
             _loggedIn = true;
+        }
+
+        public async Task<DashboardStats> GetDashboardStatsAsync(DashboardStatsType type = DashboardStatsType.LastHour, bool utcFormat = false, string acceptLanguage = "en-US,en;q=0.5", DateTime startDate = default, DateTime endDate = default, CancellationToken cancellationToken = default)
+        {
+            if (!_loggedIn)
+                throw new HttpApiClientException("No active session exists. Please login and try again.");
+
+            string path = $"api/dashboard/stats/get?token={_token}&type={type}&utc={utcFormat}";
+
+            if (type == DashboardStatsType.Custom)
+                path += $"&start={startDate:O}&end={endDate:O}";
+
+            HttpRequestMessage httpRequest = new HttpRequestMessage(HttpMethod.Get, new Uri(_serverUrl, path));
+            httpRequest.Headers.Add("Accept-Language", acceptLanguage);
+
+            HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest, cancellationToken);
+
+            using JsonDocument jsonDoc = await JsonDocument.ParseAsync(httpResponse.Content.ReadAsStream(cancellationToken), cancellationToken: cancellationToken);
+            JsonElement rootElement = jsonDoc.RootElement;
+
+            CheckResponseStatus(rootElement);
+
+            DashboardStats? stats = rootElement.GetProperty("response").Deserialize<DashboardStats>(_serializerOptions);
+            if (stats is null)
+                throw new HttpApiClientException("Invalid JSON response was received.");
+
+            return stats;
+        }
+
+        public async Task<DashboardStats> GetDashboardTopStatsAsync(DashboardTopStatsType statsType, int limit = 1000, DashboardStatsType type = DashboardStatsType.LastHour, DateTime startDate = default, DateTime endDate = default, CancellationToken cancellationToken = default)
+        {
+            if (!_loggedIn)
+                throw new HttpApiClientException("No active session exists. Please login and try again.");
+
+            string path = $"api/dashboard/stats/getTop?token={_token}&type={type}&statsType={statsType}&limit={limit}";
+
+            if (type == DashboardStatsType.Custom)
+                path += $"&start={startDate:O}&end={endDate:O}";
+
+            HttpRequestMessage httpRequest = new HttpRequestMessage(HttpMethod.Get, new Uri(_serverUrl, path));
+
+            HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest, cancellationToken);
+
+            using JsonDocument jsonDoc = await JsonDocument.ParseAsync(httpResponse.Content.ReadAsStream(cancellationToken), cancellationToken: cancellationToken);
+            JsonElement rootElement = jsonDoc.RootElement;
+
+            CheckResponseStatus(rootElement);
+
+            DashboardStats? stats = rootElement.GetProperty("response").Deserialize<DashboardStats>(_serializerOptions);
+            if (stats is null)
+                throw new HttpApiClientException("Invalid JSON response was received.");
+
+            return stats;
+        }
+
+        public async Task SetClusterSettingsAsync(IReadOnlyDictionary<string, string> clusterParameters, CancellationToken cancellationToken = default)
+        {
+            if (!_loggedIn)
+                throw new HttpApiClientException("No active session exists. Please login and try again.");
+
+            if (clusterParameters.Count == 0)
+                throw new ArgumentException("At least one parameter must be provided.", nameof(clusterParameters));
+
+            foreach (KeyValuePair<string, string> parameter in clusterParameters)
+            {
+                switch (parameter.Key)
+                {
+                    case "token":
+                    case "node":
+                        throw new ArgumentException($"The '{parameter.Key}' is an invalid Settings parameter.", nameof(clusterParameters));
+                }
+            }
+
+            HttpRequestMessage httpRequest = new HttpRequestMessage(HttpMethod.Post, new Uri(_serverUrl, $"api/settings/set?token={_token}"));
+
+            httpRequest.Content = new FormUrlEncodedContent(clusterParameters);
+
+            HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest, cancellationToken);
+
+            using JsonDocument jsonDoc = await JsonDocument.ParseAsync(httpResponse.Content.ReadAsStream(cancellationToken), cancellationToken: cancellationToken);
+            JsonElement rootElement = jsonDoc.RootElement;
+
+            CheckResponseStatus(rootElement);
+        }
+
+        public async Task ForceUpdateBlockListsAsync(CancellationToken cancellationToken = default)
+        {
+            if (!_loggedIn)
+                throw new HttpApiClientException("No active session exists. Please login and try again.");
+
+            Stream stream = await _httpClient.GetStreamAsync($"api/settings/forceUpdateBlockLists?token={_token}", cancellationToken);
+
+            using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+            JsonElement rootElement = jsonDoc.RootElement;
+
+            CheckResponseStatus(rootElement);
+        }
+
+        public async Task TemporaryDisableBlockingAsync(int minutes, CancellationToken cancellationToken = default)
+        {
+            if (!_loggedIn)
+                throw new HttpApiClientException("No active session exists. Please login and try again.");
+         
+            Stream stream = await _httpClient.GetStreamAsync($"api/settings/temporaryDisableBlocking?token={_token}&minutes={minutes}", cancellationToken);
+            
+            using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+            JsonElement rootElement = jsonDoc.RootElement;
+            
+            CheckResponseStatus(rootElement);
         }
 
         public async Task<ClusterInfo> GetClusterStateAsync(bool includeServerIpAddresses = false, bool includeNodeCertificates = false, CancellationToken cancellationToken = default)
@@ -368,6 +480,127 @@ namespace DnsServerCore.HttpApi
             JsonElement rootElement = jsonDoc.RootElement;
 
             CheckResponseStatus(rootElement);
+        }
+
+        public async Task ProxyRequest(HttpContext context, CancellationToken cancellationToken = default)
+        {
+            if (!_loggedIn)
+                throw new HttpApiClientException("No active session exists. Please login and try again.");
+
+            //read input http request and send http response to node
+            HttpRequest inHttpRequest = context.Request;
+
+            StringBuilder queryString = new StringBuilder();
+
+            foreach (KeyValuePair<string, StringValues> query in inHttpRequest.Query)
+            {
+                string key = query.Key;
+                string value = query.Value.ToString();
+
+                switch (key)
+                {
+                    case "token":
+                        //use http client token
+                        value = _token!;
+                        break;
+
+                    case "node":
+                        //skip node name
+                        continue;
+                }
+
+                if (queryString.Length == 0)
+                    queryString.Append('?').Append(key).Append('=').Append(HttpUtility.UrlEncode(value));
+                else
+                    queryString.Append('&').Append(key).Append('=').Append(HttpUtility.UrlEncode(value));
+            }
+
+            HttpRequestMessage httpRequest = new HttpRequestMessage(new HttpMethod(inHttpRequest.Method), new Uri(_serverUrl, inHttpRequest.Path + queryString.ToString()));
+
+            if (inHttpRequest.HasFormContentType)
+            {
+                if (inHttpRequest.Form.Keys.Count > 0)
+                {
+                    Dictionary<string, string> formParams = new Dictionary<string, string>(inHttpRequest.Form.Count);
+
+                    foreach (KeyValuePair<string, StringValues> formParam in inHttpRequest.Form)
+                    {
+                        string key = formParam.Key;
+                        string value = formParam.Value.ToString();
+
+                        switch (key)
+                        {
+                            case "token":
+                                //use http client token
+                                value = _token!;
+                                break;
+
+                            case "node":
+                                //skip node name
+                                continue;
+                        }
+
+                        formParams[key] = value;
+                    }
+
+                    httpRequest.Content = new FormUrlEncodedContent(formParams);
+                }
+                else if (inHttpRequest.Form.Files.Count > 0)
+                {
+                    MultipartFormDataContent formData = new MultipartFormDataContent();
+
+                    foreach (IFormFile file in inHttpRequest.Form.Files)
+                        formData.Add(new StreamContent(file.OpenReadStream()), file.Name, file.FileName);
+
+                    httpRequest.Content = formData;
+                }
+                else
+                {
+                    throw new InvalidOperationException();
+                }
+            }
+            else
+            {
+                httpRequest.Content = new StreamContent(inHttpRequest.Body);
+            }
+
+            foreach (KeyValuePair<string, StringValues> inHeader in inHttpRequest.Headers)
+            {
+                if (!httpRequest.Headers.TryAddWithoutValidation(inHeader.Key, inHeader.Value.ToString()))
+                {
+                    if (!inHttpRequest.HasFormContentType)
+                    {
+                        //add content headers only when there is no form data
+                        if (!httpRequest.Content.Headers.TryAddWithoutValidation(inHeader.Key, inHeader.Value.ToString()))
+                            throw new InvalidOperationException();
+                    }
+                }
+            }
+
+            HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest, cancellationToken);
+
+            //receive http response and write to output http response
+            HttpResponse outHttpResponse = context.Response;
+
+            foreach (KeyValuePair<string, IEnumerable<string>> header in httpResponse.Headers)
+            {
+                if (header.Key.Equals("transfer-encoding", StringComparison.OrdinalIgnoreCase) && (httpResponse.Headers.TransferEncodingChunked == true))
+                    continue; //skip chunked header to allow kestrel to do the chunking
+
+                if (!outHttpResponse.Headers.TryAdd(header.Key, header.Value.Join()))
+                    throw new InvalidOperationException();
+            }
+
+            foreach (KeyValuePair<string, IEnumerable<string>> header in httpResponse.Content.Headers)
+            {
+                if (header.Key.Equals("content-length", StringComparison.OrdinalIgnoreCase) && (httpResponse.Headers.TransferEncodingChunked == true))
+                    continue; //skip content length when data is chunked
+
+                if (!outHttpResponse.Headers.TryAdd(header.Key, header.Value.Join()))
+                    throw new InvalidOperationException();
+            }
+
+            await httpResponse.Content.CopyToAsync(outHttpResponse.Body, cancellationToken);
         }
 
         #endregion
