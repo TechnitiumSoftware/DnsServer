@@ -461,65 +461,72 @@ namespace AdvancedBlocking
                 _dnsServer.WriteLog("Advanced Blocking app loaded all zones successfully for group: " + group.Key);
             }
 
-            _ = Task.Run(async delegate ()
+            ThreadPool.QueueUserWorkItem(async delegate (object state)
             {
-                List<Task> loadTasks = new List<Task>();
-
-                foreach (KeyValuePair<Uri, BlockList> allAllowListZone in _allAllowListZones)
-                    loadTasks.Add(allAllowListZone.Value.LoadAsync());
-
-                foreach (KeyValuePair<Uri, BlockList> allBlockListZone in _allBlockListZones)
-                    loadTasks.Add(allBlockListZone.Value.LoadAsync());
-
-                foreach (KeyValuePair<Uri, RegexList> allRegexAllowListZone in _allRegexAllowListZones)
-                    loadTasks.Add(allRegexAllowListZone.Value.LoadAsync());
-
-                foreach (KeyValuePair<Uri, RegexList> allRegexBlockListZone in _allRegexBlockListZones)
-                    loadTasks.Add(allRegexBlockListZone.Value.LoadAsync());
-
-                foreach (KeyValuePair<Uri, AdBlockList> allAdBlockListZone in _allAdBlockListZones)
-                    loadTasks.Add(allAdBlockListZone.Value.LoadAsync());
-
-                await Task.WhenAll(loadTasks);
-
-                if (_blockListUrlUpdateTimer is null)
+                try
                 {
-                    DateTime latest = DateTime.MinValue;
+                    List<Task> loadTasks = new List<Task>();
 
                     foreach (KeyValuePair<Uri, BlockList> allAllowListZone in _allAllowListZones)
-                    {
-                        if (allAllowListZone.Value.LastModified > latest)
-                            latest = allAllowListZone.Value.LastModified;
-                    }
+                        loadTasks.Add(allAllowListZone.Value.LoadAsync());
 
                     foreach (KeyValuePair<Uri, BlockList> allBlockListZone in _allBlockListZones)
-                    {
-                        if (allBlockListZone.Value.LastModified > latest)
-                            latest = allBlockListZone.Value.LastModified;
-                    }
+                        loadTasks.Add(allBlockListZone.Value.LoadAsync());
 
                     foreach (KeyValuePair<Uri, RegexList> allRegexAllowListZone in _allRegexAllowListZones)
-                    {
-                        if (allRegexAllowListZone.Value.LastModified > latest)
-                            latest = allRegexAllowListZone.Value.LastModified;
-                    }
+                        loadTasks.Add(allRegexAllowListZone.Value.LoadAsync());
 
                     foreach (KeyValuePair<Uri, RegexList> allRegexBlockListZone in _allRegexBlockListZones)
-                    {
-                        if (allRegexBlockListZone.Value.LastModified > latest)
-                            latest = allRegexBlockListZone.Value.LastModified;
-                    }
+                        loadTasks.Add(allRegexBlockListZone.Value.LoadAsync());
 
                     foreach (KeyValuePair<Uri, AdBlockList> allAdBlockListZone in _allAdBlockListZones)
+                        loadTasks.Add(allAdBlockListZone.Value.LoadAsync());
+
+                    await Task.WhenAll(loadTasks);
+
+                    if (_blockListUrlUpdateTimer is null)
                     {
-                        if (allAdBlockListZone.Value.LastModified > latest)
-                            latest = allAdBlockListZone.Value.LastModified;
+                        DateTime latest = DateTime.MinValue;
+
+                        foreach (KeyValuePair<Uri, BlockList> allAllowListZone in _allAllowListZones)
+                        {
+                            if (allAllowListZone.Value.LastModified > latest)
+                                latest = allAllowListZone.Value.LastModified;
+                        }
+
+                        foreach (KeyValuePair<Uri, BlockList> allBlockListZone in _allBlockListZones)
+                        {
+                            if (allBlockListZone.Value.LastModified > latest)
+                                latest = allBlockListZone.Value.LastModified;
+                        }
+
+                        foreach (KeyValuePair<Uri, RegexList> allRegexAllowListZone in _allRegexAllowListZones)
+                        {
+                            if (allRegexAllowListZone.Value.LastModified > latest)
+                                latest = allRegexAllowListZone.Value.LastModified;
+                        }
+
+                        foreach (KeyValuePair<Uri, RegexList> allRegexBlockListZone in _allRegexBlockListZones)
+                        {
+                            if (allRegexBlockListZone.Value.LastModified > latest)
+                                latest = allRegexBlockListZone.Value.LastModified;
+                        }
+
+                        foreach (KeyValuePair<Uri, AdBlockList> allAdBlockListZone in _allAdBlockListZones)
+                        {
+                            if (allAdBlockListZone.Value.LastModified > latest)
+                                latest = allAdBlockListZone.Value.LastModified;
+                        }
+
+                        _blockListUrlLastUpdatedOn = latest;
+
+                        _blockListUrlUpdateTimer = new Timer(BlockListUrlUpdateTimerCallbackAsync, null, Timeout.Infinite, Timeout.Infinite);
+                        _blockListUrlUpdateTimer.Change(BLOCK_LIST_UPDATE_TIMER_INTERVAL, BLOCK_LIST_UPDATE_TIMER_INTERVAL);
                     }
-
-                    _blockListUrlLastUpdatedOn = latest;
-
-                    _blockListUrlUpdateTimer = new Timer(BlockListUrlUpdateTimerCallbackAsync, null, Timeout.Infinite, Timeout.Infinite);
-                    _blockListUrlUpdateTimer.Change(BLOCK_LIST_UPDATE_TIMER_INTERVAL, BLOCK_LIST_UPDATE_TIMER_INTERVAL);
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer?.WriteLog(ex);
                 }
             });
 
