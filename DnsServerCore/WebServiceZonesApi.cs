@@ -52,8 +52,6 @@ namespace DnsServerCore
 
             readonly DnsWebService _dnsWebService;
 
-            uint _defaultRecordTtl = 3600;
-
             #endregion
 
             #region constructor
@@ -1226,7 +1224,7 @@ namespace DnsServerCore
 
             private async Task<List<DnsResourceRecord>> ReadRecordsToImportFromAsync(string zoneName, AuthZoneType zoneType, string catalogZoneName, bool overwrite, TextReader zoneFile)
             {
-                List<DnsResourceRecord> records = await ZoneFile.ReadZoneFileFromAsync(zoneFile, zoneName, _dnsWebService._zonesApi.DefaultRecordTtl);
+                List<DnsResourceRecord> records = await ZoneFile.ReadZoneFileFromAsync(zoneFile, zoneName, _dnsWebService._dnsServer.AuthZoneManager.DefaultRecordTtl);
                 List<DnsResourceRecord> newRecords = new List<DnsResourceRecord>(records.Count);
 
                 foreach (DnsResourceRecord record in records)
@@ -2833,6 +2831,9 @@ namespace DnsServerCore
                 _dnsWebService._authManager.SaveConfigFile();
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] " + zoneInfo.TypeName + " zone was deleted: " + zoneInfo.DisplayName);
+
+                //delete cache for this zone to allow rebuilding cache data without using the current zone
+                _dnsWebService._dnsServer.CacheZoneManager.DeleteZone(zoneInfo.Name);
             }
 
             public void EnableZone(HttpContext context)
@@ -2862,7 +2863,7 @@ namespace DnsServerCore
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] " + zoneInfo.TypeName + " zone was enabled: " + zoneInfo.DisplayName);
 
-                //delete cache for this zone to allow rebuilding cache data as needed by stub or forwarder zones
+                //delete cache for this zone to allow rebuilding cache data as needed by stub or forwarder zone
                 _dnsWebService._dnsServer.CacheZoneManager.DeleteZone(zoneInfo.Name);
             }
 
@@ -2907,6 +2908,9 @@ namespace DnsServerCore
                 _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] " + zoneInfo.TypeName + " zone was disabled: " + zoneInfo.DisplayName);
+
+                //delete cache for this zone to allow rebuilding cache data without using the current zone
+                _dnsWebService._dnsServer.CacheZoneManager.DeleteZone(zoneInfo.Name);
             }
 
             public void GetZoneOptions(HttpContext context)
@@ -3699,7 +3703,7 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Access was denied.");
 
                 DnsResourceRecordType type = request.GetQueryOrFormEnum<DnsResourceRecordType>("type");
-                uint ttl = request.GetQueryOrForm("ttl", ZoneFile.ParseTtl, _defaultRecordTtl);
+                uint ttl = request.GetQueryOrForm("ttl", ZoneFile.ParseTtl, _dnsWebService._dnsServer.AuthZoneManager.DefaultRecordTtl);
                 bool overwrite = request.GetQueryOrForm("overwrite", bool.Parse, false);
                 string comments = request.QueryOrForm("comments");
                 uint expiryTtl = request.GetQueryOrForm("expiryTtl", ZoneFile.ParseTtl, 0u);
@@ -4477,7 +4481,7 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Access was denied.");
 
                 string newDomain = request.GetQueryOrForm("newDomain", domain).Trim('.');
-                uint ttl = request.GetQueryOrForm("ttl", ZoneFile.ParseTtl, _defaultRecordTtl);
+                uint ttl = request.GetQueryOrForm("ttl", ZoneFile.ParseTtl, _dnsWebService._dnsServer.AuthZoneManager.DefaultRecordTtl);
                 bool disable = request.GetQueryOrForm("disable", bool.Parse, false);
                 string comments = request.QueryOrForm("comments");
                 uint expiryTtl = request.GetQueryOrForm("expiryTtl", ZoneFile.ParseTtl, 0u);
@@ -5033,16 +5037,6 @@ namespace DnsServerCore
 
                 jsonWriter.WritePropertyName("updatedRecord");
                 WriteRecordAsJson(newRecord, jsonWriter, true, zoneInfo);
-            }
-
-            #endregion
-
-            #region properties
-
-            public uint DefaultRecordTtl
-            {
-                get { return _defaultRecordTtl; }
-                set { _defaultRecordTtl = value; }
             }
 
             #endregion
