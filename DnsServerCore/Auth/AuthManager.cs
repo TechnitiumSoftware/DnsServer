@@ -512,6 +512,58 @@ namespace DnsServerCore.Auth
             adminUser.AddToGroup(adminGroup);
         }
 
+        private async Task<User> AuthenticateUserAsync(string username, string password, string totp, IPAddress remoteAddress)
+        {
+            IPAddress network = GetClientNetwork(remoteAddress);
+
+            if (IsNetworkBlocked(network))
+                throw new DnsWebServiceException("Max limit of " + MAX_LOGIN_ATTEMPTS + " attempts exceeded. Access blocked for " + (BLOCK_NETWORK_INTERVAL / 1000) + " seconds.");
+
+            User user = GetUser(username);
+
+            if ((user is null) || !user.PasswordHash.Equals(user.GetPasswordHashFor(password), StringComparison.Ordinal))
+            {
+                if (password != "admin")
+                {
+                    MarkFailedLoginAttempt(network);
+
+                    if (HasLoginAttemptExceedLimit(network, MAX_LOGIN_ATTEMPTS))
+                        BlockNetwork(network, BLOCK_NETWORK_INTERVAL);
+                }
+
+                await Task.Delay(1000);
+
+                throw new DnsWebServiceException("Invalid username or password for user: " + username);
+            }
+
+            if (user.TOTPEnabled)
+            {
+                if (string.IsNullOrEmpty(totp))
+                    throw new TwoFactorAuthRequiredWebServiceException("A time-based one-time password (TOTP) is required for user: " + username);
+
+                Authenticator authenticator = new Authenticator(user.TOTPKeyUri);
+
+                if (!authenticator.IsTOTPValid(totp))
+                {
+                    MarkFailedLoginAttempt(network);
+
+                    if (HasLoginAttemptExceedLimit(network, MAX_LOGIN_ATTEMPTS))
+                        BlockNetwork(network, BLOCK_NETWORK_INTERVAL);
+
+                    await Task.Delay(1000);
+
+                    throw new DnsWebServiceException("Invalid time-based one-time password (TOTP) was attempted for user: " + username);
+                }
+            }
+
+            ResetFailedLoginAttempts(network);
+
+            if (user.Disabled)
+                throw new DnsWebServiceException("User account is disabled. Please contact your administrator.");
+
+            return user;
+        }
+
         private static IPAddress GetClientNetwork(IPAddress address)
         {
             switch (address.AddressFamily)
@@ -621,6 +673,15 @@ namespace DnsServerCore.Auth
             }
 
             _users.TryRemove(oldUsername, out _);
+        }
+
+        public async Task<User> ChangePasswordAsync(string username, string password, string totp, IPAddress remoteAddress, string newPassword, int iterations)
+        {
+            User user = await AuthenticateUserAsync(username, password, totp, remoteAddress);
+
+            user.ChangePassword(newPassword, iterations);
+
+            return user;
         }
 
         public bool DeleteUser(string username)
@@ -772,52 +833,7 @@ namespace DnsServerCore.Auth
 
         public async Task<UserSession> CreateSessionAsync(UserSessionType type, string tokenName, string username, string password, string totp, IPAddress remoteAddress, string userAgent)
         {
-            IPAddress network = GetClientNetwork(remoteAddress);
-
-            if (IsNetworkBlocked(network))
-                throw new DnsWebServiceException("Max limit of " + MAX_LOGIN_ATTEMPTS + " attempts exceeded. Access blocked for " + (BLOCK_NETWORK_INTERVAL / 1000) + " seconds.");
-
-            User user = GetUser(username);
-
-            if ((user is null) || !user.PasswordHash.Equals(user.GetPasswordHashFor(password), StringComparison.Ordinal))
-            {
-                if (password != "admin")
-                {
-                    MarkFailedLoginAttempt(network);
-
-                    if (HasLoginAttemptExceedLimit(network, MAX_LOGIN_ATTEMPTS))
-                        BlockNetwork(network, BLOCK_NETWORK_INTERVAL);
-                }
-
-                await Task.Delay(1000);
-
-                throw new DnsWebServiceException("Invalid username or password for user: " + username);
-            }
-
-            if (user.TOTPEnabled)
-            {
-                if (string.IsNullOrEmpty(totp))
-                    throw new TwoFactorAuthRequiredWebServiceException("A time-based one-time password (TOTP) is required for user: " + username);
-
-                Authenticator authenticator = new Authenticator(user.TOTPKeyUri);
-
-                if (!authenticator.IsTOTPValid(totp))
-                {
-                    MarkFailedLoginAttempt(network);
-
-                    if (HasLoginAttemptExceedLimit(network, MAX_LOGIN_ATTEMPTS))
-                        BlockNetwork(network, BLOCK_NETWORK_INTERVAL);
-
-                    await Task.Delay(1000);
-
-                    throw new DnsWebServiceException("Invalid time-based one-time password (TOTP) was attempted for user: " + username);
-                }
-            }
-
-            ResetFailedLoginAttempts(network);
-
-            if (user.Disabled)
-                throw new DnsWebServiceException("User account is disabled. Please contact your administrator.");
+            User user = await AuthenticateUserAsync(username, password, totp, remoteAddress);
 
             UserSession session = new UserSession(type, tokenName, user, remoteAddress, userAgent);
 
