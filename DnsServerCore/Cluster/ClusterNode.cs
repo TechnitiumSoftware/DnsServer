@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.Auth;
 using DnsServerCore.HttpApi;
 using DnsServerCore.HttpApi.Models;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -59,6 +60,7 @@ namespace DnsServerCore.Cluster
         ClusterNodeType _type;
         ClusterNodeState _state;
 
+        DateTime _upSince;
         DateTime _lastSeen;
         HttpApiClient _apiClient;
 
@@ -147,7 +149,20 @@ namespace DnsServerCore.Cluster
                 return;
 
             _heartbeatTimer?.Dispose();
-            _apiClient?.Dispose();
+
+            if (_apiClient is not null)
+            {
+                ThreadPool.QueueUserWorkItem(async delegate (object state)
+                {
+                    try
+                    {
+                        await Task.Delay(2000); //give some time for any in-progress API calls to complete
+                        _apiClient?.Dispose();
+                    }
+                    catch
+                    { }
+                });
+            }
 
             _disposed = true;
             GC.SuppressFinalize(this);
@@ -196,6 +211,16 @@ namespace DnsServerCore.Cluster
 
                 if (_type == ClusterNodeType.Primary)
                     _clusterManager.UpdateClusterFromPrimaryNode(clusterInfo); //update cluster nodes from primary node response
+
+                //update up since time
+                foreach (ClusterInfo.ClusterNodeInfo clusterNodeInfo in clusterInfo.ClusterNodes)
+                {
+                    if (clusterNodeInfo.Name.Equals(Name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _upSince = clusterNodeInfo.UpSince ?? default;
+                        break;
+                    }
+                }
             }
             catch (TaskCanceledException)
             {
@@ -316,6 +341,103 @@ namespace DnsServerCore.Cluster
             _heartbeatTimer?.Change(_clusterManager.HeartbeatRefreshIntervalSeconds * 1000, Timeout.Infinite);
         }
 
+        public async Task<DashboardStats> GetDashboardStatsAsync(DashboardStatsType type = DashboardStatsType.LastHour, bool utcFormat = false, string acceptLanguage = "en-US,en;q=0.5", DateTime startDate = default, DateTime endDate = default, CancellationToken cancellationToken = default)
+        {
+            HttpApiClient apiClient = GetApiClient();
+
+            try
+            {
+                DashboardStats stats = await apiClient.GetDashboardStatsAsync(type, utcFormat, acceptLanguage, startDate, endDate, cancellationToken);
+
+                _lastSeen = DateTime.UtcNow;
+                _state = ClusterNodeState.Connected;
+
+                return stats;
+            }
+            catch
+            {
+                _state = ClusterNodeState.Unreachable;
+                throw;
+            }
+        }
+
+        public async Task<DashboardStats> GetDashboardTopStatsAsync(DashboardTopStatsType statsType, int limit = 1000, DashboardStatsType type = DashboardStatsType.LastHour, DateTime startDate = default, DateTime endDate = default, CancellationToken cancellationToken = default)
+        {
+            HttpApiClient apiClient = GetApiClient();
+
+            try
+            {
+                DashboardStats stats = await apiClient.GetDashboardTopStatsAsync(statsType, limit, type, startDate, endDate, cancellationToken);
+
+                _lastSeen = DateTime.UtcNow;
+                _state = ClusterNodeState.Connected;
+
+                return stats;
+            }
+            catch
+            {
+                _state = ClusterNodeState.Unreachable;
+                throw;
+            }
+        }
+
+        public async Task SetClusterSettingsAsync(IReadOnlyDictionary<string, string> clusterParameters, CancellationToken cancellationToken = default)
+        {
+            if (_type != ClusterNodeType.Primary)
+                throw new InvalidOperationException();
+
+            HttpApiClient apiClient = GetApiClient();
+
+            try
+            {
+                await apiClient.SetClusterSettingsAsync(clusterParameters, cancellationToken);
+
+                _lastSeen = DateTime.UtcNow;
+                _state = ClusterNodeState.Connected;
+            }
+            catch
+            {
+                _state = ClusterNodeState.Unreachable;
+                throw;
+            }
+        }
+
+        public async Task ForceUpdateBlockListsAsync(CancellationToken cancellationToken = default)
+        {
+            HttpApiClient apiClient = GetApiClient();
+
+            try
+            {
+                await apiClient.ForceUpdateBlockListsAsync(cancellationToken);
+
+                _lastSeen = DateTime.UtcNow;
+                _state = ClusterNodeState.Connected;
+            }
+            catch
+            {
+                _state = ClusterNodeState.Unreachable;
+                throw;
+            }
+        }
+
+        public async Task TemporaryDisableBlockingAsync(int minutes, CancellationToken cancellationToken = default)
+        {
+            HttpApiClient apiClient = GetApiClient();
+
+            try
+            {
+                await apiClient.TemporaryDisableBlockingAsync(minutes, cancellationToken);
+
+                _lastSeen = DateTime.UtcNow;
+                _state = ClusterNodeState.Connected;
+            }
+            catch
+            {
+                _state = ClusterNodeState.Unreachable;
+                throw;
+            }
+        }
+
         public async Task<ClusterInfo> GetClusterStateAsync(CancellationToken cancellationToken = default)
         {
             HttpApiClient apiClient = GetApiClient();
@@ -418,10 +540,6 @@ namespace DnsServerCore.Cluster
                 _lastSeen = DateTime.UtcNow;
                 _state = ClusterNodeState.Connected;
             }
-            catch (TaskCanceledException)
-            {
-                //ignore since secondary node will call DeleteSecondaryNode() on this server which causes apiClient object to get disposed while the current call is in progress.
-            }
             catch
             {
                 _state = ClusterNodeState.Unreachable;
@@ -479,6 +597,24 @@ namespace DnsServerCore.Cluster
             }
         }
 
+        public async Task ProxyRequest(HttpContext context, CancellationToken cancellationToken = default)
+        {
+            HttpApiClient apiClient = GetApiClient();
+
+            try
+            {
+                await apiClient.ProxyRequest(context, cancellationToken);
+
+                _lastSeen = DateTime.UtcNow;
+                _state = ClusterNodeState.Connected;
+            }
+            catch
+            {
+                _state = ClusterNodeState.Unreachable;
+                throw;
+            }
+        }
+
         public void WriteTo(BinaryWriter bW)
         {
             bW.Write((byte)1); //version
@@ -520,6 +656,17 @@ namespace DnsServerCore.Cluster
 
         public ClusterNodeState State
         { get { return _state; } }
+
+        public DateTime UpSince
+        {
+            get
+            {
+                if (_state == ClusterNodeState.Self)
+                    return _clusterManager.DnsWebService.UpTimeStamp;
+
+                return _upSince;
+            }
+        }
 
         public DateTime LastSeen
         { get { return _lastSeen; } }
