@@ -17,29 +17,29 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-function flushDnsCache(objBtn) {
+function flushDnsCache(objBtn, node) {
     if (!confirm("Are you sure to flush the DNS Server cache?"))
         return;
 
     var btn = $(objBtn);
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
-        url: "api/cache/flush?token=" + sessionData.token,
+        url: "api/cache/flush?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             $("#lstCachedZones").html("<div class=\"zone\"><a href=\"#\" onclick=\"refreshCachedZonesList(); return false;\"><b>[refresh]</b></a></div>");
             $("#txtCachedZoneViewerTitle").text("<ROOT>");
             $("#btnDeleteCachedZone").hide();
             $("#preCachedZoneViewerBody").hide();
 
-            btn.button('reset');
+            btn.button("reset");
             showAlert("success", "Flushed!", "DNS Server cache was flushed successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             showPageLogin();
         }
     });
@@ -51,21 +51,24 @@ function deleteCachedZone() {
     if (!confirm("Are you sure you want to delete the cached zone '" + domain + "' and all its records?"))
         return;
 
-    var btn = $("#btnDeleteCachedZone").button('loading');
+    var node = $("#optCachedZonesClusterNode").val();
+
+    var btn = $("#btnDeleteCachedZone");
+    btn.button("loading");
 
     HTTPRequest({
-        url: "api/cache/delete?token=" + sessionData.token + "&domain=" + domain,
+        url: "api/cache/delete?token=" + sessionData.token + "&domain=" + encodeURIComponent(domain) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             refreshCachedZonesList(getParentDomain(domain), "up");
 
-            btn.button('reset');
+            btn.button("reset");
             showAlert("success", "Deleted!", "Cached zone '" + domain + "' was deleted successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             showPageLogin();
         }
     });
@@ -89,10 +92,16 @@ function getParentDomain(domain) {
 }
 
 function refreshCachedZonesList(domain, direction) {
-    if (domain == null)
-        domain = "";
+    if (domain == null) {
+        domain = $("#txtCachedZoneViewerTitle").text();
+
+        if ((domain == null) || (domain == "<ROOT>"))
+            domain = "";
+    }
 
     domain.toLowerCase();
+
+    var node = $("#optCachedZonesClusterNode").val();
 
     var lstCachedZones = $("#lstCachedZones");
     var divCachedZoneViewer = $("#divCachedZoneViewer");
@@ -102,7 +111,7 @@ function refreshCachedZonesList(domain, direction) {
     preCachedZoneViewerBody.hide();
 
     HTTPRequest({
-        url: "api/cache/list?token=" + sessionData.token + "&domain=" + domain + ((direction == null) ? "" : "&direction=" + direction),
+        url: "api/cache/list?token=" + sessionData.token + "&domain=" + encodeURIComponent(domain) + ((direction == null) ? "" : "&direction=" + direction) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             var newDomain = responseJSON.response.domain;
             var zones = responseJSON.response.zones;
@@ -147,6 +156,8 @@ function refreshCachedZonesList(domain, direction) {
         },
         error: function () {
             lstCachedZones.html("<div class=\"zone\"><a href=\"#\" onclick=\"refreshCachedZonesList('" + domain + "'); return false;\"><b>[refresh]</b></a></div>");
+
+            divCachedZoneViewer.show();
         },
         objLoaderPlaceholder: lstCachedZones
     });
@@ -157,27 +168,28 @@ function allowZone() {
 
     if ((domain === null) || (domain === "")) {
         showAlert("warning", "Missing!", "Please enter a domain name to allow.");
-        $("#txtAllowZone").focus();
+        $("#txtAllowZone").trigger("focus");
         return;
     }
 
-    var btn = $("#btnAllowZone").button('loading');
+    var btn = $("#btnAllowZone");
+    btn.button("loading");
 
     HTTPRequest({
-        url: "api/allowed/add?token=" + sessionData.token + "&domain=" + domain,
+        url: "api/allowed/add?token=" + sessionData.token + "&domain=" + encodeURIComponent(domain),
         success: function (responseJSON) {
-            refreshAllowedZonesList(domain);
+            refreshAllowedZonesList(domain, null, true);
 
             $("#txtAllowZone").val("");
-            btn.button('reset');
+            btn.button("reset");
 
             showAlert("success", "Allowed!", "Domain '" + domain + "' was added to Allowed Zone successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             showPageLogin();
         }
     });
@@ -189,21 +201,22 @@ function deleteAllowedZone() {
     if (!confirm("Are you sure you want to delete the allowed zone '" + domain + "'?"))
         return;
 
-    var btn = $("#btnDeleteAllowedZone").button('loading');
+    var btn = $("#btnDeleteAllowedZone");
+    btn.button("loading");
 
     HTTPRequest({
-        url: "api/allowed/delete?token=" + sessionData.token + "&domain=" + domain,
+        url: "api/allowed/delete?token=" + sessionData.token + "&domain=" + encodeURIComponent(domain),
         success: function (responseJSON) {
-            refreshAllowedZonesList(getParentDomain(domain), "up");
+            refreshAllowedZonesList(getParentDomain(domain), "up", true);
 
-            btn.button('reset');
+            btn.button("reset");
             showAlert("success", "Deleted!", "Domain '" + domain + "' was deleted from Allowed Zone successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             showPageLogin();
         }
     });
@@ -213,7 +226,8 @@ function flushAllowedZone() {
     if (!confirm("Are you sure you want to flush the entire Allowed zone?"))
         return;
 
-    var btn = $("#btnFlushAllowedZone").button('loading');
+    var btn = $("#btnFlushAllowedZone");
+    btn.button("loading");
 
     HTTPRequest({
         url: "api/allowed/flush?token=" + sessionData.token,
@@ -223,24 +237,35 @@ function flushAllowedZone() {
             $("#btnDeleteAllowedZone").hide();
             $("#preAllowedZoneViewerBody").hide();
 
-            btn.button('reset');
+            btn.button("reset");
             showAlert("success", "Flushed!", "Allowed zone was flushed successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             showPageLogin();
         }
     });
 }
 
-function refreshAllowedZonesList(domain, direction) {
-    if (domain == null)
-        domain = "";
+function refreshAllowedZonesList(domain, direction, fromPrimary) {
+    if (domain == null) {
+        domain = $("#txtAllowedZoneViewerTitle").text();
+
+        if ((domain == null) || (domain == "<ROOT>"))
+            domain = "";
+    }
 
     domain.toLowerCase();
+
+    var node;
+
+    if (fromPrimary)
+        node = getPrimaryClusterNodeName();
+    else
+        node = $("#optAllowedZonesClusterNode").val();
 
     var lstAllowedZones = $("#lstAllowedZones");
     var divAllowedZoneViewer = $("#divAllowedZoneViewer");
@@ -250,7 +275,7 @@ function refreshAllowedZonesList(domain, direction) {
     preAllowedZoneViewerBody.hide();
 
     HTTPRequest({
-        url: "api/allowed/list?token=" + sessionData.token + "&domain=" + domain + ((direction == null) ? "" : "&direction=" + direction),
+        url: "api/allowed/list?token=" + sessionData.token + "&domain=" + encodeURIComponent(domain) + ((direction == null) ? "" : "&direction=" + direction) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             var newDomain = responseJSON.response.domain;
             var zones = responseJSON.response.zones;
@@ -297,6 +322,8 @@ function refreshAllowedZonesList(domain, direction) {
         },
         error: function () {
             lstAllowedZones.html("<div class=\"zone\"><a href=\"#\" onclick=\"refreshAllowedZonesList('" + domain + "'); return false;\"><b>[refresh]</b></a></div>");
+
+            divAllowedZoneViewer.show();
         },
         objLoaderPlaceholder: lstAllowedZones
     });
@@ -307,27 +334,28 @@ function blockZone() {
 
     if ((domain === null) || (domain === "")) {
         showAlert("warning", "Missing!", "Please enter a domain name to block.");
-        $("#txtBlockZone").focus();
+        $("#txtBlockZone").trigger("focus");
         return;
     }
 
-    var btn = $("#btnBlockZone").button('loading');
+    var btn = $("#btnBlockZone");
+    btn.button("loading");
 
     HTTPRequest({
-        url: "api/blocked/add?token=" + sessionData.token + "&domain=" + domain,
+        url: "api/blocked/add?token=" + sessionData.token + "&domain=" + encodeURIComponent(domain),
         success: function (responseJSON) {
-            refreshBlockedZonesList(domain);
+            refreshBlockedZonesList(domain, null, true);
 
             $("#txtBlockZone").val("");
-            btn.button('reset');
+            btn.button("reset");
 
             showAlert("success", "Blocked!", "Domain '" + domain + "' was added to Blocked Zone successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             showPageLogin();
         }
     });
@@ -339,21 +367,22 @@ function deleteBlockedZone() {
     if (!confirm("Are you sure you want to delete the blocked zone '" + domain + "'?"))
         return;
 
-    var btn = $("#btnDeleteBlockedZone").button('loading');
+    var btn = $("#btnDeleteBlockedZone");
+    btn.button("loading");
 
     HTTPRequest({
-        url: "api/blocked/delete?token=" + sessionData.token + "&domain=" + domain,
+        url: "api/blocked/delete?token=" + sessionData.token + "&domain=" + encodeURIComponent(domain),
         success: function (responseJSON) {
-            refreshBlockedZonesList(getParentDomain(domain), "up");
+            refreshBlockedZonesList(getParentDomain(domain), "up", true);
 
-            btn.button('reset');
+            btn.button("reset");
             showAlert("success", "Deleted!", "Blocked zone '" + domain + "' was deleted successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             showPageLogin();
         }
     });
@@ -363,7 +392,8 @@ function flushBlockedZone() {
     if (!confirm("Are you sure you want to flush the entire Blocked zone?"))
         return;
 
-    var btn = $("#btnFlushBlockedZone").button('loading');
+    var btn = $("#btnFlushBlockedZone");
+    btn.button("loading");
 
     HTTPRequest({
         url: "api/blocked/flush?token=" + sessionData.token,
@@ -373,24 +403,35 @@ function flushBlockedZone() {
             $("#btnDeleteBlockedZone").hide();
             $("#preBlockedZoneViewerBody").hide();
 
-            btn.button('reset');
+            btn.button("reset");
             showAlert("success", "Flushed!", "Blocked zone was flushed successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             showPageLogin();
         }
     });
 }
 
-function refreshBlockedZonesList(domain, direction) {
-    if (domain == null)
-        domain = "";
+function refreshBlockedZonesList(domain, direction, fromPrimary) {
+    if (domain == null) {
+        domain = $("#txtBlockedZoneViewerTitle").text();
+
+        if ((domain == null) || (domain == "<ROOT>"))
+            domain = "";
+    }
 
     domain.toLowerCase();
+
+    var node;
+
+    if (fromPrimary)
+        node = getPrimaryClusterNodeName();
+    else
+        node = $("#optBlockedZonesClusterNode").val();
 
     var lstBlockedZones = $("#lstBlockedZones");
     var divBlockedZoneViewer = $("#divBlockedZoneViewer");
@@ -400,7 +441,7 @@ function refreshBlockedZonesList(domain, direction) {
     preBlockedZoneViewerBody.hide();
 
     HTTPRequest({
-        url: "api/blocked/list?token=" + sessionData.token + "&domain=" + domain + ((direction == null) ? "" : "&direction=" + direction),
+        url: "api/blocked/list?token=" + sessionData.token + "&domain=" + encodeURIComponent(domain) + ((direction == null) ? "" : "&direction=" + direction) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             var newDomain = responseJSON.response.domain;
             var zones = responseJSON.response.zones;
@@ -447,6 +488,8 @@ function refreshBlockedZonesList(domain, direction) {
         },
         error: function () {
             lstBlockedZones.html("<div class=\"zone\"><a href=\"#\" onclick=\"refreshBlockedZonesList('" + domain + "'); return false;\"><b>[refresh]</b></a></div>");
+
+            divBlockedZoneViewer.show();
         },
         objLoaderPlaceholder: lstBlockedZones
     });
@@ -457,7 +500,7 @@ function resetImportAllowedZonesModal() {
     $("#txtImportAllowedZones").val("");
 
     setTimeout(function () {
-        $("#txtImportAllowedZones").focus();
+        $("#txtImportAllowedZones").trigger("focus");
     }, 1000);
 }
 
@@ -467,11 +510,12 @@ function importAllowedZones() {
 
     if ((allowedZones.length === 0) || (allowedZones === ",")) {
         showAlert("warning", "Missing!", "Please enter allowed zones to import.", divImportAllowedZonesAlert);
-        $("#txtImportAllowedZones").focus();
+        $("#txtImportAllowedZones").trigger("focus");
         return;
     }
 
-    var btn = $("#btnImportAllowedZones").button('loading');
+    var btn = $("#btnImportAllowedZones");
+    btn.button("loading");
 
     HTTPRequest({
         url: "api/allowed/import?token=" + sessionData.token,
@@ -480,15 +524,15 @@ function importAllowedZones() {
         processData: false,
         success: function (responseJSON) {
             $("#modalImportAllowedZones").modal("hide");
-            btn.button('reset');
+            btn.button("reset");
 
             showAlert("success", "Imported!", "Domain names were imported into allowed zone successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             showPageLogin();
         },
         objAlertPlaceholder: divImportAllowedZonesAlert
@@ -506,7 +550,7 @@ function resetImportBlockedZonesModal() {
     $("#txtImportBlockedZones").val("");
 
     setTimeout(function () {
-        $("#txtImportBlockedZones").focus();
+        $("#txtImportBlockedZones").trigger("focus");
     }, 1000);
 }
 
@@ -516,11 +560,12 @@ function importBlockedZones() {
 
     if ((blockedZones.length === 0) || (blockedZones === ",")) {
         showAlert("warning", "Missing!", "Please enter blocked zones to import.", divImportBlockedZonesAlert);
-        $("#txtImportBlockedZones").focus();
+        $("#txtImportBlockedZones").trigger("focus");
         return;
     }
 
-    var btn = $("#btnImportBlockedZones").button('loading');
+    var btn = $("#btnImportBlockedZones");
+    btn.button("loading");
 
     HTTPRequest({
         url: "api/blocked/import?token=" + sessionData.token,
@@ -529,15 +574,15 @@ function importBlockedZones() {
         processData: false,
         success: function (responseJSON) {
             $("#modalImportBlockedZones").modal("hide");
-            btn.button('reset');
+            btn.button("reset");
 
             showAlert("success", "Imported!", "Domain names were imported into blocked zone successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             showPageLogin();
         },
         objAlertPlaceholder: divImportBlockedZonesAlert
@@ -566,10 +611,10 @@ function allowDomain(objMenuItem, btnName, alertPlaceholderName) {
         alertPlaceholder = $("#" + alertPlaceholderName);
 
     HTTPRequest({
-        url: "api/blocked/delete?token=" + sessionData.token + "&domain=" + domain,
+        url: "api/blocked/delete?token=" + sessionData.token + "&domain=" + encodeURIComponent(domain),
         success: function (responseJSON) {
             HTTPRequest({
-                url: "api/allowed/add?token=" + sessionData.token + "&domain=" + domain,
+                url: "api/allowed/add?token=" + sessionData.token + "&domain=" + encodeURIComponent(domain),
                 success: function (responseJSON) {
                     btn.prop("disabled", false);
                     btn.html(originalBtnHtml);
@@ -613,10 +658,10 @@ function blockDomain(objMenuItem, btnName, alertPlaceholderName) {
         alertPlaceholder = $("#" + alertPlaceholderName);
 
     HTTPRequest({
-        url: "api/allowed/delete?token=" + sessionData.token + "&domain=" + domain,
+        url: "api/allowed/delete?token=" + sessionData.token + "&domain=" + encodeURIComponent(domain),
         success: function (responseJSON) {
             HTTPRequest({
-                url: "api/blocked/add?token=" + sessionData.token + "&domain=" + domain,
+                url: "api/blocked/add?token=" + sessionData.token + "&domain=" + encodeURIComponent(domain),
                 success: function (responseJSON) {
                     btn.prop("disabled", false);
                     btn.html(originalBtnHtml);
