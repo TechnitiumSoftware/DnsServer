@@ -717,7 +717,7 @@ namespace DnsServerCore.Dhcp
             return sb.ToString();
         }
 
-        private void UpdateDnsAuthZone(bool add, Scope scope, Lease lease)
+        internal void UpdateDnsAuthZone(bool add, Scope scope, Lease lease)
         {
             UpdateDnsAuthZone(add, scope, lease.HostName, lease.Address, lease.Type == LeaseType.Reserved);
         }
