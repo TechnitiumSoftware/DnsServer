@@ -198,7 +198,6 @@ namespace DnsServerCore.Dns
         const int TLS_CERTIFICATE_UPDATE_TIMER_INITIAL_INTERVAL = 60000;
         const int TLS_CERTIFICATE_UPDATE_TIMER_INTERVAL = 60000;
 
-        X509Certificate2Collection _certificateCollection;
         DateTime _dnsTlsCertificateLastModifiedOn;
         SslServerAuthenticationOptions _dotSslServerAuthenticationOptions;
         SslServerAuthenticationOptions _doqSslServerAuthenticationOptions;
@@ -260,7 +259,7 @@ namespace DnsServerCore.Dns
         readonly IndependentTaskScheduler _queryTaskScheduler = new IndependentTaskScheduler(threadName: "QueryThreadPool");
 
         TaskPool _resolverTaskPool;
-        internal readonly IndependentTaskScheduler _resolverTaskScheduler = new IndependentTaskScheduler(priority: ThreadPriority.AboveNormal, threadName: "ResolverThreadPool");
+        readonly IndependentTaskScheduler _resolverTaskScheduler = new IndependentTaskScheduler(priority: ThreadPriority.AboveNormal, threadName: "ResolverThreadPool");
         readonly ConcurrentDictionary<string, Task<RecursiveResolveResponse>> _resolverTasks = new ConcurrentDictionary<string, Task<RecursiveResolveResponse>>(-1, 1000);
 
         volatile ServiceState _state = ServiceState.Stopped;
@@ -592,7 +591,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private void SaveConfigFileInternal()
+        internal void SaveConfigFileInternal()
         {
             string configFile = Path.Combine(_configFolder, "dns.config");
 
@@ -671,6 +670,8 @@ namespace DnsServerCore.Dns
             if (!isConfigTransfer)
                 DnsClientConnection.IPv6SourceAddresses = ipv6SourceAddresses;
 
+            _authZoneManager.DefaultRecordTtl = bR.ReadUInt32();
+
             string rp = bR.ReadString();
             if (rp.Length == 0)
                 _responsiblePerson = null;
@@ -686,7 +687,9 @@ namespace DnsServerCore.Dns
 
             _dnsApplicationManager.EnableAutomaticUpdate = bR.ReadBoolean();
 
-            _preferIPv6 = bR.ReadBoolean();
+            bool preferIPv6 = bR.ReadBoolean();
+            if (!isConfigTransfer)
+                _preferIPv6 = preferIPv6;
 
             {
                 bool enableUdpSocketPool = bR.ReadBoolean();
@@ -876,26 +879,65 @@ namespace DnsServerCore.Dns
             _resolverMaxStackCount = bR.ReadInt32();
 
             //cache
-            _saveCacheToDisk = bR.ReadBoolean();
-            _serveStale = bR.ReadBoolean();
-            _cacheZoneManager.ServeStaleTtl = bR.ReadUInt32();
-            _cacheZoneManager.ServeStaleAnswerTtl = bR.ReadUInt32();
-            _cacheZoneManager.ServeStaleResetTtl = bR.ReadUInt32();
-            _serveStaleMaxWaitTime = bR.ReadInt32();
+            bool saveCacheToDisk = bR.ReadBoolean();
+            if (!isConfigTransfer)
+                _saveCacheToDisk = saveCacheToDisk;
+
+            bool serveStale = bR.ReadBoolean();
+            if (!isConfigTransfer)
+                _serveStale = serveStale;
+
+            uint serveStaleTtl = bR.ReadUInt32();
+            if (!isConfigTransfer)
+                _cacheZoneManager.ServeStaleTtl = serveStaleTtl;
+
+            uint serveStaleAnswerTtl = bR.ReadUInt32();
+            if (!isConfigTransfer)
+                _cacheZoneManager.ServeStaleAnswerTtl = serveStaleAnswerTtl;
+
+            uint serveStaleResetTtl = bR.ReadUInt32();
+            if (!isConfigTransfer)
+                _cacheZoneManager.ServeStaleResetTtl = serveStaleResetTtl;
+
+            int serveStaleMaxWaitTime = bR.ReadInt32();
+            if (!isConfigTransfer)
+                _serveStaleMaxWaitTime = serveStaleMaxWaitTime;
 
             long cacheMaximumEntries = bR.ReadInt64();
             if (!isConfigTransfer)
                 _cacheZoneManager.MaximumEntries = cacheMaximumEntries;
 
-            _cacheZoneManager.MinimumRecordTtl = bR.ReadUInt32();
-            _cacheZoneManager.MaximumRecordTtl = bR.ReadUInt32();
-            _cacheZoneManager.NegativeRecordTtl = bR.ReadUInt32();
-            _cacheZoneManager.FailureRecordTtl = bR.ReadUInt32();
+            uint minimumRecordTtl = bR.ReadUInt32();
+            if (!isConfigTransfer)
+                _cacheZoneManager.MinimumRecordTtl = minimumRecordTtl;
 
-            _cachePrefetchEligibility = bR.ReadInt32();
-            _cachePrefetchTrigger = bR.ReadInt32();
-            _cachePrefetchSampleIntervalMinutes = bR.ReadInt32();
-            _cachePrefetchSampleEligibilityHitsPerHour = bR.ReadInt32();
+            uint maximumRecordTtl = bR.ReadUInt32();
+            if (!isConfigTransfer)
+                _cacheZoneManager.MaximumRecordTtl = maximumRecordTtl;
+
+            uint negativeRecordTtl = bR.ReadUInt32();
+            if (!isConfigTransfer)
+                _cacheZoneManager.NegativeRecordTtl = negativeRecordTtl;
+
+            uint failureRecordTtl = bR.ReadUInt32();
+            if (!isConfigTransfer)
+                _cacheZoneManager.FailureRecordTtl = failureRecordTtl;
+
+            int cachePrefetchEligibility = bR.ReadInt32();
+            if (!isConfigTransfer)
+                _cachePrefetchEligibility = cachePrefetchEligibility;
+
+            int cachePrefetchTrigger = bR.ReadInt32();
+            if (!isConfigTransfer)
+                _cachePrefetchTrigger = cachePrefetchTrigger;
+
+            int cachePrefetchSampleIntervalMinutes = bR.ReadInt32();
+            if (!isConfigTransfer)
+                _cachePrefetchSampleIntervalMinutes = cachePrefetchSampleIntervalMinutes;
+
+            int cachePrefetchSampleEligibilityHitsPerHour = bR.ReadInt32();
+            if (!isConfigTransfer)
+                _cachePrefetchSampleEligibilityHitsPerHour = cachePrefetchSampleEligibilityHitsPerHour;
 
             //blocking
             _enableBlocking = bR.ReadBoolean();
@@ -990,18 +1032,31 @@ namespace DnsServerCore.Dns
             _forwarderConcurrency = bR.ReadInt32();
 
             //logging
-            if (bR.ReadBoolean()) //ignore resolver logs
-                _resolverLog = null;
-            else
-                _resolverLog = _log;
+            bool ignoreResolverLogs = bR.ReadBoolean(); //ignore resolver logs
+            if (!isConfigTransfer)
+            {
+                if (ignoreResolverLogs)
+                    _resolverLog = null;
+                else
+                    _resolverLog = _log;
+            }
 
-            if (bR.ReadBoolean()) //log all queries
-                _queryLog = _log;
-            else
-                _queryLog = null;
+            bool logQueries = bR.ReadBoolean(); //log all queries
+            if (!isConfigTransfer)
+            {
+                if (logQueries)
+                    _queryLog = _log;
+                else
+                    _queryLog = null;
+            }
 
-            _statsManager.EnableInMemoryStats = bR.ReadBoolean();
-            _statsManager.MaxStatFileDays = bR.ReadInt32();
+            bool enableInMemoryStats = bR.ReadBoolean();
+            if (!isConfigTransfer)
+                _statsManager.EnableInMemoryStats = enableInMemoryStats;
+
+            int maxStatFileDays = bR.ReadInt32();
+            if (!isConfigTransfer)
+                _statsManager.MaxStatFileDays = maxStatFileDays;
         }
 
         private void WriteConfigTo(Stream s)
@@ -1023,6 +1078,8 @@ namespace DnsServerCore.Dns
 
             AuthZoneInfo.WriteNetworkAddressesTo(DnsClientConnection.IPv4SourceAddresses, bW);
             AuthZoneInfo.WriteNetworkAddressesTo(DnsClientConnection.IPv6SourceAddresses, bW);
+
+            bW.Write(_authZoneManager.DefaultRecordTtl);
 
             if (_responsiblePerson is null)
                 bW.WriteShortString("");
@@ -1341,7 +1398,49 @@ namespace DnsServerCore.Dns
             X509Certificate2Collection certificateCollection = new X509Certificate2Collection();
             certificateCollection.Import(tlsCertificatePath, tlsCertificatePassword, X509KeyStorageFlags.PersistKeySet);
 
-            CertificateCollection = certificateCollection;
+            X509Certificate2 serverCertificate = null;
+
+            foreach (X509Certificate2 certificate in certificateCollection)
+            {
+                if (certificate.HasPrivateKey)
+                {
+                    serverCertificate = certificate;
+                    break;
+                }
+            }
+
+            if (serverCertificate is null)
+                throw new ArgumentException("DNS Server TLS certificate file must contain a certificate with private key.");
+
+            SslStreamCertificateContext certificateContext = SslStreamCertificateContext.Create(serverCertificate, certificateCollection, false);
+
+            _dotSslServerAuthenticationOptions = new SslServerAuthenticationOptions()
+            {
+                ServerCertificateContext = certificateContext
+            };
+
+            _doqSslServerAuthenticationOptions = new SslServerAuthenticationOptions()
+            {
+                ApplicationProtocols = _doqApplicationProtocols,
+                ServerCertificateContext = certificateContext
+            };
+
+            List<SslApplicationProtocol> applicationProtocols = new List<SslApplicationProtocol>();
+
+            if (_enableDnsOverHttp3)
+                applicationProtocols.Add(new SslApplicationProtocol("h3"));
+
+            if (IsHttp2Supported())
+                applicationProtocols.Add(new SslApplicationProtocol("h2"));
+
+            applicationProtocols.Add(new SslApplicationProtocol("http/1.1"));
+
+            _dohSslServerAuthenticationOptions = new SslServerAuthenticationOptions
+            {
+                ApplicationProtocols = applicationProtocols,
+                ServerCertificateContext = certificateContext,
+            };
+
             _dnsTlsCertificateLastModifiedOn = fileInfo.LastWriteTimeUtc;
 
             _log.Write("DNS Server TLS certificate was loaded: " + tlsCertificatePath);
@@ -1349,7 +1448,10 @@ namespace DnsServerCore.Dns
 
         public void RemoveDnsTlsCertificate()
         {
-            CertificateCollection = null;
+            _dotSslServerAuthenticationOptions = null;
+            _doqSslServerAuthenticationOptions = null;
+            _dohSslServerAuthenticationOptions = null;
+
             _dnsTlsCertificatePath = null;
             _dnsTlsCertificatePassword = null;
 
@@ -2723,6 +2825,9 @@ namespace DnsServerCore.Dns
 
                                 if (uRecord.Class == request.Question[0].Class)
                                 {
+                                    if (uRecord.RDATA.RDLENGTH == 0) //RDATA must be present to add record
+                                        return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+
                                     switch (uRecord.Type)
                                     {
                                         case DnsResourceRecordType.ANY:
@@ -2749,7 +2854,7 @@ namespace DnsServerCore.Dns
                                 }
                                 else if (uRecord.Class == DnsClass.NONE)
                                 {
-                                    if (uRecord.TTL != 0)
+                                    if ((uRecord.TTL != 0) || (uRecord.RDATA.RDLENGTH == 0)) //RDATA must be present for deletion
                                         return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
 
                                     switch (uRecord.Type)
@@ -5803,9 +5908,9 @@ namespace DnsServerCore.Dns
 
         #region resolver task pool
 
-        internal bool TryQueueResolverTask(Func<object, Task> task)
+        internal bool TryQueueResolverTask(Func<object, Task> task, object state = null)
         {
-            return _resolverTaskPool.TryQueueTask(task, null);
+            return _resolverTaskPool.TryQueueTask(task, state);
         }
 
         private void ReconfigureResolverTaskPool(ushort maxConcurrentResolutionsPerCore)
@@ -5813,7 +5918,7 @@ namespace DnsServerCore.Dns
             TaskPool previousResolverTaskPool = _resolverTaskPool;
 
             int maxConcurrentResolutions = Environment.ProcessorCount * maxConcurrentResolutionsPerCore;
-            int resolverQueueSize = maxConcurrentResolutions * 3 * 10; //assuming 3 qps average resolution rate for 10 sec
+            int resolverQueueSize = maxConcurrentResolutions * 5 * 10; //assuming 5 qps average resolution rate for 10 sec
             _resolverTaskPool = new TaskPool(resolverQueueSize, maxConcurrentResolutions, _resolverTaskScheduler);
 
             previousResolverTaskPool?.Dispose(); //stop previous task pool from queuing new tasks and complete reading
@@ -5853,7 +5958,7 @@ namespace DnsServerCore.Dns
                     }
 
                     //bind to https port
-                    if (_enableDnsOverHttps && (_certificateCollection is not null))
+                    if (_enableDnsOverHttps && (_dohSslServerAuthenticationOptions is not null))
                     {
                         foreach (IPAddress localAddress in localAddresses)
                         {
@@ -5910,7 +6015,7 @@ namespace DnsServerCore.Dns
                     if (_enableDnsOverHttp)
                         _log.Write(new IPEndPoint(localAddress, _dnsOverHttpPort), "Http", "DNS Server was bound successfully.");
 
-                    if (_enableDnsOverHttps && (_certificateCollection is not null))
+                    if (_enableDnsOverHttps && (_dohSslServerAuthenticationOptions is not null))
                         _log.Write(new IPEndPoint(localAddress, _dnsOverHttpsPort), "Https", "DNS Server was bound successfully.");
                 }
             }
@@ -5923,7 +6028,7 @@ namespace DnsServerCore.Dns
                     if (_enableDnsOverHttp)
                         _log.Write(new IPEndPoint(localAddress, _dnsOverHttpPort), "Http", "DNS Server failed to bind.");
 
-                    if (_enableDnsOverHttps && (_certificateCollection is not null))
+                    if (_enableDnsOverHttps && (_dohSslServerAuthenticationOptions is not null))
                         _log.Write(new IPEndPoint(localAddress, _dnsOverHttpsPort), "Https", "DNS Server failed to bind.");
                 }
 
@@ -6144,7 +6249,7 @@ namespace DnsServerCore.Dns
                     }
                 }
 
-                if (_enableDnsOverTls && (_certificateCollection is not null))
+                if (_enableDnsOverTls && (_dotSslServerAuthenticationOptions is not null))
                 {
                     IPEndPoint tlsEP = new IPEndPoint(localEP.Address, _dnsOverTlsPort);
                     Socket tlsListener = null;
@@ -6174,7 +6279,7 @@ namespace DnsServerCore.Dns
                     }
                 }
 
-                if (_enableDnsOverQuic && (_certificateCollection is not null))
+                if (_enableDnsOverQuic && (_doqSslServerAuthenticationOptions is not null))
                 {
                     IPEndPoint quicEP = new IPEndPoint(localEP.Address, _dnsOverQuicPort);
                     QuicListener quicListener = null;
@@ -6290,7 +6395,7 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            if (_enableDnsOverHttp || (_enableDnsOverHttps && (_certificateCollection is not null)))
+            if (_enableDnsOverHttp || (_enableDnsOverHttps && (_dohSslServerAuthenticationOptions is not null)))
                 await StartDoHAsync(throwIfBindFails);
 
             _cachePrefetchSamplingTimer = new Timer(CachePrefetchSamplingTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
@@ -6587,8 +6692,15 @@ namespace DnsServerCore.Dns
                     //init udp socket pool async for port randomization
                     ThreadPool.QueueUserWorkItem(delegate (object state)
                     {
-                        if (_enableUdpSocketPool)
-                            UdpClientConnection.CreateSocketPool(_preferIPv6);
+                        try
+                        {
+                            if (_enableUdpSocketPool)
+                                UdpClientConnection.CreateSocketPool(_preferIPv6);
+                        }
+                        catch (Exception ex)
+                        {
+                            _log.Write(ex);
+                        }
                     });
                 }
             }
@@ -6606,10 +6718,17 @@ namespace DnsServerCore.Dns
                     //init udp socket pool async for port randomization
                     ThreadPool.QueueUserWorkItem(delegate (object state)
                     {
-                        if (_enableUdpSocketPool)
-                            UdpClientConnection.CreateSocketPool(_preferIPv6);
-                        else
-                            UdpClientConnection.DisposeSocketPool();
+                        try
+                        {
+                            if (_enableUdpSocketPool)
+                                UdpClientConnection.CreateSocketPool(_preferIPv6);
+                            else
+                                UdpClientConnection.DisposeSocketPool();
+                        }
+                        catch (Exception ex)
+                        {
+                            _log.Write(ex);
+                        }
                     });
                 }
             }
@@ -6655,7 +6774,14 @@ namespace DnsServerCore.Dns
                     {
                         ThreadPool.QueueUserWorkItem(delegate (object state)
                         {
-                            _cacheZoneManager.DeleteEDnsClientSubnetData();
+                            try
+                            {
+                                _cacheZoneManager.DeleteEDnsClientSubnetData();
+                            }
+                            catch (Exception ex)
+                            {
+                                _log.Write(ex);
+                            }
                         });
                     }
                 }
@@ -7048,67 +7174,6 @@ namespace DnsServerCore.Dns
 
         public string DnsTlsCertificatePassword
         { get { return _dnsTlsCertificatePassword; } }
-
-        public X509Certificate2Collection CertificateCollection
-        {
-            get { return _certificateCollection; }
-            set
-            {
-                if (value is null)
-                {
-                    _certificateCollection = null;
-                    _dotSslServerAuthenticationOptions = null;
-                    _doqSslServerAuthenticationOptions = null;
-                }
-                else
-                {
-                    X509Certificate2 serverCertificate = null;
-
-                    foreach (X509Certificate2 certificate in value)
-                    {
-                        if (certificate.HasPrivateKey)
-                        {
-                            serverCertificate = certificate;
-                            break;
-                        }
-                    }
-
-                    if (serverCertificate is null)
-                        throw new ArgumentException("DNS Server TLS certificate file must contain a certificate with private key.");
-
-                    _certificateCollection = value;
-
-                    SslStreamCertificateContext certificateContext = SslStreamCertificateContext.Create(serverCertificate, _certificateCollection, false);
-
-                    _dotSslServerAuthenticationOptions = new SslServerAuthenticationOptions()
-                    {
-                        ServerCertificateContext = certificateContext
-                    };
-
-                    _doqSslServerAuthenticationOptions = new SslServerAuthenticationOptions()
-                    {
-                        ApplicationProtocols = _doqApplicationProtocols,
-                        ServerCertificateContext = certificateContext
-                    };
-
-                    List<SslApplicationProtocol> applicationProtocols = new List<SslApplicationProtocol>();
-
-                    if (_enableDnsOverHttp3)
-                        applicationProtocols.Add(new SslApplicationProtocol("h3"));
-
-                    if (IsHttp2Supported())
-                        applicationProtocols.Add(new SslApplicationProtocol("h2"));
-
-                    applicationProtocols.Add(new SslApplicationProtocol("http/1.1"));
-
-                    _dohSslServerAuthenticationOptions = new SslServerAuthenticationOptions
-                    {
-                        ApplicationProtocols = applicationProtocols,
-                        ServerCertificateContext = SslStreamCertificateContext.Create(serverCertificate, _certificateCollection, false),
-                    };
-                }
-            }
-        }
 
         public string DnsOverHttpRealIpHeader
         {
