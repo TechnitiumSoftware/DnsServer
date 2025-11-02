@@ -20,15 +20,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore;
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace DnsServerApp
 {
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             bool throwIfBindFails = false;
-            string configFolder = null;
+            string? configFolder = null;
 
             foreach (string arg in args)
             {
@@ -50,7 +51,7 @@ namespace DnsServerApp
 
             ManualResetEvent waitHandle = new ManualResetEvent(false);
             ManualResetEvent exitHandle = new ManualResetEvent(false);
-            DnsWebService service = null;
+            DnsWebService? service = null;
 
             try
             {
@@ -68,15 +69,15 @@ namespace DnsServerApp
                 }
 
                 service = new DnsWebService(configFolder, updateCheckUri);
-                service.Start(throwIfBindFails);
+                await service.StartAsync(throwIfBindFails);
 
-                Console.CancelKeyPress += delegate (object sender, ConsoleCancelEventArgs e)
+                Console.CancelKeyPress += delegate (object? sender, ConsoleCancelEventArgs e)
                 {
                     e.Cancel = true;
                     waitHandle.Set();
                 };
 
-                AppDomain.CurrentDomain.ProcessExit += delegate (object sender, EventArgs e)
+                AppDomain.CurrentDomain.ProcessExit += delegate (object? sender, EventArgs e)
                 {
                     waitHandle.Set();
                     exitHandle.WaitOne();
@@ -94,8 +95,7 @@ namespace DnsServerApp
             {
                 Console.WriteLine("\r\nTechnitium DNS Server is stopping...");
 
-                if (service != null)
-                    service.Dispose();
+                service?.Dispose();
 
                 Console.WriteLine("Technitium DNS Server was stopped successfully.");
                 exitHandle.Set();
