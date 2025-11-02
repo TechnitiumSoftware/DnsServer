@@ -57,9 +57,9 @@ namespace DnsServerCore
 
             private void WriteClusterState(Utf8JsonWriter jsonWriter, bool includeServerIpAddresses = false)
             {
-                jsonWriter.WriteBoolean("clusterInitialized", _dnsWebService._clusterManager.ClusterInitialized);
-                jsonWriter.WriteString("dnsServerDomain", _dnsWebService._dnsServer.ServerDomain);
                 jsonWriter.WriteString("version", _dnsWebService.GetServerVersion());
+                jsonWriter.WriteString("dnsServerDomain", _dnsWebService._dnsServer.ServerDomain);
+                jsonWriter.WriteBoolean("clusterInitialized", _dnsWebService._clusterManager.ClusterInitialized);
 
                 if (_dnsWebService._clusterManager.ClusterInitialized)
                 {
@@ -70,38 +70,7 @@ namespace DnsServerCore
                     jsonWriter.WriteNumber("configRefreshIntervalSeconds", _dnsWebService._clusterManager.ConfigRefreshIntervalSeconds);
                     jsonWriter.WriteNumber("configRetryIntervalSeconds", _dnsWebService._clusterManager.ConfigRetryIntervalSeconds);
 
-                    List<ClusterNode> sortedClusterNodes = [.. _dnsWebService._clusterManager.ClusterNodes.Values];
-                    sortedClusterNodes.Sort();
-
-                    foreach (ClusterNode clusterNode in sortedClusterNodes)
-                    {
-                        if (clusterNode.State == ClusterNodeState.Self)
-                        {
-                            if (clusterNode.Type == ClusterNodeType.Secondary)
-                                jsonWriter.WriteString("configLastSynced", _dnsWebService._clusterManager.ConfigLastSynced);
-
-                            break;
-                        }
-                    }
-
-                    jsonWriter.WriteStartArray("nodes");
-
-                    foreach (ClusterNode clusterNode in sortedClusterNodes)
-                    {
-                        jsonWriter.WriteStartObject();
-
-                        jsonWriter.WriteNumber("id", clusterNode.Id);
-                        jsonWriter.WriteString("name", clusterNode.Name);
-                        jsonWriter.WriteString("url", clusterNode.Url.OriginalString);
-                        jsonWriter.WriteString("ipAddress", clusterNode.IPAddress.ToString());
-                        jsonWriter.WriteString("type", clusterNode.Type.ToString());
-                        jsonWriter.WriteString("state", clusterNode.State.ToString());
-                        jsonWriter.WriteString("lastSeen", clusterNode.LastSeen);
-
-                        jsonWriter.WriteEndObject();
-                    }
-
-                    jsonWriter.WriteEndArray();
+                    WriteClusterNodes(jsonWriter);
                 }
 
                 if (includeServerIpAddresses)
@@ -182,6 +151,49 @@ namespace DnsServerCore
                 }
             }
 
+            internal void WriteClusterNodes(Utf8JsonWriter jsonWriter)
+            {
+                List<ClusterNode> sortedClusterNodes = [.. _dnsWebService._clusterManager.ClusterNodes.Values];
+                sortedClusterNodes.Sort();
+
+                jsonWriter.WriteStartArray("clusterNodes");
+
+                foreach (ClusterNode clusterNode in sortedClusterNodes)
+                {
+                    jsonWriter.WriteStartObject();
+
+                    jsonWriter.WriteNumber("id", clusterNode.Id);
+                    jsonWriter.WriteString("name", clusterNode.Name);
+                    jsonWriter.WriteString("url", clusterNode.Url.OriginalString);
+                    jsonWriter.WriteString("ipAddress", clusterNode.IPAddress.ToString());
+                    jsonWriter.WriteString("type", clusterNode.Type.ToString());
+                    jsonWriter.WriteString("state", clusterNode.State.ToString());
+
+                    if (clusterNode.State == ClusterNodeState.Self)
+                    {
+                        jsonWriter.WriteString("upSince", clusterNode.UpSince);
+
+                        if (clusterNode.Type == ClusterNodeType.Secondary)
+                        {
+                            if (_dnsWebService._clusterManager.ConfigLastSynced != default)
+                                jsonWriter.WriteString("configLastSynced", _dnsWebService._clusterManager.ConfigLastSynced);
+                        }
+                    }
+                    else
+                    {
+                        if (clusterNode.UpSince != default)
+                            jsonWriter.WriteString("upSince", clusterNode.UpSince);
+
+                        if (clusterNode.LastSeen != default)
+                            jsonWriter.WriteString("lastSeen", clusterNode.LastSeen);
+                    }
+
+                    jsonWriter.WriteEndObject();
+                }
+
+                jsonWriter.WriteEndArray();
+            }
+
             private void EnableWebServiceTlsWithSelfSignedCertificate()
             {
                 _dnsWebService._webServiceEnableTls = true;
@@ -198,12 +210,12 @@ namespace DnsServerCore
             {
                 ThreadPool.QueueUserWorkItem(async delegate (object state)
                 {
-                    await Task.Delay(2000); //wait for the current HTTP response to be delivered before restarting web server
-
-                    _dnsWebService._log.Write("Attempting to restart web service.");
-
                     try
                     {
+                        await Task.Delay(2000); //wait for the current HTTP response to be delivered before restarting web server
+
+                        _dnsWebService._log.Write("Attempting to restart web service.");
+
                         await _dnsWebService.StopWebServiceAsync();
                         await _dnsWebService.StartWebServiceAsync(false);
 
@@ -279,16 +291,21 @@ namespace DnsServerCore
                     restartWebService = true;
                 }
 
-                _dnsWebService._clusterManager.InitializeCluster(clusterDomain, primaryNodeIpAddress, session);
+                try
+                {
+                    _dnsWebService._clusterManager.InitializeCluster(clusterDomain, primaryNodeIpAddress, session);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Cluster (" + _dnsWebService._clusterManager.ClusterDomain + ") was initialized successfully.");
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Cluster (" + _dnsWebService._clusterManager.ClusterDomain + ") was initialized successfully.");
 
-                Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
-                WriteClusterState(jsonWriter);
-
-                //restart TLS web service to apply HTTPS changes
-                if (restartWebService)
-                    RestartWebService();
+                    Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+                    WriteClusterState(jsonWriter);
+                }
+                finally
+                {
+                    //restart TLS web service to apply HTTPS changes
+                    if (restartWebService)
+                        RestartWebService();
+                }
             }
 
             public void DeleteCluster(HttpContext context)
@@ -397,7 +414,7 @@ namespace DnsServerCore
             {
                 UserSession session = context.GetCurrentSession();
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.View))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -484,7 +501,7 @@ namespace DnsServerCore
                 string primaryNodeUsername = request.GetQueryOrForm("primaryNodeUsername");
                 string primaryNodePassword = request.GetQueryOrForm("primaryNodePassword");
                 string primaryNodeTotp = request.GetQueryOrForm("primaryNodeTotp", null);
-                bool ignoreCertErrors = request.GetQueryOrForm("ignoreCertErrors", bool.Parse, false);
+                bool ignoreCertificateErrors = request.GetQueryOrForm("ignoreCertificateErrors", bool.Parse, false);
 
                 bool restartWebService = false;
 
@@ -495,16 +512,21 @@ namespace DnsServerCore
                     restartWebService = true;
                 }
 
-                await _dnsWebService._clusterManager.InitializeAndJoinClusterAsync(secondaryNodeIpAddress, primaryNodeUrl, primaryNodeUsername, primaryNodePassword, primaryNodeTotp, primaryNodeIpAddress, ignoreCertErrors);
+                try
+                {
+                    await _dnsWebService._clusterManager.InitializeAndJoinClusterAsync(secondaryNodeIpAddress, primaryNodeUrl, primaryNodeUsername, primaryNodePassword, primaryNodeTotp, primaryNodeIpAddress, ignoreCertificateErrors);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Joined the Cluster (" + _dnsWebService._clusterManager.ClusterDomain + ") as a Secondary node successfully.");
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Joined the Cluster (" + _dnsWebService._clusterManager.ClusterDomain + ") as a Secondary node successfully.");
 
-                Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
-                WriteClusterState(jsonWriter);
-
-                //restart TLS web service to apply HTTPS changes
-                if (restartWebService)
-                    RestartWebService();
+                    Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+                    WriteClusterState(jsonWriter);
+                }
+                finally
+                {
+                    //restart TLS web service to apply HTTPS changes
+                    if (restartWebService)
+                        RestartWebService();
+                }
             }
 
             public async Task LeaveClusterAsync(HttpContext context)
@@ -583,7 +605,7 @@ namespace DnsServerCore
             {
                 UserSession session = context.GetCurrentSession();
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Modify))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -611,7 +633,7 @@ namespace DnsServerCore
                 IPAddress ipAddress = request.GetQueryOrForm("ipAddress", IPAddress.Parse);
 
                 //update self node IP address
-                ClusterNode selfNode = _dnsWebService._clusterManager.UpdateSelfNodeIPAddressAndCertificate(ipAddress);
+                ClusterNode selfNode = _dnsWebService._clusterManager.UpdateSelfNodeIPAddress(ipAddress);
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] " + selfNode.Type.ToString() + " node '" + selfNode.ToString() + "' IP address was updated successfully.");
 
