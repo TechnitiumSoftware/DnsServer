@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -105,13 +105,18 @@ namespace DnsServerCore.Dns.Trees
 
         #region protected
 
-        protected override byte[] ConvertToByteKey(string domain)
+        protected override byte[] ConvertToByteKey(string domain, bool throwException = true)
         {
             if (domain.Length == 0)
-                return Array.Empty<byte>();
+                return [];
 
             if (domain.Length > 255)
-                throw new InvalidDomainNameException("Invalid domain name [" + domain + "]: length cannot exceed 255 bytes.");
+            {
+                if (throwException)
+                    throw new InvalidDomainNameException("Invalid domain name [" + domain + "]: length cannot exceed 255 bytes.");
+
+                return null;
+            }
 
             byte[] key = new byte[domain.Length + 1];
             int keyOffset = 0;
@@ -131,16 +136,36 @@ namespace DnsServerCore.Dns.Trees
                 labelLength = labelEnd - labelStart;
 
                 if (labelLength == 0)
-                    throw new InvalidDomainNameException("Invalid domain name [" + domain + "]: label length cannot be 0 byte.");
+                {
+                    if (throwException)
+                        throw new InvalidDomainNameException("Invalid domain name [" + domain + "]: label length cannot be 0 byte.");
+
+                    return null;
+                }
 
                 if (labelLength > 63)
-                    throw new InvalidDomainNameException("Invalid domain name [" + domain + "]: label length cannot exceed 63 bytes.");
+                {
+                    if (throwException)
+                        throw new InvalidDomainNameException("Invalid domain name [" + domain + "]: label length cannot exceed 63 bytes.");
+
+                    return null;
+                }
 
                 if (domain[labelStart + 1] == '-')
-                    throw new InvalidDomainNameException("Invalid domain name [" + domain + "]: label cannot start with hyphen.");
+                {
+                    if (throwException)
+                        throw new InvalidDomainNameException("Invalid domain name [" + domain + "]: label cannot start with hyphen.");
+
+                    return null;
+                }
 
                 if (domain[labelEnd] == '-')
-                    throw new InvalidDomainNameException("Invalid domain name [" + domain + "]: label cannot end with hyphen.");
+                {
+                    if (throwException)
+                        throw new InvalidDomainNameException("Invalid domain name [" + domain + "]: label cannot end with hyphen.");
+
+                    return null;
+                }
 
                 if ((labelLength == 1) && (domain[labelStart + 1] == '*')) //[*]
                 {
@@ -152,11 +177,21 @@ namespace DnsServerCore.Dns.Trees
                     {
                         labelChar = domain[i];
                         if (labelChar >= _keyMap.Length)
-                            throw new InvalidDomainNameException("Invalid domain name [" + domain + "]: invalid character [" + labelChar + "] was found.");
+                        {
+                            if (throwException)
+                                throw new InvalidDomainNameException("Invalid domain name [" + domain + "]: invalid character [" + labelChar + "] was found.");
+
+                            return null;
+                        }
 
                         labelKeyCode = _keyMap[labelChar];
                         if (labelKeyCode == 0xff)
-                            throw new InvalidDomainNameException("Invalid domain name [" + domain + "]: invalid character [" + labelChar + "] was found.");
+                        {
+                            if (throwException)
+                                throw new InvalidDomainNameException("Invalid domain name [" + domain + "]: invalid character [" + labelChar + "] was found.");
+
+                            return null;
+                        }
 
                         key[keyOffset++] = labelKeyCode;
                     }
