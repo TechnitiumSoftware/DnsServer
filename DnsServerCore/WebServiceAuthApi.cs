@@ -67,20 +67,25 @@ namespace DnsServerCore
 
                 if (includeInfo)
                 {
-                    jsonWriter.WritePropertyName("info");
-                    jsonWriter.WriteStartObject();
+                    jsonWriter.WriteStartObject("info");
 
                     jsonWriter.WriteString("version", _dnsWebService.GetServerVersion());
                     jsonWriter.WriteString("uptimestamp", _dnsWebService._uptimestamp);
                     jsonWriter.WriteString("dnsServerDomain", _dnsWebService._dnsServer.ServerDomain);
-                    jsonWriter.WriteBoolean("clusterInitialized", _dnsWebService._clusterManager.ClusterInitialized);
-                    jsonWriter.WriteString("clusterDomain", _dnsWebService._clusterManager.ClusterDomain);
-                    jsonWriter.WriteNumber("defaultRecordTtl", _dnsWebService._zonesApi.DefaultRecordTtl);
+                    jsonWriter.WriteNumber("defaultRecordTtl", _dnsWebService._dnsServer.AuthZoneManager.DefaultRecordTtl);
                     jsonWriter.WriteBoolean("useSoaSerialDateScheme", _dnsWebService._dnsServer.AuthZoneManager.UseSoaSerialDateScheme);
                     jsonWriter.WriteBoolean("dnssecValidation", _dnsWebService._dnsServer.DnssecValidation);
 
-                    jsonWriter.WritePropertyName("permissions");
-                    jsonWriter.WriteStartObject();
+                    jsonWriter.WriteBoolean("clusterInitialized", _dnsWebService._clusterManager.ClusterInitialized);
+
+                    if (_dnsWebService._clusterManager.ClusterInitialized)
+                    {
+                        jsonWriter.WriteString("clusterDomain", _dnsWebService._clusterManager.ClusterDomain);
+
+                        _dnsWebService._clusterApi.WriteClusterNodes(jsonWriter);
+                    }
+
+                    jsonWriter.WriteStartObject("permissions");
 
                     for (int i = 1; i <= 11; i++)
                     {
@@ -317,6 +322,13 @@ namespace DnsServerCore
 
                 _dnsWebService._authManager.SaveConfigFile();
 
+                if (sessionType == UserSessionType.ApiToken)
+                {
+                    //trigger cluster update
+                    if (_dnsWebService._clusterManager.ClusterInitialized)
+                        _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
+                }
+
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteCurrentSessionDetails(jsonWriter, session, includeInfo);
             }
@@ -341,18 +353,24 @@ namespace DnsServerCore
                 WriteCurrentSessionDetails(jsonWriter, session, true);
             }
 
-            public void ChangePassword(HttpContext context)
+            public async Task ChangePasswordAsync(HttpContext context)
             {
                 UserSession session = context.GetCurrentSession();
 
                 if (session.Type != UserSessionType.Standard)
                     throw new DnsWebServiceException("Access was denied.");
 
-                string password = context.Request.GetQueryOrForm("pass");
+                HttpRequest request = context.Request;
 
-                session.User.ChangePassword(password);
+                string password = request.GetQueryOrForm("pass");
+                string totp = request.GetQueryOrForm("totp", null);
+                IPEndPoint remoteEP = context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader);
+                string newPassword = request.GetQueryOrForm("newPass");
+                int iterations = request.GetQueryOrForm("iterations", int.Parse, User.DEFAULT_ITERATIONS);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Password was changed successfully.");
+                User user = await _dnsWebService._authManager.ChangePasswordAsync(session.User.Username, password, totp, remoteEP.Address, newPassword, iterations);
+
+                _dnsWebService._log.Write(remoteEP, "[" + user.Username + "] Password was changed successfully.");
 
                 _dnsWebService._authManager.SaveConfigFile();
 
@@ -529,28 +547,39 @@ namespace DnsServerCore
                 if (session.Token.StartsWith(strPartialToken))
                     throw new InvalidOperationException("Invalid operation: cannot delete current session.");
 
-                string token = null;
+                UserSession sessionToDelete = null;
 
                 foreach (UserSession activeSession in _dnsWebService._authManager.Sessions)
                 {
                     if (activeSession.Token.StartsWith(strPartialToken))
                     {
-                        token = activeSession.Token;
+                        sessionToDelete = activeSession;
                         break;
                     }
                 }
 
-                if (token is null)
+                if (sessionToDelete is null)
                     throw new DnsWebServiceException("No such active session was found for partial token: " + strPartialToken);
 
                 if (!isAdminContext)
                 {
-                    UserSession sessionToDelete = _dnsWebService._authManager.GetSession(token);
                     if (sessionToDelete.User != session.User)
                         throw new DnsWebServiceException("Access was denied.");
                 }
 
-                UserSession deletedSession = _dnsWebService._authManager.DeleteSession(token);
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                {
+                    if (sessionToDelete.Type == UserSessionType.ApiToken)
+                    {
+                        if (sessionToDelete.TokenName.Equals(_dnsWebService._clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
+                            throw new DnsWebServiceException("Invalid operation: cannot delete the Cluster API token.");
+
+                        if (_dnsWebService._clusterManager.GetSelfNode().Type != Cluster.ClusterNodeType.Primary)
+                            throw new DnsWebServiceException("API tokens can be deleted only on the Primary node.");
+                    }
+                }
+
+                UserSession deletedSession = _dnsWebService._authManager.DeleteSession(sessionToDelete.Token);
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User session [" + strPartialToken + "] was deleted successfully for user: " + deletedSession.User.Username);
 
@@ -632,7 +661,7 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("No such user exists: " + username);
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
-                WriteUserDetails(jsonWriter, user, null, true, includeGroups);
+                WriteUserDetails(jsonWriter, user, session, true, includeGroups);
             }
 
             public void SetUserDetails(HttpContext context)
@@ -738,7 +767,7 @@ namespace DnsServerCore
                 }
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
-                WriteUserDetails(jsonWriter, user, null, true, false);
+                WriteUserDetails(jsonWriter, user, session, true, false);
             }
 
             public void DeleteUser(HttpContext context)
@@ -1005,6 +1034,12 @@ namespace DnsServerCore
                     case PermissionSection.Unknown:
                         if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
                             throw new DnsWebServiceException("Access was denied.");
+
+                        if (_dnsWebService._clusterManager.ClusterInitialized)
+                        {
+                            if (_dnsWebService._clusterManager.GetSelfNode().Type != Cluster.ClusterNodeType.Primary)
+                                throw new DnsWebServiceException("Permissions for sections can be set only on the Primary node.");
+                        }
 
                         section = request.GetQueryOrFormEnum<PermissionSection>("section");
                         break;
