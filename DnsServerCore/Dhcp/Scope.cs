@@ -1506,6 +1506,9 @@ namespace DnsServerCore.Dhcp
                 }
             }
 
+            //remove DNS entries if any
+            _dhcpServer.UpdateDnsAuthZone(false, this, removedLease);
+
             return removedLease;
         }
 
