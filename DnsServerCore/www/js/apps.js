@@ -21,11 +21,13 @@ function refreshApps() {
     var divViewAppsLoader = $("#divViewAppsLoader");
     var divViewApps = $("#divViewApps");
 
+    var node = $("#optAppsClusterNode").val();
+
     divViewApps.hide();
     divViewAppsLoader.show();
 
     HTTPRequest({
-        url: "api/apps/list?token=" + sessionData.token,
+        url: "api/apps/list?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             var apps = responseJSON.response.apps;
             var tableHtmlRows = "";
@@ -202,7 +204,7 @@ function showInstallAppModal() {
     $("#modalInstallApp").modal("show");
 
     setTimeout(function () {
-        $("#txtInstallApp").focus();
+        $("#txtInstallApp").trigger("focus");
     }, 1000);
 }
 
@@ -217,14 +219,14 @@ function showUpdateAppModal(appName) {
 
 function installStoreApp(objBtn, appName, url) {
     var divStoreAppsAlert = $("#divStoreAppsAlert");
-    var btn = $(objBtn);
 
-    btn.button('loading');
+    var btn = $(objBtn);
+    btn.button("loading");
 
     HTTPRequest({
         url: "api/apps/downloadAndInstall?token=" + sessionData.token + "&name=" + encodeURIComponent(appName) + "&url=" + encodeURIComponent(url),
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
             btn.hide();
 
             var id = btn.attr("data-id");
@@ -237,7 +239,7 @@ function installStoreApp(objBtn, appName, url) {
             showAlert("success", "Store App Installed!", "DNS application '" + appName + "' was installed successfully from DNS App Store.", divStoreAppsAlert);
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
             $("#modalStoreApps").modal("hide");
@@ -254,13 +256,12 @@ function updateStoreApp(objBtn, appName, url, isModal) {
         divStoreAppsAlert = $("#divStoreAppsAlert");
 
     var btn = $(objBtn);
-
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: "api/apps/downloadAndUpdate?token=" + sessionData.token + "&name=" + encodeURIComponent(appName) + "&url=" + encodeURIComponent(url),
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
             btn.hide();
 
             if (isModal) {
@@ -276,7 +277,7 @@ function updateStoreApp(objBtn, appName, url, isModal) {
             showAlert("success", "Store App Updated!", "DNS application '" + appName + "' was updated successfully from DNS App Store.", divStoreAppsAlert);
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
             $("#modalStoreApps").modal("hide");
@@ -293,12 +294,12 @@ function uninstallStoreApp(objBtn, appName) {
     var divStoreAppsAlert = $("#divStoreAppsAlert");
     var btn = $(objBtn);
 
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: "api/apps/uninstall?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
             btn.hide();
 
             var id = btn.attr("data-id");
@@ -313,7 +314,7 @@ function uninstallStoreApp(objBtn, appName) {
             showAlert("success", "Store App Uninstalled!", "DNS application '" + appName + "' was uninstalled successfully.", divStoreAppsAlert);
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
             $("#modalStoreApps").modal("hide");
@@ -329,7 +330,7 @@ function installApp() {
 
     if ((appName === null) || (appName === "")) {
         showAlert("warning", "Missing!", "Please enter an application name.", divInstallAppAlert);
-        $("#txtInstallApp").focus();
+        $("#txtInstallApp").trigger("focus");
         return;
     }
 
@@ -337,14 +338,15 @@ function installApp() {
 
     if (fileAppZip[0].files.length === 0) {
         showAlert("warning", "Missing!", "Please select an application zip file to install.", divInstallAppAlert);
-        fileAppZip.focus();
+        fileAppZip.trigger("focus");
         return;
     }
 
     var formData = new FormData();
     formData.append("fileAppZip", $("#fileAppZip")[0].files[0]);
 
-    var btn = $("#btnInstallApp").button('loading');
+    var btn = $("#btnInstallApp");
+    btn.button("loading");
 
     HTTPRequest({
         url: "api/apps/install?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
@@ -362,7 +364,7 @@ function installApp() {
             showAlert("success", "App Installed!", "DNS application '" + appName + "' was installed successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
             $("#modalInstallApp").modal("hide");
@@ -379,14 +381,15 @@ function updateApp() {
 
     if (fileAppZip[0].files.length === 0) {
         showAlert("warning", "Missing!", "Please select an application zip file to update.", divUpdateAppAlert);
-        fileAppZip.focus();
+        fileAppZip.trigger("focus");
         return;
     }
 
     var formData = new FormData();
     formData.append("fileAppZip", $("#fileUpdateAppZip")[0].files[0]);
 
-    var btn = $("#btnUpdateApp").button('loading');
+    var btn = $("#btnUpdateApp");
+    btn.button("loading");
 
     HTTPRequest({
         url: "api/apps/update?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
@@ -404,7 +407,7 @@ function updateApp() {
             showAlert("success", "App Updated!", "DNS application '" + appName + "' was updated successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
             $("#modalUpdateApp").modal("hide");
@@ -419,7 +422,7 @@ function uninstallApp(objBtn, appName) {
         return;
 
     var btn = $(objBtn);
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: "api/apps/uninstall?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
@@ -431,7 +434,7 @@ function uninstallApp(objBtn, appName) {
             showAlert("success", "App Uninstalled!", "DNS application '" + appName + "' was uninstalled successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
             showPageLogin();
@@ -440,7 +443,7 @@ function uninstallApp(objBtn, appName) {
 }
 
 function updateAppsFooterCount() {
-    var totalApps = $('#tableApps >tbody >tr').length;
+    var totalApps = $("#tableApps >tbody >tr").length;
     if (totalApps > 0)
         $("#tableAppsFooter").html("<tr><td colspan=\"3\"><b>Total Apps: " + totalApps + "</b></td></tr>");
     else
@@ -448,14 +451,15 @@ function updateAppsFooterCount() {
 }
 
 function showAppConfigModal(objBtn, appName) {
-    var btn = $(objBtn);
+    var node = getPrimaryClusterNodeName(); //always reading app config from primary node to avoid issues due to config propagation delays
 
-    btn.button('loading');
+    var btn = $(objBtn);
+    btn.button("loading");
 
     HTTPRequest({
-        url: "api/apps/config/get?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
+        url: "api/apps/config/get?token=" + sessionData.token + "&name=" + encodeURIComponent(appName) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
 
             $("#divAppConfigAlert").html("");
 
@@ -467,11 +471,11 @@ function showAppConfigModal(objBtn, appName) {
             $("#modalAppConfig").modal("show");
 
             setTimeout(function () {
-                $("#txtAppConfig").focus();
+                $("#txtAppConfig").trigger("focus");
             }, 1000);
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
             showPageLogin();
@@ -485,7 +489,8 @@ function saveAppConfig() {
     var appName = $("#lblAppConfigName").text();
     var config = $("#txtAppConfig").val();
 
-    var btn = $("#btnAppConfig").button("loading");
+    var btn = $("#btnAppConfig");
+    btn.button("loading");
 
     HTTPRequest({
         url: "api/apps/config/set?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
@@ -498,7 +503,7 @@ function saveAppConfig() {
             showAlert("success", "App Config Saved!", "The DNS application '" + appName + "' config was saved and reloaded successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
             $("#modalAppConfig").modal("hide");
