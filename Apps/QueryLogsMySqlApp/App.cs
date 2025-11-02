@@ -20,13 +20,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.ApplicationCommon;
 using MySqlConnector;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
@@ -47,14 +47,17 @@ namespace QueryLogsMySql
         string? _databaseName;
         string? _connectionString;
 
-        readonly ConcurrentQueue<LogEntry> _queuedLogs = new ConcurrentQueue<LogEntry>();
-        readonly Timer _queueTimer;
-        const int QUEUE_TIMER_INTERVAL = 10000;
+        Channel<LogEntry>? _channel;
+        ChannelWriter<LogEntry>? _channelWriter;
+        Thread? _consumerThread;
         const int BULK_INSERT_COUNT = 1000;
+        const int BULK_INSERT_ERROR_DELAY = 10000;
 
         readonly Timer _cleanupTimer;
         const int CLEAN_UP_TIMER_INITIAL_INTERVAL = 5 * 1000;
         const int CLEAN_UP_TIMER_PERIODIC_INTERVAL = 15 * 60 * 1000;
+
+        bool _isStartupInit = true;
 
         #endregion
 
@@ -62,34 +65,13 @@ namespace QueryLogsMySql
 
         public App()
         {
-            _queueTimer = new Timer(async delegate (object? state)
-            {
-                try
-                {
-                    await BulkInsertLogsAsync();
-                }
-                catch (Exception ex)
-                {
-                    _dnsServer?.WriteLog(ex);
-                }
-                finally
-                {
-                    try
-                    {
-                        _queueTimer?.Change(QUEUE_TIMER_INTERVAL, Timeout.Infinite);
-                    }
-                    catch (ObjectDisposedException)
-                    { }
-                }
-            });
-
             _cleanupTimer = new Timer(async delegate (object? state)
             {
                 try
                 {
                     await using (MySqlConnection connection = new MySqlConnection(_connectionString + $" Database={_databaseName};"))
                     {
-                        connection.Open(); //OpenAsync() has a critical bug that will crash the entire DNS server which Oracle wont fix: https://bugs.mysql.com/bug.php?id=110789
+                        await connection.OpenAsync();
 
                         if (_maxLogRecords > 0)
                         {
@@ -147,143 +129,192 @@ namespace QueryLogsMySql
 
         #region IDisposable
 
+        bool _disposed;
+
         public void Dispose()
         {
+            if (_disposed)
+                return;
+
             _enableLogging = false; //turn off logging
 
-            _queueTimer?.Dispose();
+            _cleanupTimer?.Dispose();
 
-            BulkInsertLogsAsync().Sync(); //flush any pending logs
+            StopChannel();
+
+            _disposed = true;
+            GC.SuppressFinalize(this);
         }
 
         #endregion
 
         #region private
 
-        private async Task BulkInsertLogsAsync()
+        private void StartNewChannel(int maxQueueSize)
+        {
+            ChannelWriter<LogEntry>? existingChannelWriter = _channelWriter;
+
+            //start new channel and consumer thread
+            BoundedChannelOptions options = new BoundedChannelOptions(maxQueueSize);
+            options.SingleWriter = true;
+            options.SingleReader = true;
+            options.FullMode = BoundedChannelFullMode.DropWrite;
+
+            _channel = Channel.CreateBounded<LogEntry>(options);
+            _channelWriter = _channel.Writer;
+            ChannelReader<LogEntry> channelReader = _channel.Reader;
+
+            _consumerThread = new Thread(async delegate ()
+            {
+                try
+                {
+                    List<LogEntry> logs = new List<LogEntry>(BULK_INSERT_COUNT);
+                    StringBuilder sb = new StringBuilder(4096);
+
+                    while (!_disposed && await channelReader.WaitToReadAsync())
+                    {
+                        while (!_disposed && (logs.Count < BULK_INSERT_COUNT) && channelReader.TryRead(out LogEntry log))
+                        {
+                            logs.Add(log);
+                        }
+
+                        if (logs.Count < 1)
+                            continue;
+
+                        await BulkInsertLogsAsync(logs, sb);
+
+                        logs.Clear();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer?.WriteLog(ex);
+                }
+            });
+
+            _consumerThread.Name = GetType().Name;
+            _consumerThread.IsBackground = true;
+            _consumerThread.Start();
+
+            //complete old channel to stop its consumer thread
+            existingChannelWriter?.TryComplete();
+        }
+
+        private void StopChannel()
+        {
+            _channel?.Writer.TryComplete();
+        }
+
+        private async Task BulkInsertLogsAsync(List<LogEntry> logs, StringBuilder sb)
         {
             try
             {
-                List<LogEntry> logs = new List<LogEntry>(BULK_INSERT_COUNT);
-                StringBuilder sb = new StringBuilder(4096);
-
-                while (true)
+                await using (MySqlConnection connection = new MySqlConnection(_connectionString + $" Database={_databaseName};"))
                 {
-                    while ((logs.Count < BULK_INSERT_COUNT) && _queuedLogs.TryDequeue(out LogEntry? log))
+                    await connection.OpenAsync();
+
+                    await using (MySqlCommand command = connection.CreateCommand())
                     {
-                        logs.Add(log);
-                    }
+                        sb.Length = 0;
+                        sb.Append("INSERT INTO dns_logs (server, timestamp, client_ip, protocol, response_type, response_rtt, rcode, qname, qtype, qclass, answer) VALUES ");
 
-                    if (logs.Count < 1)
-                        break;
-
-                    await using (MySqlConnection connection = new MySqlConnection(_connectionString + $" Database={_databaseName};"))
-                    {
-                        connection.Open(); //OpenAsync() has a critical bug that will crash the entire DNS server which Oracle wont fix: https://bugs.mysql.com/bug.php?id=110789
-
-                        await using (MySqlCommand command = connection.CreateCommand())
+                        for (int i = 0; i < logs.Count; i++)
                         {
-                            sb.Length = 0;
-                            sb.Append("INSERT INTO dns_logs (server, timestamp, client_ip, protocol, response_type, response_rtt, rcode, qname, qtype, qclass, answer) VALUES ");
-
-                            for (int i = 0; i < logs.Count; i++)
-                            {
-                                if (i == 0)
-                                    sb.Append($"(@server{i}, @timestamp{i}, @client_ip{i}, @protocol{i}, @response_type{i}, @response_rtt{i}, @rcode{i}, @qname{i}, @qtype{i}, @qclass{i}, @answer{i})");
-                                else
-                                    sb.Append($", (@server{i}, @timestamp{i}, @client_ip{i}, @protocol{i}, @response_type{i}, @response_rtt{i}, @rcode{i}, @qname{i}, @qtype{i}, @qclass{i}, @answer{i})");
-                            }
-                            command.CommandText = sb.ToString();
-
-                            for (int i = 0; i < logs.Count; i++)
-                            {
-                                LogEntry log = logs[i];
-
-                                MySqlParameter paramServer = command.Parameters.Add("@server" + i, MySqlDbType.VarChar);
-                                MySqlParameter paramTimestamp = command.Parameters.Add("@timestamp" + i, MySqlDbType.DateTime);
-                                MySqlParameter paramClientIp = command.Parameters.Add("@client_ip" + i, MySqlDbType.VarChar);
-                                MySqlParameter paramProtocol = command.Parameters.Add("@protocol" + i, MySqlDbType.Byte);
-                                MySqlParameter paramResponseType = command.Parameters.Add("@response_type" + i, MySqlDbType.Byte);
-                                MySqlParameter paramResponseRtt = command.Parameters.Add("@response_rtt" + i, MySqlDbType.Double);
-                                MySqlParameter paramRcode = command.Parameters.Add("@rcode" + i, MySqlDbType.Byte);
-                                MySqlParameter paramQname = command.Parameters.Add("@qname" + i, MySqlDbType.VarChar);
-                                MySqlParameter paramQtype = command.Parameters.Add("@qtype" + i, MySqlDbType.Int16);
-                                MySqlParameter paramQclass = command.Parameters.Add("@qclass" + i, MySqlDbType.Int16);
-                                MySqlParameter paramAnswer = command.Parameters.Add("@answer" + i, MySqlDbType.VarChar);
-
-                                paramServer.Value = _dnsServer?.ServerDomain;
-                                paramTimestamp.Value = log.Timestamp;
-                                paramClientIp.Value = log.RemoteEP.Address.ToString();
-                                paramProtocol.Value = (byte)log.Protocol;
-
-                                DnsServerResponseType responseType;
-
-                                if (log.Response.Tag == null)
-                                    responseType = DnsServerResponseType.Recursive;
-                                else
-                                    responseType = (DnsServerResponseType)log.Response.Tag;
-
-                                paramResponseType.Value = (byte)responseType;
-
-                                if ((responseType == DnsServerResponseType.Recursive) && (log.Response.Metadata is not null))
-                                    paramResponseRtt.Value = log.Response.Metadata.RoundTripTime;
-                                else
-                                    paramResponseRtt.Value = DBNull.Value;
-
-                                paramRcode.Value = (byte)log.Response.RCODE;
-
-                                if (log.Request.Question.Count > 0)
-                                {
-                                    DnsQuestionRecord query = log.Request.Question[0];
-
-                                    paramQname.Value = query.Name.ToLowerInvariant();
-                                    paramQtype.Value = (short)query.Type;
-                                    paramQclass.Value = (short)query.Class;
-                                }
-                                else
-                                {
-                                    paramQname.Value = DBNull.Value;
-                                    paramQtype.Value = DBNull.Value;
-                                    paramQclass.Value = DBNull.Value;
-                                }
-
-                                if (log.Response.Answer.Count == 0)
-                                {
-                                    paramAnswer.Value = DBNull.Value;
-                                }
-                                else if ((log.Response.Answer.Count > 2) && log.Response.IsZoneTransfer)
-                                {
-                                    paramAnswer.Value = "[ZONE TRANSFER]";
-                                }
-                                else
-                                {
-                                    string? answer = null;
-
-                                    foreach (DnsResourceRecord record in log.Response.Answer)
-                                    {
-                                        if (answer is null)
-                                            answer = record.Type.ToString() + " " + record.RDATA.ToString();
-                                        else
-                                            answer += ", " + record.Type.ToString() + " " + record.RDATA.ToString();
-                                    }
-
-                                    if (answer?.Length > 4000)
-                                        answer = answer.Substring(0, 4000);
-
-                                    paramAnswer.Value = answer;
-                                }
-                            }
-
-                            await command.ExecuteNonQueryAsync();
+                            if (i == 0)
+                                sb.Append($"(@server{i}, @timestamp{i}, @client_ip{i}, @protocol{i}, @response_type{i}, @response_rtt{i}, @rcode{i}, @qname{i}, @qtype{i}, @qclass{i}, @answer{i})");
+                            else
+                                sb.Append($", (@server{i}, @timestamp{i}, @client_ip{i}, @protocol{i}, @response_type{i}, @response_rtt{i}, @rcode{i}, @qname{i}, @qtype{i}, @qclass{i}, @answer{i})");
                         }
-                    }
+                        command.CommandText = sb.ToString();
 
-                    logs.Clear();
+                        for (int i = 0; i < logs.Count; i++)
+                        {
+                            LogEntry log = logs[i];
+
+                            MySqlParameter paramServer = command.Parameters.Add("@server" + i, MySqlDbType.VarChar);
+                            MySqlParameter paramTimestamp = command.Parameters.Add("@timestamp" + i, MySqlDbType.DateTime);
+                            MySqlParameter paramClientIp = command.Parameters.Add("@client_ip" + i, MySqlDbType.VarChar);
+                            MySqlParameter paramProtocol = command.Parameters.Add("@protocol" + i, MySqlDbType.Byte);
+                            MySqlParameter paramResponseType = command.Parameters.Add("@response_type" + i, MySqlDbType.Byte);
+                            MySqlParameter paramResponseRtt = command.Parameters.Add("@response_rtt" + i, MySqlDbType.Double);
+                            MySqlParameter paramRcode = command.Parameters.Add("@rcode" + i, MySqlDbType.Byte);
+                            MySqlParameter paramQname = command.Parameters.Add("@qname" + i, MySqlDbType.VarChar);
+                            MySqlParameter paramQtype = command.Parameters.Add("@qtype" + i, MySqlDbType.Int16);
+                            MySqlParameter paramQclass = command.Parameters.Add("@qclass" + i, MySqlDbType.Int16);
+                            MySqlParameter paramAnswer = command.Parameters.Add("@answer" + i, MySqlDbType.VarChar);
+
+                            paramServer.Value = _dnsServer?.ServerDomain;
+                            paramTimestamp.Value = log.Timestamp;
+                            paramClientIp.Value = log.RemoteEP.Address.ToString();
+                            paramProtocol.Value = (byte)log.Protocol;
+
+                            DnsServerResponseType responseType;
+
+                            if (log.Response.Tag == null)
+                                responseType = DnsServerResponseType.Recursive;
+                            else
+                                responseType = (DnsServerResponseType)log.Response.Tag;
+
+                            paramResponseType.Value = (byte)responseType;
+
+                            if ((responseType == DnsServerResponseType.Recursive) && (log.Response.Metadata is not null))
+                                paramResponseRtt.Value = log.Response.Metadata.RoundTripTime;
+                            else
+                                paramResponseRtt.Value = DBNull.Value;
+
+                            paramRcode.Value = (byte)log.Response.RCODE;
+
+                            if (log.Request.Question.Count > 0)
+                            {
+                                DnsQuestionRecord query = log.Request.Question[0];
+
+                                paramQname.Value = query.Name.ToLowerInvariant();
+                                paramQtype.Value = (short)query.Type;
+                                paramQclass.Value = (short)query.Class;
+                            }
+                            else
+                            {
+                                paramQname.Value = DBNull.Value;
+                                paramQtype.Value = DBNull.Value;
+                                paramQclass.Value = DBNull.Value;
+                            }
+
+                            if (log.Response.Answer.Count == 0)
+                            {
+                                paramAnswer.Value = DBNull.Value;
+                            }
+                            else if ((log.Response.Answer.Count > 2) && log.Response.IsZoneTransfer)
+                            {
+                                paramAnswer.Value = "[ZONE TRANSFER]";
+                            }
+                            else
+                            {
+                                string? answer = null;
+
+                                foreach (DnsResourceRecord record in log.Response.Answer)
+                                {
+                                    if (answer is null)
+                                        answer = record.Type.ToString() + " " + record.RDATA.ToString();
+                                    else
+                                        answer += ", " + record.Type.ToString() + " " + record.RDATA.ToString();
+                                }
+
+                                if (answer?.Length > 4000)
+                                    answer = answer.Substring(0, 4000);
+
+                                paramAnswer.Value = answer;
+                            }
+                        }
+
+                        await command.ExecuteNonQueryAsync();
+                    }
                 }
             }
             catch (Exception ex)
             {
                 _dnsServer?.WriteLog(ex);
+
+                await Task.Delay(BULK_INSERT_ERROR_DELAY);
             }
         }
 
@@ -293,39 +324,43 @@ namespace QueryLogsMySql
 
         public async Task InitializeAsync(IDnsServer dnsServer, string config)
         {
-            _dnsServer = dnsServer;
-
-            using JsonDocument jsonDocument = JsonDocument.Parse(config);
-            JsonElement jsonConfig = jsonDocument.RootElement;
-
-            _enableLogging = jsonConfig.GetPropertyValue("enableLogging", false);
-            _maxQueueSize = jsonConfig.GetPropertyValue("maxQueueSize", 1000000);
-            _maxLogDays = jsonConfig.GetPropertyValue("maxLogDays", 0);
-            _maxLogRecords = jsonConfig.GetPropertyValue("maxLogRecords", 0);
-            _databaseName = jsonConfig.GetPropertyValue("databaseName", "DnsQueryLogs");
-            _connectionString = jsonConfig.GetPropertyValue("connectionString", null);
-
-            if (_connectionString is null)
-                throw new Exception("Please specify a valid connection string in 'connectionString' parameter.");
-
-            if (_connectionString.Replace(" ", "").Contains("Database=", StringComparison.OrdinalIgnoreCase))
-                throw new Exception("The 'connectionString' parameter must not define 'Database'. Configure the 'databaseName' parameter above instead.");
-
-            if (!_connectionString.TrimEnd().EndsWith(';'))
-                _connectionString += ";";
-
-            if (_enableLogging)
+            try
             {
-                await using (MySqlConnection connection = new MySqlConnection(_connectionString))
+                _dnsServer = dnsServer;
+
+                using JsonDocument jsonDocument = JsonDocument.Parse(config);
+                JsonElement jsonConfig = jsonDocument.RootElement;
+
+                bool enableLogging = jsonConfig.GetPropertyValue("enableLogging", false);
+                int maxQueueSize = jsonConfig.GetPropertyValue("maxQueueSize", 1000000);
+                _maxLogDays = jsonConfig.GetPropertyValue("maxLogDays", 0);
+                _maxLogRecords = jsonConfig.GetPropertyValue("maxLogRecords", 0);
+                _databaseName = jsonConfig.GetPropertyValue("databaseName", "DnsQueryLogs");
+                _connectionString = jsonConfig.GetPropertyValue("connectionString", null);
+
+                if (_connectionString is null)
+                    throw new Exception("Please specify a valid connection string in 'connectionString' parameter.");
+
+                if (_connectionString.Replace(" ", "").Contains("Database=", StringComparison.OrdinalIgnoreCase))
+                    throw new Exception("The 'connectionString' parameter must not define 'Database'. Configure the 'databaseName' parameter above instead.");
+
+                if (!_connectionString.TrimEnd().EndsWith(';'))
+                    _connectionString += ";";
+
+                async Task ApplyConfig()
                 {
-                    connection.Open(); //OpenAsync() has a critical bug that will crash the entire DNS server which Oracle wont fix: https://bugs.mysql.com/bug.php?id=110789
-
-                    await using (MySqlCommand command = connection.CreateCommand())
+                    if (enableLogging)
                     {
-                        command.CommandText = @$"
-CREATE DATABASE IF NOT EXISTS {_databaseName};
+                        await using (MySqlConnection connection = new MySqlConnection(_connectionString))
+                        {
+                            await connection.OpenAsync();
 
-USE {_databaseName};
+                            await using (MySqlCommand command = connection.CreateCommand())
+                            {
+                                command.CommandText = @$"
+CREATE DATABASE IF NOT EXISTS `{_databaseName}`;
+
+USE `{_databaseName}`;
 
 CREATE TABLE IF NOT EXISTS dns_logs
 (
@@ -344,222 +379,296 @@ CREATE TABLE IF NOT EXISTS dns_logs
 );
 ";
 
-                        await command.ExecuteNonQueryAsync();
-                    }
+                                await command.ExecuteNonQueryAsync();
+                            }
 
-                    await using (MySqlCommand command = connection.CreateCommand())
-                    {
-                        command.CommandText = "ALTER TABLE dns_logs ADD server varchar(255);";
+                            await using (MySqlCommand command = connection.CreateCommand())
+                            {
+                                command.CommandText = "ALTER TABLE dns_logs ADD server varchar(255);";
 
-                        try
-                        {
-                            await command.ExecuteNonQueryAsync();
+                                try
+                                {
+                                    await command.ExecuteNonQueryAsync();
+                                }
+                                catch
+                                { }
+                            }
+
+                            await using (MySqlCommand command = connection.CreateCommand())
+                            {
+                                command.CommandText = "ALTER TABLE dns_logs MODIFY protocol TINYINT UNSIGNED NOT NULL;";
+
+                                try
+                                {
+                                    await command.ExecuteNonQueryAsync();
+                                }
+                                catch
+                                { }
+                            }
+
+                            await using (MySqlCommand command = connection.CreateCommand())
+                            {
+                                command.CommandText = "CREATE INDEX index_server ON dns_logs (server);";
+
+                                try
+                                {
+                                    await command.ExecuteNonQueryAsync();
+                                }
+                                catch
+                                { }
+                            }
+
+                            await using (MySqlCommand command = connection.CreateCommand())
+                            {
+                                command.CommandText = "CREATE INDEX index_timestamp ON dns_logs (timestamp);";
+
+                                try
+                                {
+                                    await command.ExecuteNonQueryAsync();
+                                }
+                                catch
+                                { }
+                            }
+
+                            await using (MySqlCommand command = connection.CreateCommand())
+                            {
+                                command.CommandText = "CREATE INDEX index_client_ip ON dns_logs (client_ip);";
+
+                                try
+                                {
+                                    await command.ExecuteNonQueryAsync();
+                                }
+                                catch
+                                { }
+                            }
+
+                            await using (MySqlCommand command = connection.CreateCommand())
+                            {
+                                command.CommandText = "CREATE INDEX index_protocol ON dns_logs (protocol);";
+
+                                try
+                                {
+                                    await command.ExecuteNonQueryAsync();
+                                }
+                                catch
+                                { }
+                            }
+
+                            await using (MySqlCommand command = connection.CreateCommand())
+                            {
+                                command.CommandText = "CREATE INDEX index_response_type ON dns_logs (response_type);";
+
+                                try
+                                {
+                                    await command.ExecuteNonQueryAsync();
+                                }
+                                catch
+                                { }
+                            }
+
+                            await using (MySqlCommand command = connection.CreateCommand())
+                            {
+                                command.CommandText = "CREATE INDEX index_rcode ON dns_logs (rcode);";
+
+                                try
+                                {
+                                    await command.ExecuteNonQueryAsync();
+                                }
+                                catch
+                                { }
+                            }
+
+                            await using (MySqlCommand command = connection.CreateCommand())
+                            {
+                                command.CommandText = "CREATE INDEX index_qname ON dns_logs (qname)";
+
+                                try
+                                {
+                                    await command.ExecuteNonQueryAsync();
+                                }
+                                catch
+                                { }
+                            }
+
+                            await using (MySqlCommand command = connection.CreateCommand())
+                            {
+                                command.CommandText = "CREATE INDEX index_qtype ON dns_logs (qtype);";
+
+                                try
+                                {
+                                    await command.ExecuteNonQueryAsync();
+                                }
+                                catch
+                                { }
+                            }
+
+                            await using (MySqlCommand command = connection.CreateCommand())
+                            {
+                                command.CommandText = "CREATE INDEX index_qclass ON dns_logs (qclass);";
+
+                                try
+                                {
+                                    await command.ExecuteNonQueryAsync();
+                                }
+                                catch
+                                { }
+                            }
+
+                            await using (MySqlCommand command = connection.CreateCommand())
+                            {
+                                command.CommandText = "CREATE INDEX index_timestamp_client_ip ON dns_logs (timestamp, client_ip);";
+
+                                try
+                                {
+                                    await command.ExecuteNonQueryAsync();
+                                }
+                                catch
+                                { }
+                            }
+
+                            await using (MySqlCommand command = connection.CreateCommand())
+                            {
+                                command.CommandText = "CREATE INDEX index_timestamp_qname ON dns_logs (timestamp, qname);";
+
+                                try
+                                {
+                                    await command.ExecuteNonQueryAsync();
+                                }
+                                catch
+                                { }
+                            }
+
+                            await using (MySqlCommand command = connection.CreateCommand())
+                            {
+                                command.CommandText = "CREATE INDEX index_client_qname ON dns_logs (client_ip, qname);";
+
+                                try
+                                {
+                                    await command.ExecuteNonQueryAsync();
+                                }
+                                catch
+                                { }
+                            }
+
+                            await using (MySqlCommand command = connection.CreateCommand())
+                            {
+                                command.CommandText = "CREATE INDEX index_query ON dns_logs (qname, qtype);";
+
+                                try
+                                {
+                                    await command.ExecuteNonQueryAsync();
+                                }
+                                catch
+                                { }
+                            }
+
+                            await using (MySqlCommand command = connection.CreateCommand())
+                            {
+                                command.CommandText = "CREATE INDEX index_all ON dns_logs (server, timestamp, client_ip, protocol, response_type, rcode, qname, qtype, qclass);";
+
+                                try
+                                {
+                                    await command.ExecuteNonQueryAsync();
+                                }
+                                catch
+                                { }
+                            }
                         }
-                        catch
-                        { }
-                    }
 
-                    await using (MySqlCommand command = connection.CreateCommand())
+                        if (!_enableLogging || (_maxQueueSize != maxQueueSize))
+                            StartNewChannel(maxQueueSize);
+                    }
+                    else
                     {
-                        command.CommandText = "ALTER TABLE dns_logs MODIFY protocol TINYINT UNSIGNED NOT NULL;";
-
-                        try
-                        {
-                            await command.ExecuteNonQueryAsync();
-                        }
-                        catch
-                        { }
+                        StopChannel();
                     }
 
-                    await using (MySqlCommand command = connection.CreateCommand())
-                    {
-                        command.CommandText = "CREATE INDEX index_server ON dns_logs (server);";
+                    _enableLogging = enableLogging;
+                    _maxQueueSize = maxQueueSize;
 
-                        try
-                        {
-                            await command.ExecuteNonQueryAsync();
-                        }
-                        catch
-                        { }
-                    }
-
-                    await using (MySqlCommand command = connection.CreateCommand())
-                    {
-                        command.CommandText = "CREATE INDEX index_timestamp ON dns_logs (timestamp);";
-
-                        try
-                        {
-                            await command.ExecuteNonQueryAsync();
-                        }
-                        catch
-                        { }
-                    }
-
-                    await using (MySqlCommand command = connection.CreateCommand())
-                    {
-                        command.CommandText = "CREATE INDEX index_client_ip ON dns_logs (client_ip);";
-
-                        try
-                        {
-                            await command.ExecuteNonQueryAsync();
-                        }
-                        catch
-                        { }
-                    }
-
-                    await using (MySqlCommand command = connection.CreateCommand())
-                    {
-                        command.CommandText = "CREATE INDEX index_protocol ON dns_logs (protocol);";
-
-                        try
-                        {
-                            await command.ExecuteNonQueryAsync();
-                        }
-                        catch
-                        { }
-                    }
-
-                    await using (MySqlCommand command = connection.CreateCommand())
-                    {
-                        command.CommandText = "CREATE INDEX index_response_type ON dns_logs (response_type);";
-
-                        try
-                        {
-                            await command.ExecuteNonQueryAsync();
-                        }
-                        catch
-                        { }
-                    }
-
-                    await using (MySqlCommand command = connection.CreateCommand())
-                    {
-                        command.CommandText = "CREATE INDEX index_rcode ON dns_logs (rcode);";
-
-                        try
-                        {
-                            await command.ExecuteNonQueryAsync();
-                        }
-                        catch
-                        { }
-                    }
-
-                    await using (MySqlCommand command = connection.CreateCommand())
-                    {
-                        command.CommandText = "CREATE INDEX index_qname ON dns_logs (qname)";
-
-                        try
-                        {
-                            await command.ExecuteNonQueryAsync();
-                        }
-                        catch
-                        { }
-                    }
-
-                    await using (MySqlCommand command = connection.CreateCommand())
-                    {
-                        command.CommandText = "CREATE INDEX index_qtype ON dns_logs (qtype);";
-
-                        try
-                        {
-                            await command.ExecuteNonQueryAsync();
-                        }
-                        catch
-                        { }
-                    }
-
-                    await using (MySqlCommand command = connection.CreateCommand())
-                    {
-                        command.CommandText = "CREATE INDEX index_qclass ON dns_logs (qclass);";
-
-                        try
-                        {
-                            await command.ExecuteNonQueryAsync();
-                        }
-                        catch
-                        { }
-                    }
-
-                    await using (MySqlCommand command = connection.CreateCommand())
-                    {
-                        command.CommandText = "CREATE INDEX index_timestamp_client_ip ON dns_logs (timestamp, client_ip);";
-
-                        try
-                        {
-                            await command.ExecuteNonQueryAsync();
-                        }
-                        catch
-                        { }
-                    }
-
-                    await using (MySqlCommand command = connection.CreateCommand())
-                    {
-                        command.CommandText = "CREATE INDEX index_timestamp_qname ON dns_logs (timestamp, qname);";
-
-                        try
-                        {
-                            await command.ExecuteNonQueryAsync();
-                        }
-                        catch
-                        { }
-                    }
-
-                    await using (MySqlCommand command = connection.CreateCommand())
-                    {
-                        command.CommandText = "CREATE INDEX index_client_qname ON dns_logs (client_ip, qname);";
-
-                        try
-                        {
-                            await command.ExecuteNonQueryAsync();
-                        }
-                        catch
-                        { }
-                    }
-
-                    await using (MySqlCommand command = connection.CreateCommand())
-                    {
-                        command.CommandText = "CREATE INDEX index_query ON dns_logs (qname, qtype);";
-
-                        try
-                        {
-                            await command.ExecuteNonQueryAsync();
-                        }
-                        catch
-                        { }
-                    }
-
-                    await using (MySqlCommand command = connection.CreateCommand())
-                    {
-                        command.CommandText = "CREATE INDEX index_all ON dns_logs (server, timestamp, client_ip, protocol, response_type, rcode, qname, qtype, qclass);";
-
-                        try
-                        {
-                            await command.ExecuteNonQueryAsync();
-                        }
-                        catch
-                        { }
-                    }
+                    if ((_maxLogDays > 0) || (_maxLogRecords > 0))
+                        _cleanupTimer.Change(CLEAN_UP_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
+                    else
+                        _cleanupTimer.Change(Timeout.Infinite, Timeout.Infinite);
                 }
 
-                _queueTimer.Change(QUEUE_TIMER_INTERVAL, Timeout.Infinite);
-            }
-            else
-            {
-                _queueTimer.Change(Timeout.Infinite, Timeout.Infinite);
-            }
+                if (_isStartupInit)
+                {
+                    //this is the first time this app is being initialized
+                    ThreadPool.QueueUserWorkItem(async delegate (object? state)
+                    {
+                        try
+                        {
+                            const int MAX_RETRIES = 20;
+                            const int RETRY_DELAY = 30000; //30 seconds
+                            int retryCount = 0;
 
-            if ((_maxLogDays > 0) || (_maxLogRecords > 0))
-                _cleanupTimer.Change(CLEAN_UP_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
-            else
-                _cleanupTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                            while (true)
+                            {
+                                try
+                                {
+                                    await ApplyConfig();
+                                    return;
+                                }
+                                catch (Exception ex)
+                                {
+                                    if (ex is not MySqlException ex2)
+                                    {
+                                        _dnsServer?.WriteLog(ex);
+                                        return;
+                                    }
+
+                                    switch (ex2.ErrorCode)
+                                    {
+                                        case MySqlErrorCode.UnableToConnectToHost:
+                                        case MySqlErrorCode.TooManyUserConnections:
+                                            retryCount++;
+
+                                            if (retryCount < MAX_RETRIES)
+                                            {
+                                                _dnsServer?.WriteLog($"Failed to connect to the database server ({ex2.ErrorCode}). Please check the app config and make sure the database server is online. Retrying in {RETRY_DELAY / 1000} seconds... (Attempt {retryCount})");
+                                                _dnsServer?.WriteLog(ex);
+
+                                                await Task.Delay(RETRY_DELAY);
+                                            }
+                                            else
+                                            {
+                                                _dnsServer?.WriteLog($"Failed to connect to the database server ({ex2.ErrorCode}) after {retryCount} retries. Please check the app config and make sure the database server is online.");
+                                                _dnsServer?.WriteLog(ex);
+                                                return;
+                                            }
+                                            break;
+
+                                        default:
+                                            _dnsServer?.WriteLog($"Failed to connect to the database server ({ex2.ErrorCode}). Please check the app config and make sure the database server is online.");
+                                            _dnsServer?.WriteLog(ex);
+                                            return;
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _dnsServer?.WriteLog(ex);
+                        }
+                    });
+                }
+                else
+                {
+                    //init via API call
+                    await ApplyConfig();
+                }
+            }
+            finally
+            {
+                _isStartupInit = false; //reset flag
+            }
         }
 
         public Task InsertLogAsync(DateTime timestamp, DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
         {
             if (_enableLogging)
-            {
-                if (_queuedLogs.Count < _maxQueueSize)
-                    _queuedLogs.Enqueue(new LogEntry(timestamp, request, remoteEP, protocol, response));
-            }
+                _channelWriter?.TryWrite(new LogEntry(timestamp, request, remoteEP, protocol, response));
 
             return Task.CompletedTask;
         }
@@ -615,7 +724,7 @@ CREATE TABLE IF NOT EXISTS dns_logs
 
             await using (MySqlConnection connection = new MySqlConnection(_connectionString + $" Database={_databaseName};"))
             {
-                connection.Open(); //OpenAsync() has a critical bug that will crash the entire DNS server which Oracle wont fix: https://bugs.mysql.com/bug.php?id=110789
+                await connection.OpenAsync();
 
                 //find total entries
                 long totalEntries;
@@ -774,7 +883,7 @@ ORDER BY row_num" + (descendingOrder ? " DESC" : "");
 
         #endregion
 
-        class LogEntry
+        readonly struct LogEntry
         {
             #region variables
 
