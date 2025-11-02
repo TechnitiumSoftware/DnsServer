@@ -664,12 +664,19 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             ThreadPool.QueueUserWorkItem(async delegate (object state)
             {
-                if (await UpdateBlockListsAsync(forceReload))
+                try
                 {
-                    //block lists were updated
-                    //save last updated on time
-                    _blockListLastUpdatedOn = DateTime.UtcNow;
-                    SaveConfigFile();
+                    if (await UpdateBlockListsAsync(forceReload))
+                    {
+                        //block lists were updated
+                        //save last updated on time
+                        _blockListLastUpdatedOn = DateTime.UtcNow;
+                        SaveConfigFile();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer.LogManager.Write(ex);
                 }
             });
         }
@@ -1046,6 +1053,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                 ApplyBlockListUpdateInterval();
             }
         }
+
+        public bool BlockListUpdateEnabled
+        { get { return _blockListUpdateTimer is not null; } }
 
         public DateTime BlockListLastUpdatedOn
         {
