@@ -221,7 +221,7 @@ namespace DnsServerCore
             {
                 using (FileStream fS = new FileStream(logConfigFile, FileMode.Open, FileAccess.Read))
                 {
-                    ReadConfigFrom(fS, false);
+                    ReadConfigFrom(fS);
                 }
             }
             catch (FileNotFoundException)
@@ -244,13 +244,13 @@ namespace DnsServerCore
             ApplyLoggingType();
         }
 
-        public void LoadConfig(Stream s, bool isConfigTransfer)
+        public void LoadConfig(Stream s)
         {
             lock (_saveLock)
             {
                 try
                 {
-                    ReadConfigFrom(s, isConfigTransfer);
+                    ReadConfigFrom(s);
                 }
                 catch (Exception ex)
                 {
@@ -307,7 +307,7 @@ namespace DnsServerCore
             }
         }
 
-        private void ReadConfigFrom(Stream s, bool isConfigTransfer)
+        private void ReadConfigFrom(Stream s)
         {
             BinaryReader bR = new BinaryReader(s);
 
@@ -319,11 +319,7 @@ namespace DnsServerCore
             {
                 case 1:
                     _loggingType = (LoggingType)bR.ReadByte();
-
-                    string logFolder = bR.ReadShortString();
-                    if (!isConfigTransfer)
-                        _logFolder = logFolder;
-
+                    _logFolder = bR.ReadShortString();
                     _maxLogFileDays = bR.ReadInt32();
                     _useLocalTime = bR.ReadBoolean();
                     break;
