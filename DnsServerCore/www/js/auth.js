@@ -49,7 +49,7 @@ $(function () {
         });
     }
 
-    $("#optGroupDetailsUserList").change(function () {
+    $("#optGroupDetailsUserList").on("change", function () {
         var selectedUser = $("#optGroupDetailsUserList").val();
 
         switch (selectedUser) {
@@ -83,7 +83,7 @@ $(function () {
         }
     });
 
-    $("#optUserDetailsGroupList").change(function () {
+    $("#optUserDetailsGroupList").on("change", function () {
         var selectedGroup = $("#optUserDetailsGroupList").val();
 
         switch (selectedGroup) {
@@ -117,7 +117,7 @@ $(function () {
         }
     });
 
-    $("#optEditPermissionsUserList").change(function () {
+    $("#optEditPermissionsUserList").on("change", function () {
         var selectedUser = $("#optEditPermissionsUserList").val();
 
         switch (selectedUser) {
@@ -147,7 +147,7 @@ $(function () {
         }
     });
 
-    $("#optEditPermissionsGroupList").change(function () {
+    $("#optEditPermissionsGroupList").on("change", function () {
         var selectedGroup = $("#optEditPermissionsGroupList").val();
 
         switch (selectedGroup) {
@@ -214,7 +214,10 @@ function login(username, password) {
     var btn = $("#btnLogin").button("loading");
 
     HTTPRequest({
-        url: "api/user/login?user=" + encodeURIComponent(username) + "&pass=" + encodeURIComponent(password) + "&totp=" + encodeURIComponent(totp) + "&includeInfo=true",
+        url: "api/user/login",
+        method: "POST",
+        data: "user=" + encodeURIComponent(username) + "&pass=" + encodeURIComponent(password) + "&totp=" + encodeURIComponent(totp) + "&includeInfo=true",
+        procecssData: false,
         success: function (responseJSON) {
             sessionData = responseJSON;
             localStorage.setItem("token", sessionData.token);
@@ -228,8 +231,8 @@ function login(username, password) {
 
             showPageMain();
 
-            if ((username === "admin") && (password === "admin"))
-                showChangePasswordModal();
+            if (!sessionData.totpEnabled && (username === "admin") && (password === "admin"))
+                showChangePasswordModal(password);
         },
         error: function () {
             btn.button("reset");
@@ -278,19 +281,17 @@ function showCreateMyApiTokenModal() {
     $("#divCreateApiTokenAlert").html("");
     $("#txtCreateApiTokenUsername").val(sessionData.username);
     $("#txtCreateApiTokenPassword").val("");
+    $("#txtCreateApiToken2FATOTP").val("");
     $("#txtCreateApiTokenName").val("");
 
     $("#txtCreateApiTokenUsername").show();
     $("#optCreateApiTokenUsername").hide();
     $("#divCreateApiTokenPassword").show();
 
-    if (sessionData.totpEnabled) {
-        $("#txtCreateApiToken2FATOTP").val("");
+    if (sessionData.totpEnabled)
         $("#divCreateApiToken2FAOTP").show();
-    }
-    else {
+    else
         $("#divCreateApiToken2FAOTP").hide();
-    }
 
     $("#divCreateApiTokenLoader").hide();
     $("#divCreateApiTokenForm").show();
@@ -303,7 +304,7 @@ function showCreateMyApiTokenModal() {
     $("#modalCreateApiToken").modal("show");
 
     setTimeout(function () {
-        $("#txtCreateApiTokenPassword").focus();
+        $("#txtCreateApiTokenPassword").trigger("focus");
     }, 1000);
 }
 
@@ -340,7 +341,10 @@ function createMyApiToken(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/user/createToken?user=" + encodeURIComponent(user) + "&pass=" + encodeURIComponent(password) + "&totp=" + encodeURIComponent(totp) + "&tokenName=" + encodeURIComponent(tokenName),
+        url: "api/user/createToken",
+        method: "POST",
+        data: "user=" + encodeURIComponent(user) + "&pass=" + encodeURIComponent(password) + "&totp=" + encodeURIComponent(totp) + "&tokenName=" + encodeURIComponent(tokenName),
+        processData: false,
         success: function (responseJSON) {
             btn.button("reset");
             btn.hide();
@@ -366,13 +370,34 @@ function createMyApiToken(objBtn) {
     });
 }
 
-function showChangePasswordModal() {
+function showChangePasswordModal(currentPassword) {
     $("#titleChangePassword").text("Change Password");
 
-    $("#divChangePasswordAlert").html("");
+    hideAlert($("#divChangePasswordAlert"));
     $("#txtChangePasswordUsername").val(sessionData.username);
+
+    var txtChangePasswordCurrentPassword = $("#txtChangePasswordCurrentPassword");
+
+    if (currentPassword == null) {
+        txtChangePasswordCurrentPassword.val("");
+        txtChangePasswordCurrentPassword.prop("disabled", false);
+    }
+    else {
+        txtChangePasswordCurrentPassword.val(currentPassword);
+        txtChangePasswordCurrentPassword.prop("disabled", true);
+    }
+
+    $("#divChangePasswordCurrentPassword").show();
+
     $("#txtChangePasswordNewPassword").val("");
     $("#txtChangePasswordConfirmPassword").val("");
+
+    $("#txtChangePassword2FATOTP").val("");
+
+    if (sessionData.totpEnabled)
+        $("#divChangePassword2FATOTP").show();
+    else
+        $("#divChangePassword2FATOTP").hide();
 
     var btnChangePassword = $("#btnChangePassword");
     btnChangePassword.text("Change");
@@ -382,7 +407,10 @@ function showChangePasswordModal() {
     $("#modalChangePassword").modal("show");
 
     setTimeout(function () {
-        $("#txtChangePasswordNewPassword").focus();
+        if (currentPassword == null)
+            $("#txtChangePasswordCurrentPassword").trigger("focus");
+        else
+            $("#txtChangePasswordNewPassword").trigger("focus");
     }, 1000);
 }
 
@@ -390,42 +418,66 @@ function changePassword(objBtn) {
     var btn = $(objBtn);
 
     var divChangePasswordAlert = $("#divChangePasswordAlert");
+
+    var password = $("#txtChangePasswordCurrentPassword").val();
     var newPassword = $("#txtChangePasswordNewPassword").val();
     var confirmPassword = $("#txtChangePasswordConfirmPassword").val();
+    var totp = $("#txtChangePassword2FATOTP").val();
+
+    if ((password === null) || (password === "")) {
+        showAlert("warning", "Missing!", "Please enter the current password.", divChangePasswordAlert);
+        $("#txtChangePasswordCurrentPassword").trigger("focus");
+        return;
+    }
 
     if ((newPassword === null) || (newPassword === "")) {
         showAlert("warning", "Missing!", "Please enter new password.", divChangePasswordAlert);
-        $("#txtChangePasswordNewPassword").focus();
+        $("#txtChangePasswordNewPassword").trigger("focus");
         return;
     }
 
     if ((confirmPassword === null) || (confirmPassword === "")) {
         showAlert("warning", "Missing!", "Please enter confirm password.", divChangePasswordAlert);
-        $("#txtChangePasswordConfirmPassword").focus();
+        $("#txtChangePasswordConfirmPassword").trigger("focus");
         return;
     }
 
     if (newPassword !== confirmPassword) {
         showAlert("warning", "Mismatch!", "Passwords do not match. Please try again.", divChangePasswordAlert);
-        $("#txtChangePasswordNewPassword").focus();
+        $("#txtChangePasswordNewPassword").trigger("focus");
         return;
     }
 
-    btn.button('loading');
+    if (sessionData.totpEnabled) {
+        if ((totp == null) || (totp.length != 6)) {
+            showAlert("warning", "Missing!", "Please enter the 6-digit OTP that you see in your authenticator app.", divChangePasswordAlert);
+            $("#txtChangePassword2FATOTP").trigger("focus");
+            return;
+        }
+    }
+
+    btn.button("loading");
 
     HTTPRequest({
-        url: "api/user/changePassword?token=" + sessionData.token + "&pass=" + encodeURIComponent(newPassword),
+        url: "api/user/changePassword",
+        method: "POST",
+        data: "token=" + sessionData.token + "&pass=" + encodeURIComponent(password) + "&newPass=" + encodeURIComponent(newPassword) + "&totp=" + encodeURIComponent(totp),
+        processData: false,
         success: function (responseJSON) {
             $("#modalChangePassword").modal("hide");
-            btn.button('reset');
+            $("#txtChangePasswordCurrentPassword").val("");
+            $("#txtChangePasswordNewPassword").val("");
+            $("#txtChangePasswordConfirmPassword").val("");
+            $("#txtChangePassword2FATOTP").val("");
+            btn.button("reset");
 
             showAlert("success", "Password Changed!", "Password was changed successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalChangePassword").modal("hide");
             showPageLogin();
         },
@@ -636,12 +688,12 @@ function showMyProfileModal() {
                     }
 
                     sessionHtmlRows += "<tr id=\"trMyProfileActiveSessions" + i + "\"><td style=\"min-width: 155px; word-wrap: anywhere;\">" + session + "</td><td>" +
-                        htmlEncode(moment(responseJSON.response.sessions[i].lastSeen).local().format("YYYY-MM-DD HH:mm:ss")) + "<br />" + htmlEncode("(" + moment(responseJSON.response.sessions[i].lastSeen).fromNow() + ")") + "</td><td>" +
+                        htmlEncode(moment(responseJSON.response.sessions[i].lastSeen).local().format("YYYY-MM-DD HH:mm:ss")) + "<br /><span style=\"font-size: 12px\">" + htmlEncode("(" + moment(responseJSON.response.sessions[i].lastSeen).fromNow() + ")") + "</span></td><td>" +
                         htmlEncode(responseJSON.response.sessions[i].lastSeenRemoteAddress) + "</td><td style=\"word-wrap: anywhere;\">" +
                         htmlEncode(responseJSON.response.sessions[i].lastSeenUserAgent);
 
                     sessionHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnMyProfileActiveSessionRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-                    sessionHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-partial-token=\"" + responseJSON.response.sessions[i].partialToken + "\" onclick=\"deleteMySession(this); return false;\">Delete Session</a></li>";
+                    sessionHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-session-type=\"" + responseJSON.response.sessions[i].type + "\" data-partial-token=\"" + responseJSON.response.sessions[i].partialToken + "\" onclick=\"deleteMySession(this); return false;\">Delete Session</a></li>";
                     sessionHtmlRows += "</ul></div></td></tr>";
                 }
 
@@ -653,7 +705,7 @@ function showMyProfileModal() {
             divMyProfileViewer.show();
 
             setTimeout(function () {
-                $("#txtMyProfileDisplayName").focus();
+                $("#txtMyProfileDisplayName").trigger("focus");
             }, 1000);
         },
         error: function () {
@@ -673,8 +725,6 @@ function saveMyProfile(objBtn) {
     var divMyProfileAlert = $("#divMyProfileAlert");
 
     var displayName = $("#txtMyProfileDisplayName").val();
-    if (displayName === "")
-        displayName = $("#txtMyProfileUsername").val();
 
     var sessionTimeoutSeconds = $("#txtMyProfileSessionTimeout").val();
     if (sessionTimeoutSeconds === "")
@@ -682,7 +732,7 @@ function saveMyProfile(objBtn) {
 
     var apiUrl = "api/user/profile/set?token=" + sessionData.token + "&displayName=" + encodeURIComponent(displayName) + "&sessionTimeoutSeconds=" + encodeURIComponent(sessionTimeoutSeconds);
 
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: apiUrl,
@@ -690,16 +740,16 @@ function saveMyProfile(objBtn) {
             sessionData.displayName = responseJSON.response.displayName;
             $("#mnuUserDisplayName").text(sessionData.displayName);
 
-            btn.button('reset');
+            btn.button("reset");
             $("#modalMyProfile").modal("hide");
 
             showAlert("success", "Profile Saved!", "User profile was saved successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalMyProfile").modal("hide");
             showPageLogin();
         },
@@ -712,12 +762,16 @@ function deleteMySession(objMenuItem) {
     var mnuItem = $(objMenuItem);
 
     var id = mnuItem.attr("data-id");
+    var sessionType = mnuItem.attr("data-session-type");
     var partialToken = mnuItem.attr("data-partial-token");
 
     if (!confirm("Are you sure you want to delete the session [" + partialToken + "] ?"))
         return;
 
     var apiUrl = "api/user/session/delete?token=" + sessionData.token + "&partialToken=" + encodeURIComponent(partialToken);
+
+    if (sessionType == "ApiToken")
+        apiUrl += "&node=" + encodeURIComponent(getPrimaryClusterNodeName());
 
     var btn = $("#btnMyProfileActiveSessionRowOption" + id);
     var originalBtnHtml = btn.html();
@@ -755,19 +809,28 @@ function refreshAdminTab() {
         refreshAdminGroups();
     else if ($("#adminTabListPermissions").hasClass("active"))
         refreshAdminPermissions();
+    else if ($("#adminTabListCluster").hasClass("active"))
+        refreshAdminCluster();
     else
         refreshAdminSessions();
 }
 
-function refreshAdminSessions() {
+function refreshAdminSessions(fromPrimary) {
     var divAdminSessionsLoader = $("#divAdminSessionsLoader");
     var divAdminSessionsView = $("#divAdminSessionsView");
+
+    var node;
+
+    if (fromPrimary)
+        node = getPrimaryClusterNodeName();
+    else
+        node = $("#optAdminClusterNode").val();
 
     divAdminSessionsLoader.show();
     divAdminSessionsView.hide();
 
     HTTPRequest({
-        url: "api/admin/sessions/list?token=" + sessionData.token,
+        url: "api/admin/sessions/list?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             var tableHtmlRows = "";
 
@@ -798,12 +861,12 @@ function refreshAdminSessions() {
 
                 tableHtmlRows += "<tr id=\"trAdminSessions" + i + "\"><td>" + htmlEncode(responseJSON.response.sessions[i].username) + "</td><td style=\"min-width: 155px; word-wrap: anywhere;\">" +
                     session + "</td><td>" +
-                    htmlEncode(moment(responseJSON.response.sessions[i].lastSeen).local().format("YYYY-MM-DD HH:mm:ss")) + "<br />" + htmlEncode("(" + moment(responseJSON.response.sessions[i].lastSeen).fromNow() + ")") + "</td><td>" +
+                    htmlEncode(moment(responseJSON.response.sessions[i].lastSeen).local().format("YYYY-MM-DD HH:mm:ss")) + "<br /><span style=\"font-size: 12px\">" + htmlEncode("(" + moment(responseJSON.response.sessions[i].lastSeen).fromNow() + ")") + "</span></td><td>" +
                     htmlEncode(responseJSON.response.sessions[i].lastSeenRemoteAddress) + "</td><td style=\"word-wrap: anywhere;\">" +
                     htmlEncode(responseJSON.response.sessions[i].lastSeenUserAgent);
 
                 tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnAdminSessionRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-                tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-partial-token=\"" + responseJSON.response.sessions[i].partialToken + "\" onclick=\"deleteAdminSession(this); return false;\">Delete Session</a></li>";
+                tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-session-type=\"" + responseJSON.response.sessions[i].type + "\" data-partial-token=\"" + responseJSON.response.sessions[i].partialToken + "\" onclick=\"deleteAdminSession(this); return false;\">Delete Session</a></li>";
                 tableHtmlRows += "</ul></div></td></tr>";
             }
 
@@ -858,7 +921,7 @@ function showCreateApiTokenModal() {
             divCreateApiTokenForm.show();
 
             setTimeout(function () {
-                $("#optCreateApiTokenUsername").focus();
+                $("#optCreateApiTokenUsername").trigger("focus");
             }, 1000);
         },
         error: function () {
@@ -883,22 +946,22 @@ function createApiToken(objBtn) {
 
     if (user === "") {
         showAlert("warning", "Missing!", "Please select a username.", divCreateApiTokenAlert);
-        $("#optCreateApiTokenUsername").focus();
+        $("#optCreateApiTokenUsername").trigger("focus");
         return;
     }
 
     if (tokenName === "") {
         showAlert("warning", "Missing!", "Please enter a token name.", divCreateApiTokenAlert);
-        $("#txtCreateApiTokenName").focus();
+        $("#txtCreateApiTokenName").trigger("focus");
         return;
     }
 
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: "api/admin/sessions/createToken?token=" + sessionData.token + "&user=" + encodeURIComponent(user) + "&tokenName=" + encodeURIComponent(tokenName),
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
             btn.hide();
 
             $("#lblCreateApiTokenOutputUsername").text(responseJSON.response.username);
@@ -909,12 +972,14 @@ function createApiToken(objBtn) {
             $("#divCreateApiTokenOutput").show();
 
             showAlert("success", "Token Created!", "API token was created successfully.", divCreateApiTokenAlert);
+
+            refreshAdminSessions(true);
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalCreateApiToken").hide("");
             showPageLogin();
         },
@@ -926,12 +991,18 @@ function deleteAdminSession(objMenuItem) {
     var mnuItem = $(objMenuItem);
 
     var id = mnuItem.attr("data-id");
+    var sessionType = mnuItem.attr("data-session-type");
     var partialToken = mnuItem.attr("data-partial-token");
 
     if (!confirm("Are you sure you want to delete the session [" + partialToken + "] ?"))
         return;
 
     var apiUrl = "api/admin/sessions/delete?token=" + sessionData.token + "&partialToken=" + encodeURIComponent(partialToken);
+
+    if (sessionType == "ApiToken")
+        apiUrl += "&node=" + encodeURIComponent(getPrimaryClusterNodeName());
+    else
+        apiUrl += "&node=" + encodeURIComponent($("#optAdminClusterNode").val());
 
     var btn = $("#btnAdminSessionRowOption" + id);
     var originalBtnHtml = btn.html();
@@ -962,11 +1033,13 @@ function refreshAdminUsers() {
     var divAdminUsersLoader = $("#divAdminUsersLoader");
     var divAdminUsersView = $("#divAdminUsersView");
 
+    var node = $("#optAdminClusterNode").val();
+
     divAdminUsersLoader.show();
     divAdminUsersView.hide();
 
     HTTPRequest({
-        url: "api/admin/users/list?token=" + sessionData.token,
+        url: "api/admin/users/list?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             var tableHtmlRows = "";
 
@@ -1034,7 +1107,7 @@ function showAddUserModal() {
     $("#modalAddUser").modal("show");
 
     setTimeout(function () {
-        $("#txtAddUserDisplayName").focus();
+        $("#txtAddUserDisplayName").trigger("focus");
     }, 1000);
 }
 
@@ -1045,40 +1118,41 @@ function addUser(objBtn) {
     var user = $("#txtAddUserUsername").val();
     if (user === "") {
         showAlert("warning", "Missing!", "Please enter an username to add user.", divAddUserAlert);
-        $("#txtAddUserUsername").focus();
+        $("#txtAddUserUsername").trigger("focus");
         return;
     }
 
     var pass = $("#txtAddUserPassword").val();
     if (pass === "") {
         showAlert("warning", "Missing!", "Please enter a password to add user.", divAddUserAlert);
-        $("#txtAddUserPassword").focus();
+        $("#txtAddUserPassword").trigger("focus");
         return;
     }
 
     var confirmPass = $("#txtAddUserConfirmPassword").val();
     if (confirmPass === "") {
         showAlert("warning", "Missing!", "Please enter confirm password.", divAddUserAlert);
-        $("#txtAddUserConfirmPassword").focus();
+        $("#txtAddUserConfirmPassword").trigger("focus");
         return;
     }
 
     if (pass !== confirmPass) {
         showAlert("warning", "Mismatch!", "Passwords do not match. Please try again.", divAddUserAlert);
-        $("#txtAddUserConfirmPassword").focus();
+        $("#txtAddUserConfirmPassword").trigger("focus");
         return;
     }
 
     var displayName = $("#txtAddUserDisplayName").val();
-    if (displayName === "")
-        displayName = user;
 
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
-        url: "api/admin/users/create?token=" + sessionData.token + "&displayName=" + encodeURIComponent(displayName) + "&user=" + encodeURIComponent(user) + "&pass=" + encodeURIComponent(pass),
+        url: "api/admin/users/create",
+        method: "POST",
+        data: "token=" + sessionData.token + "&displayName=" + encodeURIComponent(displayName) + "&user=" + encodeURIComponent(user) + "&pass=" + encodeURIComponent(pass),
+        processData: false,
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalAddUser").modal("hide");
 
             var id = Math.floor(Math.random() * 1000000);
@@ -1091,10 +1165,10 @@ function addUser(objBtn) {
             showAlert("success", "User Added!", "User was added successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalAddUser").modal("hide");
             showPageLogin();
         },
@@ -1111,6 +1185,7 @@ function showUserDetailsModal(objMenuItem) {
 
     var id = mnuItem.attr("data-id");
     var username = mnuItem.attr("data-username");
+    var node = $("#optAdminClusterNode").val();
 
     divUserDetailsLoader.show();
     divUserDetailsViewer.hide();
@@ -1119,7 +1194,7 @@ function showUserDetailsModal(objMenuItem) {
     modalUserDetails.modal("show");
 
     HTTPRequest({
-        url: "api/admin/users/get?token=" + sessionData.token + "&user=" + username + "&includeGroups=true",
+        url: "api/admin/users/get?token=" + sessionData.token + "&user=" + encodeURIComponent(username) + "&includeGroups=true" + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             $("#txtUserDetailsDisplayName").val(responseJSON.response.displayName);
             $("#txtUserDetailsUsername").val(responseJSON.response.username);
@@ -1171,12 +1246,12 @@ function showUserDetailsModal(objMenuItem) {
                 }
 
                 sessionHtmlRows += "<tr id=\"trUserDetailsActiveSessions" + i + "\"><td style=\"min-width: 155px; word-wrap: anywhere;\">" + session + "</td><td>" +
-                    htmlEncode(moment(responseJSON.response.sessions[i].lastSeen).local().format("YYYY-MM-DD HH:mm:ss")) + "<br />" + htmlEncode("(" + moment(responseJSON.response.sessions[i].lastSeen).fromNow() + ")") + "</td><td>" +
+                    htmlEncode(moment(responseJSON.response.sessions[i].lastSeen).local().format("YYYY-MM-DD HH:mm:ss")) + "<br /><span style=\"font-size: 12px\">" + htmlEncode("(" + moment(responseJSON.response.sessions[i].lastSeen).fromNow() + ")") + "</span></td><td>" +
                     htmlEncode(responseJSON.response.sessions[i].lastSeenRemoteAddress) + "</td><td style=\"word-wrap: anywhere;\">" +
                     htmlEncode(responseJSON.response.sessions[i].lastSeenUserAgent);
 
                 sessionHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnUserDetailsActiveSessionRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-                sessionHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-partial-token=\"" + responseJSON.response.sessions[i].partialToken + "\" onclick=\"deleteUserSession(this); return false;\">Delete Session</a></li>";
+                sessionHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-session-type=\"" + responseJSON.response.sessions[i].type + "\" data-partial-token=\"" + responseJSON.response.sessions[i].partialToken + "\" onclick=\"deleteUserSession(this); return false;\">Delete Session</a></li>";
                 sessionHtmlRows += "</ul></div></td></tr>";
             }
 
@@ -1191,7 +1266,7 @@ function showUserDetailsModal(objMenuItem) {
             divUserDetailsViewer.show();
 
             setTimeout(function () {
-                $("#txtUserDetailsDisplayName").focus();
+                $("#txtUserDetailsDisplayName").trigger("focus");
             }, 1000);
         },
         error: function () {
@@ -1211,12 +1286,18 @@ function deleteUserSession(objMenuItem) {
     var mnuItem = $(objMenuItem);
 
     var id = mnuItem.attr("data-id");
+    var sessionType = mnuItem.attr("data-session-type");
     var partialToken = mnuItem.attr("data-partial-token");
 
     if (!confirm("Are you sure you want to delete the session [" + partialToken + "] ?"))
         return;
 
     var apiUrl = "api/admin/sessions/delete?token=" + sessionData.token + "&partialToken=" + encodeURIComponent(partialToken);
+
+    if (sessionType == "ApiToken")
+        apiUrl += "&node=" + encodeURIComponent(getPrimaryClusterNodeName());
+    else
+        apiUrl += "&node=" + encodeURIComponent($("#optAdminClusterNode").val());
 
     var btn = $("#btnUserDetailsActiveSessionRowOption" + id);
     var originalBtnHtml = btn.html();
@@ -1251,13 +1332,8 @@ function saveUserDetails(objBtn) {
 
     var id = btn.attr("data-id");
     var username = btn.attr("data-username");
-
     var newUsername = $("#txtUserDetailsUsername").val();
-
     var displayName = $("#txtUserDetailsDisplayName").val();
-    if (displayName === "")
-        displayName = newUsername;
-
     var disabled = $("#chkUserDetailsDisableAccount").prop("checked");
 
     var sessionTimeoutSeconds = $("#txtUserDetailsSessionTimeout").val();
@@ -1271,7 +1347,7 @@ function saveUserDetails(objBtn) {
     if (newUsername !== username)
         apiUrl += "&newUser=" + encodeURIComponent(newUsername);
 
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: apiUrl,
@@ -1285,16 +1361,16 @@ function saveUserDetails(objBtn) {
             var tableHtmlRow = getAdminUsersRowHtml(id, responseJSON.response);
             $("#trAdminUsers" + id).replaceWith(tableHtmlRow);
 
-            btn.button('reset');
+            btn.button("reset");
             $("#modalUserDetails").modal("hide");
 
             showAlert("success", "User Saved!", "User details were saved successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalUserDetails").modal("hide");
             showPageLogin();
         },
@@ -1370,10 +1446,12 @@ function showResetUserPasswordModal(objMenuItem) {
 
     $("#titleChangePassword").text("Reset Password");
 
-    $("#divChangePasswordAlert").html("");
+    hideAlert($("#divChangePasswordAlert"));
     $("#txtChangePasswordUsername").val(username);
+    $("#divChangePasswordCurrentPassword").hide();
     $("#txtChangePasswordNewPassword").val("");
     $("#txtChangePasswordConfirmPassword").val("");
+    $("#divChangePassword2FATOTP").hide();
 
     var btnChangePassword = $("#btnChangePassword");
     btnChangePassword.text("Reset");
@@ -1383,7 +1461,7 @@ function showResetUserPasswordModal(objMenuItem) {
     $("#modalChangePassword").modal("show");
 
     setTimeout(function () {
-        $("#txtChangePasswordNewPassword").focus();
+        $("#txtChangePasswordNewPassword").trigger("focus");
     }, 1000);
 }
 
@@ -1398,37 +1476,44 @@ function resetUserPassword(objBtn) {
 
     if (newPassword === "") {
         showAlert("warning", "Missing!", "Please enter new password.", divChangePasswordAlert);
-        $("#txtChangePasswordNewPassword").focus();
+        $("#txtChangePasswordNewPassword").trigger("focus");
         return;
     }
 
     if (confirmPassword === "") {
         showAlert("warning", "Missing!", "Please enter confirm password.", divChangePasswordAlert);
-        $("#txtChangePasswordConfirmPassword").focus();
+        $("#txtChangePasswordConfirmPassword").trigger("focus");
         return;
     }
 
     if (newPassword !== confirmPassword) {
         showAlert("warning", "Mismatch!", "Passwords do not match. Please try again.", divChangePasswordAlert);
-        $("#txtChangePasswordNewPassword").focus();
+        $("#txtChangePasswordNewPassword").trigger("focus");
         return;
     }
 
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
-        url: "api/admin/users/set?token=" + sessionData.token + "&user=" + encodeURIComponent(user) + "&newPass=" + encodeURIComponent(newPassword),
+        url: "api/admin/users/set",
+        method: "POST",
+        data: "token=" + sessionData.token + "&user=" + encodeURIComponent(user) + "&newPass=" + encodeURIComponent(newPassword),
+        processData: false,
         success: function (responseJSON) {
             $("#modalChangePassword").modal("hide");
-            btn.button('reset');
+            $("#txtChangePasswordCurrentPassword").val("");
+            $("#txtChangePasswordNewPassword").val("");
+            $("#txtChangePasswordConfirmPassword").val("");
+            $("#txtChangePassword2FATOTP").val("");
+            btn.button("reset");
 
             showAlert("success", "Password Reset!", "Password was reset successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             showPageLogin();
         },
         objAlertPlaceholder: divChangePasswordAlert
@@ -1508,11 +1593,13 @@ function refreshAdminGroups() {
     var divAdminGroupsLoader = $("#divAdminGroupsLoader");
     var divAdminGroupsView = $("#divAdminGroupsView");
 
+    var node = $("#optAdminClusterNode").val();
+
     divAdminGroupsLoader.show();
     divAdminGroupsView.hide();
 
     HTTPRequest({
-        url: "api/admin/groups/list?token=" + sessionData.token,
+        url: "api/admin/groups/list?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             var tableHtmlRows = "";
 
@@ -1555,7 +1642,7 @@ function showAddGroupModal() {
     $("#modalAddGroup").modal("show");
 
     setTimeout(function () {
-        $("#txtAddGroupName").focus();
+        $("#txtAddGroupName").trigger("focus");
     }, 1000);
 }
 
@@ -1566,18 +1653,18 @@ function addGroup(objBtn) {
     var group = $("#txtAddGroupName").val();
     if (group === "") {
         showAlert("warning", "Missing!", "Please enter a name to add group.", divAddGroupAlert);
-        $("#txtAddGroupName").focus();
+        $("#txtAddGroupName").trigger("focus");
         return;
     }
 
     var description = $("#txtAddGroupDescription").val();
 
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: "api/admin/groups/create?token=" + sessionData.token + "&group=" + encodeURIComponent(group) + "&description=" + encodeURIComponent(description),
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalAddGroup").modal("hide");
 
             var id = Math.floor(Math.random() * 1000000);
@@ -1590,10 +1677,10 @@ function addGroup(objBtn) {
             showAlert("success", "Group Added!", "Group was added successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalAddGroup").modal("hide");
             showPageLogin();
         },
@@ -1610,6 +1697,7 @@ function showGroupDetailsModal(objMenuItem) {
 
     var id = mnuItem.attr("data-id");
     var group = mnuItem.attr("data-group");
+    var node = $("#optAdminClusterNode").val();
 
     divGroupDetailsLoader.show();
     divGroupDetailsViewer.hide();
@@ -1618,7 +1706,7 @@ function showGroupDetailsModal(objMenuItem) {
     modalGroupDetails.modal("show");
 
     HTTPRequest({
-        url: "api/admin/groups/get?token=" + sessionData.token + "&group=" + group + "&includeUsers=true",
+        url: "api/admin/groups/get?token=" + sessionData.token + "&group=" + encodeURIComponent(group) + "&includeUsers=true" + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             $("#txtGroupDetailsName").val(responseJSON.response.name);
             $("#txtGroupDetailsDescription").val(responseJSON.response.description);
@@ -1647,7 +1735,7 @@ function showGroupDetailsModal(objMenuItem) {
             divGroupDetailsViewer.show();
 
             setTimeout(function () {
-                $("#txtGroupDetailsName").focus();
+                $("#txtGroupDetailsName").trigger("focus");
             }, 1000);
         },
         error: function () {
@@ -1679,7 +1767,7 @@ function saveGroupDetails(objBtn) {
     if (newGroup !== group)
         apiUrl += "&newGroup=" + encodeURIComponent(newGroup);
 
-    btn.button('loading');
+    btn.button("loading");
 
     HTTPRequest({
         url: apiUrl,
@@ -1687,16 +1775,16 @@ function saveGroupDetails(objBtn) {
             var tableHtmlRow = getAdminGroupsRowHtml(id, responseJSON.response);
             $("#trAdminGroups" + id).replaceWith(tableHtmlRow);
 
-            btn.button('reset');
+            btn.button("reset");
             $("#modalGroupDetails").modal("hide");
 
             showAlert("success", "Group Saved!", "Group details were saved successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalGroupDetails").modal("hide");
             showPageLogin();
         },
@@ -1742,11 +1830,13 @@ function refreshAdminPermissions() {
     var divAdminPermissionsLoader = $("#divAdminPermissionsLoader");
     var divAdminPermissionsView = $("#divAdminPermissionsView");
 
+    var node = $("#optAdminClusterNode").val();
+
     divAdminPermissionsLoader.show();
     divAdminPermissionsView.hide();
 
     HTTPRequest({
-        url: "api/admin/permissions/list?token=" + sessionData.token,
+        url: "api/admin/permissions/list?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             var tableHtmlRows = "";
 
@@ -1820,6 +1910,7 @@ function showEditSectionPermissionsModal(objMenuItem) {
 
     var id = mnuItem.attr("data-id");
     var section = mnuItem.attr("data-section");
+    var node = $("#optAdminClusterNode").val();
 
     $("#lblEditPermissionsName").text(section);
     $("#tbodyEditPermissionsUser").html("");
@@ -1836,7 +1927,7 @@ function showEditSectionPermissionsModal(objMenuItem) {
     modalEditPermissions.modal("show");
 
     HTTPRequest({
-        url: "api/admin/permissions/get?token=" + sessionData.token + "&section=" + section + "&includeUsersAndGroups=true",
+        url: "api/admin/permissions/get?token=" + sessionData.token + "&section=" + section + "&includeUsersAndGroups=true" + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             $("#lblEditPermissionsName").text(responseJSON.response.section);
 
@@ -1924,7 +2015,9 @@ function saveSectionPermissions(objBtn) {
 
     var apiUrl = "api/admin/permissions/set?token=" + sessionData.token + "&section=" + encodeURIComponent(section) + "&userPermissions=" + encodeURIComponent(userPermissions) + "&groupPermissions=" + encodeURIComponent(groupPermissions);
 
-    btn.button('loading');
+    apiUrl += "&node=" + encodeURIComponent(getPrimaryClusterNodeName());
+
+    btn.button("loading");
 
     HTTPRequest({
         url: apiUrl,
@@ -1932,16 +2025,16 @@ function saveSectionPermissions(objBtn) {
             var tableHtmlRow = getAdminPermissionsRowHtml(id, responseJSON.response);
             $("#trAdminPermissions" + id).replaceWith(tableHtmlRow);
 
-            btn.button('reset');
+            btn.button("reset");
             $("#modalEditPermissions").modal("hide");
 
             showAlert("success", "Permissions Saved!", "Section permissions were saved successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalEditPermissions").modal("hide");
             showPageLogin();
         },
