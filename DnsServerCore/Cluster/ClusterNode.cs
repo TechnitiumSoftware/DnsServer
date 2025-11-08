@@ -341,13 +341,13 @@ namespace DnsServerCore.Cluster
             _heartbeatTimer?.Change(_clusterManager.HeartbeatRefreshIntervalSeconds * 1000, Timeout.Infinite);
         }
 
-        public async Task<DashboardStats> GetDashboardStatsAsync(DashboardStatsType type = DashboardStatsType.LastHour, bool utcFormat = false, string acceptLanguage = "en-US,en;q=0.5", DateTime startDate = default, DateTime endDate = default, CancellationToken cancellationToken = default)
+        public async Task<DashboardStats> GetDashboardStatsAsync(DashboardStatsType type = DashboardStatsType.LastHour, bool utcFormat = false, string acceptLanguage = "en-US,en;q=0.5", bool dontTrimQueryTypeData = false, DateTime startDate = default, DateTime endDate = default, CancellationToken cancellationToken = default)
         {
             HttpApiClient apiClient = GetApiClient();
 
             try
             {
-                DashboardStats stats = await apiClient.GetDashboardStatsAsync(type, utcFormat, acceptLanguage, startDate, endDate, cancellationToken);
+                DashboardStats stats = await apiClient.GetDashboardStatsAsync(type, utcFormat, acceptLanguage, dontTrimQueryTypeData, startDate, endDate, cancellationToken);
 
                 _lastSeen = DateTime.UtcNow;
                 _state = ClusterNodeState.Connected;
@@ -597,13 +597,13 @@ namespace DnsServerCore.Cluster
             }
         }
 
-        public async Task ProxyRequest(HttpContext context, CancellationToken cancellationToken = default)
+        public async Task ProxyRequest(HttpContext context, IReadOnlyDictionary<string, string> additionalParameters = null, CancellationToken cancellationToken = default)
         {
             HttpApiClient apiClient = GetApiClient();
 
             try
             {
-                await apiClient.ProxyRequest(context, cancellationToken);
+                await apiClient.ProxyRequest(context, additionalParameters, cancellationToken);
 
                 _lastSeen = DateTime.UtcNow;
                 _state = ClusterNodeState.Connected;
