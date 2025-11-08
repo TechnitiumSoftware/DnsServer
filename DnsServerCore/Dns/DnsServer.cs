@@ -1395,9 +1395,7 @@ namespace DnsServerCore.Dns
                     throw new ArgumentException("DNS Server TLS certificate file must be PKCS #12 formatted with .pfx or .p12 extension: " + tlsCertificatePath);
             }
 
-            X509Certificate2Collection certificateCollection = new X509Certificate2Collection();
-            certificateCollection.Import(tlsCertificatePath, tlsCertificatePassword, X509KeyStorageFlags.PersistKeySet);
-
+            X509Certificate2Collection certificateCollection = X509CertificateLoader.LoadPkcs12CollectionFromFile(tlsCertificatePath, tlsCertificatePassword, X509KeyStorageFlags.PersistKeySet);
             X509Certificate2 serverCertificate = null;
 
             foreach (X509Certificate2 certificate in certificateCollection)
