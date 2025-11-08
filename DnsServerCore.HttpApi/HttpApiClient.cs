@@ -21,6 +21,7 @@ using DnsServerCore.HttpApi.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
 using System;
+using System.Buffers.Text;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -164,11 +165,6 @@ namespace DnsServerCore.HttpApi
             }
         }
 
-        private static string ToBase64UrlString(byte[] data)
-        {
-            return Convert.ToBase64String(data).Replace('+', '-').Replace('/', '_').TrimEnd('=');
-        }
-
         #endregion
 
         #region public
@@ -220,12 +216,12 @@ namespace DnsServerCore.HttpApi
             _loggedIn = true;
         }
 
-        public async Task<DashboardStats> GetDashboardStatsAsync(DashboardStatsType type = DashboardStatsType.LastHour, bool utcFormat = false, string acceptLanguage = "en-US,en;q=0.5", DateTime startDate = default, DateTime endDate = default, CancellationToken cancellationToken = default)
+        public async Task<DashboardStats> GetDashboardStatsAsync(DashboardStatsType type = DashboardStatsType.LastHour, bool utcFormat = false, string acceptLanguage = "en-US,en;q=0.5", bool dontTrimQueryTypeData = false, DateTime startDate = default, DateTime endDate = default, CancellationToken cancellationToken = default)
         {
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            string path = $"api/dashboard/stats/get?token={_token}&type={type}&utc={utcFormat}";
+            string path = $"api/dashboard/stats/get?token={_token}&type={type}&utc={utcFormat}&dontTrimQueryTypeData={dontTrimQueryTypeData}";
 
             if (type == DashboardStatsType.Custom)
                 path += $"&start={startDate:O}&end={endDate:O}";
@@ -320,12 +316,12 @@ namespace DnsServerCore.HttpApi
         {
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
-         
+
             Stream stream = await _httpClient.GetStreamAsync($"api/settings/temporaryDisableBlocking?token={_token}&minutes={minutes}", cancellationToken);
-            
+
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
-            
+
             CheckResponseStatus(rootElement);
         }
 
@@ -372,7 +368,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/primary/join?token={_token}&secondaryNodeId={secondaryNodeId}&secondaryNodeUrl={HttpUtility.UrlEncode(secondaryNodeUrl.OriginalString)}&secondaryNodeIpAddress={HttpUtility.UrlEncode(secondaryNodeIpAddress.ToString())}&secondaryNodeCertificate={ToBase64UrlString(secondaryNodeCertificate.Export(X509ContentType.Cert))}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/primary/join?token={_token}&secondaryNodeId={secondaryNodeId}&secondaryNodeUrl={HttpUtility.UrlEncode(secondaryNodeUrl.OriginalString)}&secondaryNodeIpAddress={HttpUtility.UrlEncode(secondaryNodeIpAddress.ToString())}&secondaryNodeCertificate={Base64Url.EncodeToString(secondaryNodeCertificate.Export(X509ContentType.Cert))}", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -410,7 +406,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/primary/updateSecondary?token={_token}&secondaryNodeId={secondaryNodeId}&secondaryNodeUrl={HttpUtility.UrlEncode(secondaryNodeUrl.OriginalString)}&secondaryNodeIpAddress={HttpUtility.UrlEncode(secondaryNodeIpAddress.ToString())}&secondaryNodeCertificate={ToBase64UrlString(secondaryNodeCertificate.Export(X509ContentType.Cert))}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/primary/updateSecondary?token={_token}&secondaryNodeId={secondaryNodeId}&secondaryNodeUrl={HttpUtility.UrlEncode(secondaryNodeUrl.OriginalString)}&secondaryNodeIpAddress={HttpUtility.UrlEncode(secondaryNodeIpAddress.ToString())}&secondaryNodeCertificate={Base64Url.EncodeToString(secondaryNodeCertificate.Export(X509ContentType.Cert))}", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -482,7 +478,7 @@ namespace DnsServerCore.HttpApi
             CheckResponseStatus(rootElement);
         }
 
-        public async Task ProxyRequest(HttpContext context, CancellationToken cancellationToken = default)
+        public async Task ProxyRequest(HttpContext context, IReadOnlyDictionary<string, string>? additionalParameters = null, CancellationToken cancellationToken = default)
         {
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
@@ -513,6 +509,28 @@ namespace DnsServerCore.HttpApi
                     queryString.Append('?').Append(key).Append('=').Append(HttpUtility.UrlEncode(value));
                 else
                     queryString.Append('&').Append(key).Append('=').Append(HttpUtility.UrlEncode(value));
+            }
+
+            //add additional parameters
+            if (additionalParameters is not null)
+            {
+                foreach (KeyValuePair<string, string> additionalParameter in additionalParameters)
+                {
+                    string key = additionalParameter.Key;
+                    string value = additionalParameter.Value;
+
+                    switch (key)
+                    {
+                        case "token":
+                        case "node":
+                            throw new ArgumentException("Invalid parameter name: " + key, nameof(additionalParameters));
+                    }
+
+                    if (queryString.Length == 0)
+                        queryString.Append('?').Append(key).Append('=').Append(HttpUtility.UrlEncode(value));
+                    else
+                        queryString.Append('&').Append(key).Append('=').Append(HttpUtility.UrlEncode(value));
+                }
             }
 
             HttpRequestMessage httpRequest = new HttpRequestMessage(new HttpMethod(inHttpRequest.Method), new Uri(_serverUrl, inHttpRequest.Path + queryString.ToString()));
