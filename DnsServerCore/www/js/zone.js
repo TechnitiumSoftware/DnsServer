@@ -789,9 +789,9 @@ function refreshZones(checkDisplay, pageNumber) {
                 tableHtmlRows += "<tr id=\"trZone" + id + "\"><td>" + (firstRowNumber + i) + "</td>";
 
                 if (zones[i].nameIdn == null)
-                    tableHtmlRows += "<td style=\"word-break: break-word; max-width: 390px;\"><a href=\"#\" onclick=\"showEditZone('" + name + "'); return false;\">" + htmlEncode(name === "." ? "<root>" : name) + "</a>" + nameTags + "</td>";
+                    tableHtmlRows += "<td style=\"word-break: break-word; max-width: 390px;\"><a href=\"#\" style=\"font-weight: bold;\" onclick=\"showEditZone('" + name + "'); return false;\">" + htmlEncode(name === "." ? "<root>" : name) + "</a>" + nameTags + "</td>";
                 else
-                    tableHtmlRows += "<td style=\"word-break: break-word; max-width: 390px;\"><a href=\"#\" onclick=\"showEditZone('" + name + "'); return false;\">" + htmlEncode(zones[i].nameIdn + " (" + name + ")") + "</a>" + nameTags + "</td>";
+                    tableHtmlRows += "<td style=\"word-break: break-word; max-width: 390px;\"><a href=\"#\" style=\"font-weight: bold;\" onclick=\"showEditZone('" + name + "'); return false;\">" + htmlEncode(zones[i].nameIdn + " (" + name + ")") + "</a>" + nameTags + "</td>";
 
                 tableHtmlRows += "<td>" + type + "</td>";
                 tableHtmlRows += "<td>" + dnssecStatus + "</td>";
