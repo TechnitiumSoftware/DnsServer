@@ -21,13 +21,11 @@ function refreshApps() {
     var divViewAppsLoader = $("#divViewAppsLoader");
     var divViewApps = $("#divViewApps");
 
-    var node = $("#optAppsClusterNode").val();
-
     divViewApps.hide();
     divViewAppsLoader.show();
 
     HTTPRequest({
-        url: "api/apps/list?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
+        url: "api/apps/list?token=" + sessionData.token,
         success: function (responseJSON) {
             var apps = responseJSON.response.apps;
             var tableHtmlRows = "";
