@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <Authors>Shreyas Zare</Authors>
     <Company>Technitium</Company>
@@ -11,7 +11,7 @@
     <RepositoryType></RepositoryType>
     <Description></Description>
     <PackageId>DnsServerCore.ApplicationCommon</PackageId>
-    <Version>8.1</Version>
+    <Version>9.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 
