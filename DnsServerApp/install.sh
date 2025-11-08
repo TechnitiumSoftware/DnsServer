@@ -1,8 +1,8 @@
 #!/bin/sh
 
 dotnetDir="/opt/dotnet"
-dotnetVersion="8.0"
-dotnetRuntime="Microsoft.AspNetCore.App 8.0."
+dotnetVersion="9.0"
+dotnetRuntime="Microsoft.AspNetCore.App 9.0."
 dotnetUrl="https://dot.net/v1/dotnet-install.sh"
 
 if [ -d "/etc/dns/config" ]
