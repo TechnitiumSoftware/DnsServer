@@ -250,12 +250,50 @@ namespace DnsServerCore.HttpApi.Models
                     };
                 }
             }
+
+            public void Trim(int limit)
+            {
+                if (Labels.Length > limit)
+                {
+                    string[] newLabels = new string[limit];
+
+                    for (int i = 0; i < limit - 1; i++)
+                        newLabels[i] = Labels[i];
+
+                    newLabels[limit - 1] = "Others";
+
+                    Labels = newLabels;
+
+                    foreach (DataSet dataSet in DataSets)
+                        dataSet.Trim(limit);
+                }
+            }
         }
 
         public class DataSet
         {
             public string? Label { get; set; }
             public required long[] Data { get; set; }
+
+            public void Trim(int limit)
+            {
+                if (Data.Length > limit)
+                {
+                    long[] newData = new long[limit];
+
+                    for (int i = 0; i < newData.Length - 1; i++)
+                        newData[i] = Data[i];
+
+                    long othersCount = 0;
+
+                    for (int i = limit; i < Data.Length; i++)
+                        othersCount += Data[i];
+
+                    newData[limit - 1] = othersCount;
+
+                    Data = newData;
+                }
+            }
         }
 
         public class TopStats
