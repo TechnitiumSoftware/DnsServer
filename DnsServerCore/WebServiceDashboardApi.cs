@@ -148,6 +148,8 @@ namespace DnsServerCore
                 if (!string.IsNullOrEmpty(acceptLanguage))
                     isLanguageEnUs = acceptLanguage.StartsWith("en-us", StringComparison.OrdinalIgnoreCase);
 
+                bool dontTrimQueryTypeData = request.GetQueryOrForm("dontTrimQueryTypeData", bool.Parse, false);
+
                 DateTime startDate = default;
                 DateTime endDate = default;
 
@@ -171,7 +173,7 @@ namespace DnsServerCore
                 if (_dnsWebService._clusterManager.ClusterInitialized)
                 {
                     string node = request.GetQueryOrForm("node", null);
-                    if (node == "cluster")
+                    if ("cluster".Equals(node, StringComparison.OrdinalIgnoreCase))
                     {
                         IReadOnlyDictionary<int, Cluster.ClusterNode> clusterNodes = _dnsWebService._clusterManager.ClusterNodes;
                         tasks = new List<Task<DashboardStats>>(clusterNodes.Count);
@@ -183,7 +185,7 @@ namespace DnsServerCore
 
                             tasks.Add(TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
                             {
-                                return clusterNode.Value.GetDashboardStatsAsync(type, utcFormat, acceptLanguage, startDate, endDate, cancellationToken1);
+                                return clusterNode.Value.GetDashboardStatsAsync(type, utcFormat, acceptLanguage, true, startDate, endDate, cancellationToken1);
                             }, CLUSTER_NODE_DASHBOARD_STATS_API_TIMEOUT));
                         }
                     }
@@ -295,6 +297,9 @@ namespace DnsServerCore
                         }
                     }
                 }
+
+                if (!dontTrimQueryTypeData)
+                    dashboardStats.QueryTypeChartData.Trim(10); //trim query type data
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
@@ -683,7 +688,7 @@ namespace DnsServerCore
                 if (_dnsWebService._clusterManager.ClusterInitialized)
                 {
                     string node = request.GetQueryOrForm("node", null);
-                    if (node == "cluster")
+                    if ("cluster".Equals(node, StringComparison.OrdinalIgnoreCase))
                     {
                         IReadOnlyDictionary<int, Cluster.ClusterNode> clusterNodes = _dnsWebService._clusterManager.ClusterNodes;
                         tasks = new List<Task<DashboardStats>>(clusterNodes.Count);
@@ -747,7 +752,7 @@ namespace DnsServerCore
                     {
                         try
                         {
-                            topStatsData.Merge(await task, 10);
+                            topStatsData.Merge(await task, limit);
                         }
                         catch (Exception ex)
                         {
