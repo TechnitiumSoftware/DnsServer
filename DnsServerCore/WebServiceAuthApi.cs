@@ -356,11 +356,26 @@ namespace DnsServerCore
             public async Task ChangePasswordAsync(HttpContext context)
             {
                 UserSession session = context.GetCurrentSession();
-
-                if (session.Type != UserSessionType.Standard)
-                    throw new DnsWebServiceException("Access was denied.");
-
                 HttpRequest request = context.Request;
+                User user;
+
+                if (session.Type == UserSessionType.Standard)
+                {
+                    user = session.User;
+                }
+                else if ((session.Type == UserSessionType.ApiToken) && _dnsWebService._clusterManager.ClusterInitialized && session.TokenName.Equals(_dnsWebService._clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
+                {
+                    //proxy call from secondary cluster node 
+                    string username = request.GetQueryOrForm("user");
+
+                    user = _dnsWebService._authManager.GetUser(username);
+                    if (user is null)
+                        throw new DnsWebServiceException("No such user exists: " + username);
+                }
+                else
+                {
+                    throw new DnsWebServiceException("Access was denied.");
+                }
 
                 string password = request.GetQueryOrForm("pass");
                 string totp = request.GetQueryOrForm("totp", null);
@@ -368,7 +383,7 @@ namespace DnsServerCore
                 string newPassword = request.GetQueryOrForm("newPass");
                 int iterations = request.GetQueryOrForm("iterations", int.Parse, User.DEFAULT_ITERATIONS);
 
-                User user = await _dnsWebService._authManager.ChangePasswordAsync(session.User.Username, password, totp, remoteEP.Address, newPassword, iterations);
+                user = await _dnsWebService._authManager.ChangePasswordAsync(user.Username, password, totp, remoteEP.Address, newPassword, iterations);
 
                 _dnsWebService._log.Write(remoteEP, "[" + user.Username + "] Password was changed successfully.");
 
@@ -382,25 +397,42 @@ namespace DnsServerCore
             public void Initialize2FA(HttpContext context)
             {
                 UserSession session = context.GetCurrentSession();
+                HttpRequest request = context.Request;
+                User user;
 
-                if (session.Type != UserSessionType.Standard)
+                if (session.Type == UserSessionType.Standard)
+                {
+                    user = session.User;
+                }
+                else if ((session.Type == UserSessionType.ApiToken) && _dnsWebService._clusterManager.ClusterInitialized && session.TokenName.Equals(_dnsWebService._clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
+                {
+                    //proxy call from secondary cluster node 
+                    string username = request.GetQueryOrForm("user");
+
+                    user = _dnsWebService._authManager.GetUser(username);
+                    if (user is null)
+                        throw new DnsWebServiceException("No such user exists: " + username);
+                }
+                else
+                {
                     throw new DnsWebServiceException("Access was denied.");
+                }
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
-                if (session.User.TOTPEnabled)
+                if (user.TOTPEnabled)
                 {
                     jsonWriter.WriteBoolean("totpEnabled", true);
                 }
                 else
                 {
-                    AuthenticatorKeyUri totpKeyUri = session.User.InitializedTOTP(_dnsWebService._dnsServer.ServerDomain);
+                    AuthenticatorKeyUri totpKeyUri = user.InitializedTOTP(_dnsWebService._dnsServer.ServerDomain);
 
                     jsonWriter.WriteBoolean("totpEnabled", false);
                     jsonWriter.WriteString("qrCodePngImage", Convert.ToBase64String(totpKeyUri.GetQRCodePngImage(3)));
                     jsonWriter.WriteString("secret", totpKeyUri.Secret);
 
-                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Two-factor Authentication (2FA) using Time-based one-time password (TOTP) was initialized successfully.");
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + user.Username + "] Two-factor Authentication (2FA) using Time-based one-time password (TOTP) was initialized successfully.");
 
                     _dnsWebService._authManager.SaveConfigFile();
                 }
@@ -409,15 +441,32 @@ namespace DnsServerCore
             public void Enable2FA(HttpContext context)
             {
                 UserSession session = context.GetCurrentSession();
+                HttpRequest request = context.Request;
+                User user;
 
-                if (session.Type != UserSessionType.Standard)
+                if (session.Type == UserSessionType.Standard)
+                {
+                    user = session.User;
+                }
+                else if ((session.Type == UserSessionType.ApiToken) && _dnsWebService._clusterManager.ClusterInitialized && session.TokenName.Equals(_dnsWebService._clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
+                {
+                    //proxy call from secondary cluster node 
+                    string username = request.GetQueryOrForm("user");
+
+                    user = _dnsWebService._authManager.GetUser(username);
+                    if (user is null)
+                        throw new DnsWebServiceException("No such user exists: " + username);
+                }
+                else
+                {
                     throw new DnsWebServiceException("Access was denied.");
+                }
 
-                string totp = context.Request.GetQueryOrForm("totp");
+                string totp = request.GetQueryOrForm("totp");
 
-                session.User.EnableTOTP(totp);
+                user.EnableTOTP(totp);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Two-factor Authentication (2FA) using Time-based one-time password (TOTP) was enabled successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + user.Username + "] Two-factor Authentication (2FA) using Time-based one-time password (TOTP) was enabled successfully.");
 
                 _dnsWebService._authManager.SaveConfigFile();
 
@@ -429,13 +478,30 @@ namespace DnsServerCore
             public void Disable2FA(HttpContext context)
             {
                 UserSession session = context.GetCurrentSession();
+                HttpRequest request = context.Request;
+                User user;
 
-                if (session.Type != UserSessionType.Standard)
+                if (session.Type == UserSessionType.Standard)
+                {
+                    user = session.User;
+                }
+                else if ((session.Type == UserSessionType.ApiToken) && _dnsWebService._clusterManager.ClusterInitialized && session.TokenName.Equals(_dnsWebService._clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
+                {
+                    //proxy call from secondary cluster node 
+                    string username = request.GetQueryOrForm("user");
+
+                    user = _dnsWebService._authManager.GetUser(username);
+                    if (user is null)
+                        throw new DnsWebServiceException("No such user exists: " + username);
+                }
+                else
+                {
                     throw new DnsWebServiceException("Access was denied.");
+                }
 
-                session.User.DisableTOTP();
+                user.DisableTOTP();
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Two-factor Authentication (2FA) using Time-based one-time password (TOTP) was disabled successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + user.Username + "] Two-factor Authentication (2FA) using Time-based one-time password (TOTP) was disabled successfully.");
 
                 _dnsWebService._authManager.SaveConfigFile();
 
@@ -454,19 +520,34 @@ namespace DnsServerCore
             public void SetProfile(HttpContext context)
             {
                 UserSession session = context.GetCurrentSession();
-
-                if (session.Type != UserSessionType.Standard)
-                    throw new DnsWebServiceException("Access was denied.");
-
                 HttpRequest request = context.Request;
+                User user;
+
+                if (session.Type == UserSessionType.Standard)
+                {
+                    user = session.User;
+                }
+                else if ((session.Type == UserSessionType.ApiToken) && _dnsWebService._clusterManager.ClusterInitialized && session.TokenName.Equals(_dnsWebService._clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
+                {
+                    //proxy call from secondary cluster node 
+                    string username = request.GetQueryOrForm("user");
+
+                    user = _dnsWebService._authManager.GetUser(username);
+                    if (user is null)
+                        throw new DnsWebServiceException("No such user exists: " + username);
+                }
+                else
+                {
+                    throw new DnsWebServiceException("Access was denied.");
+                }
 
                 if (request.TryGetQueryOrForm("displayName", out string displayName))
-                    session.User.DisplayName = displayName;
+                    user.DisplayName = displayName;
 
                 if (request.TryGetQueryOrForm("sessionTimeoutSeconds", int.Parse, out int sessionTimeoutSeconds))
-                    session.User.SessionTimeoutSeconds = sessionTimeoutSeconds;
+                    user.SessionTimeoutSeconds = sessionTimeoutSeconds;
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User profile was updated successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + user.Username + "] User profile was updated successfully.");
 
                 _dnsWebService._authManager.SaveConfigFile();
 
@@ -475,7 +556,7 @@ namespace DnsServerCore
                     _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
-                WriteUserDetails(jsonWriter, session.User, session, true, false);
+                WriteUserDetails(jsonWriter, user, session, true, false);
             }
 
             public void ListSessions(HttpContext context)
