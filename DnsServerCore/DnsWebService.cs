@@ -1762,16 +1762,26 @@ namespace DnsServerCore
             });
         }
 
-        private static ClusterNodeType GetClusterNodeTypeForPath(string path)
+        private ClusterNodeType GetClusterNodeTypeForPath(string path, HttpContext context, out IReadOnlyDictionary<string, string> additionalParameters)
         {
             switch (path)
             {
-                case "/api/user/createToken":
                 case "/api/user/changePassword":
                 case "/api/user/2fa/init":
                 case "/api/user/2fa/enable":
                 case "/api/user/2fa/disable":
                 case "/api/user/profile/set":
+                    if (!TryGetSession(context, out UserSession session))
+                        throw new InvalidTokenWebServiceException("Invalid token or session expired.");
+
+                    additionalParameters = new Dictionary<string, string>
+                    {
+                        { "user", session.User.Username }
+                    };
+
+                    return ClusterNodeType.Primary; //this api can be called only on primary node
+
+                case "/api/user/createToken":
 
                 case "/api/allowed/add":
                 case "/api/allowed/delete":
@@ -1797,15 +1807,18 @@ namespace DnsServerCore
                 case "/api/admin/groups/create":
                 case "/api/admin/groups/set":
                 case "/api/admin/groups/delete":
+                    additionalParameters = null;
                     return ClusterNodeType.Primary; //this api can be called only on primary node
 
                 case "/api/user/login":
                 case "/api/user/logout":
                 case "/api/user/session/get":
                 case "/api/user/session/delete":
+                    additionalParameters = null;
                     return ClusterNodeType.Secondary; //this api must be called on current node
 
                 default:
+                    additionalParameters = null;
                     return ClusterNodeType.Unknown; //this api can be called on any specified node
             }
         }
@@ -1825,7 +1838,7 @@ namespace DnsServerCore
 
             if (_clusterManager.ClusterInitialized)
             {
-                ClusterNodeType pathNodeType = GetClusterNodeTypeForPath(request.Path);
+                ClusterNodeType pathNodeType = GetClusterNodeTypeForPath(request.Path, context, out IReadOnlyDictionary<string, string> additionalParameters);
                 switch (pathNodeType)
                 {
                     case ClusterNodeType.Primary:
@@ -1835,7 +1848,7 @@ namespace DnsServerCore
                         {
                             //proxy to primary node
                             ClusterNode primaryNode = _clusterManager.GetPrimaryNode();
-                            await primaryNode.ProxyRequest(context);
+                            await primaryNode.ProxyRequest(context, additionalParameters);
                             return;
                         }
 
@@ -1856,7 +1869,7 @@ namespace DnsServerCore
                             if (node.State != ClusterNodeState.Self)
                             {
                                 //proxy request to the specified cluster node
-                                await node.ProxyRequest(context);
+                                await node.ProxyRequest(context, additionalParameters);
                                 return;
                             }
                         }
@@ -2000,6 +2013,8 @@ namespace DnsServerCore
                         }
                         else
                         {
+                            _log.Write(context.GetRemoteEndPoint(_webServiceRealIpHeader), ex);
+
                             jsonWriter.WriteString("status", "error");
                             jsonWriter.WriteString("errorMessage", ex.Message);
                             jsonWriter.WriteString("stackTrace", ex.StackTrace);
@@ -2010,8 +2025,6 @@ namespace DnsServerCore
 
                         jsonWriter.WriteEndObject();
                     }
-
-                    _log.Write(context.GetRemoteEndPoint(_webServiceRealIpHeader), ex);
                 }
             });
         }
@@ -2097,9 +2110,7 @@ namespace DnsServerCore
                     throw new ArgumentException("Web Service TLS certificate file must be PKCS #12 formatted with .pfx or .p12 extension: " + tlsCertificatePath);
             }
 
-            X509Certificate2Collection certificateCollection = new X509Certificate2Collection();
-            certificateCollection.Import(tlsCertificatePath, tlsCertificatePassword, X509KeyStorageFlags.PersistKeySet);
-
+            X509Certificate2Collection certificateCollection = X509CertificateLoader.LoadPkcs12CollectionFromFile(tlsCertificatePath, tlsCertificatePassword, X509KeyStorageFlags.PersistKeySet);
             X509Certificate2 serverCertificate = null;
 
             foreach (X509Certificate2 certificate in certificateCollection)
@@ -2295,12 +2306,18 @@ namespace DnsServerCore
             //sync dnssec private keys for secondary members zone when it is a cluster secondary catalog zone
             if (_clusterManager.ClusterInitialized && (memberZoneInfo.Type == AuthZoneType.Secondary) && secondaryCatalogZoneInfo.Name.Equals("cluster-catalog." + _clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
                 _clusterManager.TriggerRefreshForConfig([memberZoneInfo.Name]);
+
+            //delete cache for this zone to allow rebuilding cache data as needed by stub or forwarder zone
+            _dnsServer.CacheZoneManager.DeleteZone(memberZoneInfo.Name);
         }
 
         private void AuthZoneManager_SecondaryCatalogZoneRemoved(object sender, SecondaryCatalogEventArgs e)
         {
             _authManager.RemoveAllPermissions(PermissionSection.Zones, e.ZoneInfo.Name);
             _authManager.SaveConfigFile();
+
+            //delete cache for this zone to allow rebuilding cache data without using the current zone
+            _dnsServer.CacheZoneManager.DeleteZone(e.ZoneInfo.Name);
         }
 
         #endregion
