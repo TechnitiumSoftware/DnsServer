@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -128,10 +128,12 @@ namespace DnsServerCore.Auth
             get { return _description; }
             set
             {
-                if (value.Length > 255)
+                if (string.IsNullOrWhiteSpace(value))
+                    _description = "";
+                else if (value.Length > 255)
                     throw new ArgumentException("Group description length cannot exceed 255 characters.", nameof(Description));
-
-                _description = value;
+                else
+                    _description = value;
             }
         }
 

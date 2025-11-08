@@ -2,7 +2,7 @@
 
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
-		<TargetFramework>net8.0-windows</TargetFramework>
+		<TargetFramework>net9.0-windows7.0</TargetFramework>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<UseWindowsForms>true</UseWindowsForms>
@@ -11,7 +11,7 @@
 		<AssemblyName>DnsServerSystemTrayApp</AssemblyName>
 		<Authors>Shreyas Zare</Authors>
 		<ApplicationIcon>logo2.ico</ApplicationIcon>
-		<Version>5.2.3</Version>
+		<Version>6.0</Version>
 		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 		<Company>Technitium</Company>
 		<Product>Technitium DNS Server</Product>
@@ -42,8 +42,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="System.Management" Version="9.0.4" />
-		<PackageReference Include="System.ServiceProcess.ServiceController" Version="9.0.4" />
+		<PackageReference Include="System.Management" Version="9.0.10" />
+		<PackageReference Include="System.ServiceProcess.ServiceController" Version="9.0.10" />
 	</ItemGroup>
 
 	<ItemGroup>

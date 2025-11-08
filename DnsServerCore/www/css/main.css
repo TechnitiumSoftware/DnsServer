@@ -322,3 +322,10 @@ th a {
     color: rgb(119, 119, 119);
     text-align: center;
 }
+
+.cluster-node-dropdown {
+    margin-left: 4px;
+    padding: 2px 8px;
+    height: 28px;
+    max-width: 250px;
+}

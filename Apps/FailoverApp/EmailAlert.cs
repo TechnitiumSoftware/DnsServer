@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -384,7 +384,7 @@ DNS Failover App
 
             public Task<DnsDatagram> ResolveAsync(DnsQuestionRecord question, CancellationToken cancellationToken = default)
             {
-                return _dnsServer.DirectQueryAsync(question);
+                return _dnsServer.DirectQueryAsync(question, cancellationToken: cancellationToken);
             }
         }
     }

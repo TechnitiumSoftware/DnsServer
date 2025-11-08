@@ -40,6 +40,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="js/common.js"></script>
     <script src="js/main.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/cluster.js"></script>
     <script src="js/zone.js"></script>
     <script src="js/other-zones.js"></script>
     <script src="js/apps.js"></script>
@@ -61,6 +62,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 <li><a href="#" onclick="showMyProfileModal(); return false;">My Profile</a></li>
                 <li><a href="#" onclick="showCreateMyApiTokenModal(); return false;">Create API Token</a></li>
                 <li><a href="#" onclick="showChangePasswordModal(); return false;">Change Password</a></li>
+                <li><a href="#" onclick="showConfigure2FAModal(); return false;">Configure 2FA</a></li>
                 <li role="separator" class="divider"></li>
                 <li><a href="#" onclick="logout(); return false;">Logout</a></li>
             </ul>
@@ -89,6 +91,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 <label for="txtPass" class="col-sm-3 control-label">Password</label>
                                 <div class="col-sm-8">
                                     <input type="password" class="form-control" id="txtPass" placeholder="password">
+                                </div>
+                            </div>
+
+                            <div class="form-group" id="div2FAOTP">
+                                <label for="txt2FATOTP" class="col-sm-3 control-label">Enter OTP</label>
+                                <div class="col-sm-8">
+                                    <input id="txt2FATOTP" type="text" class="form-control" style="width: 100px;" placeholder="OTP" maxlength="6">
+                                    <div style="padding-top: 5px;">Enter the 6-digit code you see in your authenticator app.</div>
                                 </div>
                             </div>
 
@@ -157,12 +167,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                     <input type="radio" name="rdStatType" value="custom" autocomplete="off"> Custom
                                                 </label>
                                             </div>
+
+                                            <div id="divCustomDayWise" style="padding: 6px 0px 0px; display: none;">
+                                                <span style="margin-right: 6px;"><label for="dpCustomDayWiseStart">Start</label> <input type="datetime-local" id="dpCustomDayWiseStart" size="10"></span>
+                                                <span style="margin-right: 6px;"><label for="dpCustomDayWiseEnd">End</label> <input type="datetime-local" id="dpCustomDayWiseEnd" size="10"></span>
+                                                <button id="btnCustomDayWise" class="btn btn-default" type="button" style="font-size: 12px; padding: 3px 0px; width: 60px; vertical-align: top;">Show</button>
+                                            </div>
                                         </div>
 
-                                        <div id="divCustomDayWise" class="pull-left" style="padding: 4px 0px 4px 10px; display: none;">
-                                            <span style="margin-right: 6px;"><label for="dpCustomDayWiseStart">Start</label> <input type="datetime-local" id="dpCustomDayWiseStart" size="10"></span>
-                                            <span style="margin-right: 6px;"><label for="dpCustomDayWiseEnd">End</label> <input type="datetime-local" id="dpCustomDayWiseEnd" size="10"></span>
-                                            <button id="btnCustomDayWise" class="btn btn-default" type="button" style="font-size: 12px; padding: 3px 0px; width: 60px; vertical-align: top;">Show</button>
+                                        <div class="pull-right">
+                                            <select id="optDashboardClusterNode" class="form-control cluster-node-dropdown" style="margin-left: 0px;" onchange="refreshDashboard();"></select>
                                         </div>
 
                                         <div class="clearfix"></div>
@@ -379,12 +393,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 <div id="mainPanelTabPaneZones" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
                                     <div id="divViewZonesLoader" style="display: none; margin-top: 10px; height: 400px;"></div>
 
-                                    <div id="divViewZones" style="margin-top: 10px;">
-                                        <div style="margin-bottom: 16px;">
-                                            <div style="float: right;">
-                                                <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showAddZoneModal();">Add Zone</button>
+                                    <div id="divViewZones">
+                                        <div class="form-inline" style="margin-bottom: 4px;">
+                                            <div class="pull-right">
+                                                <div class="form-group" style="margin-right: 0px;">
+                                                    <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showAddZoneModal();">Add Zone</button>
+                                                    <select id="optZonesClusterNode" class="form-control cluster-node-dropdown" onchange="refreshZones();"></select>
+                                                </div>
                                             </div>
-                                            <div style="clear: both;"></div>
+                                            <div class="clearfix"></div>
                                         </div>
 
                                         <div class="form-inline">
@@ -471,12 +488,22 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     </div>
 
                                     <div id="divEditZone" style="display: none;">
-                                        <ul class="pager" style="margin: 0px;">
-                                            <li class="previous"><a href="#" onclick="refreshZones(); return false;"><span aria-hidden="true">&larr;</span> Back</a></li>
-                                        </ul>
+                                        <div>
+                                            <div class="pull-left">
+                                                <ul class="pager" style="margin: 0px;">
+                                                    <li class="previous"><a href="#" onclick="refreshZones(); return false;"><span aria-hidden="true">&larr;</span> Back</a></li>
+                                                </ul>
+                                            </div>
+
+                                            <div class="pull-right">
+                                                <select id="optEditZoneClusterNode" class="form-control cluster-node-dropdown" style="margin-left: 0px;" disabled></select>
+                                            </div>
+
+                                            <div class="clearfix"></div>
+                                        </div>
 
                                         <div style="padding: 10px 0px;">
-                                            <h3 style="margin: 4px 0;"><span id="titleEditZone" style="margin-right: 10px;">example.com</span><a href="#" onclick="showEditZone($('#titleEditZone').attr('data-zone')); return false;"><span class="glyphicon glyphicon-refresh" style="font-size: 20px;" aria-hidden="true"></span></a></h3>
+                                            <h3 style="margin: 4px 0;"><span id="titleEditZone" style="margin-right: 10px;">example.com</span><a href="#" onclick="showEditZone($('#titleEditZone').attr('data-zone'), $('#txtEditZonePageNumber').val(), $('#txtEditZoneFilterName').val(), $('#txtEditZoneFilterType').val()); return false;"><span class="glyphicon glyphicon-refresh" style="font-size: 20px;" aria-hidden="true"></span></a></h3>
                                             <div style="float: left;">
                                                 <span id="titleEditZoneType" class="label label-default">Primary</span>
                                                 <span id="titleEditZoneDnssecStatus" class="label label-default">DNSSEC</span>
@@ -629,11 +656,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     <div id="divCachedZoneViewer" class="zone-viewer-pane">
                                         <div class="panel panel-default">
                                             <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
-                                                <div id="txtCachedZoneViewerTitle" style="float: left; padding: 4px;">technitium.com</div>
-                                                <div style="float: right;">
-                                                    <button id="btnDeleteCachedZone" type="button" class="btn btn-warning" data-loading-text="Delete" onclick="deleteCachedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
-                                                    <button type="button" class="btn btn-danger" data-loading-text="Delete" onclick="flushDnsCache(this);" style="font-size: 12px; padding: 4px 6px;">Flush</button>
+                                                <div id="txtCachedZoneViewerTitle" class="pull-left" style="padding: 4px;">technitium.com</div>
+                                                <div class="form-inline pull-right">
+                                                    <button id="btnDeleteCachedZone" type="button" class="btn btn-warning" data-loading-text="Delete" onclick="deleteCachedZone();" style="font-size: 12px; padding: 4px 6px; width: 50px;">Delete</button>
+                                                    <button type="button" class="btn btn-danger" data-loading-text="Delete" onclick="flushDnsCache(this, $('#optCachedZonesClusterNode').val());" style="font-size: 12px; padding: 4px 6px; width: 50px;">Flush</button>
+                                                    <select id="optCachedZonesClusterNode" class="form-control cluster-node-dropdown" style="margin-left: 2px;" onchange="refreshCachedZonesList();"></select>
                                                 </div>
+                                                <div class="clearfix"></div>
                                             </div>
 
                                             <div class="panel-body">
@@ -666,13 +695,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     <div id="divAllowedZoneViewer" class="zone-viewer-pane">
                                         <div class="panel panel-default">
                                             <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
-                                                <div id="txtAllowedZoneViewerTitle" style="float: left; padding: 4px;">technitium.com</div>
-                                                <div style="float: right;">
-                                                    <button type="button" class="btn btn-default" data-loading-text="Import" onclick="resetImportAllowedZonesModal();" data-toggle="modal" data-target="#modalImportAllowedZones" style="font-size: 12px; padding: 4px 6px;">Import</button>
-                                                    <button type="button" class="btn btn-default" data-loading-text="Export" onclick="exportAllowedZones();" style="font-size: 12px; padding: 4px 6px;">Export</button>
-                                                    <button id="btnDeleteAllowedZone" type="button" class="btn btn-warning" data-loading-text="Delete" onclick="deleteAllowedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
-                                                    <button id="btnFlushAllowedZone" type="button" class="btn btn-danger" data-loading-text="Flush" onclick="flushAllowedZone();" style="font-size: 12px; padding: 4px 6px;">Flush</button>
+                                                <div id="txtAllowedZoneViewerTitle" class="pull-left" style="padding: 4px;">technitium.com</div>
+                                                <div class="form-inline pull-right">
+                                                    <button type="button" class="btn btn-default" data-loading-text="Import" onclick="resetImportAllowedZonesModal();" data-toggle="modal" data-target="#modalImportAllowedZones" style="font-size: 12px; padding: 4px 6px; width: 50px;">Import</button>
+                                                    <button type="button" class="btn btn-default" data-loading-text="Export" onclick="exportAllowedZones();" style="font-size: 12px; padding: 4px 6px; width: 50px;">Export</button>
+                                                    <button id="btnDeleteAllowedZone" type="button" class="btn btn-warning" data-loading-text="Delete" onclick="deleteAllowedZone();" style="font-size: 12px; padding: 4px 6px; width: 50px;">Delete</button>
+                                                    <button id="btnFlushAllowedZone" type="button" class="btn btn-danger" data-loading-text="Flush" onclick="flushAllowedZone();" style="font-size: 12px; padding: 4px 6px; width: 50px;">Flush</button>
                                                 </div>
+                                                <div class="clearfix"></div>
                                             </div>
 
                                             <div class="panel-body">
@@ -705,13 +735,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     <div id="divBlockedZoneViewer" class="zone-viewer-pane">
                                         <div class="panel panel-default">
                                             <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
-                                                <div id="txtBlockedZoneViewerTitle" style="float: left; padding: 4px;">technitium.com</div>
-                                                <div style="float: right;">
-                                                    <button id="btnImportBlockedZone" type="button" class="btn btn-default" data-loading-text="Import" onclick="resetImportBlockedZonesModal();" data-toggle="modal" data-target="#modalImportBlockedZones" style="font-size: 12px; padding: 4px 6px;">Import</button>
-                                                    <button id="btnExportBlockedZone" type="button" class="btn btn-default" data-loading-text="Export" onclick="exportBlockedZones();" style="font-size: 12px; padding: 4px 6px;">Export</button>
-                                                    <button id="btnDeleteBlockedZone" type="button" class="btn btn-warning" data-loading-text="Delete" onclick="deleteBlockedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
-                                                    <button id="btnFlushBlockedZone" type="button" class="btn btn-danger" data-loading-text="Flush" onclick="flushBlockedZone();" style="font-size: 12px; padding: 4px 6px;">Flush</button>
+                                                <div id="txtBlockedZoneViewerTitle" class="pull-left" style="padding: 4px;">technitium.com</div>
+                                                <div class="form-inline pull-right">
+                                                    <button id="btnImportBlockedZone" type="button" class="btn btn-default" data-loading-text="Import" onclick="resetImportBlockedZonesModal();" data-toggle="modal" data-target="#modalImportBlockedZones" style="font-size: 12px; padding: 4px 6px; width: 50px;">Import</button>
+                                                    <button id="btnExportBlockedZone" type="button" class="btn btn-default" data-loading-text="Export" onclick="exportBlockedZones();" style="font-size: 12px; padding: 4px 6px; width: 50px;">Export</button>
+                                                    <button id="btnDeleteBlockedZone" type="button" class="btn btn-warning" data-loading-text="Delete" onclick="deleteBlockedZone();" style="font-size: 12px; padding: 4px 6px; width: 50px;">Delete</button>
+                                                    <button id="btnFlushBlockedZone" type="button" class="btn btn-danger" data-loading-text="Flush" onclick="flushBlockedZone();" style="font-size: 12px; padding: 4px 6px; width: 50px;">Flush</button>
                                                 </div>
+                                                <div class="clearfix"></div>
                                             </div>
 
                                             <div class="panel-body">
@@ -727,8 +758,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 <div id="mainPanelTabPaneApps" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
                                     <div id="divViewAppsLoader" style=" display: none; margin-top: 10px; height: 400px;"></div>
 
-                                    <div id="divViewApps" style="margin-top: 10px;">
-                                        <div>
+                                    <div id="divViewApps">
+                                        <div class="form-inline">
                                             <div style="float: right;">
                                                 <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showStoreAppsModal();">App Store</button>
                                                 <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showInstallAppModal();">Install</button>
@@ -831,8 +862,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                         </div>
                                         <div>
                                             <div class="form-group">
-                                                <button type="submit" class="btn btn-primary" id="btnDnsClientResolve" data-loading-text="Resolving..." onclick="resolveQuery(); return false;" style="margin-right: 6px;">Resolve</button>
-                                                <button type="button" class="btn btn-warning" id="btnDnsClientImport" data-loading-text="Importing..." onclick="resolveQuery(true);">Import</button>
+                                                <button type="submit" class="btn btn-primary" id="btnDnsClientResolve" style="padding: 2px 0px; width: 100px;" data-loading-text="Resolving..." onclick="resolveQuery(); return false;">Resolve</button>
+                                                <button type="button" class="btn btn-warning" id="btnDnsClientImport" style="padding: 2px 0px; width: 100px;" data-loading-text="Importing..." onclick="resolveQuery(true);">Import</button>
+                                                <select id="optDnsClientClusterNode" class="form-control cluster-node-dropdown"></select>
                                             </div>
                                         </div>
                                     </form>
@@ -888,11 +920,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                 <li id="settingsTabListBlocking" role="presentation"><a href="#settingsTabPaneBlocking" aria-controls="settingsTabPaneBlocking" role="tab" data-toggle="tab">Blocking</a></li>
                                                 <li id="settingsTabListProxyForwarders" role="presentation"><a href="#settingsTabPaneProxyForwarders" aria-controls="settingsTabPaneProxyForwarders" role="tab" data-toggle="tab">Proxy &amp; Forwarders</a></li>
                                                 <li id="settingsTabListLogging" role="presentation"><a href="#settingsTabPaneLogging" aria-controls="settingsTabPaneLogging" role="tab" data-toggle="tab">Logging</a></li>
+
+                                                <div class="pull-right">
+                                                    <select id="optSettingsClusterNode" class="form-control pull-right cluster-node-dropdown" style="margin-left: 0px;" onchange="refreshDnsSettings();"></select>
+                                                </div>
                                             </ul>
 
                                             <div class="tab-content" style="min-height: 350px; padding-top: 15px;">
                                                 <div id="settingsTabPaneGeneral" role="tabpanel" class="tab-pane active">
-                                                    <div class="well well-sm form-horizontal">
+                                                    <div id="divSettingsGeneralLocalParameters" class="well well-sm form-horizontal">
                                                         <div class="form-group">
                                                             <label for="txtDnsServerDomain" class="col-sm-3 control-label">DNS Server Domain</label>
                                                             <div class="col-sm-6">
@@ -931,7 +967,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
                                                     </div>
 
-                                                    <div class="well well-sm form-horizontal">
+                                                    <div id="divSettingsGeneralDefaultParameters" class="well well-sm form-horizontal">
                                                         <div class="form-group">
                                                             <label for="txtDefaultRecordTtl" class="col-sm-3 control-label">Default Record TTL</label>
                                                             <div class="col-sm-6">
@@ -996,7 +1032,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
                                                     </div>
 
-                                                    <div class="well well-sm form-horizontal">
+                                                    <div id="divSettingsGeneralDnsApps" class="well well-sm form-horizontal">
                                                         <div class="form-group">
                                                             <label for="txtDefaultRecordTtl" class="col-sm-3 control-label">DNS Apps</label>
                                                             <div class="col-sm-8">
@@ -1010,7 +1046,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
                                                     </div>
 
-                                                    <div class="well well-sm form-horizontal">
+                                                    <div id="divSettingsGeneralIpv6" class="well well-sm form-horizontal">
                                                         <div class="form-group">
                                                             <label class="col-sm-3 control-label">IPv6 Support</label>
                                                             <div class="col-sm-8">
@@ -1019,14 +1055,38 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                         <input id="chkPreferIPv6" type="checkbox"> Prefer IPv6
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">DNS Server will use IPv6 for querying whenever possible with this option enabled.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">The DNS Server will use IPv6 for querying whenever possible with this option enabled.</div>
                                                             </div>
                                                         </div>
 
                                                         <div>Warning! Use this option only if this DNS server has native IPv6 Internet access otherwise it will affect performance.</div>
                                                     </div>
 
-                                                    <div class="well well-sm form-horizontal">
+                                                    <div id="divSettingsGeneralUdpSocketPool" class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">UDP Socket Pool</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkEnableUdpSocketPool" type="checkbox"> Enable UDP Socket Pool
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">The DNS Server will use UDP socket pool for all outbound DNS-over-UDP requests when enabled.</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtUdpSocketPoolExcludedPorts" class="col-sm-3 control-label">UDP Socket Pool Excluded Ports</label>
+                                                            <div class="col-sm-6">
+                                                                <textarea id="txtUdpSocketPoolExcludedPorts" class="form-control" rows="5" spellcheck="false"></textarea>
+                                                                <div style="padding-top: 5px;">Enter port numbers one below other to be excluded from being used by the UDP socket pool.</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div>Note! Enabling UDP socket pool provides port randomization for all outbound DNS-over-UDP requests to mitigate spoofing attacks. It is recommended to enable UDP socket pool on Windows platform. On Linux, ports are fairly random and thus socket pool may be enabled if more randomization is desired. The DNS server can detect DNS spoofing attack attempts based on ID mismatch and switch to TCP protocol automatically.</div>
+                                                    </div>
+
+                                                    <div id="divSettingsGeneralEDns" class="well well-sm form-horizontal">
                                                         <div class="form-group">
                                                             <label for="txtEdnsUdpPayloadSize" class="col-sm-3 control-label">EDNS UDP Payload Size</label>
                                                             <div class="col-sm-6">
@@ -1037,7 +1097,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
                                                     </div>
 
-                                                    <div class="well well-sm form-horizontal">
+                                                    <div id="divSettingsGeneralDnssec" class="well well-sm form-horizontal">
                                                         <div class="form-group">
                                                             <label class="col-sm-3 control-label">DNSSEC</label>
                                                             <div class="col-sm-8">
@@ -1046,7 +1106,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                         <input id="chkDnssecValidation" type="checkbox" checked> Enable DNSSEC Validation
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">DNS Server will validate all responses from name servers or forwarders when this option is enabled.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">The DNS Server will validate all responses from name servers or forwarders when this option is enabled.</div>
                                                             </div>
                                                         </div>
 
@@ -1057,7 +1117,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
                                                     </div>
 
-                                                    <div class="well well-sm form-horizontal">
+                                                    <div id="divSettingsGeneralEDnsClientSubnet" class="well well-sm form-horizontal">
                                                         <div class="form-group">
                                                             <label class="col-sm-3 control-label">EDNS Client Subnet (ECS)</label>
                                                             <div class="col-sm-8">
@@ -1066,7 +1126,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                         <input id="chkEDnsClientSubnet" type="checkbox"> Enable EDNS Client Subnet
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">DNS Server will use the public IP address of the request with a prefix length, or the existing Client Subnet option from the request.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">The DNS Server will use the public IP address of the request with a prefix length, or the existing Client Subnet option from the request.</div>
                                                             </div>
                                                         </div>
 
@@ -1111,23 +1171,41 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
                                                     </div>
 
-                                                    <div class="well well-sm form-horizontal">
+                                                    <div id="divSettingsGeneralRateLimiting" class="well well-sm form-horizontal">
                                                         <div class="form-group">
-                                                            <label for="txtQpmLimitRequests" class="col-sm-3 control-label">Queries Per Minute (QPM) Limit (Requests)</label>
+                                                            <label class="col-sm-3 control-label">Queries Per Minute (QPM) Limits (IPv4)</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtQpmLimitRequests" placeholder="limit" style="width: 100px; display: inline;">
-                                                                <span>(set 0 to disable)</span>
+                                                                <table class="table table-hover" style="margin-bottom: 0px;">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th style="width: 100px;">IPv4 Prefix</th>
+                                                                            <th>UDP Limit</th>
+                                                                            <th>TCP Limit</th>
+                                                                            <th style="width: 84px;"><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addQpmPrefixLimitsIPv4Row('', '', '');">Add</button></th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody id="tableQpmPrefixLimitsIPv4"></tbody>
+                                                                </table>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum queries a client subnet can make per minute on average based on the sample size.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum queries an IPv4 client subnet can make to DNS-over-UDP and DNS-over-TCP protocol services per minute on average based on the sample size. Set limit value to <code>0</code> to allow unlimited queries.</div>
                                                         </div>
 
                                                         <div class="form-group">
-                                                            <label for="txtQpmLimitErrors" class="col-sm-3 control-label">Queries Per Minute (QPM) Limit (Errors)</label>
+                                                            <label class="col-sm-3 control-label">Queries Per Minute (QPM) Limits (IPv6)</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtQpmLimitErrors" placeholder="limit" style="width: 100px; display: inline;">
-                                                                <span>(set 0 to disable)</span>
+                                                                <table class="table table-hover" style="margin-bottom: 0px;">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th style="width: 100px;">IPv6 Prefix</th>
+                                                                            <th>UDP Limit</th>
+                                                                            <th>TCP Limit</th>
+                                                                            <th style="width: 84px;"><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addQpmPrefixLimitsIPv6Row('', '', '');">Add</button></th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody id="tableQpmPrefixLimitsIPv6"></tbody>
+                                                                </table>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum queries that generate an error response a client subnet can make per minute on average based on the sample size. Responses with RCODE as <code>FormatError</code>, <code>ServerFailure</code>, or <code>Refused</code> are considered as error responses.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum queries an IPv6 client subnet can make to DNS-over-UDP and DNS-over-TCP protocol services per minute on average based on the sample size. Set limit value to <code>0</code> to allow unlimited queries.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1140,35 +1218,29 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
 
                                                         <div class="form-group">
-                                                            <label for="txtQpmLimitIPv4PrefixLength" class="col-sm-3 control-label">QPM Limit IPv4 Prefix Length</label>
-                                                            <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtQpmLimitIPv4PrefixLength" placeholder="prefix" style="width: 100px; display: inline;">
-                                                                <span>(valid range 0-32; default 24)</span>
+                                                            <label for="txtQpmLimitUdpTruncation" class="col-sm-3 control-label">QPM Limit UDP Truncation</label>
+                                                            <div class="col-sm-8">
+                                                                <input type="number" class="form-control" id="txtQpmLimitUdpTruncation" placeholder="%" style="width: 100px; display: inline;">
+                                                                <span>% (valid range 0-100; default 50)</span>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv4 prefix length to define the client subnet.</div>
-                                                        </div>
-
-                                                        <div class="form-group">
-                                                            <label for="txtQpmLimitIPv6PrefixLength" class="col-sm-3 control-label">QPM Limit IPv6 Prefix Length</label>
-                                                            <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtQpmLimitIPv6PrefixLength" placeholder="prefix" style="width: 100px; display: inline;">
-                                                                <span>(valid range 0-64; default 56)</span>
-                                                            </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv6 prefix length to define the client subnet.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The percentage of requests that are responded with a truncation (TC) response when QPM limit exceeds for DNS-over-UDP protocol service while the rest of the requests are dropped. A TC response will cause a real client to retry to DNS-over-TCP protocol service.</div>
                                                         </div>
 
                                                         <div class="form-group">
                                                             <label for="txtQpmLimitBypassList" class="col-sm-3 control-label">QPM Limit Bypass List</label>
                                                             <div class="col-sm-6">
-                                                                <textarea id="txtQpmLimitBypassList" class="form-control" rows="3" spellcheck="false"></textarea>
+                                                                <textarea id="txtQpmLimitBypassList" class="form-control" rows="5" spellcheck="false"></textarea>
                                                                 <div style="padding-top: 5px;">Enter IP addresses or network addresses one below another that are allowed to bypass the QPM limit.</div>
                                                             </div>
                                                         </div>
 
-                                                        <div>Note! Queries Per Minute (QPM) feature will limit requests from a client subnet based on its IP address and the specified subnet prefix lengths except for loopback IP addresses. The QPM limit configured will be compared with the average count from the sample size which means a client may exceed the QPM limit for a given minute but won't exceed for the given sample size in minutes. Rate limited clients will be listed in orange color on the dashboard top clients table.</div>
+                                                        <div>
+                                                            <p>Note! Queries Per Minute (QPM) feature will limit requests from a client subnet based on its IP address and the specified subnet prefix lengths except for loopback IP addresses. The QPM limit configured will be compared with the average count from the sample size which means a client may exceed the QPM limit for a given minute but won't exceed for the given sample size in minutes. Rate limited clients will be listed in orange color on the dashboard top clients table.</p>
+                                                            <p>Note! The configured TCP limits apply to the DNS-over-TCP protocol service as well as to the DNS-over-TLS, DNS-over-HTTPS and DNS-over-QUIC optional protocol services.</p>
+                                                        </div>
                                                     </div>
 
-                                                    <div class="well well-sm form-horizontal">
+                                                    <div id="divSettingsGeneralAdvancedOptions" class="well well-sm form-horizontal">
                                                         <div class="form-group">
                                                             <label for="txtClientTimeout" class="col-sm-3 control-label">Client Timeout</label>
                                                             <div class="col-sm-7">
@@ -1241,7 +1313,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtWebServiceLocalAddresses" class="form-control" rows="3" spellcheck="false"></textarea>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local addresses are the network interface IP addresses you want the web service to listen for requests. ANY addresses (0.0.0.0 &amp; [::]) cannot be used together with unicast IP addresses. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the web service to listen on specific networks. Configured unicast IP addresses will be included as Subject Alternative Name (SAN) in the self signed TLS certificate.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local addresses are the network interface IP addresses you want the web service to listen for requests. ANY addresses (0.0.0.0 &amp; [::]) cannot be used together with unicast IP addresses. The web server uses dual-mode sockets by default so the IPv6 ANY address ([::]) works for IPv4 too. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the web service to listen on specific networks. Configured unicast IP addresses will be included as Subject Alternative Name (SAN) in the self signed TLS certificate.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1338,21 +1410,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                         <input id="chkEnableDnsOverUdpProxy" type="checkbox"> Enable DNS-over-UDP-PROXY
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-UDP-PROXY requests. It implements the <a href="https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt" target="_blank">PROXY Protocol</a> for both version 1 &amp; 2 over UDP datagram. Configure <b>Reverse Proxy Network ACL</b> below to allow only requests coming from your reverse proxy server.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-UDP-PROXY requests. It implements the <a href="https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt" target="_blank">PROXY Protocol</a> for both version 1 &amp; 2 over UDP datagram. It is mandatory to configure <b>Reverse Proxy Network ACL</b> below to allow requests coming from your reverse proxy server.</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
                                                                         <input id="chkEnableDnsOverTcpProxy" type="checkbox"> Enable DNS-over-TCP-PROXY
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-TCP-PROXY requests. It implements the <a href="https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt" target="_blank">PROXY Protocol</a> for both version 1 &amp; 2 over TCP connection. Configure <b>Reverse Proxy Network ACL</b> below to allow only requests coming from your reverse proxy server.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-TCP-PROXY requests. It implements the <a href="https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt" target="_blank">PROXY Protocol</a> for both version 1 &amp; 2 over TCP connection. It is mandatory to configure <b>Reverse Proxy Network ACL</b> below to allow requests coming from your reverse proxy server.</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
                                                                         <input id="chkEnableDnsOverHttp" type="checkbox"> Enable DNS-over-HTTP
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTP requests. It must be used with a TLS terminating reverse proxy like nginx. Configure <b>Reverse Proxy Network ACL</b> below to allow only requests coming from your reverse proxy server. Enabling this option also allows automatic TLS certificate renewal with HTTP challenge (webroot) for DNS-over-HTTPS service when DNS-over-HTTP port is set to 80.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTP requests. It must be used with a TLS terminating reverse proxy like nginx. It is mandatory to configure <b>Reverse Proxy Network ACL</b> below to allow requests coming from your reverse proxy server. Enabling this option also allows automatic TLS certificate renewal with HTTP challenge (webroot) for DNS-over-HTTPS service when DNS-over-HTTP port is set to 80.</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
@@ -1443,7 +1515,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtReverseProxyNetworkACL" class="form-control" rows="5" spellcheck="false"></textarea>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Configure the ACL above to allow only requests coming from your reverse proxy server for DNS-over-UDP-PROXY, DNS-over-TCP-PROXY, and DNS-over-HTTP protocols. This ACL will also be used for DNS-over-HTTPS protocol for reading Real IP Header. Enter IP addresses or network addresses one below another to allow access. Add <code>!</code> character at the start to deny access, e.g. <code>!192.168.10.0/24</code> will deny entire subnet. The ACL is processed in the same order its listed. If no networks match, the default policy is to deny all.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Configure the ACL above to allow requests coming from your reverse proxy server for DNS-over-UDP-PROXY, DNS-over-TCP-PROXY, and DNS-over-HTTP protocols. Enter IP addresses or network addresses one below another to allow access. Add <code>!</code> character at the start to deny access, e.g. <code>!192.168.10.0/24</code> will deny entire subnet. The ACL is processed in the same order its listed. If no networks match, the default policy is to deny all.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1467,7 +1539,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-6">
                                                                 <input type="text" class="form-control" id="txtDnsOverHttpRealIpHeader" placeholder="X-Real-IP" maxlength="255">
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The HTTP header that must be used to read client's actual IP address when the request comes from a reverse proxy.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The HTTP header that must be used to read client's actual IP address when the request comes from a reverse proxy. The specified header will be read only when the request IP address is allowed by the <b>Reverse Proxy Network ACL</b>.</div>
                                                         </div>
 
                                                         <div>
@@ -1613,6 +1685,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum stack count the recursive resolver must use for resolving a domain name.</div>
                                                         </div>
+
+                                                        <div style="margin-top: 10px;">Note! The DNS server uses Epsilon-Greedy machine learning algorithm and will automatically learn which of the name servers are answering faster without errors and will use those name servers most of the time. Since each domain name has a different set of name servers, it may take a while before the algorithm learns about them.</div>
                                                     </div>
                                                 </div>
 
@@ -1890,6 +1964,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
 
                                                         <div style="margin-top: 10px;">Note! DNS Server will use the data returned by the block list URLs to update the block list zone automatically. The expected file format is standard <code>hosts</code> file format, plain text file containing list of domains to block, wildcard block list file format, or <code>Adblock Plus</code> file format.</div>
+                                                        <div style="margin-top: 10px;">Note! To customize the Quick Add drop down list, read the instructions given in the <code>www/json/readme.txt</code> file found in the installation folder.</div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/10/blocking-internet-ads-using-dns-sinkhole.html" target="_blank">Help: Blocking Internet Ads Using DNS Sinkhole</a></div>
                                                     </div>
                                                 </div>
@@ -2034,6 +2109,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
                                                         <div style="margin-top: 10px;">Note! Forwarders are upstream DNS servers which this DNS Server must use to resolve domain names. If no forwarders are configured then the DNS server will use preconfigured ROOT HINTS to perform recursive resolution to resolve domain names.</div>
                                                         <div style="margin-top: 10px;">Note! The <code>https</code> URL scheme supports only DNS-over-HTTPS/2 and DNS-over-HTTPS/1.1 protocols. For DNS-over-HTTPS/3, use <code>h3</code> URL scheme instead of <code>https</code> but note that there wont be any protocol fallback if the connection attempt fails.</div>
+                                                        <div style="margin-top: 10px;">Note! The DNS server uses Epsilon-Greedy machine learning algorithm and will automatically learn which of the forwarders are answering faster without errors and will use those forwarders most of the time.</div>
+                                                        <div style="margin-top: 10px;">Note! To customize the Quick Select drop down list, read the instructions given in the <code>www/json/readme.txt</code> file found in the installation folder.</div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/06/configuring-dns-server-for-privacy.html" target="_blank">Help: Configuring DNS Server For Privacy & Security</a></div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2023/02/configuring-dns-over-quic-and-https3.html" target="_blank">Help: Configuring DNS-over-QUIC and HTTPS/3 For Technitium DNS Server</a></div>
                                                     </div>
@@ -2171,12 +2248,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
                                             <div class="form-group" style="margin-bottom: 0px;">
                                                 <div class="pull-left">
-                                                    <button id="btnSaveDnsSettings" type="button" class="btn btn-primary" data-loading-text="Saving..." onclick="saveDnsSettings();">Save Settings</button>
-                                                    <button type="button" class="btn btn-danger" data-loading-text="Flushing..." onclick="flushDnsCache(this);" style="margin-left: 6px;">Flush Cache</button>
+                                                    <button type="button" class="btn btn-primary" data-loading-text="Saving..." onclick="saveDnsSettings(this);">Save Settings</button>
+                                                    <button id="btnSettingsFlushCache" type="button" class="btn btn-danger" data-loading-text="Flushing..." onclick="flushDnsCache(this, $('#optSettingsClusterNode').val());" style="margin-left: 6px;">Flush Cache</button>
                                                 </div>
                                                 <div class="pull-right">
-                                                    <button type="button" class="btn btn-success" onclick="resetBackupSettingsModal();" data-toggle="modal" data-target="#modalBackupSettings">Backup Settings</button>
-                                                    <button type="button" class="btn btn-warning" onclick="resetRestoreSettingsModal();" data-toggle="modal" data-target="#modalRestoreSettings" style="margin-left: 6px;">Restore Settings</button>
+                                                    <button id="btnShowBackupSettingsModal" type="button" class="btn btn-success" onclick="resetBackupSettingsModal();" data-toggle="modal" data-target="#modalBackupSettings">Backup Settings</button>
+                                                    <button id="btnShowRestoreSettingsModal" type="button" class="btn btn-warning" onclick="resetRestoreSettingsModal();" data-toggle="modal" data-target="#modalRestoreSettings" style="margin-left: 6px;">Restore Settings</button>
                                                 </div>
                                                 <div class="clearfix"></div>
                                             </div>
@@ -2191,6 +2268,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     <ul class="nav nav-tabs" role="tablist">
                                         <li id="dhcpTabListLeases" role="presentation" class="active"><a href="#dhcpTabPaneLeases" aria-controls="dhcpTabPaneLeases" role="tab" data-toggle="tab" onclick="refreshDhcpLeases();">Leases</a></li>
                                         <li id="dhcpTabListScopes" role="presentation"><a href="#dhcpTabPaneScopes" aria-controls="dhcpTabPaneScopes" role="tab" data-toggle="tab" onclick="refreshDhcpScopes(true);">Scopes</a></li>
+
+                                        <div class="pull-right">
+                                            <select id="optDhcpClusterNode" class="form-control pull-right cluster-node-dropdown" style="margin-left: 0px;" onchange="refreshDhcpTab();"></select>
+                                        </div>
                                     </ul>
 
                                     <div class="tab-content">
@@ -2620,12 +2701,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
                                 <div id="mainPanelTabPaneAdmin" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
 
-                                    <ul class="nav nav-tabs" role="tablist">
-                                        <li id="adminTabListSessions" role="presentation" class="active"><a href="#adminTabPaneSessions" aria-controls="adminTabPaneSessions" role="tab" data-toggle="tab" onclick="refreshAdminSessions();">Sessions</a></li>
-                                        <li id="adminTabListUsers" role="presentation"><a href="#adminTabPaneUsers" aria-controls="adminTabPaneUsers" role="tab" data-toggle="tab" onclick="refreshAdminUsers();">Users</a></li>
-                                        <li id="adminTabListGroups" role="presentation"><a href="#adminTabPaneGroups" aria-controls="adminTabPaneGroups" role="tab" data-toggle="tab" onclick="refreshAdminGroups();">Groups</a></li>
-                                        <li id="adminTabListPermissions" role="presentation"><a href="#adminTabPanePermissions" aria-controls="adminTabPanePermissions" role="tab" data-toggle="tab" onclick="refreshAdminPermissions();">Permissions</a></li>
-                                    </ul>
+                                    <div>
+                                        <ul class="nav nav-tabs" role="tablist">
+                                            <li id="adminTabListSessions" role="presentation" class="active"><a href="#adminTabPaneSessions" aria-controls="adminTabPaneSessions" role="tab" data-toggle="tab" onclick="refreshAdminSessions();">Sessions</a></li>
+                                            <li id="adminTabListUsers" role="presentation"><a href="#adminTabPaneUsers" aria-controls="adminTabPaneUsers" role="tab" data-toggle="tab" onclick="refreshAdminUsers();">Users</a></li>
+                                            <li id="adminTabListGroups" role="presentation"><a href="#adminTabPaneGroups" aria-controls="adminTabPaneGroups" role="tab" data-toggle="tab" onclick="refreshAdminGroups();">Groups</a></li>
+                                            <li id="adminTabListPermissions" role="presentation"><a href="#adminTabPanePermissions" aria-controls="adminTabPanePermissions" role="tab" data-toggle="tab" onclick="refreshAdminPermissions();">Permissions</a></li>
+                                            <li id="adminTabListCluster" role="presentation"><a href="#adminTabPaneCluster" aria-controls="adminTabPaneCluster" role="tab" data-toggle="tab" onclick="refreshAdminCluster();">Cluster</a></li>
+                                        </ul>
+
+                                        <div class="clearfix"></div>
+                                    </div>
 
                                     <div class="tab-content">
 
@@ -2633,8 +2719,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                             <div id="divAdminSessionsLoader" style="margin-top: 10px; height: 350px;"></div>
 
                                             <div id="divAdminSessionsView" style="margin-top: 10px;">
-                                                <div style="float: right; padding: 2px 0px;">
-                                                    <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showCreateApiTokenModal();">Create Token</button>
+                                                <div class="form-inline pull-right" style="padding: 2px 0px;">
+                                                    <button id="btnAdminSessionsCreateToken" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showCreateApiTokenModal();">Create Token</button>
+                                                    <select id="optAdminSessionsClusterNode" class="form-control cluster-node-dropdown" onchange="refreshAdminSessions();"></select>
                                                 </div>
 
                                                 <div style="clear: both;"></div>
@@ -2674,16 +2761,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <tr>
                                                             <th><a href="#" onclick="sortTable('tbodyAdminUsers', 0); return false;">Username</a></th>
                                                             <th><a href="#" onclick="sortTable('tbodyAdminUsers', 1); return false;">Display Name</a></th>
-                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 2); return false;">Status</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 2); return false;">2FA Status</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 3); return false;">Status</a></th>
                                                             <th><a href="#" onclick="sortTable('tbodyAdminUsers', 4); return false;">Recent Login</a></th>
-                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 4); return false;">Previous Login</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 5); return false;">Previous Login</a></th>
                                                             <th style="width: 36px;"></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="tbodyAdminUsers">
                                                     </tbody>
                                                     <tfoot>
-                                                        <tr><th colspan="6" id="tfootAdminUsers"></th></tr>
+                                                        <tr><th colspan="7" id="tfootAdminUsers"></th></tr>
                                                     </tfoot>
                                                 </table>
                                             </div>
@@ -2738,6 +2826,52 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                             </div>
                                         </div>
 
+                                        <div id="adminTabPaneCluster" class="tab-pane">
+                                            <div id="divAdminClusterLoader" style="margin-top: 10px; height: 350px;"></div>
+
+                                            <div id="divAdminClusterView" style="margin-top: 10px;">
+                                                <div class="form-inline pull-right" style="padding: 2px 0px;">
+                                                    <div id="divAdminClusterInitialize" class="btn-group">
+                                                        <button type="button" class="btn btn-primary dropdown-toggle" style="padding: 2px 0px; width: 100px;" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                            Initialize <span class="caret"></span>
+                                                        </button>
+                                                        <ul class="dropdown-menu">
+                                                            <li id="lnkAdminClusterInitializeNewCluster"><a href="#" onclick="showInitializeClusterModal(); return false;">New Cluster</a></li>
+                                                            <li id="lnkAdminClusterInitializeJoinCluster"><a href="#" onclick="showInitializeJoinClusterModal();  return false;">Join Cluster</a></li>
+                                                        </ul>
+                                                    </div>
+
+                                                    <button id="btnClusterResync" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="resyncCluster(this);" data-loading-text="Resyncing...">Resync</button>
+                                                    <button id="btnClusterOptions" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showClusterOptionsModal();">Options</button>
+                                                    <button id="btnClusterLeave" type="button" class="btn btn-warning" style="padding: 2px 0px; width: 100px;" onclick="showLeaveClusterModal();">Leave Cluster</button>
+                                                    <button id="btnClusterDelete" type="button" class="btn btn-danger" style="padding: 2px 0px; width: 100px;" onclick="showDeleteClusterModal();">Delete Cluster</button>
+                                                    <select id="optAdminClusterNode" class="form-control cluster-node-dropdown" onchange="refreshAdminCluster();"></select>
+                                                </div>
+
+                                                <div style="clear: both;"></div>
+
+                                                <table id="tableAdminCluster" class="table table-hover">
+                                                    <thead>
+                                                        <tr>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminCluster', 0); return false;">Node Name</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminCluster', 1); return false;">IP Address</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminCluster', 2); return false;">URL</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminCluster', 3); return false;">Type</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminCluster', 4); return false;">State</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminCluster', 5); return false;">Up Since</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminCluster', 6); return false;">Last Seen</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminCluster', 7); return false;">Last Synced</a></th>
+                                                            <th style="width: 36px;"></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="tbodyAdminCluster">
+                                                    </tbody>
+                                                    <tfoot>
+                                                        <tr><th colspan="9" id="tfootAdminCluster"></th></tr>
+                                                    </tfoot>
+                                                </table>
+                                            </div>
+                                        </div>
                                     </div>
 
                                 </div>
@@ -2747,6 +2881,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     <ul class="nav nav-tabs" role="tablist">
                                         <li id="logsTabListLogViewer" role="presentation" class="active"><a href="#logsTabPaneLogViewer" aria-controls="logsTabPaneLogViewer" role="tab" data-toggle="tab" onclick="refreshLogFilesList();">View Logs</a></li>
                                         <li id="logsTabListQueryLogs" role="presentation"><a href="#logsTabPaneQueryLogs" aria-controls="logsTabPaneQueryLogs" role="tab" data-toggle="tab" onclick="refreshQueryLogsTab();">Query Logs</a></li>
+
+                                        <div class="pull-right">
+                                            <select id="optLogsClusterNode" class="form-control pull-right cluster-node-dropdown" style="margin-left: 0px;" onchange="logsClusterNodeChanged();"></select>
+                                        </div>
                                     </ul>
 
                                     <div class="tab-content">
@@ -3051,6 +3189,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             </div>
 
                             <div class="form-group">
+                                <label for="lblMyProfile2FAStatus" class="col-sm-4 control-label">2FA Status</label>
+                                <div class="col-sm-7">
+                                    <div id="lblMyProfile2FAStatus" style="padding: 6px 0; font-weight: bold;"></div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
                                 <label for="txtMyProfileSessionTimeout" class="col-sm-4 control-label">Session Timeout</label>
                                 <div class="col-sm-7">
                                     <input id="txtMyProfileSessionTimeout" type="number" class="form-control" placeholder="1800" style="width: 100px; display: inline;">
@@ -3136,6 +3281,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 </div>
                             </div>
 
+                            <div class="form-group" id="divCreateApiToken2FAOTP">
+                                <label for="txtCreateApiToken2FATOTP" class="col-sm-4 control-label">Enter OTP</label>
+                                <div class="col-sm-7">
+                                    <input id="txtCreateApiToken2FATOTP" type="text" class="form-control" style="width: 100px;" placeholder="OTP" maxlength="6">
+                                    <div style="padding-top: 5px;">Enter the 6-digit code you see in your authenticator app.</div>
+                                </div>
+                            </div>
+
                             <div class="form-group">
                                 <label for="txtCreateApiTokenName" class="col-sm-4 control-label">Token Name</label>
                                 <div class="col-sm-7">
@@ -3144,7 +3297,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             </div>
 
                             <div>
-                                <b>WARNING!</b> The token allows access to API calls with the same privileges as that of the user account. Thus its recommended to create a separate user account with limited permissions as required by the specific task that the token will be used for. The token cannot be used to change the user's password, or update the user profile details.
+                                <b>Warning!</b> The token allows access to API calls with the same privileges as that of the user account. Thus its recommended to create a separate user account with limited permissions as required by the specific task that the token will be used for. The token cannot be used to change the user's password, or update the user profile details.
                             </div>
                         </div>
 
@@ -3171,7 +3324,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             </div>
 
                             <div>
-                                <b>WARNING!</b> The token value above will not be displayed later. You must copy the token value immediately and save it for later use.
+                                <b>Warning!</b> The token value above will not be displayed later. You must copy the token value immediately and save it for later use.
                             </div>
                         </div>
                     </div>
@@ -3202,6 +3355,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             </div>
                         </div>
 
+                        <div id="divChangePasswordCurrentPassword" class="form-group">
+                            <label for="txtChangePasswordCurrentPassword" class="col-sm-4 control-label">Current Password</label>
+                            <div class="col-sm-7">
+                                <input id="txtChangePasswordCurrentPassword" type="password" class="form-control" placeholder="current password" maxlength="255">
+                            </div>
+                        </div>
+
                         <div class="form-group">
                             <label for="txtChangePasswordNewPassword" class="col-sm-4 control-label">New Password</label>
                             <div class="col-sm-7">
@@ -3215,9 +3375,79 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 <input id="txtChangePasswordConfirmPassword" type="password" class="form-control" placeholder="confirm password" maxlength="255">
                             </div>
                         </div>
+
+                        <div id="divChangePassword2FATOTP" class="form-group">
+                            <label for="txtChangePassword2FATOTP" class="col-sm-4 control-label">Enter OTP</label>
+                            <div class="col-sm-7">
+                                <input id="txtChangePassword2FATOTP" type="text" class="form-control" style="width: 100px;" placeholder="OTP" maxlength="6">
+                                <div style="padding-top: 5px;">Enter the 6-digit code you see in your authenticator app.</div>
+                            </div>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button id="btnChangePassword" type="submit" class="btn btn-primary" data-loading-text="Working...">Change</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="modalConfigure2FA" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document" style="width: 750px;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">Configure Two-factor Authentication (2FA)</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divConfigure2FAAlert"></div>
+
+                        <div id="divConfigure2FALoader" style="height: 400px;"></div>
+
+                        <div id="divConfigure2FAViewer">
+                            <div>
+                                <p>When you enable Two-factor Authentication (2FA) using Time-based One-time Password (TOTP), you will be required to enter a one-time password (OTP) in addition to your password when you login. You will need to use an authenticator app like <b>Microsoft Authenticator</b> or <b>Google Authenticator</b> to generate the OTP when you login.</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txtConfigure2FAUsername" class="col-sm-3 control-label">Username</label>
+                                <div class="col-sm-7">
+                                    <input id="txtConfigure2FAUsername" type="text" class="form-control" placeholder="username" disabled>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="lblConfigure2FAStatus" class="col-sm-3 control-label">2FA Status</label>
+                                <div class="col-sm-8">
+                                    <div id="lblConfigure2FAStatus" style="padding: 6px 0; font-weight: bold;"></div>
+                                </div>
+                            </div>
+
+                            <div id="divConfigure2FAInitialize">
+                                <div class="form-group">
+                                    <label class="col-sm-3 control-label">Secret Key</label>
+                                    <div class="col-sm-8">
+                                        <div id="lblConfigure2FAQRCode" style="margin: -6px 0px 0px -12px;"></div>
+                                        <div id="lblConfigure2FASecret" style="padding: 4px 0; font-weight: bold;"></div>
+                                        <div style="padding-top: 5px;">Scan the QR Code or manually enter the secret key (spaces don't matter) given above in your authenticator app.</div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="txtConfigure2FATOTP" class="col-sm-3 control-label">Enter OTP</label>
+                                    <div class="col-sm-8">
+                                        <input id="txtConfigure2FATOTP" type="text" class="form-control" style="width: 100px;" placeholder="OTP" maxlength="6">
+                                        <div style="padding-top: 5px;">Enter the 6-digit code you see in your authenticator app.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="btnEnable2FA" type="submit" class="btn btn-primary" data-loading-text="Working..." onclick="enable2FA(this); return false;">Enable</button>
+                        <button id="btnDisable2FA" type="button" class="btn btn-warning" data-loading-text="Working..." onclick="disable2FA(this); return false;">Disable</button>
                         <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                     </div>
                 </div>
@@ -3244,7 +3474,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </ol>
                     <p>On Linux, stop the DNS server by running 'sudo systemctl stop dns' command and 'sudo systemctl start dns' command to start it.</p>
                     <p>On Windows, press Win+R to open Run, enter 'services.msc', and press enter to open Services console. Find service named 'Technitium DNS Server' and use the Action menu to start/stop it.</p>
-                    <p><b>Note: </b>To reset 'admin' password, you will need file system access on the server running this DNS Server. If the 'admin' user does not exists then it will be created automatically.</p>
+                    <p><b>Note: </b>To reset 'admin' password, you will need file system access on the server running this DNS Server. If the 'admin' user does not exists then it will be created automatically. If the 'admin' user has Two-factor Authentication (2FA) configured then it will be disabled too.</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
@@ -4158,7 +4388,7 @@ MII...
                                         <span>(valid range 0-255; default 0)</span>
                                     </div>
                                     <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
-                                        Forwarders with high priority (lower value) will be queried before trying for low priority forwarders. Forwarders with the same priority will be concurrently queried.
+                                        Forwarders are sorted by priority value i.e. forwarder with low priority value will be queried before trying for forwarder with high priority value. Forwarders with the same priority value will be queried concurrently.
                                     </div>
                                 </div>
 
@@ -4429,8 +4659,18 @@ MII...
                                         Conditional Forwarder Zone
                                     </label>
                                 </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdConvertZoneToType" id="rdConvertZoneToTypeCatalog" value="Catalog" />
+                                        Catalog Zone
+                                    </label>
+                                </div>
                             </div>
                         </div>
+
+                        <p>
+                            <b>Note!</b> The conversion process may take a while depending on the number of records the zone has. When converting a Secondary Catalog zone to a Catalog zone, all member zones too will be converted to either Primary or Conditional Forwarder zone depending on their existing zone type. Please be patient till the conversion process completes.
+                        </p>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -4897,7 +5137,7 @@ ns1.example.com ([2001:db8::])
                                 <div class="col-sm-8">
                                     <select id="optDnssecSignZoneRsaHashAlgorithm" class="form-control" style="width: auto;">
                                         <option value="MD5">MD5 (obsolete)</option>
-                                        <option>SHA1</option>
+                                        <option value="SHA1">SHA1 (obsolete)</option>
                                         <option value="SHA256">SHA256 (default)</option>
                                         <option>SHA512</option>
                                     </select>
@@ -5117,13 +5357,13 @@ MII...
                 <div class="modal-body">
                     <div id="divDnssecUnsignZoneAlert"></div>
 
-                    <p><b>WARNING!</b> Unsigning the zone without removing all DS records from its parent zone will cause DNSSEC validating recursive resolvers to mark the zone as <b>bogus</b> and fail to resolve it.</p>
+                    <p><b>Warning!</b> Unsigning the zone without removing all DS records from its parent zone will cause DNSSEC validating recursive resolvers to mark the zone as <b>bogus</b> and fail to resolve it.</p>
 
-                    <p><b>WARNING!</b> Make sure that you have removed all of the DS records from the parent zone and sufficient time has passed before unsigning this zone. You MUST wait for at least the number of seconds specified by the DS record's TTL value to elapse before unsigning the zone to ensure that all recursive resolvers would have expired the DS records from its cache. For example, if you have DS records at the parent zone with TTL value set to 86400 then you must wait for 86400 seconds (24 hours) to pass after you delete the DS records from the parent zone. Once you have ensured that you have waited for the appropriate time then you can unsign the zone safely.</p>
+                    <p><b>Warning!</b> Make sure that you have removed all of the DS records from the parent zone and sufficient time has passed before unsigning this zone. You MUST wait for at least the number of seconds specified by the DS record's TTL value to elapse before unsigning the zone to ensure that all recursive resolvers would have expired the DS records from its cache. For example, if you have DS records at the parent zone with TTL value set to 86400 then you must wait for 86400 seconds (24 hours) to pass after you delete the DS records from the parent zone. Once you have ensured that you have waited for the appropriate time then you can unsign the zone safely.</p>
 
-                    <p><b>NOTE!</b> You can find out the TTL value of DS records for your zone by querying for DS records using the DNS Client tab.</p>
+                    <p><b>Note!</b> You can find out the TTL value of DS records for your zone by querying for DS records using the DNS Client tab.</p>
 
-                    <p><b>WARNING!</b> Unsigning the zone will permanently delete all of the private keys associated with it. Consider taking a backup before proceeding.</p>
+                    <p><b>Warning!</b> Unsigning the zone will permanently delete all of the private keys associated with it. Consider taking a backup before proceeding.</p>
 
                     <p>&nbsp;</p>
                     <p>Are you sure you want to proceed to unsign the zone now?</p>
@@ -5245,7 +5485,7 @@ MII...
                                             <div class="col-sm-8">
                                                 <select id="optDnssecPropertiesAddKeyRsaHashAlgorithm" class="form-control" style="width: auto;">
                                                     <option value="MD5">MD5 (obsolete)</option>
-                                                    <option>SHA1</option>
+                                                    <option value="SHA1">SHA1 (obsolete)</option>
                                                     <option value="SHA256">SHA256 (default)</option>
                                                     <option>SHA512</option>
                                                 </select>
@@ -5651,13 +5891,25 @@ MII...
 
                                 <div class="checkbox">
                                     <label>
-                                        <input id="chkBackupDnsSettings" type="checkbox" checked> DNS Settings And Certificate Files (dns.config, *.pfx, &amp; *.p12)
+                                        <input id="chkBackupClusterConfig" type="checkbox" checked> Cluster Config File (cluster.config)
                                     </label>
                                 </div>
 
                                 <div class="checkbox">
                                     <label>
-                                        <input id="chkBackupLogSettings" type="checkbox" checked> Log Settings File (log.config)
+                                        <input id="chkBackupWebServiceConfig" type="checkbox" checked> Web Service Config And Certificate File (webservice.config, *.pfx &amp; *.p12)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkBackupDnsConfig" type="checkbox" checked> DNS Config And Certificate File (dns.config, *.pfx &amp; *.p12)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkBackupLogConfig" type="checkbox" checked> Log Config File (log.config)
                                     </label>
                                 </div>
 
@@ -5681,13 +5933,19 @@ MII...
 
                                 <div class="checkbox">
                                     <label>
-                                        <input id="chkBackupScopes" type="checkbox" checked> DHCP Scope Files (*.scope)
+                                        <input id="chkBackupBlockLists" type="checkbox" checked> Block List Config And Cache Files (blocklist.config)
                                     </label>
                                 </div>
 
                                 <div class="checkbox">
                                     <label>
                                         <input id="chkBackupApps" type="checkbox" checked> DNS Apps
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkBackupScopes" type="checkbox" checked> DHCP Scope Files (*.scope)
                                     </label>
                                 </div>
 
@@ -5700,12 +5958,6 @@ MII...
                                 <div class="checkbox">
                                     <label>
                                         <input id="chkBackupLogs" type="checkbox"> Log Files (*.log)
-                                    </label>
-                                </div>
-
-                                <div class="checkbox">
-                                    <label>
-                                        <input id="chkBackupBlockLists" type="checkbox" checked> Block List Cache Files
                                     </label>
                                 </div>
                             </div>
@@ -5755,13 +6007,25 @@ MII...
 
                                 <div class="checkbox">
                                     <label>
-                                        <input id="chkRestoreDnsSettings" type="checkbox" checked> DNS Settings And Certificate Files (dns.config, *.pfx, &amp; *.p12)
+                                        <input id="chkRestoreClusterConfig" type="checkbox" checked> Cluster Config File (cluster.config)
                                     </label>
                                 </div>
 
                                 <div class="checkbox">
                                     <label>
-                                        <input id="chkRestoreLogSettings" type="checkbox" checked> Log Settings File (log.config)
+                                        <input id="chkRestoreWebServiceConfig" type="checkbox" checked> Web Service Config And Certificate File (webservice.config, *.pfx &amp; *.p12)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkRestoreDnsConfig" type="checkbox" checked> DNS Config And Certificate File (dns.config, *.pfx &amp; *.p12)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkRestoreLogConfig" type="checkbox" checked> Log Config File (log.config)
                                     </label>
                                 </div>
 
@@ -5785,13 +6049,19 @@ MII...
 
                                 <div class="checkbox">
                                     <label>
-                                        <input id="chkRestoreScopes" type="checkbox" checked> DHCP Scope Files (*.scope)
+                                        <input id="chkRestoreBlockLists" type="checkbox" checked> Block List Config And Cache Files (blocklist.config)
                                     </label>
                                 </div>
 
                                 <div class="checkbox">
                                     <label>
                                         <input id="chkRestoreApps" type="checkbox" checked> DNS Apps
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkRestoreScopes" type="checkbox" checked> DHCP Scope Files (*.scope)
                                     </label>
                                 </div>
 
@@ -5804,12 +6074,6 @@ MII...
                                 <div class="checkbox">
                                     <label>
                                         <input id="chkRestoreLogs" type="checkbox"> Log Files (*.log)
-                                    </label>
-                                </div>
-
-                                <div class="checkbox">
-                                    <label>
-                                        <input id="chkRestoreBlockLists" type="checkbox" checked> Block List Cache Files
                                     </label>
                                 </div>
                             </div>
@@ -5918,8 +6182,8 @@ MII...
                 <div class="modal-body">
                     <div id="divDhcpRemoveLeaseAlert"></div>
 
-                    <p><b>WARNING!</b> Removing a DHCP lease from the server side will NOT remove the allocated IP address from the client side. Make sure that the client assigned this lease is not connected to the network before proceeding.</p>
-                    <p><b>WARNING!</b> Removing a DHCP lease may cause IP address conflict if the DHCP server assigns the same IP address to a new client while the old client is still connected to the network.</p>
+                    <p><b>Warning!</b> Removing a DHCP lease from the server side will NOT remove the allocated IP address from the client side. Make sure that the client assigned this lease is not connected to the network before proceeding.</p>
+                    <p><b>Warning!</b> Removing a DHCP lease may cause IP address conflict if the DHCP server assigns the same IP address to a new client while the old client is still connected to the network.</p>
                     <p>It is not recommended to remove a DHCP lease when the client is still connected or may connect back later to the network before the lease expires. Use this option only as a last resort.</p>
                     <p>
                         Follow the recommendations below to avoid such a case that requires removing a DHCP lease:
@@ -6019,8 +6283,15 @@ MII...
                             </div>
 
                             <div class="form-group">
+                                <label for="lblUserDetails2FAStatus" class="col-sm-4 control-label">2FA Status</label>
+                                <div class="col-sm-7">
+                                    <div id="lblUserDetails2FAStatus" style="padding: 6px 0; font-weight: bold;"></div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
                                 <div class="col-sm-offset-4 col-sm-7">
-                                    <div class="checkbox">
+                                    <div class="checkbox" style="padding: 0px;">
                                         <label>
                                             <input id="chkUserDetailsDisableAccount" type="checkbox"> Disable User Account
                                         </label>
@@ -6218,6 +6489,478 @@ MII...
                     </div>
                     <div class="modal-footer">
                         <button id="btnEditPermissionsSave" type="submit" class="btn btn-primary" data-loading-text="Saving...">Save</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="modalInitializeNewCluster" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document" style="width: 780px;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">Initialize New Cluster</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divInitializeNewClusterAlert"></div>
+
+                        <div id="divInitializeNewClusterLoader" style="height: 350px;"></div>
+
+                        <div id="divInitializeNewClusterView" style="max-height: 500px; overflow-y: auto; padding: 0 6px; overflow-x: hidden;">
+                            <p>
+                                The initialization of a new Cluster will make the current DNS server its Primary node. You can add other DNS servers to this Cluster later which will get added as Secondary nodes. No data will be lost on this DNS server in this process.
+                            </p>
+
+                            <div class="form-group">
+                                <label for="txtInitializeNewClusterDomain" class="col-sm-4 control-label">Cluster Domain</label>
+                                <div class="col-sm-7">
+                                    <input id="txtInitializeNewClusterDomain" type="text" class="form-control" placeholder="domain name" maxlength="255">
+                                    <div style="padding-top: 5px;">The fully qualified domain name to be used to identify the new Cluster.</div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="optInitializeNewClusterPrimaryNodeIpAddress" class="col-sm-4 control-label">Primary Node IP Address</label>
+                                <div class="col-sm-7">
+                                    <select id="optInitializeNewClusterPrimaryNodeIpAddress" class="form-control"></select>
+                                    <div style="padding-top: 5px;">The static IP address of this DNS server that will be accessible by all other DNS Servers to be added later as Secondary nodes.</div>
+                                </div>
+                            </div>
+
+                            <p>
+                                <b>Note!</b> If the web service does not have HTTPS enabled, then the initialization process will enable it automatically with a self-signed certificate. However, its recommended to manually configure HTTPS with a valid certificate before initializing the cluster.
+                            </p>
+
+                            <p>
+                                <b>Note!</b> The initialization process will create two zones if they do not exist. The first zone will be the Cluster Primary zone named as the Cluster domain name specified above. The second zone will be the Cluster Catalog zone that uses 'cluster-catalog' as the subdomain name of the Cluster domain name. Use this Cluster Catalog zone for automatic provisioning of Secondary zones on all of the Cluster Secondary nodes.
+                            </p>
+
+                            <p>
+                                <b>Warning!</b> The Cluster domain name cannot be changed later. Make sure that you enter the correct domain name before proceeding.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary" data-loading-text="Working..." onclick="initializeNewCluster(this); return false;">Initialize</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="modalInitializeJoinCluster" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document" style="width: 780px;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">Join Cluster</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divInitializeJoinClusterAlert"></div>
+
+                        <div id="divInitializeJoinClusterLoader" style="height: 500px;"></div>
+
+                        <div id="divInitializeJoinClusterView" style="max-height: 500px; overflow-y: auto; padding: 0 6px; overflow-x: hidden;">
+                            <p>
+                                Joining a Cluster will make this DNS server its Secondary node. This process will overwrite configuration on this DNS server for Allowed, Blocked, Apps, Settings and Administration sections. The DNS server will automatically synchronize its configuration with the Primary node in the Cluster.
+                            </p>
+
+                            <div class="form-group">
+                                <label for="optInitializeJoinClusterSecondaryNodeIpAddress" class="col-sm-4 control-label">Secondary Node IP Address</label>
+                                <div class="col-sm-7">
+                                    <select id="optInitializeJoinClusterSecondaryNodeIpAddress" class="form-control"></select>
+                                    <div style="padding-top: 5px;">The static IP address of this DNS server that will be accessible by all other DNS Server nodes in the Cluster.</div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txtInitializeJoinClusterPrimaryNodeUrl" class="col-sm-4 control-label">Primary Node URL</label>
+                                <div class="col-sm-7">
+                                    <input id="txtInitializeJoinClusterPrimaryNodeUrl" type="text" class="form-control" placeholder="URL" maxlength="255">
+                                    <div style="padding-top: 5px;">The web service HTTPS URL of the Primary node in the Cluster.</div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txtInitializeJoinClusterPrimaryNodeIpAddress" class="col-sm-4 control-label">Primary Node IP Address (Optional)</label>
+                                <div class="col-sm-7">
+                                    <input id="txtInitializeJoinClusterPrimaryNodeIpAddress" type="text" class="form-control" placeholder="IP address" maxlength="255">
+                                    <div style="padding-top: 5px;">The IP address of the Primary node in the Cluster. When unspecified, domain name in the Primary node URL will be resolved and used.</div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="col-sm-4 control-label">Certificate Validation</label>
+                                <div class="col-sm-7">
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdInitializeJoinClusterCertificateValidation" id="rdInitializeJoinClusterCertificateValidationDefault" value="false">
+                                            Validate Certificate With PKI and DANE (Recommended)
+                                        </label>
+                                        <div style="padding-top: 5px; padding-left: 20px;">
+                                            The Primary node web service TLS certificate will be validated using PKI and DANE to ensure that your connection is secure.
+                                        </div>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdInitializeJoinClusterCertificateValidation" id="rdInitializeJoinClusterCertificateValidationIgnore" value="true">
+                                            Ignore Certificate Validation Errors
+                                        </label>
+                                        <div style="padding-top: 5px; padding-left: 20px;">
+                                            Use this options only when you know that the Primary node web service is using a self-signed TLS certificate and is reachable on a private network.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txtInitializeJoinClusterPrimaryNodeUsername" class="col-sm-4 control-label">Primary Node Username</label>
+                                <div class="col-sm-7">
+                                    <input id="txtInitializeJoinClusterPrimaryNodeUsername" type="text" class="form-control" placeholder="username" maxlength="255">
+                                    <div style="padding-top: 5px;">The username of an administrator on the Primary node in the Cluster.</div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txtInitializeJoinClusterPrimaryNodePassword" class="col-sm-4 control-label">Primary Node Password</label>
+                                <div class="col-sm-7">
+                                    <input id="txtInitializeJoinClusterPrimaryNodePassword" type="password" class="form-control" maxlength="255">
+                                    <div style="padding-top: 5px;">The password of the administrator user specified above.</div>
+                                </div>
+                            </div>
+
+                            <div id="divInitializeJoinClusterPrimaryNode2faTotp" class="form-group">
+                                <label for="txtInitializeJoinClusterPrimaryNode2faTotp" class="col-sm-4 control-label">Primary Node OTP</label>
+                                <div class="col-sm-7">
+                                    <input id="txtInitializeJoinClusterPrimaryNode2faTotp" type="text" class="form-control" placeholder="OTP" maxlength="6">
+                                    <div style="padding-top: 5px;">Enter the 6-digit code you see in your authenticator app for the administrator user specified above.</div>
+                                </div>
+                            </div>
+
+                            <p>
+                                <b>Note!</b> The process to join the Cluster may take a while to complete depending on the amount of initial config data that needs to be synchronized from the Primary node. Please be patient till the process completes.
+                            </p>
+
+                            <p>
+                                <b>Note!</b> If the web service does not have HTTPS enabled, then the joining process will enable it automatically with a self-signed certificate. However, its recommended to manually configure HTTPS with a valid certificate before joining the cluster.
+                            </p>
+
+                            <p>
+                                <b>Warning!</b> Joining a Cluster will cause configuration on this DNS server to be overwritten permanently for Allowed, Blocked, Apps, Settings and Administration sections!
+                            </p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary" data-loading-text="Joining..." onclick="initializeJoinCluster(this); return false;">Join</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="modalClusterOptions" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document" style="width: 780px;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">Cluster Options</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divClusterOptionsAlert"></div>
+
+                        <div id="divClusterOptionsLoader" style="height: 100px;"></div>
+
+                        <div id="divClusterOptionsView" style="max-height: 500px; overflow-y: auto; padding: 0 6px; overflow-x: hidden;">
+                            <div class="form-group">
+                                <label for="txtClusterOptionsClusterDomain" class="col-sm-4 control-label">Cluster Domain</label>
+                                <div class="col-sm-7">
+                                    <input id="txtClusterOptionsClusterDomain" type="text" class="form-control" placeholder="domain name" maxlength="255" disabled>
+                                    <div style="padding-top: 5px;">The fully qualified domain name of the Cluster.</div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txtClusterOptionsHeartbeatRefreshIntervalSeconds" class="col-sm-4 control-label">Heartbeat Refresh Interval</label>
+                                <div class="col-sm-7">
+                                    <div>
+                                        <input id="txtClusterOptionsHeartbeatRefreshIntervalSeconds" type="number" class="form-control" placeholder="seconds" maxlength="5" style="width: 100px; display: inline;">
+                                        <span>seconds (valid range 10-300; default 30)</span>
+                                    </div>
+                                    <div style="padding-top: 5px;">The interval in seconds in which the DNS server must refresh the state of all nodes in the Cluster.</div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txtClusterOptionsHeartbeatRetryIntervalSeconds" class="col-sm-4 control-label">Heartbeat Retry Interval</label>
+                                <div class="col-sm-7">
+                                    <div>
+                                        <input id="txtClusterOptionsHeartbeatRetryIntervalSeconds" type="number" class="form-control" placeholder="seconds" maxlength="5" style="width: 100px; display: inline;">
+                                        <span>seconds (valid range 10-300; default 10)</span>
+                                    </div>
+                                    <div style="padding-top: 5px;">The interval in seconds in which the DNS server must retry the state refresh process for all nodes in case of a failure.</div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txtClusterOptionsConfigRefreshIntervalSeconds" class="col-sm-4 control-label">Config Refresh Interval</label>
+                                <div class="col-sm-7">
+                                    <div>
+                                        <input id="txtClusterOptionsConfigRefreshIntervalSeconds" type="number" class="form-control" placeholder="seconds" maxlength="5" style="width: 100px; display: inline;">
+                                        <span>seconds (valid range 30-3600; default 900)</span>
+                                    </div>
+                                    <div style="padding-top: 5px;">The interval in seconds in which the DNS server must refresh the configuration from the Primary node.</div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txtClusterOptionsConfigRetryIntervalSeconds" class="col-sm-4 control-label">Config Retry Interval</label>
+                                <div class="col-sm-7">
+                                    <div>
+                                        <input id="txtClusterOptionsConfigRetryIntervalSeconds" type="number" class="form-control" placeholder="seconds" maxlength="5" style="width: 100px; display: inline;">
+                                        <span>seconds (valid range 30-3600; default 60)</span>
+                                    </div>
+                                    <div style="padding-top: 5px;">The interval in seconds in which the DNS server must retry the configuration refresh process for the Primary node in case of a failure.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="btnClusterOptionsSave" type="submit" class="btn btn-primary" data-loading-text="Saving..." onclick="saveClusterOptions(this); return false;">Save</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="modalEditClusterNode" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document" style="width: 780px;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">Edit Node - <span id="lblEditClusterNodeName">node1.example.com</span></h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divEditClusterNodeAlert"></div>
+
+                        <div id="divEditClusterNodeLoader" style="height: 100px;"></div>
+
+                        <div id="divEditClusterNodeView" style="max-height: 500px; overflow-y: auto; padding: 0 6px; overflow-x: hidden;">
+                            <div id="divEditClusterNodeSelfNode">
+                                <div class="form-group">
+                                    <label for="optEditClusterNodeSelfNodeIpAddress" class="col-sm-4 control-label">Node IP Address</label>
+                                    <div class="col-sm-7">
+                                        <select id="optEditClusterNodeSelfNodeIpAddress" class="form-control"></select>
+                                        <div style="padding-top: 5px;">The static IP address of this DNS server that will be accessible by all other DNS Server nodes in the Cluster.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="divEditClusterNodePrimaryNode">
+                                <div class="form-group">
+                                    <label for="txtEditClusterNodePrimaryNodeUrl" class="col-sm-4 control-label">Primary Node URL</label>
+                                    <div class="col-sm-7">
+                                        <input id="txtEditClusterNodePrimaryNodeUrl" type="text" class="form-control" placeholder="URL" maxlength="255">
+                                        <div style="padding-top: 5px;">The web service HTTPS URL of the Primary node in the Cluster.</div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="txtEditClusterNodePrimaryNodeIpAddress" class="col-sm-4 control-label">Primary Node IP Address (Optional)</label>
+                                    <div class="col-sm-7">
+                                        <input id="txtEditClusterNodePrimaryNodeIpAddress" type="text" class="form-control" placeholder="IP address" maxlength="255">
+                                        <div style="padding-top: 5px;">The IP address of the Primary node in the Cluster. When unspecified, domain name in the Primary node URL will be resolved and used.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="btnEditClusterNodeSave" type="submit" class="btn btn-primary" data-loading-text="Saving...">Save</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="modalRemoveClusterNode" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">Remove Node - <span id="lblRemoveClusterNodeName">node1.example.com</span></h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divRemoveClusterNodeAlert"></div>
+
+                        <p>
+                            The Remove Node process will ask the selected Secondary node to leave the Cluster gracefully. The Secondary will then initiate Leave Cluster process as if the Leave Cluster action was performed on that node itself.
+                        </p>
+
+                        <div class="form-group">
+                            <div class="col-sm-offset-1 col-sm-10">
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkRemoveClusterNodeForceRemove" type="checkbox"> Force Remove Node
+                                    </label>
+                                </div>
+                                <div style="padding-top: 5px; padding-left: 20px;">Enabling this option will cause the Secondary node to be deleted from the Cluster without asking the node to leave gracefully.</div>
+                            </div>
+                        </div>
+
+                        <p>
+                            Are you sure you want to remove the Secondary node from the Cluster?
+                        </p>
+
+                        <p>
+                            <b>Note!</b> Use the Force Remove Node option only when the Secondary node is unreachable/decommissioned and cannot leave the Cluster gracefully.
+                        </p>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="btnRemoveClusterNode" type="submit" class="btn btn-warning" data-loading-text="Removing..." onclick="removeSecondaryClusterNode(this); return false;">Remove</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="modalPromoteToPrimaryClusterNode" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">Promote To Primary Node - <span id="lblPromoteToPrimaryClusterNodeName"></span></h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divPromoteToPrimaryClusterNodeAlert"></div>
+
+                        <p>
+                            The promote To Primary node process will resync complete configuration from the Primary node and then proceed to delete it from the Cluster followed by upgrading the selected Secondary node to become the Primary node in the Cluster. The former Primary node when deleted will cause it to delete all its own Cluster configuration leaving the Cluster without causing any other data loss.
+                        </p>
+
+                        <div class="form-group">
+                            <div class="col-sm-offset-1 col-sm-10">
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkPromoteToPrimaryClusterNodeForceDeletePrimary" type="checkbox"> Force Delete Current Primary Node
+                                    </label>
+                                </div>
+                                <div style="padding-top: 5px; padding-left: 20px;">Enabling this option will cause the current Primary node to be deleted from the Cluster without resyncing complete configuration from it and without inform it.</div>
+                            </div>
+                        </div>
+
+                        <p>
+                            Are you sure you want to promote the selected Secondary node to become the Primary node in the Cluster?
+                        </p>
+
+                        <p>
+                            <b>Note!</b> Use the Force Delete Current Primary Node option only when the Primary node is unreachable/decommissioned and thus cannot be deleted from the Cluster gracefully.
+                        </p>
+
+                        <p>
+                            <b>Note!</b> The process to promote to Primary node may take a while to complete depending on the size of the complete configuration being resynced and the number of local zones that need to be converted. Please be patient till the process completes.
+                        </p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-warning" data-loading-text="Promoting..." onclick="promoteToPrimaryClusterNode(this); return false;">Promote</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="modalLeaveCluster" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">Leave Cluster</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divLeaveClusterAlert"></div>
+
+                        <p>
+                            The Leave Cluster process will remove all Cluster configuration from this Secondary node and leave the Cluster gracefully. There will be no data loss except for the Cluster configuration. You will need to re-join the Cluster again to use this DNS server as a Secondary node.
+                        </p>
+
+                        <div class="form-group">
+                            <div class="col-sm-offset-1 col-sm-10">
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkLeaveClusterForceLeave" type="checkbox"> Force Leave Cluster
+                                    </label>
+                                </div>
+                                <div style="padding-top: 5px; padding-left: 20px;">Enabling this option will cause this Secondary node to leave the Cluster without informing the Primary node.</div>
+                            </div>
+                        </div>
+
+                        <p>
+                            Are you sure you want to leave the Cluster?
+                        </p>
+
+                        <p>
+                            <b>Note!</b> Use the Force Leave Cluster option only when the Primary node is unreachable/decommissioned and thus cannot leave the Cluster gracefully.
+                        </p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-warning" data-loading-text="Leaving..." onclick="leaveCluster(this); return false;">Leave</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="modalDeleteCluster" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">Delete Cluster</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divDeleteClusterAlert"></div>
+
+                        <p>
+                            The Delete Cluster process will remove all Cluster configuration from this Primary node. There will be no data loss except for the Cluster configuration. You will need to re-initialize the Cluster again to use clustering features on this DNS server.
+                        </p>
+
+                        <div class="form-group">
+                            <div class="col-sm-offset-1 col-sm-10">
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkDeleteClusterForceDelete" type="checkbox"> Force Delete Cluster
+                                    </label>
+                                </div>
+                                <div style="padding-top: 5px; padding-left: 20px;">Enabling this option will cause this Primary node to delete the Cluster for itself even when other Secondary nodes still exist, orphaning them.</div>
+                            </div>
+                        </div>
+
+                        <p>
+                            Are you sure you want to delete the Cluster?
+                        </p>
+
+                        <p>
+                            <b>Note!</b> You can delete the Cluster only when there are no Secondary nodes in the Cluster. Use the Force Delete Cluster option only when you wish this Primary node to be removed from the Cluster even when there are Secondary nodes in the Cluster. In this case, the Secondary nodes will become orphaned and you will need to promote one of them to be the new Primary node manually.
+                        </p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-danger" data-loading-text="Deleting..." onclick="deleteCluster(this); return false;">Delete</button>
                         <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                     </div>
                 </div>

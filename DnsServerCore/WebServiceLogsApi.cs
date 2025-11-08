@@ -97,7 +97,7 @@ namespace DnsServerCore
                 string fileName = request.GetQueryOrForm("fileName");
                 int limit = request.GetQueryOrForm("limit", int.Parse, 0);
 
-                return _dnsWebService._log.DownloadLogAsync(context, fileName, limit * 1024 * 1024);
+                return _dnsWebService._log.DownloadLogFileAsync(context, fileName, limit * 1024 * 1024);
             }
 
             public void DeleteLog(HttpContext context)
@@ -111,7 +111,7 @@ namespace DnsServerCore
 
                 string log = request.GetQueryOrForm("log");
 
-                _dnsWebService._log.DeleteLog(log);
+                _dnsWebService._log.DeleteLogFile(log);
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Log file was deleted: " + log);
             }
@@ -123,7 +123,7 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
-                _dnsWebService._log.DeleteAllLogs();
+                _dnsWebService._log.DeleteAllLogFiles();
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] All log files were deleted.");
             }
@@ -190,6 +190,8 @@ namespace DnsServerCore
                     rcode = Enum.Parse<DnsResponseCode>(strRcode, true);
 
                 string qname = request.GetQueryOrForm("qname", null);
+                if (qname is not null)
+                    qname = qname.TrimEnd('.');
 
                 DnsResourceRecordType? qtype = null;
                 string strQtype = request.QueryOrForm("qtype");

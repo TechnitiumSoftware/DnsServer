@@ -1,49 +1,49 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <Version>2.0.1</Version>
-    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-    <Company>Technitium</Company>
-    <Product>Technitium DNS Server</Product>
-    <Authors>Shreyas Zare</Authors>
-    <AssemblyName>QueryLogsMySqlApp</AssemblyName>
-    <RootNamespace>QueryLogsMySql</RootNamespace>
-    <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-    <Description>Logs all incoming DNS requests and their responses in a MySQL/MariaDB database that can be queried from the DNS Server web console.\n\nNote! You will need to create a user and grant all privileges on the database to the user so that the app will be able to access it. To do that run the following commands with the required database name and username on your mysql root prompt:\nCREATE USER 'user'@'%' IDENTIFIED BY 'password';\nGRANT ALL PRIVILEGES ON DatabaseName.* TO 'user'@'%';\n\nOnce the database is configured, edit the app's config to update the database name, connection string, and set enableLogging to true. The app will automatically create the required database schema for you and start logging queries once you save the config.</Description>
-    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <OutputType>Library</OutputType>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<Version>3.0</Version>
+		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+		<Company>Technitium</Company>
+		<Product>Technitium DNS Server</Product>
+		<Authors>Shreyas Zare</Authors>
+		<AssemblyName>QueryLogsMySqlApp</AssemblyName>
+		<RootNamespace>QueryLogsMySql</RootNamespace>
+		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
+		<Description>Logs all incoming DNS requests and their responses in a MySQL/MariaDB database that can be queried from the DNS Server web console.\n\nNote! You will need to create a user and grant all privileges on the database to the user so that the app will be able to access it. To do that run the following commands with the required database name and username on your mysql root prompt:\nCREATE USER 'user'@'%' IDENTIFIED BY 'password';\nGRANT ALL PRIVILEGES ON DatabaseName.* TO 'user'@'%';\n\nOnce the database is configured, edit the app's config to update the database name, connection string, and set enableLogging to true. The app will automatically create the required database schema for you and start logging queries once you save the config.</Description>
+		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+		<OutputType>Library</OutputType>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="MySqlConnector" Version="2.4.0" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="MySqlConnector" Version="2.4.0" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj">
-      <Private>false</Private>
-    </ProjectReference>
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj">
+			<Private>false</Private>
+		</ProjectReference>
+	</ItemGroup>
 
-  <ItemGroup>
-    <Reference Include="TechnitiumLibrary.Net">
-      <HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="TechnitiumLibrary">
-      <HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-  </ItemGroup>
+	<ItemGroup>
+		<Reference Include="TechnitiumLibrary.Net">
+			<HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="TechnitiumLibrary">
+			<HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.dll</HintPath>
+			<Private>True</Private>
+		</Reference>
+	</ItemGroup>
 
-  <ItemGroup>
-    <None Update="dnsApp.config">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
+	<ItemGroup>
+		<None Update="dnsApp.config">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
 
 </Project>

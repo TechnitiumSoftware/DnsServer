@@ -1,48 +1,49 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <Version>7.1</Version>
-    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-    <Company>Technitium</Company>
-    <Product>Technitium DNS Server</Product>
-    <Authors>Shreyas Zare</Authors>
-    <AssemblyName>QueryLogsSqliteApp</AssemblyName>
-    <RootNamespace>QueryLogsSqlite</RootNamespace>
-    <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-    <Description>Logs all incoming DNS requests and their responses in a Sqlite database that can be queried from the DNS Server web console.\n\nNote! The query logging throughput is limited by the disk throughput on which the Sqlite db file is stored. This app is not recommended to be used with very high throughput (more than 20,000 requests/second).\n\nWarning! When 'enableVacuum' is set to 'true', the app will run 'VACUUM' command after deletion of records which will increase disk IO and may cause the app to not respond for a while. Its recommended to enable this feature periodically, only for a while as needed, to trim the db file size on disk.</Description>
-    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <OutputType>Library</OutputType>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<Version>8.0</Version>
+		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+		<Company>Technitium</Company>
+		<Product>Technitium DNS Server</Product>
+		<Authors>Shreyas Zare</Authors>
+		<AssemblyName>QueryLogsSqliteApp</AssemblyName>
+		<RootNamespace>QueryLogsSqlite</RootNamespace>
+		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
+		<Description>Logs all incoming DNS requests and their responses in a Sqlite database that can be queried from the DNS Server web console.\n\nNote! The query logging throughput is limited by the disk throughput on which the Sqlite db file is stored. This app is not recommended to be used with very high throughput (more than 20,000 requests/second).\n\nWarning! When 'enableVacuum' is set to 'true', the app will run 'VACUUM' command after deletion of records which will increase disk IO and may cause the app to not respond for a while. Its recommended to enable this feature periodically, only for a while as needed, to trim the db file size on disk.</Description>
+		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+		<OutputType>Library</OutputType>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.4" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.10" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj">
-      <Private>false</Private>
-    </ProjectReference>
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj">
+			<Private>false</Private>
+		</ProjectReference>
+	</ItemGroup>
 
-  <ItemGroup>
-    <Reference Include="TechnitiumLibrary.Net">
-      <HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="TechnitiumLibrary">
-      <HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-  </ItemGroup>
+	<ItemGroup>
+		<Reference Include="TechnitiumLibrary.Net">
+			<HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="TechnitiumLibrary">
+			<HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+	</ItemGroup>
 
-  <ItemGroup>
-    <None Update="dnsApp.config">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
+	<ItemGroup>
+		<None Update="dnsApp.config">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
 
 </Project>

@@ -223,7 +223,7 @@ namespace AdvancedForwarding
 
             readonly string _name;
             bool _enableForwarding;
-            IReadOnlyList<Forwarding> _forwardings;
+            Forwarding[] _forwardings;
             Dictionary<string, AdGuardUpstream> _adguardUpstreams;
 
             #endregion
@@ -315,7 +315,7 @@ namespace AdvancedForwarding
             {
                 domain = domain.ToLowerInvariant();
 
-                if ((_forwardings is not null) && (_forwardings.Count > 0) && Forwarding.TryGetForwarderRecords(domain, _forwardings, out forwarderRecords))
+                if ((_forwardings is not null) && (_forwardings.Length > 0) && Forwarding.TryGetForwarderRecords(domain, _forwardings, out forwarderRecords))
                     return true;
 
                 if (_adguardUpstreams is not null)
@@ -562,8 +562,8 @@ namespace AdvancedForwarding
             ConfigProxyServer _configProxyServer;
             bool _dnssecValidation;
 
-            IReadOnlyList<DnsForwarderRecordData> _defaultForwarderRecords;
-            IReadOnlyList<Forwarding> _forwardings;
+            List<DnsForwarderRecordData> _defaultForwarderRecords;
+            List<Forwarding> _forwardings;
 
             readonly string _configFile;
             DateTime _configFileLastModified;

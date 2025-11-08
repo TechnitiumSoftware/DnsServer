@@ -75,9 +75,6 @@ namespace Dns64
                 if (!NetworkAddress.TryParse(network, out NetworkAddress networkAddress))
                     throw new InvalidOperationException("Network group map contains an invalid network address: " + network);
 
-                if (networkAddress.Address.AddressFamily == AddressFamily.InterNetwork)
-                    throw new InvalidOperationException("Network group map can only have IPv6 network addresses: " + network);
-
                 return new Tuple<NetworkAddress, string>(networkAddress, group.GetString());
             });
 

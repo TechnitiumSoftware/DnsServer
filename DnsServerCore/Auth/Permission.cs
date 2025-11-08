@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -79,7 +79,7 @@ namespace DnsServerCore.Auth
             _subItemPermissions = new ConcurrentDictionary<string, Permission>(1, 1);
         }
 
-        public Permission(BinaryReader bR, AuthManager authManager)
+        public Permission(BinaryReader bR, IReadOnlyDictionary<string, User> users, IReadOnlyDictionary<string, Group> groups)
         {
             byte version = bR.ReadByte();
             switch (version)
@@ -94,10 +94,10 @@ namespace DnsServerCore.Auth
 
                         for (int i = 0; i < count; i++)
                         {
-                            User user = authManager.GetUser(bR.ReadShortString());
+                            string username = bR.ReadShortString().ToLowerInvariant();
                             PermissionFlag flag = (PermissionFlag)bR.ReadByte();
 
-                            if (user is not null)
+                            if (users.TryGetValue(username, out User user))
                                 _userPermissions.TryAdd(user, flag);
                         }
                     }
@@ -108,10 +108,10 @@ namespace DnsServerCore.Auth
 
                         for (int i = 0; i < count; i++)
                         {
-                            Group group = authManager.GetGroup(bR.ReadShortString());
+                            string groupName = bR.ReadShortString().ToLowerInvariant();
                             PermissionFlag flag = (PermissionFlag)bR.ReadByte();
 
-                            if (group is not null)
+                            if (groups.TryGetValue(groupName, out Group group))
                                 _groupPermissions.TryAdd(group, flag);
                         }
                     }
@@ -129,7 +129,7 @@ namespace DnsServerCore.Auth
                         for (int i = 0; i < count; i++)
                         {
                             string subItemName = bR.ReadShortString();
-                            Permission subItemPermission = new Permission(bR, authManager);
+                            Permission subItemPermission = new Permission(bR, users, groups);
 
                             _subItemPermissions.TryAdd(subItemName.ToLowerInvariant(), subItemPermission);
                         }

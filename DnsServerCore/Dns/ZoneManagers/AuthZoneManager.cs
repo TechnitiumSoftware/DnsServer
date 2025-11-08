@@ -27,6 +27,7 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -51,6 +52,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         readonly DnsServer _dnsServer;
 
         string _serverDomain;
+        uint _defaultRecordTtl = 3600;
         bool _useSoaSerialDateScheme;
         uint _minSoaRefresh = 300;
         uint _minSoaRetry = 300;
@@ -64,7 +66,9 @@ namespace DnsServerCore.Dns.ZoneManagers
         readonly object _saveLock = new object();
         readonly Dictionary<string, object> _pendingSaveZones = new Dictionary<string, object>();
         readonly Timer _saveTimer;
-        const int SAVE_TIMER_INITIAL_INTERVAL = 10000;
+        const int SAVE_TIMER_INITIAL_INTERVAL = 5000;
+
+        volatile int _updateServerDomainId;
 
         #endregion
 
@@ -156,14 +160,485 @@ namespace DnsServerCore.Dns.ZoneManagers
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        #endregion
+
+        #region zone file serialization and loading
+
+        public void LoadAllZoneFiles()
+        {
+            string zonesFolder = Path.Combine(_dnsServer.ConfigFolder, "zones");
+            if (!Directory.Exists(zonesFolder))
+                Directory.CreateDirectory(zonesFolder);
+
+            //move zone files to new folder
+            {
+                string[] oldZoneFiles = Directory.GetFiles(_dnsServer.ConfigFolder, "*.zone");
+
+                foreach (string oldZoneFile in oldZoneFiles)
+                    File.Move(oldZoneFile, Path.Combine(zonesFolder, Path.GetFileName(oldZoneFile)));
+            }
+
+            //remove old internal zones files
+            {
+                string[] oldZoneFiles = ["localhost.zone", "1.0.0.127.in-addr.arpa.zone", "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa.zone"];
+
+                foreach (string oldZoneFile in oldZoneFiles)
+                {
+                    string filePath = Path.Combine(zonesFolder, oldZoneFile);
+
+                    if (File.Exists(filePath))
+                    {
+                        try
+                        {
+                            File.Delete(filePath);
+                        }
+                        catch
+                        { }
+                    }
+                }
+            }
+
+            //flush existing zones
+            Flush();
+
+            //load all internal zones
+            LoadAllInternalZones();
+
+            //load zone files
+            _zoneIndexLock.EnterWriteLock();
+            try
+            {
+                string[] zoneFiles = Directory.GetFiles(zonesFolder, "*.zone");
+
+                foreach (string zoneFile in zoneFiles)
+                {
+                    try
+                    {
+                        using (FileStream fS = new FileStream(zoneFile, FileMode.Open, FileAccess.Read))
+                        {
+                            AuthZoneInfo zoneInfo = LoadZoneFrom(fS, File.GetLastWriteTimeUtc(fS.SafeFileHandle));
+                            _zoneIndex.Add(zoneInfo);
+
+                            if (zoneInfo.Type == AuthZoneType.Catalog)
+                                _catalogZoneIndex.Add(zoneInfo);
+                        }
+
+                        _dnsServer.LogManager.Write("DNS Server successfully loaded zone file: " + zoneFile);
+                    }
+                    catch (Exception ex)
+                    {
+                        _dnsServer.LogManager.Write("DNS Server failed to load zone file: " + zoneFile + "\r\n" + ex.ToString());
+                    }
+                }
+
+                _zoneIndex.Sort();
+                _catalogZoneIndex.Sort();
+            }
+            finally
+            {
+                _zoneIndexLock.ExitWriteLock();
+            }
+        }
+
+        private void LoadAllInternalZones()
+        {
+            {
+                CreateInternalPrimaryZone("localhost");
+                SetRecord("localhost", new DnsResourceRecord("localhost", DnsResourceRecordType.A, DnsClass.IN, 3600, new DnsARecordData(IPAddress.Loopback)));
+                SetRecord("localhost", new DnsResourceRecord("localhost", DnsResourceRecordType.AAAA, DnsClass.IN, 3600, new DnsAAAARecordData(IPAddress.IPv6Loopback)));
+            }
+
+            {
+                string ptrDomain = "0.in-addr.arpa";
+
+                CreateInternalPrimaryZone(ptrDomain);
+            }
+
+            {
+                string ptrDomain = "255.in-addr.arpa";
+
+                CreateInternalPrimaryZone(ptrDomain);
+            }
+
+            {
+                string ptrZoneName = "127.in-addr.arpa";
+
+                CreateInternalPrimaryZone(ptrZoneName);
+                SetRecord(ptrZoneName, new DnsResourceRecord("1.0.0.127.in-addr.arpa", DnsResourceRecordType.PTR, DnsClass.IN, 3600, new DnsPTRRecordData("localhost")));
+            }
+
+            {
+                string ptrZoneName = IPAddress.IPv6Loopback.GetReverseDomain();
+
+                CreateInternalPrimaryZone(ptrZoneName);
+                SetRecord(ptrZoneName, new DnsResourceRecord(ptrZoneName, DnsResourceRecordType.PTR, DnsClass.IN, 3600, new DnsPTRRecordData("localhost")));
+            }
+        }
+
+        private void SaveZoneFileInternal(string zoneName)
+        {
+            zoneName = zoneName.ToLowerInvariant();
+
+            using (MemoryStream mS = new MemoryStream())
+            {
+                //serialize zone
+                WriteZoneTo(zoneName, mS);
+
+                if (mS.Position == 0)
+                    return; //zone was not found
+
+                //write to zone file
+                mS.Position = 0;
+
+                using (FileStream fS = new FileStream(Path.Combine(_dnsServer.ConfigFolder, "zones", zoneName + ".zone"), FileMode.Create, FileAccess.Write))
+                {
+                    mS.CopyTo(fS);
+                }
+            }
+
+            _dnsServer.LogManager.Write("Saved zone file for domain: " + (zoneName == "" ? "<root>" : zoneName));
+        }
+
+        public void SaveZoneFile(string zoneName)
+        {
+            zoneName = zoneName.ToLowerInvariant();
+
+            lock (_saveLock)
+            {
+                if (!_pendingSaveZones.TryAdd(zoneName, null))
+                    return;
+
+                if (_pendingSaveZones.Count == 1)
+                    _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
+            }
+        }
+
+        private static uint GetMinExpiryTtlFor(IReadOnlyList<DnsResourceRecord> records)
+        {
+            uint minExpiryTtl = 0u;
+
+            foreach (DnsResourceRecord record in records)
+            {
+                GenericRecordInfo recordInfo = record.GetAuthGenericRecordInfo();
+                if (recordInfo.ExpiryTtl > 0u)
+                {
+                    uint pendingExpiryTtl = recordInfo.GetPendingExpiryTtl();
+                    if (pendingExpiryTtl == 0)
+                    {
+                        //expired record found; set 10 sec ttl for timer to delete it
+                        minExpiryTtl = 10;
+                    }
+                    else
+                    {
+                        if (minExpiryTtl == 0u)
+                            minExpiryTtl = pendingExpiryTtl;
+                        else
+                            minExpiryTtl = Math.Min(minExpiryTtl, pendingExpiryTtl);
+                    }
+                }
+            }
+
+            return minExpiryTtl;
+        }
+
+        private void LoadAndInitZone(AuthZoneInfo zoneInfo, IReadOnlyList<DnsResourceRecord> records)
+        {
+            ApexZone apexZone = zoneInfo.ApexZone;
+
+            //load records
+            foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> zoneEntry in DnsResourceRecord.GroupRecords(records))
+            {
+                if (apexZone.Name.Equals(zoneEntry.Key, StringComparison.OrdinalIgnoreCase))
+                {
+                    foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> rrsetEntry in zoneEntry.Value)
+                        apexZone.LoadRecords(rrsetEntry.Key, rrsetEntry.Value);
+                }
+                else
+                {
+                    ValidateIfDomainBelongsToZone(apexZone.Name, zoneEntry.Key);
+
+                    AuthZone authZone = GetOrAddSubDomainZone(apexZone.Name, zoneEntry.Key);
+
+                    foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> rrsetEntry in zoneEntry.Value)
+                        authZone.LoadRecords(rrsetEntry.Key, rrsetEntry.Value);
+
+                    if (authZone is SubDomainZone subDomainZone)
+                        subDomainZone.AutoUpdateState();
+                }
+            }
+
+            //update dnssec status
+            apexZone.UpdateDnssecStatus();
+
+            //init zone
+            switch (zoneInfo.Type)
+            {
+                case AuthZoneType.Primary:
+                    {
+                        apexZone.TriggerNotify();
+
+                        uint minExpiryTtl = GetMinExpiryTtlFor(records);
+                        if (minExpiryTtl > 0u)
+                            apexZone.StartRecordExpiryTimer(minExpiryTtl);
+                    }
+                    break;
+
+                case AuthZoneType.Secondary:
+                    {
+                        SecondaryZone secondary = apexZone as SecondaryZone;
+
+                        DnsResourceRecord soaRecord = secondary.GetRecords(DnsResourceRecordType.SOA)[0];
+                        SOARecordInfo soaInfo = soaRecord.GetAuthSOARecordInfo();
+                        if (soaInfo.Version == 1)
+                        {
+                            secondary.PrimaryNameServerAddresses = soaInfo.PrimaryNameServers;
+                            secondary.PrimaryZoneTransferProtocol = soaInfo.ZoneTransferProtocol;
+                            secondary.PrimaryZoneTransferTsigKeyName = soaInfo.TsigKeyName;
+                        }
+
+                        secondary.TriggerNotify();
+                        secondary.TriggerRefresh();
+                    }
+                    break;
+
+                case AuthZoneType.Stub:
+                    {
+                        StubZone stub = apexZone as StubZone;
+
+                        DnsResourceRecord soaRecord = stub.GetRecords(DnsResourceRecordType.SOA)[0];
+                        SOARecordInfo soaInfo = soaRecord.GetAuthSOARecordInfo();
+                        if (soaInfo.Version == 1)
+                            stub.PrimaryNameServerAddresses = soaInfo.PrimaryNameServers;
+
+                        stub.TriggerRefresh();
+                    }
+                    break;
+
+                case AuthZoneType.Forwarder:
+                    {
+                        IReadOnlyList<DnsResourceRecord> soaRecords = apexZone.GetRecords(DnsResourceRecordType.SOA);
+                        if (soaRecords.Count == 0)
+                            (apexZone as ForwarderZone).InitZone();
+
+                        apexZone.TriggerNotify();
+
+                        uint minExpiryTtl = GetMinExpiryTtlFor(records);
+                        if (minExpiryTtl > 0u)
+                            apexZone.StartRecordExpiryTimer(minExpiryTtl);
+                    }
+                    break;
+
+                case AuthZoneType.SecondaryForwarder:
+                    {
+                        (apexZone as SecondaryZone).TriggerRefresh();
+                    }
+                    break;
+
+                case AuthZoneType.Catalog:
+                    {
+                        (apexZone as CatalogZone).BuildMembersIndex();
+                        apexZone.TriggerNotify();
+
+                        uint minExpiryTtl = GetMinExpiryTtlFor(records);
+                        if (minExpiryTtl > 0u)
+                            apexZone.StartRecordExpiryTimer(minExpiryTtl);
+                    }
+                    break;
+
+                case AuthZoneType.SecondaryCatalog:
+                    {
+                        (apexZone as SecondaryZone).TriggerRefresh();
+                        (apexZone as SecondaryCatalogZone).BuildMembersIndex();
+                    }
+                    break;
+            }
+        }
+
+        public AuthZoneInfo LoadZoneFrom(Stream s, DateTime lastModified)
+        {
+            BinaryReader bR = new BinaryReader(s);
+
+            if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "DZ")
+                throw new InvalidDataException("DnsServer zone file format is invalid.");
+
+            switch (bR.ReadByte())
+            {
+                case 2:
+                    {
+                        DnsResourceRecord[] records = new DnsResourceRecord[bR.ReadInt32()];
+                        if (records.Length == 0)
+                            throw new InvalidDataException("Zone does not contain SOA record.");
+
+                        DnsResourceRecord soaRecord = null;
+
+                        for (int i = 0; i < records.Length; i++)
+                        {
+                            records[i] = new DnsResourceRecord(s);
+
+                            if (records[i].Type == DnsResourceRecordType.SOA)
+                                soaRecord = records[i];
+                        }
+
+                        if (soaRecord == null)
+                            throw new InvalidDataException("Zone does not contain SOA record.");
+
+                        //make zone info
+                        AuthZoneType zoneType;
+                        if (_dnsServer.ServerDomain.Equals((soaRecord.RDATA as DnsSOARecordData).PrimaryNameServer, StringComparison.OrdinalIgnoreCase))
+                            zoneType = AuthZoneType.Primary;
+                        else
+                            zoneType = AuthZoneType.Stub;
+
+                        AuthZoneInfo zoneInfo = new AuthZoneInfo(records[0].Name, zoneType, false);
+
+                        //create zone
+                        ApexZone apexZone = CreateEmptyApexZone(zoneInfo);
+                        zoneInfo = new AuthZoneInfo(apexZone);
+
+                        try
+                        {
+                            //load and init zone
+                            LoadAndInitZone(zoneInfo, records);
+                        }
+                        catch
+                        {
+                            DeleteZone(zoneInfo);
+                            throw;
+                        }
+
+                        return zoneInfo;
+                    }
+
+                case 3:
+                    {
+                        bool zoneDisabled = bR.ReadBoolean();
+                        DnsResourceRecord[] records = new DnsResourceRecord[bR.ReadInt32()];
+                        if (records.Length == 0)
+                            throw new InvalidDataException("Zone does not contain SOA record.");
+
+                        DnsResourceRecord soaRecord = null;
+
+                        for (int i = 0; i < records.Length; i++)
+                        {
+                            records[i] = new DnsResourceRecord(s);
+                            records[i].Tag = AuthRecordInfo.ReadGenericRecordInfoFrom(bR, records[i].Type);
+
+                            if (records[i].Type == DnsResourceRecordType.SOA)
+                                soaRecord = records[i];
+                        }
+
+                        if (soaRecord == null)
+                            throw new InvalidDataException("Zone does not contain SOA record.");
+
+                        //make zone info
+                        AuthZoneType zoneType;
+                        if (_dnsServer.ServerDomain.Equals((soaRecord.RDATA as DnsSOARecordData).PrimaryNameServer, StringComparison.OrdinalIgnoreCase))
+                            zoneType = AuthZoneType.Primary;
+                        else
+                            zoneType = AuthZoneType.Stub;
+
+                        AuthZoneInfo zoneInfo = new AuthZoneInfo(records[0].Name, zoneType, zoneDisabled);
+
+                        //create zone
+                        ApexZone apexZone = CreateEmptyApexZone(zoneInfo);
+                        zoneInfo = new AuthZoneInfo(apexZone);
+
+                        try
+                        {
+                            //load and init zone
+                            LoadAndInitZone(zoneInfo, records);
+                        }
+                        catch
+                        {
+                            DeleteZone(zoneInfo);
+                            throw;
+                        }
+
+                        return zoneInfo;
+                    }
+
+                case 4:
+                    {
+                        //read zone info
+                        AuthZoneInfo zoneInfo = new AuthZoneInfo(bR, lastModified);
+
+                        //create zone
+                        ApexZone apexZone = CreateEmptyApexZone(zoneInfo);
+                        zoneInfo = new AuthZoneInfo(apexZone);
+
+                        try
+                        {
+                            //read all zone records
+                            DnsResourceRecord[] records = new DnsResourceRecord[bR.ReadInt32()];
+                            if (records.Length < 1)
+                                throw new InvalidDataException("Failed to load DNS zone file: the zone file does not contain any records.");
+
+                            for (int i = 0; i < records.Length; i++)
+                            {
+                                records[i] = new DnsResourceRecord(s);
+                                records[i].Tag = AuthRecordInfo.ReadGenericRecordInfoFrom(bR, records[i].Type);
+                            }
+
+                            //load and init zone
+                            LoadAndInitZone(zoneInfo, records);
+                        }
+                        catch
+                        {
+                            DeleteZone(zoneInfo);
+                            throw;
+                        }
+
+                        return zoneInfo;
+                    }
+
+                default:
+                    throw new InvalidDataException("DNS Zone file version not supported.");
+            }
+        }
+
+        public void WriteZoneTo(string zoneName, Stream s)
+        {
+            AuthZoneInfo zoneInfo = GetAuthZoneInfo(zoneName, true);
+            if (zoneInfo is null)
+                return;
+
+            //serialize zone
+            BinaryWriter bW = new BinaryWriter(s);
+
+            bW.Write(Encoding.ASCII.GetBytes("DZ")); //format
+            bW.Write((byte)4); //version
+
+            //write zone info
+            if (zoneInfo.Internal)
+                throw new InvalidOperationException("Cannot save zones marked as internal.");
+
+            zoneInfo.WriteTo(bW);
+
+            //write all zone records
+            List<DnsResourceRecord> records = new List<DnsResourceRecord>();
+            ListAllZoneRecords(zoneInfo.Name, records);
+
+            bW.Write(records.Count);
+
+            foreach (DnsResourceRecord record in records)
+            {
+                record.WriteTo(s);
+                record.GetAuthGenericRecordInfo().WriteTo(bW);
+            }
         }
 
         #endregion
 
         #region internal
 
-        internal void UpdateServerDomain(bool useBlockingAnswerTtl = false)
+        internal void TriggerUpdateServerDomain(bool useBlockingAnswerTtl = false)
         {
+            int id = RandomNumberGenerator.GetInt32(int.MaxValue);
+            _updateServerDomainId = id;
+
             ThreadPool.QueueUserWorkItem(delegate (object state)
             {
                 string serverDomain = _dnsServer.ServerDomain;
@@ -175,6 +650,9 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                     foreach (AuthZoneInfo zone in zones)
                     {
+                        if (_updateServerDomainId != id)
+                            return; //stop current update since another update has been triggerred
+
                         if (zone.Type != AuthZoneType.Primary)
                             continue;
 
@@ -214,13 +692,14 @@ namespace DnsServerCore.Dns.ZoneManagers
                             if (zone.Internal)
                                 continue; //dont save internal zones to disk
 
+                            //save zone file
                             SaveZoneFile(zone.Name);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    _dnsServer.LogManager?.Write(ex);
+                    _dnsServer.LogManager.Write(ex);
                 }
 
                 //update server domain
@@ -392,6 +871,9 @@ namespace DnsServerCore.Dns.ZoneManagers
             _zoneIndexLock.EnterWriteLock();
             try
             {
+                foreach (AuthZoneNode zoneNode in _root)
+                    zoneNode.Dispose();
+
                 _root.Clear();
                 _zoneIndex.Clear();
                 _catalogZoneIndex.Clear();
@@ -782,36 +1264,44 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public bool DeleteZone(AuthZoneInfo zoneInfo, bool deleteZoneFile = false)
         {
-            switch (zoneInfo.Type)
+            return DeleteZone(zoneInfo, deleteZoneFile, false);
+        }
+
+        private bool DeleteZone(AuthZoneInfo zoneInfo, bool deleteZoneFile, bool skipCatalogMemberZoneProcessing)
+        {
+            if (!skipCatalogMemberZoneProcessing)
             {
-                case AuthZoneType.Catalog:
-                    //update all zone memberships for catalog zone to be deleted
-                    foreach (string memberZoneName in (zoneInfo.ApexZone as CatalogZone).GetAllMemberZoneNames())
-                    {
-                        AuthZoneInfo memberZoneInfo = GetAuthZoneInfo(memberZoneName);
-                        if (memberZoneInfo is null)
-                            continue;
-
-                        if (zoneInfo.Name.Equals(memberZoneInfo.CatalogZoneName, StringComparison.OrdinalIgnoreCase))
+                switch (zoneInfo.Type)
+                {
+                    case AuthZoneType.Catalog:
+                        //update all zone memberships for catalog zone to be deleted
+                        foreach (string memberZoneName in (zoneInfo.ApexZone as CatalogZone).GetAllMemberZoneNames())
                         {
-                            memberZoneInfo.ApexZone.CatalogZoneName = null;
-                            SaveZoneFile(memberZoneInfo.Name);
+                            AuthZoneInfo memberZoneInfo = GetAuthZoneInfo(memberZoneName);
+                            if (memberZoneInfo is null)
+                                continue;
+
+                            if (zoneInfo.Name.Equals(memberZoneInfo.CatalogZoneName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                memberZoneInfo.ApexZone.CatalogZoneName = null;
+                                SaveZoneFile(memberZoneInfo.Name);
+                            }
                         }
-                    }
-                    break;
+                        break;
 
-                case AuthZoneType.SecondaryCatalog:
-                    //delete all member zones for secondary catalog zone to be deleted
-                    foreach (string memberZoneName in (zoneInfo.ApexZone as SecondaryCatalogZone).GetAllMemberZoneNames())
-                    {
-                        AuthZoneInfo memberZoneInfo = GetAuthZoneInfo(memberZoneName);
-                        if (memberZoneInfo is null)
-                            continue;
+                    case AuthZoneType.SecondaryCatalog:
+                        //delete all member zones for secondary catalog zone to be deleted
+                        foreach (string memberZoneName in (zoneInfo.ApexZone as SecondaryCatalogZone).GetAllMemberZoneNames())
+                        {
+                            AuthZoneInfo memberZoneInfo = GetAuthZoneInfo(memberZoneName);
+                            if (memberZoneInfo is null)
+                                continue;
 
-                        if (zoneInfo.Name.Equals(memberZoneInfo.CatalogZoneName, StringComparison.OrdinalIgnoreCase))
-                            DeleteZone(memberZoneInfo, true);
-                    }
-                    break;
+                            if (zoneInfo.Name.Equals(memberZoneInfo.CatalogZoneName, StringComparison.OrdinalIgnoreCase))
+                                DeleteZone(memberZoneInfo, true);
+                        }
+                        break;
+                }
             }
 
             _zoneIndexLock.EnterWriteLock();
@@ -833,7 +1323,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     {
                         File.Delete(Path.Combine(_dnsServer.ConfigFolder, "zones", zoneInfo.Name + ".zone"));
 
-                        _dnsServer.LogManager?.Write("Deleted zone file for domain: " + zoneInfo.DisplayName);
+                        _dnsServer.LogManager.Write("Deleted zone file for domain: " + zoneInfo.DisplayName);
                     }
 
                     return true;
@@ -972,83 +1462,92 @@ namespace DnsServerCore.Dns.ZoneManagers
                 }
             }
 
-            LoadZoneRecords(zoneInfo.ApexZone, newRecords);
+            //load and init zone
+            LoadAndInitZone(zoneInfo, newRecords);
 
+            //save zone file
             SaveZoneFile(zoneInfo.Name);
 
             return zoneInfo;
         }
 
-        public void ConvertZoneType(string zoneName, AuthZoneType type)
+        public AuthZoneInfo ConvertZoneTypeTo(string zoneName, AuthZoneType newType)
         {
             AuthZoneInfo currentZoneInfo = GetAuthZoneInfo(zoneName);
             if (currentZoneInfo is null)
                 throw new DnsServerException("No such zone was found: " + (zoneName.Length == 0 ? "." : zoneName));
 
-            if (currentZoneInfo.Type == type)
-                throw new DnsServerException("Cannot convert the zone '" + currentZoneInfo.DisplayName + "' from " + currentZoneInfo.TypeName + " to " + AuthZoneInfo.GetZoneTypeName(type) + " zone: the zone is already of the same type.");
+            //validate conversion type
+            if (currentZoneInfo.Type == newType)
+                throw new DnsServerException("Cannot convert the zone '" + currentZoneInfo.DisplayName + "' from " + currentZoneInfo.TypeName + " to " + AuthZoneInfo.GetZoneTypeName(newType) + " zone: the zone is already of the same type.");
 
             switch (currentZoneInfo.Type)
             {
                 case AuthZoneType.Primary:
-                    switch (type)
+                    switch (newType)
                     {
                         case AuthZoneType.Forwarder:
                             if (currentZoneInfo.ApexZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned)
-                                throw new DnsServerException("Cannot convert the zone '" + currentZoneInfo.DisplayName + "' from " + currentZoneInfo.TypeName + " to " + AuthZoneInfo.GetZoneTypeName(type) + " zone: converting the zone will cause lose of DNSSEC private keys.");
+                                throw new DnsServerException("Cannot convert the zone '" + currentZoneInfo.DisplayName + "' from " + currentZoneInfo.TypeName + " to " + AuthZoneInfo.GetZoneTypeName(newType) + " zone: converting the zone will cause lose of DNSSEC private keys.");
 
                             break;
 
                         default:
-                            throw new DnsServerException("Cannot convert the zone '" + currentZoneInfo.DisplayName + "' from " + currentZoneInfo.TypeName + " to " + AuthZoneInfo.GetZoneTypeName(type) + " zone: not supported.");
+                            throw new DnsServerException("Cannot convert the zone '" + currentZoneInfo.DisplayName + "' from " + currentZoneInfo.TypeName + " to " + AuthZoneInfo.GetZoneTypeName(newType) + " zone: not supported.");
                     }
 
                     break;
 
                 case AuthZoneType.Secondary:
                 case AuthZoneType.SecondaryForwarder:
-                    switch (type)
+                case AuthZoneType.SecondaryCatalog:
+                    switch (newType)
                     {
                         case AuthZoneType.Primary:
                         case AuthZoneType.Forwarder:
+                        case AuthZoneType.Catalog:
                             break;
 
                         default:
-                            throw new DnsServerException("Cannot convert the zone '" + currentZoneInfo.DisplayName + "' from " + currentZoneInfo.TypeName + " to " + AuthZoneInfo.GetZoneTypeName(type) + " zone: not supported.");
+                            throw new DnsServerException("Cannot convert the zone '" + currentZoneInfo.DisplayName + "' from " + currentZoneInfo.TypeName + " to " + AuthZoneInfo.GetZoneTypeName(newType) + " zone: not supported.");
                     }
-
 
                     break;
 
                 case AuthZoneType.Forwarder:
-                    switch (type)
+                    switch (newType)
                     {
                         case AuthZoneType.Primary:
                             break;
 
                         default:
-                            throw new DnsServerException("Cannot convert the zone '" + currentZoneInfo.DisplayName + "' from " + currentZoneInfo.TypeName + " to " + AuthZoneInfo.GetZoneTypeName(type) + " zone: not supported.");
+                            throw new DnsServerException("Cannot convert the zone '" + currentZoneInfo.DisplayName + "' from " + currentZoneInfo.TypeName + " to " + AuthZoneInfo.GetZoneTypeName(newType) + " zone: not supported.");
                     }
 
                     break;
 
                 default:
-                    throw new DnsServerException("Cannot convert the zone '" + currentZoneInfo.DisplayName + "' from " + currentZoneInfo.TypeName + " to " + AuthZoneInfo.GetZoneTypeName(type) + " zone: not supported.");
+                    throw new DnsServerException("Cannot convert the zone '" + currentZoneInfo.DisplayName + "' from " + currentZoneInfo.TypeName + " to " + AuthZoneInfo.GetZoneTypeName(newType) + " zone: not supported.");
             }
 
+            return ConvertZoneTypeTo(currentZoneInfo, newType);
+        }
+
+        private AuthZoneInfo ConvertZoneTypeTo(AuthZoneInfo currentZoneInfo, AuthZoneType newType)
+        {
             //read all current records
             List<DnsResourceRecord> allRecords = new List<DnsResourceRecord>();
             ListAllZoneRecords(currentZoneInfo.Name, allRecords);
 
             try
             {
-                //delete current zone
-                DeleteZone(currentZoneInfo);
+                //delete current zone from auth tree
+                DeleteZone(currentZoneInfo, false, true);
 
                 //create new zone
                 AuthZoneInfo newZoneInfo;
 
-                switch (type)
+                switch (newType)
                 {
                     case AuthZoneType.Primary:
                         switch (currentZoneInfo.Type)
@@ -1165,19 +1664,107 @@ namespace DnsServerCore.Dns.ZoneManagers
                         newZoneInfo = CreateForwarderZone(currentZoneInfo.Name);
                         break;
 
+                    case AuthZoneType.Catalog:
+                        newZoneInfo = CreateCatalogZone(currentZoneInfo.Name);
+                        break;
+
                     default:
                         throw new InvalidOperationException();
                 }
 
-                //load records
-                LoadZoneRecords(newZoneInfo.ApexZone, allRecords);
+                //load and init zone
+                LoadAndInitZone(newZoneInfo, allRecords);
 
                 //save zone file
                 SaveZoneFile(newZoneInfo.Name);
+
+                //post processing for catalog zones
+                if (newType == AuthZoneType.Catalog)
+                {
+                    //convert all member zones too
+                    CatalogZone newCatalogZone = newZoneInfo.ApexZone as CatalogZone;
+
+                    foreach (string memberZoneName in newCatalogZone.GetAllMemberZoneNames())
+                    {
+                        AuthZoneInfo memberZoneInfo = GetAuthZoneInfo(memberZoneName);
+                        if (memberZoneInfo is null)
+                            continue;
+
+                        switch (memberZoneInfo.Type)
+                        {
+                            case AuthZoneType.Secondary:
+                                try
+                                {
+                                    AuthZoneInfo newMemberZoneInfo = ConvertZoneTypeTo(memberZoneInfo, AuthZoneType.Primary);
+                                    newMemberZoneInfo.ApexZone.CatalogZoneName = newZoneInfo.Name;
+
+                                    AuthZoneDnssecStatus dnssecStatus = memberZoneInfo.ApexZone.DnssecStatus;
+                                    if (dnssecStatus != AuthZoneDnssecStatus.Unsigned)
+                                    {
+                                        //sign the new primary zone if the secondary zone was signed
+                                        SecondaryZone secondaryZone = memberZoneInfo.ApexZone as SecondaryZone;
+
+                                        IReadOnlyCollection<DnssecPrivateKey> dnssecPrivateKeys = secondaryZone.DnssecPrivateKeys;
+                                        if (dnssecPrivateKeys is not null)
+                                        {
+                                            try
+                                            {
+                                                IReadOnlyList<DnsResourceRecord> existingDnsKeyRecords = secondaryZone.GetRecords(DnsResourceRecordType.DNSKEY);
+
+                                                uint dnsKeyTtl = existingDnsKeyRecords[0].OriginalTtlValue;
+                                                bool useNSec3 = dnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3;
+                                                ushort iterations = 0;
+                                                byte[] salt = [];
+
+                                                if (useNSec3)
+                                                {
+                                                    IReadOnlyList<DnsResourceRecord> existingNsec3ParamRecord = secondaryZone.GetRecords(DnsResourceRecordType.NSEC3PARAM);
+                                                    DnsNSEC3PARAMRecordData nsec3Param = existingNsec3ParamRecord[0].RDATA as DnsNSEC3PARAMRecordData;
+
+                                                    iterations = nsec3Param.Iterations;
+                                                    salt = nsec3Param.Salt;
+                                                }
+
+                                                PrimaryZone newPrimaryZone = newMemberZoneInfo.ApexZone as PrimaryZone;
+                                                newPrimaryZone.SignZone(dnssecPrivateKeys, dnsKeyTtl, useNSec3, iterations, salt);
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                _dnsServer.LogManager.Write(ex);
+                                            }
+                                        }
+                                    }
+
+                                    SaveZoneFile(newMemberZoneInfo.Name);
+                                }
+                                catch
+                                {
+                                    //ignore errors since they were already logged
+                                }
+                                break;
+
+                            case AuthZoneType.SecondaryForwarder:
+                                try
+                                {
+                                    AuthZoneInfo newMemberZoneInfo = ConvertZoneTypeTo(memberZoneInfo, AuthZoneType.Forwarder);
+                                    newMemberZoneInfo.ApexZone.CatalogZoneName = newZoneInfo.Name;
+
+                                    SaveZoneFile(newMemberZoneInfo.Name);
+                                }
+                                catch
+                                {
+                                    //ignore errors since they were already logged
+                                }
+                                break;
+                        }
+                    }
+                }
+
+                return newZoneInfo;
             }
             catch (Exception ex)
             {
-                _dnsServer.LogManager?.Write("DNS Server failed to convert the zone '" + currentZoneInfo.DisplayName + "' from " + currentZoneInfo.TypeName + " to " + AuthZoneInfo.GetZoneTypeName(type) + " zone.\r\n" + ex.ToString());
+                _dnsServer.LogManager.Write("DNS Server failed to convert the zone '" + currentZoneInfo.DisplayName + "' from " + currentZoneInfo.TypeName + " to " + AuthZoneInfo.GetZoneTypeName(newType) + " zone.\r\n" + ex.ToString());
 
                 //delete the zone if it was created
                 DeleteZone(currentZoneInfo);
@@ -1195,11 +1782,11 @@ namespace DnsServerCore.Dns.ZoneManagers
                         _zoneIndex.Sort();
                     }
 
-                    _dnsServer.LogManager?.Write("DNS Server successfully loaded zone file: " + zoneFile);
+                    _dnsServer.LogManager.Write("DNS Server successfully loaded zone file: " + zoneFile);
                 }
                 catch (Exception ex2)
                 {
-                    _dnsServer.LogManager?.Write("DNS Server failed to load zone file: " + zoneFile + "\r\n" + ex2.ToString());
+                    _dnsServer.LogManager.Write("DNS Server failed to load zone file: " + zoneFile + "\r\n" + ex2.ToString());
                 }
                 finally
                 {
@@ -1302,13 +1889,11 @@ namespace DnsServerCore.Dns.ZoneManagers
                     if (currentCatalogZoneName is null)
                         throw new DnsServerException("The zone '" + memberZoneInfo.DisplayName + "' is not a member of any Catalog zone.");
 
-                    ApexZone apexZone = _root.GetApexZone(currentCatalogZoneName);
-                    if (apexZone is not CatalogZone currentCatalogZone)
-                        throw new DnsServerException("No such Catalog zone was found: " + currentCatalogZoneName);
-
                     AddCatalogMemberZone(newCatalogZoneName, memberZoneInfo, true);
 
-                    currentCatalogZone.ChangeMemberZoneOwnership(memberZoneInfo.Name, newCatalogZoneName);
+                    ApexZone apexZone = _root.GetApexZone(currentCatalogZoneName);
+                    if (apexZone is CatalogZone currentCatalogZone)
+                        currentCatalogZone.ChangeMemberZoneOwnership(memberZoneInfo.Name, newCatalogZoneName);
 
                     SaveZoneFile(currentCatalogZoneName);
                     break;
@@ -1382,14 +1967,16 @@ namespace DnsServerCore.Dns.ZoneManagers
             SaveZoneFile(primaryZone.Name);
         }
 
-        public void GenerateAndAddPrimaryZoneDnssecPrivateKey(string zoneName, DnssecPrivateKeyType keyType, DnssecAlgorithm algorithm, ushort rolloverDays, int keySize = -1)
+        public DnssecPrivateKey GenerateAndAddPrimaryZoneDnssecPrivateKey(string zoneName, DnssecPrivateKeyType keyType, DnssecAlgorithm algorithm, ushort rolloverDays, int keySize = -1)
         {
             if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
-            primaryZone.GenerateAndAddPrivateKey(keyType, algorithm, rolloverDays, keySize);
+            DnssecPrivateKey privateKey = primaryZone.GenerateAndAddPrivateKey(keyType, algorithm, rolloverDays, keySize);
 
             SaveZoneFile(primaryZone.Name);
+
+            return privateKey;
         }
 
         public void AddPrimaryZoneDnssecPrivateKey(string zoneName, DnssecPrivateKey privateKey)
@@ -1402,14 +1989,16 @@ namespace DnsServerCore.Dns.ZoneManagers
             SaveZoneFile(primaryZone.Name);
         }
 
-        public void UpdatePrimaryZoneDnssecPrivateKey(string zoneName, ushort keyTag, ushort rolloverDays)
+        public DnssecPrivateKey UpdatePrimaryZoneDnssecPrivateKey(string zoneName, ushort keyTag, ushort rolloverDays)
         {
             if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
-            primaryZone.UpdatePrivateKey(keyTag, rolloverDays);
+            DnssecPrivateKey privateKey = primaryZone.UpdatePrivateKey(keyTag, rolloverDays);
 
             SaveZoneFile(primaryZone.Name);
+
+            return privateKey;
         }
 
         public void DeletePrimaryZoneDnssecPrivateKey(string zoneName, ushort keyTag)
@@ -1465,23 +2054,38 @@ namespace DnsServerCore.Dns.ZoneManagers
             if ((zoneInfo is not null) && (zoneInfo.ApexZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned))
             {
                 IReadOnlyList<DnsResourceRecord> dnsKeyRecords = zoneInfo.ApexZone.GetRecords(DnsResourceRecordType.DNSKEY);
+                List<DnsResourceRecord> dsRecords = new List<DnsResourceRecord>(dnsKeyRecords.Count);
 
                 foreach (DnsResourceRecord dnsKeyRecord in dnsKeyRecords)
                 {
                     DnsDNSKEYRecordData dnsKey = dnsKeyRecord.RDATA as DnsDNSKEYRecordData;
 
                     if (dnsKey.Flags.HasFlag(DnsDnsKeyFlag.SecureEntryPoint) && !dnsKey.Flags.HasFlag(DnsDnsKeyFlag.Revoke))
-                    {
-                        DnsDSRecordData dsRecord = dnsKey.CreateDS(dnsKeyRecord.Name, DnssecDigestType.SHA256);
-                        dnsClient.AddTrustAnchor(zoneInfo.Name, dsRecord);
-                    }
+                        dsRecords.Add(new DnsResourceRecord(dnsKeyRecord.Name, DnsResourceRecordType.DS, DnsClass.IN, 0, dnsKey.CreateDS(dnsKeyRecord.Name, DnssecDigestType.SHA256)));
                 }
+
+                //set trust anchor
+                dnsClient.TrustAnchors[zoneInfo.Name] = dsRecords;
             }
         }
 
         #endregion
 
         #region zone listing
+
+        public IEnumerable<AuthZoneInfo> EnumerateAllZones()
+        {
+            _zoneIndexLock.EnterReadLock();
+            try
+            {
+                foreach (AuthZoneInfo zoneInfo in _zoneIndex)
+                    yield return zoneInfo;
+            }
+            finally
+            {
+                _zoneIndexLock.ExitReadLock();
+            }
+        }
 
         public IReadOnlyList<AuthZoneInfo> GetAllZones()
         {
@@ -2505,6 +3109,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                 return GetReferralResponse(request, dnssecOk, delegation, apexZone);
             }
 
+            if (apexZone is StubZone)
+                return GetReferralResponse(request, false, apexZone, apexZone);
+
             //no delegation found
             return null;
         }
@@ -2651,141 +3258,143 @@ namespace DnsServerCore.Dns.ZoneManagers
                     }
                 }
 
-                if ((answer is null) || (answer.Count == 0))
+                if (((answer is null) || (answer.Count == 0)) && (question.Name.Length > apexZone.Name.Length))
                 {
+                    //query for DNAME only for subdomain names
                     answer = apexZone.QueryRecords(DnsResourceRecordType.DNAME, dnssecOk);
                     if ((answer.Count > 0) && (answer[0].Type == DnsResourceRecordType.DNAME))
                     {
                         if (!DoDNAMESubstitution(question, dnssecOk, answer, out answer))
                             rCode = DnsResponseCode.YXDomain;
                     }
-                    else
+                }
+
+                if ((answer is null) || (answer.Count == 0))
+                {
+                    answer = zone.QueryRecords(question.Type, dnssecOk);
+                    if (answer.Count == 0)
                     {
-                        answer = zone.QueryRecords(question.Type, dnssecOk);
-                        if (answer.Count == 0)
+                        //record type not found
+                        if (question.Type == DnsResourceRecordType.DS)
                         {
-                            //record type not found
-                            if (question.Type == DnsResourceRecordType.DS)
+                            //check for correct auth zone
+                            if (apexZone.Name.Equals(question.Name, StringComparison.OrdinalIgnoreCase))
                             {
-                                //check for correct auth zone
-                                if (apexZone.Name.Equals(question.Name, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    //current auth zone is child side; find parent side auth zone for DS
-                                    string parentZone = GetParentZone(question.Name);
-                                    if (parentZone is null)
-                                        parentZone = string.Empty;
+                                //current auth zone is child side; find parent side auth zone for DS
+                                string parentZone = GetParentZone(question.Name);
+                                if (parentZone is null)
+                                    parentZone = string.Empty;
 
-                                    _ = _root.FindZone(parentZone, out _, out _, out apexZone, out _);
+                                _ = _root.FindZone(parentZone, out _, out _, out apexZone, out _);
 
-                                    if ((apexZone is null) || !apexZone.IsActive)
-                                        return null; //no authority for requested zone
-                                }
+                                if ((apexZone is null) || !apexZone.IsActive)
+                                    return null; //no authority for requested zone
                             }
-                            else
-                            {
-                                //check for delegation, stub & forwarder
-                                if ((delegation is not null) && delegation.IsActive && (delegation.Name.Length > apexZone.Name.Length))
-                                    return GetReferralResponse(request, dnssecOk, delegation, apexZone);
-
-                                if (apexZone is StubZone)
-                                    return GetReferralResponse(request, false, apexZone, apexZone);
-                            }
-
-                            authority = zone.QueryRecords(DnsResourceRecordType.APP, false);
-                            if (authority.Count == 0)
-                            {
-                                if ((apexZone is ForwarderZone) || (apexZone is SecondaryForwarderZone))
-                                    return GetForwarderResponse(request, zone, closest, apexZone); //no APP record available so process FWD response
-
-                                authority = apexZone.QueryRecords(DnsResourceRecordType.SOA, dnssecOk);
-
-                                if (dnssecOk)
-                                {
-                                    //add proof of non existence (NODATA) to prove that no such type or record exists
-                                    IReadOnlyList<DnsResourceRecord> nsecRecords;
-
-                                    if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
-                                        nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(zone, apexZone);
-                                    else
-                                        nsecRecords = AuthZoneTree.FindNSecProofOfNonExistenceNoData(zone);
-
-                                    if (nsecRecords.Count > 0)
-                                    {
-                                        List<DnsResourceRecord> newAuthority = new List<DnsResourceRecord>(authority.Count + nsecRecords.Count);
-
-                                        newAuthority.AddRange(authority);
-                                        newAuthority.AddRange(nsecRecords);
-
-                                        authority = newAuthority;
-                                    }
-                                }
-                            }
-
-                            additional = null;
                         }
                         else
                         {
-                            //record type found
-                            if (zone.Name.StartsWith('*') && !zone.Name.Equals(question.Name, StringComparison.OrdinalIgnoreCase))
+                            //check for delegation, stub & forwarder
+                            if ((delegation is not null) && delegation.IsActive && (delegation.Name.Length > apexZone.Name.Length))
+                                return GetReferralResponse(request, dnssecOk, delegation, apexZone);
+
+                            if (apexZone is StubZone)
+                                return GetReferralResponse(request, false, apexZone, apexZone);
+                        }
+
+                        authority = zone.QueryRecords(DnsResourceRecordType.APP, false);
+                        if (authority.Count == 0)
+                        {
+                            if ((apexZone is ForwarderZone) || (apexZone is SecondaryForwarderZone))
+                                return GetForwarderResponse(request, zone, closest, apexZone); //no APP record available so process FWD response
+
+                            authority = apexZone.QueryRecords(DnsResourceRecordType.SOA, dnssecOk);
+
+                            if (dnssecOk)
                             {
-                                //wildcard zone; generate new answer records
-                                DnsResourceRecord[] wildcardAnswers = new DnsResourceRecord[answer.Count];
+                                //add proof of non existence (NODATA) to prove that no such type or record exists
+                                IReadOnlyList<DnsResourceRecord> nsecRecords;
 
-                                for (int i = 0; i < answer.Count; i++)
-                                    wildcardAnswers[i] = new DnsResourceRecord(question.Name, answer[i].Type, answer[i].Class, answer[i].TTL, answer[i].RDATA) { Tag = answer[i].Tag };
+                                if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
+                                    nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(question.Name, zone, apexZone);
+                                else
+                                    nsecRecords = _root.FindNSecProofOfNonExistenceNoData(question.Name, zone);
 
-                                answer = wildcardAnswers;
-
-                                //add proof of non existence (WILDCARD) to prove that the wildcard expansion was legit and the qname actually does not exists
-                                if (dnssecOk)
+                                if (nsecRecords.Count > 0)
                                 {
-                                    IReadOnlyList<DnsResourceRecord> nsecRecords;
+                                    List<DnsResourceRecord> newAuthority = new List<DnsResourceRecord>(authority.Count + nsecRecords.Count);
 
-                                    if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
-                                        nsecRecords = _root.FindNSec3ProofOfNonExistenceNxDomain(question.Name, true);
-                                    else
-                                        nsecRecords = _root.FindNSecProofOfNonExistenceNxDomain(question.Name, true);
+                                    newAuthority.AddRange(authority);
+                                    newAuthority.AddRange(nsecRecords);
 
-                                    if (nsecRecords.Count > 0)
-                                        authority = nsecRecords;
+                                    authority = newAuthority;
                                 }
                             }
+                        }
 
-                            DnsResourceRecord lastRR = answer[answer.Count - 1];
-                            if ((lastRR.Type != question.Type) && (question.Type != DnsResourceRecordType.ANY))
+                        additional = null;
+                    }
+                    else
+                    {
+                        //record type found
+                        if (zone.Name.StartsWith('*') && !zone.Name.Equals(question.Name, StringComparison.OrdinalIgnoreCase))
+                        {
+                            //wildcard zone; generate new answer records
+                            DnsResourceRecord[] wildcardAnswers = new DnsResourceRecord[answer.Count];
+
+                            for (int i = 0; i < answer.Count; i++)
+                                wildcardAnswers[i] = new DnsResourceRecord(question.Name, answer[i].Type, answer[i].Class, answer[i].TTL, answer[i].RDATA) { Tag = answer[i].Tag };
+
+                            answer = wildcardAnswers;
+
+                            //add proof of non existence (WILDCARD) to prove that the wildcard expansion was legit and the qname actually does not exists
+                            if (dnssecOk)
                             {
-                                switch (lastRR.Type)
-                                {
-                                    case DnsResourceRecordType.CNAME:
-                                        List<DnsResourceRecord> newAnswers = new List<DnsResourceRecord>(answer.Count + 1);
-                                        newAnswers.AddRange(answer);
+                                IReadOnlyList<DnsResourceRecord> nsecRecords;
 
-                                        ResolveCNAME(question, dnssecOk, lastRR, newAnswers);
+                                if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
+                                    nsecRecords = _root.FindNSec3ProofOfNonExistenceNxDomain(question.Name, true);
+                                else
+                                    nsecRecords = _root.FindNSecProofOfNonExistenceNxDomain(question.Name, true);
 
-                                        answer = newAnswers;
-                                        break;
-
-                                    case DnsResourceRecordType.ANAME:
-                                    case DnsResourceRecordType.ALIAS:
-                                        authority = apexZone.GetRecords(DnsResourceRecordType.SOA); //adding SOA for use with NO DATA response
-                                        break;
-                                }
+                                if (nsecRecords.Count > 0)
+                                    authority = nsecRecords;
                             }
+                        }
 
-                            switch (question.Type)
+                        DnsResourceRecord lastRR = answer[answer.Count - 1];
+                        if ((lastRR.Type != question.Type) && (question.Type != DnsResourceRecordType.ANY))
+                        {
+                            switch (lastRR.Type)
                             {
-                                case DnsResourceRecordType.NS:
-                                case DnsResourceRecordType.MX:
-                                case DnsResourceRecordType.SRV:
-                                case DnsResourceRecordType.SVCB:
-                                case DnsResourceRecordType.HTTPS:
-                                    additional = GetAdditionalRecords(answer, dnssecOk);
+                                case DnsResourceRecordType.CNAME:
+                                    List<DnsResourceRecord> newAnswers = new List<DnsResourceRecord>(answer.Count + 1);
+                                    newAnswers.AddRange(answer);
+
+                                    ResolveCNAME(question, dnssecOk, lastRR, newAnswers);
+
+                                    answer = newAnswers;
                                     break;
 
-                                default:
-                                    additional = null;
+                                case DnsResourceRecordType.ANAME:
+                                case DnsResourceRecordType.ALIAS:
+                                    authority = apexZone.GetRecords(DnsResourceRecordType.SOA); //adding SOA for use with NO DATA response
                                     break;
                             }
+                        }
+
+                        switch (question.Type)
+                        {
+                            case DnsResourceRecordType.NS:
+                            case DnsResourceRecordType.MX:
+                            case DnsResourceRecordType.SRV:
+                            case DnsResourceRecordType.SVCB:
+                            case DnsResourceRecordType.HTTPS:
+                                additional = GetAdditionalRecords(answer, dnssecOk);
+                                break;
+
+                            default:
+                                additional = null;
+                                break;
                         }
                     }
                 }
@@ -3124,9 +3733,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                         IReadOnlyList<DnsResourceRecord> nsecRecords;
 
                         if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
-                            nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(delegationZone, apexZone);
+                            nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(request.Question[0].Name, delegationZone, apexZone);
                         else
-                            nsecRecords = AuthZoneTree.FindNSecProofOfNonExistenceNoData(delegationZone);
+                            nsecRecords = _root.FindNSecProofOfNonExistenceNoData(request.Question[0].Name, delegationZone);
 
                         if (nsecRecords.Count > 0)
                         {
@@ -3179,493 +3788,13 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         #endregion
 
-        #region zone file serialization and loading
-
-        public void LoadAllZoneFiles()
-        {
-            Flush();
-
-            string zonesFolder = Path.Combine(_dnsServer.ConfigFolder, "zones");
-            if (!Directory.Exists(zonesFolder))
-                Directory.CreateDirectory(zonesFolder);
-
-            //move zone files to new folder
-            {
-                string[] oldZoneFiles = Directory.GetFiles(_dnsServer.ConfigFolder, "*.zone");
-
-                foreach (string oldZoneFile in oldZoneFiles)
-                    File.Move(oldZoneFile, Path.Combine(zonesFolder, Path.GetFileName(oldZoneFile)));
-            }
-
-            //remove old internal zones files
-            {
-                string[] oldZoneFiles = ["localhost.zone", "1.0.0.127.in-addr.arpa.zone", "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa.zone"];
-
-                foreach (string oldZoneFile in oldZoneFiles)
-                {
-                    string filePath = Path.Combine(zonesFolder, oldZoneFile);
-
-                    if (File.Exists(filePath))
-                    {
-                        try
-                        {
-                            File.Delete(filePath);
-                        }
-                        catch
-                        { }
-                    }
-                }
-            }
-
-            //load system zones
-            {
-                {
-                    CreateInternalPrimaryZone("localhost");
-                    SetRecord("localhost", new DnsResourceRecord("localhost", DnsResourceRecordType.A, DnsClass.IN, 3600, new DnsARecordData(IPAddress.Loopback)));
-                    SetRecord("localhost", new DnsResourceRecord("localhost", DnsResourceRecordType.AAAA, DnsClass.IN, 3600, new DnsAAAARecordData(IPAddress.IPv6Loopback)));
-                }
-
-                {
-                    string ptrDomain = "0.in-addr.arpa";
-
-                    CreateInternalPrimaryZone(ptrDomain);
-                }
-
-                {
-                    string ptrDomain = "255.in-addr.arpa";
-
-                    CreateInternalPrimaryZone(ptrDomain);
-                }
-
-                {
-                    string ptrZoneName = "127.in-addr.arpa";
-
-                    CreateInternalPrimaryZone(ptrZoneName);
-                    SetRecord(ptrZoneName, new DnsResourceRecord("1.0.0.127.in-addr.arpa", DnsResourceRecordType.PTR, DnsClass.IN, 3600, new DnsPTRRecordData("localhost")));
-                }
-
-                {
-                    string ptrZoneName = IPAddress.IPv6Loopback.GetReverseDomain();
-
-                    CreateInternalPrimaryZone(ptrZoneName);
-                    SetRecord(ptrZoneName, new DnsResourceRecord(ptrZoneName, DnsResourceRecordType.PTR, DnsClass.IN, 3600, new DnsPTRRecordData("localhost")));
-                }
-            }
-
-            //load zone files
-            _zoneIndexLock.EnterWriteLock();
-            try
-            {
-                string[] zoneFiles = Directory.GetFiles(zonesFolder, "*.zone");
-
-                foreach (string zoneFile in zoneFiles)
-                {
-                    try
-                    {
-                        using (FileStream fS = new FileStream(zoneFile, FileMode.Open, FileAccess.Read))
-                        {
-                            AuthZoneInfo zoneInfo = LoadZoneFrom(fS, File.GetLastWriteTimeUtc(fS.SafeFileHandle));
-                            _zoneIndex.Add(zoneInfo);
-
-                            if (zoneInfo.Type == AuthZoneType.Catalog)
-                                _catalogZoneIndex.Add(zoneInfo);
-                        }
-
-                        _dnsServer.LogManager?.Write("DNS Server successfully loaded zone file: " + zoneFile);
-                    }
-                    catch (Exception ex)
-                    {
-                        _dnsServer.LogManager?.Write("DNS Server failed to load zone file: " + zoneFile + "\r\n" + ex.ToString());
-                    }
-                }
-
-                _zoneIndex.Sort();
-                _catalogZoneIndex.Sort();
-            }
-            finally
-            {
-                _zoneIndexLock.ExitWriteLock();
-            }
-        }
-
-        public AuthZoneInfo LoadZoneFrom(Stream s, DateTime lastModified)
-        {
-            BinaryReader bR = new BinaryReader(s);
-
-            if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "DZ")
-                throw new InvalidDataException("DnsServer zone file format is invalid.");
-
-            switch (bR.ReadByte())
-            {
-                case 2:
-                    {
-                        DnsResourceRecord[] records = new DnsResourceRecord[bR.ReadInt32()];
-                        if (records.Length == 0)
-                            throw new InvalidDataException("Zone does not contain SOA record.");
-
-                        DnsResourceRecord soaRecord = null;
-
-                        for (int i = 0; i < records.Length; i++)
-                        {
-                            records[i] = new DnsResourceRecord(s);
-
-                            if (records[i].Type == DnsResourceRecordType.SOA)
-                                soaRecord = records[i];
-                        }
-
-                        if (soaRecord == null)
-                            throw new InvalidDataException("Zone does not contain SOA record.");
-
-                        //make zone info
-                        AuthZoneType zoneType;
-                        if (_dnsServer.ServerDomain.Equals((soaRecord.RDATA as DnsSOARecordData).PrimaryNameServer, StringComparison.OrdinalIgnoreCase))
-                            zoneType = AuthZoneType.Primary;
-                        else
-                            zoneType = AuthZoneType.Stub;
-
-                        AuthZoneInfo zoneInfo = new AuthZoneInfo(records[0].Name, zoneType, false);
-
-                        //create zone
-                        ApexZone apexZone = CreateEmptyApexZone(zoneInfo);
-
-                        try
-                        {
-                            //load records
-                            LoadZoneRecords(apexZone, records);
-                        }
-                        catch
-                        {
-                            DeleteZone(zoneInfo);
-                            throw;
-                        }
-
-                        //init zone
-                        switch (zoneInfo.Type)
-                        {
-                            case AuthZoneType.Primary:
-                                apexZone.TriggerNotify();
-                                break;
-
-                            case AuthZoneType.Stub:
-                                {
-                                    StubZone stub = apexZone as StubZone;
-
-                                    soaRecord = stub.GetRecords(DnsResourceRecordType.SOA)[0];
-                                    SOARecordInfo soaInfo = soaRecord.GetAuthSOARecordInfo();
-                                    if (soaInfo.Version == 1)
-                                        stub.PrimaryNameServerAddresses = soaInfo.PrimaryNameServers;
-
-                                    stub.TriggerRefresh();
-                                }
-                                break;
-                        }
-
-                        return new AuthZoneInfo(apexZone);
-                    }
-
-                case 3:
-                    {
-                        bool zoneDisabled = bR.ReadBoolean();
-                        DnsResourceRecord[] records = new DnsResourceRecord[bR.ReadInt32()];
-                        if (records.Length == 0)
-                            throw new InvalidDataException("Zone does not contain SOA record.");
-
-                        DnsResourceRecord soaRecord = null;
-
-                        for (int i = 0; i < records.Length; i++)
-                        {
-                            records[i] = new DnsResourceRecord(s);
-                            records[i].Tag = AuthRecordInfo.ReadGenericRecordInfoFrom(bR, records[i].Type);
-
-                            if (records[i].Type == DnsResourceRecordType.SOA)
-                                soaRecord = records[i];
-                        }
-
-                        if (soaRecord == null)
-                            throw new InvalidDataException("Zone does not contain SOA record.");
-
-                        //make zone info
-                        AuthZoneType zoneType;
-                        if (_dnsServer.ServerDomain.Equals((soaRecord.RDATA as DnsSOARecordData).PrimaryNameServer, StringComparison.OrdinalIgnoreCase))
-                            zoneType = AuthZoneType.Primary;
-                        else
-                            zoneType = AuthZoneType.Stub;
-
-                        AuthZoneInfo zoneInfo = new AuthZoneInfo(records[0].Name, zoneType, zoneDisabled);
-
-                        //create zone
-                        ApexZone apexZone = CreateEmptyApexZone(zoneInfo);
-
-                        try
-                        {
-                            //load records
-                            LoadZoneRecords(apexZone, records);
-                        }
-                        catch
-                        {
-                            DeleteZone(zoneInfo);
-                            throw;
-                        }
-
-                        //init zone
-                        switch (zoneInfo.Type)
-                        {
-                            case AuthZoneType.Primary:
-                                apexZone.TriggerNotify();
-                                break;
-
-                            case AuthZoneType.Stub:
-                                {
-                                    StubZone stub = apexZone as StubZone;
-
-                                    soaRecord = stub.GetRecords(DnsResourceRecordType.SOA)[0];
-                                    SOARecordInfo soaInfo = soaRecord.GetAuthSOARecordInfo();
-                                    if (soaInfo.Version == 1)
-                                        stub.PrimaryNameServerAddresses = soaInfo.PrimaryNameServers;
-
-                                    stub.TriggerRefresh();
-                                }
-                                break;
-                        }
-
-                        return new AuthZoneInfo(apexZone);
-                    }
-
-                case 4:
-                    {
-                        //read zone info
-                        AuthZoneInfo zoneInfo = new AuthZoneInfo(bR, lastModified);
-
-                        //create zone
-                        ApexZone apexZone = CreateEmptyApexZone(zoneInfo);
-
-                        try
-                        {
-                            //read all zone records
-                            DnsResourceRecord[] records = new DnsResourceRecord[bR.ReadInt32()];
-                            if (records.Length < 1)
-                                throw new InvalidDataException("Failed to load DNS zone file: the zone file does not contain any records.");
-
-                            uint minExpiryTtl = 0u;
-
-                            for (int i = 0; i < records.Length; i++)
-                            {
-                                records[i] = new DnsResourceRecord(s);
-                                records[i].Tag = AuthRecordInfo.ReadGenericRecordInfoFrom(bR, records[i].Type);
-
-                                GenericRecordInfo recordInfo = records[i].GetAuthGenericRecordInfo();
-                                if (recordInfo.ExpiryTtl > 0u)
-                                {
-                                    uint pendingExpiryTtl = recordInfo.GetPendingExpiryTtl();
-                                    if (pendingExpiryTtl == 0)
-                                    {
-                                        //expired record found; set 10 sec ttl for timer to delete it
-                                        minExpiryTtl = 10;
-                                    }
-                                    else
-                                    {
-                                        if (minExpiryTtl == 0u)
-                                            minExpiryTtl = pendingExpiryTtl;
-                                        else
-                                            minExpiryTtl = Math.Min(minExpiryTtl, pendingExpiryTtl);
-                                    }
-                                }
-                            }
-
-                            //load records
-                            LoadZoneRecords(apexZone, records);
-
-                            //init zone
-                            switch (zoneInfo.Type)
-                            {
-                                case AuthZoneType.Primary:
-                                    apexZone.TriggerNotify();
-
-                                    if (minExpiryTtl > 0u)
-                                        apexZone.StartRecordExpiryTimer(minExpiryTtl);
-
-                                    break;
-
-                                case AuthZoneType.Secondary:
-                                    {
-                                        SecondaryZone secondary = apexZone as SecondaryZone;
-
-                                        DnsResourceRecord soaRecord = secondary.GetRecords(DnsResourceRecordType.SOA)[0];
-                                        SOARecordInfo soaInfo = soaRecord.GetAuthSOARecordInfo();
-                                        if (soaInfo.Version == 1)
-                                        {
-                                            secondary.PrimaryNameServerAddresses = soaInfo.PrimaryNameServers;
-                                            secondary.PrimaryZoneTransferProtocol = soaInfo.ZoneTransferProtocol;
-                                            secondary.PrimaryZoneTransferTsigKeyName = soaInfo.TsigKeyName;
-                                        }
-
-                                        secondary.TriggerNotify();
-                                        secondary.TriggerRefresh();
-                                    }
-                                    break;
-
-                                case AuthZoneType.Stub:
-                                    {
-                                        StubZone stub = apexZone as StubZone;
-
-                                        DnsResourceRecord soaRecord = stub.GetRecords(DnsResourceRecordType.SOA)[0];
-                                        SOARecordInfo soaInfo = soaRecord.GetAuthSOARecordInfo();
-                                        if (soaInfo.Version == 1)
-                                            stub.PrimaryNameServerAddresses = soaInfo.PrimaryNameServers;
-
-                                        stub.TriggerRefresh();
-                                    }
-                                    break;
-
-                                case AuthZoneType.Forwarder:
-                                    {
-                                        IReadOnlyList<DnsResourceRecord> soaRecords = apexZone.GetRecords(DnsResourceRecordType.SOA);
-                                        if (soaRecords.Count == 0)
-                                            (apexZone as ForwarderZone).InitZone();
-
-                                        apexZone.TriggerNotify();
-
-                                        if (minExpiryTtl > 0u)
-                                            apexZone.StartRecordExpiryTimer(minExpiryTtl);
-                                    }
-                                    break;
-
-                                case AuthZoneType.SecondaryForwarder:
-                                    {
-                                        (apexZone as SecondaryZone).TriggerRefresh();
-                                    }
-                                    break;
-
-                                case AuthZoneType.Catalog:
-                                    {
-                                        (apexZone as CatalogZone).BuildMembersIndex();
-                                        apexZone.TriggerNotify();
-
-                                        if (minExpiryTtl > 0u)
-                                            apexZone.StartRecordExpiryTimer(minExpiryTtl);
-                                    }
-                                    break;
-
-                                case AuthZoneType.SecondaryCatalog:
-                                    {
-                                        (apexZone as SecondaryZone).TriggerRefresh();
-                                        (apexZone as SecondaryCatalogZone).BuildMembersIndex();
-                                    }
-                                    break;
-                            }
-                        }
-                        catch
-                        {
-                            DeleteZone(zoneInfo);
-                            throw;
-                        }
-
-                        return new AuthZoneInfo(apexZone);
-                    }
-
-                default:
-                    throw new InvalidDataException("DNS Zone file version not supported.");
-            }
-        }
-
-        private void LoadZoneRecords(ApexZone apexZone, IReadOnlyList<DnsResourceRecord> records)
-        {
-            foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> zoneEntry in DnsResourceRecord.GroupRecords(records))
-            {
-                if (apexZone.Name.Equals(zoneEntry.Key, StringComparison.OrdinalIgnoreCase))
-                {
-                    foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> rrsetEntry in zoneEntry.Value)
-                        apexZone.LoadRecords(rrsetEntry.Key, rrsetEntry.Value);
-                }
-                else
-                {
-                    ValidateIfDomainBelongsToZone(apexZone.Name, zoneEntry.Key);
-
-                    AuthZone authZone = GetOrAddSubDomainZone(apexZone.Name, zoneEntry.Key);
-
-                    foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> rrsetEntry in zoneEntry.Value)
-                        authZone.LoadRecords(rrsetEntry.Key, rrsetEntry.Value);
-
-                    if (authZone is SubDomainZone subDomainZone)
-                        subDomainZone.AutoUpdateState();
-                }
-            }
-
-            apexZone.UpdateDnssecStatus();
-        }
-
-        public void WriteZoneTo(string zoneName, Stream s)
-        {
-            AuthZoneInfo zoneInfo = GetAuthZoneInfo(zoneName, true);
-            if (zoneInfo is null)
-                return;
-
-            //serialize zone
-            BinaryWriter bW = new BinaryWriter(s);
-
-            bW.Write(Encoding.ASCII.GetBytes("DZ")); //format
-            bW.Write((byte)4); //version
-
-            //write zone info
-            if (zoneInfo.Internal)
-                throw new InvalidOperationException("Cannot save zones marked as internal.");
-
-            zoneInfo.WriteTo(bW);
-
-            //write all zone records
-            List<DnsResourceRecord> records = new List<DnsResourceRecord>();
-            ListAllZoneRecords(zoneInfo.Name, records);
-
-            bW.Write(records.Count);
-
-            foreach (DnsResourceRecord record in records)
-            {
-                record.WriteTo(s);
-                record.GetAuthGenericRecordInfo().WriteTo(bW);
-            }
-        }
-
-        public void SaveZoneFile(string zoneName)
-        {
-            zoneName = zoneName.ToLowerInvariant();
-
-            lock (_saveLock)
-            {
-                if (!_pendingSaveZones.TryAdd(zoneName, null))
-                    return;
-
-                if (_pendingSaveZones.Count == 1)
-                    _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
-            }
-        }
-
-        private void SaveZoneFileInternal(string zoneName)
-        {
-            zoneName = zoneName.ToLowerInvariant();
-
-            using (MemoryStream mS = new MemoryStream())
-            {
-                //serialize zone
-                WriteZoneTo(zoneName, mS);
-
-                if (mS.Position == 0)
-                    return; //zone was not found
-
-                //write to zone file
-                mS.Position = 0;
-
-                using (FileStream fS = new FileStream(Path.Combine(_dnsServer.ConfigFolder, "zones", zoneName + ".zone"), FileMode.Create, FileAccess.Write))
-                {
-                    mS.CopyTo(fS);
-                }
-            }
-
-            _dnsServer.LogManager?.Write("Saved zone file for domain: " + (zoneName == "" ? "<root>" : zoneName));
-        }
-
-        #endregion
-
         #region properties
+
+        public uint DefaultRecordTtl
+        {
+            get { return _defaultRecordTtl; }
+            set { _defaultRecordTtl = value; }
+        }
 
         public bool UseSoaSerialDateScheme
         {
