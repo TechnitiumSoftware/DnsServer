@@ -52,6 +52,7 @@ git clone --depth 1 https://github.com/TechnitiumSoftware/DnsServer.git DnsServe
 ```
 dotnet build TechnitiumLibrary/TechnitiumLibrary.ByteTree/TechnitiumLibrary.ByteTree.csproj -c Release
 dotnet build TechnitiumLibrary/TechnitiumLibrary.Net/TechnitiumLibrary.Net.csproj -c Release
+dotnet build TechnitiumLibrary/TechnitiumLibrary.Security.OTP/TechnitiumLibrary.Security.OTP.csproj -c Release
 ```
 
 6. Build the DnsServer source.
