@@ -701,7 +701,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                     <button type="button" class="btn btn-default" data-loading-text="Export" onclick="exportAllowedZones();" style="font-size: 12px; padding: 4px 6px; width: 50px;">Export</button>
                                                     <button id="btnDeleteAllowedZone" type="button" class="btn btn-warning" data-loading-text="Delete" onclick="deleteAllowedZone();" style="font-size: 12px; padding: 4px 6px; width: 50px;">Delete</button>
                                                     <button id="btnFlushAllowedZone" type="button" class="btn btn-danger" data-loading-text="Flush" onclick="flushAllowedZone();" style="font-size: 12px; padding: 4px 6px; width: 50px;">Flush</button>
-                                                    <select id="optAllowedZonesClusterNode" class="form-control cluster-node-dropdown" style="margin-left: 2px;" onchange="refreshAllowedZonesList();"></select>
                                                 </div>
                                                 <div class="clearfix"></div>
                                             </div>
@@ -742,7 +741,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                     <button id="btnExportBlockedZone" type="button" class="btn btn-default" data-loading-text="Export" onclick="exportBlockedZones();" style="font-size: 12px; padding: 4px 6px; width: 50px;">Export</button>
                                                     <button id="btnDeleteBlockedZone" type="button" class="btn btn-warning" data-loading-text="Delete" onclick="deleteBlockedZone();" style="font-size: 12px; padding: 4px 6px; width: 50px;">Delete</button>
                                                     <button id="btnFlushBlockedZone" type="button" class="btn btn-danger" data-loading-text="Flush" onclick="flushBlockedZone();" style="font-size: 12px; padding: 4px 6px; width: 50px;">Flush</button>
-                                                    <select id="optBlockedZonesClusterNode" class="form-control cluster-node-dropdown" style="margin-left: 2px;" onchange="refreshBlockedZonesList();"></select>
                                                 </div>
                                                 <div class="clearfix"></div>
                                             </div>
@@ -765,7 +763,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                             <div style="float: right;">
                                                 <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showStoreAppsModal();">App Store</button>
                                                 <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showInstallAppModal();">Install</button>
-                                                <select id="optAppsClusterNode" class="form-control cluster-node-dropdown" onchange="refreshApps();"></select>
                                             </div>
                                             <div style="clear: both;"></div>
                                         </div>
@@ -1518,7 +1515,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtReverseProxyNetworkACL" class="form-control" rows="5" spellcheck="false"></textarea>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Configure the ACL above to allow only requests coming from your reverse proxy server for DNS-over-UDP-PROXY, DNS-over-TCP-PROXY, and DNS-over-HTTP protocols. This ACL will also be used for DNS-over-HTTPS protocol for reading Real IP Header. Enter IP addresses or network addresses one below another to allow access. Add <code>!</code> character at the start to deny access, e.g. <code>!192.168.10.0/24</code> will deny entire subnet. The ACL is processed in the same order its listed. If no networks match, the default policy is to deny all.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Configure the ACL above to allow requests coming from your reverse proxy server for DNS-over-UDP-PROXY, DNS-over-TCP-PROXY, and DNS-over-HTTP protocols. Enter IP addresses or network addresses one below another to allow access. Add <code>!</code> character at the start to deny access, e.g. <code>!192.168.10.0/24</code> will deny entire subnet. The ACL is processed in the same order its listed. If no networks match, the default policy is to deny all.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1542,7 +1539,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-6">
                                                                 <input type="text" class="form-control" id="txtDnsOverHttpRealIpHeader" placeholder="X-Real-IP" maxlength="255">
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The HTTP header that must be used to read client's actual IP address when the request comes from a reverse proxy.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The HTTP header that must be used to read client's actual IP address when the request comes from a reverse proxy. The specified header will be read only when the request IP address is allowed by the <b>Reverse Proxy Network ACL</b>.</div>
                                                         </div>
 
                                                         <div>
@@ -2271,6 +2268,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     <ul class="nav nav-tabs" role="tablist">
                                         <li id="dhcpTabListLeases" role="presentation" class="active"><a href="#dhcpTabPaneLeases" aria-controls="dhcpTabPaneLeases" role="tab" data-toggle="tab" onclick="refreshDhcpLeases();">Leases</a></li>
                                         <li id="dhcpTabListScopes" role="presentation"><a href="#dhcpTabPaneScopes" aria-controls="dhcpTabPaneScopes" role="tab" data-toggle="tab" onclick="refreshDhcpScopes(true);">Scopes</a></li>
+
+                                        <div class="pull-right">
+                                            <select id="optDhcpClusterNode" class="form-control pull-right cluster-node-dropdown" style="margin-left: 0px;" onchange="refreshDhcpTab();"></select>
+                                        </div>
                                     </ul>
 
                                     <div class="tab-content">
@@ -2707,10 +2708,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                             <li id="adminTabListGroups" role="presentation"><a href="#adminTabPaneGroups" aria-controls="adminTabPaneGroups" role="tab" data-toggle="tab" onclick="refreshAdminGroups();">Groups</a></li>
                                             <li id="adminTabListPermissions" role="presentation"><a href="#adminTabPanePermissions" aria-controls="adminTabPanePermissions" role="tab" data-toggle="tab" onclick="refreshAdminPermissions();">Permissions</a></li>
                                             <li id="adminTabListCluster" role="presentation"><a href="#adminTabPaneCluster" aria-controls="adminTabPaneCluster" role="tab" data-toggle="tab" onclick="refreshAdminCluster();">Cluster</a></li>
-
-                                            <div class="pull-right">
-                                                <select id="optAdminClusterNode" class="form-control pull-right cluster-node-dropdown" style="margin-left: 0px;" onchange="refreshAdminTab();"></select>
-                                            </div>
                                         </ul>
 
                                         <div class="clearfix"></div>
@@ -2722,8 +2719,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                             <div id="divAdminSessionsLoader" style="margin-top: 10px; height: 350px;"></div>
 
                                             <div id="divAdminSessionsView" style="margin-top: 10px;">
-                                                <div style="float: right; padding: 2px 0px;">
-                                                    <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showCreateApiTokenModal();">Create Token</button>
+                                                <div class="form-inline pull-right" style="padding: 2px 0px;">
+                                                    <button id="btnAdminSessionsCreateToken" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showCreateApiTokenModal();">Create Token</button>
+                                                    <select id="optAdminSessionsClusterNode" class="form-control cluster-node-dropdown" onchange="refreshAdminSessions();"></select>
                                                 </div>
 
                                                 <div style="clear: both;"></div>
@@ -2832,9 +2830,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                             <div id="divAdminClusterLoader" style="margin-top: 10px; height: 350px;"></div>
 
                                             <div id="divAdminClusterView" style="margin-top: 10px;">
-                                                <div style="float: right; padding: 2px 0px;">
+                                                <div class="form-inline pull-right" style="padding: 2px 0px;">
                                                     <div id="divAdminClusterInitialize" class="btn-group">
-                                                        <button type="button" class="btn btn-primary dropdown-toggle" style="padding: 2px 0px; width: 110px;" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                        <button type="button" class="btn btn-primary dropdown-toggle" style="padding: 2px 0px; width: 100px;" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                                             Initialize <span class="caret"></span>
                                                         </button>
                                                         <ul class="dropdown-menu">
@@ -2843,10 +2841,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </ul>
                                                     </div>
 
-                                                    <button id="btnClusterResync" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 110px;" onclick="resyncCluster(this);" data-loading-text="Resyncing...">Resync</button>
-                                                    <button id="btnClusterOptions" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 110px;" onclick="showClusterOptionsModal();">Options</button>
-                                                    <button id="btnClusterLeave" type="button" class="btn btn-warning" style="padding: 2px 0px; width: 110px;" onclick="showLeaveClusterModal();">Leave Cluster</button>
-                                                    <button id="btnClusterDelete" type="button" class="btn btn-danger" style="padding: 2px 0px; width: 110px;" onclick="showDeleteClusterModal();">Delete Cluster</button>
+                                                    <button id="btnClusterResync" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="resyncCluster(this);" data-loading-text="Resyncing...">Resync</button>
+                                                    <button id="btnClusterOptions" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showClusterOptionsModal();">Options</button>
+                                                    <button id="btnClusterLeave" type="button" class="btn btn-warning" style="padding: 2px 0px; width: 100px;" onclick="showLeaveClusterModal();">Leave Cluster</button>
+                                                    <button id="btnClusterDelete" type="button" class="btn btn-danger" style="padding: 2px 0px; width: 100px;" onclick="showDeleteClusterModal();">Delete Cluster</button>
+                                                    <select id="optAdminClusterNode" class="form-control cluster-node-dropdown" onchange="refreshAdminCluster();"></select>
                                                 </div>
 
                                                 <div style="clear: both;"></div>
