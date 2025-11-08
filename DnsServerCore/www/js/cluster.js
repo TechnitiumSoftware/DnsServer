@@ -34,6 +34,10 @@ function refreshAdminCluster() {
             divAdminClusterLoader.hide();
             divAdminClusterView.show();
         },
+        error: function () {
+            divAdminClusterLoader.hide();
+            divAdminClusterView.show();
+        },
         invalidToken: function () {
             showPageLogin();
         },
@@ -912,11 +916,10 @@ function updateAllClusterNodeDropDowns() {
     updateClusterNodeDropDown($("#optZonesClusterNode"));
     updateClusterNodeDropDown($("#optEditZoneClusterNode"));
     updateClusterNodeDropDown($("#optCachedZonesClusterNode"));
-    updateClusterNodeDropDown($("#optAllowedZonesClusterNode"));
-    updateClusterNodeDropDown($("#optBlockedZonesClusterNode"));
-    updateClusterNodeDropDown($("#optAppsClusterNode"));
     updateClusterNodeDropDown($("#optDnsClientClusterNode"));
     updateClusterNodeDropDown($("#optSettingsClusterNode"), true);
+    updateClusterNodeDropDown($("#optDhcpClusterNode"));
+    updateClusterNodeDropDown($("#optAdminSessionsClusterNode"));
     updateClusterNodeDropDown($("#optAdminClusterNode"));
     updateClusterNodeDropDown($("#optLogsClusterNode"));
 }
@@ -932,7 +935,7 @@ function updateClusterNodeDropDown(optClusterNode, addClusterNode, selectedNode)
             html += "<option value=\"cluster\">Cluster</option>";
 
         for (var i = 0; i < sessionData.info.clusterNodes.length; i++)
-            html += "<option>" + htmlEncode(sessionData.info.clusterNodes[i].name) + "</option>";
+            html += "<option value=\"" + htmlEncode(sessionData.info.clusterNodes[i].name) + "\">" + htmlEncode(sessionData.info.clusterNodes[i].name) + " (" + htmlEncode(sessionData.info.clusterNodes[i].type.toLowerCase()) + ")" + "</option>";
 
         optClusterNode.html(html);
 
