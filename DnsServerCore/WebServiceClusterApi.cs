@@ -21,6 +21,7 @@ using DnsServerCore.Auth;
 using DnsServerCore.Cluster;
 using Microsoft.AspNetCore.Http;
 using System;
+using System.Buffers.Text;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -239,18 +240,6 @@ namespace DnsServerCore
                 });
             }
 
-            private static byte[] FromBase64UrlString(string base64Url)
-            {
-                //convert from base64url to base64
-                base64Url = base64Url.Replace('-', '+').Replace('_', '/');
-
-                int x = base64Url.Length % 4;
-                if (x > 0)
-                    base64Url = base64Url.PadRight(base64Url.Length - x + 4, '=');
-
-                return Convert.FromBase64String(base64Url);
-            }
-
             #endregion
 
             #region public
@@ -340,7 +329,7 @@ namespace DnsServerCore
                 int secondaryNodeId = request.GetQueryOrForm("secondaryNodeId", int.Parse);
                 Uri secondaryNodeUrl = new Uri(request.GetQueryOrForm("secondaryNodeUrl"));
                 IPAddress secondaryNodeIpAddress = request.GetQueryOrForm("secondaryNodeIpAddress", IPAddress.Parse);
-                X509Certificate2 secondaryNodeCertificate = new X509Certificate2(FromBase64UrlString(request.GetQueryOrForm("secondaryNodeCertificate")));
+                X509Certificate2 secondaryNodeCertificate = X509CertificateLoader.LoadCertificate(Base64Url.DecodeFromChars(request.GetQueryOrForm("secondaryNodeCertificate")));
 
                 ClusterNode secondaryNode = _dnsWebService._clusterManager.JoinCluster(secondaryNodeId, secondaryNodeUrl, secondaryNodeIpAddress, secondaryNodeCertificate);
 
@@ -400,7 +389,7 @@ namespace DnsServerCore
                 int secondaryNodeId = request.GetQueryOrForm("secondaryNodeId", int.Parse);
                 Uri secondaryNodeUrl = new Uri(request.GetQueryOrForm("secondaryNodeUrl"));
                 IPAddress secondaryNodeIpAddress = request.GetQueryOrForm("secondaryNodeIpAddress", IPAddress.Parse);
-                X509Certificate2 secondaryNodeCertificate = new X509Certificate2(FromBase64UrlString(request.GetQueryOrForm("secondaryNodeCertificate")));
+                X509Certificate2 secondaryNodeCertificate = X509CertificateLoader.LoadCertificate(Base64Url.DecodeFromChars(request.GetQueryOrForm("secondaryNodeCertificate")));
 
                 ClusterNode secondaryNode = _dnsWebService._clusterManager.UpdateSecondaryNode(secondaryNodeId, secondaryNodeUrl, secondaryNodeIpAddress, secondaryNodeCertificate);
 
