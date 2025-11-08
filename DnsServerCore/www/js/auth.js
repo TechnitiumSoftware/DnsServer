@@ -815,16 +815,11 @@ function refreshAdminTab() {
         refreshAdminSessions();
 }
 
-function refreshAdminSessions(fromPrimary) {
+function refreshAdminSessions() {
     var divAdminSessionsLoader = $("#divAdminSessionsLoader");
     var divAdminSessionsView = $("#divAdminSessionsView");
 
-    var node;
-
-    if (fromPrimary)
-        node = getPrimaryClusterNodeName();
-    else
-        node = $("#optAdminClusterNode").val();
+    var node = $("#optAdminSessionsClusterNode").val();
 
     divAdminSessionsLoader.show();
     divAdminSessionsView.hide();
@@ -870,9 +865,20 @@ function refreshAdminSessions(fromPrimary) {
                 tableHtmlRows += "</ul></div></td></tr>";
             }
 
+            var primaryNodeName = getPrimaryClusterNodeName();
+
+            if ((primaryNodeName == "") || (primaryNodeName == responseJSON.server))
+                $("#btnAdminSessionsCreateToken").show();
+            else
+                $("#btnAdminSessionsCreateToken").hide();
+
             $("#tbodyAdminSessions").html(tableHtmlRows);
             $("#tfootAdminSessions").html("Total Sessions: " + responseJSON.response.sessions.length);
 
+            divAdminSessionsLoader.hide();
+            divAdminSessionsView.show();
+        },
+        error: function () {
             divAdminSessionsLoader.hide();
             divAdminSessionsView.show();
         },
@@ -973,7 +979,7 @@ function createApiToken(objBtn) {
 
             showAlert("success", "Token Created!", "API token was created successfully.", divCreateApiTokenAlert);
 
-            refreshAdminSessions(true);
+            refreshAdminSessions();
         },
         error: function () {
             btn.button("reset");
@@ -1002,7 +1008,7 @@ function deleteAdminSession(objMenuItem) {
     if (sessionType == "ApiToken")
         apiUrl += "&node=" + encodeURIComponent(getPrimaryClusterNodeName());
     else
-        apiUrl += "&node=" + encodeURIComponent($("#optAdminClusterNode").val());
+        apiUrl += "&node=" + encodeURIComponent($("#optAdminSessionsClusterNode").val());
 
     var btn = $("#btnAdminSessionRowOption" + id);
     var originalBtnHtml = btn.html();
@@ -1033,13 +1039,11 @@ function refreshAdminUsers() {
     var divAdminUsersLoader = $("#divAdminUsersLoader");
     var divAdminUsersView = $("#divAdminUsersView");
 
-    var node = $("#optAdminClusterNode").val();
-
     divAdminUsersLoader.show();
     divAdminUsersView.hide();
 
     HTTPRequest({
-        url: "api/admin/users/list?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
+        url: "api/admin/users/list?token=" + sessionData.token,
         success: function (responseJSON) {
             var tableHtmlRows = "";
 
@@ -1185,7 +1189,6 @@ function showUserDetailsModal(objMenuItem) {
 
     var id = mnuItem.attr("data-id");
     var username = mnuItem.attr("data-username");
-    var node = $("#optAdminClusterNode").val();
 
     divUserDetailsLoader.show();
     divUserDetailsViewer.hide();
@@ -1194,7 +1197,7 @@ function showUserDetailsModal(objMenuItem) {
     modalUserDetails.modal("show");
 
     HTTPRequest({
-        url: "api/admin/users/get?token=" + sessionData.token + "&user=" + encodeURIComponent(username) + "&includeGroups=true" + "&node=" + encodeURIComponent(node),
+        url: "api/admin/users/get?token=" + sessionData.token + "&user=" + encodeURIComponent(username) + "&includeGroups=true",
         success: function (responseJSON) {
             $("#txtUserDetailsDisplayName").val(responseJSON.response.displayName);
             $("#txtUserDetailsUsername").val(responseJSON.response.username);
@@ -1296,8 +1299,6 @@ function deleteUserSession(objMenuItem) {
 
     if (sessionType == "ApiToken")
         apiUrl += "&node=" + encodeURIComponent(getPrimaryClusterNodeName());
-    else
-        apiUrl += "&node=" + encodeURIComponent($("#optAdminClusterNode").val());
 
     var btn = $("#btnUserDetailsActiveSessionRowOption" + id);
     var originalBtnHtml = btn.html();
@@ -1593,13 +1594,11 @@ function refreshAdminGroups() {
     var divAdminGroupsLoader = $("#divAdminGroupsLoader");
     var divAdminGroupsView = $("#divAdminGroupsView");
 
-    var node = $("#optAdminClusterNode").val();
-
     divAdminGroupsLoader.show();
     divAdminGroupsView.hide();
 
     HTTPRequest({
-        url: "api/admin/groups/list?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
+        url: "api/admin/groups/list?token=" + sessionData.token,
         success: function (responseJSON) {
             var tableHtmlRows = "";
 
@@ -1697,7 +1696,6 @@ function showGroupDetailsModal(objMenuItem) {
 
     var id = mnuItem.attr("data-id");
     var group = mnuItem.attr("data-group");
-    var node = $("#optAdminClusterNode").val();
 
     divGroupDetailsLoader.show();
     divGroupDetailsViewer.hide();
@@ -1706,7 +1704,7 @@ function showGroupDetailsModal(objMenuItem) {
     modalGroupDetails.modal("show");
 
     HTTPRequest({
-        url: "api/admin/groups/get?token=" + sessionData.token + "&group=" + encodeURIComponent(group) + "&includeUsers=true" + "&node=" + encodeURIComponent(node),
+        url: "api/admin/groups/get?token=" + sessionData.token + "&group=" + encodeURIComponent(group) + "&includeUsers=true",
         success: function (responseJSON) {
             $("#txtGroupDetailsName").val(responseJSON.response.name);
             $("#txtGroupDetailsDescription").val(responseJSON.response.description);
@@ -1830,13 +1828,11 @@ function refreshAdminPermissions() {
     var divAdminPermissionsLoader = $("#divAdminPermissionsLoader");
     var divAdminPermissionsView = $("#divAdminPermissionsView");
 
-    var node = $("#optAdminClusterNode").val();
-
     divAdminPermissionsLoader.show();
     divAdminPermissionsView.hide();
 
     HTTPRequest({
-        url: "api/admin/permissions/list?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
+        url: "api/admin/permissions/list?token=" + sessionData.token,
         success: function (responseJSON) {
             var tableHtmlRows = "";
 
@@ -1910,7 +1906,6 @@ function showEditSectionPermissionsModal(objMenuItem) {
 
     var id = mnuItem.attr("data-id");
     var section = mnuItem.attr("data-section");
-    var node = $("#optAdminClusterNode").val();
 
     $("#lblEditPermissionsName").text(section);
     $("#tbodyEditPermissionsUser").html("");
@@ -1927,7 +1922,7 @@ function showEditSectionPermissionsModal(objMenuItem) {
     modalEditPermissions.modal("show");
 
     HTTPRequest({
-        url: "api/admin/permissions/get?token=" + sessionData.token + "&section=" + section + "&includeUsersAndGroups=true" + "&node=" + encodeURIComponent(node),
+        url: "api/admin/permissions/get?token=" + sessionData.token + "&section=" + section + "&includeUsersAndGroups=true",
         success: function (responseJSON) {
             $("#lblEditPermissionsName").text(responseJSON.response.section);
 
@@ -2013,9 +2008,7 @@ function saveSectionPermissions(objBtn) {
     var userPermissions = serializeTableData($("#tableEditPermissionsUser"), 4);
     var groupPermissions = serializeTableData($("#tableEditPermissionsGroup"), 4);
 
-    var apiUrl = "api/admin/permissions/set?token=" + sessionData.token + "&section=" + encodeURIComponent(section) + "&userPermissions=" + encodeURIComponent(userPermissions) + "&groupPermissions=" + encodeURIComponent(groupPermissions);
-
-    apiUrl += "&node=" + encodeURIComponent(getPrimaryClusterNodeName());
+    var apiUrl = "api/admin/permissions/set?token=" + sessionData.token + "&section=" + encodeURIComponent(section) + "&userPermissions=" + encodeURIComponent(userPermissions) + "&groupPermissions=" + encodeURIComponent(groupPermissions) + "&node=" + encodeURIComponent(getPrimaryClusterNodeName());
 
     btn.button("loading");
 
