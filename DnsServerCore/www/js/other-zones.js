@@ -260,12 +260,7 @@ function refreshAllowedZonesList(domain, direction, fromPrimary) {
 
     domain.toLowerCase();
 
-    var node;
-
-    if (fromPrimary)
-        node = getPrimaryClusterNodeName();
-    else
-        node = $("#optAllowedZonesClusterNode").val();
+    var node = fromPrimary ? getPrimaryClusterNodeName() : "";
 
     var lstAllowedZones = $("#lstAllowedZones");
     var divAllowedZoneViewer = $("#divAllowedZoneViewer");
@@ -426,12 +421,7 @@ function refreshBlockedZonesList(domain, direction, fromPrimary) {
 
     domain.toLowerCase();
 
-    var node;
-
-    if (fromPrimary)
-        node = getPrimaryClusterNodeName();
-    else
-        node = $("#optBlockedZonesClusterNode").val();
+    var node = fromPrimary ? getPrimaryClusterNodeName() : "";
 
     var lstBlockedZones = $("#lstBlockedZones");
     var divBlockedZoneViewer = $("#divBlockedZoneViewer");
