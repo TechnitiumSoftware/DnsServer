@@ -32,6 +32,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Installs in just a minute and works out-of-the-box with zero configuration.
 - Block ads & malware using one or more block list URLs.
 - Supports working as an authoritative as well as a recursive DNS server.
+- Includes built-in Clustering feature to allow managing two or more DNS server instances from a single admin web console.
 - High performance DNS server based on async IO that can serve millions of requests per minute even on a commodity desktop PC hardware (load tested on Intel i7-8700 CPU with more than 100,000 request/second over Gigabit Ethernet).
 - Self host [DNS-over-TLS](https://www.rfc-editor.org/rfc/rfc7858.html), [DNS-over-HTTPS](https://www.rfc-editor.org/rfc/rfc8484.html), and [DNS-over-QUIC](https://www.ietf.org/rfc/rfc9250.html) DNS services on your network.
 - DNS-over-HTTPS implementation supports HTTP/1.1, HTTP/2, and HTTP/3 transport protocols.
@@ -84,8 +85,9 @@ Be it a home network or an organization's network, having a locally running DNS 
 - HTTP & SOCKS5 proxy support which can be configured to route DNS over [Tor Network](https://www.torproject.org/) or use [Cloudflare's hidden DNS resolver](https://blog.cloudflare.com/welcome-hidden-resolver/).
 - Web console portal for easy configuration using any web browser.
 - Built in HTTP API to allow 3rd party apps to control and configure the DNS server.
+- Supports TOTP based Two-factor authentication (2FA).
 - Built-in system logging and query logging.
-- Open source cross-platform .NET 8 implementation hosted on [GitHub](https://github.com/TechnitiumSoftware/DnsServer).
+- Open source cross-platform .NET 9 implementation hosted on [GitHub](https://github.com/TechnitiumSoftware/DnsServer).
 
 # Planned Features
 - Clustering support to manage two or more DNS servers.
@@ -93,7 +95,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 # Installation
 - **Windows**: [Download setup installer](https://download.technitium.com/dns/DnsServerSetup.zip) for easy installation.
 - **Linux & Raspberry Pi**: Follow install instructions from [this blog post](https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html).
-- **Cross-Platform**: [Download portable app](https://download.technitium.com/dns/DnsServerPortable.tar.gz) to run on any platform that has .NET 8 installed.
+- **Cross-Platform**: [Download portable app](https://download.technitium.com/dns/DnsServerPortable.tar.gz) to run on any platform that has .NET 9 installed.
 - **Docker**: Pull the official image from [Docker Hub](https://hub.docker.com/r/technitium/dns-server). Use the [docker-compose.yml](https://github.com/TechnitiumSoftware/DnsServer/blob/master/docker-compose.yml) example to create a new container and edit it as required for your deployments. For more details and troubleshooting read the [install instructions](https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html).
 
 # Build Instructions
