@@ -700,7 +700,7 @@ namespace DnsServerCore.Dns
                 Stats = totalStatCounter.GetStatsData(),
                 MainChartData = mainChartData,
                 QueryResponseChartData = totalStatCounter.GetQueryResponseChartData(),
-                QueryTypeChartData = totalStatCounter.GetTopQueryTypesChartData(10),
+                QueryTypeChartData = totalStatCounter.GetTopQueryTypesChartData(),
                 ProtocolTypeChartData = totalStatCounter.GetTopProtocolTypesChartData(),
                 TopClients = totalStatCounter.GetTopClientStats(10),
                 TopDomains = totalStatCounter.GetTopDomainStats(10),
@@ -856,7 +856,7 @@ namespace DnsServerCore.Dns
                 Stats = totalStatCounter.GetStatsData(),
                 MainChartData = mainChartData,
                 QueryResponseChartData = totalStatCounter.GetQueryResponseChartData(),
-                QueryTypeChartData = totalStatCounter.GetTopQueryTypesChartData(10),
+                QueryTypeChartData = totalStatCounter.GetTopQueryTypesChartData(),
                 ProtocolTypeChartData = totalStatCounter.GetTopProtocolTypesChartData(),
                 TopClients = totalStatCounter.GetTopClientStats(10),
                 TopDomains = totalStatCounter.GetTopDomainStats(10),
@@ -997,7 +997,7 @@ namespace DnsServerCore.Dns
                 Stats = totalStatCounter.GetStatsData(),
                 MainChartData = mainChartData,
                 QueryResponseChartData = totalStatCounter.GetQueryResponseChartData(),
-                QueryTypeChartData = totalStatCounter.GetTopQueryTypesChartData(10),
+                QueryTypeChartData = totalStatCounter.GetTopQueryTypesChartData(),
                 ProtocolTypeChartData = totalStatCounter.GetTopProtocolTypesChartData(),
                 TopClients = totalStatCounter.GetTopClientStats(10),
                 TopDomains = totalStatCounter.GetTopDomainStats(10),
@@ -1134,7 +1134,7 @@ namespace DnsServerCore.Dns
                 Stats = totalStatCounter.GetStatsData(),
                 MainChartData = mainChartData,
                 QueryResponseChartData = totalStatCounter.GetQueryResponseChartData(),
-                QueryTypeChartData = totalStatCounter.GetTopQueryTypesChartData(10),
+                QueryTypeChartData = totalStatCounter.GetTopQueryTypesChartData(),
                 ProtocolTypeChartData = totalStatCounter.GetTopProtocolTypesChartData(),
                 TopClients = totalStatCounter.GetTopClientStats(10),
                 TopDomains = totalStatCounter.GetTopDomainStats(10),
@@ -1267,7 +1267,7 @@ namespace DnsServerCore.Dns
                 Stats = totalStatCounter.GetStatsData(),
                 MainChartData = mainChartData,
                 QueryResponseChartData = totalStatCounter.GetQueryResponseChartData(),
-                QueryTypeChartData = totalStatCounter.GetTopQueryTypesChartData(10),
+                QueryTypeChartData = totalStatCounter.GetTopQueryTypesChartData(),
                 ProtocolTypeChartData = totalStatCounter.GetTopProtocolTypesChartData(),
                 TopClients = totalStatCounter.GetTopClientStats(10),
                 TopDomains = totalStatCounter.GetTopDomainStats(10),
@@ -1832,6 +1832,15 @@ namespace DnsServerCore.Dns
                             _queries = new ConcurrentDictionary<DnsQuestionRecord, Counter>(1, 0);
                         }
 
+                        if (version >= 5)
+                        {
+                            int count = bR.ReadInt32();
+                            ConcurrentDictionary<IPAddress, Counter> errorIpAddresses = new ConcurrentDictionary<IPAddress, Counter>(1, count);
+
+                            for (int i = 0; i < count; i++)
+                                errorIpAddresses.TryAdd(IPAddressExtensions.ReadFrom(bR), new Counter(bR.ReadInt32()));
+                        }
+
                         break;
 
                     case 7:
@@ -1913,6 +1922,15 @@ namespace DnsServerCore.Dns
 
                             for (int i = 0; i < count; i++)
                                 _queries.TryAdd(new DnsQuestionRecord(bR.BaseStream), new Counter(bR.ReadInt64()));
+                        }
+
+                        if (version <= 8)
+                        {
+                            int count = bR.ReadInt32();
+                            ConcurrentDictionary<IPAddress, Counter> errorIpAddresses = new ConcurrentDictionary<IPAddress, Counter>(1, count);
+
+                            for (int i = 0; i < count; i++)
+                                errorIpAddresses.TryAdd(IPAddressExtensions.ReadFrom(bR), new Counter(bR.ReadInt64()));
                         }
 
                         break;
@@ -2406,7 +2424,7 @@ namespace DnsServerCore.Dns
                 return topClients;
             }
 
-            public DashboardStats.ChartData GetTopQueryTypesChartData(int limit)
+            public DashboardStats.ChartData GetTopQueryTypesChartData()
             {
                 List<KeyValuePair<string, long>> queryTypes = new List<KeyValuePair<string, long>>(_queryTypes.Count);
 
@@ -2417,17 +2435,6 @@ namespace DnsServerCore.Dns
                 {
                     return item2.Value.CompareTo(item1.Value);
                 });
-
-                if (queryTypes.Count > limit)
-                {
-                    long othersCount = 0;
-
-                    for (int i = limit; i < queryTypes.Count; i++)
-                        othersCount += queryTypes[i].Value;
-
-                    queryTypes.RemoveRange(limit - 1, queryTypes.Count - (limit - 1));
-                    queryTypes.Add(new KeyValuePair<string, long>("Others", othersCount));
-                }
 
                 string[] queryTypeLabels = new string[queryTypes.Count];
                 long[] queryTypeData = new long[queryTypes.Count];
