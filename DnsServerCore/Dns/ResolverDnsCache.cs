@@ -189,6 +189,11 @@ namespace DnsServerCore.Dns
         public virtual async Task<DnsDatagram> QueryAsync(DnsDatagram request, bool serveStale, bool findClosestNameServers = false, bool resetExpiry = false)
         {
             DnsDatagram authResponse = await _dnsServer.AuthoritativeQueryAsync(request, DnsTransportProtocol.Tcp, true, _skipDnsAppAuthoritativeRequestHandlers);
+            if (authResponse is not null)
+            {
+                if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || authResponse.IsFirstAuthoritySOA())
+                    return authResponse;
+            }
 
             DnsDatagram cacheResponse = await _dnsServer.CacheZoneManager.QueryAsync(request, serveStale, findClosestNameServers, resetExpiry);
             if (cacheResponse is not null)
