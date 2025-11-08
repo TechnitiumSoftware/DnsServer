@@ -310,7 +310,7 @@ var
   ResultCode: Integer;
 begin
   Result := false;
-  Exec('cmd.exe', '/c dotnet --list-runtimes | find /n "Microsoft.AspNetCore.App 8.0.15"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('cmd.exe', '/c dotnet --list-runtimes | find /n "Microsoft.AspNetCore.App 9.0.10"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   if ResultCode = 0 then 
   begin 
     Result := true;
@@ -322,7 +322,7 @@ var
   ResultCode: Integer;
 begin
   Result := false;
-  Exec('cmd.exe', '/c dotnet --list-runtimes | find /n "Microsoft.WindowsDesktop.App 8.0.15"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('cmd.exe', '/c dotnet --list-runtimes | find /n "Microsoft.WindowsDesktop.App 9.0.10"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   if ResultCode = 0 then 
   begin 
     Result := true;
@@ -336,8 +336,8 @@ begin
   begin
     AddDependency('aspdotnet80' + GetArchitectureSuffix + '.exe',
       '/lcid ' + IntToStr(GetUILanguage) + ' /passive /norestart',
-      'ASP.NET Core Runtime 8.0.15' + GetArchitectureTitle,
-      GetString('https://builds.dotnet.microsoft.com/dotnet/aspnetcore/Runtime/8.0.15/aspnetcore-runtime-8.0.15-win-x86.exe', 'https://builds.dotnet.microsoft.com/dotnet/aspnetcore/Runtime/8.0.15/aspnetcore-runtime-8.0.15-win-x64.exe'),
+      'ASP.NET Core Runtime 9.0.10' + GetArchitectureTitle,
+      GetString('https://builds.dotnet.microsoft.com/dotnet/aspnetcore/Runtime/9.0.10/aspnetcore-runtime-9.0.10-win-x86.exe', 'https://builds.dotnet.microsoft.com/dotnet/aspnetcore/Runtime/9.0.10/aspnetcore-runtime-9.0.10-win-x64.exe'),
       '', False, False, False);
   end;
 
@@ -345,8 +345,8 @@ begin
   begin
     AddDependency('dotnet80desktop' + GetArchitectureSuffix + '.exe',
       '/lcid ' + IntToStr(GetUILanguage) + ' /passive /norestart',
-      '.NET Desktop Runtime 8.0.15' + GetArchitectureTitle,
-      GetString('https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/8.0.15/windowsdesktop-runtime-8.0.15-win-x86.exe', 'https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/8.0.15/windowsdesktop-runtime-8.0.15-win-x64.exe'),
+      '.NET Desktop Runtime 9.0.10' + GetArchitectureTitle,
+      GetString('https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/9.0.10/windowsdesktop-runtime-9.0.10-win-x86.exe', 'https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/9.0.10/windowsdesktop-runtime-9.0.10-win-x64.exe'),
       '', False, False, False);
   end;
 end;
