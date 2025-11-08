@@ -1,5 +1,26 @@
 # Technitium DNS Server Change Log
 
+## Version 14.0
+Release Date: 8 November 2025
+
+- Upgraded codebase to use .NET 9 runtime. If you had manually installed the DNS Server or .NET 8 Runtime earlier then you must install .NET 9 Runtime manually before upgrading the DNS server.
+- This major release has a breaking changes in the Change Password HTTP API so its advised to test your API client once before deploying to production.
+- Fixed Denial of Service (DoS) vulnerability in the DNS server's rate limiting implementation reported by Shiming Liu from the Network and Information Security Lab, Tsinghua University. The DNS Server now has a redesigned rate limiting implementation with different Queries Per Minute (QPM) options in Settings that help mitigate this issue.
+- Fixed Cache Poisoning vulnerability achieved using a IP fragmentation attack reported by Yuxiao Wu from the NISL Lab Security, Tsinghua University. The DNS server fixes this issue by adding missing bailiwick validations for NS record in referral responses.
+- Fixed [DNSSEC Downgrade](https://dnssec-downgrade.net/) vulnerability that made it possible to bypass validation when one of domain name's DNSSEC algorithm was not supported by the DNS server.
+- Implemented Clustering feature where you can now create a cluster of two or more DNS server instances and manage all of them from a single DNS admin web console by logging into anyone of the Cluster nodes. It also features showing aggregate Dashboard data for the entire cluster.
+- Added TOTP based Two-factor authentication (2FA) support.
+- Added options to configure UDP Socket pooling feature in Settings.
+- Fixed bug in zone file parsing that failed to parse records when their names were not FDQN and matched with name of a record type.
+- Fixed issue with internal Http Client to retry for IPv4 addresses too when `Prefer IPv6` option is enabled and IPv6 address failed to connect.
+- Fixed bug of missing NSEC/NSEC3 record in response for wildcard and Empty Non-terminal (ENT) records in Primary zones.
+- Fixed multiple issues in Prefetch and Auto Prefetch implementation that caused undesirable frequent refreshing of cached data in certain cases.
+- Query Logs (Sqlite) App: Updated app to use Channels for better performance.
+- Query Logs (MySQL) App: Updated app to use Channels for better performance. Fixed bug in schema for protocol parameter causing overflow.
+- Query Logs (SQL Server) App: Updated app to use Channels for better performance.
+- NX Domain App: Updated app to support Extended DNS Error messages.
+- Multiple other minor bug fixes and improvements.
+ 
 ## Version 13.6
 Release Date: 26 April 2025
 
