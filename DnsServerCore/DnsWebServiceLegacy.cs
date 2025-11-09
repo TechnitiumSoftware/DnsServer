@@ -215,10 +215,16 @@ namespace DnsServerCore
                     int count = bR.ReadByte();
                     if (count > 0)
                     {
-                        IPEndPoint[] localEndPoints = new IPEndPoint[count];
+                        List<IPEndPoint> localEndPoints = new List<IPEndPoint>(count);
 
                         for (int i = 0; i < count; i++)
-                            localEndPoints[i] = (IPEndPoint)EndPointExtensions.ReadFrom(bR);
+                        {
+                            IPEndPoint ep = EndPointExtensions.ReadFrom(bR) as IPEndPoint;
+                            if (ep.Port == 853)
+                                continue; //to avoid validation exception
+
+                            localEndPoints.Add(ep);
+                        }
 
                         _dnsServer.LocalEndPoints = localEndPoints;
                     }
@@ -1209,10 +1215,16 @@ namespace DnsServerCore
                 int count = bR.ReadByte();
                 if (count > 0)
                 {
-                    IPEndPoint[] localEndPoints = new IPEndPoint[count];
+                    List<IPEndPoint> localEndPoints = new List<IPEndPoint>(count);
 
                     for (int i = 0; i < count; i++)
-                        localEndPoints[i] = (IPEndPoint)EndPointExtensions.ReadFrom(bR);
+                    {
+                        IPEndPoint ep = EndPointExtensions.ReadFrom(bR) as IPEndPoint;
+                        if (ep.Port == 853)
+                            continue; //to avoid validation exception
+
+                        localEndPoints.Add(ep);
+                    }
 
                     _dnsServer.LocalEndPoints = localEndPoints;
                 }
@@ -1226,10 +1238,16 @@ namespace DnsServerCore
                 int count = bR.ReadByte();
                 if (count > 0)
                 {
-                    IPEndPoint[] localEndPoints = new IPEndPoint[count];
+                    List<IPEndPoint> localEndPoints = new List<IPEndPoint>(count);
 
                     for (int i = 0; i < count; i++)
-                        localEndPoints[i] = new IPEndPoint(IPAddressExtensions.ReadFrom(bR), 53);
+                    {
+                        IPEndPoint ep = EndPointExtensions.ReadFrom(bR) as IPEndPoint;
+                        if (ep.Port == 853)
+                            continue; //to avoid validation exception
+
+                        localEndPoints.Add(ep);
+                    }
 
                     _dnsServer.LocalEndPoints = localEndPoints;
                 }
