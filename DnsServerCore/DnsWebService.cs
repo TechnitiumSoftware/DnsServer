@@ -1136,18 +1136,9 @@ namespace DnsServerCore
 
                                 await using (Stream s = entry.Open())
                                 {
-                                    int count = (int)entry.Length;
-                                    byte[] buffer = ArrayPool<byte>.Shared.Rent(count);
-
-                                    try
+                                    using (StreamReader sR = new StreamReader(s, true))
                                     {
-                                        await s.ReadExactlyAsync(buffer, 0, count);
-
-                                        config = Encoding.UTF8.GetString(buffer, 0, count);
-                                    }
-                                    finally
-                                    {
-                                        ArrayPool<byte>.Shared.Return(buffer);
+                                        config = await sR.ReadToEndAsync();
                                     }
                                 }
 
@@ -1693,8 +1684,8 @@ namespace DnsServerCore
             _webService.MapGetAndPost("/api/settings/get", _settingsApi.GetDnsSettings);
             _webService.MapGetAndPost("/api/settings/set", _settingsApi.SetDnsSettingsAsync);
             _webService.MapGetAndPost("/api/settings/getTsigKeyNames", _settingsApi.GetTsigKeyNames);
-            _webService.MapGetAndPost("/api/settings/forceUpdateBlockLists", _settingsApi.ForceUpdateBlockListsAsync);
-            _webService.MapGetAndPost("/api/settings/temporaryDisableBlocking", _settingsApi.TemporaryDisableBlockingAsync);
+            _webService.MapGetAndPost("/api/settings/forceUpdateBlockLists", _settingsApi.ForceUpdateBlockLists);
+            _webService.MapGetAndPost("/api/settings/temporaryDisableBlocking", _settingsApi.TemporaryDisableBlocking);
             _webService.MapGetAndPost("/api/settings/backup", _settingsApi.BackupSettingsAsync);
             _webService.MapPost("/api/settings/restore", _settingsApi.RestoreSettingsAsync);
 
@@ -1846,6 +1837,10 @@ namespace DnsServerCore
                         ClusterNode selfNode = _clusterManager.GetSelfNode();
                         if (selfNode.Type == ClusterNodeType.Secondary)
                         {
+                            //validate user session before proxying request
+                            if (!TryGetSession(context, out _))
+                                throw new InvalidTokenWebServiceException("Invalid token or session expired.");
+
                             //proxy to primary node
                             ClusterNode primaryNode = _clusterManager.GetPrimaryNode();
                             await primaryNode.ProxyRequest(context, additionalParameters);
@@ -1868,6 +1863,10 @@ namespace DnsServerCore
 
                             if (node.State != ClusterNodeState.Self)
                             {
+                                //validate user session before proxying request
+                                if (!TryGetSession(context, out _))
+                                    throw new InvalidTokenWebServiceException("Invalid token or session expired.");
+
                                 //proxy request to the specified cluster node
                                 await node.ProxyRequest(context, additionalParameters);
                                 return;
