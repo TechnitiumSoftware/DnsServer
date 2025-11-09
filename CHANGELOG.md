@@ -1,5 +1,15 @@
 # Technitium DNS Server Change Log
 
+## Version 14.0.1
+Release Date: 9 November 2025
+
+- Fixed bugs in the Force Update Block List and Temporary Disable Blocking API calls.
+- Fixed session validation bypass bug during proxying request to another node when Clustering is enabled.
+- Fixed issue of failing to load app config due to text encoding issues.
+- Fixed issue of failure to load old config file versions due to validation failures in some cases.
+- Updated GUI docs for Cluster initialization and joining.
+- Other minor changes and improvements.
+
 ## Version 14.0
 Release Date: 8 November 2025
 
