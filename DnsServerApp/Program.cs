@@ -20,29 +20,38 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore;
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace DnsServerApp
 {
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
-            string configFolder = null;
+            bool throwIfBindFails = false;
+            string? configFolder = null;
 
-            if (args.Length == 1)
+            foreach (string arg in args)
             {
-                if (args[0] == "--icu-test")
+                switch (arg)
                 {
-                    _ = System.Globalization.CultureInfo.CurrentCulture;
-                    return;
-                }
+                    case "--icu-test":
+                        _ = System.Globalization.CultureInfo.CurrentCulture;
+                        return;
 
-                configFolder = args[0];
+                    case "--stop-if-bind-fails":
+                        throwIfBindFails = true;
+                        break;
+
+                    default:
+                        configFolder = arg;
+                        break;
+                }
             }
 
             ManualResetEvent waitHandle = new ManualResetEvent(false);
             ManualResetEvent exitHandle = new ManualResetEvent(false);
-            DnsWebService service = null;
+            DnsWebService? service = null;
 
             try
             {
@@ -59,16 +68,16 @@ namespace DnsServerApp
                         break;
                 }
 
-                service = new DnsWebService(configFolder, updateCheckUri, new Uri("https://go.technitium.com/?id=44"));
-                service.Start();
+                service = new DnsWebService(configFolder, updateCheckUri);
+                await service.StartAsync(throwIfBindFails);
 
-                Console.CancelKeyPress += delegate (object sender, ConsoleCancelEventArgs e)
+                Console.CancelKeyPress += delegate (object? sender, ConsoleCancelEventArgs e)
                 {
                     e.Cancel = true;
                     waitHandle.Set();
                 };
 
-                AppDomain.CurrentDomain.ProcessExit += delegate (object sender, EventArgs e)
+                AppDomain.CurrentDomain.ProcessExit += delegate (object? sender, EventArgs e)
                 {
                     waitHandle.Set();
                     exitHandle.WaitOne();
@@ -86,8 +95,7 @@ namespace DnsServerApp
             {
                 Console.WriteLine("\r\nTechnitium DNS Server is stopping...");
 
-                if (service != null)
-                    service.Dispose();
+                service?.Dispose();
 
                 Console.WriteLine("Technitium DNS Server was stopped successfully.");
                 exitHandle.Set();

@@ -67,6 +67,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QueryLogsSqlServerApp", "Ap
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QueryLogsMySqlApp", "Apps\QueryLogsMySqlApp\QueryLogsMySqlApp.csproj", "{699E2A1D-D917-4825-939E-65CDB2B16A96}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DnsServerCore.HttpApi", "DnsServerCore.HttpApi\DnsServerCore.HttpApi.csproj", "{1A49D371-D08C-475E-B7A2-6E8ECD181FD6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -197,6 +199,10 @@ Global
 		{699E2A1D-D917-4825-939E-65CDB2B16A96}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{699E2A1D-D917-4825-939E-65CDB2B16A96}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{699E2A1D-D917-4825-939E-65CDB2B16A96}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1A49D371-D08C-475E-B7A2-6E8ECD181FD6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1A49D371-D08C-475E-B7A2-6E8ECD181FD6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1A49D371-D08C-475E-B7A2-6E8ECD181FD6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1A49D371-D08C-475E-B7A2-6E8ECD181FD6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

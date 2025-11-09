@@ -151,6 +151,8 @@ function resolveQuery(importRecords) {
             return;
     }
 
+    var node = $("#optDnsClientClusterNode").val();
+
     var btn = $(importRecords ? "#btnDnsClientImport" : "#btnDnsClientResolve").button("loading");
     var btnOther = $(importRecords ? "#btnDnsClientResolve" : "#btnDnsClientImport").prop("disabled", true);
 
@@ -161,7 +163,7 @@ function resolveQuery(importRecords) {
     divDnsClientLoader.show();
 
     HTTPRequest({
-        url: "api/dnsClient/resolve?token=" + sessionData.token + "&server=" + encodeURIComponent(server) + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&protocol=" + protocol + "&dnssec=" + dnssecValidation + "&eDnsClientSubnet=" + encodeURIComponent(eDnsClientSubnet) + (importRecords ? "&import=true" : ""),
+        url: "api/dnsClient/resolve?token=" + sessionData.token + "&server=" + encodeURIComponent(server) + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&protocol=" + protocol + "&dnssec=" + dnssecValidation + "&eDnsClientSubnet=" + encodeURIComponent(eDnsClientSubnet) + (importRecords ? "&import=true" : "") + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             divDnsClientLoader.hide();
             btn.button("reset");
@@ -199,12 +201,12 @@ function resolveQuery(importRecords) {
         },
         error: function () {
             divDnsClientLoader.hide();
-            btn.button('reset');
+            btn.button("reset");
             btnOther.prop("disabled", false);
         },
         invalidToken: function () {
             divDnsClientLoader.hide();
-            btn.button('reset');
+            btn.button("reset");
             btnOther.prop("disabled", false);
             showPageLogin();
         },
@@ -222,10 +224,10 @@ function resolveQuery(importRecords) {
     });
 
     if (!containsServer)
-        $("#optDnsClientNameServers").prepend('<li><a href="#">' + htmlEncode(txtServerName) + '</a></li>');
+        $("#optDnsClientNameServers").prepend("<li><a href=\"#\">" + htmlEncode(txtServerName) + "</a></li>");
 }
 
-function queryDnsServer(domain, type) {
+function queryDnsServer(domain, type, node) {
     if (type == null)
         type = "A";
 
@@ -235,6 +237,9 @@ function queryDnsServer(domain, type) {
     $("#optDnsClientProtocol").val("UDP");
     $("#txtDnsClientEDnsClientSubnet").val("");
     $("#chkDnsClientDnssecValidation").prop("checked", false);
+
+    if (node != null)
+        $("#optDnsClientClusterNode").val(node);
 
     $("#mainPanelTabListDashboard").removeClass("active");
     $("#mainPanelTabPaneDashboard").removeClass("active");

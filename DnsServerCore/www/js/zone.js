@@ -23,7 +23,7 @@ var editZoneRecords;
 var editZoneFilteredRecords;
 
 $(function () {
-    $("input[type=radio][name=rdAddZoneType]").change(function () {
+    $("input[type=radio][name=rdAddZoneType]").on("change", function () {
         $("#txtAddZone").prop("disabled", false);
         $("#divAddZoneCatalogZone").hide();
         $("#divAddZoneInitializeForwarder").hide();
@@ -110,7 +110,7 @@ $(function () {
         }
     });
 
-    $("#chkAddZoneInitializeForwarder").click(function () {
+    $("#chkAddZoneInitializeForwarder").on("click", function () {
         var initializeForwarder = $("#chkAddZoneInitializeForwarder").prop("checked");
 
         if (initializeForwarder) {
@@ -130,7 +130,7 @@ $(function () {
         }
     });
 
-    $("input[type=radio][name=rdAddZoneForwarderProtocol]").change(function () {
+    $("input[type=radio][name=rdAddZoneForwarderProtocol]").on("change", function () {
         var protocol = $('input[name=rdAddZoneForwarderProtocol]:checked').val();
         switch (protocol) {
             case "Udp":
@@ -149,7 +149,7 @@ $(function () {
         }
     });
 
-    $("input[type=radio][name=rdAddZoneForwarderProxyType]").change(function () {
+    $("input[type=radio][name=rdAddZoneForwarderProxyType]").on("change", function () {
         var proxyType = $('input[name=rdAddZoneForwarderProxyType]:checked').val();
         var disabled = (proxyType === "NoProxy") || (proxyType === "DefaultProxy");
 
@@ -167,7 +167,7 @@ $(function () {
         editZoneFilteredRecords = null; //to evaluate filters again
     });
 
-    $("input[type=radio][name=rdImportZoneType]").change(function () {
+    $("input[type=radio][name=rdImportZoneType]").on("change", function () {
         var rdImportZoneType = $("input[name=rdImportZoneType]:checked").val();
         switch (rdImportZoneType) {
             case "File":
@@ -182,7 +182,7 @@ $(function () {
         }
     });
 
-    $("#optZoneOptionsCatalogZoneName").change(function () {
+    $("#optZoneOptionsCatalogZoneName").on("change", function () {
         var catalog = $("#optZoneOptionsCatalogZoneName").val();
         if (catalog === "") {
             $("#chkZoneOptionsCatalogOverrideQueryAccess").prop("checked", false);
@@ -230,7 +230,7 @@ $(function () {
         }
     });
 
-    $("#chkZoneOptionsCatalogOverrideQueryAccess").click(function () {
+    $("#chkZoneOptionsCatalogOverrideQueryAccess").on("click", function () {
         var checked = $("#chkZoneOptionsCatalogOverrideQueryAccess").prop("checked");
 
         if (checked)
@@ -239,7 +239,7 @@ $(function () {
             $("#tabListZoneOptionsQueryAccess").hide();
     });
 
-    $("#chkZoneOptionsCatalogOverrideZoneTransfer").click(function () {
+    $("#chkZoneOptionsCatalogOverrideZoneTransfer").on("click", function () {
         var checked = $("#chkZoneOptionsCatalogOverrideZoneTransfer").prop("checked");
 
         if (checked)
@@ -248,7 +248,7 @@ $(function () {
             $("#tabListZoneOptionsZoneTranfer").hide();
     });
 
-    $("#chkZoneOptionsCatalogOverrideNotify").click(function () {
+    $("#chkZoneOptionsCatalogOverrideNotify").on("click", function () {
         var checked = $("#chkZoneOptionsCatalogOverrideNotify").prop("checked");
 
         if (checked)
@@ -257,7 +257,7 @@ $(function () {
             $("#tabListZoneOptionsNotify").hide();
     });
 
-    $("input[type=radio][name=rdQueryAccess]").change(function () {
+    $("input[type=radio][name=rdQueryAccess]").on("change", function () {
         var queryAccess = $("input[name=rdQueryAccess]:checked").val();
         switch (queryAccess) {
             case "UseSpecifiedNetworkACL":
@@ -271,7 +271,7 @@ $(function () {
         }
     });
 
-    $("input[type=radio][name=rdZoneTransfer]").change(function () {
+    $("input[type=radio][name=rdZoneTransfer]").on("change", function () {
         var zoneTransfer = $('input[name=rdZoneTransfer]:checked').val();
         switch (zoneTransfer) {
             case "UseSpecifiedNetworkACL":
@@ -285,7 +285,7 @@ $(function () {
         }
     });
 
-    $("input[type=radio][name=rdZoneNotify]").change(function () {
+    $("input[type=radio][name=rdZoneNotify]").on("change", function () {
         var zoneNotify = $('input[name=rdZoneNotify]:checked').val();
         switch (zoneNotify) {
             case "SpecifiedNameServers":
@@ -306,7 +306,7 @@ $(function () {
         }
     });
 
-    $("input[type=radio][name=rdDynamicUpdate]").change(function () {
+    $("input[type=radio][name=rdDynamicUpdate]").on("change", function () {
         var dynamicUpdate = $('input[name=rdDynamicUpdate]:checked').val();
         switch (dynamicUpdate) {
             case "UseSpecifiedNetworkACL":
@@ -320,7 +320,7 @@ $(function () {
         }
     });
 
-    $("input[type=radio][name=rdDnssecSignZoneAlgorithm]").change(function () {
+    $("input[type=radio][name=rdDnssecSignZoneAlgorithm]").on("change", function () {
         var algorithm = $("input[name=rdDnssecSignZoneAlgorithm]:checked").val();
         switch (algorithm) {
             case "RSA":
@@ -360,7 +360,7 @@ $(function () {
         }
     });
 
-    $("input[type=radio][name=rdDnssecSignZoneKskGeneration]").change(function () {
+    $("input[type=radio][name=rdDnssecSignZoneKskGeneration]").on("change", function () {
         var rdDnssecSignZoneKskGeneration = $("input[name=rdDnssecSignZoneKskGeneration]:checked").val();
         switch (rdDnssecSignZoneKskGeneration) {
             case "Automatic":
@@ -381,7 +381,7 @@ $(function () {
         $("#txtDnssecSignZonePemKskPrivateKey").val("");
     });
 
-    $("input[type=radio][name=rdDnssecSignZoneZskGeneration]").change(function () {
+    $("input[type=radio][name=rdDnssecSignZoneZskGeneration]").on("change", function () {
         var rdDnssecSignZoneZskGeneration = $("input[name=rdDnssecSignZoneZskGeneration]:checked").val();
         switch (rdDnssecSignZoneZskGeneration) {
             case "Automatic":
@@ -404,7 +404,7 @@ $(function () {
         $("#txtDnssecSignZonePemZskPrivateKey").val("");
     });
 
-    $("input[type=radio][name=rdDnssecSignZoneNxProof]").change(function () {
+    $("input[type=radio][name=rdDnssecSignZoneNxProof]").on("change", function () {
         var nxProof = $("input[name=rdDnssecSignZoneNxProof]:checked").val();
         switch (nxProof) {
             case "NSEC":
@@ -417,7 +417,7 @@ $(function () {
         }
     });
 
-    $("#optDnssecPropertiesAddKeyKeyType").change(function () {
+    $("#optDnssecPropertiesAddKeyKeyType").on("change", function () {
         var keyType = $("#optDnssecPropertiesAddKeyKeyType").val();
         switch (keyType) {
             case "ZoneSigningKey":
@@ -437,7 +437,7 @@ $(function () {
         }
     });
 
-    $("#optDnssecPropertiesAddKeyAlgorithm").change(function () {
+    $("#optDnssecPropertiesAddKeyAlgorithm").on("change", function () {
         var algorithm = $("#optDnssecPropertiesAddKeyAlgorithm").val();
         switch (algorithm) {
             case "RSA":
@@ -470,7 +470,7 @@ $(function () {
         }
     });
 
-    $("input[type=radio][name=rdDnssecPropertiesKeyGeneration]").change(function () {
+    $("input[type=radio][name=rdDnssecPropertiesKeyGeneration]").on("change", function () {
         var rdDnssecPropertiesKeyGeneration = $("input[name=rdDnssecPropertiesKeyGeneration]:checked").val();
         switch (rdDnssecPropertiesKeyGeneration) {
             case "Automatic":
@@ -480,7 +480,13 @@ $(function () {
                     $("#divDnssecPropertiesAddKeyRsaKeySize").hide();
 
                 $("#divDnssecPropertiesPemPrivateKey").hide();
-                $("#txtDnssecPropertiesAddKeyAutomaticRollover").val(30);
+
+                var keyType = $("#optDnssecPropertiesAddKeyKeyType").val();
+                if (keyType == "ZoneSigningKey")
+                    $("#txtDnssecPropertiesAddKeyAutomaticRollover").val(30);
+                else
+                    $("#txtDnssecPropertiesAddKeyAutomaticRollover").val(0);
+
                 break;
 
             case "UseSpecified":
@@ -493,7 +499,7 @@ $(function () {
         $("#txtDnssecPropertiesPemPrivateKey").val("");
     });
 
-    $("input[type=radio][name=rdDnssecPropertiesNxProof]").change(function () {
+    $("input[type=radio][name=rdDnssecPropertiesNxProof]").on("change", function () {
         var nxProof = $("input[name=rdDnssecPropertiesNxProof]:checked").val();
         switch (nxProof) {
             case "NSEC":
@@ -506,12 +512,12 @@ $(function () {
         }
     });
 
-    $("#chkAddEditRecordDataPtr").click(function () {
+    $("#chkAddEditRecordDataPtr").on("click", function () {
         var addPtrRecord = $("#chkAddEditRecordDataPtr").prop('checked');
         $("#chkAddEditRecordDataCreatePtrZone").prop('disabled', !addPtrRecord);
     });
 
-    $("#chkAddEditRecordDataTxtSplitText").click(function () {
+    $("#chkAddEditRecordDataTxtSplitText").on("click", function () {
         var splitText = $("#chkAddEditRecordDataTxtSplitText").prop("checked");
         if (!splitText) {
             var text = $("#txtAddEditRecordDataTxt").val();
@@ -520,11 +526,11 @@ $(function () {
         }
     });
 
-    $("input[type=radio][name=rdAddEditRecordDataForwarderProtocol]").change(updateAddEditFormForwarderPlaceholder);
+    $("input[type=radio][name=rdAddEditRecordDataForwarderProtocol]").on("change", updateAddEditFormForwarderPlaceholder);
 
-    $("input[type=radio][name=rdAddEditRecordDataForwarderProxyType]").change(updateAddEditFormForwarderProxyType);
+    $("input[type=radio][name=rdAddEditRecordDataForwarderProxyType]").on("change", updateAddEditFormForwarderProxyType);
 
-    $("#optAddEditRecordDataAppName").change(function () {
+    $("#optAddEditRecordDataAppName").on("change", function () {
         if (appsList == null)
             return;
 
@@ -546,7 +552,7 @@ $(function () {
         $("#txtAddEditRecordDataData").val("");
     });
 
-    $("#optAddEditRecordDataClassPath").change(function () {
+    $("#optAddEditRecordDataClassPath").on("change", function () {
         if (appsList == null)
             return;
 
@@ -567,7 +573,7 @@ $(function () {
         $("#txtAddEditRecordDataData").val("");
     });
 
-    $("#optZoneOptionsQuickTsigKeyNames").change(function () {
+    $("#optZoneOptionsQuickTsigKeyNames").on("change", function () {
         var selectedOption = $("#optZoneOptionsQuickTsigKeyNames").val();
         switch (selectedOption) {
             case "blank":
@@ -589,7 +595,7 @@ $(function () {
         }
     });
 
-    $("#optZonesPerPage").change(function () {
+    $("#optZonesPerPage").on("change", function () {
         localStorage.setItem("optZonesPerPage", $("#optZonesPerPage").val());
     });
 
@@ -597,7 +603,7 @@ $(function () {
     if (optZonesPerPage != null)
         $("#optZonesPerPage").val(optZonesPerPage);
 
-    $("#optEditZoneRecordsPerPage").change(function () {
+    $("#optEditZoneRecordsPerPage").on("change", function () {
         localStorage.setItem("optEditZoneRecordsPerPage", $("#optEditZoneRecordsPerPage").val());
     });
 
@@ -605,7 +611,7 @@ $(function () {
     if (optEditZoneRecordsPerPage != null)
         $("#optEditZoneRecordsPerPage").val(optEditZoneRecordsPerPage);
 
-    $("#chkEditRecordDataSoaUseSerialDateScheme").click(function () {
+    $("#chkEditRecordDataSoaUseSerialDateScheme").on("click", function () {
         var useSerialDateScheme = $("#chkEditRecordDataSoaUseSerialDateScheme").prop("checked");
 
         $("#txtEditRecordDataSoaSerial").prop("disabled", useSerialDateScheme);
@@ -636,6 +642,8 @@ function refreshZones(checkDisplay, pageNumber) {
     if (zonesPerPage < 1)
         zonesPerPage = 10;
 
+    var node = $("#optZonesClusterNode").val();
+
     var divViewZonesLoader = $("#divViewZonesLoader");
     var divEditZone = $("#divEditZone");
 
@@ -644,7 +652,7 @@ function refreshZones(checkDisplay, pageNumber) {
     divViewZonesLoader.show();
 
     HTTPRequest({
-        url: "api/zones/list?token=" + sessionData.token + "&pageNumber=" + pageNumber + "&zonesPerPage=" + zonesPerPage,
+        url: "api/zones/list?token=" + sessionData.token + "&pageNumber=" + pageNumber + "&zonesPerPage=" + zonesPerPage + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             var zones = responseJSON.response.zones;
             var firstRowNumber = ((responseJSON.response.pageNumber - 1) * zonesPerPage) + 1;
@@ -687,7 +695,11 @@ function refreshZones(checkDisplay, pageNumber) {
                 switch (zones[i].dnssecStatus) {
                     case "SignedWithNSEC":
                     case "SignedWithNSEC3":
-                        dnssecStatus = "<span class=\"label label-default\">DNSSEC</span>";
+                        if (zones[i].hasDnssecPrivateKeys)
+                            dnssecStatus = "<span class=\"label label-primary\">DNSSEC</span>";
+                        else
+                            dnssecStatus = "<span class=\"label label-default\">DNSSEC</span>";
+
                         break;
                 }
 
@@ -777,9 +789,9 @@ function refreshZones(checkDisplay, pageNumber) {
                 tableHtmlRows += "<tr id=\"trZone" + id + "\"><td>" + (firstRowNumber + i) + "</td>";
 
                 if (zones[i].nameIdn == null)
-                    tableHtmlRows += "<td style=\"word-break: break-word; max-width: 390px;\"><a href=\"#\" onclick=\"showEditZone('" + name + "'); return false;\">" + htmlEncode(name === "." ? "<root>" : name) + "</a>" + nameTags + "</td>";
+                    tableHtmlRows += "<td style=\"word-break: break-word; max-width: 390px;\"><a href=\"#\" style=\"font-weight: bold;\" onclick=\"showEditZone('" + name + "'); return false;\">" + htmlEncode(name === "." ? "<root>" : name) + "</a>" + nameTags + "</td>";
                 else
-                    tableHtmlRows += "<td style=\"word-break: break-word; max-width: 390px;\"><a href=\"#\" onclick=\"showEditZone('" + name + "'); return false;\">" + htmlEncode(zones[i].nameIdn + " (" + name + ")") + "</a>" + nameTags + "</td>";
+                    tableHtmlRows += "<td style=\"word-break: break-word; max-width: 390px;\"><a href=\"#\" style=\"font-weight: bold;\" onclick=\"showEditZone('" + name + "'); return false;\">" + htmlEncode(zones[i].nameIdn + " (" + name + ")") + "</a>" + nameTags + "</td>";
 
                 tableHtmlRows += "<td>" + type + "</td>";
                 tableHtmlRows += "<td>" + dnssecStatus + "</td>";
@@ -823,6 +835,7 @@ function refreshZones(checkDisplay, pageNumber) {
                     case "Secondary":
                     case "SecondaryForwarder":
                     case "Forwarder":
+                    case "SecondaryCatalog":
                         tableHtmlRows += "<li><a href=\"#\" onclick=\"showConvertZoneModal('" + name + "', '" + zones[i].type + "'); return false;\">Convert Zone</a></li>";
                         break;
                 }
@@ -920,13 +933,15 @@ function enableZoneMenu(objMenuItem) {
     var id = mnuItem.attr("data-id");
     var zone = mnuItem.attr("data-zone");
 
+    var node = $("#optZonesClusterNode").val();
+
     var btn = $("#btnZoneRowOption" + id);
     var originalBtnHtml = btn.html();
     btn.prop("disabled", true);
     btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
-        url: "api/zones/enable?token=" + sessionData.token + "&zone=" + zone,
+        url: "api/zones/enable?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.prop("disabled", false);
             btn.html(originalBtnHtml);
@@ -951,11 +966,13 @@ function enableZoneMenu(objMenuItem) {
 function enableZone(objBtn) {
     var zone = $("#titleEditZone").attr("data-zone");
 
+    var node = $("#optZonesClusterNode").val();
+
     var btn = $(objBtn);
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/zones/enable?token=" + sessionData.token + "&zone=" + zone,
+        url: "api/zones/enable?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.button("reset");
 
@@ -985,13 +1002,15 @@ function disableZoneMenu(objMenuItem) {
     if (!confirm("Are you sure you want to disable the zone '" + zone + "'?"))
         return;
 
+    var node = $("#optZonesClusterNode").val();
+
     var btn = $("#btnZoneRowOption" + id);
     var originalBtnHtml = btn.html();
     btn.prop("disabled", true);
     btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
-        url: "api/zones/disable?token=" + sessionData.token + "&zone=" + zone,
+        url: "api/zones/disable?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.prop("disabled", false);
             btn.html(originalBtnHtml);
@@ -1019,11 +1038,13 @@ function disableZone(objBtn) {
     if (!confirm("Are you sure you want to disable the zone '" + zone + "'?"))
         return;
 
+    var node = $("#optZonesClusterNode").val();
+
     var btn = $(objBtn);
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/zones/disable?token=" + sessionData.token + "&zone=" + zone,
+        url: "api/zones/disable?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.button("reset");
 
@@ -1053,13 +1074,15 @@ function deleteZoneMenu(objMenuItem) {
     if (!confirm("Are you sure you want to permanently delete the zone '" + zone + "' and all its records?"))
         return;
 
+    var node = $("#optZonesClusterNode").val();
+
     var btn = $("#btnZoneRowOption" + id);
     var originalBtnHtml = btn.html();
     btn.prop("disabled", true);
     btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
-        url: "api/zones/delete?token=" + sessionData.token + "&zone=" + zone,
+        url: "api/zones/delete?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             refreshZones();
 
@@ -1081,11 +1104,13 @@ function deleteZone(objBtn) {
     if (!confirm("Are you sure you want to permanently delete the zone '" + zone + "' and all its records?"))
         return;
 
+    var node = $("#optZonesClusterNode").val();
+
     var btn = $(objBtn);
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/zones/delete?token=" + sessionData.token + "&zone=" + zone,
+        url: "api/zones/delete?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.button("reset");
             refreshZones();
@@ -1121,7 +1146,7 @@ function showImportZoneModal(zone) {
     $("#modalImportZone").modal("show");
 
     setTimeout(function () {
-        $("#txtImportZoneText").focus();
+        $("#txtImportZoneText").trigger("focus");
     }, 1000);
 }
 
@@ -1142,7 +1167,7 @@ function importZone() {
 
             if (fileImportZone[0].files.length === 0) {
                 showAlert("warning", "Missing!", "Please select a zone file to import.", divImportZoneAlert);
-                fileImportZone.focus();
+                fileImportZone.trigger("focus");
                 return;
             }
 
@@ -1157,10 +1182,13 @@ function importZone() {
             break;
     }
 
-    var btn = $("#btnImportZone").button("loading");
+    var node = $("#optZonesClusterNode").val();
+
+    var btn = $("#btnImportZone");
+    btn.button("loading");
 
     HTTPRequest({
-        url: "api/zones/import?token=" + sessionData.token + "&zone=" + zone + "&importType=" + importType + "&overwrite=" + overwrite + "&overwriteSoaSerial=" + overwriteSoaSerial,
+        url: "api/zones/import?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&overwrite=" + overwrite + "&overwriteSoaSerial=" + overwriteSoaSerial + "&node=" + encodeURIComponent(node),
         method: "POST",
         data: formData,
         contentType: contentType,
@@ -1185,7 +1213,9 @@ function importZone() {
 }
 
 function exportZone(zone) {
-    window.open("api/zones/export?token=" + sessionData.token + "&zone=" + zone, "_blank");
+    var node = $("#optZonesClusterNode").val();
+
+    window.open("api/zones/export?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&node=" + encodeURIComponent(node), "_blank");
 
     showAlert("success", "Zone Exported!", "Zone file was exported successfully.");
 }
@@ -1200,7 +1230,7 @@ function showCloneZoneModal(sourceZone) {
     $("#modalCloneZone").modal("show");
 
     setTimeout(function () {
-        $("#txtCloneZoneZoneName").focus();
+        $("#txtCloneZoneZoneName").trigger("focus");
     }, 1000);
 }
 
@@ -1212,15 +1242,17 @@ function cloneZone(objBtn) {
     var zone = $("#txtCloneZoneZoneName").val();
     if ((zone == null) || (zone === "")) {
         showAlert("warning", "Missing!", "Please enter a domain name for the new zone.", divCloneZoneAlert);
-        $("#txtCloneZoneZoneName").focus();
+        $("#txtCloneZoneZoneName").trigger("focus");
         return;
     }
+
+    var node = $("#optZonesClusterNode").val();
 
     var btn = $(objBtn);
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/zones/clone?token=" + sessionData.token + "&zone=" + zone + "&sourceZone=" + sourceZone,
+        url: "api/zones/clone?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&sourceZone=" + encodeURIComponent(sourceZone) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.button("reset");
             $("#modalCloneZone").modal("hide");
@@ -1254,6 +1286,7 @@ function showConvertZoneModal(zone, type) {
         case "Primary":
             $("#rdConvertZoneToTypePrimary").attr("disabled", true);
             $("#rdConvertZoneToTypeForwarder").attr("disabled", false);
+            $("#rdConvertZoneToTypeCatalog").attr("disabled", true);
 
             $("#rdConvertZoneToTypeForwarder").prop("checked", true);
             break;
@@ -1262,6 +1295,7 @@ function showConvertZoneModal(zone, type) {
         case "SecondaryForwarder":
             $("#rdConvertZoneToTypePrimary").attr("disabled", false);
             $("#rdConvertZoneToTypeForwarder").attr("disabled", false);
+            $("#rdConvertZoneToTypeCatalog").attr("disabled", true);
 
             $("#rdConvertZoneToTypePrimary").prop("checked", true);
             break;
@@ -1269,16 +1303,27 @@ function showConvertZoneModal(zone, type) {
         case "Forwarder":
             $("#rdConvertZoneToTypePrimary").attr("disabled", false);
             $("#rdConvertZoneToTypeForwarder").attr("disabled", true);
+            $("#rdConvertZoneToTypeCatalog").attr("disabled", true);
 
             $("#rdConvertZoneToTypePrimary").prop("checked", true);
+            break;
+
+        case "SecondaryCatalog":
+            $("#rdConvertZoneToTypePrimary").attr("disabled", true);
+            $("#rdConvertZoneToTypeForwarder").attr("disabled", true);
+            $("#rdConvertZoneToTypeCatalog").attr("disabled", false);
+
+            $("#rdConvertZoneToTypeCatalog").prop("checked", true);
             break;
 
         default:
             $("#rdConvertZoneToTypePrimary").attr("disabled", true);
             $("#rdConvertZoneToTypeForwarder").attr("disabled", true);
+            $("#rdConvertZoneToTypeCatalog").attr("disabled", true);
 
             $("#rdConvertZoneToTypePrimary").prop("checked", false);
             $("#rdConvertZoneToTypeForwarder").prop("checked", false);
+            $("#rdConvertZoneToTypeCatalog").prop("checked", false);
             break;
     }
 
@@ -1291,11 +1336,13 @@ function convertZone(objBtn) {
     var zone = $("#lblConvertZoneZoneName").attr("data-zone");
     var type = $("input[name=rdConvertZoneToType]:checked").val();
 
+    var node = $("#optZonesClusterNode").val();
+
     var btn = $(objBtn);
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/zones/convert?token=" + sessionData.token + "&zone=" + zone + "&type=" + type,
+        url: "api/zones/convert?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&type=" + type + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.button("reset");
             $("#modalConvertZone").modal("hide");
@@ -1373,10 +1420,12 @@ function showZoneOptionsModal(zone) {
     divZoneOptionsLoader.show();
     divZoneOptions.hide();
 
+    var node = $("#optZonesClusterNode").val();
+
     $("#modalZoneOptions").modal("show");
 
     HTTPRequest({
-        url: "api/zones/options/get?token=" + sessionData.token + "&zone=" + zone + "&includeAvailableCatalogZoneNames=true&includeAvailableTsigKeyNames=true",
+        url: "api/zones/options/get?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&includeAvailableCatalogZoneNames=true&includeAvailableTsigKeyNames=true" + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             $("#optZoneOptionsCatalogZoneName").html("");
 
@@ -2224,7 +2273,7 @@ function saveZoneOptions() {
         case "SecondaryCatalog":
             if ((primaryNameServerAddresses.length === 0) || (primaryNameServerAddresses === ",")) {
                 showAlert("warning", "Missing!", "Please enter at least one primary name server address to proceed.", divZoneOptionsAlert);
-                $("#txtZoneOptionsPrimaryNameServerAddresses").focus();
+                $("#txtZoneOptionsPrimaryNameServerAddresses").trigger("focus");
                 return;
             }
 
@@ -2291,17 +2340,20 @@ function saveZoneOptions() {
     if (updateSecurityPolicies.length === 0)
         updateSecurityPolicies = false;
 
+    var node = $("#optZonesClusterNode").val();
+
     var btn = $("#btnSaveZoneOptions");
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/zones/options/set?token=" + sessionData.token + "&zone=" + zone
+        url: "api/zones/options/set?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone)
             + "&catalog=" + encodeURIComponent(catalog) + "&overrideCatalogQueryAccess=" + overrideCatalogQueryAccess + "&overrideCatalogZoneTransfer=" + overrideCatalogZoneTransfer + "&overrideCatalogNotify=" + overrideCatalogNotify
             + "&primaryNameServerAddresses=" + encodeURIComponent(primaryNameServerAddresses) + "&primaryZoneTransferProtocol=" + primaryZoneTransferProtocol + "&primaryZoneTransferTsigKeyName=" + encodeURIComponent(primaryZoneTransferTsigKeyName) + "&validateZone=" + validateZone
             + "&queryAccess=" + queryAccess + "&queryAccessNetworkACL=" + encodeURIComponent(queryAccessNetworkACL)
             + "&zoneTransfer=" + zoneTransfer + "&zoneTransferNetworkACL=" + encodeURIComponent(zoneTransferNetworkACL) + "&zoneTransferTsigKeyNames=" + encodeURIComponent(zoneTransferTsigKeyNames)
             + "&notify=" + notify + "&notifyNameServers=" + encodeURIComponent(notifyNameServers) + "&notifySecondaryCatalogsNameServers=" + encodeURIComponent(notifySecondaryCatalogsNameServers)
-            + "&update=" + update + "&updateNetworkACL=" + encodeURIComponent(updateNetworkACL) + "&updateSecurityPolicies=" + encodeURIComponent(updateSecurityPolicies),
+            + "&update=" + update + "&updateNetworkACL=" + encodeURIComponent(updateNetworkACL) + "&updateSecurityPolicies=" + encodeURIComponent(updateSecurityPolicies)
+            + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.button("reset");
             $("#modalZoneOptions").modal("hide");
@@ -2316,6 +2368,7 @@ function saveZoneOptions() {
                     default:
                         if ((catalog == null) || (catalog == "")) {
                             $("#titleEditZoneCatalog").hide();
+                            $("#titleEditZoneCatalog").text("");
                         }
                         else {
                             $("#titleEditZoneCatalog").attr("class", "label label-default");
@@ -2376,11 +2429,13 @@ function showZonePermissionsModal(zone) {
     btnEditPermissionsSave.attr("onclick", "saveZonePermissions(this); return false;");
     btnEditPermissionsSave.show();
 
+    var node = $("#optZonesClusterNode").val();
+
     var modalEditPermissions = $("#modalEditPermissions");
     modalEditPermissions.modal("show");
 
     HTTPRequest({
-        url: "api/zones/permissions/get?token=" + sessionData.token + "&zone=" + htmlEncode(zone) + "&includeUsersAndGroups=true",
+        url: "api/zones/permissions/get?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&includeUsersAndGroups=true" + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             $("#lblEditPermissionsName").text(responseJSON.response.section + " / " + (responseJSON.response.subItem == "." ? "<root>" : responseJSON.response.subItem));
 
@@ -2438,12 +2493,14 @@ function saveZonePermissions(objBtn) {
     var userPermissions = serializeTableData($("#tableEditPermissionsUser"), 4);
     var groupPermissions = serializeTableData($("#tableEditPermissionsGroup"), 4);
 
+    var node = $("#optZonesClusterNode").val();
+
     var apiUrl = "api/zones/permissions/set?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&userPermissions=" + encodeURIComponent(userPermissions) + "&groupPermissions=" + encodeURIComponent(groupPermissions);
 
     btn.button("loading");
 
     HTTPRequest({
-        url: apiUrl,
+        url: apiUrl + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.button("reset");
             $("#modalEditPermissions").modal("hide");
@@ -2478,13 +2535,15 @@ function resyncZoneMenu(objMenuItem) {
             return;
     }
 
+    var node = $("#optZonesClusterNode").val();
+
     var btn = $("#btnZoneRowOption" + id);
     var originalBtnHtml = btn.html();
     btn.prop("disabled", true);
     btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
-        url: "api/zones/resync?token=" + sessionData.token + "&zone=" + zone,
+        url: "api/zones/resync?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.prop("disabled", false);
             btn.html(originalBtnHtml);
@@ -2511,11 +2570,13 @@ function resyncZone(objBtn, zone) {
             return;
     }
 
+    var node = $("#optZonesClusterNode").val();
+
     var btn = $(objBtn);
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/zones/resync?token=" + sessionData.token + "&zone=" + zone,
+        url: "api/zones/resync?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.button("reset");
             showAlert("success", "Resync Triggered!", "Zone '" + zone + "' resync was triggered successfully. Please check the Logs for confirmation.");
@@ -2578,10 +2639,15 @@ function showAddZoneModal() {
     $("#modalAddZone").modal("show");
 
     setTimeout(function () {
-        $("#txtAddZone").focus();
+        $("#txtAddZone").trigger("focus");
     }, 1000);
 
-    loadCatalogZoneNames($("#optAddZoneCatalogZoneName"), null, $("#divAddZoneAlert"), $("#divAddZoneCatalogZone"));
+    var currentValue = null;
+
+    if (sessionData.info.clusterInitialized)
+        currentValue = "cluster-catalog." + sessionData.info.clusterDomain;
+
+    loadCatalogZoneNames($("#optAddZoneCatalogZoneName"), currentValue, $("#divAddZoneAlert"), $("#divAddZoneCatalogZone"));
 }
 
 function loadCatalogZoneNames(jqDropDown, currentValue, divAlertPlaceholder, divCatalogZone) {
@@ -2599,8 +2665,10 @@ function loadCatalogZoneNames(jqDropDown, currentValue, divAlertPlaceholder, div
         jqDropDown.val(currentValue);
     }
 
+    var node = $("#optZonesClusterNode").val();
+
     HTTPRequest({
-        url: "api/zones/catalogs/list?token=" + sessionData.token,
+        url: "api/zones/catalogs/list?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             loadCatalogZoneNamesFrom(responseJSON.response.catalogZoneNames, jqDropDown, currentValue);
 
@@ -2649,8 +2717,10 @@ function loadTsigKeyNames(jqDropDown, currentValue, divAlertPlaceholder) {
         jqDropDown.val(currentValue);
     }
 
+    var node = $("#optZonesClusterNode").val();
+
     HTTPRequest({
-        url: "api/settings/getTsigKeyNames?token=" + sessionData.token,
+        url: "api/settings/getTsigKeyNames?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             loadTsigKeyNamesFrom(responseJSON.response.tsigKeyNames, jqDropDown, currentValue);
         },
@@ -2710,7 +2780,7 @@ function addZone() {
 
     if ((zone == null) || (zone === "")) {
         showAlert("warning", "Missing!", "Please enter a domain name to add zone.", divAddZoneAlert);
-        $("#txtAddZone").focus();
+        $("#txtAddZone").trigger("focus");
         return;
     }
 
@@ -2749,7 +2819,7 @@ function addZone() {
                 var forwarder = $("#txtAddZoneForwarder").val();
                 if ((forwarder == null) || (forwarder === "")) {
                     showAlert("warning", "Missing!", "Please enter a forwarder server address to add zone.", divAddZoneAlert);
-                    $("#txtAddZoneForwarder").focus();
+                    $("#txtAddZoneForwarder").trigger("focus");
                     return;
                 }
 
@@ -2772,13 +2842,13 @@ function addZone() {
 
                             if ((proxyAddress == null) || (proxyAddress === "")) {
                                 showAlert("warning", "Missing!", "Please enter a domain name or IP address for Proxy Server Address to add zone.", divAddZoneAlert);
-                                $("#txtAddZoneForwarderProxyAddress").focus();
+                                $("#txtAddZoneForwarderProxyAddress").trigger("focus");
                                 return;
                             }
 
                             if ((proxyPort == null) || (proxyPort === "")) {
                                 showAlert("warning", "Missing!", "Please enter a port number for Proxy Server Port to add zone.", divAddZoneAlert);
-                                $("#txtAddZoneForwarderProxyPort").focus();
+                                $("#txtAddZoneForwarderProxyPort").trigger("focus");
                                 return;
                             }
 
@@ -2799,7 +2869,7 @@ function addZone() {
             var primaryNameServerAddresses = cleanTextList($("#txtAddZonePrimaryNameServerAddresses").val());
             if ((primaryNameServerAddresses.length === 0) || (primaryNameServerAddresses === ",")) {
                 showAlert("warning", "Missing!", "Please enter at least one primary name server address to proceed.", divAddZoneAlert);
-                $("#txtAddZonePrimaryNameServerAddresses").focus();
+                $("#txtAddZonePrimaryNameServerAddresses").trigger("focus");
                 return;
             }
 
@@ -2834,10 +2904,13 @@ function addZone() {
             break;
     }
 
-    var btn = $("#btnAddZone").button('loading');
+    var node = $("#optZonesClusterNode").val();
+
+    var btn = $("#btnAddZone");
+    btn.button("loading");
 
     HTTPRequest({
-        url: "api/zones/create?token=" + sessionData.token + "&zone=" + zone + "&type=" + type + parameters,
+        url: "api/zones/create?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&type=" + type + parameters + "&node=" + encodeURIComponent(node),
         method: "POST",
         data: formData,
         contentType: false,
@@ -2864,18 +2937,26 @@ function toggleHideDnssecRecords(hideDnssecRecords) {
     showEditZone($("#titleEditZone").attr("data-zone"));
 }
 
-function showEditZone(zone, showPageNumber) {
+function showEditZone(zone, showPageNumber, zoneFilterName, zoneFilterType) {
     if (zone == null) {
         zone = $("#txtZonesEdit").val();
         if (zone === "") {
             showAlert("warning", "Missing!", "Please enter a zone name to start editing.");
-            $("#txtZonesEdit").focus();
+            $("#txtZonesEdit").trigger("focus");
             return;
         }
     }
 
     if (showPageNumber == null)
         showPageNumber = 1;
+
+    if (zoneFilterName == null)
+        zoneFilterName = "";
+
+    if (zoneFilterType == null)
+        zoneFilterType = "";
+
+    var node = $("#optZonesClusterNode").val();
 
     var divViewZonesLoader = $("#divViewZonesLoader");
     var divViewZones = $("#divViewZones");
@@ -2886,7 +2967,7 @@ function showEditZone(zone, showPageNumber) {
     divViewZonesLoader.show();
 
     HTTPRequest({
-        url: "api/zones/records/get?token=" + sessionData.token + "&domain=" + zone + "&zone=" + zone + "&listZone=true",
+        url: "api/zones/records/get?token=" + sessionData.token + "&domain=" + encodeURIComponent(zone) + "&zone=" + encodeURIComponent(zone) + "&listZone=true" + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             zone = responseJSON.response.zone.name;
             if (zone === "")
@@ -2901,6 +2982,13 @@ function showEditZone(zone, showPageNumber) {
             switch (responseJSON.response.zone.dnssecStatus) {
                 case "SignedWithNSEC":
                 case "SignedWithNSEC3":
+                    $("#titleEditZoneDnssecStatus").removeClass();
+
+                    if (responseJSON.response.zone.hasDnssecPrivateKeys)
+                        $("#titleEditZoneDnssecStatus").addClass("label label-primary");
+                    else
+                        $("#titleEditZoneDnssecStatus").addClass("label label-default");
+
                     $("#titleEditZoneDnssecStatus").show();
                     break;
 
@@ -2939,6 +3027,7 @@ function showEditZone(zone, showPageNumber) {
 
                     default:
                         $("#titleEditZoneCatalog").hide();
+                        $("#titleEditZoneCatalog").text("");
                         break;
                 }
             }
@@ -3104,6 +3193,7 @@ function showEditZone(zone, showPageNumber) {
                 case "Secondary":
                 case "SecondaryForwarder":
                 case "Forwarder":
+                case "SecondaryCatalog":
                     $("#lnkZoneConvert").show();
                     break;
 
@@ -3249,6 +3339,8 @@ function showEditZone(zone, showPageNumber) {
                 }
             }
 
+            $("#optEditZoneClusterNode").val(node);
+
             if (responseJSON.response.zone.nameIdn == null)
                 $("#titleEditZone").text(zone === "." ? "<root>" : zone);
             else
@@ -3257,8 +3349,8 @@ function showEditZone(zone, showPageNumber) {
             $("#titleEditZone").attr("data-zone", zone);
             $("#titleEditZone").attr("data-zone-type", zoneType);
 
-            $("#txtEditZoneFilterName").val("");
-            $("#txtEditZoneFilterType").val("");
+            $("#txtEditZoneFilterName").val(zoneFilterName);
+            $("#txtEditZoneFilterType").val(zoneFilterType);
             editZoneFilteredRecords = null; //to evaluate filters again
 
             showEditZonePage(showPageNumber);
@@ -3336,10 +3428,10 @@ function showEditZonePage(pageNumber) {
 
             for (var i = 0; i < editZoneRecords.length; i++) {
                 if (filterRegex == null) {
-                    if ((filterDomain != null) && (editZoneRecords[i].name !== filterDomain))
+                    if ((filterDomain != null) && (editZoneRecords[i].name.toLowerCase() !== filterDomain))
                         continue;
                 }
-                else if (!filterRegex.test(editZoneRecords[i].name)) {
+                else if (!filterRegex.test(editZoneRecords[i].name.toLowerCase())) {
                     continue;
                 }
 
@@ -4042,13 +4134,14 @@ function clearAddEditRecordForm() {
     $("#txtAddEditRecordDataValue").val("");
     $("#divAddEditRecordDataPtr").show();
     $("#chkAddEditRecordDataPtr").prop("checked", false);
-    $("#chkAddEditRecordDataCreatePtrZone").prop('disabled', true);
+    $("#chkAddEditRecordDataCreatePtrZone").prop("disabled", true);
     $("#chkAddEditRecordDataCreatePtrZone").prop("checked", false);
     $("#chkAddEditRecordDataPtrLabel").text("Add reverse (PTR) record");
 
     $("#divAddEditRecordDataNs").hide();
     $("#txtAddEditRecordDataNsNameServer").prop("disabled", false);
     $("#txtAddEditRecordDataNsNameServer").val("");
+    $("#txtAddEditRecordDataNsGlue").prop("disabled", false);
     $("#txtAddEditRecordDataNsGlue").val("");
 
     $("#divEditRecordDataSoa").hide();
@@ -4125,9 +4218,9 @@ function clearAddEditRecordForm() {
 
     $("#divAddEditRecordDataForwarder").hide();
     $("#rdAddEditRecordDataForwarderProtocolUdp").prop("checked", true);
-    $("input[name=rdAddEditRecordDataForwarderProtocol]:radio").attr('disabled', false);
+    $("input[name=rdAddEditRecordDataForwarderProtocol]:radio").attr("disabled", false);
     $("#chkAddEditRecordDataForwarderThisServer").prop("checked", false);
-    $('#txtAddEditRecordDataForwarder').prop('disabled', false);
+    $('#txtAddEditRecordDataForwarder').prop("disabled", false);
     $("#txtAddEditRecordDataForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
     $("#txtAddEditRecordDataForwarder").val("");
     $("#txtAddEditRecordDataForwarderPriority").val("");
@@ -4144,9 +4237,9 @@ function clearAddEditRecordForm() {
 
     $("#divAddEditRecordDataApplication").hide();
     $("#optAddEditRecordDataAppName").html("");
-    $("#optAddEditRecordDataAppName").attr('disabled', false);
+    $("#optAddEditRecordDataAppName").prop("disabled", false);
     $("#optAddEditRecordDataClassPath").html("");
-    $("#optAddEditRecordDataClassPath").attr('disabled', false);
+    $("#optAddEditRecordDataClassPath").prop("disabled", false);
     $("#txtAddEditRecordDataData").val("");
 
     $("#divAddEditRecordOverwrite").show();
@@ -4155,6 +4248,7 @@ function clearAddEditRecordForm() {
     $("#txtAddEditRecordComments").val("");
 
     $("#divAddEditRecordExpiryTtl").show();
+    $("#txtAddEditRecordExpiryTtl").prop("disabled", false);
     $("#txtAddEditRecordExpiryTtl").val("");
 
     $("#btnAddEditRecord").button("reset");
@@ -4184,7 +4278,7 @@ function showAddRecordModal() {
     $("#modalAddEditRecord").modal("show");
 
     setTimeout(function () {
-        $("#txtAddEditRecordName").focus();
+        $("#txtAddEditRecordName").trigger("focus");
     }, 1000);
 }
 
@@ -4204,8 +4298,10 @@ function loadAddRecordModalAppNames() {
     optAddEditRecordDataClassPath.html("");
     txtAddEditRecordDataData.val("");
 
+    var node = $("#optZonesClusterNode").val();
+
     HTTPRequest({
-        url: "api/apps/list?token=" + sessionData.token,
+        url: "api/apps/list?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             appsList = responseJSON.response.apps;
 
@@ -4498,7 +4594,7 @@ function addRecord() {
             var ipAddress = $("#txtAddEditRecordDataValue").val();
             if (ipAddress === "") {
                 showAlert("warning", "Missing!", "Please enter an IP address to add the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataValue").focus();
+                $("#txtAddEditRecordDataValue").trigger("focus");
                 return;
             }
 
@@ -4511,7 +4607,7 @@ function addRecord() {
             var nameServer = $("#txtAddEditRecordDataNsNameServer").val();
             if (nameServer === "") {
                 showAlert("warning", "Missing!", "Please enter a name server to add the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataNsNameServer").focus();
+                $("#txtAddEditRecordDataNsNameServer").trigger("focus");
                 return;
             }
 
@@ -4524,14 +4620,14 @@ function addRecord() {
             var subDomainName = $("#txtAddEditRecordName").val();
             if ((subDomainName === "") || (subDomainName === "@")) {
                 showAlert("warning", "Missing!", "Please enter a name for the CNAME record since DNS protocol does not allow CNAME at zone's apex. If you need CNAME like function at the zone's apex then use ANAME record instead.", divAddEditRecordAlert);
-                $("#txtAddEditRecordName").focus();
+                $("#txtAddEditRecordName").trigger("focus");
                 return;
             }
 
             var cname = $("#txtAddEditRecordDataValue").val();
             if (cname === "") {
                 showAlert("warning", "Missing!", "Please enter a domain name to add the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataValue").focus();
+                $("#txtAddEditRecordDataValue").trigger("focus");
                 return;
             }
 
@@ -4542,7 +4638,7 @@ function addRecord() {
             var ptrName = $("#txtAddEditRecordDataValue").val();
             if (ptrName === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable value to add the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataValue").focus();
+                $("#txtAddEditRecordDataValue").trigger("focus");
                 return;
             }
 
@@ -4557,7 +4653,7 @@ function addRecord() {
             var exchange = $("#txtAddEditRecordDataMxExchange").val();
             if (exchange === "") {
                 showAlert("warning", "Missing!", "Please enter a mail exchange domain name to add the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataMxExchange").focus();
+                $("#txtAddEditRecordDataMxExchange").trigger("focus");
                 return;
             }
 
@@ -4568,7 +4664,7 @@ function addRecord() {
             var text = $("#txtAddEditRecordDataTxt").val();
             if (text === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable value to add the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataTxt").focus();
+                $("#txtAddEditRecordDataTxt").trigger("focus");
                 return;
             }
 
@@ -4592,35 +4688,35 @@ function addRecord() {
         case "SRV":
             if ($("#txtAddEditRecordName").val() === "") {
                 showAlert("warning", "Missing!", "Please enter a name that includes service and protocol labels.", divAddEditRecordAlert);
-                $("#txtAddEditRecordName").focus();
+                $("#txtAddEditRecordName").trigger("focus");
                 return;
             }
 
             var priority = $("#txtAddEditRecordDataSrvPriority").val();
             if (priority === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable priority.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataSrvPriority").focus();
+                $("#txtAddEditRecordDataSrvPriority").trigger("focus");
                 return;
             }
 
             var weight = $("#txtAddEditRecordDataSrvWeight").val();
             if (weight === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable weight.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataSrvWeight").focus();
+                $("#txtAddEditRecordDataSrvWeight").trigger("focus");
                 return;
             }
 
             var port = $("#txtAddEditRecordDataSrvPort").val();
             if (port === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable port number.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataSrvPort").focus();
+                $("#txtAddEditRecordDataSrvPort").trigger("focus");
                 return;
             }
 
             var target = $("#txtAddEditRecordDataSrvTarget").val();
             if (target === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable value into the target field.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataSrvTarget").focus();
+                $("#txtAddEditRecordDataSrvTarget").trigger("focus");
                 return;
             }
 
@@ -4631,14 +4727,14 @@ function addRecord() {
             var order = $("#txtAddEditRecordDataNaptrOrder").val();
             if (order === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable order.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataNaptrOrder").focus();
+                $("#txtAddEditRecordDataNaptrOrder").trigger("focus");
                 return;
             }
 
             var preference = $("#txtAddEditRecordDataNaptrPreference").val();
             if (preference === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable preference.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataNaptrPreference").focus();
+                $("#txtAddEditRecordDataNaptrPreference").trigger("focus");
                 return;
             }
 
@@ -4654,7 +4750,7 @@ function addRecord() {
             var dname = $("#txtAddEditRecordDataValue").val();
             if (dname === "") {
                 showAlert("warning", "Missing!", "Please enter a domain name to add the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataValue").focus();
+                $("#txtAddEditRecordDataValue").trigger("focus");
                 return;
             }
 
@@ -4665,35 +4761,35 @@ function addRecord() {
             var subDomainName = $("#txtAddEditRecordName").val();
             if ((subDomainName === "") || (subDomainName === "@")) {
                 showAlert("warning", "Missing!", "Please enter a name for the DS record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordName").focus();
+                $("#txtAddEditRecordName").trigger("focus");
                 return;
             }
 
             var keyTag = $("#txtAddEditRecordDataDsKeyTag").val();
             if (keyTag === "") {
                 showAlert("warning", "Missing!", "Please enter the Key Tag value to add the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataDsKeyTag").focus();
+                $("#txtAddEditRecordDataDsKeyTag").trigger("focus");
                 return;
             }
 
             var algorithm = $("#optAddEditRecordDataDsAlgorithm").val();
             if ((algorithm === null) || (algorithm === "")) {
                 showAlert("warning", "Missing!", "Please select an DNSSEC algorithm to add the record.", divAddEditRecordAlert);
-                $("#optAddEditRecordDataDsAlgorithm").focus();
+                $("#optAddEditRecordDataDsAlgorithm").trigger("focus");
                 return;
             }
 
             var digestType = $("#optAddEditRecordDataDsDigestType").val();
             if ((digestType === null) || (digestType === "")) {
                 showAlert("warning", "Missing!", "Please select a Digest Type to add the record.", divAddEditRecordAlert);
-                $("#optAddEditRecordDataDsDigestType").focus();
+                $("#optAddEditRecordDataDsDigestType").trigger("focus");
                 return;
             }
 
             var digest = $("#txtAddEditRecordDataDsDigest").val();
             if (digest === "") {
                 showAlert("warning", "Missing!", "Please enter the Digest hash in hex string format to add the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataDsDigest").focus();
+                $("#txtAddEditRecordDataDsDigest").trigger("focus");
                 return;
             }
 
@@ -4704,21 +4800,21 @@ function addRecord() {
             var sshfpAlgorithm = $("#optAddEditRecordDataSshfpAlgorithm").val();
             if ((sshfpAlgorithm === null) || (sshfpAlgorithm === "")) {
                 showAlert("warning", "Missing!", "Please select an Algorithm to add the record.", divAddEditRecordAlert);
-                $("#optAddEditRecordDataSshfpAlgorithm").focus();
+                $("#optAddEditRecordDataSshfpAlgorithm").trigger("focus");
                 return;
             }
 
             var sshfpFingerprintType = $("#optAddEditRecordDataSshfpFingerprintType").val();
             if ((sshfpFingerprintType === null) || (sshfpFingerprintType === "")) {
                 showAlert("warning", "Missing!", "Please select a Fingerprint Type to add the record.", divAddEditRecordAlert);
-                $("#optAddEditRecordDataSshfpFingerprintType").focus();
+                $("#optAddEditRecordDataSshfpFingerprintType").trigger("focus");
                 return;
             }
 
             var sshfpFingerprint = $("#txtAddEditRecordDataSshfpFingerprint").val();
             if (sshfpFingerprint === "") {
                 showAlert("warning", "Missing!", "Please enter the Fingerprint hash in hex string format to add the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataSshfpFingerprint").focus();
+                $("#txtAddEditRecordDataSshfpFingerprint").trigger("focus");
                 return;
             }
 
@@ -4729,34 +4825,34 @@ function addRecord() {
             var tlsaCertificateUsage = $("#optAddEditRecordDataTlsaCertificateUsage").val();
             if ((tlsaCertificateUsage === null) || (tlsaCertificateUsage === "")) {
                 showAlert("warning", "Missing!", "Please select a Certificate Usage to add the record.", divAddEditRecordAlert);
-                $("#optAddEditRecordDataTlsaCertificateUsage").focus();
+                $("#optAddEditRecordDataTlsaCertificateUsage").trigger("focus");
                 return;
             }
 
             var tlsaSelector = $("#optAddEditRecordDataTlsaSelector").val();
             if ((tlsaSelector === null) || (tlsaSelector === "")) {
                 showAlert("warning", "Missing!", "Please select a Selector to add the record.", divAddEditRecordAlert);
-                $("#optAddEditRecordDataTlsaSelector").focus();
+                $("#optAddEditRecordDataTlsaSelector").trigger("focus");
                 return;
             }
 
             var tlsaMatchingType = $("#optAddEditRecordDataTlsaMatchingType").val();
             if ((tlsaMatchingType === null) || (tlsaMatchingType === "")) {
                 showAlert("warning", "Missing!", "Please select a Matching Type to add the record.", divAddEditRecordAlert);
-                $("#optAddEditRecordDataTlsaMatchingType").focus();
+                $("#optAddEditRecordDataTlsaMatchingType").trigger("focus");
                 return;
             }
 
             var tlsaCertificateAssociationData = $("#txtAddEditRecordDataTlsaCertificateAssociationData").val();
             if (tlsaCertificateAssociationData === "") {
                 showAlert("warning", "Missing!", "Please enter the Certificate Association Data to add the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataTlsaCertificateAssociationData").focus();
+                $("#txtAddEditRecordDataTlsaCertificateAssociationData").trigger("focus");
                 return;
             }
 
             if ((tlsaMatchingType === "Full") && !tlsaCertificateAssociationData.startsWith("-")) {
                 showAlert("warning", "Missing!", "Please enter a complete certificate in PEM format as the Certificate Association Data to add the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataTlsaCertificateAssociationData").focus();
+                $("#txtAddEditRecordDataTlsaCertificateAssociationData").trigger("focus");
                 return;
             }
 
@@ -4768,14 +4864,14 @@ function addRecord() {
             var svcPriority = $("#txtAddEditRecordDataSvcbPriority").val();
             if ((svcPriority === null) || (svcPriority === "")) {
                 showAlert("warning", "Missing!", "Please enter a Priority value to add the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataSvcbPriority").focus();
+                $("#txtAddEditRecordDataSvcbPriority").trigger("focus");
                 return;
             }
 
             var svcTargetName = $("#txtAddEditRecordDataSvcbTargetName").val();
             if ((svcTargetName === null) || (svcTargetName === "")) {
                 showAlert("warning", "Missing!", "Please enter a Target Name to add the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataSvcbTargetName").focus();
+                $("#txtAddEditRecordDataSvcbTargetName").trigger("focus");
                 return;
             }
 
@@ -4796,21 +4892,21 @@ function addRecord() {
             var uriPriority = $("#txtAddEditRecordDataUriPriority").val();
             if (uriPriority === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable priority.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataUriPriority").focus();
+                $("#txtAddEditRecordDataUriPriority").trigger("focus");
                 return;
             }
 
             var uriWeight = $("#txtAddEditRecordDataUriWeight").val();
             if (uriWeight === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable weight.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataUriWeight").focus();
+                $("#txtAddEditRecordDataUriWeight").trigger("focus");
                 return;
             }
 
             var uri = $("#txtAddEditRecordDataUri").val();
             if (uri === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable value into the URI field.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataUri").focus();
+                $("#txtAddEditRecordDataUri").trigger("focus");
                 return;
             }
 
@@ -4829,7 +4925,7 @@ function addRecord() {
             var value = $("#txtAddEditRecordDataCaaValue").val();
             if (value === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable value into the authority field.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataCaaValue").focus();
+                $("#txtAddEditRecordDataCaaValue").trigger("focus");
                 return;
             }
 
@@ -4840,7 +4936,7 @@ function addRecord() {
             var aname = $("#txtAddEditRecordDataValue").val();
             if (aname === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable value to add the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataValue").focus();
+                $("#txtAddEditRecordDataValue").trigger("focus");
                 return;
             }
 
@@ -4851,7 +4947,7 @@ function addRecord() {
             var forwarder = $("#txtAddEditRecordDataForwarder").val();
             if (forwarder === "") {
                 showAlert("warning", "Missing!", "Please enter a domain name or IP address or URL as a forwarder to add the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataForwarder").focus();
+                $("#txtAddEditRecordDataForwarder").trigger("focus");
                 return;
             }
 
@@ -4872,13 +4968,13 @@ function addRecord() {
 
                     if ((proxyAddress == null) || (proxyAddress === "")) {
                         showAlert("warning", "Missing!", "Please enter a domain name or IP address for Proxy Server Address to add the record.", divAddEditRecordAlert);
-                        $("#txtAddEditRecordDataForwarderProxyAddress").focus();
+                        $("#txtAddEditRecordDataForwarderProxyAddress").trigger("focus");
                         return;
                     }
 
                     if ((proxyPort == null) || (proxyPort === "")) {
                         showAlert("warning", "Missing!", "Please enter a port number for Proxy Server Port to add the record.", divAddEditRecordAlert);
-                        $("#txtAddEditRecordDataForwarderProxyPort").focus();
+                        $("#txtAddEditRecordDataForwarderProxyPort").trigger("focus");
                         return;
                     }
 
@@ -4892,7 +4988,7 @@ function addRecord() {
 
             if ((appName === null) || (appName === "")) {
                 showAlert("warning", "Missing!", "Please select an application name to add record.", divAddEditRecordAlert);
-                $("#optAddEditRecordDataAppName").focus();
+                $("#optAddEditRecordDataAppName").trigger("focus");
                 return;
             }
 
@@ -4900,7 +4996,7 @@ function addRecord() {
 
             if ((classPath === null) || (classPath === "")) {
                 showAlert("warning", "Missing!", "Please select a class path to add record.", divAddEditRecordAlert);
-                $("#optAddEditRecordDataClassPath").focus();
+                $("#optAddEditRecordDataClassPath").trigger("focus");
                 return;
             }
 
@@ -4913,14 +5009,14 @@ function addRecord() {
             type = $("#txtAddEditRecordDataUnknownType").val();
             if ((type === null) || (type === "")) {
                 showAlert("warning", "Missing!", "Please enter a resoure record name or number to add record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataUnknownType").focus();
+                $("#txtAddEditRecordDataUnknownType").trigger("focus");
                 return;
             }
 
             var rdata = $("#txtAddEditRecordDataValue").val();
             if ((rdata === null) || (rdata === "")) {
                 showAlert("warning", "Missing!", "Please enter a hex value as the RDATA to add record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataValue").focus();
+                $("#txtAddEditRecordDataValue").trigger("focus");
                 return;
             }
 
@@ -4928,12 +5024,14 @@ function addRecord() {
             break;
     }
 
+    var node = $("#optZonesClusterNode").val();
+
     apiUrl = "api/zones/records/add?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&domain=" + encodeURIComponent(domain) + "&type=" + encodeURIComponent(type) + "&ttl=" + ttl + "&overwrite=" + overwrite + "&comments=" + encodeURIComponent(comments) + "&expiryTtl=" + expiryTtl + apiUrl;
 
     btn.button("loading");
 
     HTTPRequest({
-        url: apiUrl,
+        url: apiUrl + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             $("#modalAddEditRecord").modal("hide");
 
@@ -5051,6 +5149,8 @@ function showEditRecordModal(objBtn) {
     var divData = $("#data" + id);
 
     var zone = $("#titleEditZone").attr("data-zone");
+    var zoneType = $("#titleEditZone").attr("data-zone-type");
+    var catalogZone = $("#titleEditZoneCatalog").text();
     var name = divData.attr("data-record-name");
     var type = divData.attr("data-record-type");
     var ttl = divData.attr("data-record-ttl");
@@ -5080,12 +5180,19 @@ function showEditRecordModal(objBtn) {
         case "AAAA":
             $("#txtAddEditRecordDataValue").val(divData.attr("data-record-ip-address"));
             $("#chkAddEditRecordDataPtr").prop("checked", false);
-            $("#chkAddEditRecordDataCreatePtrZone").prop('disabled', true);
+            $("#chkAddEditRecordDataCreatePtrZone").prop("disabled", true);
             $("#chkAddEditRecordDataCreatePtrZone").prop("checked", false);
             $("#chkAddEditRecordDataPtrLabel").text("Update reverse (PTR) record");
             break;
 
         case "NS":
+            if ((zoneType == "Primary") && (name == "@") && sessionData.info.clusterInitialized && (catalogZone == "cluster-catalog." + sessionData.info.clusterDomain)) {
+                $("#txtAddEditRecordName").prop("disabled", true);
+                $("#txtAddEditRecordDataNsNameServer").prop("disabled", true);
+                $("#txtAddEditRecordDataNsGlue").prop("disabled", true);
+                $("#txtAddEditRecordExpiryTtl").prop("disabled", true);
+            }
+
             $("#txtAddEditRecordDataNsNameServer").val(divData.attr("data-record-name-server"));
             $("#txtAddEditRecordDataNsGlue").val(divData.attr("data-record-glue").replace(/, /g, "\n"));
             break;
@@ -5108,7 +5215,17 @@ function showEditRecordModal(objBtn) {
             $("#txtAddEditRecordName").prop("disabled", true);
             $("#divAddEditRecordExpiryTtl").hide();
 
-            switch ($("#titleEditZoneType").text()) {
+            switch (zoneType) {
+                case "Primary":
+                    if (sessionData.info.clusterInitialized && (catalogZone == "cluster-catalog." + sessionData.info.clusterDomain))
+                        $("#txtEditRecordDataSoaPrimaryNameServer").prop("disabled", true);
+                    else
+                        $("#txtEditRecordDataSoaPrimaryNameServer").prop("disabled", false);
+
+                    $("#txtAddEditRecordTtl").prop("disabled", false);
+                    $("#txtEditRecordDataSoaResponsiblePerson").prop("disabled", false);
+                    break;
+
                 case "Forwarder":
                     $("#txtAddEditRecordTtl").prop("disabled", true);
                     $("#txtEditRecordDataSoaResponsiblePerson").prop("disabled", true);
@@ -5275,8 +5392,8 @@ function showEditRecordModal(objBtn) {
             break;
 
         case "APP":
-            $("#optAddEditRecordDataAppName").attr("disabled", true);
-            $("#optAddEditRecordDataClassPath").attr("disabled", true);
+            $("#optAddEditRecordDataAppName").prop("disabled", true);
+            $("#optAddEditRecordDataClassPath").prop("disabled", true);
 
             $("#optAddEditRecordDataAppName").html("<option>" + divData.attr("data-record-app-name") + "</option>")
             $("#optAddEditRecordDataAppName").val(divData.attr("data-record-app-name"))
@@ -5311,7 +5428,7 @@ function showEditRecordModal(objBtn) {
     $("#modalAddEditRecord").modal("show");
 
     setTimeout(function () {
-        $("#txtAddEditRecordName").focus();
+        $("#txtAddEditRecordName").trigger("focus");
     }, 1000);
 }
 
@@ -5359,7 +5476,7 @@ function updateRecord() {
             var newIpAddress = $("#txtAddEditRecordDataValue").val();
             if (newIpAddress === "") {
                 showAlert("warning", "Missing!", "Please enter an IP address to update the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataValue").focus();
+                $("#txtAddEditRecordDataValue").trigger("focus");
                 return;
             }
 
@@ -5374,7 +5491,7 @@ function updateRecord() {
             var newNameServer = $("#txtAddEditRecordDataNsNameServer").val();
             if (newNameServer === "") {
                 showAlert("warning", "Missing!", "Please enter a name server to update the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataNsNameServer").focus();
+                $("#txtAddEditRecordDataNsNameServer").trigger("focus");
                 return;
             }
 
@@ -5387,14 +5504,14 @@ function updateRecord() {
             var subDomainName = $("#txtAddEditRecordName").val();
             if ((subDomainName === "") || (subDomainName === "@")) {
                 showAlert("warning", "Missing!", "Please enter a name for the CNAME record since DNS protocol does not allow CNAME at zone's apex. If you need CNAME like function at the zone's apex then use ANAME record instead.", divAddEditRecordAlert);
-                $("#txtAddEditRecordName").focus();
+                $("#txtAddEditRecordName").trigger("focus");
                 return;
             }
 
             var cname = $("#txtAddEditRecordDataValue").val();
             if (cname === "") {
                 showAlert("warning", "Missing!", "Please enter a domain name to update the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataValue").focus();
+                $("#txtAddEditRecordDataValue").trigger("focus");
                 return;
             }
 
@@ -5405,49 +5522,49 @@ function updateRecord() {
             var primaryNameServer = $("#txtEditRecordDataSoaPrimaryNameServer").val();
             if (primaryNameServer === "") {
                 showAlert("warning", "Missing!", "Please enter a value for primary name server.", divAddEditRecordAlert);
-                $("#txtEditRecordDataSoaPrimaryNameServer").focus();
+                $("#txtEditRecordDataSoaPrimaryNameServer").trigger("focus");
                 return;
             }
 
             var responsiblePerson = $("#txtEditRecordDataSoaResponsiblePerson").val();
             if (responsiblePerson === "") {
                 showAlert("warning", "Missing!", "Please enter a value for responsible person.", divAddEditRecordAlert);
-                $("#txtEditRecordDataSoaResponsiblePerson").focus();
+                $("#txtEditRecordDataSoaResponsiblePerson").trigger("focus");
                 return;
             }
 
             var serial = $("#txtEditRecordDataSoaSerial").val();
             if (serial === "") {
                 showAlert("warning", "Missing!", "Please enter a value for serial.", divAddEditRecordAlert);
-                $("#txtEditRecordDataSoaSerial").focus();
+                $("#txtEditRecordDataSoaSerial").trigger("focus");
                 return;
             }
 
             var refresh = $("#txtEditRecordDataSoaRefresh").val();
             if (refresh === "") {
                 showAlert("warning", "Missing!", "Please enter a value for refresh.", divAddEditRecordAlert);
-                $("#txtEditRecordDataSoaRefresh").focus();
+                $("#txtEditRecordDataSoaRefresh").trigger("focus");
                 return;
             }
 
             var retry = $("#txtEditRecordDataSoaRetry").val();
             if (retry === "") {
                 showAlert("warning", "Missing!", "Please enter a value for retry.", divAddEditRecordAlert);
-                $("#txtEditRecordDataSoaRetry").focus();
+                $("#txtEditRecordDataSoaRetry").trigger("focus");
                 return;
             }
 
             var expire = $("#txtEditRecordDataSoaExpire").val();
             if (expire === "") {
                 showAlert("warning", "Missing!", "Please enter a value for expire.", divAddEditRecordAlert);
-                $("#txtEditRecordDataSoaExpire").focus();
+                $("#txtEditRecordDataSoaExpire").trigger("focus");
                 return;
             }
 
             var minimum = $("#txtEditRecordDataSoaMinimum").val();
             if (minimum === "") {
                 showAlert("warning", "Missing!", "Please enter a value for minimum.", divAddEditRecordAlert);
-                $("#txtEditRecordDataSoaMinimum").focus();
+                $("#txtEditRecordDataSoaMinimum").trigger("focus");
                 return;
             }
 
@@ -5470,7 +5587,7 @@ function updateRecord() {
             var newPtrName = $("#txtAddEditRecordDataValue").val();
             if (newPtrName === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable value to update the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataValue").focus();
+                $("#txtAddEditRecordDataValue").trigger("focus");
                 return;
             }
 
@@ -5489,7 +5606,7 @@ function updateRecord() {
             var newExchange = $("#txtAddEditRecordDataMxExchange").val();
             if (newExchange === "") {
                 showAlert("warning", "Missing!", "Please enter a mail exchange domain name to update the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataMxExchange").focus();
+                $("#txtAddEditRecordDataMxExchange").trigger("focus");
                 return;
             }
 
@@ -5502,7 +5619,7 @@ function updateRecord() {
             var newText = $("#txtAddEditRecordDataTxt").val();
             if (newText === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable value to update the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataTxt").focus();
+                $("#txtAddEditRecordDataTxt").trigger("focus");
                 return;
             }
 
@@ -5531,7 +5648,7 @@ function updateRecord() {
         case "SRV":
             if ($("#txtAddEditRecordName").val() === "") {
                 showAlert("warning", "Missing!", "Please enter a name that includes service and protocol labels.", divAddEditRecordAlert);
-                $("#txtAddEditRecordName").focus();
+                $("#txtAddEditRecordName").trigger("focus");
                 return;
             }
 
@@ -5540,7 +5657,7 @@ function updateRecord() {
             var newPriority = $("#txtAddEditRecordDataSrvPriority").val();
             if (newPriority === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable priority.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataSrvPriority").focus();
+                $("#txtAddEditRecordDataSrvPriority").trigger("focus");
                 return;
             }
 
@@ -5549,7 +5666,7 @@ function updateRecord() {
             var newWeight = $("#txtAddEditRecordDataSrvWeight").val();
             if (newWeight === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable weight.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataSrvWeight").focus();
+                $("#txtAddEditRecordDataSrvWeight").trigger("focus");
                 return;
             }
 
@@ -5558,7 +5675,7 @@ function updateRecord() {
             var newPort = $("#txtAddEditRecordDataSrvPort").val();
             if (newPort === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable port number.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataSrvPort").focus();
+                $("#txtAddEditRecordDataSrvPort").trigger("focus");
                 return;
             }
 
@@ -5567,7 +5684,7 @@ function updateRecord() {
             var newTarget = $("#txtAddEditRecordDataSrvTarget").val();
             if (newTarget === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable value into the target field.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataSrvTarget").focus();
+                $("#txtAddEditRecordDataSrvTarget").trigger("focus");
                 return;
             }
 
@@ -5585,14 +5702,14 @@ function updateRecord() {
             var newOrder = $("#txtAddEditRecordDataNaptrOrder").val();
             if (newOrder === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable order.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataNaptrOrder").focus();
+                $("#txtAddEditRecordDataNaptrOrder").trigger("focus");
                 return;
             }
 
             var newPreference = $("#txtAddEditRecordDataNaptrPreference").val();
             if (newPreference === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable preference.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataNaptrPreference").focus();
+                $("#txtAddEditRecordDataNaptrPreference").trigger("focus");
                 return;
             }
 
@@ -5611,7 +5728,7 @@ function updateRecord() {
             var dname = $("#txtAddEditRecordDataValue").val();
             if (dname === "") {
                 showAlert("warning", "Missing!", "Please enter a domain name to update the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataValue").focus();
+                $("#txtAddEditRecordDataValue").trigger("focus");
                 return;
             }
 
@@ -5622,7 +5739,7 @@ function updateRecord() {
             var subDomainName = $("#txtAddEditRecordName").val();
             if ((subDomainName === "") || (subDomainName === "@")) {
                 showAlert("warning", "Missing!", "Please enter a name for the DS record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordName").focus();
+                $("#txtAddEditRecordName").trigger("focus");
                 return;
             }
 
@@ -5633,21 +5750,21 @@ function updateRecord() {
             var newKeyTag = $("#txtAddEditRecordDataDsKeyTag").val();
             if (newKeyTag === "") {
                 showAlert("warning", "Missing!", "Please enter the Key Tag value to update the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataDsKeyTag").focus();
+                $("#txtAddEditRecordDataDsKeyTag").trigger("focus");
                 return;
             }
 
             var newAlgorithm = $("#optAddEditRecordDataDsAlgorithm").val();
             if ((newAlgorithm === null) || (newAlgorithm === "")) {
                 showAlert("warning", "Missing!", "Please select an DNSSEC algorithm to update the record.", divAddEditRecordAlert);
-                $("#optAddEditRecordDataDsAlgorithm").focus();
+                $("#optAddEditRecordDataDsAlgorithm").trigger("focus");
                 return;
             }
 
             var newDigestType = $("#optAddEditRecordDataDsDigestType").val();
             if ((newDigestType === null) || (newDigestType === "")) {
                 showAlert("warning", "Missing!", "Please select a Digest Type to update the record.", divAddEditRecordAlert);
-                $("#optAddEditRecordDataDsDigestType").focus();
+                $("#optAddEditRecordDataDsDigestType").trigger("focus");
                 return;
             }
 
@@ -5656,7 +5773,7 @@ function updateRecord() {
             var newDigest = $("#txtAddEditRecordDataDsDigest").val();
             if (newDigest === "") {
                 showAlert("warning", "Missing!", "Please enter the Digest hash in hex string format to update the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataDsDigest").focus();
+                $("#txtAddEditRecordDataDsDigest").trigger("focus");
                 return;
             }
 
@@ -5671,21 +5788,21 @@ function updateRecord() {
             var newSshfpAlgorithm = $("#optAddEditRecordDataSshfpAlgorithm").val();
             if ((newSshfpAlgorithm === null) || (newSshfpAlgorithm === "")) {
                 showAlert("warning", "Missing!", "Please select an Algorithm to update the record.", divAddEditRecordAlert);
-                $("#optAddEditRecordDataSshfpAlgorithm").focus();
+                $("#optAddEditRecordDataSshfpAlgorithm").trigger("focus");
                 return;
             }
 
             var newSshfpFingerprintType = $("#optAddEditRecordDataSshfpFingerprintType").val();
             if ((newSshfpFingerprintType === null) || (newSshfpFingerprintType === "")) {
                 showAlert("warning", "Missing!", "Please select a Fingerprint Type to update the record.", divAddEditRecordAlert);
-                $("#optAddEditRecordDataSshfpFingerprintType").focus();
+                $("#optAddEditRecordDataSshfpFingerprintType").trigger("focus");
                 return;
             }
 
             var newSshfpFingerprint = $("#txtAddEditRecordDataSshfpFingerprint").val();
             if (newSshfpFingerprint === "") {
                 showAlert("warning", "Missing!", "Please enter the Fingerprint hash in hex string format to update the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataSshfpFingerprint").focus();
+                $("#txtAddEditRecordDataSshfpFingerprint").trigger("focus");
                 return;
             }
 
@@ -5701,28 +5818,28 @@ function updateRecord() {
             var newTlsaCertificateUsage = $("#optAddEditRecordDataTlsaCertificateUsage").val();
             if ((newTlsaCertificateUsage === null) || (newTlsaCertificateUsage === "")) {
                 showAlert("warning", "Missing!", "Please select a Certificate Usage to update the record.", divAddEditRecordAlert);
-                $("#optAddEditRecordDataTlsaCertificateUsage").focus();
+                $("#optAddEditRecordDataTlsaCertificateUsage").trigger("focus");
                 return;
             }
 
             var newTlsaSelector = $("#optAddEditRecordDataTlsaSelector").val();
             if ((newTlsaSelector === null) || (newTlsaSelector === "")) {
                 showAlert("warning", "Missing!", "Please select a Selector to update the record.", divAddEditRecordAlert);
-                $("#optAddEditRecordDataTlsaSelector").focus();
+                $("#optAddEditRecordDataTlsaSelector").trigger("focus");
                 return;
             }
 
             var newTlsaMatchingType = $("#optAddEditRecordDataTlsaMatchingType").val();
             if ((newTlsaMatchingType === null) || (newTlsaMatchingType === "")) {
                 showAlert("warning", "Missing!", "Please select a Matching Type to update the record.", divAddEditRecordAlert);
-                $("#optAddEditRecordDataTlsaMatchingType").focus();
+                $("#optAddEditRecordDataTlsaMatchingType").trigger("focus");
                 return;
             }
 
             var newTlsaCertificateAssociationData = $("#txtAddEditRecordDataTlsaCertificateAssociationData").val();
             if (newTlsaCertificateAssociationData === "") {
                 showAlert("warning", "Missing!", "Please enter the Certificate Association Data to update the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataTlsaCertificateAssociationData").focus();
+                $("#txtAddEditRecordDataTlsaCertificateAssociationData").trigger("focus");
                 return;
             }
 
@@ -5751,14 +5868,14 @@ function updateRecord() {
             var newSvcPriority = $("#txtAddEditRecordDataSvcbPriority").val();
             if ((newSvcPriority === null) || (newSvcPriority === "")) {
                 showAlert("warning", "Missing!", "Please enter a Priority value to update the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataSvcbPriority").focus();
+                $("#txtAddEditRecordDataSvcbPriority").trigger("focus");
                 return;
             }
 
             var newSvcTargetName = $("#txtAddEditRecordDataSvcbTargetName").val();
             if ((newSvcTargetName === null) || (newSvcTargetName === "")) {
                 showAlert("warning", "Missing!", "Please enter a Target Name to update the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataSvcbTargetName").focus();
+                $("#txtAddEditRecordDataSvcbTargetName").trigger("focus");
                 return;
             }
 
@@ -5781,7 +5898,7 @@ function updateRecord() {
             var newUriPriority = $("#txtAddEditRecordDataUriPriority").val();
             if (newUriPriority === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable priority.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataUriPriority").focus();
+                $("#txtAddEditRecordDataUriPriority").trigger("focus");
                 return;
             }
 
@@ -5790,7 +5907,7 @@ function updateRecord() {
             var newUriWeight = $("#txtAddEditRecordDataUriWeight").val();
             if (newUriWeight === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable weight.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataUriWeight").focus();
+                $("#txtAddEditRecordDataUriWeight").trigger("focus");
                 return;
             }
 
@@ -5799,7 +5916,7 @@ function updateRecord() {
             var newUri = $("#txtAddEditRecordDataUri").val();
             if (newUri === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable value into the URI field.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataUri").focus();
+                $("#txtAddEditRecordDataUri").trigger("focus");
                 return;
             }
 
@@ -5823,7 +5940,7 @@ function updateRecord() {
             var newValue = $("#txtAddEditRecordDataCaaValue").val();
             if (newValue === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable value into the authority field.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataCaaValue").focus();
+                $("#txtAddEditRecordDataCaaValue").trigger("focus");
                 return;
             }
 
@@ -5836,7 +5953,7 @@ function updateRecord() {
             var newAName = $("#txtAddEditRecordDataValue").val();
             if (newAName === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable value to update the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataValue").focus();
+                $("#txtAddEditRecordDataValue").trigger("focus");
                 return;
             }
 
@@ -5852,7 +5969,7 @@ function updateRecord() {
             var newForwarder = $("#txtAddEditRecordDataForwarder").val();
             if (newForwarder === "") {
                 showAlert("warning", "Missing!", "Please enter a domain name or IP address or URL as a forwarder to update the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataForwarder").focus();
+                $("#txtAddEditRecordDataForwarder").trigger("focus");
                 return;
             }
 
@@ -5876,13 +5993,13 @@ function updateRecord() {
 
                         if ((proxyAddress == null) || (proxyAddress === "")) {
                             showAlert("warning", "Missing!", "Please enter a domain name or IP address for Proxy Server Address to update the record.", divAddEditRecordAlert);
-                            $("#txtAddEditRecordDataForwarderProxyAddress").focus();
+                            $("#txtAddEditRecordDataForwarderProxyAddress").trigger("focus");
                             return;
                         }
 
                         if ((proxyPort == null) || (proxyPort === "")) {
                             showAlert("warning", "Missing!", "Please enter a port number for Proxy Server Port to update the record.", divAddEditRecordAlert);
-                            $("#txtAddEditRecordDataForwarderProxyPort").focus();
+                            $("#txtAddEditRecordDataForwarderProxyPort").trigger("focus");
                             return;
                         }
 
@@ -5903,7 +6020,7 @@ function updateRecord() {
             var newRData = $("#txtAddEditRecordDataValue").val();
             if ((newRData === null) || (newRData === "")) {
                 showAlert("warning", "Missing!", "Please enter a hex value as the RDATA to update the record.", divAddEditRecordAlert);
-                $("#txtAddEditRecordDataValue").focus();
+                $("#txtAddEditRecordDataValue").trigger("focus");
                 return;
             }
 
@@ -5911,12 +6028,14 @@ function updateRecord() {
             break;
     }
 
+    var node = $("#optZonesClusterNode").val();
+
     apiUrl = "api/zones/records/update?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&type=" + encodeURIComponent(type) + "&domain=" + encodeURIComponent(domain) + "&newDomain=" + encodeURIComponent(newDomain) + "&ttl=" + ttl + "&disable=" + disable + "&comments=" + encodeURIComponent(comments) + "&expiryTtl=" + expiryTtl + apiUrl;
 
     btn.button("loading");
 
     HTTPRequest({
-        url: apiUrl,
+        url: apiUrl + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             $("#modalAddEditRecord").modal("hide");
 
@@ -5977,6 +6096,8 @@ function updateRecordState(objBtn, disable) {
 
     if (disable && !confirm("Are you sure to disable the " + type + " record '" + domain + "'?"))
         return;
+
+    var node = $("#optZonesClusterNode").val();
 
     var apiUrl = "api/zones/records/update?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&type=" + encodeURIComponent(type) + "&domain=" + encodeURIComponent(domain) + "&ttl=" + ttl + "&disable=" + disable + "&comments=" + encodeURIComponent(comments) + "&expiryTtl=" + expiryTtl;
 
@@ -6100,7 +6221,7 @@ function updateRecordState(objBtn, disable) {
     btn.button("loading");
 
     HTTPRequest({
-        url: apiUrl,
+        url: apiUrl + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.button("reset");
 
@@ -6149,6 +6270,8 @@ function deleteRecord(objBtn) {
 
     if (!confirm("Are you sure to permanently delete the " + type + " record '" + domain + "'?"))
         return;
+
+    var node = $("#optZonesClusterNode").val();
 
     var apiUrl = "api/zones/records/delete?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&domain=" + encodeURIComponent(domain) + "&type=" + encodeURIComponent(type);
 
@@ -6247,7 +6370,7 @@ function deleteRecord(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: apiUrl,
+        url: apiUrl + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             //update local array
             editZoneRecords.splice(recordIndex, 1);
@@ -6347,11 +6470,13 @@ function signPrimaryZone() {
             break;
     }
 
+    var node = $("#optZonesClusterNode").val();
+
     var btn = $("#btnDnssecSignZone");
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/zones/dnssec/sign?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&algorithm=" + algorithm + "&pemKskPrivateKey=" + encodeURIComponent(pemKskPrivateKey) + "&pemZskPrivateKey=" + encodeURIComponent(pemZskPrivateKey) + "&dnsKeyTtl=" + dnsKeyTtl + "&zskRolloverDays=" + zskRolloverDays + "&nxProof=" + nxProof + additionalParameters,
+        url: "api/zones/dnssec/sign?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&algorithm=" + algorithm + "&pemKskPrivateKey=" + encodeURIComponent(pemKskPrivateKey) + "&pemZskPrivateKey=" + encodeURIComponent(pemZskPrivateKey) + "&dnsKeyTtl=" + dnsKeyTtl + "&zskRolloverDays=" + zskRolloverDays + "&nxProof=" + nxProof + additionalParameters + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.button("reset");
             $("#modalDnssecSignZone").modal("hide");
@@ -6361,6 +6486,8 @@ function signPrimaryZone() {
 
             var zoneHideDnssecRecords = (localStorage.getItem("zoneHideDnssecRecords") == "true");
             if (zoneHideDnssecRecords) {
+                $("#titleEditZoneDnssecStatus").removeClass();
+                $("#titleEditZoneDnssecStatus").addClass("label label-primary");
                 $("#titleEditZoneDnssecStatus").show();
 
                 $("#lnkZoneDnssecSignZone").hide();
@@ -6408,11 +6535,13 @@ function unsignPrimaryZone() {
     var divDnssecUnsignZoneAlert = $("#divDnssecUnsignZoneAlert");
     var zone = $("#lblDnssecUnsignZoneZoneName").attr("data-zone");
 
+    var node = $("#optZonesClusterNode").val();
+
     var btn = $("#btnDnssecUnsignZone");
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/zones/dnssec/unsign?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone),
+        url: "api/zones/dnssec/unsign?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.button("reset");
             $("#modalDnssecUnsignZone").modal("hide");
@@ -6466,10 +6595,12 @@ function showViewDsModal(zoneName) {
     divDnssecViewDsLoader.show();
     divDnssecViewDs.hide();
 
+    var node = $("#optZonesClusterNode").val();
+
     $("#modalDnssecViewDs").modal("show");
 
     HTTPRequest({
-        url: "api/zones/dnssec/viewDS?token=" + sessionData.token + "&zone=" + zoneName,
+        url: "api/zones/dnssec/viewDS?token=" + sessionData.token + "&zone=" + encodeURIComponent(zoneName) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             var tableHtmlRows = "";
 
@@ -6560,12 +6691,14 @@ function refreshDnssecProperties(divDnssecPropertiesLoader) {
     var divDnssecPropertiesNoteActiveBy = $("#divDnssecPropertiesNoteActiveBy");
     var divDnssecPropertiesNoteRetiredRevoked = $("#divDnssecPropertiesNoteRetiredRevoked");
 
+    var node = $("#optZonesClusterNode").val();
+
     divDnssecPropertiesNoteReadyBy.hide();
     divDnssecPropertiesNoteActiveBy.hide();
     divDnssecPropertiesNoteRetiredRevoked.hide();
 
     HTTPRequest({
-        url: "api/zones/dnssec/properties/get?token=" + sessionData.token + "&zone=" + zone,
+        url: "api/zones/dnssec/properties/get?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             var tableHtmlRows = "";
             var foundGeneratedKey = false;
@@ -6709,10 +6842,12 @@ function updateDnssecPrivateKey(keyTag, objBtn) {
     var zone = $("#lblDnssecPropertiesZoneName").attr("data-zone");
     var rolloverDays = $("#txtDnssecPropertiesPrivateKeyAutomaticRollover" + id).val();
 
+    var node = $("#optZonesClusterNode").val();
+
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/zones/dnssec/properties/updatePrivateKey?token=" + sessionData.token + "&zone=" + zone + "&keyTag=" + keyTag + "&rolloverDays=" + rolloverDays,
+        url: "api/zones/dnssec/properties/updatePrivateKey?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&keyTag=" + keyTag + "&rolloverDays=" + rolloverDays + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.button("reset");
             showAlert("success", "Updated!", "The DNSKEY automatic rollover config was updated successfully.", divDnssecPropertiesAlert);
@@ -6736,13 +6871,15 @@ function deleteDnssecPrivateKey(keyTag, id) {
     var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
     var zone = $("#lblDnssecPropertiesZoneName").attr("data-zone");
 
+    var node = $("#optZonesClusterNode").val();
+
     var btn = $("#btnDnssecPropertiesDnsKeyRowOption" + id);
     var originalBtnHtml = btn.html();
     btn.prop("disabled", true);
     btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
-        url: "api/zones/dnssec/properties/deletePrivateKey?token=" + sessionData.token + "&zone=" + zone + "&keyTag=" + keyTag,
+        url: "api/zones/dnssec/properties/deletePrivateKey?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&keyTag=" + keyTag + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             $("#trDnssecPropertiesPrivateKey" + id).remove();
             showAlert("success", "Private Key Deleted!", "The DNSSEC private key was deleted successfully.", divDnssecPropertiesAlert);
@@ -6766,13 +6903,15 @@ function rolloverDnssecDnsKey(keyTag, id) {
     var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
     var zone = $("#lblDnssecPropertiesZoneName").attr("data-zone");
 
+    var node = $("#optZonesClusterNode").val();
+
     var btn = $("#btnDnssecPropertiesDnsKeyRowOption" + id);
     var originalBtnHtml = btn.html();
     btn.prop("disabled", true);
     btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
-        url: "api/zones/dnssec/properties/rolloverDnsKey?token=" + sessionData.token + "&zone=" + zone + "&keyTag=" + keyTag,
+        url: "api/zones/dnssec/properties/rolloverDnsKey?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&keyTag=" + keyTag + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             refreshDnssecProperties();
             showAlert("success", "Rollover Done!", "The DNS Key was rolled over successfully.", divDnssecPropertiesAlert);
@@ -6796,13 +6935,15 @@ function retireDnssecDnsKey(keyTag, id) {
     var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
     var zone = $("#lblDnssecPropertiesZoneName").attr("data-zone");
 
+    var node = $("#optZonesClusterNode").val();
+
     var btn = $("#btnDnssecPropertiesDnsKeyRowOption" + id);
     var originalBtnHtml = btn.html();
     btn.prop("disabled", true);
     btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
-        url: "api/zones/dnssec/properties/retireDnsKey?token=" + sessionData.token + "&zone=" + zone + "&keyTag=" + keyTag,
+        url: "api/zones/dnssec/properties/retireDnsKey?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&keyTag=" + keyTag + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             refreshDnssecProperties();
             showAlert("success", "DNS Key Retired!", "The DNS Key was retired successfully.", divDnssecPropertiesAlert);
@@ -6827,10 +6968,12 @@ function publishAllDnssecPrivateKeys(objBtn) {
     var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
     var zone = $("#lblDnssecPropertiesZoneName").attr("data-zone");
 
+    var node = $("#optZonesClusterNode").val();
+
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/zones/dnssec/properties/publishAllPrivateKeys?token=" + sessionData.token + "&zone=" + zone,
+        url: "api/zones/dnssec/properties/publishAllPrivateKeys?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             refreshDnssecProperties();
             btn.button("reset");
@@ -6880,10 +7023,12 @@ function addDnssecPrivateKey(objBtn) {
             break;
     }
 
+    var node = $("#optZonesClusterNode").val();
+
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/zones/dnssec/properties/addPrivateKey?token=" + sessionData.token + "&zone=" + zone + "&keyType=" + keyType + "&algorithm=" + algorithm + "&pemPrivateKey=" + encodeURIComponent(pemPrivateKey) + "&rolloverDays=" + rolloverDays + additionalParameters,
+        url: "api/zones/dnssec/properties/addPrivateKey?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&keyType=" + keyType + "&algorithm=" + algorithm + "&pemPrivateKey=" + encodeURIComponent(pemPrivateKey) + "&rolloverDays=" + rolloverDays + additionalParameters + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             $("#divDnssecPropertiesAddKey").collapse("hide");
             $("#txtDnssecPropertiesPemPrivateKey").val("");
@@ -6930,7 +7075,7 @@ function changeDnssecNxProof(objBtn) {
                 var iterations = $("#txtDnssecPropertiesNSEC3Iterations").val();
                 var saltLength = $("#txtDnssecPropertiesNSEC3SaltLength").val();
 
-                apiUrl = "api/zones/dnssec/properties/convertToNSEC3?token=" + sessionData.token + "&zone=" + zone + "&iterations=" + iterations + "&saltLength=" + saltLength;
+                apiUrl = "api/zones/dnssec/properties/convertToNSEC3?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&iterations=" + iterations + "&saltLength=" + saltLength;
             }
             break;
 
@@ -6944,10 +7089,10 @@ function changeDnssecNxProof(objBtn) {
                     return;
                 }
                 else {
-                    apiUrl = "api/zones/dnssec/properties/updateNSEC3Params?token=" + sessionData.token + "&zone=" + zone + "&iterations=" + iterations + "&saltLength=" + saltLength;
+                    apiUrl = "api/zones/dnssec/properties/updateNSEC3Params?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&iterations=" + iterations + "&saltLength=" + saltLength;
                 }
             } else {
-                apiUrl = "api/zones/dnssec/properties/convertToNSEC?token=" + sessionData.token + "&zone=" + zone;
+                apiUrl = "api/zones/dnssec/properties/convertToNSEC?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone);
             }
             break;
 
@@ -6958,10 +7103,12 @@ function changeDnssecNxProof(objBtn) {
     if (!confirm("Are you sure you want to change the proof of non-existence options for the zone?"))
         return;
 
+    var node = $("#optZonesClusterNode").val();
+
     btn.button("loading");
 
     HTTPRequest({
-        url: apiUrl,
+        url: apiUrl + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.attr("data-nx-proof", nxProof);
 
@@ -6972,8 +7119,6 @@ function changeDnssecNxProof(objBtn) {
                 btn.attr("data-nsec3-salt-length", saltLength);
 
             btn.button("reset");
-
-            $("#titleEditZoneDnssecStatus").text(nxProof);
 
             var zoneHideDnssecRecords = (localStorage.getItem("zoneHideDnssecRecords") == "true");
             if (!zoneHideDnssecRecords)
@@ -6999,10 +7144,12 @@ function updateDnssecDnsKeyTtl(objBtn) {
     var zone = $("#lblDnssecPropertiesZoneName").attr("data-zone");
     var ttl = $("#txtDnssecPropertiesDnsKeyTtl").val();
 
+    var node = $("#optZonesClusterNode").val();
+
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/zones/dnssec/properties/updateDnsKeyTtl?token=" + sessionData.token + "&zone=" + zone + "&ttl=" + ttl,
+        url: "api/zones/dnssec/properties/updateDnsKeyTtl?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&ttl=" + ttl + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.button("reset");
             showAlert("success", "TTL Updated!", "The DNSKEY TTL was updated successfully.", divDnssecPropertiesAlert);

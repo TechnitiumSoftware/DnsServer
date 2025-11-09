@@ -161,7 +161,6 @@ namespace BlockPage
 
             WebApplication _webServer;
 
-            X509Certificate2Collection _webServerTlsCertificateCollection;
             SslServerAuthenticationOptions _sslServerAuthenticationOptions;
             DateTime _webServerTlsCertificateLastModifiedOn;
 
@@ -226,7 +225,7 @@ namespace BlockPage
                         serverOptions.Listen(webServiceLocalAddress, 80);
 
                     //https
-                    if (_webServerTlsCertificateCollection is not null)
+                    if (_sslServerAuthenticationOptions is not null)
                     {
                         foreach (IPAddress webServiceLocalAddress in _webServerLocalAddresses)
                         {
@@ -273,7 +272,7 @@ namespace BlockPage
                     {
                         _dnsServer.WriteLog("Web server '" + _name + "' was bound successfully: " + new IPEndPoint(webServiceLocalAddress, 80).ToString());
 
-                        if (_webServerTlsCertificateCollection is not null)
+                        if (_sslServerAuthenticationOptions is not null)
                             _dnsServer.WriteLog("Web server '" + _name + "' was bound successfully: " + new IPEndPoint(webServiceLocalAddress, 443).ToString());
                     }
                 }
@@ -285,7 +284,7 @@ namespace BlockPage
                     {
                         _dnsServer.WriteLog("Web server '" + _name + "' failed to bind: " + new IPEndPoint(webServiceLocalAddress, 80).ToString());
 
-                        if (_webServerTlsCertificateCollection is not null)
+                        if (_sslServerAuthenticationOptions is not null)
                             _dnsServer.WriteLog("Web server '" + _name + "' failed to bind: " + new IPEndPoint(webServiceLocalAddress, 443).ToString());
                     }
 
@@ -319,12 +318,10 @@ namespace BlockPage
                         throw new ArgumentException("Web server '" + _name + "' TLS certificate file must be PKCS #12 formatted with .pfx or .p12 extension: " + webServerTlsCertificateFilePath);
                 }
 
-                _webServerTlsCertificateCollection = new X509Certificate2Collection();
-                _webServerTlsCertificateCollection.Import(webServerTlsCertificateFilePath, webServerTlsCertificatePassword, X509KeyStorageFlags.PersistKeySet);
-
+                X509Certificate2Collection webServerTlsCertificateCollection = X509CertificateLoader.LoadPkcs12CollectionFromFile(webServerTlsCertificateFilePath, webServerTlsCertificatePassword, X509KeyStorageFlags.PersistKeySet);
                 X509Certificate2 serverCertificate = null;
 
-                foreach (X509Certificate2 certificate in _webServerTlsCertificateCollection)
+                foreach (X509Certificate2 certificate in webServerTlsCertificateCollection)
                 {
                     if (certificate.HasPrivateKey)
                     {
@@ -338,7 +335,7 @@ namespace BlockPage
 
                 _sslServerAuthenticationOptions = new SslServerAuthenticationOptions()
                 {
-                    ServerCertificateContext = SslStreamCertificateContext.Create(serverCertificate, _webServerTlsCertificateCollection, false)
+                    ServerCertificateContext = SslStreamCertificateContext.Create(serverCertificate, webServerTlsCertificateCollection, false)
                 };
 
                 _webServerTlsCertificateLastModifiedOn = fileInfo.LastWriteTimeUtc;
@@ -541,7 +538,7 @@ namespace BlockPage
                         else
                         {
                             //disable HTTPS
-                            _webServerTlsCertificateCollection = null;
+                            _sslServerAuthenticationOptions = null;
                         }
                     }
                     else

@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -24,12 +24,12 @@ using TechnitiumLibrary.Net.Dns;
 namespace DnsServerCore.ApplicationCommon
 {
     /// <summary>
-    /// Lets a DNS App to handle incoming requests for the DNS server's authoritative zone allowing it to act as an authoritative zone by itself and respond to any requests.
+    /// Lets a DNS App to handle incoming requests for the DNS server authoritatively allowing it to act as an authoritative zone by itself and respond to any requests.
     /// </summary>
     public interface IDnsAuthoritativeRequestHandler
     {
         /// <summary>
-        /// Allows a DNS App to respond to an incoming DNS request for the DNS server's authoritative zone. This method is called by the DNS Server's authoritative zone before querying its built in zone database. Response returned may be further processed to resolve CNAME or ANAME records, or referral response.
+        /// Allows a DNS App to respond to an incoming DNS request authoritatively. Response returned may be further processed to resolve CNAME or ANAME records, or referral response.
         /// </summary>
         /// <param name="request">The incoming DNS request to be processed.</param>
         /// <param name="remoteEP">The end point (IP address and port) of the client making the request.</param>

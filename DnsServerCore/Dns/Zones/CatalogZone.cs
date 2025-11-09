@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -231,7 +231,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public void SetZoneTransferTsigKeyNamesProperty(IReadOnlyDictionary<string, object> tsigKeyNames = null, string memberZoneName = null)
+        public void SetZoneTransferTsigKeyNamesProperty(IReadOnlySet<string> tsigKeyNames = null, string memberZoneName = null)
         {
             string domain = "transfer-tsig-key-names.ext." + GetMemberZoneDomain(memberZoneName);
 
@@ -244,9 +244,9 @@ namespace DnsServerCore.Dns.Zones
                 DnsResourceRecord[] records = new DnsResourceRecord[tsigKeyNames.Count];
                 int i = 0;
 
-                foreach (KeyValuePair<string, object> entry in tsigKeyNames)
+                foreach (string entry in tsigKeyNames)
                 {
-                    DnsResourceRecord record = new DnsResourceRecord(domain, DnsResourceRecordType.PTR, DnsClass.IN, 0, new DnsPTRRecordData(entry.Key));
+                    DnsResourceRecord record = new DnsResourceRecord(domain, DnsResourceRecordType.PTR, DnsClass.IN, 0, new DnsPTRRecordData(entry));
                     record.GetAuthGenericRecordInfo().LastModified = DateTime.UtcNow;
 
                     records[i++] = record;

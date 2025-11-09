@@ -280,6 +280,10 @@ namespace DnsServerCore
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Total " + allowedZonesList.Length + " zones were imported into allowed zone successfully.");
                 _dnsWebService._dnsServer.AllowedZoneManager.SaveZoneFile();
+
+                //trigger cluster update
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
             }
 
             public async Task ExportAllowedZonesAsync(HttpContext context)
@@ -319,6 +323,10 @@ namespace DnsServerCore
                 {
                     _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Allowed zone was deleted: " + domain);
                     _dnsWebService._dnsServer.AllowedZoneManager.SaveZoneFile();
+
+                    //trigger cluster update
+                    if (_dnsWebService._clusterManager.ClusterInitialized)
+                        _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
                 }
             }
 
@@ -333,6 +341,10 @@ namespace DnsServerCore
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Allowed zone was flushed successfully.");
                 _dnsWebService._dnsServer.AllowedZoneManager.SaveZoneFile();
+
+                //trigger cluster update
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
             }
 
             public void AllowZone(HttpContext context)
@@ -354,6 +366,10 @@ namespace DnsServerCore
                 {
                     _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Zone was allowed: " + domain);
                     _dnsWebService._dnsServer.AllowedZoneManager.SaveZoneFile();
+
+                    //trigger cluster update
+                    if (_dnsWebService._clusterManager.ClusterInitialized)
+                        _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
                 }
             }
 
@@ -469,6 +485,10 @@ namespace DnsServerCore
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Total " + blockedZonesList.Length + " zones were imported into blocked zone successfully.");
                 _dnsWebService._dnsServer.BlockedZoneManager.SaveZoneFile();
+
+                //trigger cluster update
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
             }
 
             public async Task ExportBlockedZonesAsync(HttpContext context)
@@ -508,6 +528,10 @@ namespace DnsServerCore
                 {
                     _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Blocked zone was deleted: " + domain);
                     _dnsWebService._dnsServer.BlockedZoneManager.SaveZoneFile();
+
+                    //trigger cluster update
+                    if (_dnsWebService._clusterManager.ClusterInitialized)
+                        _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
                 }
             }
 
@@ -522,6 +546,10 @@ namespace DnsServerCore
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Blocked zone was flushed successfully.");
                 _dnsWebService._dnsServer.BlockedZoneManager.SaveZoneFile();
+
+                //trigger cluster update
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
             }
 
             public void BlockZone(HttpContext context)
@@ -543,6 +571,10 @@ namespace DnsServerCore
                 {
                     _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Domain was added to blocked zone: " + domain);
                     _dnsWebService._dnsServer.BlockedZoneManager.SaveZoneFile();
+
+                    //trigger cluster update
+                    if (_dnsWebService._clusterManager.ClusterInitialized)
+                        _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
                 }
             }
 
