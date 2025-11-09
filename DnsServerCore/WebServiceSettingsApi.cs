@@ -1749,7 +1749,7 @@ namespace DnsServerCore
                 }
             }
 
-            public async Task ForceUpdateBlockListsAsync(HttpContext context)
+            public void ForceUpdateBlockLists(HttpContext context)
             {
                 UserSession session = context.GetCurrentSession();
 
@@ -1760,34 +1760,48 @@ namespace DnsServerCore
 
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Block list update was triggered.");
 
-                if ((session.Type == UserSessionType.ApiToken) && (session.TokenName == _dnsWebService._clusterManager.ClusterDomain))
-                    return; //call from cluster node itself
-
-                //relay action on all other cluster nodes
-                List<Task> tasks = new List<Task>();
-
-                foreach (KeyValuePair<int, ClusterNode> clusterNode in _dnsWebService._clusterManager.ClusterNodes)
+                if (_dnsWebService._clusterManager.ClusterInitialized)
                 {
-                    if (clusterNode.Value.State == ClusterNodeState.Self)
-                        continue;
+                    if ((session.Type == UserSessionType.ApiToken) && session.TokenName.Equals(_dnsWebService._clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
+                        return; //call from cluster node itself
 
-                    tasks.Add(clusterNode.Value.ForceUpdateBlockListsAsync());
-                }
+                    //relay action on all other cluster nodes async
+                    ThreadPool.QueueUserWorkItem(async delegate (object state)
+                    {
+                        try
+                        {
+                            IReadOnlyDictionary<int, ClusterNode> clusterNodes = _dnsWebService._clusterManager.ClusterNodes;
+                            List<Task> tasks = new List<Task>(clusterNodes.Count);
 
-                foreach (Task task in tasks)
-                {
-                    try
-                    {
-                        await task;
-                    }
-                    catch (Exception ex)
-                    {
-                        _dnsWebService._log.Write(ex);
-                    }
+                            foreach (KeyValuePair<int, ClusterNode> clusterNode in clusterNodes)
+                            {
+                                if (clusterNode.Value.State == ClusterNodeState.Self)
+                                    continue;
+
+                                tasks.Add(clusterNode.Value.ForceUpdateBlockListsAsync());
+                            }
+
+                            foreach (Task task in tasks)
+                            {
+                                try
+                                {
+                                    await task;
+                                }
+                                catch (Exception ex)
+                                {
+                                    _dnsWebService._log.Write(ex);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _dnsWebService._log.Write(ex);
+                        }
+                    });
                 }
             }
 
-            public async Task TemporaryDisableBlockingAsync(HttpContext context)
+            public void TemporaryDisableBlocking(HttpContext context)
             {
                 UserSession session = context.GetCurrentSession();
 
@@ -1801,30 +1815,44 @@ namespace DnsServerCore
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 jsonWriter.WriteString("temporaryDisableBlockingTill", _dnsWebService._dnsServer.BlockListZoneManager.TemporaryDisableBlockingTill);
 
-                if ((session.Type == UserSessionType.ApiToken) && (session.TokenName == _dnsWebService._clusterManager.ClusterDomain))
-                    return; //call from cluster node itself
-
-                //relay action on all other cluster nodes
-                List<Task> tasks = new List<Task>();
-
-                foreach (KeyValuePair<int, ClusterNode> clusterNode in _dnsWebService._clusterManager.ClusterNodes)
+                if (_dnsWebService._clusterManager.ClusterInitialized)
                 {
-                    if (clusterNode.Value.State == ClusterNodeState.Self)
-                        continue;
+                    if ((session.Type == UserSessionType.ApiToken) && session.TokenName.Equals(_dnsWebService._clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
+                        return; //call from cluster node itself
 
-                    tasks.Add(clusterNode.Value.TemporaryDisableBlockingAsync(minutes));
-                }
+                    //relay action on all other cluster nodes async
+                    ThreadPool.QueueUserWorkItem(async delegate (object state)
+                    {
+                        try
+                        {
+                            IReadOnlyDictionary<int, ClusterNode> clusterNodes = _dnsWebService._clusterManager.ClusterNodes;
+                            List<Task> tasks = new List<Task>(clusterNodes.Count);
 
-                foreach (Task task in tasks)
-                {
-                    try
-                    {
-                        await task;
-                    }
-                    catch (Exception ex)
-                    {
-                        _dnsWebService._log.Write(ex);
-                    }
+                            foreach (KeyValuePair<int, ClusterNode> clusterNode in clusterNodes)
+                            {
+                                if (clusterNode.Value.State == ClusterNodeState.Self)
+                                    continue;
+
+                                tasks.Add(clusterNode.Value.TemporaryDisableBlockingAsync(minutes));
+                            }
+
+                            foreach (Task task in tasks)
+                            {
+                                try
+                                {
+                                    await task;
+                                }
+                                catch (Exception ex)
+                                {
+                                    _dnsWebService._log.Write(ex);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _dnsWebService._log.Write(ex);
+                        }
+                    });
                 }
             }
 
