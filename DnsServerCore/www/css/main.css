@@ -1,7 +1,10 @@
-﻿
-html, body {
+﻿html, body {
     height: 100% !important;
     scrollbar-gutter: stable;
+}
+
+body.modal-open {
+    padding-right: 0 !important;
 }
 
 body {
@@ -324,8 +327,11 @@ th a {
     text-align: center;
 }
 
-.about h3 a {
-    color: rgb(51, 51, 51);
+.cluster-node-dropdown {
+    margin-left: 4px;
+    padding: 2px 8px;
+    height: 28px;
+    max-width: 250px;
 }
 
 .dark-mode {
@@ -540,17 +546,11 @@ body.dark-mode {
     stroke: #4a4a4c !important;
 }
 
-.dark-mode #dpCustomDayWiseStart,
-.dark-mode #dpCustomDayWiseEnd,
-.dark-mode #txtQueryLogStart,
-.dark-mode #txtQueryLogEnd {
+.dark-mode input[type="datetime-local"] {
     color-scheme: dark;
 }
 
-    .dark-mode #dpCustomDayWiseStart::-webkit-calendar-picker-indicator,
-    .dark-mode #dpCustomDayWiseEnd::-webkit-calendar-picker-indicator,
-    .dark-mode #txtQueryLogStart::-webkit-calendar-picker-indicator,
-    .dark-mode #txtQueryLogEnd::-webkit-calendar-picker-indicator {
+    .dark-mode input[type="datetime-local"]::-webkit-calendar-picker-indicator {
         filter: invert(1);
     }
 
@@ -563,3 +563,17 @@ body.dark-mode {
     .dark-mode .pager li > a:hover {
         background-color: #4a4a4c !important;
     }
+
+.dark-mode #dpCustomDayWiseStart,
+.dark-mode #dpCustomDayWiseEnd,
+.dark-mode #txtQueryLogStart,
+.dark-mode #txtQueryLogEnd {
+    color-scheme: dark;
+}
+
+.dark-mode #dpCustomDayWiseStart::-webkit-calendar-picker-indicator,
+.dark-mode #dpCustomDayWiseEnd::-webkit-calendar-picker-indicator,
+.dark-mode #txtQueryLogStart::-webkit-calendar-picker-indicator,
+.dark-mode #txtQueryLogEnd::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+}
