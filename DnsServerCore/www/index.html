@@ -6531,15 +6531,19 @@ MII...
                             </div>
 
                             <p>
-                                <b>Note!</b> If the web service does not have HTTPS enabled, then the initialization process will enable it automatically with a self-signed certificate. However, its recommended to manually configure HTTPS with a valid certificate before initializing the cluster.
+                                <b>Note!</b> When the Cluster is initialized, the DNS Server Domain Name will be changed such that the current hostname is a subdomain name of the Cluster domain name specified above. For example, if the current DNS Server Domain Name is <code>ns1.mydomain.tld</code> or just <code>ns1</code> then the new domain name will be <code>ns1.mycluster.tld</code>.
                             </p>
 
                             <p>
-                                <b>Note!</b> The initialization process will create two zones if they do not exist. The first zone will be the Cluster Primary zone named as the Cluster domain name specified above. The second zone will be the Cluster Catalog zone that uses 'cluster-catalog' as the subdomain name of the Cluster domain name. Use this Cluster Catalog zone for automatic provisioning of Secondary zones on all of the Cluster Secondary nodes.
+                                <b>Note!</b> If the web service does not have HTTPS enabled, then the initialization process will enable it automatically with a self-signed certificate. However, it is recommended to manually configure HTTPS with a valid certificate before initializing the Cluster. This certificate must include the new expected DNS Server Domain Name, as mentioned in the above note, as the Subject Common Name or Subject Alternative Name (SAN) so that it validates when a Secondary node tries to join the Cluster. Once a node joins the Cluster, it uses DANE-EE for server authentication and the domain name in the certificate is no longer required to match the DNS Server Domain Name.
                             </p>
 
                             <p>
-                                <b>Warning!</b> The Cluster domain name cannot be changed later. Make sure that you enter the correct domain name before proceeding.
+                                <b>Note!</b> The initialization process will create two zones if they do not exist. The first zone will be the Cluster Primary zone named as the Cluster domain name specified above where the Cluster will automatically manage domain name records for all the nodes. The second zone will be the Cluster Catalog zone that uses <code>cluster-catalog</code> as the subdomain name of the Cluster domain name. Use this Cluster Catalog zone for automatic provisioning of Secondary zones on all of the Cluster Secondary nodes.
+                            </p>
+
+                            <p>
+                                <b>Warning!</b> The Cluster domain name cannot be changed later. Make sure that you enter the correct domain name before proceeding. You can update the DNS Server Domain Name later if needed from Settings but it must always be a subdomain name of the Cluster domain name.
                             </p>
                         </div>
                     </div>
@@ -6647,11 +6651,11 @@ MII...
                             </p>
 
                             <p>
-                                <b>Note!</b> If the web service does not have HTTPS enabled, then the joining process will enable it automatically with a self-signed certificate. However, its recommended to manually configure HTTPS with a valid certificate before joining the cluster.
+                                <b>Note!</b> If the web service does not have HTTPS enabled, then the joining process will enable it automatically with a self-signed certificate. However, its recommended to manually configure HTTPS with a valid certificate before joining the cluster. This certificate should optionally include the new expected DNS Server Domain Name, which will be a subdomain name of the Cluster Domain name, as the Subject Common Name or Subject Alternative Name (SAN).
                             </p>
 
                             <p>
-                                <b>Warning!</b> Joining a Cluster will cause configuration on this DNS server to be overwritten permanently for Allowed, Blocked, Apps, Settings and Administration sections!
+                                <b>Warning!</b> Joining a Cluster will cause configuration on this DNS Server to be overwritten permanently for Allowed, Blocked, Apps, Settings and Administration sections!
                             </p>
                         </div>
                     </div>
