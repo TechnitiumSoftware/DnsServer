@@ -492,7 +492,13 @@ namespace DnsServerCore.Cluster
             //create self node
             string serverDomain = _dnsWebService.DnsServer.ServerDomain;
             if (!serverDomain.EndsWith("." + clusterDomain, StringComparison.OrdinalIgnoreCase))
-                serverDomain = serverDomain + "." + clusterDomain;
+            {
+                int x = serverDomain.IndexOf('.');
+                if (x < 0)
+                    serverDomain = serverDomain + "." + clusterDomain;
+                else
+                    serverDomain = string.Concat(serverDomain.AsSpan(0, x), ".", clusterDomain);
+            }
 
             Uri primaryNodeUrl = new Uri($"https://{serverDomain}:{_dnsWebService.WebServiceTlsPort}/");
 
@@ -1256,7 +1262,13 @@ namespace DnsServerCore.Cluster
                 //create self node
                 string serverDomain = _dnsWebService.DnsServer.ServerDomain;
                 if (!serverDomain.EndsWith("." + primaryNodeClusterInfo.ClusterDomain, StringComparison.OrdinalIgnoreCase))
-                    serverDomain = serverDomain + "." + primaryNodeClusterInfo.ClusterDomain;
+                {
+                    int x = serverDomain.IndexOf('.');
+                    if (x < 0)
+                        serverDomain = serverDomain + "." + primaryNodeClusterInfo.ClusterDomain;
+                    else
+                        serverDomain = string.Concat(serverDomain.AsSpan(0, x), ".", primaryNodeClusterInfo.ClusterDomain);
+                }
 
                 Uri secondaryNodeUrl = new Uri($"https://{serverDomain}:{_dnsWebService.WebServiceTlsPort}/");
 
