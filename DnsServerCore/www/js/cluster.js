@@ -947,6 +947,10 @@ function updateClusterNodeDropDown(optClusterNode, addClusterNode, selectedNode)
         }
 
         optClusterNode.val(selectedNode);
+
+        if ((optClusterNode.val() == null) && (sessionData.info.clusterNodes.length > 0))
+            optClusterNode.val(sessionData.info.clusterNodes[0].name);
+
         optClusterNode.show();
     }
     else {
