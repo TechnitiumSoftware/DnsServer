@@ -24,6 +24,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<None Update="openrc.service">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
 		<None Update="start.bat">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
