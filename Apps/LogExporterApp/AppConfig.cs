@@ -1,6 +1,7 @@
 ﻿/*
 Technitium DNS Server
 Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Zafer Balkan (zafer@zaferbalkan.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -23,11 +24,13 @@ using System.Text.Json.Serialization;
 
 namespace LogExporter
 {
-    public class BufferManagementConfig
+    public class AppConfig
     {
         [JsonPropertyName("maxQueueSize")]
-        public int MaxQueueSize
-        { get; set; }
+        public int MaxQueueSize { get; set; }
+
+        [JsonPropertyName("enableEdnsLogging ")]
+        public bool EnableEdnsLogging { get; set; }
 
         [JsonPropertyName("file")]
         public FileTarget? FileTarget { get; set; }
@@ -39,9 +42,9 @@ namespace LogExporter
         public SyslogTarget? SyslogTarget { get; set; }
 
         // Load configuration from JSON
-        public static BufferManagementConfig? Deserialize(string json)
+        public static AppConfig? Deserialize(string json)
         {
-            return JsonSerializer.Deserialize<BufferManagementConfig>(json, DnsConfigSerializerOptions.Default);
+            return JsonSerializer.Deserialize<AppConfig>(json, DnsConfigSerializerOptions.Default);
         }
     }
 
