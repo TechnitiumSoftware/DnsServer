@@ -116,31 +116,31 @@
 	{
 		"name": "Hagezi [Multi Light - Basic protection]",
 		"urls": [
-			"https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/light-onlydomains.txt"
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/light-onlydomains.txt"
 		]
 	},
 	{
 		"name": "Hagezi [Multi Normal - All-round protection]",
 		"urls": [
-			"https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/multi-onlydomains.txt"
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/multi-onlydomains.txt"
 		]
 	},
 	{
 		"name": "Hagezi [Multi PRO - Extended protection]",
 		"urls": [
-			"https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro-onlydomains.txt"
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro-onlydomains.txt"
 		]
 	},
 	{
 		"name": "Hagezi [Multi PRO++ - Maximum protection]",
 		"urls": [
-			"https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro.plus-onlydomains.txt"
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt"
 		]
 	},
 	{
 		"name": "Hagezi [Multi ULTIMATE - Aggressive protection]",
 		"urls": [
-			"https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/ultimate-onlydomains.txt"
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/ultimate-onlydomains.txt"
 		]
 	},
 	{
