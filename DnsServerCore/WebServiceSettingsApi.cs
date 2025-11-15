@@ -484,9 +484,9 @@ namespace DnsServerCore
 
             public void GetDnsSettings(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.View))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, sessionUser, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
@@ -495,9 +495,9 @@ namespace DnsServerCore
 
             public async Task SetDnsSettingsAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Modify))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
                 bool serverDomainChanged = false;
@@ -1564,7 +1564,7 @@ namespace DnsServerCore
                         _dnsWebService._log.SaveConfigFile();
                     }
 
-                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DNS Settings were updated successfully.");
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] DNS Settings were updated successfully.");
 
                     //trigger cluster update
                     if (_dnsWebService._clusterManager.ClusterInitialized)
@@ -1587,11 +1587,11 @@ namespace DnsServerCore
 
             public void GetTsigKeyNames(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
                 if (
-                    !_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.View) &&
-                    !_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify)
+                    !_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, sessionUser, PermissionFlag.View) &&
+                    !_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, sessionUser, PermissionFlag.Modify)
                    )
                 {
                     throw new DnsWebServiceException("Access was denied.");
@@ -1615,9 +1615,9 @@ namespace DnsServerCore
 
             public async Task BackupSettingsAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -1671,14 +1671,14 @@ namespace DnsServerCore
                     }
                 }
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Settings backup zip file was exported.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Settings backup zip file was exported.");
             }
 
             public async Task RestoreSettingsAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -1717,9 +1717,9 @@ namespace DnsServerCore
 
                             fS.Position = 0;
 
-                            await _dnsWebService.RestoreConfigAsync(fS, authConfig, clusterConfig, webServiceSettings, dnsSettings, logSettings, zones, allowedZones, blockedZones, blockLists, apps, scopes, stats, logs, deleteExistingFiles, session);
+                            await _dnsWebService.RestoreConfigAsync(fS, authConfig, clusterConfig, webServiceSettings, dnsSettings, logSettings, zones, allowedZones, blockedZones, blockLists, apps, scopes, stats, logs, deleteExistingFiles, context.GetCurrentSession());
 
-                            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Settings backup zip file was restored.");
+                            _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Settings backup zip file was restored.");
                         }
                     }
                     finally
@@ -1751,17 +1751,19 @@ namespace DnsServerCore
 
             public void ForceUpdateBlockLists(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Modify))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
                 _dnsWebService._dnsServer.BlockListZoneManager.ForceUpdateBlockLists();
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Block list update was triggered.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Block list update was triggered.");
 
                 if (_dnsWebService._clusterManager.ClusterInitialized)
                 {
+                    UserSession session = context.GetCurrentSession();
+
                     if ((session.Type == UserSessionType.ApiToken) && session.TokenName.Equals(_dnsWebService._clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
                         return; //call from cluster node itself
 
@@ -1803,20 +1805,22 @@ namespace DnsServerCore
 
             public void TemporaryDisableBlocking(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Modify))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
                 int minutes = context.Request.GetQueryOrForm("minutes", int.Parse);
 
-                _dnsWebService._dnsServer.BlockListZoneManager.TemporaryDisableBlocking(minutes, context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), session.User.Username);
+                _dnsWebService._dnsServer.BlockListZoneManager.TemporaryDisableBlocking(minutes, context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), sessionUser.Username);
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 jsonWriter.WriteString("temporaryDisableBlockingTill", _dnsWebService._dnsServer.BlockListZoneManager.TemporaryDisableBlockingTill);
 
                 if (_dnsWebService._clusterManager.ClusterInitialized)
                 {
+                    UserSession session = context.GetCurrentSession();
+
                     if ((session.Type == UserSessionType.ApiToken) && session.TokenName.Equals(_dnsWebService._clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
                         return; //call from cluster node itself
 
