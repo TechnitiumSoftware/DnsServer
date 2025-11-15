@@ -267,7 +267,7 @@ namespace DnsServerCore
                 string webServiceUseSelfSignedTlsCertificate = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_USE_SELF_SIGNED_CERT");
                 if (!string.IsNullOrEmpty(webServiceUseSelfSignedTlsCertificate))
                     _webServiceUseSelfSignedTlsCertificate = bool.Parse(webServiceUseSelfSignedTlsCertificate);
-                
+
                 string webServiceTlsCertificatePath = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_TLS_CERTIFICATE_PATH");
                 if (!string.IsNullOrEmpty(webServiceTlsCertificatePath))
                     _webServiceTlsCertificatePath = webServiceTlsCertificatePath;
@@ -1771,26 +1771,16 @@ namespace DnsServerCore
             });
         }
 
-        private ClusterNodeType GetClusterNodeTypeForPath(string path, HttpContext context, out IReadOnlyDictionary<string, string> additionalParameters)
+        private static ClusterNodeType GetClusterNodeTypeForPath(string path)
         {
             switch (path)
             {
+                case "/api/user/createToken":
                 case "/api/user/changePassword":
                 case "/api/user/2fa/init":
                 case "/api/user/2fa/enable":
                 case "/api/user/2fa/disable":
                 case "/api/user/profile/set":
-                    if (!TryGetSession(context, out UserSession session))
-                        throw new InvalidTokenWebServiceException("Invalid token or session expired.");
-
-                    additionalParameters = new Dictionary<string, string>
-                    {
-                        { "user", session.User.Username }
-                    };
-
-                    return ClusterNodeType.Primary; //this api can be called only on primary node
-
-                case "/api/user/createToken":
 
                 case "/api/allowed/add":
                 case "/api/allowed/delete":
@@ -1816,18 +1806,15 @@ namespace DnsServerCore
                 case "/api/admin/groups/create":
                 case "/api/admin/groups/set":
                 case "/api/admin/groups/delete":
-                    additionalParameters = null;
                     return ClusterNodeType.Primary; //this api can be called only on primary node
 
                 case "/api/user/login":
                 case "/api/user/logout":
                 case "/api/user/session/get":
                 case "/api/user/session/delete":
-                    additionalParameters = null;
                     return ClusterNodeType.Secondary; //this api must be called on current node
 
                 default:
-                    additionalParameters = null;
                     return ClusterNodeType.Unknown; //this api can be called on any specified node
             }
         }
@@ -1847,7 +1834,7 @@ namespace DnsServerCore
 
             if (_clusterManager.ClusterInitialized)
             {
-                ClusterNodeType pathNodeType = GetClusterNodeTypeForPath(request.Path, context, out IReadOnlyDictionary<string, string> additionalParameters);
+                ClusterNodeType pathNodeType = GetClusterNodeTypeForPath(request.Path);
                 switch (pathNodeType)
                 {
                     case ClusterNodeType.Primary:
@@ -1856,8 +1843,14 @@ namespace DnsServerCore
                         if (selfNode.Type == ClusterNodeType.Secondary)
                         {
                             //validate user session before proxying request
-                            if (!TryGetSession(context, out _))
+                            if (!TryGetSession(context, out UserSession session))
                                 throw new InvalidTokenWebServiceException("Invalid token or session expired.");
+
+                            //set additional parameters with current username
+                            IReadOnlyDictionary<string, string> additionalParameters = new Dictionary<string, string>
+                            {
+                                { "user", session.User.Username }
+                            };
 
                             //proxy to primary node
                             ClusterNode primaryNode = _clusterManager.GetPrimaryNode();
@@ -1882,8 +1875,14 @@ namespace DnsServerCore
                             if (node.State != ClusterNodeState.Self)
                             {
                                 //validate user session before proxying request
-                                if (!TryGetSession(context, out _))
+                                if (!TryGetSession(context, out UserSession session))
                                     throw new InvalidTokenWebServiceException("Invalid token or session expired.");
+
+                                //set additional parameters with current username
+                                IReadOnlyDictionary<string, string> additionalParameters = new Dictionary<string, string>
+                                {
+                                    { "user", session.User.Username }
+                                };
 
                                 //proxy request to the specified cluster node
                                 await node.ProxyRequest(context, additionalParameters);
@@ -2064,6 +2063,30 @@ namespace DnsServerCore
 
             session.UpdateLastSeen(remoteEP.Address, context.Request.Headers.UserAgent);
             return true;
+        }
+
+        private User GetSessionUser(HttpContext context, bool standardOnly = false)
+        {
+            UserSession session = context.GetCurrentSession();
+
+            if ((session.Type == UserSessionType.ApiToken) && _clusterManager.ClusterInitialized && session.TokenName.Equals(_clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
+            {
+                //proxy call from cluster node 
+                string username = context.Request.GetQueryOrForm("user");
+
+                User user = _authManager.GetUser(username);
+                if (user is null)
+                    throw new DnsWebServiceException("No such user exists: " + username);
+
+                return user;
+            }
+            else
+            {
+                if (standardOnly && (session.Type != UserSessionType.Standard))
+                    throw new DnsWebServiceException("Access was denied.");
+
+                return session.User;
+            }
         }
 
         #endregion
