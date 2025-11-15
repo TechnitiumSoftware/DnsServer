@@ -350,32 +350,14 @@ namespace DnsServerCore
             {
                 UserSession session = context.GetCurrentSession();
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+
                 WriteCurrentSessionDetails(jsonWriter, session, true);
             }
 
             public async Task ChangePasswordAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context, true);
                 HttpRequest request = context.Request;
-                User user;
-
-                if (session.Type == UserSessionType.Standard)
-                {
-                    user = session.User;
-                }
-                else if ((session.Type == UserSessionType.ApiToken) && _dnsWebService._clusterManager.ClusterInitialized && session.TokenName.Equals(_dnsWebService._clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
-                {
-                    //proxy call from secondary cluster node 
-                    string username = request.GetQueryOrForm("user");
-
-                    user = _dnsWebService._authManager.GetUser(username);
-                    if (user is null)
-                        throw new DnsWebServiceException("No such user exists: " + username);
-                }
-                else
-                {
-                    throw new DnsWebServiceException("Access was denied.");
-                }
 
                 string password = request.GetQueryOrForm("pass");
                 string totp = request.GetQueryOrForm("totp", null);
@@ -383,9 +365,9 @@ namespace DnsServerCore
                 string newPassword = request.GetQueryOrForm("newPass");
                 int iterations = request.GetQueryOrForm("iterations", int.Parse, User.DEFAULT_ITERATIONS);
 
-                user = await _dnsWebService._authManager.ChangePasswordAsync(user.Username, password, totp, remoteEP.Address, newPassword, iterations);
+                sessionUser = await _dnsWebService._authManager.ChangePasswordAsync(sessionUser.Username, password, totp, remoteEP.Address, newPassword, iterations);
 
-                _dnsWebService._log.Write(remoteEP, "[" + user.Username + "] Password was changed successfully.");
+                _dnsWebService._log.Write(remoteEP, "[" + sessionUser.Username + "] Password was changed successfully.");
 
                 _dnsWebService._authManager.SaveConfigFile();
 
@@ -396,43 +378,23 @@ namespace DnsServerCore
 
             public void Initialize2FA(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
-                HttpRequest request = context.Request;
-                User user;
-
-                if (session.Type == UserSessionType.Standard)
-                {
-                    user = session.User;
-                }
-                else if ((session.Type == UserSessionType.ApiToken) && _dnsWebService._clusterManager.ClusterInitialized && session.TokenName.Equals(_dnsWebService._clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
-                {
-                    //proxy call from secondary cluster node 
-                    string username = request.GetQueryOrForm("user");
-
-                    user = _dnsWebService._authManager.GetUser(username);
-                    if (user is null)
-                        throw new DnsWebServiceException("No such user exists: " + username);
-                }
-                else
-                {
-                    throw new DnsWebServiceException("Access was denied.");
-                }
+                User sessionUser = _dnsWebService.GetSessionUser(context, true);
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
-                if (user.TOTPEnabled)
+                if (sessionUser.TOTPEnabled)
                 {
                     jsonWriter.WriteBoolean("totpEnabled", true);
                 }
                 else
                 {
-                    AuthenticatorKeyUri totpKeyUri = user.InitializedTOTP(_dnsWebService._dnsServer.ServerDomain);
+                    AuthenticatorKeyUri totpKeyUri = sessionUser.InitializedTOTP(_dnsWebService._dnsServer.ServerDomain);
 
                     jsonWriter.WriteBoolean("totpEnabled", false);
                     jsonWriter.WriteString("qrCodePngImage", Convert.ToBase64String(totpKeyUri.GetQRCodePngImage(3)));
                     jsonWriter.WriteString("secret", totpKeyUri.Secret);
 
-                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + user.Username + "] Two-factor Authentication (2FA) using Time-based one-time password (TOTP) was initialized successfully.");
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Two-factor Authentication (2FA) using Time-based one-time password (TOTP) was initialized successfully.");
 
                     _dnsWebService._authManager.SaveConfigFile();
                 }
@@ -440,33 +402,14 @@ namespace DnsServerCore
 
             public void Enable2FA(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context, true);
                 HttpRequest request = context.Request;
-                User user;
-
-                if (session.Type == UserSessionType.Standard)
-                {
-                    user = session.User;
-                }
-                else if ((session.Type == UserSessionType.ApiToken) && _dnsWebService._clusterManager.ClusterInitialized && session.TokenName.Equals(_dnsWebService._clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
-                {
-                    //proxy call from secondary cluster node 
-                    string username = request.GetQueryOrForm("user");
-
-                    user = _dnsWebService._authManager.GetUser(username);
-                    if (user is null)
-                        throw new DnsWebServiceException("No such user exists: " + username);
-                }
-                else
-                {
-                    throw new DnsWebServiceException("Access was denied.");
-                }
 
                 string totp = request.GetQueryOrForm("totp");
 
-                user.EnableTOTP(totp);
+                sessionUser.EnableTOTP(totp);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + user.Username + "] Two-factor Authentication (2FA) using Time-based one-time password (TOTP) was enabled successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Two-factor Authentication (2FA) using Time-based one-time password (TOTP) was enabled successfully.");
 
                 _dnsWebService._authManager.SaveConfigFile();
 
@@ -477,31 +420,11 @@ namespace DnsServerCore
 
             public void Disable2FA(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
-                HttpRequest request = context.Request;
-                User user;
+                User sessionUser = _dnsWebService.GetSessionUser(context, true);
 
-                if (session.Type == UserSessionType.Standard)
-                {
-                    user = session.User;
-                }
-                else if ((session.Type == UserSessionType.ApiToken) && _dnsWebService._clusterManager.ClusterInitialized && session.TokenName.Equals(_dnsWebService._clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
-                {
-                    //proxy call from secondary cluster node 
-                    string username = request.GetQueryOrForm("user");
+                sessionUser.DisableTOTP();
 
-                    user = _dnsWebService._authManager.GetUser(username);
-                    if (user is null)
-                        throw new DnsWebServiceException("No such user exists: " + username);
-                }
-                else
-                {
-                    throw new DnsWebServiceException("Access was denied.");
-                }
-
-                user.DisableTOTP();
-
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + user.Username + "] Two-factor Authentication (2FA) using Time-based one-time password (TOTP) was disabled successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Two-factor Authentication (2FA) using Time-based one-time password (TOTP) was disabled successfully.");
 
                 _dnsWebService._authManager.SaveConfigFile();
 
@@ -514,40 +437,22 @@ namespace DnsServerCore
             {
                 UserSession session = context.GetCurrentSession();
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+
                 WriteUserDetails(jsonWriter, session.User, session, true, false);
             }
 
             public void SetProfile(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context, true);
                 HttpRequest request = context.Request;
-                User user;
-
-                if (session.Type == UserSessionType.Standard)
-                {
-                    user = session.User;
-                }
-                else if ((session.Type == UserSessionType.ApiToken) && _dnsWebService._clusterManager.ClusterInitialized && session.TokenName.Equals(_dnsWebService._clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
-                {
-                    //proxy call from secondary cluster node 
-                    string username = request.GetQueryOrForm("user");
-
-                    user = _dnsWebService._authManager.GetUser(username);
-                    if (user is null)
-                        throw new DnsWebServiceException("No such user exists: " + username);
-                }
-                else
-                {
-                    throw new DnsWebServiceException("Access was denied.");
-                }
 
                 if (request.TryGetQueryOrForm("displayName", out string displayName))
-                    user.DisplayName = displayName;
+                    sessionUser.DisplayName = displayName;
 
                 if (request.TryGetQueryOrForm("sessionTimeoutSeconds", int.Parse, out int sessionTimeoutSeconds))
-                    user.SessionTimeoutSeconds = sessionTimeoutSeconds;
+                    sessionUser.SessionTimeoutSeconds = sessionTimeoutSeconds;
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + user.Username + "] User profile was updated successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] User profile was updated successfully.");
 
                 _dnsWebService._authManager.SaveConfigFile();
 
@@ -555,15 +460,17 @@ namespace DnsServerCore
                 if (_dnsWebService._clusterManager.ClusterInitialized)
                     _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
 
+                UserSession session = context.GetCurrentSession();
+
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
-                WriteUserDetails(jsonWriter, user, session, true, false);
+                WriteUserDetails(jsonWriter, sessionUser, session, true, false);
             }
 
             public void ListSessions(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.View))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
@@ -573,6 +480,8 @@ namespace DnsServerCore
 
                 List<UserSession> sessions = new List<UserSession>(_dnsWebService._authManager.Sessions);
                 sessions.Sort();
+
+                UserSession session = context.GetCurrentSession();
 
                 foreach (UserSession activeSession in sessions)
                 {
@@ -585,9 +494,9 @@ namespace DnsServerCore
 
             public void CreateApiToken(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Modify))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -599,7 +508,7 @@ namespace DnsServerCore
 
                 UserSession createdSession = _dnsWebService._authManager.CreateApiToken(tokenName, username, remoteEP.Address, request.Headers.UserAgent);
 
-                _dnsWebService._log.Write(remoteEP, "[" + session.User.Username + "] API token [" + tokenName + "] was created successfully for user: " + username);
+                _dnsWebService._log.Write(remoteEP, "[" + sessionUser.Username + "] API token [" + tokenName + "] was created successfully for user: " + username);
 
                 _dnsWebService._authManager.SaveConfigFile();
 
@@ -673,9 +582,9 @@ namespace DnsServerCore
 
             public void ListUsers(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.View))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
                 List<User> users = new List<User>(_dnsWebService._authManager.Users);
@@ -700,9 +609,9 @@ namespace DnsServerCore
 
             public void CreateUser(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Modify))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -713,7 +622,7 @@ namespace DnsServerCore
 
                 User user = _dnsWebService._authManager.CreateUser(displayName, username, password);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User account was created successfully with username: " + user.Username);
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] User account was created successfully with username: " + user.Username);
 
                 _dnsWebService._authManager.SaveConfigFile();
 
@@ -727,9 +636,9 @@ namespace DnsServerCore
 
             public void GetUserDetails(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.View))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -741,15 +650,17 @@ namespace DnsServerCore
                 if (user is null)
                     throw new DnsWebServiceException("No such user exists: " + username);
 
+                UserSession session = context.GetCurrentSession();
+
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteUserDetails(jsonWriter, user, session, true, includeGroups);
             }
 
             public void SetUserDetails(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Modify))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -776,7 +687,7 @@ namespace DnsServerCore
                         user.DisableTOTP();
                     }
 
-                    if (request.TryGetQueryOrForm("disabled", bool.Parse, out bool disabled) && (session.User != user)) //to avoid self lockout
+                    if (request.TryGetQueryOrForm("disabled", bool.Parse, out bool disabled) && (sessionUser != user)) //to avoid self lockout
                     {
                         user.Disabled = disabled;
 
@@ -826,7 +737,7 @@ namespace DnsServerCore
                         Group everyone = _dnsWebService._authManager.GetGroup(Group.EVERYONE);
                         groups[everyone.Name.ToLowerInvariant()] = everyone;
 
-                        if (session.User == user)
+                        if (sessionUser == user)
                         {
                             //ensure current admin user is member of administrators group to avoid self lockout
                             Group admins = _dnsWebService._authManager.GetGroup(Group.ADMINISTRATORS);
@@ -838,7 +749,7 @@ namespace DnsServerCore
                 }
                 finally
                 {
-                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User account details were updated successfully for user: " + username);
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] User account details were updated successfully for user: " + username);
 
                     _dnsWebService._authManager.SaveConfigFile();
 
@@ -847,26 +758,28 @@ namespace DnsServerCore
                         _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
                 }
 
+                UserSession session = context.GetCurrentSession();
+
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteUserDetails(jsonWriter, user, session, true, false);
             }
 
             public void DeleteUser(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 string username = context.Request.GetQueryOrForm("user");
 
-                if (session.User.Username.Equals(username, StringComparison.OrdinalIgnoreCase))
+                if (sessionUser.Username.Equals(username, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidOperationException("Invalid operation: cannot delete current user.");
 
                 if (!_dnsWebService._authManager.DeleteUser(username))
                     throw new DnsWebServiceException("Failed to delete user: " + username);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User account was deleted successfully with username: " + username);
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] User account was deleted successfully with username: " + username);
 
                 _dnsWebService._authManager.SaveConfigFile();
 
@@ -877,9 +790,9 @@ namespace DnsServerCore
 
             public void ListGroups(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.View))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
                 List<Group> groups = new List<Group>(_dnsWebService._authManager.Groups);
@@ -907,9 +820,9 @@ namespace DnsServerCore
 
             public void CreateGroup(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Modify))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -919,7 +832,7 @@ namespace DnsServerCore
 
                 Group group = _dnsWebService._authManager.CreateGroup(groupName, description);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Group was created successfully with name: " + group.Name);
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Group was created successfully with name: " + group.Name);
 
                 _dnsWebService._authManager.SaveConfigFile();
 
@@ -933,9 +846,9 @@ namespace DnsServerCore
 
             public void GetGroupDetails(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.View))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -953,9 +866,9 @@ namespace DnsServerCore
 
             public void SetGroupDetails(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Modify))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -991,12 +904,12 @@ namespace DnsServerCore
                     }
 
                     if (group.Name.Equals("administrators", StringComparison.OrdinalIgnoreCase))
-                        users[session.User.Username] = session.User; //ensure current admin user is member of administrators group to avoid self lockout
+                        users[sessionUser.Username] = sessionUser; //ensure current admin user is member of administrators group to avoid self lockout
 
                     _dnsWebService._authManager.SyncGroupMembers(group, users);
                 }
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Group details were updated successfully for group: " + groupName);
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Group details were updated successfully for group: " + groupName);
 
                 _dnsWebService._authManager.SaveConfigFile();
 
@@ -1010,9 +923,9 @@ namespace DnsServerCore
 
             public void DeleteGroup(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 string groupName = context.Request.GetQueryOrForm("group");
@@ -1020,7 +933,7 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.DeleteGroup(groupName))
                     throw new DnsWebServiceException("Failed to delete group: " + groupName);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Group was deleted successfully with name: " + groupName);
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Group was deleted successfully with name: " + groupName);
 
                 _dnsWebService._authManager.SaveConfigFile();
 
@@ -1031,9 +944,9 @@ namespace DnsServerCore
 
             public void ListPermissions(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.View))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
                 List<Permission> permissions = new List<Permission>(_dnsWebService._authManager.Permissions);
@@ -1058,21 +971,21 @@ namespace DnsServerCore
 
             public void GetPermissionDetails(HttpContext context, PermissionSection section)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
                 HttpRequest request = context.Request;
                 string strSubItem = null;
 
                 switch (section)
                 {
                     case PermissionSection.Unknown:
-                        if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.View))
+                        if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.View))
                             throw new DnsWebServiceException("Access was denied.");
 
                         section = request.GetQueryOrFormEnum<PermissionSection>("section");
                         break;
 
                     case PermissionSection.Zones:
-                        if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
+                        if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, sessionUser, PermissionFlag.Modify))
                             throw new DnsWebServiceException("Access was denied.");
 
                         strSubItem = request.GetQueryOrForm("zone").Trim('.');
@@ -1086,7 +999,7 @@ namespace DnsServerCore
 
                 if (strSubItem is not null)
                 {
-                    if (!_dnsWebService._authManager.IsPermitted(section, strSubItem, session.User, PermissionFlag.View))
+                    if (!_dnsWebService._authManager.IsPermitted(section, strSubItem, sessionUser, PermissionFlag.View))
                         throw new DnsWebServiceException("Access was denied.");
                 }
 
@@ -1106,14 +1019,14 @@ namespace DnsServerCore
 
             public void SetPermissionsDetails(HttpContext context, PermissionSection section)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
                 HttpRequest request = context.Request;
                 string strSubItem = null;
 
                 switch (section)
                 {
                     case PermissionSection.Unknown:
-                        if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
+                        if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Delete))
                             throw new DnsWebServiceException("Access was denied.");
 
                         if (_dnsWebService._clusterManager.ClusterInitialized)
@@ -1126,7 +1039,7 @@ namespace DnsServerCore
                         break;
 
                     case PermissionSection.Zones:
-                        if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
+                        if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, sessionUser, PermissionFlag.Modify))
                             throw new DnsWebServiceException("Access was denied.");
 
                         strSubItem = request.GetQueryOrForm("zone").Trim('.');
@@ -1138,7 +1051,7 @@ namespace DnsServerCore
 
                 if (strSubItem is not null)
                 {
-                    if (!_dnsWebService._authManager.IsPermitted(section, strSubItem, session.User, PermissionFlag.Delete))
+                    if (!_dnsWebService._authManager.IsPermitted(section, strSubItem, sessionUser, PermissionFlag.Delete))
                         throw new DnsWebServiceException("Access was denied.");
                 }
 
@@ -1243,7 +1156,7 @@ namespace DnsServerCore
                     permission.SyncPermissions(groupPermissions);
                 }
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Permissions were updated successfully for section: " + section.ToString() + (string.IsNullOrEmpty(strSubItem) ? "" : "/" + strSubItem));
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Permissions were updated successfully for section: " + section.ToString() + (string.IsNullOrEmpty(strSubItem) ? "" : "/" + strSubItem));
 
                 _dnsWebService._authManager.SaveConfigFile();
 
