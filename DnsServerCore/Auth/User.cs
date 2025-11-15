@@ -319,7 +319,7 @@ namespace DnsServerCore.Auth
             get { return _displayName; }
             set
             {
-                if (string.IsNullOrWhiteSpace(_displayName))
+                if (string.IsNullOrWhiteSpace(value))
                     _displayName = _username;
                 else if (value.Length > 255)
                     throw new ArgumentException("Display name length cannot exceed 255 characters.", nameof(DisplayName));
