@@ -38,7 +38,7 @@ namespace DnsServerCore.HttpApi.Models
             public int Id { get; set; }
             public required string Name { get; set; }
             public required Uri Url { get; set; }
-            public required string IPAddress { get; set; }
+            public required string[] IPAddresses { get; set; }
             public required string Type { get; set; }
             public required string State { get; set; }
             public DateTime? UpSince { get; set; }
