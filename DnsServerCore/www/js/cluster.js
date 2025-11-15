@@ -17,6 +17,62 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+$(function () {
+    $("#optInitializeNewClusterQuickIpAddresses").on("change", function () {
+        var selectedIpAddress = $("#optInitializeNewClusterQuickIpAddresses").val();
+        switch (selectedIpAddress) {
+            case "blank":
+                break;
+
+            default:
+                var existingList = $("#txtInitializeNewClusterPrimaryNodeIpAddresses").val();
+
+                if (existingList.indexOf(selectedIpAddress) < 0) {
+                    existingList += selectedIpAddress + "\n";
+                    $("#txtInitializeNewClusterPrimaryNodeIpAddresses").val(existingList);
+                }
+
+                break;
+        }
+    });
+
+    $("#optInitializeJoinClusterQuickIpAddresses").on("change", function () {
+        var selectedIpAddress = $("#optInitializeJoinClusterQuickIpAddresses").val();
+        switch (selectedIpAddress) {
+            case "blank":
+                break;
+
+            default:
+                var existingList = $("#txtInitializeJoinClusterSecondaryNodeIpAddresses").val();
+
+                if (existingList.indexOf(selectedIpAddress) < 0) {
+                    existingList += selectedIpAddress + "\n";
+                    $("#txtInitializeJoinClusterSecondaryNodeIpAddresses").val(existingList);
+                }
+
+                break;
+        }
+    });
+
+    $("#optEditClusterNodeQuickSelfIpAddresses").on("change", function () {
+        var selectedIpAddress = $("#optEditClusterNodeQuickSelfIpAddresses").val();
+        switch (selectedIpAddress) {
+            case "blank":
+                break;
+
+            default:
+                var existingList = $("#txtEditClusterNodeSelfNodeIpAddresses").val();
+
+                if (existingList.indexOf(selectedIpAddress) < 0) {
+                    existingList += selectedIpAddress + "\n";
+                    $("#txtEditClusterNodeSelfNodeIpAddresses").val(existingList);
+                }
+
+                break;
+        }
+    });
+});
+
 function refreshAdminCluster() {
     var divAdminClusterLoader = $("#divAdminClusterLoader");
     var divAdminClusterView = $("#divAdminClusterView");
@@ -72,6 +128,18 @@ function reloadAdminClusterView(responseJSON) {
         var tableHtmlRows = "";
 
         for (var i = 0; i < responseJSON.response.clusterNodes.length; i++) {
+            var ipAddresses = "";
+            var ipAddressesCsv = "";
+
+            for (var j = 0; j < responseJSON.response.clusterNodes[i].ipAddresses.length; j++) {
+                ipAddresses += htmlEncode(responseJSON.response.clusterNodes[i].ipAddresses[j]) + "</br>";
+
+                if (ipAddressesCsv.length == 0)
+                    ipAddressesCsv = responseJSON.response.clusterNodes[i].ipAddresses[j];
+                else
+                    ipAddressesCsv += "," + responseJSON.response.clusterNodes[i].ipAddresses[j];
+            }
+
             var nodeType;
 
             switch (responseJSON.response.clusterNodes[i].type) {
@@ -132,7 +200,7 @@ function reloadAdminClusterView(responseJSON) {
             }
 
             tableHtmlRows += "<tr id=\"trAdminClusterNode" + i + "\"><td>" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "</td><td>" +
-                htmlEncode(responseJSON.response.clusterNodes[i].ipAddress) + "</td><td>" +
+                ipAddresses + "</td><td>" +
                 htmlEncode(responseJSON.response.clusterNodes[i].url) + "</td><td>" +
                 nodeType + "</td><td>" +
                 clusterNodestate + "</td><td>" +
@@ -149,10 +217,10 @@ function reloadAdminClusterView(responseJSON) {
                     tableHtmlRows += "<div class=\"dropdown\"><a href=\"#\" id=\"btnAdminClusterNodeRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
 
                     if (responseJSON.response.clusterNodes[i].state == "Self")
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-node-name=\"" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "\" data-node-ip=\"" + htmlEncode(responseJSON.response.clusterNodes[i].ipAddress) + "\" onclick=\"showEditSelfClusterNodeModal(this); return false;\">Edit Node</a></li>";
+                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-node-name=\"" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "\" data-node-ip=\"" + ipAddressesCsv + "\" onclick=\"showEditSelfClusterNodeModal(this); return false;\">Edit Node</a></li>";
 
                     if (responseJSON.response.clusterNodes[i].type == "Secondary")
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-node-id=\"" + htmlEncode(responseJSON.response.clusterNodes[i].id) + "\" data-node-name=\"" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "\" data-node-ip=\"" + htmlEncode(responseJSON.response.clusterNodes[i].ipAddress) + "\" onclick=\"showRemoveSecondaryClusterNodeModal(this); return false;\">Remove Node</a></li>";
+                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-node-id=\"" + htmlEncode(responseJSON.response.clusterNodes[i].id) + "\" data-node-name=\"" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "\" onclick=\"showRemoveSecondaryClusterNodeModal(this); return false;\">Remove Node</a></li>";
 
                     tableHtmlRows += "</ul></div>";
                     break;
@@ -161,15 +229,15 @@ function reloadAdminClusterView(responseJSON) {
                     if (responseJSON.response.clusterNodes[i].state == "Self") {
                         tableHtmlRows += "<div class=\"dropdown\"><a href=\"#\" id=\"btnAdminClusterNodeRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
 
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-node-name=\"" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "\" data-node-ip=\"" + htmlEncode(responseJSON.response.clusterNodes[i].ipAddress) + "\" onclick=\"showEditSelfClusterNodeModal(this); return false;\">Edit Node</a></li>";
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-node-name=\"" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "\" data-node-ip=\"" + htmlEncode(responseJSON.response.clusterNodes[i].ipAddress) + "\" onclick=\"showPromoteToPrimaryClusterNodeModal(this); return false;\">Promote To Primary</a></li>";
+                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-node-name=\"" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "\" data-node-ip=\"" + ipAddressesCsv + "\" onclick=\"showEditSelfClusterNodeModal(this); return false;\">Edit Node</a></li>";
+                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-node-name=\"" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "\" onclick=\"showPromoteToPrimaryClusterNodeModal(this); return false;\">Promote To Primary</a></li>";
 
                         tableHtmlRows += "</ul></div>";
                     }
                     else if (responseJSON.response.clusterNodes[i].type == "Primary") {
                         tableHtmlRows += "<div class=\"dropdown\"><a href=\"#\" id=\"btnAdminClusterNodeRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
 
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-node-name=\"" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "\" data-node-url=\"" + htmlEncode(responseJSON.response.clusterNodes[i].url) + "\" data-node-ip=\"" + htmlEncode(responseJSON.response.clusterNodes[i].ipAddress) + "\" onclick=\"showEditPrimaryClusterNodeModal(this); return false;\">Edit Node</a></li>";
+                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-node-name=\"" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "\" data-node-url=\"" + htmlEncode(responseJSON.response.clusterNodes[i].url) + "\" data-node-ip=\"" + ipAddressesCsv + "\" onclick=\"showEditPrimaryClusterNodeModal(this); return false;\">Edit Node</a></li>";
 
                         tableHtmlRows += "</ul></div>";
                     }
@@ -228,9 +296,14 @@ function showEditSelfClusterNodeModal(objMenuItem) {
     var node = $("#optAdminClusterNode").val();
 
     $("#lblEditClusterNodeName").text(nodeName);
+
+    $("#txtEditClusterNodeSelfNodeIpAddresses").val(nodeIp.replace(/,/g, "\n") + "\n");
+
     $("#divEditClusterNodeSelfNode").show();
     $("#divEditClusterNodePrimaryNode").hide();
+
     $("#btnEditClusterNodeSave").attr("onclick", "updateSelfClusterNode(this); return false;");
+
     divEditClusterNodeLoader.show();
     divEditClusterNodeView.hide();
 
@@ -242,9 +315,9 @@ function showEditSelfClusterNodeModal(objMenuItem) {
             var optionsHtml = "<option></option>";
 
             for (var i = 0; i < responseJSON.response.serverIpAddresses.length; i++)
-                optionsHtml += "<option" + (responseJSON.response.serverIpAddresses[i] == nodeIp ? " selected" : "") + ">" + responseJSON.response.serverIpAddresses[i] + "</option>";
+                optionsHtml += "<option>" + responseJSON.response.serverIpAddresses[i] + "</option>";
 
-            $("#optEditClusterNodeSelfNodeIpAddress").html(optionsHtml);
+            $("#optEditClusterNodeQuickSelfIpAddresses").html(optionsHtml);
 
             divEditClusterNodeLoader.hide();
             divEditClusterNodeView.show();
@@ -268,10 +341,10 @@ function showEditSelfClusterNodeModal(objMenuItem) {
 function updateSelfClusterNode(objBtn) {
     var divEditClusterNodeAlert = $("#divEditClusterNodeAlert");
 
-    var ipAddress = $("#optEditClusterNodeSelfNodeIpAddress").val();
-    if (ipAddress === "") {
-        showAlert("warning", "Missing!", "Please select a node IP address.", divEditClusterNodeAlert);
-        $("#optEditClusterNodeSelfNodeIpAddress").trigger("focus");
+    var ipAddresses = cleanTextList($("#txtEditClusterNodeSelfNodeIpAddresses").val());
+    if ((ipAddresses.length === 0) || (ipAddresses === ",")) {
+        showAlert("warning", "Missing!", "Please enter a node IP address.", divEditClusterNodeAlert);
+        $("#txtEditClusterNodeSelfNodeIpAddresses").trigger("focus");
         return;
     }
 
@@ -281,7 +354,7 @@ function updateSelfClusterNode(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/admin/cluster/updateIpAddress?token=" + sessionData.token + "&ipAddress=" + encodeURIComponent(ipAddress) + "&node=" + encodeURIComponent(node),
+        url: "api/admin/cluster/updateIpAddress?token=" + sessionData.token + "&ipAddresses=" + encodeURIComponent(ipAddresses) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.button("reset");
             $("#modalEditClusterNode").modal("hide");
@@ -312,7 +385,7 @@ function showEditPrimaryClusterNodeModal(objMenuItem) {
     $("#lblEditClusterNodeName").text(nodeName);
     $("#divEditClusterNodeSelfNode").hide();
     $("#txtEditClusterNodePrimaryNodeUrl").val(nodeUrl);
-    $("#txtEditClusterNodePrimaryNodeIpAddress").val(nodeIp);
+    $("#txtEditClusterNodePrimaryNodeIpAddresses").val(nodeIp.replace(/,/g, "\n") + "\n");
     $("#divEditClusterNodePrimaryNode").show();
     $("#btnEditClusterNodeSave").attr("onclick", "updatePrimaryClusterNode(this); return false;");
 
@@ -338,14 +411,17 @@ function updatePrimaryClusterNode(objBtn) {
         return;
     }
 
-    var primaryNodeIpAddress = $("#txtEditClusterNodePrimaryNodeIpAddress").val();
+    var primaryNodeIpAddresses = cleanTextList($("#txtEditClusterNodePrimaryNodeIpAddresses").val());
+    if (primaryNodeIpAddresses === ",")
+        primaryNodeIpAddresses = "";
+
     var node = $("#optAdminClusterNode").val();
 
     var btn = $(objBtn);
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/admin/cluster/secondary/updatePrimary?token=" + sessionData.token + "&primaryNodeUrl=" + encodeURIComponent(primaryNodeUrl) + "&primaryNodeIpAddress=" + encodeURIComponent(primaryNodeIpAddress) + "&node=" + encodeURIComponent(node),
+        url: "api/admin/cluster/secondary/updatePrimary?token=" + sessionData.token + "&primaryNodeUrl=" + encodeURIComponent(primaryNodeUrl) + "&primaryNodeIpAddresses=" + encodeURIComponent(primaryNodeIpAddresses) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.button("reset");
             $("#modalEditClusterNode").modal("hide");
@@ -371,10 +447,9 @@ function showRemoveSecondaryClusterNodeModal(objMenuItem) {
 
     var secondaryNodeId = mnuItem.attr("data-node-id");
     var nodeName = mnuItem.attr("data-node-name");
-    var nodeIp = mnuItem.attr("data-node-ip");
 
     hideAlert($("#divRemoveClusterNodeAlert"));
-    $("#lblRemoveClusterNodeName").text(nodeName + " (" + nodeIp + ")");
+    $("#lblRemoveClusterNodeName").text(nodeName);
     $("#chkRemoveClusterNodeForceRemove").prop("checked", false);
     $("#btnRemoveClusterNode").attr("data-node-id", secondaryNodeId);
 
@@ -425,9 +500,8 @@ function showPromoteToPrimaryClusterNodeModal(objMenuItem) {
     var mnuItem = $(objMenuItem);
 
     var nodeName = mnuItem.attr("data-node-name");
-    var nodeIp = mnuItem.attr("data-node-ip");
 
-    $("#lblPromoteToPrimaryClusterNodeName").text(nodeName + " (" + nodeIp + ")");
+    $("#lblPromoteToPrimaryClusterNodeName").text(nodeName);
     hideAlert($("#divPromoteToPrimaryClusterNodeAlert"));
     $("#chkPromoteToPrimaryClusterNodeForceDeletePrimary").prop("checked", false);
     $("#modalPromoteToPrimaryClusterNode").modal("show");
@@ -484,13 +558,14 @@ function showInitializeClusterModal() {
             }
 
             $("#txtInitializeNewClusterDomain").val("");
+            $("#txtInitializeNewClusterPrimaryNodeIpAddresses").val("");
 
             var optionsHtml = "<option></option>";
 
             for (var i = 0; i < responseJSON.response.serverIpAddresses.length; i++)
                 optionsHtml += "<option>" + responseJSON.response.serverIpAddresses[i] + "</option>";
 
-            $("#optInitializeNewClusterPrimaryNodeIpAddress").html(optionsHtml);
+            $("#optInitializeNewClusterQuickIpAddresses").html(optionsHtml);
 
             divInitializeNewClusterLoader.hide();
             divInitializeNewClusterView.show();
@@ -518,10 +593,10 @@ function initializeNewCluster(objBtn) {
         return;
     }
 
-    var primaryNodeIpAddress = $("#optInitializeNewClusterPrimaryNodeIpAddress").val();
-    if (primaryNodeIpAddress === "") {
-        showAlert("warning", "Missing!", "Please select a Primary node IP address.", divInitializeNewClusterAlert);
-        $("#optInitializeNewClusterPrimaryNodeIpAddress").trigger("focus");
+    var primaryNodeIpAddresses = cleanTextList($("#txtInitializeNewClusterPrimaryNodeIpAddresses").val());
+    if ((primaryNodeIpAddresses.length === 0) || (primaryNodeIpAddresses === ",")) {
+        showAlert("warning", "Missing!", "Please enter a Primary node IP address.", divInitializeNewClusterAlert);
+        $("#txtInitializeNewClusterPrimaryNodeIpAddresses").trigger("focus");
         return;
     }
 
@@ -529,7 +604,7 @@ function initializeNewCluster(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/admin/cluster/init?token=" + sessionData.token + "&clusterDomain=" + encodeURIComponent(clusterDomain) + "&primaryNodeIpAddress=" + encodeURIComponent(primaryNodeIpAddress),
+        url: "api/admin/cluster/init?token=" + sessionData.token + "&clusterDomain=" + encodeURIComponent(clusterDomain) + "&primaryNodeIpAddresses=" + encodeURIComponent(primaryNodeIpAddresses),
         success: function (responseJSON) {
             $("#modalInitializeNewCluster").modal("hide");
             btn.button("reset");
@@ -570,12 +645,14 @@ function showInitializeJoinClusterModal() {
                 return;
             }
 
+            $("#txtInitializeJoinClusterSecondaryNodeIpAddresses").val("");
+
             var optionsHtml = "<option></option>";
 
             for (var i = 0; i < responseJSON.response.serverIpAddresses.length; i++)
                 optionsHtml += "<option>" + responseJSON.response.serverIpAddresses[i] + "</option>";
 
-            $("#optInitializeJoinClusterSecondaryNodeIpAddress").html(optionsHtml);
+            $("#optInitializeJoinClusterQuickIpAddresses").html(optionsHtml);
 
             $("#txtInitializeJoinClusterPrimaryNodeUrl").val("");
             $("#txtInitializeJoinClusterPrimaryNodeIpAddress").val("");
@@ -590,7 +667,7 @@ function showInitializeJoinClusterModal() {
             divInitializeJoinClusterView.show();
 
             setTimeout(function () {
-                $("#optInitializeJoinClusterSecondaryNodeIpAddress").trigger("focus");
+                $("#txtInitializeJoinClusterSecondaryNodeIpAddresses").trigger("focus");
             }, 1000);
         },
         invalidToken: function () {
@@ -605,10 +682,10 @@ function showInitializeJoinClusterModal() {
 function initializeJoinCluster(objBtn) {
     var divInitializeJoinClusterAlert = $("#divInitializeJoinClusterAlert");
 
-    var secondaryNodeIpAddress = $("#optInitializeJoinClusterSecondaryNodeIpAddress").val();
-    if (secondaryNodeIpAddress === "") {
+    var secondaryNodeIpAddresses = cleanTextList($("#txtInitializeJoinClusterSecondaryNodeIpAddresses").val());
+    if ((secondaryNodeIpAddresses.length === 0) || (secondaryNodeIpAddresses === ",")) {
         showAlert("warning", "Missing!", "Please select a Secondary node IP address.", divInitializeJoinClusterAlert);
-        $("#optInitializeJoinClusterSecondaryNodeIpAddress").trigger("focus");
+        $("#txtInitializeJoinClusterSecondaryNodeIpAddresses").trigger("focus");
         return;
     }
 
@@ -649,7 +726,7 @@ function initializeJoinCluster(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/admin/cluster/initJoin?token=" + sessionData.token + "&secondaryNodeIpAddress=" + encodeURIComponent(secondaryNodeIpAddress)
+        url: "api/admin/cluster/initJoin?token=" + sessionData.token + "&secondaryNodeIpAddresses=" + encodeURIComponent(secondaryNodeIpAddresses)
             + "&primaryNodeUrl=" + encodeURIComponent(primaryNodeUrl) + "&primaryNodeIpAddress=" + encodeURIComponent(primaryNodeIpAddress) + "&ignoreCertificateErrors=" + ignoreCertificateErrors
             + "&primaryNodeUsername=" + encodeURIComponent(primaryNodeUsername) + "&primaryNodePassword=" + encodeURIComponent(primaryNodePassword) + "&primaryNodeTotp=" + encodeURIComponent(primaryNodeTotp),
         success: function (responseJSON) {
