@@ -28,6 +28,7 @@ using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using TechnitiumLibrary;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
 
@@ -56,7 +57,7 @@ namespace DnsServerCore.Cluster
 
         readonly int _id;
         Uri _url;
-        IPAddress _ipAddress;
+        IReadOnlyList<IPAddress> _ipAddresses;
         ClusterNodeType _type;
         ClusterNodeState _state;
 
@@ -73,17 +74,11 @@ namespace DnsServerCore.Cluster
 
         public ClusterNode(ClusterManager clusterManager, ClusterInfo.ClusterNodeInfo nodeInfo)
         {
-            if (nodeInfo.Url.OriginalString.Length > 255)
-                throw new ArgumentException("Cluster node URL length must be less than 255 bytes.", nameof(nodeInfo));
-
-            if (!nodeInfo.Url.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
-                throw new ArgumentException("Cluster node URL must use HTTPS scheme.", nameof(nodeInfo));
-
             _clusterManager = clusterManager;
 
             _id = nodeInfo.Id;
             _url = nodeInfo.Url;
-            _ipAddress = IPAddress.Parse(nodeInfo.IPAddress);
+            _ipAddresses = nodeInfo.IPAddresses.Convert(IPAddress.Parse);
             _type = Enum.Parse<ClusterNodeType>(nodeInfo.Type, true);
 
             if (_type == ClusterNodeType.Primary)
@@ -97,7 +92,7 @@ namespace DnsServerCore.Cluster
             }
         }
 
-        public ClusterNode(ClusterManager clusterManager, int id, Uri url, IPAddress ipAddress, ClusterNodeType type, ClusterNodeState state)
+        public ClusterNode(ClusterManager clusterManager, int id, Uri url, IReadOnlyList<IPAddress> ipAddresses, ClusterNodeType type, ClusterNodeState state)
         {
             if (url.OriginalString.Length > 255)
                 throw new ArgumentException("Cluster node URL length must be less than 255 bytes.", nameof(url));
@@ -105,11 +100,14 @@ namespace DnsServerCore.Cluster
             if (!url.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
                 throw new ArgumentException("Cluster node URL must use HTTPS scheme.", nameof(url));
 
+            if (ipAddresses.Count > 10)
+                throw new ArgumentException("Cluster node cannot have more than 10 IP addresses.", nameof(ipAddresses));
+
             _clusterManager = clusterManager;
 
             _id = id;
             _url = url;
-            _ipAddress = ipAddress;
+            _ipAddresses = ipAddresses;
             _type = type;
             _state = state;
         }
@@ -122,9 +120,25 @@ namespace DnsServerCore.Cluster
             switch (version)
             {
                 case 1:
+                case 2:
                     _id = bR.ReadInt32();
                     _url = new Uri(bR.ReadShortString());
-                    _ipAddress = IPAddressExtensions.ReadFrom(bR);
+
+                    if (version >= 2)
+                    {
+                        int count = bR.ReadByte();
+                        IPAddress[] ipAddresses = new IPAddress[count];
+
+                        for (int i = 0; i < count; i++)
+                            ipAddresses[i] = IPAddressExtensions.ReadFrom(bR);
+
+                        _ipAddresses = ipAddresses;
+                    }
+                    else
+                    {
+                        _ipAddresses = [IPAddressExtensions.ReadFrom(bR)];
+                    }
+
                     _type = (ClusterNodeType)bR.ReadByte();
                     _state = (ClusterNodeState)bR.ReadByte();
                     break;
@@ -181,21 +195,21 @@ namespace DnsServerCore.Cluster
             {
                 _apiClient = new HttpApiClient(_url, _clusterManager.DnsWebService.DnsServer.Proxy, _clusterManager.DnsWebService.DnsServer.PreferIPv6, false, new InternalDnsClient(_clusterManager.DnsWebService.DnsServer, this));
 
-                string token = null;
+                UserSession clusterApiToken = null;
 
                 foreach (UserSession session in _clusterManager.DnsWebService.AuthManager.Sessions)
                 {
                     if ((session.Type == UserSessionType.ApiToken) && (session.TokenName == _clusterManager.ClusterDomain))
                     {
-                        token = session.Token;
+                        clusterApiToken = session;
                         break;
                     }
                 }
 
-                if (token is null)
+                if (clusterApiToken is null)
                     throw new InvalidOperationException("No API token was found for the Cluster domain.");
 
-                _apiClient.UseApiToken(token);
+                _apiClient.UseApiToken(clusterApiToken.User.Username, clusterApiToken.Token);
             }
 
             return _apiClient;
@@ -251,12 +265,15 @@ namespace DnsServerCore.Cluster
             _type = ClusterNodeType.Primary;
         }
 
-        public void UpdateSelfNodeIPAddress(IPAddress ipAddress)
+        public void UpdateSelfNodeIPAddresses(IReadOnlyList<IPAddress> ipAddresses)
         {
             if (_state != ClusterNodeState.Self)
                 throw new InvalidOperationException();
 
-            _ipAddress = ipAddress;
+            if (ipAddresses.Count > 10)
+                throw new ArgumentException("Cluster node cannot have more than 10 IP addresses.", nameof(ipAddresses));
+
+            _ipAddresses = ipAddresses;
         }
 
         public void UpdateSelfNodeUrl()
@@ -264,11 +281,28 @@ namespace DnsServerCore.Cluster
             if (_state != ClusterNodeState.Self)
                 throw new InvalidOperationException();
 
-            _url = new Uri($"https://{_clusterManager.DnsWebService.DnsServer.ServerDomain}:{_clusterManager.DnsWebService.WebServiceTlsPort}/");
+            Uri url = new Uri($"https://{_clusterManager.DnsWebService.DnsServer.ServerDomain}:{_clusterManager.DnsWebService.WebServiceTlsPort}/");
+
+            if (url.OriginalString.Length > 255)
+                throw new ArgumentException("Cluster node URL length must be less than 255 bytes.", nameof(url));
+
+            if (!url.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("Cluster node URL must use HTTPS scheme.", nameof(url));
+
+            _url = url;
         }
 
-        public void UpdateNode(Uri url, IPAddress ipAddress)
+        public void UpdateNode(Uri url, IReadOnlyList<IPAddress> ipAddresses)
         {
+            if (url.OriginalString.Length > 255)
+                throw new ArgumentException("Cluster node URL length must be less than 255 bytes.", nameof(url));
+
+            if (!url.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("Cluster node URL must use HTTPS scheme.", nameof(url));
+
+            if (ipAddresses.Count > 10)
+                throw new ArgumentException("Cluster node cannot have more than 10 IP addresses.", nameof(ipAddresses));
+
             bool changed = false;
 
             if (!_url.Equals(url))
@@ -277,9 +311,9 @@ namespace DnsServerCore.Cluster
                 changed = true;
             }
 
-            if (!_ipAddress.Equals(ipAddress))
+            if (!_ipAddresses.HasSameItems(ipAddresses))
             {
-                _ipAddress = ipAddress;
+                _ipAddresses = ipAddresses;
                 changed = true;
             }
 
@@ -303,10 +337,10 @@ namespace DnsServerCore.Cluster
                 changed = true;
             }
 
-            IPAddress ipAddress = IPAddress.Parse(nodeInfo.IPAddress);
-            if (!_ipAddress.Equals(ipAddress))
+            IReadOnlyList<IPAddress> ipAddresses = nodeInfo.IPAddresses.Convert(IPAddress.Parse);
+            if (!_ipAddresses.HasSameItems(ipAddresses))
             {
-                _ipAddress = IPAddress.Parse(nodeInfo.IPAddress);
+                _ipAddresses = ipAddresses;
                 changed = true;
             }
 
@@ -490,7 +524,7 @@ namespace DnsServerCore.Cluster
 
             try
             {
-                await apiClient.NotifySecondaryNodeAsync(primaryNode.Id, primaryNode._url, primaryNode._ipAddress, cancellationToken);
+                await apiClient.NotifySecondaryNodeAsync(primaryNode.Id, primaryNode._url, primaryNode._ipAddresses, cancellationToken);
 
                 _lastSeen = DateTime.UtcNow;
                 _state = ClusterNodeState.Connected;
@@ -583,7 +617,7 @@ namespace DnsServerCore.Cluster
 
             try
             {
-                ClusterInfo clusterInfo = await apiClient.UpdateSecondaryNodeAsync(secondaryNode._id, secondaryNode._url, secondaryNode._ipAddress, secondaryNodeCertificate, cancellationToken);
+                ClusterInfo clusterInfo = await apiClient.UpdateSecondaryNodeAsync(secondaryNode._id, secondaryNode._url, secondaryNode._ipAddresses, secondaryNodeCertificate, cancellationToken);
 
                 _lastSeen = DateTime.UtcNow;
                 _state = ClusterNodeState.Connected;
@@ -617,17 +651,22 @@ namespace DnsServerCore.Cluster
 
         public void WriteTo(BinaryWriter bW)
         {
-            bW.Write((byte)1); //version
+            bW.Write((byte)2); //version
             bW.Write(_id);
             bW.WriteShortString(_url.OriginalString);
-            _ipAddress.WriteTo(bW);
+
+            bW.Write(Convert.ToByte(_ipAddresses.Count));
+
+            foreach (IPAddress ipAddress in _ipAddresses)
+                ipAddress.WriteTo(bW);
+
             bW.Write((byte)_type);
             bW.Write((byte)_state);
         }
 
         public override string ToString()
         {
-            return _url.Host.ToLowerInvariant() + " (" + _ipAddress.ToString() + ")";
+            return _url.Host.ToLowerInvariant() + " (" + _ipAddresses.Join() + ")";
         }
 
         public int CompareTo(ClusterNode other)
@@ -648,8 +687,8 @@ namespace DnsServerCore.Cluster
         public Uri Url
         { get { return _url; } }
 
-        public IPAddress IPAddress
-        { get { return _ipAddress; } }
+        public IReadOnlyList<IPAddress> IPAddresses
+        { get { return _ipAddresses; } }
 
         public ClusterNodeType Type
         { get { return _type; } }
