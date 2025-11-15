@@ -135,7 +135,9 @@ namespace DnsServerCore
 
             public async Task GetStats(HttpContext context)
             {
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Dashboard, context.GetCurrentSession().User, PermissionFlag.View))
+                User sessionUser = _dnsWebService.GetSessionUser(context);
+
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Dashboard, sessionUser, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -656,7 +658,9 @@ namespace DnsServerCore
 
             public async Task GetTopStats(HttpContext context)
             {
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Dashboard, context.GetCurrentSession().User, PermissionFlag.View))
+                User sessionUser = _dnsWebService.GetSessionUser(context);
+
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Dashboard, sessionUser, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
