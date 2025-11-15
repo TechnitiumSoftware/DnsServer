@@ -631,13 +631,13 @@ namespace DnsServerCore.Cluster
             }
         }
 
-        public async Task ProxyRequest(HttpContext context, IReadOnlyDictionary<string, string> additionalParameters = null, CancellationToken cancellationToken = default)
+        public async Task ProxyRequest(HttpContext context, string username, CancellationToken cancellationToken = default)
         {
             HttpApiClient apiClient = GetApiClient();
 
             try
             {
-                await apiClient.ProxyRequest(context, additionalParameters, cancellationToken);
+                await apiClient.ProxyRequest(context, username, cancellationToken);
 
                 _lastSeen = DateTime.UtcNow;
                 _state = ClusterNodeState.Connected;

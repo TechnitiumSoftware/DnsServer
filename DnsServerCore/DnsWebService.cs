@@ -1846,15 +1846,9 @@ namespace DnsServerCore
                             if (!TryGetSession(context, out UserSession session))
                                 throw new InvalidTokenWebServiceException("Invalid token or session expired.");
 
-                            //set additional parameters with current username
-                            IReadOnlyDictionary<string, string> additionalParameters = new Dictionary<string, string>
-                            {
-                                { "user", session.User.Username }
-                            };
-
                             //proxy to primary node
                             ClusterNode primaryNode = _clusterManager.GetPrimaryNode();
-                            await primaryNode.ProxyRequest(context, additionalParameters);
+                            await primaryNode.ProxyRequest(context, session.User.Username);
                             return;
                         }
 
@@ -1878,14 +1872,8 @@ namespace DnsServerCore
                                 if (!TryGetSession(context, out UserSession session))
                                     throw new InvalidTokenWebServiceException("Invalid token or session expired.");
 
-                                //set additional parameters with current username
-                                IReadOnlyDictionary<string, string> additionalParameters = new Dictionary<string, string>
-                                {
-                                    { "user", session.User.Username }
-                                };
-
                                 //proxy request to the specified cluster node
-                                await node.ProxyRequest(context, additionalParameters);
+                                await node.ProxyRequest(context, session.User.Username);
                                 return;
                             }
                         }

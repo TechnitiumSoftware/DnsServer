@@ -48,6 +48,7 @@ namespace DnsServerCore.HttpApi
         readonly static JsonSerializerOptions _serializerOptions;
 
         readonly Uri _serverUrl;
+        string? _username;
         string? _token;
 
         readonly HttpClient _httpClient;
@@ -185,6 +186,7 @@ namespace DnsServerCore.HttpApi
             if (sessionInfo is null)
                 throw new HttpApiClientException("Invalid JSON response was received.");
 
+            _username = sessionInfo.Username;
             _token = sessionInfo.Token;
             _loggedIn = true;
 
@@ -203,15 +205,17 @@ namespace DnsServerCore.HttpApi
 
             CheckResponseStatus(rootElement);
 
+            _username = null;
             _token = null;
             _loggedIn = false;
         }
 
-        public void UseApiToken(string token)
+        public void UseApiToken(string username, string token)
         {
             if (_loggedIn)
                 throw new HttpApiClientException("Already logged in. Please logout before using a different API token.");
 
+            _username = username;
             _token = token;
             _loggedIn = true;
         }
@@ -221,7 +225,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            string path = $"api/dashboard/stats/get?token={_token}&type={type}&utc={utcFormat}&dontTrimQueryTypeData={dontTrimQueryTypeData}";
+            string path = $"api/dashboard/stats/get?token={_token}&user={HttpUtility.UrlEncode(_username)}&type={type}&utc={utcFormat}&dontTrimQueryTypeData={dontTrimQueryTypeData}";
 
             if (type == DashboardStatsType.Custom)
                 path += $"&start={startDate:O}&end={endDate:O}";
@@ -248,7 +252,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            string path = $"api/dashboard/stats/getTop?token={_token}&type={type}&statsType={statsType}&limit={limit}";
+            string path = $"api/dashboard/stats/getTop?token={_token}&user={HttpUtility.UrlEncode(_username)}&type={type}&statsType={statsType}&limit={limit}";
 
             if (type == DashboardStatsType.Custom)
                 path += $"&start={startDate:O}&end={endDate:O}";
@@ -287,7 +291,7 @@ namespace DnsServerCore.HttpApi
                 }
             }
 
-            HttpRequestMessage httpRequest = new HttpRequestMessage(HttpMethod.Post, new Uri(_serverUrl, $"api/settings/set?token={_token}"));
+            HttpRequestMessage httpRequest = new HttpRequestMessage(HttpMethod.Post, new Uri(_serverUrl, $"api/settings/set?token={_token}&user={HttpUtility.UrlEncode(_username)}"));
 
             httpRequest.Content = new FormUrlEncodedContent(clusterParameters);
 
@@ -304,7 +308,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/settings/forceUpdateBlockLists?token={_token}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/settings/forceUpdateBlockLists?token={_token}&user={HttpUtility.UrlEncode(_username)}", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -317,7 +321,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/settings/temporaryDisableBlocking?token={_token}&minutes={minutes}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/settings/temporaryDisableBlocking?token={_token}&user={HttpUtility.UrlEncode(_username)}&minutes={minutes}", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -330,7 +334,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/state?token={_token}&includeServerIpAddresses={includeServerIpAddresses}&includeNodeCertificates={includeNodeCertificates}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/state?token={_token}&user={HttpUtility.UrlEncode(_username)}&includeServerIpAddresses={includeServerIpAddresses}&includeNodeCertificates={includeNodeCertificates}", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -349,7 +353,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/primary/delete?token={_token}&forceDelete={forceDelete}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/primary/delete?token={_token}&user={HttpUtility.UrlEncode(_username)}&forceDelete={forceDelete}", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -363,12 +367,12 @@ namespace DnsServerCore.HttpApi
             return clusterInfo;
         }
 
-        public async Task<ClusterInfo> JoinClusterAsync(int secondaryNodeId, Uri secondaryNodeUrl, IPAddress secondaryNodeIpAddress, X509Certificate2 secondaryNodeCertificate, CancellationToken cancellationToken = default)
+        public async Task<ClusterInfo> JoinClusterAsync(int secondaryNodeId, Uri secondaryNodeUrl, IReadOnlyCollection<IPAddress> secondaryNodeIpAddresses, X509Certificate2 secondaryNodeCertificate, CancellationToken cancellationToken = default)
         {
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/primary/join?token={_token}&secondaryNodeId={secondaryNodeId}&secondaryNodeUrl={HttpUtility.UrlEncode(secondaryNodeUrl.OriginalString)}&secondaryNodeIpAddress={HttpUtility.UrlEncode(secondaryNodeIpAddress.ToString())}&secondaryNodeCertificate={Base64Url.EncodeToString(secondaryNodeCertificate.Export(X509ContentType.Cert))}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/primary/join?token={_token}&user={HttpUtility.UrlEncode(_username)}&secondaryNodeId={secondaryNodeId}&secondaryNodeUrl={HttpUtility.UrlEncode(secondaryNodeUrl.OriginalString)}&secondaryNodeIpAddresses={HttpUtility.UrlEncode(secondaryNodeIpAddresses.Join())}&secondaryNodeCertificate={Base64Url.EncodeToString(secondaryNodeCertificate.Export(X509ContentType.Cert))}", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -387,7 +391,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/primary/deleteSecondary?token={_token}&secondaryNodeId={secondaryNodeId}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/primary/deleteSecondary?token={_token}&user={HttpUtility.UrlEncode(_username)}&secondaryNodeId={secondaryNodeId}", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -401,12 +405,12 @@ namespace DnsServerCore.HttpApi
             return clusterInfo;
         }
 
-        public async Task<ClusterInfo> UpdateSecondaryNodeAsync(int secondaryNodeId, Uri secondaryNodeUrl, IPAddress secondaryNodeIpAddress, X509Certificate2 secondaryNodeCertificate, CancellationToken cancellationToken = default)
+        public async Task<ClusterInfo> UpdateSecondaryNodeAsync(int secondaryNodeId, Uri secondaryNodeUrl, IReadOnlyCollection<IPAddress> secondaryNodeIpAddresses, X509Certificate2 secondaryNodeCertificate, CancellationToken cancellationToken = default)
         {
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/primary/updateSecondary?token={_token}&secondaryNodeId={secondaryNodeId}&secondaryNodeUrl={HttpUtility.UrlEncode(secondaryNodeUrl.OriginalString)}&secondaryNodeIpAddress={HttpUtility.UrlEncode(secondaryNodeIpAddress.ToString())}&secondaryNodeCertificate={Base64Url.EncodeToString(secondaryNodeCertificate.Export(X509ContentType.Cert))}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/primary/updateSecondary?token={_token}&user={HttpUtility.UrlEncode(_username)}&secondaryNodeId={secondaryNodeId}&secondaryNodeUrl={HttpUtility.UrlEncode(secondaryNodeUrl.OriginalString)}&secondaryNodeIpAddresses={HttpUtility.UrlEncode(secondaryNodeIpAddresses.Join())}&secondaryNodeCertificate={Base64Url.EncodeToString(secondaryNodeCertificate.Export(X509ContentType.Cert))}", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -425,7 +429,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            HttpRequestMessage httpRequest = new HttpRequestMessage(HttpMethod.Get, $"api/admin/cluster/primary/transferConfig?token={_token}&includeZones={(includeZones is null ? "" : includeZones.Join(','))}");
+            HttpRequestMessage httpRequest = new HttpRequestMessage(HttpMethod.Get, $"api/admin/cluster/primary/transferConfig?token={_token}&user={HttpUtility.UrlEncode(_username)}&includeZones={(includeZones is null ? "" : includeZones.Join(','))}");
             httpRequest.Headers.IfModifiedSince = ifModifiedSince;
 
             HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest, cancellationToken);
@@ -438,7 +442,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/secondary/leave?token={_token}&forceLeave={forceLeave}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/secondary/leave?token={_token}&user={HttpUtility.UrlEncode(_username)}&forceLeave={forceLeave}", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -452,12 +456,12 @@ namespace DnsServerCore.HttpApi
             return clusterInfo;
         }
 
-        public async Task NotifySecondaryNodeAsync(int primaryNodeId, Uri primaryNodeUrl, IPAddress primaryNodeIpAddress, CancellationToken cancellationToken = default)
+        public async Task NotifySecondaryNodeAsync(int primaryNodeId, Uri primaryNodeUrl, IReadOnlyCollection<IPAddress> primaryNodeIpAddresses, CancellationToken cancellationToken = default)
         {
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/secondary/notify?token={_token}&primaryNodeId={primaryNodeId}&primaryNodeUrl={HttpUtility.UrlEncode(primaryNodeUrl.OriginalString)}&primaryNodeIpAddress={HttpUtility.UrlEncode(primaryNodeIpAddress.ToString())}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/secondary/notify?token={_token}&user={HttpUtility.UrlEncode(_username)}&primaryNodeId={primaryNodeId}&primaryNodeUrl={HttpUtility.UrlEncode(primaryNodeUrl.OriginalString)}&primaryNodeIpAddresses={HttpUtility.UrlEncode(primaryNodeIpAddresses.Join())}", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -470,7 +474,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/secondary/resync?token={_token}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/secondary/resync?token={_token}&user={HttpUtility.UrlEncode(_username)}", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -478,7 +482,7 @@ namespace DnsServerCore.HttpApi
             CheckResponseStatus(rootElement);
         }
 
-        public async Task ProxyRequest(HttpContext context, IReadOnlyDictionary<string, string>? additionalParameters = null, CancellationToken cancellationToken = default)
+        public async Task ProxyRequest(HttpContext context, string username, CancellationToken cancellationToken = default)
         {
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
@@ -487,6 +491,8 @@ namespace DnsServerCore.HttpApi
             HttpRequest inHttpRequest = context.Request;
 
             StringBuilder queryString = new StringBuilder();
+
+            queryString.Append("?user=").Append(HttpUtility.UrlEncode(username));
 
             foreach (KeyValuePair<string, StringValues> query in inHttpRequest.Query)
             {
@@ -505,32 +511,7 @@ namespace DnsServerCore.HttpApi
                         continue;
                 }
 
-                if (queryString.Length == 0)
-                    queryString.Append('?').Append(key).Append('=').Append(HttpUtility.UrlEncode(value));
-                else
-                    queryString.Append('&').Append(key).Append('=').Append(HttpUtility.UrlEncode(value));
-            }
-
-            //add additional parameters
-            if (additionalParameters is not null)
-            {
-                foreach (KeyValuePair<string, string> additionalParameter in additionalParameters)
-                {
-                    string key = additionalParameter.Key;
-                    string value = additionalParameter.Value;
-
-                    switch (key)
-                    {
-                        case "token":
-                        case "node":
-                            throw new ArgumentException("Invalid parameter name: " + key, nameof(additionalParameters));
-                    }
-
-                    if (queryString.Length == 0)
-                        queryString.Append('?').Append(key).Append('=').Append(HttpUtility.UrlEncode(value));
-                    else
-                        queryString.Append('&').Append(key).Append('=').Append(HttpUtility.UrlEncode(value));
-                }
+                queryString.Append('&').Append(key).Append('=').Append(HttpUtility.UrlEncode(value));
             }
 
             HttpRequestMessage httpRequest = new HttpRequestMessage(new HttpMethod(inHttpRequest.Method), new Uri(_serverUrl, inHttpRequest.Path + queryString.ToString()));
