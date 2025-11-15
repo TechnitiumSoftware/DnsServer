@@ -137,6 +137,9 @@ function viewLog(logFile) {
         success: function (response) {
             divLogViewerLoader.hide();
 
+            if (response.status != null)
+                response = JSON.stringify(response, null, 2);
+
             preLogViewerBody.text(response);
             preLogViewerBody.show();
         },
