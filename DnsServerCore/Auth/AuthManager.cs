@@ -362,7 +362,12 @@ namespace DnsServerCore.Auth
                     switch (permission.Key)
                     {
                         case PermissionSection.Zones:
-                            break; //skip zones permissions since its not part of config transfer
+                            //sync user and group permissions as-is for zones section
+                            Permission zonesPermission = _permissions[PermissionSection.Zones];
+
+                            zonesPermission.SyncPermissions(permission.Value.UserPermissions);
+                            zonesPermission.SyncPermissions(permission.Value.GroupPermissions);
+                            break;
 
                         default:
                             _permissions[permission.Key] = permission.Value;
