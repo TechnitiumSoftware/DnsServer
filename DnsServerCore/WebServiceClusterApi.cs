@@ -91,58 +91,14 @@ namespace DnsServerCore
                             switch (ip.Address.AddressFamily)
                             {
                                 case AddressFamily.InterNetwork:
-                                    {
-                                        //check if interface has dynamic ipv4 address assigned via dhcp
-                                        bool isDynamicIp = false;
-
-                                        if (!OperatingSystem.IsMacOS())
-                                        {
-                                            foreach (IPAddress dhcpServerAddress in networkInterface.GetIPProperties().DhcpServerAddresses)
-                                            {
-                                                if (dhcpServerAddress.AddressFamily == AddressFamily.InterNetwork)
-                                                {
-                                                    isDynamicIp = true;
-                                                    break;
-                                                }
-                                            }
-                                        }
-
-                                        if (isDynamicIp)
-                                            continue;
-
-                                        jsonWriter.WriteStringValue(ip.Address.ToString());
-                                    }
+                                    jsonWriter.WriteStringValue(ip.Address.ToString());
                                     break;
 
                                 case AddressFamily.InterNetworkV6:
-                                    {
-                                        if (ip.Address.IsIPv6LinkLocal || ip.Address.IsIPv6Teredo)
-                                            continue;
+                                    if (ip.Address.IsIPv6LinkLocal || ip.Address.IsIPv6Teredo)
+                                        continue;
 
-                                        //check if interface has dynamic ipv4 address assigned via dhcp
-                                        bool isDynamicIp = false;
-
-                                        if (OperatingSystem.IsWindows())
-                                        {
-                                            isDynamicIp = (ip.PrefixOrigin != PrefixOrigin.Manual) || (ip.SuffixOrigin != SuffixOrigin.Manual);
-                                        }
-                                        else if (!OperatingSystem.IsMacOS())
-                                        {
-                                            foreach (IPAddress dhcpServerAddress in networkInterface.GetIPProperties().DhcpServerAddresses)
-                                            {
-                                                if (dhcpServerAddress.AddressFamily == AddressFamily.InterNetworkV6)
-                                                {
-                                                    isDynamicIp = true;
-                                                    break;
-                                                }
-                                            }
-                                        }
-
-                                        if (isDynamicIp)
-                                            continue;
-
-                                        jsonWriter.WriteStringValue(ip.Address.ToString());
-                                    }
+                                    jsonWriter.WriteStringValue(ip.Address.ToString());
                                     break;
                             }
                         }
@@ -166,7 +122,14 @@ namespace DnsServerCore
                     jsonWriter.WriteNumber("id", clusterNode.Id);
                     jsonWriter.WriteString("name", clusterNode.Name);
                     jsonWriter.WriteString("url", clusterNode.Url.OriginalString);
-                    jsonWriter.WriteString("ipAddress", clusterNode.IPAddress.ToString());
+
+                    jsonWriter.WriteStartArray("ipAddresses");
+
+                    foreach (IPAddress ipAddress in clusterNode.IPAddresses)
+                        jsonWriter.WriteStringValue(ipAddress.ToString());
+
+                    jsonWriter.WriteEndArray();
+
                     jsonWriter.WriteString("type", clusterNode.Type.ToString());
                     jsonWriter.WriteString("state", clusterNode.State.ToString());
 
@@ -246,9 +209,9 @@ namespace DnsServerCore
 
             public void GetClusterState(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.View))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -261,15 +224,17 @@ namespace DnsServerCore
 
             public void InitializeCluster(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
 
                 string clusterDomain = request.GetQueryOrForm("clusterDomain").TrimEnd('.');
-                IPAddress primaryNodeIpAddress = request.GetQueryOrForm("primaryNodeIpAddress", IPAddress.Parse);
+
+                if (!request.TryGetQueryOrFormArray("primaryNodeIpAddresses", IPAddress.Parse, out IPAddress[] primaryNodeIpAddresses))
+                    throw new DnsWebServiceException("Parameter 'primaryNodeIpAddresses' missing.");
 
                 bool restartWebService = false;
 
@@ -282,9 +247,9 @@ namespace DnsServerCore
 
                 try
                 {
-                    _dnsWebService._clusterManager.InitializeCluster(clusterDomain, primaryNodeIpAddress, session);
+                    _dnsWebService._clusterManager.InitializeCluster(clusterDomain, primaryNodeIpAddresses, context.GetCurrentSession());
 
-                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Cluster (" + _dnsWebService._clusterManager.ClusterDomain + ") was initialized successfully.");
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Cluster (" + _dnsWebService._clusterManager.ClusterDomain + ") was initialized successfully.");
 
                     Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                     WriteClusterState(jsonWriter);
@@ -299,9 +264,9 @@ namespace DnsServerCore
 
             public void DeleteCluster(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -311,7 +276,7 @@ namespace DnsServerCore
                 string clusterDomain = _dnsWebService._clusterManager.ClusterDomain;
                 _dnsWebService._clusterManager.DeleteCluster(forceDelete);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Cluster (" + clusterDomain + ") was deleted successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Cluster (" + clusterDomain + ") was deleted successfully.");
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteClusterState(jsonWriter);
@@ -319,21 +284,24 @@ namespace DnsServerCore
 
             public void JoinCluster(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
 
                 int secondaryNodeId = request.GetQueryOrForm("secondaryNodeId", int.Parse);
                 Uri secondaryNodeUrl = new Uri(request.GetQueryOrForm("secondaryNodeUrl"));
-                IPAddress secondaryNodeIpAddress = request.GetQueryOrForm("secondaryNodeIpAddress", IPAddress.Parse);
+
+                if (!request.TryGetQueryOrFormArray("secondaryNodeIpAddresses", IPAddress.Parse, out IPAddress[] secondaryNodeIpAddresses))
+                    throw new DnsWebServiceException("Parameter 'secondaryNodeIpAddresses' missing.");
+
                 X509Certificate2 secondaryNodeCertificate = X509CertificateLoader.LoadCertificate(Base64Url.DecodeFromChars(request.GetQueryOrForm("secondaryNodeCertificate")));
 
-                ClusterNode secondaryNode = _dnsWebService._clusterManager.JoinCluster(secondaryNodeId, secondaryNodeUrl, secondaryNodeIpAddress, secondaryNodeCertificate);
+                ClusterNode secondaryNode = _dnsWebService._clusterManager.JoinCluster(secondaryNodeId, secondaryNodeUrl, secondaryNodeIpAddresses, secondaryNodeCertificate);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Secondary node '" + secondaryNode.ToString() + "' joined the Cluster (" + _dnsWebService._clusterManager.ClusterDomain + ") successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Secondary node '" + secondaryNode.ToString() + "' joined the Cluster (" + _dnsWebService._clusterManager.ClusterDomain + ") successfully.");
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteClusterState(jsonWriter);
@@ -341,9 +309,9 @@ namespace DnsServerCore
 
             public async Task RemoveSecondaryNodeAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -352,7 +320,7 @@ namespace DnsServerCore
 
                 ClusterNode secondaryNode = await _dnsWebService._clusterManager.AskSecondaryNodeToLeaveClusterAsync(secondaryNodeId);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Secondary node '" + secondaryNode.ToString() + "' was asked to leave the Cluster (" + _dnsWebService._clusterManager.ClusterDomain + ") successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Secondary node '" + secondaryNode.ToString() + "' was asked to leave the Cluster (" + _dnsWebService._clusterManager.ClusterDomain + ") successfully.");
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteClusterState(jsonWriter);
@@ -360,9 +328,9 @@ namespace DnsServerCore
 
             public void DeleteSecondaryNode(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -371,7 +339,7 @@ namespace DnsServerCore
 
                 ClusterNode secondaryNode = _dnsWebService._clusterManager.DeleteSecondaryNode(secondaryNodeId);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Secondary node '" + secondaryNode.ToString() + "' was deleted from the Cluster (" + _dnsWebService._clusterManager.ClusterDomain + ") successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Secondary node '" + secondaryNode.ToString() + "' was deleted from the Cluster (" + _dnsWebService._clusterManager.ClusterDomain + ") successfully.");
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteClusterState(jsonWriter);
@@ -379,21 +347,24 @@ namespace DnsServerCore
 
             public void UpdateSecondaryNode(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
 
                 int secondaryNodeId = request.GetQueryOrForm("secondaryNodeId", int.Parse);
                 Uri secondaryNodeUrl = new Uri(request.GetQueryOrForm("secondaryNodeUrl"));
-                IPAddress secondaryNodeIpAddress = request.GetQueryOrForm("secondaryNodeIpAddress", IPAddress.Parse);
+
+                if (!request.TryGetQueryOrFormArray("secondaryNodeIpAddresses", IPAddress.Parse, out IPAddress[] secondaryNodeIpAddresses))
+                    throw new DnsWebServiceException("Parameter 'secondaryNodeIpAddresses' missing.");
+
                 X509Certificate2 secondaryNodeCertificate = X509CertificateLoader.LoadCertificate(Base64Url.DecodeFromChars(request.GetQueryOrForm("secondaryNodeCertificate")));
 
-                ClusterNode secondaryNode = _dnsWebService._clusterManager.UpdateSecondaryNode(secondaryNodeId, secondaryNodeUrl, secondaryNodeIpAddress, secondaryNodeCertificate);
+                ClusterNode secondaryNode = _dnsWebService._clusterManager.UpdateSecondaryNode(secondaryNodeId, secondaryNodeUrl, secondaryNodeIpAddresses, secondaryNodeCertificate);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Secondary node '" + secondaryNode.ToString() + "' details were updated successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Secondary node '" + secondaryNode.ToString() + "' details were updated successfully.");
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteClusterState(jsonWriter);
@@ -401,9 +372,9 @@ namespace DnsServerCore
 
             public async Task TransferConfigAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -450,14 +421,14 @@ namespace DnsServerCore
                     }
                 }
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Server configuration was transferred successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Server configuration was transferred successfully.");
             }
 
             public void SetClusterOptions(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Modify))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -469,7 +440,7 @@ namespace DnsServerCore
 
                 _dnsWebService._clusterManager.UpdateClusterOptions(heartbeatRefreshIntervalSeconds, heartbeatRetryIntervalSeconds, configRefreshIntervalSeconds, configRetryIntervalSeconds);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Cluster (" + _dnsWebService._clusterManager.ClusterDomain + ") options were updated successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Cluster (" + _dnsWebService._clusterManager.ClusterDomain + ") options were updated successfully.");
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteClusterState(jsonWriter);
@@ -477,14 +448,16 @@ namespace DnsServerCore
 
             public async Task InitializeAndJoinClusterAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
 
-                IPAddress secondaryNodeIpAddress = request.GetQueryOrForm("secondaryNodeIpAddress", IPAddress.Parse);
+                if (!request.TryGetQueryOrFormArray("secondaryNodeIpAddresses", IPAddress.Parse, out IPAddress[] secondaryNodeIpAddresses))
+                    throw new DnsWebServiceException("Parameter 'secondaryNodeIpAddresses' missing.");
+
                 Uri primaryNodeUrl = new Uri(request.GetQueryOrForm("primaryNodeUrl"));
                 IPAddress primaryNodeIpAddress = request.GetQueryOrForm("primaryNodeIpAddress", IPAddress.Parse, null);
                 string primaryNodeUsername = request.GetQueryOrForm("primaryNodeUsername");
@@ -503,9 +476,9 @@ namespace DnsServerCore
 
                 try
                 {
-                    await _dnsWebService._clusterManager.InitializeAndJoinClusterAsync(secondaryNodeIpAddress, primaryNodeUrl, primaryNodeUsername, primaryNodePassword, primaryNodeTotp, primaryNodeIpAddress, ignoreCertificateErrors);
+                    await _dnsWebService._clusterManager.InitializeAndJoinClusterAsync(secondaryNodeIpAddresses, primaryNodeUrl, primaryNodeUsername, primaryNodePassword, primaryNodeTotp, [primaryNodeIpAddress], ignoreCertificateErrors);
 
-                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Joined the Cluster (" + _dnsWebService._clusterManager.ClusterDomain + ") as a Secondary node successfully.");
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Joined the Cluster (" + _dnsWebService._clusterManager.ClusterDomain + ") as a Secondary node successfully.");
 
                     Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                     WriteClusterState(jsonWriter);
@@ -520,9 +493,9 @@ namespace DnsServerCore
 
             public async Task LeaveClusterAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -532,7 +505,7 @@ namespace DnsServerCore
                 string clusterDomain = _dnsWebService._clusterManager.ClusterDomain;
                 await _dnsWebService._clusterManager.LeaveClusterAsync(forceLeave);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Left the Cluster (" + clusterDomain + ") successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Left the Cluster (" + clusterDomain + ") successfully.");
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteClusterState(jsonWriter);
@@ -540,51 +513,55 @@ namespace DnsServerCore
 
             public async Task ConfigUpdateNotificationAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
 
                 int primaryNodeId = request.GetQueryOrForm("primaryNodeId", int.Parse);
                 Uri primaryNodeUrl = new Uri(request.GetQueryOrForm("primaryNodeUrl"));
-                IPAddress primaryNodeIpAddress = request.GetQueryOrForm("primaryNodeIpAddress", IPAddress.Parse);
+
+                if (!request.TryGetQueryOrFormArray("primaryNodeIpAddresses", IPAddress.Parse, out IPAddress[] primaryNodeIpAddresses))
+                    throw new DnsWebServiceException("Parameter 'primaryNodeIpAddresses' missing.");
 
                 //update primary node
-                ClusterNode primaryNode = await _dnsWebService._clusterManager.UpdatePrimaryNodeAsync(primaryNodeUrl, primaryNodeIpAddress, primaryNodeId);
+                ClusterNode primaryNode = await _dnsWebService._clusterManager.UpdatePrimaryNodeAsync(primaryNodeUrl, primaryNodeIpAddresses, primaryNodeId);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Notification for configuration update was received. Primary node '" + primaryNode.ToString() + "' details were updated successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Notification for configuration update was received. Primary node '" + primaryNode.ToString() + "' details were updated successfully.");
             }
 
             public void ResyncCluster(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Modify))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
                 _dnsWebService._clusterManager.TriggerResyncForConfig();
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Resync for configuration and Cluster Secondary zones was triggered successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Resync for configuration and Cluster Secondary zones was triggered successfully.");
             }
 
             public async Task UpdatePrimaryNodeAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Modify))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
 
                 Uri primaryNodeUrl = new Uri(request.GetQueryOrForm("primaryNodeUrl"));
-                IPAddress primaryNodeIpAddress = request.GetQueryOrForm("primaryNodeIpAddress", IPAddress.Parse, null);
+
+                if (!request.TryGetQueryOrFormArray("primaryNodeIpAddresses", IPAddress.Parse, out IPAddress[] primaryNodeIpAddresses))
+                    primaryNodeIpAddresses = null;
 
                 //update primary node
-                ClusterNode primaryNode = await _dnsWebService._clusterManager.UpdatePrimaryNodeAsync(primaryNodeUrl, primaryNodeIpAddress);
+                ClusterNode primaryNode = await _dnsWebService._clusterManager.UpdatePrimaryNodeAsync(primaryNodeUrl, primaryNodeIpAddresses);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Primary node '" + primaryNode.ToString() + "' details were updated successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Primary node '" + primaryNode.ToString() + "' details were updated successfully.");
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteClusterState(jsonWriter);
@@ -592,9 +569,9 @@ namespace DnsServerCore
 
             public async Task PromoteToPrimaryNodeAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -604,7 +581,7 @@ namespace DnsServerCore
                 //promote to primary node
                 await _dnsWebService._clusterManager.PromoteToPrimaryNodeAsync(forceDeletePrimary);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] This Secondary node was promoted to be a Primary node for the Cluster successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] This Secondary node was promoted to be a Primary node for the Cluster successfully.");
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteClusterState(jsonWriter);
@@ -612,19 +589,20 @@ namespace DnsServerCore
 
             public void UpdateSelfNodeIPAddress(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Modify))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
 
-                IPAddress ipAddress = request.GetQueryOrForm("ipAddress", IPAddress.Parse);
+                if (!request.TryGetQueryOrFormArray("ipAddresses", IPAddress.Parse, out IPAddress[] ipAddresses))
+                    throw new DnsWebServiceException("Parameter 'ipAddresses' missing.");
 
                 //update self node IP address
-                ClusterNode selfNode = _dnsWebService._clusterManager.UpdateSelfNodeIPAddress(ipAddress);
+                ClusterNode selfNode = _dnsWebService._clusterManager.UpdateSelfNodeIPAddresses(ipAddresses);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] " + selfNode.Type.ToString() + " node '" + selfNode.ToString() + "' IP address was updated successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] " + selfNode.Type.ToString() + " node '" + selfNode.ToString() + "' IP address was updated successfully.");
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteClusterState(jsonWriter);
