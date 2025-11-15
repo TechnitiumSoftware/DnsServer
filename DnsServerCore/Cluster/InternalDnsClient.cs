@@ -34,7 +34,7 @@ namespace DnsServerCore.Cluster
 
         readonly DnsServer _dnsServer;
         readonly ClusterNode _clusterNode;
-        readonly IPAddress _ipAddress;
+        readonly IReadOnlyList<IPAddress> _ipAddresses;
 
         #endregion
 
@@ -46,10 +46,10 @@ namespace DnsServerCore.Cluster
             _clusterNode = clusterNode;
         }
 
-        public InternalDnsClient(DnsServer dnsServer, IPAddress ipAddress)
+        public InternalDnsClient(DnsServer dnsServer, IReadOnlyList<IPAddress> ipAddresses)
         {
             _dnsServer = dnsServer;
-            _ipAddress = ipAddress;
+            _ipAddresses = ipAddresses;
         }
 
         #endregion
@@ -62,36 +62,37 @@ namespace DnsServerCore.Cluster
             {
                 case DnsResourceRecordType.A:
                 case DnsResourceRecordType.AAAA:
-                    IPAddress ipAddress;
+                    IReadOnlyList<IPAddress> ipAddresses;
 
                     if (_clusterNode is null)
-                        ipAddress = _ipAddress;
+                        ipAddresses = _ipAddresses;
                     else
-                        ipAddress = _clusterNode.IPAddress;
+                        ipAddresses = _clusterNode.IPAddresses;
 
-                    DnsResourceRecordData rdata = null;
+                    List<DnsResourceRecord> answer = new List<DnsResourceRecord>();
 
-                    switch (ipAddress.AddressFamily)
+                    foreach (IPAddress ipAddress in ipAddresses)
                     {
-                        case AddressFamily.InterNetwork:
-                            if (question.Type == DnsResourceRecordType.A)
-                                rdata = new DnsARecordData(ipAddress);
+                        DnsResourceRecordData rdata = null;
 
-                            break;
+                        switch (ipAddress.AddressFamily)
+                        {
+                            case AddressFamily.InterNetwork:
+                                if (question.Type == DnsResourceRecordType.A)
+                                    rdata = new DnsARecordData(ipAddress);
 
-                        case AddressFamily.InterNetworkV6:
-                            if (question.Type == DnsResourceRecordType.AAAA)
-                                rdata = new DnsAAAARecordData(ipAddress);
+                                break;
 
-                            break;
+                            case AddressFamily.InterNetworkV6:
+                                if (question.Type == DnsResourceRecordType.AAAA)
+                                    rdata = new DnsAAAARecordData(ipAddress);
+
+                                break;
+                        }
+
+                        if (rdata is not null)
+                            answer.Add(new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, 30, rdata));
                     }
-
-                    IReadOnlyList<DnsResourceRecord> answer;
-
-                    if (rdata is null)
-                        answer = [];
-                    else
-                        answer = [new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, 30, rdata)];
 
                     return Task.FromResult(new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, DnsResponseCode.NoError, [question], answer));
 
