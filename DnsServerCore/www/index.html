@@ -921,9 +921,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                 <li id="settingsTabListProxyForwarders" role="presentation"><a href="#settingsTabPaneProxyForwarders" aria-controls="settingsTabPaneProxyForwarders" role="tab" data-toggle="tab">Proxy &amp; Forwarders</a></li>
                                                 <li id="settingsTabListLogging" role="presentation"><a href="#settingsTabPaneLogging" aria-controls="settingsTabPaneLogging" role="tab" data-toggle="tab">Logging</a></li>
 
-                                                <div class="pull-right">
+                                                <li class="pull-right">
                                                     <select id="optSettingsClusterNode" class="form-control pull-right cluster-node-dropdown" style="margin-left: 0px;" onchange="refreshDnsSettings();"></select>
-                                                </div>
+                                                </li>
                                             </ul>
 
                                             <div class="tab-content" style="min-height: 350px; padding-top: 15px;">
@@ -2269,9 +2269,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                         <li id="dhcpTabListLeases" role="presentation" class="active"><a href="#dhcpTabPaneLeases" aria-controls="dhcpTabPaneLeases" role="tab" data-toggle="tab" onclick="refreshDhcpLeases();">Leases</a></li>
                                         <li id="dhcpTabListScopes" role="presentation"><a href="#dhcpTabPaneScopes" aria-controls="dhcpTabPaneScopes" role="tab" data-toggle="tab" onclick="refreshDhcpScopes(true);">Scopes</a></li>
 
-                                        <div class="pull-right">
+                                        <li class="pull-right">
                                             <select id="optDhcpClusterNode" class="form-control pull-right cluster-node-dropdown" style="margin-left: 0px;" onchange="refreshDhcpTab();"></select>
-                                        </div>
+                                        </li>
                                     </ul>
 
                                     <div class="tab-content">
@@ -2882,9 +2882,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                         <li id="logsTabListLogViewer" role="presentation" class="active"><a href="#logsTabPaneLogViewer" aria-controls="logsTabPaneLogViewer" role="tab" data-toggle="tab" onclick="refreshLogFilesList();">View Logs</a></li>
                                         <li id="logsTabListQueryLogs" role="presentation"><a href="#logsTabPaneQueryLogs" aria-controls="logsTabPaneQueryLogs" role="tab" data-toggle="tab" onclick="refreshQueryLogsTab();">Query Logs</a></li>
 
-                                        <div class="pull-right">
+                                        <li class="pull-right">
                                             <select id="optLogsClusterNode" class="form-control pull-right cluster-node-dropdown" style="margin-left: 0px;" onchange="logsClusterNodeChanged();"></select>
-                                        </div>
+                                        </li>
                                     </ul>
 
                                     <div class="tab-content">
@@ -6523,15 +6523,20 @@ MII...
                             </div>
 
                             <div class="form-group">
-                                <label for="optInitializeNewClusterPrimaryNodeIpAddress" class="col-sm-4 control-label">Primary Node IP Address</label>
+                                <label for="txtInitializeNewClusterPrimaryNodeIpAddresses" class="col-sm-4 control-label">Primary Node IP Addresses</label>
                                 <div class="col-sm-7">
-                                    <select id="optInitializeNewClusterPrimaryNodeIpAddress" class="form-control"></select>
-                                    <div style="padding-top: 5px;">The static IP address of this DNS server that will be accessible by all other DNS Servers to be added later as Secondary nodes.</div>
+                                    <textarea id="txtInitializeNewClusterPrimaryNodeIpAddresses" class="form-control" rows="3" spellcheck="false"></textarea>
+
+                                    <label for="optInitializeNewClusterQuickIpAddresses" class="control-label">Quick Add</label>
+                                    <select id="optInitializeNewClusterQuickIpAddresses" class="form-control"></select>
+
+                                    <div style="padding-top: 5px;">The static IP addresses of this DNS server that will be accessible by all other DNS Servers to be added later as Secondary nodes.</div>
+                                    <div style="padding-top: 5px;">Enter IP addresses one below another in the above text field or use the Quick Add list to add available IP addresses on the server.</div>
                                 </div>
                             </div>
 
                             <p>
-                                <b>Note!</b> When the Cluster is initialized, the DNS Server Domain Name will be changed such that the current hostname is a subdomain name of the Cluster domain name specified above. For example, if the current DNS Server Domain Name is <code>ns1.mydomain.tld</code> or just <code>ns1</code> then the new domain name will be <code>ns1.mycluster.tld</code>.
+                                <b>Note!</b> When the Cluster is initialized, the DNS Server Domain Name will be changed such that the current hostname is a subdomain name of the Cluster Domain name specified above. For example, if the current DNS Server Domain Name is <code>ns1.mydomain.tld</code> or just <code>ns1</code> then the new domain name will be <code>ns1.mycluster.tld</code>.
                             </p>
 
                             <p>
@@ -6539,11 +6544,11 @@ MII...
                             </p>
 
                             <p>
-                                <b>Note!</b> The initialization process will create two zones if they do not exist. The first zone will be the Cluster Primary zone named as the Cluster domain name specified above where the Cluster will automatically manage domain name records for all the nodes. The second zone will be the Cluster Catalog zone that uses <code>cluster-catalog</code> as the subdomain name of the Cluster domain name. Use this Cluster Catalog zone for automatic provisioning of Secondary zones on all of the Cluster Secondary nodes.
+                                <b>Note!</b> The initialization process will create two zones if they do not exist. The first zone will be the Cluster Primary zone named as the Cluster Domain name specified above where the Cluster will automatically manage domain name records for all the nodes. The second zone will be the Cluster Catalog zone that uses <code>cluster-catalog</code> as the subdomain name of the Cluster Domain name. Use this Cluster Catalog zone for automatic provisioning of Secondary zones on all of the Cluster Secondary nodes.
                             </p>
 
                             <p>
-                                <b>Warning!</b> The Cluster domain name cannot be changed later. Make sure that you enter the correct domain name before proceeding. You can update the DNS Server Domain Name later if needed from Settings but it must always be a subdomain name of the Cluster domain name.
+                                <b>Warning!</b> The Cluster Domain name cannot be changed later. Make sure that you enter the correct domain name before proceeding. You can update the DNS Server Domain Name later if needed from Settings but it must always be a subdomain name of the Cluster Domain name.
                             </p>
                         </div>
                     </div>
@@ -6575,10 +6580,15 @@ MII...
                             </p>
 
                             <div class="form-group">
-                                <label for="optInitializeJoinClusterSecondaryNodeIpAddress" class="col-sm-4 control-label">Secondary Node IP Address</label>
+                                <label for="txtInitializeJoinClusterSecondaryNodeIpAddresses" class="col-sm-4 control-label">Secondary Node IP Addresses</label>
                                 <div class="col-sm-7">
-                                    <select id="optInitializeJoinClusterSecondaryNodeIpAddress" class="form-control"></select>
-                                    <div style="padding-top: 5px;">The static IP address of this DNS server that will be accessible by all other DNS Server nodes in the Cluster.</div>
+                                    <textarea id="txtInitializeJoinClusterSecondaryNodeIpAddresses" class="form-control" rows="3" spellcheck="false"></textarea>
+
+                                    <label for="optInitializeJoinClusterQuickIpAddresses" class="control-label">Quick Add</label>
+                                    <select id="optInitializeJoinClusterQuickIpAddresses" class="form-control"></select>
+
+                                    <div style="padding-top: 5px;">The static IP addresses of this DNS server that will be accessible by all other DNS Server nodes in the Cluster.</div>
+                                    <div style="padding-top: 5px;">Enter IP addresses one below another in the above text field or use the Quick Add list to add available IP addresses on the server.</div>
                                 </div>
                             </div>
 
@@ -6760,10 +6770,15 @@ MII...
                         <div id="divEditClusterNodeView" style="max-height: 500px; overflow-y: auto; padding: 0 6px; overflow-x: hidden;">
                             <div id="divEditClusterNodeSelfNode">
                                 <div class="form-group">
-                                    <label for="optEditClusterNodeSelfNodeIpAddress" class="col-sm-4 control-label">Node IP Address</label>
+                                    <label for="txtEditClusterNodeSelfNodeIpAddresses" class="col-sm-4 control-label">Node IP Addresses</label>
                                     <div class="col-sm-7">
-                                        <select id="optEditClusterNodeSelfNodeIpAddress" class="form-control"></select>
-                                        <div style="padding-top: 5px;">The static IP address of this DNS server that will be accessible by all other DNS Server nodes in the Cluster.</div>
+                                        <textarea id="txtEditClusterNodeSelfNodeIpAddresses" class="form-control" rows="3" spellcheck="false"></textarea>
+
+                                        <label for="optEditClusterNodeQuickSelfIpAddresses" class="control-label">Quick Add</label>
+                                        <select id="optEditClusterNodeQuickSelfIpAddresses" class="form-control"></select>
+
+                                        <div style="padding-top: 5px;">The static IP addresses of this DNS server that will be accessible by all other DNS Server nodes in the Cluster.</div>
+                                        <div style="padding-top: 5px;">Enter IP addresses one below another in the above text field or use the Quick Add list to add available IP addresses on the server.</div>
                                     </div>
                                 </div>
                             </div>
@@ -6778,10 +6793,11 @@ MII...
                                 </div>
 
                                 <div class="form-group">
-                                    <label for="txtEditClusterNodePrimaryNodeIpAddress" class="col-sm-4 control-label">Primary Node IP Address (Optional)</label>
+                                    <label for="txtEditClusterNodePrimaryNodeIpAddresses" class="col-sm-4 control-label">Primary Node IP Addresses (Optional)</label>
                                     <div class="col-sm-7">
-                                        <input id="txtEditClusterNodePrimaryNodeIpAddress" type="text" class="form-control" placeholder="IP address" maxlength="255">
-                                        <div style="padding-top: 5px;">The IP address of the Primary node in the Cluster. When unspecified, domain name in the Primary node URL will be resolved and used.</div>
+                                        <textarea id="txtEditClusterNodePrimaryNodeIpAddresses" class="form-control" rows="3" spellcheck="false"></textarea>
+
+                                        <div style="padding-top: 5px;">The IP addresses of the Primary node in the Cluster. When unspecified, domain name in the Primary node URL will be resolved and used.</div>
                                     </div>
                                 </div>
                             </div>
