@@ -1772,8 +1772,9 @@ namespace DnsServerCore.Dns.Zones
             {
                 dsRecords = DnsClient.ParseResponseDS(await dnsClient.ResolveAsync(new DnsQuestionRecord(_name, DnsResourceRecordType.DS, DnsClass.IN), cancellationToken: cancellationToken));
             }
-            catch (DnsClientNxDomainException)
+            catch
             {
+                //suppress exception here to avoid filling log file
                 return [];
             }
 
