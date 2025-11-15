@@ -160,9 +160,9 @@ namespace DnsServerCore
 
             public async Task ResolveQueryAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DnsClient, session.User, PermissionFlag.View))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DnsClient, sessionUser, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -387,7 +387,7 @@ namespace DnsServerCore
                         (isZoneImport && !zoneInfo.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
                        )
                     {
-                        if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
+                        if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, sessionUser, PermissionFlag.Modify))
                             throw new DnsWebServiceException("Access was denied.");
 
                         zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.CreatePrimaryZone(domain);
@@ -395,14 +395,14 @@ namespace DnsServerCore
                             throw new DnsServerException("Cannot import records: failed to create primary zone.");
 
                         //set permissions
-                        _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.ViewModifyDelete);
+                        _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, sessionUser, PermissionFlag.ViewModifyDelete);
                         _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService._authManager.GetGroup(Group.ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
                         _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService._authManager.GetGroup(Group.DNS_ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
                         _dnsWebService._authManager.SaveConfigFile();
                     }
                     else
                     {
-                        if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Modify))
+                        if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, sessionUser, PermissionFlag.Modify))
                             throw new DnsWebServiceException("Access was denied.");
 
                         switch (zoneInfo.Type)
@@ -460,7 +460,7 @@ namespace DnsServerCore
                         _dnsWebService._dnsServer.AuthZoneManager.ImportRecords(zoneInfo.Name, importRecords, true, true);
                     }
 
-                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DNS Client imported record(s) for authoritative zone {server: " + server + "; zone: " + zoneInfo.DisplayName + "; type: " + type + ";}");
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] DNS Client imported record(s) for authoritative zone {server: " + server + "; zone: " + zoneInfo.DisplayName + "; type: " + type + ";}");
                 }
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
