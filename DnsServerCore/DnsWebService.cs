@@ -36,7 +36,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
@@ -1142,7 +1141,14 @@ namespace DnsServerCore
                                     }
                                 }
 
-                                await application.SetConfigAsync(config);
+                                try
+                                {
+                                    await application.SetConfigAsync(config);
+                                }
+                                catch (Exception ex)
+                                {
+                                    _log.Write(ex);
+                                }
                             }
                         }
 
