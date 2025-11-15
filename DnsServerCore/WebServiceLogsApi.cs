@@ -57,9 +57,9 @@ namespace DnsServerCore
 
             public void ListLogs(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.View))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, sessionUser, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
                 string[] logFiles = _dnsWebService._log.ListLogFiles();
@@ -87,9 +87,9 @@ namespace DnsServerCore
 
             public Task DownloadLogAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.View))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, sessionUser, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -102,9 +102,9 @@ namespace DnsServerCore
 
             public void DeleteLog(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -113,38 +113,38 @@ namespace DnsServerCore
 
                 _dnsWebService._log.DeleteLogFile(log);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] Log file was deleted: " + log);
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Log file was deleted: " + log);
             }
 
             public void DeleteAllLogs(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 _dnsWebService._log.DeleteAllLogFiles();
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] All log files were deleted.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] All log files were deleted.");
             }
 
             public void DeleteAllStats(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Dashboard, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Dashboard, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 _dnsWebService._dnsServer.StatsManager.DeleteAllStats();
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] All stats files were deleted.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] All stats files were deleted.");
             }
 
             public async Task QueryLogsAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.View))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, sessionUser, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -241,9 +241,9 @@ namespace DnsServerCore
 
             public async Task ExportLogsAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.View))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, sessionUser, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
