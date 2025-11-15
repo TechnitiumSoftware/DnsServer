@@ -143,12 +143,12 @@ namespace DnsServerCore
 
             public async Task ListInstalledAppsAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
                 if (
-                    !_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.View) &&
-                    !_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.View) &&
-                    !_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.View)
+                    !_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, sessionUser, PermissionFlag.View) &&
+                    !_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, sessionUser, PermissionFlag.View) &&
+                    !_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, sessionUser, PermissionFlag.View)
                    )
                 {
                     throw new DnsWebServiceException("Access was denied.");
@@ -202,9 +202,9 @@ namespace DnsServerCore
 
             public async Task ListStoreApps(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.View))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, sessionUser, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
                 string storeAppsJsonData = await TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
@@ -278,9 +278,9 @@ namespace DnsServerCore
 
             public async Task DownloadAndInstallAppAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -293,7 +293,7 @@ namespace DnsServerCore
 
                 DnsApplication application = await _dnsWebService._dnsServer.DnsApplicationManager.DownloadAndInstallAppAsync(name, new Uri(url));
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DNS application '" + name + "' was installed successfully from: " + url);
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] DNS application '" + name + "' was installed successfully from: " + url);
                 
                 //trigger cluster update
                 if (_dnsWebService._clusterManager.ClusterInitialized)
@@ -307,9 +307,9 @@ namespace DnsServerCore
 
             public async Task DownloadAndUpdateAppAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -322,7 +322,7 @@ namespace DnsServerCore
 
                 DnsApplication application = await _dnsWebService._dnsServer.DnsApplicationManager.DownloadAndUpdateAppAsync(name, new Uri(url));
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DNS application '" + name + "' was updated successfully from: " + url);
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] DNS application '" + name + "' was updated successfully from: " + url);
 
                 //trigger cluster update
                 if (_dnsWebService._clusterManager.ClusterInitialized)
@@ -336,9 +336,9 @@ namespace DnsServerCore
 
             public async Task InstallAppAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -360,7 +360,7 @@ namespace DnsServerCore
                         fS.Position = 0;
                         DnsApplication application = await _dnsWebService._dnsServer.DnsApplicationManager.InstallApplicationAsync(name, fS);
 
-                        _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DNS application '" + name + "' was installed successfully.");
+                        _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] DNS application '" + name + "' was installed successfully.");
                         
                         //trigger cluster update
                         if (_dnsWebService._clusterManager.ClusterInitialized)
@@ -387,9 +387,9 @@ namespace DnsServerCore
 
             public async Task UpdateAppAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -411,7 +411,7 @@ namespace DnsServerCore
                         fS.Position = 0;
                         DnsApplication application = await _dnsWebService._dnsServer.DnsApplicationManager.UpdateApplicationAsync(name, fS);
 
-                        _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DNS application '" + name + "' was updated successfully.");
+                        _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] DNS application '" + name + "' was updated successfully.");
 
                         //trigger cluster update
                         if (_dnsWebService._clusterManager.ClusterInitialized)
@@ -438,9 +438,9 @@ namespace DnsServerCore
 
             public void UninstallApp(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -448,7 +448,7 @@ namespace DnsServerCore
                 string name = request.GetQueryOrForm("name").Trim();
 
                 _dnsWebService._dnsServer.DnsApplicationManager.UninstallApplication(name);
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DNS application '" + name + "' was uninstalled successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] DNS application '" + name + "' was uninstalled successfully.");
 
                 //trigger cluster update
                 if (_dnsWebService._clusterManager.ClusterInitialized)
@@ -457,9 +457,9 @@ namespace DnsServerCore
 
             public async Task GetAppConfigAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.View))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, sessionUser, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -477,9 +477,9 @@ namespace DnsServerCore
 
             public async Task SetAppConfigAsync(HttpContext context)
             {
-                UserSession session = context.GetCurrentSession();
+                User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Modify))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
@@ -498,7 +498,7 @@ namespace DnsServerCore
 
                 await application.SetConfigAsync(config);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] DNS application '" + name + "' app config was saved successfully.");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] DNS application '" + name + "' app config was saved successfully.");
 
                 //trigger cluster update
                 if (_dnsWebService._clusterManager.ClusterInitialized)
