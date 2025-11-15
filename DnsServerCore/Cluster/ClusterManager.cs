@@ -34,6 +34,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using TechnitiumLibrary;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
@@ -479,7 +480,7 @@ namespace DnsServerCore.Cluster
 
         #region primary node
 
-        public void InitializeCluster(string clusterDomain, IPAddress primaryNodeIpAddress, UserSession session)
+        public void InitializeCluster(string clusterDomain, IReadOnlyList<IPAddress> primaryNodeIpAddresses, UserSession session)
         {
             if (ClusterInitialized)
                 throw new DnsServerException("Failed to initialize Cluster: the Cluster is already initialized.");
@@ -502,7 +503,7 @@ namespace DnsServerCore.Cluster
 
             Uri primaryNodeUrl = new Uri($"https://{serverDomain}:{_dnsWebService.WebServiceTlsPort}/");
 
-            ClusterNode selfPrimaryNode = new ClusterNode(this, RandomNumberGenerator.GetInt32(int.MaxValue), primaryNodeUrl, primaryNodeIpAddress, ClusterNodeType.Primary, ClusterNodeState.Self);
+            ClusterNode selfPrimaryNode = new ClusterNode(this, RandomNumberGenerator.GetInt32(int.MaxValue), primaryNodeUrl, primaryNodeIpAddresses, ClusterNodeType.Primary, ClusterNodeState.Self);
 
             //create cluster primary zone
             AuthZoneInfo clusterZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(clusterDomain);
@@ -638,7 +639,7 @@ namespace DnsServerCore.Cluster
             DeleteAllClusterConfig();
         }
 
-        public ClusterNode JoinCluster(int secondaryNodeId, Uri secondaryNodeUrl, IPAddress secondaryNodeIpAddress, X509Certificate2 secondaryNodeCertificate)
+        public ClusterNode JoinCluster(int secondaryNodeId, Uri secondaryNodeUrl, IReadOnlyList<IPAddress> secondaryNodeIpAddresses, X509Certificate2 secondaryNodeCertificate)
         {
             if (!ClusterInitialized)
                 throw new DnsServerException("Failed to add Secondary node: the Cluster is not initialized.");
@@ -661,7 +662,7 @@ namespace DnsServerCore.Cluster
             }
 
             //add secondary node to cluster nodes
-            ClusterNode secondaryNode = new ClusterNode(this, secondaryNodeId, secondaryNodeUrl, secondaryNodeIpAddress, ClusterNodeType.Secondary, ClusterNodeState.Unknown);
+            ClusterNode secondaryNode = new ClusterNode(this, secondaryNodeId, secondaryNodeUrl, secondaryNodeIpAddresses, ClusterNodeType.Secondary, ClusterNodeState.Unknown);
             Dictionary<int, ClusterNode> updatedClusterNodes = new Dictionary<int, ClusterNode>(existingClusterNodes.Count + 1);
 
             foreach (KeyValuePair<int, ClusterNode> existingClusterNode in existingClusterNodes)
@@ -669,6 +670,9 @@ namespace DnsServerCore.Cluster
 
             if (!updatedClusterNodes.TryAdd(secondaryNode.Id, secondaryNode))
                 throw new DnsServerException("Failed to add Secondary node: node ID already exists in the Cluster. Please try again.");
+
+            if (updatedClusterNodes.Count > 255)
+                throw new DnsServerException("Failed to add Secondary node: a maximum of 255 nodes are supported by the Cluster.");
 
             IReadOnlyDictionary<int, ClusterNode> originalValue = Interlocked.CompareExchange(ref _clusterNodes, updatedClusterNodes, existingClusterNodes);
             if (!ReferenceEquals(originalValue, existingClusterNodes))
@@ -767,7 +771,7 @@ namespace DnsServerCore.Cluster
             return secondaryNode;
         }
 
-        public ClusterNode UpdateSecondaryNode(int secondaryNodeId, Uri secondaryNodeUrl, IPAddress secondaryNodeIpAddress, X509Certificate2 secondaryNodeCertificate)
+        public ClusterNode UpdateSecondaryNode(int secondaryNodeId, Uri secondaryNodeUrl, IReadOnlyList<IPAddress> secondaryNodeIpAddresses, X509Certificate2 secondaryNodeCertificate)
         {
             if (!ClusterInitialized)
                 throw new DnsServerException("Failed to update Secondary node: the Cluster is not initialized.");
@@ -799,7 +803,7 @@ namespace DnsServerCore.Cluster
             RemoveClusterPrimaryZoneRecordsFor(secondaryNode);
 
             //update secondary node URL and IP address
-            secondaryNode.UpdateNode(secondaryNodeUrl, secondaryNodeIpAddress);
+            secondaryNode.UpdateNode(secondaryNodeUrl, secondaryNodeIpAddresses);
 
             //update cluster zone to add updated records for secondary node and save zone file
             AddClusterPrimaryZoneRecordsFor(secondaryNode, secondaryNodeCertificate);
@@ -925,8 +929,11 @@ namespace DnsServerCore.Cluster
             _dnsWebService.DnsServer.AuthZoneManager.DeleteRecords(_clusterDomain, node.Name, DnsResourceRecordType.AAAA);
 
             //remove PTR record
-            string ptrDomain = Zone.GetReverseZone(node.IPAddress, node.IPAddress.AddressFamily == AddressFamily.InterNetwork ? 32 : 128);
-            _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(ptrDomain, ptrDomain, DnsResourceRecordType.PTR, new DnsPTRRecordData(node.Name));
+            foreach (IPAddress ipAddress in node.IPAddresses)
+            {
+                string ptrDomain = Zone.GetReverseZone(ipAddress, ipAddress.AddressFamily == AddressFamily.InterNetwork ? 32 : 128);
+                _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(ptrDomain, ptrDomain, DnsResourceRecordType.PTR, new DnsPTRRecordData(node.Name));
+            }
 
             //remove TLSA DANE-EE record
             _dnsWebService.DnsServer.AuthZoneManager.DeleteRecords(_clusterDomain, $"_{node.Url.Port}._tcp.{node.Name}", DnsResourceRecordType.TLSA);
@@ -962,43 +969,53 @@ namespace DnsServerCore.Cluster
             _dnsWebService.DnsServer.AuthZoneManager.AddRecord(_clusterDomain, nsRecord);
 
             //set A/AAAA record
-            DnsResourceRecord record;
+            List<DnsResourceRecord> addressRecords = new List<DnsResourceRecord>(node.IPAddresses.Count);
 
-            switch (node.IPAddress.AddressFamily)
+            foreach (IPAddress ipAddress in node.IPAddresses)
             {
-                case AddressFamily.InterNetwork:
-                    record = new DnsResourceRecord(node.Name, DnsResourceRecordType.A, DnsClass.IN, 60, new DnsARecordData(node.IPAddress));
-                    break;
+                DnsResourceRecord record;
 
-                case AddressFamily.InterNetworkV6:
-                    record = new DnsResourceRecord(node.Name, DnsResourceRecordType.AAAA, DnsClass.IN, 60, new DnsAAAARecordData(node.IPAddress));
-                    break;
+                switch (ipAddress.AddressFamily)
+                {
+                    case AddressFamily.InterNetwork:
+                        record = new DnsResourceRecord(node.Name, DnsResourceRecordType.A, DnsClass.IN, 60, new DnsARecordData(ipAddress));
+                        break;
 
-                default:
-                    throw new InvalidOperationException();
+                    case AddressFamily.InterNetworkV6:
+                        record = new DnsResourceRecord(node.Name, DnsResourceRecordType.AAAA, DnsClass.IN, 60, new DnsAAAARecordData(ipAddress));
+                        break;
+
+                    default:
+                        throw new InvalidOperationException();
+                }
+
+                GenericRecordInfo recordInfo = record.GetAuthGenericRecordInfo();
+                recordInfo.LastModified = DateTime.UtcNow;
+                recordInfo.Comments = recordComments;
+
+                addressRecords.Add(record);
             }
 
-            GenericRecordInfo recordInfo = record.GetAuthGenericRecordInfo();
-            recordInfo.LastModified = DateTime.UtcNow;
-            recordInfo.Comments = recordComments;
-
-            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(_clusterDomain, record);
+            _dnsWebService.DnsServer.AuthZoneManager.SetRecords(_clusterDomain, addressRecords);
 
             //set PTR record
-            string ptrDomain = Zone.GetReverseZone(node.IPAddress, node.IPAddress.AddressFamily == AddressFamily.InterNetwork ? 32 : 128);
-
-            AuthZoneInfo reverseZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(ptrDomain);
-            if (reverseZoneInfo is not null)
+            foreach (IPAddress ipAddress in node.IPAddresses)
             {
-                if (!reverseZoneInfo.Internal && (reverseZoneInfo.Type == AuthZoneType.Primary))
+                string ptrDomain = Zone.GetReverseZone(ipAddress, ipAddress.AddressFamily == AddressFamily.InterNetwork ? 32 : 128);
+
+                AuthZoneInfo reverseZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(ptrDomain);
+                if (reverseZoneInfo is not null)
                 {
-                    DnsResourceRecord ptrRecord = new DnsResourceRecord(ptrDomain, DnsResourceRecordType.PTR, DnsClass.IN, 60, new DnsPTRRecordData(node.Name));
+                    if (!reverseZoneInfo.Internal && (reverseZoneInfo.Type == AuthZoneType.Primary))
+                    {
+                        DnsResourceRecord ptrRecord = new DnsResourceRecord(ptrDomain, DnsResourceRecordType.PTR, DnsClass.IN, 60, new DnsPTRRecordData(node.Name));
 
-                    GenericRecordInfo ptrRecordInfo = ptrRecord.GetAuthGenericRecordInfo();
-                    ptrRecordInfo.LastModified = DateTime.UtcNow;
-                    ptrRecordInfo.Comments = recordComments;
+                        GenericRecordInfo ptrRecordInfo = ptrRecord.GetAuthGenericRecordInfo();
+                        ptrRecordInfo.LastModified = DateTime.UtcNow;
+                        ptrRecordInfo.Comments = recordComments;
 
-                    _dnsWebService.DnsServer.AuthZoneManager.SetRecord(reverseZoneInfo.Name, ptrRecord);
+                        _dnsWebService.DnsServer.AuthZoneManager.SetRecord(reverseZoneInfo.Name, ptrRecord);
+                    }
                 }
             }
 
@@ -1110,16 +1127,18 @@ namespace DnsServerCore.Cluster
             //set cluster catalog zone options for Zone Transfer ACLs and notify addresses
             IReadOnlyDictionary<int, ClusterNode> clusterNodes = _clusterNodes;
 
-            List<NetworkAccessControl> zoneTransferACL = new List<NetworkAccessControl>(clusterNodes.Count);
-            List<IPAddress> notifyNameServers = new List<IPAddress>(clusterNodes.Count - 1);
+            List<NetworkAccessControl> zoneTransferACL = new List<NetworkAccessControl>(clusterNodes.Count * 2);
+            List<IPAddress> notifyNameServers = new List<IPAddress>(clusterNodes.Count * 2);
 
             foreach (KeyValuePair<int, ClusterNode> clusterNode in clusterNodes)
             {
                 if (clusterNode.Value.Type == ClusterNodeType.Primary)
                     continue;
 
-                zoneTransferACL.Add(new NetworkAccessControl(clusterNode.Value.IPAddress, 32));
-                notifyNameServers.Add(clusterNode.Value.IPAddress);
+                foreach (IPAddress ipAddress in clusterNode.Value.IPAddresses)
+                    zoneTransferACL.Add(new NetworkAccessControl(ipAddress, 32));
+
+                notifyNameServers.AddRange(clusterNode.Value.IPAddresses);
             }
 
             clusterCatalogZoneInfo.ZoneTransferNetworkACL = zoneTransferACL;
@@ -1206,7 +1225,7 @@ namespace DnsServerCore.Cluster
 
         #region secondary node
 
-        public async Task InitializeAndJoinClusterAsync(IPAddress secondaryNodeIpAddress, Uri primaryNodeUrl, string primaryNodeUsername, string primaryNodePassword, string primaryNodeTotp = null, IPAddress primaryNodeIpAddress = null, bool ignoreCertificateErrors = false, CancellationToken cancellationToken = default)
+        public async Task InitializeAndJoinClusterAsync(IReadOnlyList<IPAddress> secondaryNodeIpAddresses, Uri primaryNodeUrl, string primaryNodeUsername, string primaryNodePassword, string primaryNodeTotp = null, IReadOnlyList<IPAddress> primaryNodeIpAddresses = null, bool ignoreCertificateErrors = false, CancellationToken cancellationToken = default)
         {
             if (ClusterInitialized)
                 throw new DnsServerException("Failed to join Cluster: the Cluster is already initialized.");
@@ -1214,7 +1233,7 @@ namespace DnsServerCore.Cluster
             if (!_dnsWebService.IsWebServiceTlsEnabled)
                 throw new InvalidOperationException();
 
-            if (primaryNodeIpAddress is null)
+            if (primaryNodeIpAddresses is null)
             {
                 try
                 {
@@ -1222,7 +1241,7 @@ namespace DnsServerCore.Cluster
                     if (ipAddresses.Count < 1)
                         throw new DnsServerException($"The domain name '{primaryNodeUrl.Host}' does not have an A/AAAA record configured.");
 
-                    primaryNodeIpAddress = ipAddresses[0];
+                    primaryNodeIpAddresses = ipAddresses;
                 }
                 catch (Exception ex)
                 {
@@ -1231,7 +1250,7 @@ namespace DnsServerCore.Cluster
             }
 
             //login to primary node API
-            using HttpApiClient primaryNodeApiClient = new HttpApiClient(primaryNodeUrl, _dnsWebService.DnsServer.Proxy, _dnsWebService.DnsServer.PreferIPv6, ignoreCertificateErrors, new InternalDnsClient(_dnsWebService.DnsServer, primaryNodeIpAddress));
+            using HttpApiClient primaryNodeApiClient = new HttpApiClient(primaryNodeUrl, _dnsWebService.DnsServer.Proxy, _dnsWebService.DnsServer.PreferIPv6, ignoreCertificateErrors, new InternalDnsClient(_dnsWebService.DnsServer, primaryNodeIpAddresses));
 
             try
             {
@@ -1272,10 +1291,10 @@ namespace DnsServerCore.Cluster
 
                 Uri secondaryNodeUrl = new Uri($"https://{serverDomain}:{_dnsWebService.WebServiceTlsPort}/");
 
-                ClusterNode selfSecondaryNode = new ClusterNode(this, RandomNumberGenerator.GetInt32(int.MaxValue), secondaryNodeUrl, secondaryNodeIpAddress, ClusterNodeType.Secondary, ClusterNodeState.Self);
+                ClusterNode selfSecondaryNode = new ClusterNode(this, RandomNumberGenerator.GetInt32(int.MaxValue), secondaryNodeUrl, secondaryNodeIpAddresses, ClusterNodeType.Secondary, ClusterNodeState.Self);
 
                 //join cluster
-                primaryNodeClusterInfo = await primaryNodeApiClient.JoinClusterAsync(selfSecondaryNode.Id, secondaryNodeUrl, secondaryNodeIpAddress, _dnsWebService.WebServiceTlsCertificate, cancellationToken);
+                primaryNodeClusterInfo = await primaryNodeApiClient.JoinClusterAsync(selfSecondaryNode.Id, secondaryNodeUrl, secondaryNodeIpAddresses, _dnsWebService.WebServiceTlsCertificate, cancellationToken);
 
                 //initialize cluster
                 Dictionary<int, ClusterNode> clusterNodes = new Dictionary<int, ClusterNode>(primaryNodeClusterInfo.ClusterNodes.Count + 1);
@@ -1308,7 +1327,7 @@ namespace DnsServerCore.Cluster
                     await SyncConfigFromAsync(primaryNodeApiClient, cancellationToken: cancellationToken);
 
                     //create cluster secondary catalog zone
-                    AuthZoneInfo clusterSecondaryCatalogZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.CreateSecondaryCatalogZone(clusterCatalogDomain, [new NameServerAddress(primaryNodeIpAddress)], DnsTransportProtocol.Tcp, clusterCatalogDomain);
+                    AuthZoneInfo clusterSecondaryCatalogZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.CreateSecondaryCatalogZone(clusterCatalogDomain, primaryNodeIpAddresses.Convert(delegate (IPAddress ipAddress) { return new NameServerAddress(ipAddress); }), DnsTransportProtocol.Tcp, clusterCatalogDomain);
                     if (clusterSecondaryCatalogZoneInfo is null)
                         throw new DnsServerException($"Failed to join Cluster: the zone '{clusterCatalogDomain}' already exists. Please delete the '{clusterCatalogDomain}' zone and try again.");
 
@@ -1380,12 +1399,12 @@ namespace DnsServerCore.Cluster
             DeleteAllClusterConfig();
         }
 
-        public async Task<ClusterNode> UpdatePrimaryNodeAsync(Uri primaryNodeUrl, IPAddress primaryNodeIpAddress = null, int primaryNodeId = -1, CancellationToken cancellationToken = default)
+        public async Task<ClusterNode> UpdatePrimaryNodeAsync(Uri primaryNodeUrl, IReadOnlyList<IPAddress> primaryNodeIpAddresses = null, int primaryNodeId = -1, CancellationToken cancellationToken = default)
         {
             if (!ClusterInitialized)
                 throw new DnsServerException("Failed to update Primary node: the Cluster is not initialized.");
 
-            if (primaryNodeIpAddress is null)
+            if (primaryNodeIpAddresses is null)
             {
                 try
                 {
@@ -1393,7 +1412,7 @@ namespace DnsServerCore.Cluster
                     if (ipAddresses.Count < 1)
                         throw new DnsServerException($"The domain name '{primaryNodeUrl.Host}' does not have an A/AAAA record configured.");
 
-                    primaryNodeIpAddress = ipAddresses[0];
+                    primaryNodeIpAddresses = ipAddresses;
                 }
                 catch (Exception ex)
                 {
@@ -1459,10 +1478,10 @@ namespace DnsServerCore.Cluster
                 throw new DnsServerException($"Failed to update Primary node: the Cluster Secondary Catalog zone '{clusterCatalogDomain}' does not exists.");
 
             //update primary node
-            primaryNode.UpdateNode(primaryNodeUrl, primaryNodeIpAddress);
+            primaryNode.UpdateNode(primaryNodeUrl, primaryNodeIpAddresses);
 
             //update cluster catalog zone's primary name server
-            clusterSecondaryCatalogZoneInfo.PrimaryNameServerAddresses = [new NameServerAddress(primaryNodeIpAddress)];
+            clusterSecondaryCatalogZoneInfo.PrimaryNameServerAddresses = primaryNodeIpAddresses.Convert(delegate (IPAddress ipAddress) { return new NameServerAddress(ipAddress); });
 
             //save all changes
             _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(clusterSecondaryCatalogZoneInfo.Name);
@@ -1961,7 +1980,7 @@ namespace DnsServerCore.Cluster
             return (zoneName is not null) && zoneName.Equals("cluster-catalog." + _clusterDomain, StringComparison.OrdinalIgnoreCase);
         }
 
-        public ClusterNode UpdateSelfNodeIPAddress(IPAddress ipAddress)
+        public ClusterNode UpdateSelfNodeIPAddresses(IReadOnlyList<IPAddress> ipAddresses)
         {
             ClusterNode selfNode = GetSelfNode();
 
@@ -1972,7 +1991,7 @@ namespace DnsServerCore.Cluster
                     RemoveClusterPrimaryZoneRecordsFor(selfNode);
 
                     //update self node
-                    selfNode.UpdateSelfNodeIPAddress(ipAddress);
+                    selfNode.UpdateSelfNodeIPAddresses(ipAddresses);
 
                     //update cluster zone to add updated self node records
                     AddClusterPrimaryZoneRecordsFor(selfNode, _dnsWebService.WebServiceTlsCertificate);
@@ -1989,7 +2008,7 @@ namespace DnsServerCore.Cluster
 
                 case ClusterNodeType.Secondary:
                     //update self node
-                    selfNode.UpdateSelfNodeIPAddress(ipAddress);
+                    selfNode.UpdateSelfNodeIPAddresses(ipAddresses);
 
                     //save all changes
                     SaveConfigFile();
