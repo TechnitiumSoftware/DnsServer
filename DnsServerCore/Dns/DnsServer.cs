@@ -638,7 +638,17 @@ namespace DnsServerCore.Dns
             //general
             string serverDomain = bR.ReadShortString();
             if (!isConfigTransfer)
-                _serverDomain = serverDomain;
+            {
+                try
+                {
+                    ServerDomain = serverDomain;
+                }
+                catch
+                {
+                    //server domain failed validation
+                    _serverDomain = serverDomain;
+                }
+            }
 
             {
                 IPEndPoint[] localEndPoints;
@@ -3980,12 +3990,14 @@ namespace DnsServerCore.Dns
                 {
                     //domain not blocked in blocked zone
                     response = _blockListZoneManager.Query(request); //check in block list zone
-                    if (response is null)
-                        return null; //domain not blocked in block list zone
+                    if (response is not null)
+                    {
+                        //domain is blocked in block list zone
+                        response.Tag = DnsServerResponseType.Blocked;
+                        return response;
+                    }
 
-                    //domain is blocked in block list zone
-                    response.Tag = DnsServerResponseType.Blocked;
-                    return response;
+                    //domain not blocked in block list zone; continue to check app blocking handlers
                 }
                 else
                 {
