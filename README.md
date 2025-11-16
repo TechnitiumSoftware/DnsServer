@@ -89,9 +89,6 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Built-in system logging and query logging.
 - Open source cross-platform .NET 9 implementation hosted on [GitHub](https://github.com/TechnitiumSoftware/DnsServer).
 
-# Planned Features
-- Clustering support to manage two or more DNS servers.
-
 # Installation
 - **Windows**: [Download setup installer](https://download.technitium.com/dns/DnsServerSetup.zip) for easy installation.
 - **Linux & Raspberry Pi**: Follow install instructions from [this blog post](https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html).
