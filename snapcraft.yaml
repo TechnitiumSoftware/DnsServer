@@ -1,0 +1,93 @@
+name: technitium-dns
+base: core24
+
+# This value can be overridden in CI via SNAPCRAFT_PROJECT_VERSION
+version: "0.0.0"
+
+summary: Technitium DNS Server packaged as a snap
+description: |
+  Technitium DNS Server is an open source authoritative and recursive DNS
+  server with support for DNS-over-TLS, DNS-over-HTTPS, DNS-over-QUIC,
+  ad and malware blocking, integrated DHCP, and a web-based management UI.
+
+grade: devel        # change to "stable" once the snap is production-ready
+confinement: strict
+
+apps:
+  dns-server:
+    # Run the published binary, using $SNAP_COMMON as the config directory
+    command: bin/technitium-entrypoint.sh
+    daemon: simple
+    restart-condition: always
+    environment:
+      DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "1"
+    plugs:
+      - network
+      - network-bind
+
+parts:
+  technitium-dns:
+    plugin: dump
+    # Build from the repository root
+    source: .
+    build-packages:
+      - curl
+      - ca-certificates
+      - gnupg
+      - git
+      - software-properties-common
+    stage-packages:
+      # Runtime deps for libmsquic (names may map to newer versions on core24)
+      - liblttng-ust1
+      - libnuma1
+    override-build: |
+      set -eux
+
+      # 1) Install .NET 9 SDK via official script
+      curl -sSL https://dot.net/v1/dotnet-install.sh -o dotnet-install.sh
+      chmod +x dotnet-install.sh
+      ./dotnet-install.sh --version 9.0.100 --install-dir /opt/dotnet
+
+      export DOTNET_ROOT=/opt/dotnet
+      export PATH="$DOTNET_ROOT:$PATH"
+
+      # 2) Clone and build TechnitiumLibrary as sibling repo (../TechnitiumLibrary)
+      rm -rf "$SNAPCRAFT_PART_BUILD/../TechnitiumLibrary"
+      git clone --depth 1 https://github.com/TechnitiumSoftware/TechnitiumLibrary.git "$SNAPCRAFT_PART_BUILD/../TechnitiumLibrary"
+
+      dotnet build "$SNAPCRAFT_PART_BUILD/../TechnitiumLibrary/TechnitiumLibrary.ByteTree/TechnitiumLibrary.ByteTree.csproj" -c Release
+      dotnet build "$SNAPCRAFT_PART_BUILD/../TechnitiumLibrary/TechnitiumLibrary.Net/TechnitiumLibrary.Net.csproj" -c Release
+      dotnet build "$SNAPCRAFT_PART_BUILD/../TechnitiumLibrary/TechnitiumLibrary.Security.OTP/TechnitiumLibrary.Security.OTP.csproj" -c Release
+
+      # 3) Download and extract libmsquic into the snap (for QUIC support)
+      curl -o "$SNAPCRAFT_PART_INSTALL/libmsquic_2.4.8_amd64.deb" https://packages.microsoft.com/repos/microsoft-ubuntu-bionic-prod/pool/main/libm/libmsquic/libmsquic_2.4.8_amd64.deb
+      dpkg-deb -x "$SNAPCRAFT_PART_INSTALL/libmsquic_2.4.8_amd64.deb" "$SNAPCRAFT_PART_INSTALL/"
+
+      # 3b) Download and extract libssl1.1 into the snap to provide libcrypto.so.1.1
+      curl -L -o "$SNAPCRAFT_PART_INSTALL/libssl1.1_amd64.deb" https://security.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.24_amd64.deb
+      dpkg-deb -x "$SNAPCRAFT_PART_INSTALL/libssl1.1_amd64.deb" "$SNAPCRAFT_PART_INSTALL/"
+
+      # 4) Publish DnsServerApp as a self-contained single-file binary
+      dotnet publish DnsServerApp/DnsServerApp.csproj \
+        -c Release \
+        -r linux-x64 \
+        --self-contained true \
+        -p:PublishSingleFile=true \
+        -p:PublishTrimmed=false \
+        -o "$SNAPCRAFT_PART_INSTALL/bin"
+
+      # 5) Create entrypoint script to prepare environment and start the server
+      cat << 'EOF' > "$SNAPCRAFT_PART_INSTALL/bin/technitium-entrypoint.sh"
+      #!/bin/sh
+      set -e
+
+      # Ensure logs directory exists under SNAP_COMMON
+      mkdir -p "$SNAP_COMMON/logs"
+
+      # Run the server using SNAP_COMMON as config directory
+      exec "$SNAP/bin/DnsServerApp" "$SNAP_COMMON"
+      EOF
+
+      chmod +x "$SNAPCRAFT_PART_INSTALL/bin/technitium-entrypoint.sh"
+
+      ls -R "$SNAPCRAFT_PART_INSTALL"
