@@ -1,5 +1,15 @@
 # Technitium DNS Server Change Log
 
+## Version 14.1
+Release Date: 16 November 2025
+
+- Updated Clustering implementation to allow configuring multiple custom IP addresses. This introduces a breaking change in the API and thus all cluster nodes must be upgraded to this release for them to work together.
+- Fixed issues related to user and group permission validation when Clustering is enabled which caused permission bypass when accessing another node.
+- Fixed bug that caused the Advanced Blocking app to stop working.
+- Added environment variables for TLS certificate path, certificate password, and HTTP to HTTPS redirect option. Thanks to `simonvandermeer` for the PR.
+- Updated Hagezi block list URLs. Thanks to `hagezi` for the PR.
+- Other minor changes and improvements.
+
 ## Version 14.0.1
 Release Date: 9 November 2025
 
