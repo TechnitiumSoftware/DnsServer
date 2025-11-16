@@ -128,7 +128,7 @@ namespace DnsServerCore
             Assembly assembly = Assembly.GetExecutingAssembly();
 
             _currentVersion = assembly.GetName().Version;
-            _appFolder = Path.GetDirectoryName(assembly.Location);
+            _appFolder = AppContext.BaseDirectory;
 
             if (configFolder is null)
                 _configFolder = Path.Combine(_appFolder, "config");

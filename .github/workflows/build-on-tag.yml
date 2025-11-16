@@ -1,0 +1,135 @@
+name: Build & Release on Tag
+
+on:
+  push:
+    tags:
+      - "v*"     # Ajusta el patrón según tu esquema de tags
+
+jobs:
+  build:
+    name: Build ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            rid: linux-x64
+            archive_ext: tar.gz
+            archive_cmd: tar czf
+            needs_libmsquic: true
+          - os: ubuntu-24.04
+            rid: linux-arm
+            archive_ext: tar.gz
+            archive_cmd: tar czf
+            needs_libmsquic: true
+          - os: ubuntu-24.04
+            rid: linux-arm64
+            archive_ext: tar.gz
+            archive_cmd: tar czf
+            needs_libmsquic: true
+          - os: windows-2022
+            rid: win-x64
+            archive_ext: zip
+            needs_libmsquic: false
+          - os: macos-14
+            rid: osx-x64
+            archive_ext: tar.gz
+            archive_cmd: tar czf
+            needs_libmsquic: false
+
+    steps:
+      - name: Checkout DnsServer repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+
+      - name: Show dotnet info
+        run: dotnet --info
+
+      - name: Install libmsquic (Linux only)
+        if: matrix.needs_libmsquic
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libmsquic
+
+      - name: Clone TechnitiumLibrary
+        run: |
+          git clone --depth 1 https://github.com/TechnitiumSoftware/TechnitiumLibrary.git ../TechnitiumLibrary
+
+      - name: Build TechnitiumLibrary projects (Release)
+        run: |
+          dotnet build ../TechnitiumLibrary/TechnitiumLibrary.ByteTree/TechnitiumLibrary.ByteTree.csproj -c Release
+          dotnet build ../TechnitiumLibrary/TechnitiumLibrary.Net/TechnitiumLibrary.Net.csproj -c Release
+          dotnet build ../TechnitiumLibrary/TechnitiumLibrary.Security.OTP/TechnitiumLibrary.Security.OTP.csproj -c Release
+
+      - name: Build DnsServer (publish Release self-contained)
+        run: dotnet publish DnsServerApp/DnsServerApp.csproj -c Release -r ${{ matrix.rid }} --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true
+
+      - name: Detect publish directory
+        id: detect_publish
+        shell: bash
+        run: |
+          PUBLISH_DIR=$(find DnsServerApp/bin/Release -maxdepth 6 -type d -name publish | head -n 1)
+          if [ -z "$PUBLISH_DIR" ]; then
+            echo "No publish directory found under DnsServerApp/bin/Release" >&2
+            exit 1
+          fi
+          echo "Publish directory: $PUBLISH_DIR"
+          echo "PUBLISH_DIR=$PUBLISH_DIR" >> $GITHUB_ENV
+
+      - name: Package publish output (Linux/macOS)
+        if: matrix.archive_ext == 'tar.gz'
+        shell: bash
+        run: |
+          ARCHIVE_NAME="TechnitiumDnsServer-${{ matrix.rid }}.tar.gz"
+          tar czf "$ARCHIVE_NAME" -C "$PUBLISH_DIR" .
+          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> $GITHUB_ENV
+
+      - name: Package publish output (Windows)
+        if: matrix.archive_ext == 'zip'
+        shell: pwsh
+        run: |
+          $env:ARCHIVE_NAME = "TechnitiumDnsServer-${{ matrix.rid }}.zip"
+          Compress-Archive -Path "$env:PUBLISH_DIR\*" -DestinationPath $env:ARCHIVE_NAME
+
+      - name: Upload archive artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TechnitiumDnsServer-${{ matrix.rid }}
+          path: |
+            TechnitiumDnsServer-${{ matrix.rid }}.tar.gz
+            TechnitiumDnsServer-${{ matrix.rid }}.zip
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-24.04
+    needs: build
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List downloaded artifacts
+        run: |
+          ls -R artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Technitium DNS Server ${{ github.ref_name }}
+          files: artifacts/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
