@@ -12,7 +12,7 @@
 		<RepositoryType></RepositoryType>
 		<Description></Description>
 		<PackageId>DnsServer</PackageId>
-		<Version>14.0.1</Version>
+		<Version>14.1</Version>
 		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 	</PropertyGroup>
 
