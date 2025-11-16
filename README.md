@@ -118,6 +118,7 @@ Make contribution to Technitium and help making new software, updates, and featu
 [Donate Now!](https://www.patreon.com/technitium)
 
 # Blog Posts
+- [Technitium Blog: Technitium DNS Server v14 Released!](https://blog.technitium.com/2025/11/technitium-dns-server-v14-released.html) (Nov 2025)
 - [Technitium Blog: How To Configure Catalog Zones For Automatic Provisioning Of Secondary Zones](https://blog.technitium.com/2024/10/how-to-configure-catalog-zones-for.html) (Oct 2024)
 - [Technitium Blog: Technitium DNS Server v13 Released!](https://blog.technitium.com/2024/09/technitium-dns-server-v13-released.html) (Sept 2024)
 - [Technitium Blog: Technitium DNS Server v12 Released!](https://blog.technitium.com/2024/02/technitium-dns-server-v12-released.html) (Feb 2024)
