@@ -969,7 +969,8 @@ namespace DnsServerCore.Cluster
             _dnsWebService.DnsServer.AuthZoneManager.AddRecord(_clusterDomain, nsRecord);
 
             //set A/AAAA record
-            List<DnsResourceRecord> addressRecords = new List<DnsResourceRecord>(node.IPAddresses.Count);
+            List<DnsResourceRecord> v4AddressRecords = new List<DnsResourceRecord>(node.IPAddresses.Count);
+            List<DnsResourceRecord> v6AddressRecords = new List<DnsResourceRecord>(node.IPAddresses.Count);
 
             foreach (IPAddress ipAddress in node.IPAddresses)
             {
@@ -993,10 +994,23 @@ namespace DnsServerCore.Cluster
                 recordInfo.LastModified = DateTime.UtcNow;
                 recordInfo.Comments = recordComments;
 
-                addressRecords.Add(record);
+                switch (record.Type)
+                {
+                    case DnsResourceRecordType.A:
+                        v4AddressRecords.Add(record);
+                        break;
+                    case DnsResourceRecordType.AAAA:
+                        v6AddressRecords.Add(record);
+                        break;
+                    default:
+                        throw new InvalidOperationException();
+                }
             }
-
-            _dnsWebService.DnsServer.AuthZoneManager.SetRecords(_clusterDomain, addressRecords);
+            
+            if (v4AddressRecords.Count > 0)
+                _dnsWebService.DnsServer.AuthZoneManager.SetRecords(_clusterDomain, v4AddressRecords);
+            if (v6AddressRecords.Count > 0)
+                _dnsWebService.DnsServer.AuthZoneManager.SetRecords(_clusterDomain, v6AddressRecords);
 
             //set PTR record
             foreach (IPAddress ipAddress in node.IPAddresses)
