@@ -980,10 +980,12 @@ namespace DnsServerCore.Cluster
                 {
                     case AddressFamily.InterNetwork:
                         record = new DnsResourceRecord(node.Name, DnsResourceRecordType.A, DnsClass.IN, 60, new DnsARecordData(ipAddress));
+                        v4AddressRecords.Add(record);
                         break;
 
                     case AddressFamily.InterNetworkV6:
                         record = new DnsResourceRecord(node.Name, DnsResourceRecordType.AAAA, DnsClass.IN, 60, new DnsAAAARecordData(ipAddress));
+                        v6AddressRecords.Add(record);
                         break;
 
                     default:
@@ -993,18 +995,6 @@ namespace DnsServerCore.Cluster
                 GenericRecordInfo recordInfo = record.GetAuthGenericRecordInfo();
                 recordInfo.LastModified = DateTime.UtcNow;
                 recordInfo.Comments = recordComments;
-
-                switch (record.Type)
-                {
-                    case DnsResourceRecordType.A:
-                        v4AddressRecords.Add(record);
-                        break;
-                    case DnsResourceRecordType.AAAA:
-                        v6AddressRecords.Add(record);
-                        break;
-                    default:
-                        throw new InvalidOperationException();
-                }
             }
             
             if (v4AddressRecords.Count > 0)
