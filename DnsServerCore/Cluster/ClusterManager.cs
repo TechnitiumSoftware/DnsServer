@@ -969,7 +969,8 @@ namespace DnsServerCore.Cluster
             _dnsWebService.DnsServer.AuthZoneManager.AddRecord(_clusterDomain, nsRecord);
 
             //set A/AAAA record
-            List<DnsResourceRecord> addressRecords = new List<DnsResourceRecord>(node.IPAddresses.Count);
+            List<DnsResourceRecord> v4AddressRecords = new List<DnsResourceRecord>(node.IPAddresses.Count);
+            List<DnsResourceRecord> v6AddressRecords = new List<DnsResourceRecord>(node.IPAddresses.Count);
 
             foreach (IPAddress ipAddress in node.IPAddresses)
             {
@@ -979,10 +980,12 @@ namespace DnsServerCore.Cluster
                 {
                     case AddressFamily.InterNetwork:
                         record = new DnsResourceRecord(node.Name, DnsResourceRecordType.A, DnsClass.IN, 60, new DnsARecordData(ipAddress));
+                        v4AddressRecords.Add(record);
                         break;
 
                     case AddressFamily.InterNetworkV6:
                         record = new DnsResourceRecord(node.Name, DnsResourceRecordType.AAAA, DnsClass.IN, 60, new DnsAAAARecordData(ipAddress));
+                        v6AddressRecords.Add(record);
                         break;
 
                     default:
@@ -992,11 +995,12 @@ namespace DnsServerCore.Cluster
                 GenericRecordInfo recordInfo = record.GetAuthGenericRecordInfo();
                 recordInfo.LastModified = DateTime.UtcNow;
                 recordInfo.Comments = recordComments;
-
-                addressRecords.Add(record);
             }
-
-            _dnsWebService.DnsServer.AuthZoneManager.SetRecords(_clusterDomain, addressRecords);
+            
+            if (v4AddressRecords.Count > 0)
+                _dnsWebService.DnsServer.AuthZoneManager.SetRecords(_clusterDomain, v4AddressRecords);
+            if (v6AddressRecords.Count > 0)
+                _dnsWebService.DnsServer.AuthZoneManager.SetRecords(_clusterDomain, v6AddressRecords);
 
             //set PTR record
             foreach (IPAddress ipAddress in node.IPAddresses)
