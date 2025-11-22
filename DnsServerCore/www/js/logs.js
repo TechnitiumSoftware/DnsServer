@@ -442,7 +442,7 @@ function queryLogs(pageNumber) {
                     htmlEncode(responseJSON.response.entries[i].answer) +
                     "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnQueryLogsRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
 
-                tableHtml += "<li><a href=\"#\" data-id=\"" + i + "\" onclick=\"queryDnsServer('" + responseJSON.response.entries[i].qname + "', '" + responseJSON.response.entries[i].qtype + "'); return false;\">Query DNS Server</a></li>";
+                tableHtml += "<li><a href=\"#\" data-id=\"" + i + "\" onclick=\"queryDnsServer('" + responseJSON.response.entries[i].qname + "', '" + responseJSON.response.entries[i].qtype + "', '" + node + "'); return false;\">Query DNS Server</a></li>";
 
                 switch (responseJSON.response.entries[i].responseType.toLowerCase()) {
                     case "blocked":
@@ -522,7 +522,7 @@ function queryLogs(pageNumber) {
     });
 }
 
-function showQueryLogs(domain, clientIp) {
+function showQueryLogs(domain, clientIp, node) {
     $("#frmQueryLogs").trigger("reset");
 
     if (domain != null)
@@ -530,6 +530,9 @@ function showQueryLogs(domain, clientIp) {
 
     if (clientIp != null)
         $("#txtQueryLogClientIpAddress").val(clientIp);
+
+    if ((node != null) && (node != "cluster"))
+        $("#optLogsClusterNode").val(node);
 
     $("#mainPanelTabListDashboard").removeClass("active");
     $("#mainPanelTabPaneDashboard").removeClass("active");
