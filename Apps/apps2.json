@@ -86,6 +86,12 @@
 				"version": "9.0",
 				"url": "https://download.technitium.com/dns/apps/AdvancedBlockingApp-v9.zip",
 				"size": "31.0 KB"
+			},
+			{
+				"serverVersion": "14.2.0",
+				"version": "9.1",
+				"url": "https://download.technitium.com/dns/apps/AdvancedBlockingApp-v9.1.zip",
+				"size": "33.08 KB"
 			}
 		]
 	},
@@ -866,6 +872,24 @@
 				"version": "2.0",
 				"url": "https://download.technitium.com/dns/apps/LogExporterApp-v2.zip",
 				"size": "212 KB"
+			},
+			{
+				"serverVersion": "14.2.0",
+				"version": "2.1",
+				"url": "https://download.technitium.com/dns/apps/LogExporterApp-v2.1.zip",
+				"size": "213.95 KB"
+			}
+		]
+	},
+	{
+		"name": "MISP Connector",
+		"description": "Block malicious domain names pulled from MISP feeds.\n\nNote! This app works independent of the DNS server's built-in blocking feature. The options configured in DNS server Settings section does not apply to this app.",
+		"versions": [
+			{
+				"serverVersion": "14.2.0",
+				"version": "1.0",
+				"url": "https://download.technitium.com/dns/apps/MispConnectorApp-v1.zip",
+				"size": "24.49 KB"
 			}
 		]
 	},
