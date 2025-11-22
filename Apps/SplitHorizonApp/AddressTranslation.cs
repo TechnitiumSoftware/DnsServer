@@ -1,4 +1,4 @@
-﻿/*
+/*
 Technitium DNS Server
 Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
@@ -24,6 +24,7 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net;
@@ -39,7 +40,7 @@ namespace SplitHorizon
         byte _appPreference;
 
         bool _enableAddressTranslation;
-        Dictionary<NetworkAddress, string> _networkGroupMap;
+        Dictionary<ExtendedNetworkAddress, string> _extendedNetworkGroupMap;
         Dictionary<string, Group> _groups;
 
         #endregion
@@ -49,6 +50,45 @@ namespace SplitHorizon
         public void Dispose()
         {
             //do nothing
+        }
+
+        #endregion
+
+        #region private
+
+        private static (JsonElement UpdatedConfig, bool Changed) UpgradeNetworkGroupMap(JsonElement jsonConfig)
+        {
+            bool changed = false;
+            if (!jsonConfig.TryGetProperty("networkGroupMap", out JsonElement networkGroupMap))
+                return (jsonConfig, false);
+
+            if (networkGroupMap.ValueKind == JsonValueKind.Object)
+            {
+                changed = true;
+
+                var newArray = new JsonArray();
+
+                foreach (JsonProperty kvp in networkGroupMap.EnumerateObject())
+                {
+                    string network = kvp.Name;
+                    string groupName = kvp.Value.GetString() ?? "";
+
+                    var newItem = new JsonObject
+                    {
+                        ["Network"] = network,
+                        ["DomainName"] = "",
+                        ["GroupName"] = groupName
+                    };
+
+                    newArray.Add(newItem);
+                }
+                var rootNode = JsonNode.Parse(jsonConfig.GetRawText())!;
+                rootNode["networkGroupMap"] = newArray;
+
+                using var doc = JsonDocument.Parse(rootNode.ToJsonString());
+                return (doc.RootElement.Clone(), changed);
+            }
+            return (jsonConfig, false);
         }
 
         #endregion
@@ -70,11 +110,11 @@ namespace SplitHorizon
         ]
     },
     "enableAddressTranslation": false,
-    "networkGroupMap": {
-        "10.0.0.0/8": "local1",
-        "172.16.0.0/12": "local2",
-        "192.168.0.0/16": "local3"
-    },
+    "networkGroupMap": [
+        { "Network": "10.0.0.0/8", "DomainName": "", "GroupName": "local1" },
+        { "Network": "172.16.0.0/12", "DomainName": "", "GroupName": "local2" },
+        { "Network": "192.168.0.0/16", "DomainName": "", "GroupName": "local3" }
+    ],
     "groups": [
         {
             "name": "local1",
@@ -114,7 +154,18 @@ namespace SplitHorizon
             {
                 using JsonDocument jsonDocument = JsonDocument.Parse(config);
                 JsonElement jsonConfig = jsonDocument.RootElement;
-
+                var(newjsonConfig, changed) = UpgradeNetworkGroupMap(jsonConfig);
+                if (changed)
+                {
+                    jsonConfig = newjsonConfig;
+                    await File.WriteAllTextAsync(
+                        Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"),
+                        JsonSerializer.Serialize(jsonConfig, new JsonSerializerOptions
+                        {
+                            WriteIndented = true
+                        }
+                     ));
+                }
                 _appPreference = Convert.ToByte(jsonConfig.GetPropertyValue("appPreference", 40));
 
                 if (!jsonConfig.TryGetProperty("enableAddressTranslation", out _))
@@ -126,11 +177,11 @@ namespace SplitHorizon
                     config += """
 ,
     "enableAddressTranslation": false,
-    "networkGroupMap": {
-        "10.0.0.0/8": "local1",
-        "172.16.0.0/12": "local2",
-        "192.168.0.0/16": "local3"
-    },
+    "networkGroupMap": [
+        { "Network": "10.0.0.0/8", "DomainName": "", "GroupName": "local1" },
+        { "Network": "172.16.0.0/12", "DomainName": "", "GroupName": "local2" },
+        { "Network": "192.168.0.0/16", "DomainName": "", "GroupName": "local3" }
+    ],
     "groups": [
         {
             "name": "local1",
@@ -170,13 +221,23 @@ namespace SplitHorizon
 
                 _enableAddressTranslation = jsonConfig.GetProperty("enableAddressTranslation").GetBoolean();
 
-                _networkGroupMap = jsonConfig.ReadObjectAsMap("networkGroupMap", delegate (string strNetworkAddress, JsonElement jsonGroupName)
-                {
-                    if (!NetworkAddress.TryParse(strNetworkAddress, out NetworkAddress networkAddress))
-                        throw new InvalidOperationException("Network group map contains an invalid network address: " + strNetworkAddress);
+                _extendedNetworkGroupMap = new Dictionary<ExtendedNetworkAddress, string>();
 
-                    return new Tuple<NetworkAddress, string>(networkAddress, jsonGroupName.GetString());
-                });
+                JsonElement jsonArray = jsonConfig.GetProperty("networkGroupMap");
+
+                foreach (JsonElement item in jsonArray.EnumerateArray())
+                {
+                    string networkStr = item.GetProperty("Network").GetString();
+                    string domainName = item.GetProperty("DomainName").GetString();
+                    string groupName = item.GetProperty("GroupName").GetString();
+
+                    if (!NetworkAddress.TryParse(networkStr, out NetworkAddress networkAddress))
+                        throw new InvalidOperationException("Invalid network address: " + networkStr);
+
+                    var extendedAddress = new ExtendedNetworkAddress(networkAddress, domainName);
+
+                    _extendedNetworkGroupMap.Add(extendedAddress, groupName);
+                }
 
                 _groups = jsonConfig.ReadArrayAsMap("groups", delegate (JsonElement jsonGroup)
                 {
@@ -216,9 +277,11 @@ namespace SplitHorizon
             NetworkAddress network = null;
             string groupName = null;
 
-            foreach (KeyValuePair<NetworkAddress, string> entry in _networkGroupMap)
+            foreach (KeyValuePair<ExtendedNetworkAddress, string> entry in _extendedNetworkGroupMap)
             {
-                if (entry.Key.Contains(remoteIP) && ((network is null) || (entry.Key.PrefixLength > network.PrefixLength)))
+                if (entry.Key.Contains(remoteIP) &&
+                    question.Name.EndsWith(entry.Key.DomainName, StringComparison.OrdinalIgnoreCase) && 
+                    ((network is null) || (entry.Key.PrefixLength > network.PrefixLength)))
                 {
                     network = entry.Key;
                     groupName = entry.Value;
@@ -278,9 +341,11 @@ namespace SplitHorizon
             NetworkAddress network = null;
             string groupName = null;
 
-            foreach (KeyValuePair<NetworkAddress, string> entry in _networkGroupMap)
+            foreach (KeyValuePair<ExtendedNetworkAddress, string> entry in _extendedNetworkGroupMap)
             {
-                if (entry.Key.Contains(remoteIP) && ((network is null) || (entry.Key.PrefixLength > network.PrefixLength)))
+                if (entry.Key.Contains(remoteIP) &&
+                    question.Name.EndsWith(entry.Key.DomainName, StringComparison.OrdinalIgnoreCase) &&
+                    ((network is null) || (entry.Key.PrefixLength > network.PrefixLength)))
                 {
                     network = entry.Key;
                     groupName = entry.Value;
