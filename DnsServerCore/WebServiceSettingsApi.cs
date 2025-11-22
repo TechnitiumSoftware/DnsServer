@@ -1572,7 +1572,7 @@ namespace DnsServerCore
                         if (_dnsWebService._clusterManager.GetSelfNode().Type == ClusterNodeType.Primary)
                             _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodes();
                         else if (clusterParameters.Count > 0)
-                            await _dnsWebService._clusterManager.GetPrimaryNode().SetClusterSettingsAsync(clusterParameters);
+                            await _dnsWebService._clusterManager.GetPrimaryNode().SetClusterSettingsAsync(sessionUser, clusterParameters);
                     }
 
                     Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
@@ -1780,7 +1780,7 @@ namespace DnsServerCore
                                 if (clusterNode.Value.State == ClusterNodeState.Self)
                                     continue;
 
-                                tasks.Add(clusterNode.Value.ForceUpdateBlockListsAsync());
+                                tasks.Add(clusterNode.Value.ForceUpdateBlockListsAsync(sessionUser));
                             }
 
                             foreach (Task task in tasks)
@@ -1837,7 +1837,7 @@ namespace DnsServerCore
                                 if (clusterNode.Value.State == ClusterNodeState.Self)
                                     continue;
 
-                                tasks.Add(clusterNode.Value.TemporaryDisableBlockingAsync(minutes));
+                                tasks.Add(clusterNode.Value.TemporaryDisableBlockingAsync(sessionUser, minutes));
                             }
 
                             foreach (Task task in tasks)
