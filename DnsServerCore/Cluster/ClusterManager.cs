@@ -969,8 +969,8 @@ namespace DnsServerCore.Cluster
             _dnsWebService.DnsServer.AuthZoneManager.AddRecord(_clusterDomain, nsRecord);
 
             //set A/AAAA record
-            List<DnsResourceRecord> v4AddressRecords = new List<DnsResourceRecord>(node.IPAddresses.Count);
-            List<DnsResourceRecord> v6AddressRecords = new List<DnsResourceRecord>(node.IPAddresses.Count);
+            List<DnsResourceRecord> ipv4AddressRecords = new List<DnsResourceRecord>(node.IPAddresses.Count);
+            List<DnsResourceRecord> ipv6AddressRecords = new List<DnsResourceRecord>(node.IPAddresses.Count);
 
             foreach (IPAddress ipAddress in node.IPAddresses)
             {
@@ -980,12 +980,12 @@ namespace DnsServerCore.Cluster
                 {
                     case AddressFamily.InterNetwork:
                         record = new DnsResourceRecord(node.Name, DnsResourceRecordType.A, DnsClass.IN, 60, new DnsARecordData(ipAddress));
-                        v4AddressRecords.Add(record);
+                        ipv4AddressRecords.Add(record);
                         break;
 
                     case AddressFamily.InterNetworkV6:
                         record = new DnsResourceRecord(node.Name, DnsResourceRecordType.AAAA, DnsClass.IN, 60, new DnsAAAARecordData(ipAddress));
-                        v6AddressRecords.Add(record);
+                        ipv6AddressRecords.Add(record);
                         break;
 
                     default:
@@ -997,10 +997,11 @@ namespace DnsServerCore.Cluster
                 recordInfo.Comments = recordComments;
             }
             
-            if (v4AddressRecords.Count > 0)
-                _dnsWebService.DnsServer.AuthZoneManager.SetRecords(_clusterDomain, v4AddressRecords);
-            if (v6AddressRecords.Count > 0)
-                _dnsWebService.DnsServer.AuthZoneManager.SetRecords(_clusterDomain, v6AddressRecords);
+            if (ipv4AddressRecords.Count > 0)
+                _dnsWebService.DnsServer.AuthZoneManager.SetRecords(_clusterDomain, ipv4AddressRecords);
+
+            if (ipv6AddressRecords.Count > 0)
+                _dnsWebService.DnsServer.AuthZoneManager.SetRecords(_clusterDomain, ipv6AddressRecords);
 
             //set PTR record
             foreach (IPAddress ipAddress in node.IPAddresses)
