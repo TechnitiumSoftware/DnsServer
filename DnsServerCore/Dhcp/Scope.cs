@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -120,8 +120,10 @@ namespace DnsServerCore.Dhcp
             _dhcpServer = dhcpServer;
         }
 
-        public Scope(BinaryReader bR, LogManager log, DhcpServer dhcpServer)
+        public Scope(Stream s, LogManager log, DhcpServer dhcpServer)
         {
+            BinaryReader bR = new BinaryReader(s);
+
             if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "SC")
                 throw new InvalidDataException("DhcpServer scope file format is invalid.");
 
@@ -411,10 +413,10 @@ namespace DnsServerCore.Dhcp
             if (_disposed)
                 return;
 
-            if (_lastAddressOfferedLock is not null)
-                _lastAddressOfferedLock.Dispose();
+            _lastAddressOfferedLock?.Dispose();
 
             _disposed = true;
+            GC.SuppressFinalize(this);
         }
 
         #endregion
@@ -460,11 +462,6 @@ namespace DnsServerCore.Dhcp
         #endregion
 
         #region private
-
-        private uint GetLeaseTime()
-        {
-            return Convert.ToUInt32((_leaseTimeDays * 24 * 60 * 60) + (_leaseTimeHours * 60 * 60) + (_leaseTimeMinutes * 60));
-        }
 
         private async Task<AddressStatus> IsAddressAvailableAsync(IPAddress address)
         {
@@ -876,6 +873,11 @@ namespace DnsServerCore.Dhcp
             _dnsServers = null;
         }
 
+        internal uint GetLeaseTime()
+        {
+            return Convert.ToUInt32((_leaseTimeDays * 24 * 60 * 60) + (_leaseTimeHours * 60 * 60) + (_leaseTimeMinutes * 60));
+        }
+
         internal bool IsAddressInRange(IPAddress address)
         {
             return IsAddressInRange(address, _startingAddress, _endingAddress);
@@ -928,9 +930,7 @@ namespace DnsServerCore.Dhcp
                 if (IsAddressAlreadyAllocated(reservedLease.Address, clientIdentifier))
                 {
                     //reserved lease address is already allocated so ignore reserved lease
-
-                    if (_log is not null)
-                        _log.Write("DHCP Server cannot allocate reserved lease [" + reservedLease.Address.ToString() + "] to " + BitConverter.ToString(reservedLeasesClientIdentifier.Identifier) + " for scope '" + _name + "': The IP address is already allocated.");
+                    _log.Write("DHCP Server cannot allocate reserved lease [" + reservedLease.Address.ToString() + "] to " + BitConverter.ToString(reservedLeasesClientIdentifier.Identifier) + " for scope '" + _name + "': The IP address is already allocated.");
 
                     return null;
                 }
@@ -966,6 +966,17 @@ namespace DnsServerCore.Dhcp
                     }
                     else
                     {
+                        if (_blockLocallyAdministeredMacAddresses)
+                        {
+                            if ((request.HardwareAddressType == DhcpMessageHardwareAddressType.Ethernet) && ((request.ClientHardwareAddress[0] & 0x02) > 0))
+                            {
+                                _log.Write("DHCP Server failed to offer IP address to " + request.GetClientFullIdentifier() + " for scope '" + _name + "': the scope does not allow locally administered MAC addresses.");
+
+                                //prevent renewing existing dynamic lease
+                                return null;
+                            }
+                        }
+
                         //return existing dynamic lease
                         return existingLease;
                     }
@@ -982,8 +993,7 @@ namespace DnsServerCore.Dhcp
 
             if (_allowOnlyReservedLeases)
             {
-                if (_log is not null)
-                    _log.Write("DHCP Server failed to offer IP address to " + request.GetClientFullIdentifier() + " for scope '" + _name + "': the scope allows only reserved lease allocations.");
+                _log.Write("DHCP Server failed to offer IP address to " + request.GetClientFullIdentifier() + " for scope '" + _name + "': the scope allows only reserved lease allocations.");
 
                 return null;
             }
@@ -992,8 +1002,7 @@ namespace DnsServerCore.Dhcp
             {
                 if ((request.HardwareAddressType == DhcpMessageHardwareAddressType.Ethernet) && ((request.ClientHardwareAddress[0] & 0x02) > 0))
                 {
-                    if (_log is not null)
-                        _log.Write("DHCP Server failed to offer IP address to " + request.GetClientFullIdentifier() + " for scope '" + _name + "': the scope does not allow locally administered MAC addresses.");
+                    _log.Write("DHCP Server failed to offer IP address to " + request.GetClientFullIdentifier() + " for scope '" + _name + "': the scope does not allow locally administered MAC addresses.");
 
                     return null;
                 }
@@ -1047,8 +1056,7 @@ namespace DnsServerCore.Dhcp
                         {
                             if (offerAddressWasResetFromEnd)
                             {
-                                if (_log is not null)
-                                    _log.Write("DHCP Server failed to offer IP address to " + request.GetClientFullIdentifier() + " for scope '" + _name + "': address unavailable due to address pool exhaustion.");
+                                _log.Write("DHCP Server failed to offer IP address to " + request.GetClientFullIdentifier() + " for scope '" + _name + "': address unavailable due to address pool exhaustion.");
 
                                 return null;
                             }
@@ -1498,6 +1506,9 @@ namespace DnsServerCore.Dhcp
                 }
             }
 
+            //remove DNS entries if any
+            _dhcpServer.UpdateDnsAuthZone(false, this, removedLease);
+
             return removedLease;
         }
 
@@ -1553,8 +1564,10 @@ namespace DnsServerCore.Dhcp
             ConvertToDynamicLease(lease);
         }
 
-        public void WriteTo(BinaryWriter bW)
+        public void WriteTo(Stream s)
         {
+            BinaryWriter bW = new BinaryWriter(s);
+
             bW.Write(Encoding.ASCII.GetBytes("SC"));
             bW.Write((byte)9); //version
 

@@ -18,13 +18,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.Auth;
-using DnsServerCore.Dns;
+using DnsServerCore.HttpApi.Models;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Net;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
@@ -39,6 +40,8 @@ namespace DnsServerCore
 
             readonly DnsWebService _dnsWebService;
 
+            const int CLUSTER_NODE_DASHBOARD_STATS_API_TIMEOUT = 10000;
+
             #endregion
 
             #region constructor
@@ -52,11 +55,11 @@ namespace DnsServerCore
 
             #region private
 
-            private static void WriteChartDataSet(Utf8JsonWriter jsonWriter, string label, string backgroundColor, string borderColor, List<KeyValuePair<string, long>> statsPerInterval)
+            private static void WriteChartDataSet(Utf8JsonWriter jsonWriter, DashboardStats.DataSet dataSet, string backgroundColor, string borderColor)
             {
                 jsonWriter.WriteStartObject();
 
-                jsonWriter.WriteString("label", label);
+                jsonWriter.WriteString("label", dataSet.Label);
                 jsonWriter.WriteString("backgroundColor", backgroundColor);
                 jsonWriter.WriteString("borderColor", borderColor);
                 jsonWriter.WriteNumber("borderWidth", 2);
@@ -65,60 +68,65 @@ namespace DnsServerCore
                 jsonWriter.WritePropertyName("data");
                 jsonWriter.WriteStartArray();
 
-                foreach (KeyValuePair<string, long> item in statsPerInterval)
-                    jsonWriter.WriteNumberValue(item.Value);
+                foreach (long value in dataSet.Data)
+                    jsonWriter.WriteNumberValue(value);
 
                 jsonWriter.WriteEndArray();
 
                 jsonWriter.WriteEndObject();
             }
 
-            private async Task<IDictionary<string, string>> ResolvePtrTopClientsAsync(List<KeyValuePair<string, long>> topClients)
+            private async Task ResolvePtrTopClientsAsync(DashboardStats.TopClientStats[] topClients)
             {
                 IDictionary<string, string> dhcpClientIpMap = _dnsWebService._dhcpServer.GetAddressHostNameMap();
 
-                async Task<KeyValuePair<string, string>> ResolvePtrAsync(string ip)
+                async Task ResolvePtrAsync(DashboardStats.TopClientStats item)
                 {
+                    string ip = item.Name;
+
                     if (dhcpClientIpMap.TryGetValue(ip, out string dhcpDomain))
-                        return new KeyValuePair<string, string>(ip, dhcpDomain);
+                    {
+                        item.Domain = dhcpDomain;
+                        return;
+                    }
 
                     IPAddress address = IPAddress.Parse(ip);
 
                     if (IPAddress.IsLoopback(address))
-                        return new KeyValuePair<string, string>(ip, "localhost");
+                    {
+                        item.Domain = "localhost";
+                        return;
+                    }
 
                     DnsDatagram ptrResponse = await _dnsWebService._dnsServer.DirectQueryAsync(new DnsQuestionRecord(address, DnsClass.IN), 500);
                     if (ptrResponse.Answer.Count > 0)
                     {
                         IReadOnlyList<string> ptrDomains = DnsClient.ParseResponsePTR(ptrResponse);
                         if (ptrDomains.Count > 0)
-                            return new KeyValuePair<string, string>(ip, ptrDomains[0]);
+                        {
+                            item.Domain = ptrDomains[0];
+                            return;
+                        }
                     }
-
-                    return new KeyValuePair<string, string>(ip, null);
                 }
 
-                List<Task<KeyValuePair<string, string>>> resolverTasks = new List<Task<KeyValuePair<string, string>>>();
+                List<Task> resolverTasks = new List<Task>(topClients.Length);
 
-                foreach (KeyValuePair<string, long> item in topClients)
+                foreach (DashboardStats.TopClientStats item in topClients)
                 {
-                    resolverTasks.Add(ResolvePtrAsync(item.Key));
+                    if (string.IsNullOrEmpty(item.Domain))
+                        resolverTasks.Add(ResolvePtrAsync(item));
                 }
 
-                Dictionary<string, string> result = new Dictionary<string, string>();
-
-                foreach (Task<KeyValuePair<string, string>> resolverTask in resolverTasks)
+                foreach (Task resolverTask in resolverTasks)
                 {
                     try
                     {
-                        KeyValuePair<string, string> ptrResult = await resolverTask;
-                        result[ptrResult.Key] = ptrResult.Value;
+                        await resolverTask;
                     }
                     catch
                     { }
                 }
-
-                return result;
             }
 
             #endregion
@@ -127,12 +135,14 @@ namespace DnsServerCore
 
             public async Task GetStats(HttpContext context)
             {
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Dashboard, context.GetCurrentSession().User, PermissionFlag.View))
+                User sessionUser = _dnsWebService.GetSessionUser(context);
+
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Dashboard, sessionUser, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
 
-                string strType = request.GetQueryOrForm("type", "lastHour");
+                DashboardStatsType type = request.GetQueryOrFormEnum("type", DashboardStatsType.LastHour);
                 bool utcFormat = request.GetQueryOrForm("utc", bool.Parse, false);
 
                 bool isLanguageEnUs = true;
@@ -140,18 +150,61 @@ namespace DnsServerCore
                 if (!string.IsNullOrEmpty(acceptLanguage))
                     isLanguageEnUs = acceptLanguage.StartsWith("en-us", StringComparison.OrdinalIgnoreCase);
 
-                Dictionary<string, List<KeyValuePair<string, long>>> data;
+                bool dontTrimQueryTypeData = request.GetQueryOrForm("dontTrimQueryTypeData", bool.Parse, false);
+
+                DateTime startDate = default;
+                DateTime endDate = default;
+
+                if (type == DashboardStatsType.Custom)
+                {
+                    string strStartDate = request.GetQueryOrForm("start");
+                    string strEndDate = request.GetQueryOrForm("end");
+
+                    if (!DateTime.TryParse(strStartDate, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out startDate))
+                        throw new DnsWebServiceException("Invalid start date format.");
+
+                    if (!DateTime.TryParse(strEndDate, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out endDate))
+                        throw new DnsWebServiceException("Invalid end date format.");
+
+                    if (startDate > endDate)
+                        throw new DnsWebServiceException("Start date must be less than or equal to end date.");
+                }
+
+                List<Task<DashboardStats>> tasks = null;
+
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                {
+                    string node = request.GetQueryOrForm("node", null);
+                    if ("cluster".Equals(node, StringComparison.OrdinalIgnoreCase))
+                    {
+                        IReadOnlyDictionary<int, Cluster.ClusterNode> clusterNodes = _dnsWebService._clusterManager.ClusterNodes;
+                        tasks = new List<Task<DashboardStats>>(clusterNodes.Count);
+
+                        foreach (KeyValuePair<int, Cluster.ClusterNode> clusterNode in clusterNodes)
+                        {
+                            if (clusterNode.Value.State == Cluster.ClusterNodeState.Self)
+                                continue;
+
+                            tasks.Add(TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
+                            {
+                                return clusterNode.Value.GetDashboardStatsAsync(sessionUser, type, utcFormat, acceptLanguage, true, startDate, endDate, cancellationToken1);
+                            }, CLUSTER_NODE_DASHBOARD_STATS_API_TIMEOUT));
+                        }
+                    }
+                }
+
+                DashboardStats dashboardStats;
                 string labelFormat;
 
-                switch (strType.ToLowerInvariant())
+                switch (type)
                 {
-                    case "lasthour":
-                        data = _dnsWebService._dnsServer.StatsManager.GetLastHourMinuteWiseStats(utcFormat);
+                    case DashboardStatsType.LastHour:
+                        dashboardStats = _dnsWebService._dnsServer.StatsManager.GetLastHourMinuteWiseStats(utcFormat);
                         labelFormat = "HH:mm";
                         break;
 
-                    case "lastday":
-                        data = _dnsWebService._dnsServer.StatsManager.GetLastDayHourWiseStats(utcFormat);
+                    case DashboardStatsType.LastDay:
+                        dashboardStats = _dnsWebService._dnsServer.StatsManager.GetLastDayHourWiseStats(utcFormat);
 
                         if (isLanguageEnUs)
                             labelFormat = "MM/DD HH:00";
@@ -160,8 +213,8 @@ namespace DnsServerCore
 
                         break;
 
-                    case "lastweek":
-                        data = _dnsWebService._dnsServer.StatsManager.GetLastWeekDayWiseStats(utcFormat);
+                    case DashboardStatsType.LastWeek:
+                        dashboardStats = _dnsWebService._dnsServer.StatsManager.GetLastWeekDayWiseStats(utcFormat);
 
                         if (isLanguageEnUs)
                             labelFormat = "MM/DD";
@@ -170,8 +223,8 @@ namespace DnsServerCore
 
                         break;
 
-                    case "lastmonth":
-                        data = _dnsWebService._dnsServer.StatsManager.GetLastMonthDayWiseStats(utcFormat);
+                    case DashboardStatsType.LastMonth:
+                        dashboardStats = _dnsWebService._dnsServer.StatsManager.GetLastMonthDayWiseStats(utcFormat);
 
                         if (isLanguageEnUs)
                             labelFormat = "MM/DD";
@@ -180,29 +233,17 @@ namespace DnsServerCore
 
                         break;
 
-                    case "lastyear":
+                    case DashboardStatsType.LastYear:
                         labelFormat = "MM/YYYY";
-                        data = _dnsWebService._dnsServer.StatsManager.GetLastYearMonthWiseStats(utcFormat);
+                        dashboardStats = _dnsWebService._dnsServer.StatsManager.GetLastYearMonthWiseStats(utcFormat);
                         break;
 
-                    case "custom":
-                        string strStartDate = request.GetQueryOrForm("start");
-                        string strEndDate = request.GetQueryOrForm("end");
-
-                        if (!DateTime.TryParse(strStartDate, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime startDate))
-                            throw new DnsWebServiceException("Invalid start date format.");
-
-                        if (!DateTime.TryParse(strEndDate, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime endDate))
-                            throw new DnsWebServiceException("Invalid end date format.");
-
-                        if (startDate > endDate)
-                            throw new DnsWebServiceException("Start date must be less than or equal to end date.");
-
+                    case DashboardStatsType.Custom:
                         TimeSpan duration = endDate - startDate;
 
                         if ((Convert.ToInt32(duration.TotalDays) + 1) > 7)
                         {
-                            data = _dnsWebService._dnsServer.StatsManager.GetDayWiseStats(startDate, endDate, utcFormat);
+                            dashboardStats = _dnsWebService._dnsServer.StatsManager.GetDayWiseStats(startDate, endDate, utcFormat);
 
                             if (isLanguageEnUs)
                                 labelFormat = "MM/DD";
@@ -211,7 +252,7 @@ namespace DnsServerCore
                         }
                         else if ((Convert.ToInt32(duration.TotalHours) + 1) > 3)
                         {
-                            data = _dnsWebService._dnsServer.StatsManager.GetHourWiseStats(startDate, endDate, utcFormat);
+                            dashboardStats = _dnsWebService._dnsServer.StatsManager.GetHourWiseStats(startDate, endDate, utcFormat);
 
                             if (isLanguageEnUs)
                                 labelFormat = "MM/DD HH:00";
@@ -220,7 +261,7 @@ namespace DnsServerCore
                         }
                         else
                         {
-                            data = _dnsWebService._dnsServer.StatsManager.GetMinuteWiseStats(startDate, endDate, utcFormat);
+                            dashboardStats = _dnsWebService._dnsServer.StatsManager.GetMinuteWiseStats(startDate, endDate, utcFormat);
 
                             if (isLanguageEnUs)
                                 labelFormat = "MM/DD HH:mm";
@@ -231,27 +272,64 @@ namespace DnsServerCore
                         break;
 
                     default:
-                        throw new DnsWebServiceException("Unknown stats type requested: " + strType);
+                        throw new DnsWebServiceException("Unknown stats type requested: " + type.ToString());
                 }
+
+                //add extra stats
+                {
+                    dashboardStats.Stats.Zones = _dnsWebService._dnsServer.AuthZoneManager.TotalZones;
+                    dashboardStats.Stats.CachedEntries = _dnsWebService._dnsServer.CacheZoneManager.TotalEntries;
+                    dashboardStats.Stats.AllowedZones = _dnsWebService._dnsServer.AllowedZoneManager.TotalZonesAllowed;
+                    dashboardStats.Stats.BlockedZones = _dnsWebService._dnsServer.BlockedZoneManager.TotalZonesBlocked;
+                    dashboardStats.Stats.AllowListZones = _dnsWebService._dnsServer.BlockListZoneManager.TotalZonesAllowed;
+                    dashboardStats.Stats.BlockListZones = _dnsWebService._dnsServer.BlockListZoneManager.TotalZonesBlocked;
+                }
+
+                if (tasks is not null)
+                {
+                    foreach (Task<DashboardStats> task in tasks)
+                    {
+                        try
+                        {
+                            dashboardStats.Merge(await task, 10);
+                        }
+                        catch (Exception ex)
+                        {
+                            _dnsWebService._log.Write(ex);
+                        }
+                    }
+                }
+
+                if (!dontTrimQueryTypeData)
+                    dashboardStats.QueryTypeChartData.Trim(10); //trim query type data
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
                 //stats
                 {
-                    List<KeyValuePair<string, long>> stats = data["stats"];
-
                     jsonWriter.WritePropertyName("stats");
                     jsonWriter.WriteStartObject();
 
-                    foreach (KeyValuePair<string, long> item in stats)
-                        jsonWriter.WriteNumber(item.Key, item.Value);
+                    jsonWriter.WriteNumber("totalQueries", dashboardStats.Stats.TotalQueries);
+                    jsonWriter.WriteNumber("totalNoError", dashboardStats.Stats.TotalNoError);
+                    jsonWriter.WriteNumber("totalServerFailure", dashboardStats.Stats.TotalServerFailure);
+                    jsonWriter.WriteNumber("totalNxDomain", dashboardStats.Stats.TotalNxDomain);
+                    jsonWriter.WriteNumber("totalRefused", dashboardStats.Stats.TotalRefused);
 
-                    jsonWriter.WriteNumber("zones", _dnsWebService._dnsServer.AuthZoneManager.TotalZones);
-                    jsonWriter.WriteNumber("cachedEntries", _dnsWebService._dnsServer.CacheZoneManager.TotalEntries);
-                    jsonWriter.WriteNumber("allowedZones", _dnsWebService._dnsServer.AllowedZoneManager.TotalZonesAllowed);
-                    jsonWriter.WriteNumber("blockedZones", _dnsWebService._dnsServer.BlockedZoneManager.TotalZonesBlocked);
-                    jsonWriter.WriteNumber("allowListZones", _dnsWebService._dnsServer.BlockListZoneManager.TotalZonesAllowed);
-                    jsonWriter.WriteNumber("blockListZones", _dnsWebService._dnsServer.BlockListZoneManager.TotalZonesBlocked);
+                    jsonWriter.WriteNumber("totalAuthoritative", dashboardStats.Stats.TotalAuthoritative);
+                    jsonWriter.WriteNumber("totalRecursive", dashboardStats.Stats.TotalRecursive);
+                    jsonWriter.WriteNumber("totalCached", dashboardStats.Stats.TotalCached);
+                    jsonWriter.WriteNumber("totalBlocked", dashboardStats.Stats.TotalBlocked);
+                    jsonWriter.WriteNumber("totalDropped", dashboardStats.Stats.TotalDropped);
+
+                    jsonWriter.WriteNumber("totalClients", dashboardStats.Stats.TotalClients);
+
+                    jsonWriter.WriteNumber("zones", dashboardStats.Stats.Zones);
+                    jsonWriter.WriteNumber("cachedEntries", dashboardStats.Stats.CachedEntries);
+                    jsonWriter.WriteNumber("allowedZones", dashboardStats.Stats.AllowedZones);
+                    jsonWriter.WriteNumber("blockedZones", dashboardStats.Stats.BlockedZones);
+                    jsonWriter.WriteNumber("allowListZones", dashboardStats.Stats.AllowListZones);
+                    jsonWriter.WriteNumber("blockListZones", dashboardStats.Stats.BlockListZones);
 
                     jsonWriter.WriteEndObject();
                 }
@@ -268,13 +346,11 @@ namespace DnsServerCore
 
                     //label
                     {
-                        List<KeyValuePair<string, long>> statsPerInterval = data["totalQueriesPerInterval"];
-
                         jsonWriter.WritePropertyName("labels");
                         jsonWriter.WriteStartArray();
 
-                        foreach (KeyValuePair<string, long> item in statsPerInterval)
-                            jsonWriter.WriteStringValue(item.Key);
+                        foreach (string label in dashboardStats.MainChartData.Labels)
+                            jsonWriter.WriteStringValue(label);
 
                         jsonWriter.WriteEndArray();
                     }
@@ -284,19 +360,74 @@ namespace DnsServerCore
                         jsonWriter.WritePropertyName("datasets");
                         jsonWriter.WriteStartArray();
 
-                        WriteChartDataSet(jsonWriter, "Total", "rgba(102, 153, 255, 0.1)", "rgb(102, 153, 255)", data["totalQueriesPerInterval"]);
-                        WriteChartDataSet(jsonWriter, "No Error", "rgba(92, 184, 92, 0.1)", "rgb(92, 184, 92)", data["totalNoErrorPerInterval"]);
-                        WriteChartDataSet(jsonWriter, "Server Failure", "rgba(217, 83, 79, 0.1)", "rgb(217, 83, 79)", data["totalServerFailurePerInterval"]);
-                        WriteChartDataSet(jsonWriter, "NX Domain", "rgba(120, 120, 120, 0.1)", "rgb(120, 120, 120)", data["totalNxDomainPerInterval"]);
-                        WriteChartDataSet(jsonWriter, "Refused", "rgba(91, 192, 222, 0.1)", "rgb(91, 192, 222)", data["totalRefusedPerInterval"]);
+                        foreach (DashboardStats.DataSet dataSet in dashboardStats.MainChartData.DataSets)
+                        {
+                            string backgroundColor;
+                            string borderColor;
 
-                        WriteChartDataSet(jsonWriter, "Authoritative", "rgba(150, 150, 0, 0.1)", "rgb(150, 150, 0)", data["totalAuthHitPerInterval"]);
-                        WriteChartDataSet(jsonWriter, "Recursive", "rgba(23, 162, 184, 0.1)", "rgb(23, 162, 184)", data["totalRecursionsPerInterval"]);
-                        WriteChartDataSet(jsonWriter, "Cached", "rgba(111, 84, 153, 0.1)", "rgb(111, 84, 153)", data["totalCacheHitPerInterval"]);
-                        WriteChartDataSet(jsonWriter, "Blocked", "rgba(255, 165, 0, 0.1)", "rgb(255, 165, 0)", data["totalBlockedPerInterval"]);
-                        WriteChartDataSet(jsonWriter, "Dropped", "rgba(30, 30, 30, 0.1)", "rgb(30, 30, 30)", data["totalDroppedPerInterval"]);
+                            switch (dataSet.Label)
+                            {
+                                case "Total":
+                                    backgroundColor = "rgba(102, 153, 255, 0.1)";
+                                    borderColor = "rgb(102, 153, 255)";
+                                    break;
 
-                        WriteChartDataSet(jsonWriter, "Clients", "rgba(51, 122, 183, 0.1)", "rgb(51, 122, 183)", data["totalClientsPerInterval"]);
+                                case "No Error":
+                                    backgroundColor = "rgba(92, 184, 92, 0.1)";
+                                    borderColor = "rgb(92, 184, 92)";
+                                    break;
+
+                                case "Server Failure":
+                                    backgroundColor = "rgba(217, 83, 79, 0.1)";
+                                    borderColor = "rgb(217, 83, 79)";
+                                    break;
+
+                                case "NX Domain":
+                                    backgroundColor = "rgba(120, 120, 120, 0.1)";
+                                    borderColor = "rgb(120, 120, 120)";
+                                    break;
+
+                                case "Refused":
+                                    backgroundColor = "rgba(91, 192, 222, 0.1)";
+                                    borderColor = "rgb(91, 192, 222)";
+                                    break;
+
+                                case "Authoritative":
+                                    backgroundColor = "rgba(150, 150, 0, 0.1)";
+                                    borderColor = "rgb(150, 150, 0)";
+                                    break;
+
+                                case "Recursive":
+                                    backgroundColor = "rgba(23, 162, 184, 0.1)";
+                                    borderColor = "rgb(23, 162, 184)";
+                                    break;
+
+                                case "Cached":
+                                    backgroundColor = "rgba(111, 84, 153, 0.1)";
+                                    borderColor = "rgb(111, 84, 153)";
+                                    break;
+
+                                case "Blocked":
+                                    backgroundColor = "rgba(255, 165, 0, 0.1)";
+                                    borderColor = "rgb(255, 165, 0)";
+                                    break;
+
+                                case "Dropped":
+                                    backgroundColor = "rgba(30, 30, 30, 0.1)";
+                                    borderColor = "rgb(30, 30, 30)";
+                                    break;
+
+                                case "Clients":
+                                    backgroundColor = "rgba(51, 122, 183, 0.1)";
+                                    borderColor = "rgb(51, 122, 183)";
+                                    break;
+
+                                default:
+                                    throw new InvalidOperationException();
+                            }
+
+                            WriteChartDataSet(jsonWriter, dataSet, backgroundColor, borderColor);
+                        }
 
                         jsonWriter.WriteEndArray();
                     }
@@ -309,38 +440,13 @@ namespace DnsServerCore
                     jsonWriter.WritePropertyName("queryResponseChartData");
                     jsonWriter.WriteStartObject();
 
-                    List<KeyValuePair<string, long>> stats = data["stats"];
-
                     //labels
                     {
                         jsonWriter.WritePropertyName("labels");
                         jsonWriter.WriteStartArray();
 
-                        foreach (KeyValuePair<string, long> item in stats)
-                        {
-                            switch (item.Key)
-                            {
-                                case "totalAuthoritative":
-                                    jsonWriter.WriteStringValue("Authoritative");
-                                    break;
-
-                                case "totalRecursive":
-                                    jsonWriter.WriteStringValue("Recursive");
-                                    break;
-
-                                case "totalCached":
-                                    jsonWriter.WriteStringValue("Cached");
-                                    break;
-
-                                case "totalBlocked":
-                                    jsonWriter.WriteStringValue("Blocked");
-                                    break;
-
-                                case "totalDropped":
-                                    jsonWriter.WriteStringValue("Dropped");
-                                    break;
-                            }
-                        }
+                        foreach (string label in dashboardStats.QueryResponseChartData.Labels)
+                            jsonWriter.WriteStringValue(label);
 
                         jsonWriter.WriteEndArray();
                     }
@@ -355,19 +461,8 @@ namespace DnsServerCore
                         jsonWriter.WritePropertyName("data");
                         jsonWriter.WriteStartArray();
 
-                        foreach (KeyValuePair<string, long> item in stats)
-                        {
-                            switch (item.Key)
-                            {
-                                case "totalAuthoritative":
-                                case "totalRecursive":
-                                case "totalCached":
-                                case "totalBlocked":
-                                case "totalDropped":
-                                    jsonWriter.WriteNumberValue(item.Value);
-                                    break;
-                            }
-                        }
+                        foreach (long value in dashboardStats.QueryResponseChartData.DataSets[0].Data)
+                            jsonWriter.WriteNumberValue(value);
 
                         jsonWriter.WriteEndArray();
 
@@ -393,15 +488,13 @@ namespace DnsServerCore
                     jsonWriter.WritePropertyName("queryTypeChartData");
                     jsonWriter.WriteStartObject();
 
-                    List<KeyValuePair<string, long>> queryTypes = data["queryTypes"];
-
                     //labels
                     {
                         jsonWriter.WritePropertyName("labels");
                         jsonWriter.WriteStartArray();
 
-                        foreach (KeyValuePair<string, long> item in queryTypes)
-                            jsonWriter.WriteStringValue(item.Key);
+                        foreach (string label in dashboardStats.QueryTypeChartData.Labels)
+                            jsonWriter.WriteStringValue(label);
 
                         jsonWriter.WriteEndArray();
                     }
@@ -416,8 +509,8 @@ namespace DnsServerCore
                         jsonWriter.WritePropertyName("data");
                         jsonWriter.WriteStartArray();
 
-                        foreach (KeyValuePair<string, long> item in queryTypes)
-                            jsonWriter.WriteNumberValue(item.Value);
+                        foreach (long value in dashboardStats.QueryTypeChartData.DataSets[0].Data)
+                            jsonWriter.WriteNumberValue(value);
 
                         jsonWriter.WriteEndArray();
 
@@ -448,15 +541,13 @@ namespace DnsServerCore
                     jsonWriter.WritePropertyName("protocolTypeChartData");
                     jsonWriter.WriteStartObject();
 
-                    List<KeyValuePair<string, long>> protocolTypes = data["protocolTypes"];
-
                     //labels
                     {
                         jsonWriter.WritePropertyName("labels");
                         jsonWriter.WriteStartArray();
 
-                        foreach (KeyValuePair<string, long> item in protocolTypes)
-                            jsonWriter.WriteStringValue(item.Key);
+                        foreach (string label in dashboardStats.ProtocolTypeChartData.Labels)
+                            jsonWriter.WriteStringValue(label);
 
                         jsonWriter.WriteEndArray();
                     }
@@ -471,8 +562,8 @@ namespace DnsServerCore
                         jsonWriter.WritePropertyName("data");
                         jsonWriter.WriteStartArray();
 
-                        foreach (KeyValuePair<string, long> item in protocolTypes)
-                            jsonWriter.WriteNumberValue(item.Value);
+                        foreach (long value in dashboardStats.ProtocolTypeChartData.DataSets[0].Data)
+                            jsonWriter.WriteNumberValue(value);
 
                         jsonWriter.WriteEndArray();
 
@@ -495,24 +586,24 @@ namespace DnsServerCore
 
                 //top clients
                 {
-                    List<KeyValuePair<string, long>> topClients = data["topClients"];
-
-                    IDictionary<string, string> clientIpMap = await ResolvePtrTopClientsAsync(topClients);
+                    await ResolvePtrTopClientsAsync(dashboardStats.TopClients);
 
                     jsonWriter.WritePropertyName("topClients");
                     jsonWriter.WriteStartArray();
 
-                    foreach (KeyValuePair<string, long> item in topClients)
+                    foreach (DashboardStats.TopClientStats item in dashboardStats.TopClients)
                     {
                         jsonWriter.WriteStartObject();
 
-                        jsonWriter.WriteString("name", item.Key);
+                        jsonWriter.WriteString("name", item.Name);
 
-                        if (clientIpMap.TryGetValue(item.Key, out string clientDomain) && !string.IsNullOrEmpty(clientDomain))
-                            jsonWriter.WriteString("domain", clientDomain);
+                        if (!string.IsNullOrEmpty(item.Domain))
+                            jsonWriter.WriteString("domain", item.Domain);
 
-                        jsonWriter.WriteNumber("hits", item.Value);
-                        jsonWriter.WriteBoolean("rateLimited", _dnsWebService._dnsServer.IsQpmLimitCrossed(IPAddress.Parse(item.Key)));
+                        jsonWriter.WriteNumber("hits", item.Hits);
+
+                        IPAddress ip = IPAddress.Parse(item.Name);
+                        jsonWriter.WriteBoolean("rateLimited", item.RateLimited || _dnsWebService._dnsServer.HasQpmLimitExceeded(ip, DnsTransportProtocol.Udp) || _dnsWebService._dnsServer.HasQpmLimitExceeded(ip, DnsTransportProtocol.Tcp));
 
                         jsonWriter.WriteEndObject();
                     }
@@ -522,21 +613,19 @@ namespace DnsServerCore
 
                 //top domains
                 {
-                    List<KeyValuePair<string, long>> topDomains = data["topDomains"];
-
                     jsonWriter.WritePropertyName("topDomains");
                     jsonWriter.WriteStartArray();
 
-                    foreach (KeyValuePair<string, long> item in topDomains)
+                    foreach (DashboardStats.TopStats item in dashboardStats.TopDomains)
                     {
                         jsonWriter.WriteStartObject();
 
-                        jsonWriter.WriteString("name", item.Key);
+                        jsonWriter.WriteString("name", item.Name);
 
-                        if (DnsClient.TryConvertDomainNameToUnicode(item.Key, out string idn))
+                        if (DnsClient.TryConvertDomainNameToUnicode(item.Name, out string idn))
                             jsonWriter.WriteString("nameIdn", idn);
 
-                        jsonWriter.WriteNumber("hits", item.Value);
+                        jsonWriter.WriteNumber("hits", item.Hits);
 
                         jsonWriter.WriteEndObject();
                     }
@@ -546,21 +635,19 @@ namespace DnsServerCore
 
                 //top blocked domains
                 {
-                    List<KeyValuePair<string, long>> topBlockedDomains = data["topBlockedDomains"];
-
                     jsonWriter.WritePropertyName("topBlockedDomains");
                     jsonWriter.WriteStartArray();
 
-                    foreach (KeyValuePair<string, long> item in topBlockedDomains)
+                    foreach (DashboardStats.TopStats item in dashboardStats.TopBlockedDomains)
                     {
                         jsonWriter.WriteStartObject();
 
-                        jsonWriter.WriteString("name", item.Key);
+                        jsonWriter.WriteString("name", item.Name);
 
-                        if (DnsClient.TryConvertDomainNameToUnicode(item.Key, out string idn))
+                        if (DnsClient.TryConvertDomainNameToUnicode(item.Name, out string idn))
                             jsonWriter.WriteString("nameIdn", idn);
 
-                        jsonWriter.WriteNumber("hits", item.Value);
+                        jsonWriter.WriteNumber("hits", item.Hits);
 
                         jsonWriter.WriteEndObject();
                     }
@@ -571,52 +658,83 @@ namespace DnsServerCore
 
             public async Task GetTopStats(HttpContext context)
             {
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Dashboard, context.GetCurrentSession().User, PermissionFlag.View))
+                User sessionUser = _dnsWebService.GetSessionUser(context);
+
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Dashboard, sessionUser, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
                 HttpRequest request = context.Request;
 
-                string strType = request.GetQueryOrForm("type", "lastHour");
-                TopStatsType statsType = request.GetQueryOrFormEnum<TopStatsType>("statsType");
+                DashboardStatsType type = request.GetQueryOrFormEnum("type", DashboardStatsType.LastHour);
+                DashboardTopStatsType statsType = request.GetQueryOrFormEnum<DashboardTopStatsType>("statsType");
                 int limit = request.GetQueryOrForm("limit", int.Parse, 1000);
 
-                List<KeyValuePair<string, long>> topStatsData;
+                DateTime startDate = default;
+                DateTime endDate = default;
 
-                switch (strType.ToLowerInvariant())
+                if (type == DashboardStatsType.Custom)
                 {
-                    case "lasthour":
+                    string strStartDate = request.GetQueryOrForm("start");
+                    string strEndDate = request.GetQueryOrForm("end");
+
+                    if (!DateTime.TryParse(strStartDate, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out startDate))
+                        throw new DnsWebServiceException("Invalid start date format.");
+
+                    if (!DateTime.TryParse(strEndDate, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out endDate))
+                        throw new DnsWebServiceException("Invalid end date format.");
+
+                    if (startDate > endDate)
+                        throw new DnsWebServiceException("Start date must be less than or equal to end date.");
+                }
+
+                List<Task<DashboardStats>> tasks = null;
+
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                {
+                    string node = request.GetQueryOrForm("node", null);
+                    if ("cluster".Equals(node, StringComparison.OrdinalIgnoreCase))
+                    {
+                        IReadOnlyDictionary<int, Cluster.ClusterNode> clusterNodes = _dnsWebService._clusterManager.ClusterNodes;
+                        tasks = new List<Task<DashboardStats>>(clusterNodes.Count);
+
+                        foreach (KeyValuePair<int, Cluster.ClusterNode> clusterNode in clusterNodes)
+                        {
+                            if (clusterNode.Value.State == Cluster.ClusterNodeState.Self)
+                                continue;
+
+                            tasks.Add(TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
+                            {
+                                return clusterNode.Value.GetDashboardTopStatsAsync(sessionUser, statsType, limit, type, startDate, endDate, cancellationToken1);
+                            }, CLUSTER_NODE_DASHBOARD_STATS_API_TIMEOUT));
+                        }
+                    }
+                }
+
+                DashboardStats topStatsData;
+
+                switch (type)
+                {
+                    case DashboardStatsType.LastHour:
                         topStatsData = _dnsWebService._dnsServer.StatsManager.GetLastHourTopStats(statsType, limit);
                         break;
 
-                    case "lastday":
+                    case DashboardStatsType.LastDay:
                         topStatsData = _dnsWebService._dnsServer.StatsManager.GetLastDayTopStats(statsType, limit);
                         break;
 
-                    case "lastweek":
+                    case DashboardStatsType.LastWeek:
                         topStatsData = _dnsWebService._dnsServer.StatsManager.GetLastWeekTopStats(statsType, limit);
                         break;
 
-                    case "lastmonth":
+                    case DashboardStatsType.LastMonth:
                         topStatsData = _dnsWebService._dnsServer.StatsManager.GetLastMonthTopStats(statsType, limit);
                         break;
 
-                    case "lastyear":
+                    case DashboardStatsType.LastYear:
                         topStatsData = _dnsWebService._dnsServer.StatsManager.GetLastYearTopStats(statsType, limit);
                         break;
 
-                    case "custom":
-                        string strStartDate = request.GetQueryOrForm("start");
-                        string strEndDate = request.GetQueryOrForm("end");
-
-                        if (!DateTime.TryParse(strStartDate, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime startDate))
-                            throw new DnsWebServiceException("Invalid start date format.");
-
-                        if (!DateTime.TryParse(strEndDate, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime endDate))
-                            throw new DnsWebServiceException("Invalid end date format.");
-
-                        if (startDate > endDate)
-                            throw new DnsWebServiceException("Start date must be less than or equal to end date.");
-
+                    case DashboardStatsType.Custom:
                         TimeSpan duration = endDate - startDate;
 
                         if ((Convert.ToInt32(duration.TotalDays) + 1) > 7)
@@ -629,41 +747,55 @@ namespace DnsServerCore
                         break;
 
                     default:
-                        throw new DnsWebServiceException("Unknown stats type requested: " + strType);
+                        throw new DnsWebServiceException("Unknown stats type requested: " + type.ToString());
+                }
+
+                if (tasks is not null)
+                {
+                    foreach (Task<DashboardStats> task in tasks)
+                    {
+                        try
+                        {
+                            topStatsData.Merge(await task, limit);
+                        }
+                        catch (Exception ex)
+                        {
+                            _dnsWebService._log.Write(ex);
+                        }
+                    }
                 }
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
                 switch (statsType)
                 {
-                    case TopStatsType.TopClients:
+                    case DashboardTopStatsType.TopClients:
                         {
                             bool noReverseLookup = request.GetQueryOrForm("noReverseLookup", bool.Parse, false);
                             bool onlyRateLimitedClients = request.GetQueryOrForm("onlyRateLimitedClients", bool.Parse, false);
 
-                            IDictionary<string, string> clientIpMap = null;
-
                             if (!noReverseLookup)
-                                clientIpMap = await ResolvePtrTopClientsAsync(topStatsData);
+                                await ResolvePtrTopClientsAsync(topStatsData.TopClients);
 
                             jsonWriter.WritePropertyName("topClients");
                             jsonWriter.WriteStartArray();
 
-                            foreach (KeyValuePair<string, long> item in topStatsData)
+                            foreach (DashboardStats.TopClientStats item in topStatsData.TopClients)
                             {
-                                bool rateLimited = _dnsWebService._dnsServer.IsQpmLimitCrossed(IPAddress.Parse(item.Key));
+                                IPAddress ip = IPAddress.Parse(item.Name);
+                                bool rateLimited = item.RateLimited || _dnsWebService._dnsServer.HasQpmLimitExceeded(ip, DnsTransportProtocol.Udp) || _dnsWebService._dnsServer.HasQpmLimitExceeded(ip, DnsTransportProtocol.Tcp);
 
                                 if (onlyRateLimitedClients && !rateLimited)
                                     continue;
 
                                 jsonWriter.WriteStartObject();
 
-                                jsonWriter.WriteString("name", item.Key);
+                                jsonWriter.WriteString("name", item.Name);
 
-                                if ((clientIpMap is not null) && clientIpMap.TryGetValue(item.Key, out string clientDomain) && !string.IsNullOrEmpty(clientDomain))
-                                    jsonWriter.WriteString("domain", clientDomain);
+                                if (!string.IsNullOrEmpty(item.Domain))
+                                    jsonWriter.WriteString("domain", item.Domain);
 
-                                jsonWriter.WriteNumber("hits", item.Value);
+                                jsonWriter.WriteNumber("hits", item.Hits);
                                 jsonWriter.WriteBoolean("rateLimited", rateLimited);
 
                                 jsonWriter.WriteEndObject();
@@ -673,21 +805,21 @@ namespace DnsServerCore
                         }
                         break;
 
-                    case TopStatsType.TopDomains:
+                    case DashboardTopStatsType.TopDomains:
                         {
                             jsonWriter.WritePropertyName("topDomains");
                             jsonWriter.WriteStartArray();
 
-                            foreach (KeyValuePair<string, long> item in topStatsData)
+                            foreach (DashboardStats.TopStats item in topStatsData.TopDomains)
                             {
                                 jsonWriter.WriteStartObject();
 
-                                jsonWriter.WriteString("name", item.Key);
+                                jsonWriter.WriteString("name", item.Name);
 
-                                if (DnsClient.TryConvertDomainNameToUnicode(item.Key, out string idn))
+                                if (DnsClient.TryConvertDomainNameToUnicode(item.Name, out string idn))
                                     jsonWriter.WriteString("nameIdn", idn);
 
-                                jsonWriter.WriteNumber("hits", item.Value);
+                                jsonWriter.WriteNumber("hits", item.Hits);
 
                                 jsonWriter.WriteEndObject();
                             }
@@ -696,21 +828,21 @@ namespace DnsServerCore
                         }
                         break;
 
-                    case TopStatsType.TopBlockedDomains:
+                    case DashboardTopStatsType.TopBlockedDomains:
                         {
                             jsonWriter.WritePropertyName("topBlockedDomains");
                             jsonWriter.WriteStartArray();
 
-                            foreach (KeyValuePair<string, long> item in topStatsData)
+                            foreach (DashboardStats.TopStats item in topStatsData.TopBlockedDomains)
                             {
                                 jsonWriter.WriteStartObject();
 
-                                jsonWriter.WriteString("name", item.Key);
+                                jsonWriter.WriteString("name", item.Name);
 
-                                if (DnsClient.TryConvertDomainNameToUnicode(item.Key, out string idn))
+                                if (DnsClient.TryConvertDomainNameToUnicode(item.Name, out string idn))
                                     jsonWriter.WriteString("nameIdn", idn);
 
-                                jsonWriter.WriteNumber("hits", item.Value);
+                                jsonWriter.WriteNumber("hits", item.Hits);
 
                                 jsonWriter.WriteEndObject();
                             }

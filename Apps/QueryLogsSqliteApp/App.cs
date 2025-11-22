@@ -20,13 +20,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.ApplicationCommon;
 using Microsoft.Data.Sqlite;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
 using System.Net;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
@@ -38,7 +38,7 @@ namespace QueryLogsSqlite
     {
         #region variables
 
-        IDnsServer _dnsServer;
+        IDnsServer? _dnsServer;
 
         bool _enableLogging;
         int _maxQueueSize;
@@ -46,14 +46,15 @@ namespace QueryLogsSqlite
         int _maxLogRecords;
         bool _enableVacuum;
         bool _useInMemoryDb;
-        string _connectionString;
+        string? _connectionString;
 
-        SqliteConnection _inMemoryConnection;
+        SqliteConnection? _inMemoryConnection;
 
-        readonly ConcurrentQueue<LogEntry> _queuedLogs = new ConcurrentQueue<LogEntry>();
-        readonly Timer _queueTimer;
-        const int QUEUE_TIMER_INTERVAL = 10000;
+        Channel<LogEntry>? _channel;
+        ChannelWriter<LogEntry>? _channelWriter;
+        Thread? _consumerThread;
         const int BULK_INSERT_COUNT = 1000;
+        const int BULK_INSERT_ERROR_DELAY = 10000;
 
         readonly Timer _cleanupTimer;
         const int CLEAN_UP_TIMER_INITIAL_INTERVAL = 5 * 1000;
@@ -65,28 +66,7 @@ namespace QueryLogsSqlite
 
         public App()
         {
-            _queueTimer = new Timer(async delegate (object state)
-            {
-                try
-                {
-                    await BulkInsertLogsAsync();
-                }
-                catch (Exception ex)
-                {
-                    _dnsServer.WriteLog(ex);
-                }
-                finally
-                {
-                    try
-                    {
-                        _queueTimer.Change(QUEUE_TIMER_INTERVAL, Timeout.Infinite);
-                    }
-                    catch (ObjectDisposedException)
-                    { }
-                }
-            });
-
-            _cleanupTimer = new Timer(async delegate (object state)
+            _cleanupTimer = new Timer(async delegate (object? state)
             {
                 try
                 {
@@ -133,13 +113,13 @@ namespace QueryLogsSqlite
                 }
                 catch (Exception ex)
                 {
-                    _dnsServer.WriteLog(ex);
+                    _dnsServer?.WriteLog(ex);
                 }
                 finally
                 {
                     try
                     {
-                        _cleanupTimer.Change(CLEAN_UP_TIMER_PERIODIC_INTERVAL, Timeout.Infinite);
+                        _cleanupTimer?.Change(CLEAN_UP_TIMER_PERIODIC_INTERVAL, Timeout.Infinite);
                     }
                     catch (ObjectDisposedException)
                     { }
@@ -151,17 +131,18 @@ namespace QueryLogsSqlite
 
         #region IDisposable
 
+        bool _disposed;
+
         public void Dispose()
         {
+            if (_disposed)
+                return;
+
             _enableLogging = false; //turn off logging
 
-            if (_queueTimer is not null)
-                _queueTimer.Dispose();
+            _cleanupTimer?.Dispose();
 
-            if (_cleanupTimer is not null)
-                _cleanupTimer.Dispose();
-
-            BulkInsertLogsAsync().Sync(); //flush any pending logs
+            StopChannel();
 
             if (_inMemoryConnection is not null)
             {
@@ -170,124 +151,167 @@ namespace QueryLogsSqlite
             }
 
             SqliteConnection.ClearAllPools(); //close db file
+
+            _disposed = true;
+            GC.SuppressFinalize(this);
         }
 
         #endregion
 
         #region private
 
-        private async Task BulkInsertLogsAsync()
+        private void StartNewChannel(int maxQueueSize)
+        {
+            ChannelWriter<LogEntry>? existingChannelWriter = _channelWriter;
+
+            //start new channel and consumer thread
+            BoundedChannelOptions options = new BoundedChannelOptions(maxQueueSize);
+            options.SingleWriter = true;
+            options.SingleReader = true;
+            options.FullMode = BoundedChannelFullMode.DropWrite;
+
+            _channel = Channel.CreateBounded<LogEntry>(options);
+            _channelWriter = _channel.Writer;
+            ChannelReader<LogEntry> channelReader = _channel.Reader;
+
+            _consumerThread = new Thread(async delegate ()
+            {
+                try
+                {
+                    List<LogEntry> logs = new List<LogEntry>(BULK_INSERT_COUNT);
+
+                    while (!_disposed && await channelReader.WaitToReadAsync())
+                    {
+                        while (!_disposed && (logs.Count < BULK_INSERT_COUNT) && channelReader.TryRead(out LogEntry log))
+                        {
+                            logs.Add(log);
+                        }
+
+                        if (logs.Count < 1)
+                            continue;
+
+                        await BulkInsertLogsAsync(logs);
+
+                        logs.Clear();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer?.WriteLog(ex);
+                }
+            });
+
+            _consumerThread.Name = GetType().Name;
+            _consumerThread.IsBackground = true;
+            _consumerThread.Start();
+
+            //complete old channel to stop its consumer thread
+            existingChannelWriter?.TryComplete();
+        }
+
+        private void StopChannel()
+        {
+            _channel?.Writer.TryComplete();
+        }
+
+        private async Task BulkInsertLogsAsync(List<LogEntry> logs)
         {
             try
             {
-                List<LogEntry> logs = new List<LogEntry>(BULK_INSERT_COUNT);
-
-                while (true)
+                await using (SqliteConnection connection = new SqliteConnection(_connectionString))
                 {
-                    while ((logs.Count < BULK_INSERT_COUNT) && _queuedLogs.TryDequeue(out LogEntry log))
+                    await connection.OpenAsync();
+
+                    await using (DbTransaction transaction = await connection.BeginTransactionAsync())
                     {
-                        logs.Add(log);
-                    }
-
-                    if (logs.Count < 1)
-                        break;
-
-                    await using (SqliteConnection connection = new SqliteConnection(_connectionString))
-                    {
-                        await connection.OpenAsync();
-
-                        await using (DbTransaction transaction = await connection.BeginTransactionAsync())
+                        await using (SqliteCommand command = connection.CreateCommand())
                         {
-                            await using (SqliteCommand command = connection.CreateCommand())
+                            command.CommandText = "INSERT INTO dns_logs (timestamp, client_ip, protocol, response_type, response_rtt, rcode, qname, qtype, qclass, answer) VALUES (@timestamp, @client_ip, @protocol, @response_type, @response_rtt, @rcode, @qname, @qtype, @qclass, @answer);";
+
+                            SqliteParameter paramTimestamp = command.Parameters.Add("@timestamp", SqliteType.Text);
+                            SqliteParameter paramClientIp = command.Parameters.Add("@client_ip", SqliteType.Text);
+                            SqliteParameter paramProtocol = command.Parameters.Add("@protocol", SqliteType.Integer);
+                            SqliteParameter paramResponseType = command.Parameters.Add("@response_type", SqliteType.Integer);
+                            SqliteParameter paramResponseRtt = command.Parameters.Add("@response_rtt", SqliteType.Real);
+                            SqliteParameter paramRcode = command.Parameters.Add("@rcode", SqliteType.Integer);
+                            SqliteParameter paramQname = command.Parameters.Add("@qname", SqliteType.Text);
+                            SqliteParameter paramQtype = command.Parameters.Add("@qtype", SqliteType.Integer);
+                            SqliteParameter paramQclass = command.Parameters.Add("@qclass", SqliteType.Integer);
+                            SqliteParameter paramAnswer = command.Parameters.Add("@answer", SqliteType.Text);
+
+                            foreach (LogEntry log in logs)
                             {
-                                command.CommandText = "INSERT INTO dns_logs (timestamp, client_ip, protocol, response_type, response_rtt, rcode, qname, qtype, qclass, answer) VALUES (@timestamp, @client_ip, @protocol, @response_type, @response_rtt, @rcode, @qname, @qtype, @qclass, @answer);";
+                                paramTimestamp.Value = log.Timestamp.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFF");
+                                paramClientIp.Value = log.RemoteEP.Address.ToString();
+                                paramProtocol.Value = (int)log.Protocol;
 
-                                SqliteParameter paramTimestamp = command.Parameters.Add("@timestamp", SqliteType.Text);
-                                SqliteParameter paramClientIp = command.Parameters.Add("@client_ip", SqliteType.Text);
-                                SqliteParameter paramProtocol = command.Parameters.Add("@protocol", SqliteType.Integer);
-                                SqliteParameter paramResponseType = command.Parameters.Add("@response_type", SqliteType.Integer);
-                                SqliteParameter paramResponseRtt = command.Parameters.Add("@response_rtt", SqliteType.Real);
-                                SqliteParameter paramRcode = command.Parameters.Add("@rcode", SqliteType.Integer);
-                                SqliteParameter paramQname = command.Parameters.Add("@qname", SqliteType.Text);
-                                SqliteParameter paramQtype = command.Parameters.Add("@qtype", SqliteType.Integer);
-                                SqliteParameter paramQclass = command.Parameters.Add("@qclass", SqliteType.Integer);
-                                SqliteParameter paramAnswer = command.Parameters.Add("@answer", SqliteType.Text);
+                                DnsServerResponseType responseType;
 
-                                foreach (LogEntry log in logs)
+                                if (log.Response.Tag == null)
+                                    responseType = DnsServerResponseType.Recursive;
+                                else
+                                    responseType = (DnsServerResponseType)log.Response.Tag;
+
+                                paramResponseType.Value = (int)responseType;
+
+                                if ((responseType == DnsServerResponseType.Recursive) && (log.Response.Metadata is not null))
+                                    paramResponseRtt.Value = log.Response.Metadata.RoundTripTime;
+                                else
+                                    paramResponseRtt.Value = DBNull.Value;
+
+                                paramRcode.Value = (int)log.Response.RCODE;
+
+                                if (log.Request.Question.Count > 0)
                                 {
-                                    paramTimestamp.Value = log.Timestamp.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFF");
-                                    paramClientIp.Value = log.RemoteEP.Address.ToString();
-                                    paramProtocol.Value = (int)log.Protocol;
+                                    DnsQuestionRecord query = log.Request.Question[0];
 
-                                    DnsServerResponseType responseType;
-
-                                    if (log.Response.Tag == null)
-                                        responseType = DnsServerResponseType.Recursive;
-                                    else
-                                        responseType = (DnsServerResponseType)log.Response.Tag;
-
-                                    paramResponseType.Value = (int)responseType;
-
-                                    if ((responseType == DnsServerResponseType.Recursive) && (log.Response.Metadata is not null))
-                                        paramResponseRtt.Value = log.Response.Metadata.RoundTripTime;
-                                    else
-                                        paramResponseRtt.Value = DBNull.Value;
-
-                                    paramRcode.Value = (int)log.Response.RCODE;
-
-                                    if (log.Request.Question.Count > 0)
-                                    {
-                                        DnsQuestionRecord query = log.Request.Question[0];
-
-                                        paramQname.Value = query.Name.ToLowerInvariant();
-                                        paramQtype.Value = (int)query.Type;
-                                        paramQclass.Value = (int)query.Class;
-                                    }
-                                    else
-                                    {
-                                        paramQname.Value = DBNull.Value;
-                                        paramQtype.Value = DBNull.Value;
-                                        paramQclass.Value = DBNull.Value;
-                                    }
-
-                                    if (log.Response.Answer.Count == 0)
-                                    {
-                                        paramAnswer.Value = DBNull.Value;
-                                    }
-                                    else if ((log.Response.Answer.Count > 2) && log.Response.IsZoneTransfer)
-                                    {
-                                        paramAnswer.Value = "[ZONE TRANSFER]";
-                                    }
-                                    else
-                                    {
-                                        string answer = null;
-
-                                        foreach (DnsResourceRecord record in log.Response.Answer)
-                                        {
-                                            if (answer is null)
-                                                answer = record.Type.ToString() + " " + record.RDATA.ToString();
-                                            else
-                                                answer += ", " + record.Type.ToString() + " " + record.RDATA.ToString();
-                                        }
-
-                                        paramAnswer.Value = answer;
-                                    }
-
-                                    await command.ExecuteNonQueryAsync();
+                                    paramQname.Value = query.Name.ToLowerInvariant();
+                                    paramQtype.Value = (int)query.Type;
+                                    paramQclass.Value = (int)query.Class;
+                                }
+                                else
+                                {
+                                    paramQname.Value = DBNull.Value;
+                                    paramQtype.Value = DBNull.Value;
+                                    paramQclass.Value = DBNull.Value;
                                 }
 
-                                await transaction.CommitAsync();
+                                if (log.Response.Answer.Count == 0)
+                                {
+                                    paramAnswer.Value = DBNull.Value;
+                                }
+                                else if ((log.Response.Answer.Count > 2) && log.Response.IsZoneTransfer)
+                                {
+                                    paramAnswer.Value = "[ZONE TRANSFER]";
+                                }
+                                else
+                                {
+                                    string? answer = null;
+
+                                    foreach (DnsResourceRecord record in log.Response.Answer)
+                                    {
+                                        if (answer is null)
+                                            answer = record.Type.ToString() + " " + record.RDATA.ToString();
+                                        else
+                                            answer += ", " + record.Type.ToString() + " " + record.RDATA.ToString();
+                                    }
+
+                                    paramAnswer.Value = answer;
+                                }
+
+                                await command.ExecuteNonQueryAsync();
                             }
+
+                            await transaction.CommitAsync();
                         }
                     }
-
-                    logs.Clear();
                 }
             }
             catch (Exception ex)
             {
-                if (_dnsServer is not null)
-                    _dnsServer.WriteLog(ex);
+                _dnsServer?.WriteLog(ex);
+
+                await Task.Delay(BULK_INSERT_ERROR_DELAY);
             }
         }
 
@@ -302,8 +326,8 @@ namespace QueryLogsSqlite
             using JsonDocument jsonDocument = JsonDocument.Parse(config);
             JsonElement jsonConfig = jsonDocument.RootElement;
 
-            _enableLogging = jsonConfig.GetPropertyValue("enableLogging", true);
-            _maxQueueSize = jsonConfig.GetPropertyValue("maxQueueSize", 200000);
+            bool enableLogging = jsonConfig.GetPropertyValue("enableLogging", true);
+            int maxQueueSize = jsonConfig.GetPropertyValue("maxQueueSize", 200000);
             _maxLogDays = jsonConfig.GetPropertyValue("maxLogDays", 0);
             _maxLogRecords = jsonConfig.GetPropertyValue("maxLogRecords", 0);
             _enableVacuum = jsonConfig.GetPropertyValue("enableVacuum", false);
@@ -458,10 +482,18 @@ CREATE TABLE IF NOT EXISTS dns_logs
                 }
             }
 
-            if (_enableLogging)
-                _queueTimer.Change(QUEUE_TIMER_INTERVAL, Timeout.Infinite);
+            if (enableLogging)
+            {
+                if (!_enableLogging || (_maxQueueSize != maxQueueSize))
+                    StartNewChannel(maxQueueSize);
+            }
             else
-                _queueTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            {
+                StopChannel();
+            }
+
+            _enableLogging = enableLogging;
+            _maxQueueSize = maxQueueSize;
 
             if ((_maxLogDays > 0) || (_maxLogRecords > 0))
                 _cleanupTimer.Change(CLEAN_UP_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
@@ -493,10 +525,7 @@ CREATE TABLE IF NOT EXISTS dns_logs
         public Task InsertLogAsync(DateTime timestamp, DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
         {
             if (_enableLogging)
-            {
-                if (_queuedLogs.Count < _maxQueueSize)
-                    _queuedLogs.Enqueue(new LogEntry(timestamp, request, remoteEP, protocol, response));
-            }
+                _channelWriter?.TryWrite(new LogEntry(timestamp, request, remoteEP, protocol, response));
 
             return Task.CompletedTask;
         }
@@ -589,7 +618,7 @@ CREATE TABLE IF NOT EXISTS dns_logs
                     if (qclass is not null)
                         command.Parameters.AddWithValue("@qclass", (ushort)qclass);
 
-                    totalEntries = (long)await command.ExecuteScalarAsync();
+                    totalEntries = Convert.ToInt64(await command.ExecuteScalarAsync());
                 }
 
                 long totalPages = (totalEntries / entriesPerPage) + (totalEntries % entriesPerPage > 0 ? 1 : 0);
@@ -680,14 +709,14 @@ ORDER BY row_num" + (descendingOrder ? " DESC" : "");
                             else
                                 responseRtt = reader.GetDouble(5);
 
-                            DnsQuestionRecord question;
+                            DnsQuestionRecord? question;
 
                             if (reader.IsDBNull(7))
                                 question = null;
                             else
                                 question = new DnsQuestionRecord(reader.GetString(7), (DnsResourceRecordType)reader.GetInt32(8), (DnsClass)reader.GetInt32(9), false);
 
-                            string answer;
+                            string? answer;
 
                             if (reader.IsDBNull(10))
                                 answer = null;
@@ -712,7 +741,7 @@ ORDER BY row_num" + (descendingOrder ? " DESC" : "");
 
         #endregion
 
-        class LogEntry
+        readonly struct LogEntry
         {
             #region variables
 

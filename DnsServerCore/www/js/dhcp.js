@@ -27,6 +27,8 @@ function refreshDhcpTab() {
 }
 
 function refreshDhcpLeases() {
+    var node = $("#optDhcpClusterNode").val();
+
     var divDhcpLeasesLoader = $("#divDhcpLeasesLoader");
     var divDhcpLeases = $("#divDhcpLeases");
 
@@ -34,7 +36,7 @@ function refreshDhcpLeases() {
     divDhcpLeasesLoader.show();
 
     HTTPRequest({
-        url: "api/dhcp/leases/list?token=" + sessionData.token,
+        url: "api/dhcp/leases/list?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             var dhcpLeases = responseJSON.response.leases;
             var tableHtmlRows = "";
@@ -76,13 +78,15 @@ function convertToReservedLease(id, scopeName, clientIdentifier) {
     if (!confirm("Are you sure you want to convert the dynamic lease to reserved lease?"))
         return;
 
+    var node = $("#optDhcpClusterNode").val();
+
     var btn = $("#btnDhcpLeaseRowOption" + id);
     var originalBtnHtml = btn.html();
     btn.prop("disabled", true);
     btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
-        url: "api/dhcp/leases/convertToReserved?token=" + sessionData.token + "&name=" + encodeURIComponent(scopeName) + "&clientIdentifier=" + encodeURIComponent(clientIdentifier),
+        url: "api/dhcp/leases/convertToReserved?token=" + sessionData.token + "&name=" + encodeURIComponent(scopeName) + "&clientIdentifier=" + encodeURIComponent(clientIdentifier) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.prop("disabled", false);
             btn.html(originalBtnHtml);
@@ -110,13 +114,15 @@ function convertToDynamicLease(id, scopeName, clientIdentifier) {
     if (!confirm("Are you sure you want to convert the reserved lease to dynamic lease?"))
         return;
 
+    var node = $("#optDhcpClusterNode").val();
+
     var btn = $("#btnDhcpLeaseRowOption" + id);
     var originalBtnHtml = btn.html();
     btn.prop("disabled", true);
     btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
-        url: "api/dhcp/leases/convertToDynamic?token=" + sessionData.token + "&name=" + encodeURIComponent(scopeName) + "&clientIdentifier=" + encodeURIComponent(clientIdentifier),
+        url: "api/dhcp/leases/convertToDynamic?token=" + sessionData.token + "&name=" + encodeURIComponent(scopeName) + "&clientIdentifier=" + encodeURIComponent(clientIdentifier) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             btn.prop("disabled", false);
             btn.html(originalBtnHtml);
@@ -148,14 +154,16 @@ function showRemoveLeaseModal(index, scopeName, clientIdentifier) {
 
 function removeLease(objBtn, index, scopeName, clientIdentifier) {
     var divDhcpRemoveLeaseAlert = $("#divDhcpRemoveLeaseAlert");
-    var btn = $(objBtn);
 
-    btn.button('loading');
+    var node = $("#optDhcpClusterNode").val();
+
+    var btn = $(objBtn);
+    btn.button("loading");
 
     HTTPRequest({
-        url: "api/dhcp/leases/remove?token=" + sessionData.token + "&name=" + encodeURIComponent(scopeName) + "&clientIdentifier=" + encodeURIComponent(clientIdentifier),
+        url: "api/dhcp/leases/remove?token=" + sessionData.token + "&name=" + encodeURIComponent(scopeName) + "&clientIdentifier=" + encodeURIComponent(clientIdentifier) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
-            btn.button('reset');
+            btn.button("reset");
             $("#modalDhcpRemoveLease").modal("hide");
 
             $("#trDhcpLeaseRow" + index).remove();
@@ -169,7 +177,7 @@ function removeLease(objBtn, index, scopeName, clientIdentifier) {
             showAlert("success", "Lease Removed!", "The DHCP lease was removed successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
             showPageLogin();
@@ -187,6 +195,8 @@ function refreshDhcpScopes(checkDisplay) {
     if (checkDisplay && (divDhcpEditScope.css("display") != "none"))
         return;
 
+    var node = $("#optDhcpClusterNode").val();
+
     var divDhcpViewScopes = $("#divDhcpViewScopes");
     var divDhcpViewScopesLoader = $("#divDhcpViewScopesLoader");
 
@@ -195,7 +205,7 @@ function refreshDhcpScopes(checkDisplay) {
     divDhcpViewScopesLoader.show();
 
     HTTPRequest({
-        url: "api/dhcp/scopes/list?token=" + sessionData.token,
+        url: "api/dhcp/scopes/list?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             var dhcpScopes = responseJSON.response.scopes;
             var tableHtmlRows = "";
@@ -337,6 +347,8 @@ function showAddDhcpScope() {
 function showEditDhcpScope(scopeName) {
     clearDhcpScopeForm();
 
+    var node = $("#optDhcpClusterNode").val();
+
     $("#titleDhcpEditScope").html("Edit Scope");
     var divDhcpViewScopesLoader = $("#divDhcpViewScopesLoader");
     var divDhcpViewScopes = $("#divDhcpViewScopes");
@@ -347,7 +359,7 @@ function showEditDhcpScope(scopeName) {
     divDhcpViewScopesLoader.show();
 
     HTTPRequest({
-        url: "api/dhcp/scopes/get?token=" + sessionData.token + "&name=" + scopeName,
+        url: "api/dhcp/scopes/get?token=" + sessionData.token + "&name=" + encodeURIComponent(scopeName) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             $("#txtDhcpScopeName").attr("data-name", responseJSON.response.name);
             $("#txtDhcpScopeName").val(responseJSON.response.name);
@@ -516,12 +528,15 @@ function saveDhcpScope() {
     var blockLocallyAdministeredMacAddresses = $("#chkBlockLocallyAdministeredMacAddresses").prop('checked');
     var ignoreClientIdentifierOption = $("#chkIgnoreClientIdentifierOption").prop('checked');
 
-    var btn = $("#btnSaveDhcpScope").button('loading');
+    var node = $("#optDhcpClusterNode").val();
+
+    var btn = $("#btnSaveDhcpScope");
+    btn.button("loading");
 
     HTTPRequest({
-        url: "api/dhcp/scopes/set",
+        url: "api/dhcp/scopes/set?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
         method: "POST",
-        data: "token=" + sessionData.token + "&name=" + encodeURIComponent(name) + (newName == null ? "" : "&newName=" + encodeURIComponent(newName)) + "&startingAddress=" + encodeURIComponent(startingAddress) + "&endingAddress=" + encodeURIComponent(endingAddress) + "&subnetMask=" + encodeURIComponent(subnetMask) +
+        data: "name=" + encodeURIComponent(name) + (newName == null ? "" : "&newName=" + encodeURIComponent(newName)) + "&startingAddress=" + encodeURIComponent(startingAddress) + "&endingAddress=" + encodeURIComponent(endingAddress) + "&subnetMask=" + encodeURIComponent(subnetMask) +
             "&leaseTimeDays=" + leaseTimeDays + "&leaseTimeHours=" + leaseTimeHours + "&leaseTimeMinutes=" + leaseTimeMinutes + "&offerDelayTime=" + offerDelayTime + "&pingCheckEnabled=" + pingCheckEnabled + "&pingCheckTimeout=" + pingCheckTimeout + "&pingCheckRetries=" + pingCheckRetries +
             "&domainName=" + encodeURIComponent(domainName) + "&domainSearchList=" + encodeURIComponent(domainSearchList) + "&dnsUpdates=" + dnsUpdates + "&dnsTtl=" + dnsTtl + "&serverAddress=" + encodeURIComponent(serverAddress) + "&serverHostName=" + encodeURIComponent(serverHostName) + "&bootFileName=" + encodeURIComponent(bootFileName) +
             "&routerAddress=" + encodeURIComponent(routerAddress) + "&useThisDnsServer=" + useThisDnsServer + (useThisDnsServer ? "" : "&dnsServers=" + encodeURIComponent(dnsServers)) + "&winsServers=" + encodeURIComponent(winsServers) + "&ntpServers=" + encodeURIComponent(ntpServers) + "&ntpServerDomainNames=" + encodeURIComponent(ntpServerDomainNames) +
@@ -529,14 +544,14 @@ function saveDhcpScope() {
         processData: false,
         success: function (responseJSON) {
             refreshDhcpScopes();
-            btn.button('reset');
+            btn.button("reset");
             showAlert("success", "Scope Saved!", "DHCP Scope was saved successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
-            btn.button('reset');
+            btn.button("reset");
             showPageLogin();
         }
     });
@@ -545,6 +560,8 @@ function saveDhcpScope() {
 function disableDhcpScope(scopeName) {
     if (!confirm("Are you sure you want to disable the DHCP scope '" + scopeName + "'?"))
         return;
+
+    var node = $("#optDhcpClusterNode").val();
 
     var divDhcpViewScopesLoader = $("#divDhcpViewScopesLoader");
     var divDhcpViewScopes = $("#divDhcpViewScopes");
@@ -555,7 +572,7 @@ function disableDhcpScope(scopeName) {
     divDhcpViewScopesLoader.show();
 
     HTTPRequest({
-        url: "api/dhcp/scopes/disable?token=" + sessionData.token + "&name=" + scopeName,
+        url: "api/dhcp/scopes/disable?token=" + sessionData.token + "&name=" + encodeURIComponent(scopeName) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             refreshDhcpScopes();
             showAlert("success", "Scope Disabled!", "DHCP Scope was disabled successfully.");
@@ -572,6 +589,8 @@ function disableDhcpScope(scopeName) {
 }
 
 function enableDhcpScope(scopeName) {
+    var node = $("#optDhcpClusterNode").val();
+
     var divDhcpViewScopesLoader = $("#divDhcpViewScopesLoader");
     var divDhcpViewScopes = $("#divDhcpViewScopes");
     var divDhcpEditScope = $("#divDhcpEditScope");
@@ -581,7 +600,7 @@ function enableDhcpScope(scopeName) {
     divDhcpViewScopesLoader.show();
 
     HTTPRequest({
-        url: "api/dhcp/scopes/enable?token=" + sessionData.token + "&name=" + scopeName,
+        url: "api/dhcp/scopes/enable?token=" + sessionData.token + "&name=" + encodeURIComponent(scopeName) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             refreshDhcpScopes();
             showAlert("success", "Scope Enabled!", "DHCP Scope was enabled successfully.");
@@ -601,6 +620,8 @@ function deleteDhcpScope(index, scopeName) {
     if (!confirm("Are you sure you want to delete the DHCP scope '" + scopeName + "'?"))
         return;
 
+    var node = $("#optDhcpClusterNode").val();
+
     var divDhcpViewScopesLoader = $("#divDhcpViewScopesLoader");
     var divDhcpViewScopes = $("#divDhcpViewScopes");
     var divDhcpEditScope = $("#divDhcpEditScope");
@@ -610,7 +631,7 @@ function deleteDhcpScope(index, scopeName) {
     divDhcpViewScopesLoader.show();
 
     HTTPRequest({
-        url: "api/dhcp/scopes/delete?token=" + sessionData.token + "&name=" + scopeName,
+        url: "api/dhcp/scopes/delete?token=" + sessionData.token + "&name=" + encodeURIComponent(scopeName) + "&node=" + encodeURIComponent(node),
         success: function (responseJSON) {
             $("#trDhcpScopeRow" + index).remove();
 

@@ -20,12 +20,11 @@ sudo apt update
 sudo apt install curl git -y
 ```
 
-2. Configure [Microsoft Software Repository](https://learn.microsoft.com/en-us/windows-server/administration/linux-package-repository-for-microsoft-software) to be able to install ASP.NET Core SDK. You can follow the instructions given in the link to add the software repository on your distro as shown in examples below:
+2. Follow the [install instructions](https://learn.microsoft.com/en-us/dotnet/core/install/linux-ubuntu-install?tabs=dotnet9&pivots=os-linux-ubuntu-2404) to be able to install ASP.NET Core SDK on your distro. Use the instructions given in the link to install the repository for other distros not shown in below examples:
 
-- Ubuntu 22.04
+- Ubuntu 24.04
 ```
-curl -sSL https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc
-sudo apt-add-repository https://packages.microsoft.com/ubuntu/22.04/prod
+sudo add-apt-repository ppa:dotnet/backports
 sudo apt update
 ```
 
@@ -36,9 +35,9 @@ sudo apt-add-repository https://packages.microsoft.com/debian/11/prod
 sudo apt update
 ```
 
-3. Install ASP.NET Core 8 SDK and `libmsquic` for DNS-over-QUIC support.
+3. Install ASP.NET Core 9 SDK and `libmsquic` for DNS-over-QUIC support.
 ```
-sudo apt install dotnet-sdk-8.0 libmsquic -y
+sudo apt install dotnet-sdk-9.0 libmsquic -y
 ```
 
 Note! If you do not plan to use DNS-over-QUIC or HTTP/3 support, or you intend to just build a docker image then you can skip installing `libmsquic`.
@@ -53,6 +52,7 @@ git clone --depth 1 https://github.com/TechnitiumSoftware/DnsServer.git DnsServe
 ```
 dotnet build TechnitiumLibrary/TechnitiumLibrary.ByteTree/TechnitiumLibrary.ByteTree.csproj -c Release
 dotnet build TechnitiumLibrary/TechnitiumLibrary.Net/TechnitiumLibrary.Net.csproj -c Release
+dotnet build TechnitiumLibrary/TechnitiumLibrary.Security.OTP/TechnitiumLibrary.Security.OTP.csproj -c Release
 ```
 
 6. Build the DnsServer source.

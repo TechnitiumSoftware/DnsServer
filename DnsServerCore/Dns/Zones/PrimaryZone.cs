@@ -344,7 +344,7 @@ namespace DnsServerCore.Dns.Zones
 
                     saveZone = true;
 
-                    _dnsServer.LogManager?.Write("The KSK DNSKEYs (" + dnsKeyTags + ") from the primary zone are ready for changing the DS records at the parent zone: " + ToString());
+                    _dnsServer.LogManager.Write("The KSK DNSKEYs (" + dnsKeyTags + ") from the primary zone are ready for changing the DS records at the parent zone: " + ToString());
                 }
 
                 if (kskToActivate is not null)
@@ -368,12 +368,12 @@ namespace DnsServerCore.Dns.Zones
 
                             saveZone = true;
 
-                            _dnsServer.LogManager?.Write("The KSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were activated successfully: " + ToString());
+                            _dnsServer.LogManager.Write("The KSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were activated successfully: " + ToString());
                         }
                     }
                     catch (Exception ex)
                     {
-                        _dnsServer.LogManager?.Write(ex);
+                        _dnsServer.LogManager.Write(ex);
                     }
                 }
 
@@ -436,7 +436,7 @@ namespace DnsServerCore.Dns.Zones
             }
             catch (Exception ex)
             {
-                _dnsServer.LogManager?.Write(ex);
+                _dnsServer.LogManager.Write(ex);
             }
             finally
             {
@@ -453,25 +453,78 @@ namespace DnsServerCore.Dns.Zones
 
         public void SignZone(DnssecPrivateKey kskPrivateKey, DnssecPrivateKey zskPrivateKey, uint dnsKeyTtl, bool useNSec3, ushort iterations = 0, byte saltLength = 0)
         {
-            if (_dnssecStatus != AuthZoneDnssecStatus.Unsigned)
-                throw new DnsServerException("Cannot sign zone: the zone is already signed.");
-
-            if (iterations > 50)
-                throw new ArgumentOutOfRangeException(nameof(iterations), "NSEC3 iterations valid range is 0-50");
-
-            if (saltLength > 32)
-                throw new ArgumentOutOfRangeException(nameof(saltLength), "NSEC3 salt length valid range is 0-32");
-
             if (kskPrivateKey.KeyType != DnssecPrivateKeyType.KeySigningKey)
                 throw new ArgumentException("The private key must be a Key Signing Key.", nameof(kskPrivateKey));
 
             if (zskPrivateKey.KeyType != DnssecPrivateKeyType.ZoneSigningKey)
                 throw new ArgumentException("The private key must be a Zone Signing Key.", nameof(zskPrivateKey));
 
-            _dnssecPrivateKeys = new Dictionary<ushort, DnssecPrivateKey>(2);
-            _dnssecPrivateKeys.Add(kskPrivateKey.KeyTag, kskPrivateKey);
-            _dnssecPrivateKeys.Add(zskPrivateKey.KeyTag, zskPrivateKey);
+            byte[] salt = null;
 
+            if (useNSec3)
+            {
+                if (saltLength > 32)
+                    throw new ArgumentOutOfRangeException(nameof(saltLength), "NSEC3 salt length valid range is 0-32");
+
+                if (saltLength > 0)
+                {
+                    salt = new byte[saltLength];
+                    RandomNumberGenerator.Fill(salt);
+                }
+                else
+                {
+                    salt = [];
+                }
+            }
+
+            SignZone([kskPrivateKey, zskPrivateKey], dnsKeyTtl, useNSec3, iterations, salt);
+        }
+
+        public void SignZone(IReadOnlyCollection<DnssecPrivateKey> dnssecPrivateKeys, uint dnsKeyTtl, bool useNSec3, ushort iterations = 0, byte[] salt = null)
+        {
+            //do validations
+            if (_dnssecStatus != AuthZoneDnssecStatus.Unsigned)
+                throw new DnsServerException("Cannot sign zone: the zone is already signed.");
+
+            if (useNSec3)
+            {
+                if (iterations > 50)
+                    throw new ArgumentOutOfRangeException(nameof(iterations), "NSEC3 iterations valid range is 0-50");
+
+                if (salt.Length > 32)
+                    throw new ArgumentOutOfRangeException(nameof(salt), "NSEC3 salt length valid range is 0-32");
+            }
+
+            bool foundKsk = false;
+            bool foundZsk = false;
+
+            foreach (DnssecPrivateKey dnssecPrivateKey in dnssecPrivateKeys)
+            {
+                switch (dnssecPrivateKey.KeyType)
+                {
+                    case DnssecPrivateKeyType.KeySigningKey:
+                        foundKsk = true;
+                        break;
+
+                    case DnssecPrivateKeyType.ZoneSigningKey:
+                        foundZsk = true;
+                        break;
+                }
+            }
+
+            if (!foundKsk)
+                throw new ArgumentException("The private keys must contain at least one Key Signing Key.", nameof(dnssecPrivateKeys));
+
+            if (!foundZsk)
+                throw new ArgumentException("The private keys must contain at least one Zone Signing Key.", nameof(dnssecPrivateKeys));
+
+            //load dnssec private keys
+            _dnssecPrivateKeys = new Dictionary<ushort, DnssecPrivateKey>(dnssecPrivateKeys.Count);
+
+            foreach (DnssecPrivateKey dnssecPrivateKey in dnssecPrivateKeys)
+                _dnssecPrivateKeys.Add(dnssecPrivateKey.KeyTag, dnssecPrivateKey);
+
+            //start zone signing
             List<DnsResourceRecord> addedRecords = new List<DnsResourceRecord>();
             List<DnsResourceRecord> deletedRecords = new List<DnsResourceRecord>();
 
@@ -508,16 +561,18 @@ namespace DnsServerCore.Dns.Zones
                 foreach (KeyValuePair<ushort, DnssecPrivateKey> privateKeyEntry in _dnssecPrivateKeys)
                 {
                     DnssecPrivateKey privateKey = privateKeyEntry.Value;
-
-                    switch (privateKey.KeyType)
+                    if (privateKey.State == DnssecPrivateKeyState.Generated)
                     {
-                        case DnssecPrivateKeyType.KeySigningKey:
-                            privateKey.SetState(DnssecPrivateKeyState.Published, maxRecordTtl + propagationDelay);
-                            break;
+                        switch (privateKey.KeyType)
+                        {
+                            case DnssecPrivateKeyType.KeySigningKey:
+                                privateKey.SetState(DnssecPrivateKeyState.Published, maxRecordTtl + propagationDelay);
+                                break;
 
-                        case DnssecPrivateKeyType.ZoneSigningKey:
-                            privateKey.SetState(DnssecPrivateKeyState.Ready);
-                            break;
+                            case DnssecPrivateKeyType.ZoneSigningKey:
+                                privateKey.SetState(DnssecPrivateKeyState.Ready);
+                                break;
+                        }
                     }
                 }
 
@@ -548,7 +603,7 @@ namespace DnsServerCore.Dns.Zones
 
                 if (useNSec3)
                 {
-                    EnableNSec3(zones, iterations, saltLength);
+                    EnableNSec3(zones, iterations, salt);
                     _dnssecStatus = AuthZoneDnssecStatus.SignedWithNSEC3;
                 }
                 else
@@ -561,11 +616,12 @@ namespace DnsServerCore.Dns.Zones
                 foreach (KeyValuePair<ushort, DnssecPrivateKey> privateKeyEntry in _dnssecPrivateKeys)
                 {
                     DnssecPrivateKey privateKey = privateKeyEntry.Value;
-
                     switch (privateKey.KeyType)
                     {
                         case DnssecPrivateKeyType.ZoneSigningKey:
-                            privateKey.SetState(DnssecPrivateKeyState.Active);
+                            if (privateKey.State == DnssecPrivateKeyState.Ready)
+                                privateKey.SetState(DnssecPrivateKeyState.Active);
+
                             break;
                     }
                 }
@@ -824,7 +880,7 @@ namespace DnsServerCore.Dns.Zones
             }
             else
             {
-                salt = Array.Empty<byte>();
+                salt = [];
             }
 
             EnableNSec3(zones, iterations, salt);
@@ -846,6 +902,9 @@ namespace DnsServerCore.Dns.Zones
                 partialNSec3Records.Add(zone.GetPartialNSec3Record(_name, ttl, iterations, salt));
 
                 int zoneLabelCount = DnsRRSIGRecordData.GetLabelCount(zone.Name);
+                if (zone.Name.StartsWith("*."))
+                    zoneLabelCount++; //need to consider wildcard label for ENT detection
+
                 if ((zoneLabelCount - apexLabelCount) > 1)
                 {
                     //empty non-terminal (ENT) may exists
@@ -989,7 +1048,7 @@ namespace DnsServerCore.Dns.Zones
             CommitAndIncrementSerial(deletedRecords);
         }
 
-        public void GenerateAndAddPrivateKey(DnssecPrivateKeyType keyType, DnssecAlgorithm algorithm, ushort rolloverDays, int keySize = -1)
+        public DnssecPrivateKey GenerateAndAddPrivateKey(DnssecPrivateKeyType keyType, DnssecAlgorithm algorithm, ushort rolloverDays, int keySize = -1)
         {
             if (_dnssecStatus == AuthZoneDnssecStatus.Unsigned)
                 throw new DnsServerException("The primary zone must be signed.");
@@ -1003,7 +1062,7 @@ namespace DnsServerCore.Dns.Zones
                 lock (_dnssecPrivateKeys)
                 {
                     if (_dnssecPrivateKeys.TryAdd(privateKey.KeyTag, privateKey))
-                        return;
+                        return privateKey;
                 }
             }
 
@@ -1022,7 +1081,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public void UpdatePrivateKey(ushort keyTag, ushort rolloverDays)
+        public DnssecPrivateKey UpdatePrivateKey(ushort keyTag, ushort rolloverDays)
         {
             lock (_dnssecPrivateKeys)
             {
@@ -1030,6 +1089,8 @@ namespace DnsServerCore.Dns.Zones
                     throw new DnsServerException("Cannot update private key: no such private key was found.");
 
                 privateKey.RolloverDays = rolloverDays;
+
+                return privateKey;
             }
         }
 
@@ -1160,7 +1221,7 @@ namespace DnsServerCore.Dns.Zones
                     dnsKeyTags += ", " + privateKey.KeyTag.ToString();
             }
 
-            _dnsServer.LogManager?.Write("The ZSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were activated successfully: " + ToString());
+            _dnsServer.LogManager.Write("The ZSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were activated successfully: " + ToString());
         }
 
         public void RolloverDnsKey(ushort keyTag)
@@ -1345,7 +1406,7 @@ namespace DnsServerCore.Dns.Zones
 
             if (dnsKeyTags is not null)
             {
-                _dnsServer.LogManager?.Write("The KSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were retired successfully: " + ToString());
+                _dnsServer.LogManager.Write("The KSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were retired successfully: " + ToString());
 
                 return true;
             }
@@ -1435,7 +1496,7 @@ namespace DnsServerCore.Dns.Zones
 
             if (dnsKeyTags is not null)
             {
-                _dnsServer.LogManager?.Write("The ZSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were retired successfully: " + ToString());
+                _dnsServer.LogManager.Write("The ZSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were retired successfully: " + ToString());
 
                 return true;
             }
@@ -1486,7 +1547,7 @@ namespace DnsServerCore.Dns.Zones
                     dnsKeyTags += ", " + privateKey.KeyTag.ToString();
             }
 
-            _dnsServer.LogManager?.Write("The ZSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were deactivated successfully: " + ToString());
+            _dnsServer.LogManager.Write("The ZSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were deactivated successfully: " + ToString());
         }
 
         private void RevokeKskDnsKeys(List<DnssecPrivateKey> kskPrivateKeys)
@@ -1597,7 +1658,7 @@ namespace DnsServerCore.Dns.Zones
                     _dnssecPrivateKeys.Add(privateKey.KeyTag, privateKey);
             }
 
-            _dnsServer.LogManager?.Write("The KSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were revoked successfully: " + ToString());
+            _dnsServer.LogManager.Write("The KSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were revoked successfully: " + ToString());
         }
 
         private void UnpublishDnsKeys(IReadOnlyList<DnssecPrivateKey> deadPrivateKeys)
@@ -1690,10 +1751,10 @@ namespace DnsServerCore.Dns.Zones
                 }
             }
 
-            _dnsServer.LogManager?.Write("The DNSKEYs (" + dnsKeyTags + ") from the primary zone were unpublished successfully: " + ToString());
+            _dnsServer.LogManager.Write("The DNSKEYs (" + dnsKeyTags + ") from the primary zone were unpublished successfully: " + ToString());
         }
 
-        private async Task<IReadOnlyList<DnssecPrivateKey>> GetDSPublishedPrivateKeysAsync(IReadOnlyList<DnssecPrivateKey> privateKeys)
+        private async Task<IReadOnlyList<DnssecPrivateKey>> GetDSPublishedPrivateKeysAsync(IReadOnlyList<DnssecPrivateKey> privateKeys, CancellationToken cancellationToken = default)
         {
             if (_name.Length == 0)
                 return privateKeys; //zone is root
@@ -1701,14 +1762,19 @@ namespace DnsServerCore.Dns.Zones
             //delete any existing DS entries from cache to allow resolving latest ones
             _dnsServer.CacheZoneManager.DeleteZone(_name);
 
+            DirectDnsClient dnsClient = new DirectDnsClient(_dnsServer);
+            dnsClient.DnssecValidation = true;
+            dnsClient.Timeout = 10000;
+
             IReadOnlyList<DnsDSRecordData> dsRecords;
 
             try
             {
-                dsRecords = DnsClient.ParseResponseDS(await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(_name, DnsResourceRecordType.DS, DnsClass.IN)));
+                dsRecords = DnsClient.ParseResponseDS(await dnsClient.ResolveAsync(new DnsQuestionRecord(_name, DnsResourceRecordType.DS, DnsClass.IN), cancellationToken: cancellationToken));
             }
-            catch (DnsClientNxDomainException)
+            catch
             {
+                //suppress exception here to avoid filling log file
                 return [];
             }
 
@@ -1801,6 +1867,12 @@ namespace DnsServerCore.Dns.Zones
                     if ((rrsetType == DnsResourceRecordType.NS) && (records[0].Name.Length > _name.Length))
                         return Array.Empty<DnsResourceRecord>(); //referrer NS records are not signed
 
+                    foreach (DnsResourceRecord record in records)
+                    {
+                        if (record.GetAuthGenericRecordInfo().Disabled)
+                            throw new DnsServerException("Cannot sign RRSet: Signing disabled records is not supported.");
+                    }
+
                     lock (_dnssecPrivateKeys)
                     {
                         foreach (KeyValuePair<ushort, DnssecPrivateKey> privateKeyEntry in _dnssecPrivateKeys)
@@ -1876,6 +1948,8 @@ namespace DnsServerCore.Dns.Zones
 
                     int apexLabelCount = DnsRRSIGRecordData.GetLabelCount(_name);
                     int zoneLabelCount = DnsRRSIGRecordData.GetLabelCount(zone.Name);
+                    if (zone.Name.StartsWith("*.") || zone.Name.Equals('*'))
+                        zoneLabelCount++; //need to consider wildcard label for ENT detection
 
                     if ((zoneLabelCount - apexLabelCount) > 1)
                     {
@@ -2233,8 +2307,8 @@ namespace DnsServerCore.Dns.Zones
 
         private uint GetSignatureValidityPeriod()
         {
-            //SOA EXPIRE + 3 days
-            return GetZoneSoaExpire() + (3 * 24 * 60 * 60);
+            //SOA EXPIRE * 2
+            return GetZoneSoaExpire() * 2;
         }
 
         private uint GetPropagationDelay()
@@ -2244,7 +2318,7 @@ namespace DnsServerCore.Dns.Zones
             return soa.Refresh + soa.Retry;
         }
 
-        private async Task<uint> GetParentSidePropagationDelayAsync()
+        private async Task<uint> GetParentSidePropagationDelayAsync(CancellationToken cancellationToken = default)
         {
             uint parentSidePropagationDelay = 24 * 60 * 60;
 
@@ -2254,7 +2328,7 @@ namespace DnsServerCore.Dns.Zones
                 if (parent is null)
                     parent = "";
 
-                DnsDatagram soaResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(parent, DnsResourceRecordType.SOA, DnsClass.IN), 10000);
+                DnsDatagram soaResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(parent, DnsResourceRecordType.SOA, DnsClass.IN), 10000, cancellationToken: cancellationToken);
                 if (soaResponse.RCODE == DnsResponseCode.NoError)
                 {
                     IReadOnlyList<DnsResourceRecord> records;
@@ -2282,7 +2356,7 @@ namespace DnsServerCore.Dns.Zones
             }
             catch (Exception ex)
             {
-                _dnsServer.LogManager?.Write(ex);
+                _dnsServer.LogManager.Write(ex);
             }
 
             return parentSidePropagationDelay;
@@ -2307,13 +2381,13 @@ namespace DnsServerCore.Dns.Zones
             return maxTtl;
         }
 
-        private async Task<uint> GetDSTtlAsync()
+        private async Task<uint> GetDSTtlAsync(CancellationToken cancellationToken = default)
         {
             uint dsTtl = 24 * 60 * 60;
 
             try
             {
-                DnsDatagram dsResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(_name, DnsResourceRecordType.DS, DnsClass.IN), 10000);
+                DnsDatagram dsResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(_name, DnsResourceRecordType.DS, DnsClass.IN), 10000, cancellationToken: cancellationToken);
                 if (dsResponse.RCODE == DnsResponseCode.NoError)
                 {
                     if (dsResponse.Answer.Count > 0)
@@ -2338,7 +2412,7 @@ namespace DnsServerCore.Dns.Zones
             }
             catch (Exception ex)
             {
-                _dnsServer.LogManager?.Write(ex);
+                _dnsServer.LogManager.Write(ex);
             }
 
             return dsTtl;

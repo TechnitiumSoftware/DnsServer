@@ -27,6 +27,9 @@ services:
       # - DNS_SERVER_WEB_SERVICE_HTTPS_PORT=53443 #The TCP port number for the DNS web console over HTTPS protocol.
       # - DNS_SERVER_WEB_SERVICE_ENABLE_HTTPS=false #Enables HTTPS for the DNS web console.
       # - DNS_SERVER_WEB_SERVICE_USE_SELF_SIGNED_CERT=false #Enables self signed TLS certificate for the DNS web console.
+      # - DNS_SERVER_WEB_SERVICE_TLS_CERTIFICATE_PATH=/etc/dns/tls/cert.pfx #The file path to the TLS certificate for the DNS web console.
+      # - DNS_SERVER_WEB_SERVICE_TLS_CERTIFICATE_PASSWORD=password #The password for the TLS certificate for the DNS web console.
+      # - DNS_SERVER_WEB_SERVICE_HTTP_TO_TLS_REDIRECT=false #Enables HTTP to HTTPS redirection for the DNS web console.
       # - DNS_SERVER_OPTIONAL_PROTOCOL_DNS_OVER_HTTP=false #Enables DNS server optional protocol DNS-over-HTTP on TCP port 8053 to be used with a TLS terminating reverse proxy like nginx.
       # - DNS_SERVER_RECURSION=AllowOnlyForPrivateNetworks #Recursion options: Allow, Deny, AllowOnlyForPrivateNetworks, UseSpecifiedNetworkACL.
       # - DNS_SERVER_RECURSION_NETWORK_ACL=192.168.10.0/24, !192.168.10.2 #Comma separated list of IP addresses or network addresses to allow access. Add ! character at the start to deny access, e.g. !192.168.10.0/24 will deny entire subnet. The ACL is processed in the same order its listed. If no networks match, the default policy is to deny all except loopback. Valid only for `UseSpecifiedNetworkACL` recursion option.
@@ -42,7 +45,7 @@ services:
       - config:/etc/dns
     restart: unless-stopped
     sysctls:
-      - net.ipv4.ip_local_port_range=1024 65000
+      - net.ipv4.ip_local_port_range=1024 65535
 
 volumes:
     config:

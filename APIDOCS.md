@@ -18,6 +18,7 @@ The `status` property can have following values:
 - `ok`: This indicates that the call was successful.
 - `error`: This response tells the call failed and provides additional properties that provide details about the error.
 - `invalid-token`: When a session has expired or an invalid token was provided this response is received.
+- `2fa-required`: When a user has two-factor authentication enabled and the OTP was not provided during login, change password, etc. API calls.
 
 A successful response will look as shown below. Note that there will be other properties in the response which are specific to the request that was made.
 
@@ -69,6 +70,7 @@ None
 WHERE:
 - `user`: The username for the user account. The built-in administrator username on the DNS server is `admin`.
 - `pass`: The password for the user account. The default password for `admin` user is `admin`. 
+- `totp` (optional): The time-based one-time password for the user account if it has Two Factor Authentication (2FA) enabled.
 - `includeInfo` (optional): Includes basic info relevant for the user in response.
 
 WARNING: It is highly recommended to change the password on first use to avoid security related issues.
@@ -78,9 +80,10 @@ RESPONSE:
 {
 	"displayName": "Administrator",
 	"username": "admin",
+	"totpEnabled": false,
 	"token": "932b2a3495852c15af01598f62563ae534460388b6a370bfbbb8bb6094b698e9",
 	"info": {
-		"version": "9.0",
+		"version": "14.0",
 		"dnsServerDomain": "server1",
 		"defaultRecordTtl": 3600,
 		"permissions": {
@@ -161,6 +164,7 @@ None
 WHERE:
 - `user`: The username for the user account for which to generate the API token.
 - `pass`: The password for the user account.
+- `totp` (optional): The time-based one-time password for the user account if it has Two Factor Authentication (2FA) enabled.
 - `tokenName`: The name of the created token to identify its session.
 
 RESPONSE:
@@ -217,11 +221,14 @@ RESPONSE:
 {
 	"displayName": "Administrator",
 	"username": "admin",
+	"totpEnabled": false,
 	"token": "932b2a3495852c15af01598f62563ae534460388b6a370bfbbb8bb6094b698e9",
 	"info": {
-		"version": "11.5",
+		"version": "14.0",
 		"uptimestamp": "2023-07-29T08:01:31.1117463Z",
-		"dnsServerDomain": "server1",
+		"dnsServerDomain": "server1.example.com",
+		"clusterInitialized": true,
+		"clusterDomain": "example.com"
 		"defaultRecordTtl": 3600,
 		"useSoaSerialDateScheme": false,
 		"dnssecValidation": true,
@@ -316,7 +323,7 @@ Allows changing the password for the current logged in user account.
 NOTE: It is highly recommended to change the `admin` user password on first use to avoid security related issues.
 
 URL:\
-`http://localhost:5380/api/user/changePassword?token=x&pass=password`
+`http://localhost:5380/api/user/changePassword?token=x&pass=password&newPass=newpassword`
 
 OBSOLETE PATH:\
 `/api/changePassword`
@@ -326,7 +333,76 @@ None
 
 WHERE:
 - `token`: The session token generated only by the `login` call.
-- `pass`: The new password for the currently logged in user.
+- `pass`: The current password for the currently logged in user.
+- `newPass`: The new password to be set for the currently logged in user.
+- `totp` (optional): The 6-digit code from the authenticator app if the user has 2FA enabled.
+- `iterations` (optional): The number of iterations for PBKDF2 SHA256 password hashing.
+
+RESPONSE:
+```
+{
+	"status": "ok"
+}
+```
+
+### Initialize 2FA
+
+Initializes two-factor authentication for the current logged in user account. The secret returned by this API call needs to be used with authenticator apps like microsoft Authenticator or Google Authenticator. This call is the first step to enable 2FA followed by calling the Enable 2FA API call.
+
+URL:\
+`http://localhost:5380/api/user/2fa/init?token=x`
+
+PERMISSIONS:\
+None
+
+WHERE:
+- `token`: The session token generated only by the `login` call.
+
+RESPONSE:
+```
+{
+	"response": {
+		"totpEnabled": false,
+		"qrCodePngImage": "iVBORw0KGgoAAAANSUhEU...",
+		"secret": "RZ56CYOXKAXI5D23"
+	},
+	"status": "ok"
+}
+```
+
+### Enable 2FA
+
+Enables two-factor authentication for the current logged in user account. This API call can be called only after the Initialize 2FA API call.
+
+URL:\
+`http://localhost:5380/api/user/2fa/enable?token=x`
+
+PERMISSIONS:\
+None
+
+WHERE:
+- `token`: The session token generated only by the `login` call.
+- `totp`: The 6-digit code from the authenticator app.
+
+RESPONSE:
+```
+{
+	"status": "ok"
+}
+```
+
+### Disable 2FA
+
+Disables two-factor authentication for the current logged in user account.
+
+URL:\
+`http://localhost:5380/api/user/2fa/disable?token=x`
+
+PERMISSIONS:\
+None
+
+WHERE:
+- `token`: The session token generated only by the `login` call.
 
 RESPONSE:
 ```
@@ -354,6 +430,7 @@ RESPONSE:
 	"response": {
 		"displayName": "Administrator",
 		"username": "admin",
+		"totpEnabled": false,
 		"disabled": false,
 		"previousSessionLoggedOn": "2022-09-15T12:59:05.944Z",
 		"previousSessionRemoteAddress": "127.0.0.1",
@@ -401,6 +478,7 @@ RESPONSE:
 	"response": {
 		"displayName": "Administrator",
 		"username": "admin",
+		"totpEnabled": false,
 		"disabled": false,
 		"previousSessionLoggedOn": "2022-09-15T12:59:05.944Z",
 		"previousSessionRemoteAddress": "127.0.0.1",
@@ -479,8 +557,10 @@ Dashboard: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node`: The node domain name for which the stats data is needed. When unspecified, the current node is used. Set node name as `cluster` to get aggregate stats for the entire cluster. This parameter can be used only when Clustering is initialized.
 - `type` (optional): The duration type for which valid values are: [`LastHour`, `LastDay`, `LastWeek`, `LastMonth`, `LastYear`, `Custom`]. Default value is `LastHour`.
 - `utc` (optional): Set to `true` to return the main chart data with labels in UTC date time format using which the labels can be converted into local time for display using the received `labelFormat`.
+- `dontTrimQueryTypeData` (optional): Set to `true` to get full data for query type chart instead of top 10 entries. Default value is `false` when unspecified.
 - `start` (optional): The start date in ISO 8601 format. Applies only to `custom` type.
 - `end` (optional): The end date in ISO 8601 format. Applies only to `custom` type.
 
@@ -1552,6 +1632,7 @@ Dashboard: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node`: The node domain name for which the stats data is needed. When unspecified, the current node is used. Set node name as `cluster` to get aggregate stats for the entire cluster. This parameter can be used only when Clustering is initialized.
 - `type` (optional): The duration type for which valid values are: [`LastHour`, `LastDay`, `LastWeek`, `LastMonth`, `LastYear`, `custom`]. Default value is `LastHour`.
 - `start` (optional): The start date in ISO 8601 format. Applies only to `custom` type.
 - `end` (optional): The end date in ISO 8601 format. Applies only to `custom` type.
@@ -1638,6 +1719,7 @@ Dashboard: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node`: The node domain name for which the stats data needs to be deleted. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 
 RESPONSE:
 ```
@@ -1668,6 +1750,7 @@ Zone: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `pageNumber` (optional): When this parameter is specified, the API will return paginated results based on the page number and zones per pages options. When not specified, the API will return a list of all zones.
 - `zonesPerPage` (optional): The number of zones per page to be returned. This option is only used when `pageNumber` options is specified. The default value is `10` when not specified.
 
@@ -1798,6 +1881,7 @@ Zone: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 
 RESPONSE:
 ```
@@ -1827,6 +1911,7 @@ Zones: Modify
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The domain name for creating the new zone. The value can be valid domain name, an IP address, or an network address in CIDR format. When value is IP address or network address, a reverse zone is created.
 - `type`: The type of zone to be created. Valid values are [`Primary`, `Secondary`, `Stub`, `Forwarder`, `SecondaryForwarder`, `Catalog`, `SecondaryCatalog`].
 - `catalog` (optional): The name of the catalog zone to become its member zone. This option is valid only for `Primary`, `Stub`, and `Forwarder` zones.
@@ -1873,12 +1958,12 @@ Zone: Modify
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The domain name of the zone to import.
-- `importType` (optional): Specifies the type of import call. Valid values are `Text` when POST data is of `text/plain` type, and `File` when POST data contains uploaded file. Default value is `Text` when parameter is unspecified. 
 - `overwrite` (optional): Set to `true` to allow overwriting existing resource record set for the records being imported.
 - `overwriteSoaSerial` (optional): Set it to `true` to overwrite existing SOA record serial with the imported SOA record serial. Warning! Overwrite SOA serial option when used to set a lower SOA serial value than the current SOA serial will cause secondary zones to fail to sync.
 
-REQUEST: This is a POST request call where the request must use `text/plain` content type and request body must contain the zone file in text format when the import type is `Text`. When using import type as `File` the request must be multi-part form data with the zone file data.
+REQUEST: This is a POST request call where the request must use `text/plain` content type with request body containing the zone file data OR the request must be multi-part form data with the zone file data.
 
 RESPONSE:
 ```
@@ -1900,6 +1985,7 @@ Zone: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The domain name of the zone to export.
 
 RESPONSE: Response is a downloadable text file with `Content-Type: text/plain` and `Content-Disposition: attachment`.
@@ -1917,6 +2003,7 @@ Zone: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The domain name of the zone to be created.
 - `sourceZone`: The domain name of the zone to be cloned.
 
@@ -1940,6 +2027,7 @@ Zone: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The domain name of the zone to be converted.
 - `type`: The zone type to convert the current zone to.
 
@@ -1967,6 +2055,7 @@ Zone: Modify
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The domain name of the zone to be enabled.
 
 RESPONSE:
@@ -1993,6 +2082,7 @@ Zone: Modify
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The domain name of the zone to be disabled.
 
 RESPONSE:
@@ -2019,6 +2109,7 @@ Zone: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The domain name of the zone to be deleted.
 
 RESPONSE:
@@ -2044,6 +2135,7 @@ Zone: Modify
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The domain name of the zone to resync.
 
 RESPONSE:
@@ -2069,6 +2161,7 @@ Zone: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The domain name of the zone to get options.
 - `includeAvailableCatalogZoneNames`: Set to `true` to include list of available Catalog zone names on the DNS server.
 - `includeAvailableTsigKeyNames`: Set to `true` to include list of available TSIG key names on the DNS server.
@@ -2148,6 +2241,7 @@ Zone: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The domain name of the zone to set options.
 - `disabled` (optional): Sets if the zone is enabled or disabled.
 - `catalog` (optional): Set a Catalog zone name to register as its member zone. This option is valid only for `Primary`, `Stub`, and `Forwarder` zones.
@@ -2190,6 +2284,7 @@ Zone: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The domain name of the zone to get the permissions for.
 - `includeUsersAndGroups`: Set to true to get a list of users and groups in the response.
 
@@ -2249,6 +2344,7 @@ Zone: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The domain name of the zone to get the permissions for.
 - `userPermissions` (optional): A pipe `|` separated table data with each row containing username and boolean values for the view, modify and delete permissions. For example: user1|true|true|true|user2|true|false|false
 - `groupPermissions` (optional): A pipe `|` separated table data with each row containing the group name and boolean values for the view, modify and delete permissions. For example: group1|true|true|true|group2|true|true|false
@@ -2302,6 +2398,7 @@ Zone: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The name of the primary zone to sign.
 - `algorithm`: The algorithm to be used for signing. Valid values are [`RSA`, `ECDSA`, `EDDSA`].
 - `pemKskPrivateKey` (optional): The user specified private key in PEM format for Key Signing Key (KSK). When this parameter is specified, the private key specified is used instead of automatically generating it.
@@ -2339,6 +2436,7 @@ Zone: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The name of the primary zone to unsign.
 
 RESPONSE:
@@ -2361,6 +2459,7 @@ Zone: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The name of the signed primary zone.
 
 RESPONSE:
@@ -2412,6 +2511,7 @@ Zone: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The name of the primary zone.
 
 RESPONSE:
@@ -2466,6 +2566,7 @@ Zone: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The name of the primary zone.
 
 RESPONSE:
@@ -2491,6 +2592,7 @@ Zone: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The name of the primary zone.
 
 RESPONSE:
@@ -2516,6 +2618,7 @@ Zone: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The name of the primary zone.
 - `iterations` (optional): The number of iterations to use for hashing. Default value is `0` when not specified.
 - `saltLength` (optional): The length of salt in bytes to use for hashing. Default value is `0` when not specified.
@@ -2543,6 +2646,7 @@ Zone: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The name of the primary zone.
 - `ttl`: The TTL value for the DNSKEY resource record set.
 
@@ -2570,6 +2674,7 @@ Zone: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The name of the primary zone.
 - `keyType`: The type of key for which the private key is to be generated. Valid values are [`KeySigningKey`, `ZoneSigningKey`].
 - `rolloverDays` (optional): The frequency in days that the DNS server must automatically rollover the private key in the zone. Valid range is 0-365 days where 0 disables rollover. Default value is 90 days for Zone Signing Key (ZSK) and 0 days for Key Signing Key (KSK).
@@ -2602,6 +2707,7 @@ Zone: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The name of the primary zone.
 - `keyTag`: The key tag of the private key to be updated.
 - `rolloverDays`: The frequency in days that the DNS server must automatically rollover the private key in the zone. Valid range is 0-365 days where 0 disables rollover. 
@@ -2629,6 +2735,7 @@ Zone: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The name of the primary zone.
 - `keyTag`: The key tag of the private key to be deleted.
 
@@ -2655,6 +2762,7 @@ Zone: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The name of the primary zone.
 
 RESPONSE:
@@ -2680,6 +2788,7 @@ Zone: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The name of the primary zone.
 - `keyTag`: The key tag of the private key to rollover.
 
@@ -2706,6 +2815,7 @@ Zone: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The name of the primary zone.
 - `keyTag`: The key tag of the private key to retire.
 
@@ -2733,6 +2843,7 @@ Zone: Modify
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `domain`: The domain name of the zone to add record.
 - `zone` (optional): The name of the authoritative zone into which the `domain` exists. When unspecified, the closest authoritative zone will be used.
 - `type`: The DNS resource record type. Supported record types are [`A`, `AAAA`, `NS`, `CNAME`, `PTR`, `MX`, `TXT`, `SRV`, `DNAME`, `DS`, `SSHFP`, `TLSA`, `SVCB`, `HTTPS`, `URI`, `CAA`] and proprietary types [`ANAME`, `FWD`, `APP`]. Unknown record types are also supported since v11.2.
@@ -2846,6 +2957,7 @@ Zone: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `domain`: The domain name of the zone to get records.
 - `zone` (optional): The name of the authoritative zone into which the `domain` exists. When unspecified, the closest authoritative zone will be used.
 - `listZone` (optional): When set to `true` will list all records in the zone else will list records only for the given domain name. Default value is `false` when not specified.
@@ -3384,6 +3496,7 @@ Zone: Modify
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `domain`: The domain name of the zone to update the record.
 - `zone` (optional): The name of the authoritative zone into which the `domain` exists. When unspecified, the closest authoritative zone will be used.
 - `type`: The type of the resource record to update.
@@ -3555,6 +3668,7 @@ Zone: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `domain`: The domain name of the zone to delete the record.
 - `zone` (optional): The name of the authoritative zone into which the `domain` exists. When unspecified, the closest authoritative zone will be used.
 - `type`: The type of the resource record to delete.
@@ -3720,6 +3834,7 @@ Allowed: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `domain` (Optional): The domain name to list records. If not passed, the domain is set to empty string which corresponds to the zone root.
 - `direction` (Optional): Allows specifying the direction of browsing the zone. Valid values are [`up`, `down`] and the default value is `down` when parameter is missing. This option allows the server to skip empty labels in the domain name when browsing up or down.
 
@@ -3877,6 +3992,7 @@ Allowed: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 
 RESPONSE:
 Response is a downloadable text file with `Content-Type: text/plain` and `Content-Disposition: attachment`.
@@ -3900,6 +4016,7 @@ Blocked: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `domain` (Optional): The domain name to list records. If not passed, the domain is set to empty string which corresponds to the zone root.
 - `direction` (Optional): Allows specifying the direction of browsing the zone. Valid values are [`up`, `down`] and the default value is `down` when parameter is missing. This option allows the server to skip empty labels in the domain name when browsing up or down.
 
@@ -4057,6 +4174,7 @@ Blocked: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 
 RESPONSE:
 Response is a downloadable text file with `Content-Type: text/plain` and `Content-Disposition: attachment`.
@@ -4077,6 +4195,7 @@ Apps/Zones/Logs: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 
 RESPONSE:
 ```
@@ -4134,6 +4253,7 @@ Apps: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 
 RESPONSE:
 ```
@@ -4393,6 +4513,7 @@ Apps: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `name`: The name of the app to retrieve the config.
 
 RESPONSE:
@@ -4452,6 +4573,7 @@ DnsClient: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `server`: The name server to query using the DNS client. Use `recursive-resolver` to perform recursive resolution. Use `system-dns` to query the DNS servers configured on the system.
 - `domain`: The domain name to query.
 - `type`: The type of the query.
@@ -4538,8 +4660,8 @@ RESPONSE:
 ```
 {
 	"response": {
-		"version": "13.5",
-		"uptimestamp": "2025-04-05T19:30:25.124826Z",
+		"version": "14.0",
+		"uptimestamp": "2025-05-31T10:28:21.6864142Z",
 		"dnsServerDomain": "server1",
 		"dnsServerLocalEndPoints": [
 			"0.0.0.0:53",
@@ -4560,6 +4682,10 @@ RESPONSE:
 		"notifyAllowedNetworks": [],
 		"dnsAppsEnableAutomaticUpdate": true,
 		"preferIPv6": false,
+		"enableUdpSocketPool": false,
+		"socketPoolExcludedPorts": [
+			53443
+		],
 		"udpPayloadSize": 1232,
 		"dnssecValidation": true,
 		"eDnsClientSubnet": false,
@@ -4567,11 +4693,37 @@ RESPONSE:
 		"eDnsClientSubnetIPv6PrefixLength": 56,
 		"eDnsClientSubnetIpv4Override": null,
 		"eDnsClientSubnetIpv6Override": null,
-		"qpmLimitRequests": 6000,
-		"qpmLimitErrors": 600,
+		"qpmPrefixLimitsIPv4": [
+			{
+				"prefix": 32,
+				"udpLimit": 600,
+				"tcpLimit": 600
+			},
+			{
+				"prefix": 24,
+				"udpLimit": 6000,
+				"tcpLimit": 6000
+			}
+		],
+		"qpmPrefixLimitsIPv6": [
+			{
+				"prefix": 128,
+				"udpLimit": 600,
+				"tcpLimit": 600
+			},
+			{
+				"prefix": 64,
+				"udpLimit": 1200,
+				"tcpLimit": 1200
+			},
+			{
+				"prefix": 56,
+				"udpLimit": 6000,
+				"tcpLimit": 6000
+			}
+		],
 		"qpmLimitSampleMinutes": 5,
-		"qpmLimitIPv4PrefixLength": 24,
-		"qpmLimitIPv6PrefixLength": 56,
+		"qpmLimitUdpTruncationPercentage": 50,
 		"qpmLimitBypassList": [],
 		"clientTimeout": 2000,
 		"tcpSendTimeout": 10000,
@@ -4584,10 +4736,10 @@ RESPONSE:
 			"[::]"
 		],
 		"webServiceHttpPort": 5380,
-		"webServiceEnableTls": false,
+		"webServiceEnableTls": true,
 		"webServiceEnableHttp3": false,
 		"webServiceHttpToTlsRedirect": false,
-		"webServiceUseSelfSignedTlsCertificate": false,
+		"webServiceUseSelfSignedTlsCertificate": true,
 		"webServiceTlsPort": 53443,
 		"webServiceTlsCertificatePath": null,
 		"webServiceTlsCertificatePassword": "************",
@@ -4661,6 +4813,7 @@ RESPONSE:
 		"forwarderTimeout": 2000,
 		"forwarderConcurrency": 2,
 		"enableLogging": true,
+		"loggingType": "File",
 		"ignoreResolverLogs": false,
 		"logQueries": false,
 		"useLocalTime": false,
@@ -4694,35 +4847,36 @@ WHERE:
 - `dnsServerLocalEndPoints` (optional): Local end points are the network interface IP addresses and ports you want the DNS Server to listen for requests. 
 - `dnsServerIPv4SourceAddresses` (optional): A comma separated list of IPv4 source addresses that the DNS server must use for making all outbound DNS requests when the server is connected to two or more networks. Network addresses are also accepted. By default, the IPv4 address of the network with a default route will be used as the source address.
 - `dnsServerIPv6SourceAddresses` (optional): A comma separated list of IPv6 source addresses that the DNS server must use for making all outbound DNS requests when the server is connected to two or more networks. Network addresses are also accepted. By default, the IPv6 address of the network with a default route will be used as the source address. Note that this option will be used only when `Prefer IPv6` option is enabled.
-- `defaultRecordTtl` (optional): The default TTL value to use if not specified when adding or updating records in a Zone.
-- `defaultResponsiblePerson` (optional): The default SOA Responsible Person email address to use when adding a Primary Zone.
-- `useSoaSerialDateScheme` (optional): The default SOA Serial option to use if not specified when adding a Primary Zone.
-- `minSoaRefresh` (optional): The minimum Refresh interval to be used by Secondary, Stub, Secondary Forwarder, and Secondary Catalog zones. This value will be used if a zone's SOA Refresh value is less than the minimum value. Initial value is `300`.
-- `minSoaRetry` (optional): The minimum Retry interval to be used by Secondary, Stub, Secondary Forwarder, and Secondary Catalog zones zones. This value will be used if a zone's SOA Retry value is less than the minimum value. Initial value is `300`.
-- `zoneTransferAllowedNetworks` (optional): A comma separated list of IP addresses or network addresses that are allowed to perform zone transfer for all zones without any TSIG authentication.
-- `notifyAllowedNetworks` (optional): A comma separated list of IP addresses or network addresses that are allowed to Notify all secondary zones.
-- `dnsAppsEnableAutomaticUpdate` (optional): Set to `true` to allow DNS server to automatically update the DNS Apps from the DNS App Store. The DNS Server will check for updates every 24 hrs when this option is enabled.
+- `defaultRecordTtl` (optional, cluster parameter): The default TTL value to use if not specified when adding or updating records in a Zone.
+- `defaultResponsiblePerson` (optional, cluster parameter): The default SOA Responsible Person email address to use when adding a Primary Zone.
+- `useSoaSerialDateScheme` (optional, cluster parameter): The default SOA Serial option to use if not specified when adding a Primary Zone.
+- `minSoaRefresh` (optional, cluster parameter): The minimum Refresh interval to be used by Secondary, Stub, Secondary Forwarder, and Secondary Catalog zones. This value will be used if a zone's SOA Refresh value is less than the minimum value. Initial value is `300`.
+- `minSoaRetry` (optional, cluster parameter): The minimum Retry interval to be used by Secondary, Stub, Secondary Forwarder, and Secondary Catalog zones zones. This value will be used if a zone's SOA Retry value is less than the minimum value. Initial value is `300`.
+- `zoneTransferAllowedNetworks` (optional, cluster parameter): A comma separated list of IP addresses or network addresses that are allowed to perform zone transfer for all zones without any TSIG authentication.
+- `notifyAllowedNetworks` (optional, cluster parameter): A comma separated list of IP addresses or network addresses that are allowed to Notify all secondary zones.
+- `dnsAppsEnableAutomaticUpdate` (optional, cluster parameter): Set to `true` to allow DNS server to automatically update the DNS Apps from the DNS App Store. The DNS Server will check for updates every 24 hrs when this option is enabled.
 - `preferIPv6` (optional): DNS Server will use IPv6 for querying whenever possible with this option enabled. Initial value is `false`.
-- `udpPayloadSize` (optional): The maximum EDNS UDP payload size that can be used to avoid IP fragmentation. Valid range is 512-4096 bytes. Initial value is `1232`.
-- `dnssecValidation` (optional): Set this to `true` to enable DNSSEC validation. DNS Server will validate all responses from name servers or forwarders when this option is enabled.
-- `eDnsClientSubnet` (optional): Set this to `true` to enable EDNS Client Subnet. DNS Server will use the public IP address of the request with a prefix length, or the existing Client Subnet option from the request while resolving requests.
-- `eDnsClientSubnetIPv4PrefixLength` (optional): The EDNS Client Subnet IPv4 prefix length to define the client subnet. Initial value is `24`.
-- `eDnsClientSubnetIPv6PrefixLength` (optional): The EDNS Client Subnet IPv6 prefix length to define the client subnet. Initial value is `56`.
-- `eDnsClientSubnetIpv4Override` (optional): The IPv4 network address that must be used as ECS for all outbound requests overriding client's actual subnet.
-- `eDnsClientSubnetIpv6Override` (optional): The IPv6 network address that must be used as ECS for all outbound requests overriding client's actual subnet.
-- `qpmLimitRequests` (optional): Sets the Queries Per Minute (QPM) limit on total number of requests that is enforces per client subnet. Set value to `0` to disable the feature.
-- `qpmLimitErrors` (optional): Sets the Queries Per Minute (QPM) limit on total number of requests which generates an error response that is enforces per client subnet. Set value to `0` to disable the feature. Response with an RCODE of FormatError, ServerFailure, or Refused is considered as an error response.
-- `qpmLimitSampleMinutes` (optional): Sets the client query stats sample size in minutes for QPM limit feature. Initial value is `5`.
-- `qpmLimitIPv4PrefixLength` (optional): Sets the client subnet IPv4 prefix length used to define the subnet. Initial value is `24`.
-- `qpmLimitIPv6PrefixLength` (optional): Sets the client subnet IPv6 prefix length used to define the subnet. Initial value is `56`.
-- `qpmLimitBypassList` (optional): A comma separated list of IP addresses or network addresses that are allowed to bypass the QPM limit.
-- `clientTimeout` (optional): The amount of time the DNS server must wait in milliseconds before responding with a ServerFailure response to a client request when no answer is available. Valid range is `1000`-`10000`. Initial value is `4000`.
-- `tcpSendTimeout` (optional): The maximum amount of time in milliseconds a TCP socket will wait for the response to be sent. This option will apply for DNS requests being received by the DNS Server over TCP, TLS, TcpProxy, or HTTPS transports. Valid range is `1000`-`90000`. Initial value is `10000`.
-- `tcpReceiveTimeout` (optional): The maximum amount of time in milliseconds a TCP socket will wait for receiving data. This option will apply for DNS requests being received by the DNS Server over TCP, TLS, TcpProxy, or HTTPS transports. Valid range is `1000`-`90000`. Initial value is `10000`.
-- `quicIdleTimeout` (optional): The time interval in milliseconds after which an idle QUIC connection will be closed. This option applies only to QUIC transport protocol. Valid range is `1000`-`90000`. Initial value is `60000`.
-- `quicMaxInboundStreams` (optional): The max number of inbound bidirectional streams that can be accepted per QUIC connection. This option applies only to QUIC transport protocol. Valid range is `1`-`1000`. Initial value is `100`.
-- `listenBacklog` (optional): The maximum number of pending inbound connections. This option applies to TCP, TLS, TcpProxy, and QUIC transport protocols. Initial value is `100`.
-- `maxConcurrentResolutionsPerCore` (optional): The maximum number of concurrent async outbound resolutions that should be done per CPU core.  Initial value is `100`.
+- `enableUdpSocketPool` (optional): Set this to `true` to enable UDP socket pool. The DNS Server will use UDP socket pool for all outbound DNS-over-UDP requests when enabled.
+- `socketPoolExcludedPorts` (optional): A comma separated list of port numbers that must be excluded from being used by the UDP socket pool.
+- `udpPayloadSize` (optional, cluster parameter): The maximum EDNS UDP payload size that can be used to avoid IP fragmentation. Valid range is 512-4096 bytes. Initial value is `1232`.
+- `dnssecValidation` (optional, cluster parameter): Set this to `true` to enable DNSSEC validation. DNS Server will validate all responses from name servers or forwarders when this option is enabled.
+- `eDnsClientSubnet` (optional, cluster parameter): Set this to `true` to enable EDNS Client Subnet. DNS Server will use the public IP address of the request with a prefix length, or the existing Client Subnet option from the request while resolving requests.
+- `eDnsClientSubnetIPv4PrefixLength` (optional, cluster parameter): The EDNS Client Subnet IPv4 prefix length to define the client subnet. Initial value is `24`.
+- `eDnsClientSubnetIPv6PrefixLength` (optional, cluster parameter): The EDNS Client Subnet IPv6 prefix length to define the client subnet. Initial value is `56`.
+- `eDnsClientSubnetIpv4Override` (optional, cluster parameter): The IPv4 network address that must be used as ECS for all outbound requests overriding client's actual subnet.
+- `eDnsClientSubnetIpv6Override` (optional, cluster parameter): The IPv6 network address that must be used as ECS for all outbound requests overriding client's actual subnet.
+- `qpmPrefixLimitsIPv4` (optional, cluster parameter): A pipe `|` separated multi row list of prefix, udpLimit and tcpLimit. Set this parameter to `false` to remove all entries. The maximum queries an IPv4 client subnet can make to DNS-over-UDP and DNS-over-TCP protocol services per minute on average based on the sample size. Set limit value to 0 to allow unlimited queries. 
+- `qpmPrefixLimitsIPv6` (optional, cluster parameter): A pipe `|` separated multi row list of prefix, udpLimit and tcpLimit. Set this parameter to `false` to remove all entries. The maximum queries an IPv6 client subnet can make to DNS-over-UDP and DNS-over-TCP protocol services per minute on average based on the sample size. Set limit value to 0 to allow unlimited queries. 
+- `qpmLimitSampleMinutes` (optional, cluster parameter): Sets the client query stats sample size in minutes for QPM limit feature. Initial value is `5`.
+- `qpmLimitUdpTruncationPercentage` (optional, cluster parameter): The percentage of requests that are responded with a truncation (TC) response when QPM limit exceeds for DNS-over-UDP protocol service while the rest of the requests are dropped. A TC response will cause a real client to retry to DNS-over-TCP protocol service. Valid range is `0`-`100`. Initial value is `50`.
+- `qpmLimitBypassList` (optional, cluster parameter): A comma separated list of IP addresses or network addresses that are allowed to bypass the QPM limit.
+- `clientTimeout` (optional, cluster parameter): The amount of time the DNS server must wait in milliseconds before responding with a ServerFailure response to a client request when no answer is available. Valid range is `1000`-`10000`. Initial value is `4000`.
+- `tcpSendTimeout` (optional, cluster parameter): The maximum amount of time in milliseconds a TCP socket will wait for the response to be sent. This option will apply for DNS requests being received by the DNS Server over TCP, TLS, TcpProxy, or HTTPS transports. Valid range is `1000`-`90000`. Initial value is `10000`.
+- `tcpReceiveTimeout` (optional, cluster parameter): The maximum amount of time in milliseconds a TCP socket will wait for receiving data. This option will apply for DNS requests being received by the DNS Server over TCP, TLS, TcpProxy, or HTTPS transports. Valid range is `1000`-`90000`. Initial value is `10000`.
+- `quicIdleTimeout` (optional, cluster parameter): The time interval in milliseconds after which an idle QUIC connection will be closed. This option applies only to QUIC transport protocol. Valid range is `1000`-`90000`. Initial value is `60000`.
+- `quicMaxInboundStreams` (optional, cluster parameter): The max number of inbound bidirectional streams that can be accepted per QUIC connection. This option applies only to QUIC transport protocol. Valid range is `1`-`1000`. Initial value is `100`.
+- `listenBacklog` (optional, cluster parameter): The maximum number of pending inbound connections. This option applies to TCP, TLS, TcpProxy, and QUIC transport protocols. Initial value is `100`.
+- `maxConcurrentResolutionsPerCore` (optional, cluster parameter): The maximum number of concurrent async outbound resolutions that should be done per CPU core.  Initial value is `100`.
 - `webServiceLocalAddresses` (optional): Local addresses are the network interface IP addresses you want the web service to listen for requests. 
 - `webServiceHttpPort` (optional): Specify the TCP port number for the web console and this API web service. Initial value is `5380`.
 - `webServiceEnableTls` (optional): Set this to `true` to start the HTTPS service to access web service.
@@ -4749,15 +4903,15 @@ WHERE:
 - `dnsTlsCertificatePath` (optional): Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key. This certificate is used by the DNS-over-TLS and DNS-over-HTTPS optional protocols.
 - `dnsTlsCertificatePassword` (optional): Enter the certificate (.pfx) password, if any.
 - `dnsOverHttpRealIpHeader` (optional): The HTTP header that must be used to read client's actual IP address when the request comes from a reverse proxy with a private IP address.
-- `tsigKeys` (optional): A pipe `|` separated multi row list of TSIG key name, shared secret, and algorithm. Set this parameter to `false` to remove all existing keys. Supported algorithms are [`hmac-md5.sig-alg.reg.int`, `hmac-sha1`, `hmac-sha256`, `hmac-sha256-128`, `hmac-sha384`, `hmac-sha384-192`, `hmac-sha512`, `hmac-sha512-256`].
-- `recursion` (optional): Sets the recursion policy for the DNS server. Valid values are [`Deny`, `Allow`, `AllowOnlyForPrivateNetworks`, `UseSpecifiedNetworkACL`].
-- `recursionNetworkACL` (optional): A comma separated Access Control List (ACL) of Network Access Control (NAC) entry. NAC is an IP address or network address to allow. Add `!` at the start of the NAC to deny access. The ACL is processed in the same order its listed. If no networks match, the default policy is to deny all except loopback. Set this parameter to `false` to remove existing values. These values are only used when `recursion` is set to `UseSpecifiedNetworkACL`.
-- `randomizeName` (optional): Enables QNAME randomization [draft-vixie-dnsext-dns0x20-00](https://tools.ietf.org/html/draft-vixie-dnsext-dns0x20-00) when using UDP as the transport protocol. Initial value is `true`.
-- `qnameMinimization` (optional): Enables QNAME minimization [draft-ietf-dnsop-rfc7816bis-04](https://tools.ietf.org/html/draft-ietf-dnsop-rfc7816bis-04) when doing recursive resolution. Initial value is `true`.
-- `resolverRetries` (optional): The number of retries that the recursive resolver must do.
-- `resolverTimeout` (optional): The timeout value in milliseconds for the recursive resolver.
-- `resolverConcurrency` (optional): The number of concurrent requests that should be sent by the recursive resolver to the name servers.
-- `resolverMaxStackCount` (optional): The max stack count that the recursive resolver must use.
+- `tsigKeys` (optional, cluster parameter): A pipe `|` separated multi row list of TSIG key name, shared secret, and algorithm. Set this parameter to `false` to remove all existing keys. Supported algorithms are [`hmac-md5.sig-alg.reg.int`, `hmac-sha1`, `hmac-sha256`, `hmac-sha256-128`, `hmac-sha384`, `hmac-sha384-192`, `hmac-sha512`, `hmac-sha512-256`].
+- `recursion` (optional, cluster parameter): Sets the recursion policy for the DNS server. Valid values are [`Deny`, `Allow`, `AllowOnlyForPrivateNetworks`, `UseSpecifiedNetworkACL`].
+- `recursionNetworkACL` (optional, cluster parameter): A comma separated Access Control List (ACL) of Network Access Control (NAC) entry. NAC is an IP address or network address to allow. Add `!` at the start of the NAC to deny access. The ACL is processed in the same order its listed. If no networks match, the default policy is to deny all except loopback. Set this parameter to `false` to remove existing values. These values are only used when `recursion` is set to `UseSpecifiedNetworkACL`.
+- `randomizeName` (optional, cluster parameter): Enables QNAME randomization [draft-vixie-dnsext-dns0x20-00](https://tools.ietf.org/html/draft-vixie-dnsext-dns0x20-00) when using UDP as the transport protocol. Initial value is `true`.
+- `qnameMinimization` (optional, cluster parameter): Enables QNAME minimization [draft-ietf-dnsop-rfc7816bis-04](https://tools.ietf.org/html/draft-ietf-dnsop-rfc7816bis-04) when doing recursive resolution. Initial value is `true`.
+- `resolverRetries` (optional, cluster parameter): The number of retries that the recursive resolver must do.
+- `resolverTimeout` (optional, cluster parameter): The timeout value in milliseconds for the recursive resolver.
+- `resolverConcurrency` (optional, cluster parameter): The number of concurrent requests that should be sent by the recursive resolver to the name servers.
+- `resolverMaxStackCount` (optional, cluster parameter): The max stack count that the recursive resolver must use.
 - `saveCache` (optional): Enable this option to save DNS cache on disk when the DNS server stops. The saved cache will be loaded next time the DNS server starts.
 - `serveStale` (optional): Enable the serve stale feature to improve resiliency by using expired or stale records in cache when the DNS server is unable to reach the upstream or authoritative name servers. Initial value is `true`.
 - `serveStaleTtl` (optional): The TTL value in seconds which should be used for cached records that are expired. When the serve stale TTL too expires for a stale record, it gets removed from the cache. Recommended value is between 1-3 days and maximum supported value is 7 days. Initial value is `259200`.
@@ -4772,26 +4926,26 @@ WHERE:
 - `cachePrefetchTrigger` (optional): A record with TTL value less than trigger value will initiate prefetch operation immediately for itself. Set `0` to disable prefetching & auto prefetching.
 - `cachePrefetchSampleIntervalInMinutes` (optional): The interval to sample eligible domain names from last hour stats for auto prefetch.
 - `cachePrefetchSampleEligibilityHitsPerHour` (optional): Minimum required hits per hour for a domain name to be eligible for auto prefetch.
-- `enableBlocking` (optional): Sets the DNS server to block domain names using Blocked Zone and Block List Zone.
-- `allowTxtBlockingReport` (optional): Specifies if the DNS Server should respond with TXT records containing a blocked domain report for TXT type requests.
-- `blockingBypassList` (optional): A comma separated list of IP addresses or network addresses that are allowed to bypass blocking.
-- `blockingType` (optional): Sets how the DNS server should respond to a blocked domain request. Valid values are [`AnyAddress`, `NxDomain`, `CustomAddress`] where `AnyAddress` is default which response with `0.0.0.0` and `::` IP addresses for blocked domains. Using `NxDomain` will respond with `NX Domain` response. `CustomAddress` will return the specified custom blocking addresses.
-- `blockingAnswerTtl` (optional): The TTL value in seconds that must be used for the records in a blocking response. This is the TTL value that the client will use to cache the blocking response.
-- `customBlockingAddresses` (optional): Set the custom blocking addresses to be used for blocked domain response. These addresses are returned only when `blockingType` is set to `CustomAddress`.
-- `blockListUrls` (optional): A comma separated list of block list URLs that this server must automatically download and use with the block lists zone. DNS Server will use the data returned by the block list URLs to update the block list zone automatically every 24 hours. The expected file format is standard hosts file format or plain text file containing list of domains to block. Set this parameter to `false` to remove existing values.
-- `blockListUpdateIntervalHours` (optional): The interval in hours to automatically download and update the block lists. Initial value is `24`.
-- `proxyType` (optional): The type of proxy protocol to be used. Valid values are [`None`, `Http`, `Socks5`].
-- `proxyAddress` (optional): The proxy server hostname or IP address.
-- `proxyPort` (optional): The proxy server port.
-- `proxyUsername` (optional): The proxy server username.
-- `proxyPassword` (optional): The proxy server password.
-- `proxyBypass` (optional): A comma separated bypass list consisting of IP addresses, network addresses in CIDR format, or host/domain names to never use proxy for.
-- `forwarders` (optional): A comma separated list of forwarders to be used by this DNS server. Set this parameter to `false` string to remove existing forwarders so that the DNS server does recursive resolution by itself.
-- `forwarderProtocol` (optional): The forwarder DNS transport protocol to be used. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `Quic`].
-- `concurrentForwarding` (optional): Set this option to `true` to allow querying two or more forwarders concurrently instead of sequentially querying them in their given order. The DNS server will automatically select forwarders (based on their average latency) to query and use the fastest response it receives from any of them. If none of the selected forwarders respond in time, the DNS server will similarly select forwarders from the remaining ones and queries them till all are tried before giving up.
-- `forwarderRetries` (optional): The number of retries that the forwarder DNS client must do.
-- `forwarderTimeout` (optional): The timeout value in milliseconds for the forwarder DNS client.
-- `forwarderConcurrency` (optional): The number of concurrent requests that the forwarder DNS client should do.
+- `enableBlocking` (optional, cluster parameter): Sets the DNS server to block domain names using Blocked Zone and Block List Zone.
+- `allowTxtBlockingReport` (optional, cluster parameter): Specifies if the DNS Server should respond with TXT records containing a blocked domain report for TXT type requests.
+- `blockingBypassList` (optional, cluster parameter): A comma separated list of IP addresses or network addresses that are allowed to bypass blocking.
+- `blockingType` (optional, cluster parameter): Sets how the DNS server should respond to a blocked domain request. Valid values are [`AnyAddress`, `NxDomain`, `CustomAddress`] where `AnyAddress` is default which response with `0.0.0.0` and `::` IP addresses for blocked domains. Using `NxDomain` will respond with `NX Domain` response. `CustomAddress` will return the specified custom blocking addresses.
+- `blockingAnswerTtl` (optional, cluster parameter): The TTL value in seconds that must be used for the records in a blocking response. This is the TTL value that the client will use to cache the blocking response.
+- `customBlockingAddresses` (optional, cluster parameter): Set the custom blocking addresses to be used for blocked domain response. These addresses are returned only when `blockingType` is set to `CustomAddress`.
+- `blockListUrls` (optional, cluster parameter): A comma separated list of block list URLs that this server must automatically download and use with the block lists zone. DNS Server will use the data returned by the block list URLs to update the block list zone automatically every 24 hours. The expected file format is standard hosts file format or plain text file containing list of domains to block. Set this parameter to `false` to remove existing values.
+- `blockListUpdateIntervalHours` (optional, cluster parameter): The interval in hours to automatically download and update the block lists. Initial value is `24`.
+- `proxyType` (optional, cluster parameter): The type of proxy protocol to be used. Valid values are [`None`, `Http`, `Socks5`].
+- `proxyAddress` (optional, cluster parameter): The proxy server hostname or IP address.
+- `proxyPort` (optional, cluster parameter): The proxy server port.
+- `proxyUsername` (optional, cluster parameter): The proxy server username.
+- `proxyPassword` (optional, cluster parameter): The proxy server password.
+- `proxyBypass` (optional, cluster parameter): A comma separated bypass list consisting of IP addresses, network addresses in CIDR format, or host/domain names to never use proxy for.
+- `forwarders` (optional, cluster parameter): A comma separated list of forwarders to be used by this DNS server. Set this parameter to `false` string to remove existing forwarders so that the DNS server does recursive resolution by itself.
+- `forwarderProtocol` (optional, cluster parameter): The forwarder DNS transport protocol to be used. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `Quic`].
+- `concurrentForwarding` (optional, cluster parameter): Set this option to `true` to allow querying two or more forwarders concurrently instead of sequentially querying them in their given order. The DNS server will automatically select forwarders (based on their average latency) to query and use the fastest response it receives from any of them. If none of the selected forwarders respond in time, the DNS server will similarly select forwarders from the remaining ones and queries them till all are tried before giving up.
+- `forwarderRetries` (optional, cluster parameter): The number of retries that the forwarder DNS client must do.
+- `forwarderTimeout` (optional, cluster parameter): The timeout value in milliseconds for the forwarder DNS client.
+- `forwarderConcurrency` (optional, cluster parameter): The number of concurrent requests that the forwarder DNS client should do.
 - `loggingType` (optional): Specifies how the error logs and audit logs are written. The valid values are [`None`, `File`, `Console`, `FileAndConsole`]. Initial value is `File`.
 - `enableLogging` (optional)(obsolete, use `loggingType` instead): Enable this option to log error and audit logs into the log file. Initial value is `true`.
 - `ignoreResolverLogs` (optional): Enable this option to stop logging domain name resolution errors into the log file.
@@ -4801,6 +4955,8 @@ WHERE:
 - `maxLogFileDays` (optional): Max number of days to keep the log files. Log files older than the specified number of days will be deleted automatically. Recommended value is `365`. Set `0` to disable auto delete.
 - `enableInMemoryStats` (optional): Set this option to `true` to enable in-memory stats. When enabled, only Last Hour data will be available on Dashboard and no stats data will be stored on disk.
 - `maxStatFileDays` (optional): Max number of days to keep the dashboard stats. Stat files older than the specified number of days will be deleted automatically. Recommended value is `365`. Set `0` to disable auto delete.
+
+NOTE! The parameters marked as a "cluster parameter" are synced automatically across all the Cluster nodes when Clustering is initialized.
 
 REQUEST: Instead of query string or form data parameters described above, the request optionally can also POST settings as JSON data in the same format as returned by `getDnsSettings` API call.
 
@@ -4856,6 +5012,8 @@ RESPONSE:
 }
 ```
 
+NOTE! This API call is synced automatically across all Cluster nodes when Clustering is initialized.
+
 ### Temporarily Disable Block Lists
 
 This call temporarily disables the block lists and block list zones.
@@ -4883,6 +5041,8 @@ RESPONSE:
 }
 ```
 
+NOTE! This API call is synced automatically across all Cluster nodes when Clustering is initialized.
+
 ### Backup Settings
 
 This call returns a zip file containing copies of all the items that were requested to be backed up.
@@ -4898,17 +5058,20 @@ Settings: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
-- `blockLists` (optional): Set to `true` to backup block lists cache files. Default value is `false`.
-- `logs` (optional): Set to `true` to backup log files. Default value is `false`.
-- `scopes` (optional): Set to `true` to backup DHCP scope files. Default value is `false`.
-- `apps` (optional): Set to `true` to backup the installed DNS apps. Default value is `false`.
-- `stats` (optional): Set to `true` to backup dashboard stats files. Default value is `false`.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
+- `authConfig` (optional): Set to `true` to backup the authentication config file. Default value is `false`.
+- `clusterConfig` (optional): Set to `true` to backup the Cluster config file. Default value is `false`.
+- `webServiceConfig` (optional): Set to `true` to backup the web service config file. Default value is `false`.
+- `dnsSettings` (optional): Set to `true` to backup DNS settings and certificate files. The Web Service or Optional Protocols TLS certificate (.pfx) files will be included in the backup only if they exist within the DNS server's config folder. Default value is `false`.
+- `logSettings` (optional): Set to `true` to backup log settings file. Default value is `false`.
 - `zones` (optional): Set to `true` to backup DNS zone files. Default value is `false`.
 - `allowedZones` (optional): Set to `true` to backup allowed zones file. Default value is `false`.
 - `blockedZones` (optional): Set to `true` to backup blocked zones file. Default value is `false`.
-- `dnsSettings` (optional): Set to `true` to backup DNS settings and certificate files. The Web Service or Optional Protocols TLS certificate (.pfx) files will be included in the backup only if they exist within the DNS server's config folder. Default value is `false`.
-- `logSettings` (optional): Set to `true` to backup log settings file. Default value is `false`.
-- `authConfig` (optional): Set to `true` to backup the authentication config file. Default value is `false`.
+- `blockLists` (optional): Set to `true` to backup block lists cache files. Default value is `false`.
+- `apps` (optional): Set to `true` to backup the installed DNS apps. Default value is `false`.
+- `scopes` (optional): Set to `true` to backup DHCP scope files. Default value is `false`.
+- `stats` (optional): Set to `true` to backup dashboard stats files. Default value is `false`.
+- `logs` (optional): Set to `true` to backup log files. Default value is `false`.
 
 RESPONSE:
 A zip file with content type `application/zip` and content disposition set to `attachment`.
@@ -4928,17 +5091,20 @@ Settings: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
-- `blockLists` (optional): Set to `true` to restore block lists cache files. Default value is `false`.
-- `logs` (optional): Set to `true` to restore log files. Default value is `false`.
-- `scopes` (optional): Set to `true` to restore DHCP scope files. Default value is `false`.
-- `apps` (optional): Set to `true` to restore the DNS apps. Default value is `false`.
-- `stats` (optional): Set to `true` to restore dashboard stats files. Default value is `false`.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
+- `authConfig` (optional): Set to `true` to restore the authentication config file. Default value is `false`.
+- `clusterConfig` (optional): Set to `true` to restore the Cluster config file. Default value is `false`.
+- `webServiceConfig` (optional): Set to `true` to restore the web service config file. Default value is `false`.
+- `dnsSettings` (optional): Set to `true` to restore DNS settings and certificate files. Default value is `false`.
+- `logSettings` (optional): Set to `true` to restore log settings file. Default value is `false`.
 - `zones` (optional): Set to `true` to restore DNS zone files. Default value is `false`.
 - `allowedZones` (optional): Set to `true` to restore allowed zones file. Default value is `false`.
 - `blockedZones` (optional): Set to `true` to restore blocked zones file. Default value is `false`.
-- `dnsSettings` (optional): Set to `true` to restore DNS settings and certificate files. Default value is `false`.
-- `logSettings` (optional): Set to `true` to restore log settings file. Default value is `false`.
-- `authConfig` (optional): Set to `true` to restore the authentication config file. Default value is `false`.
+- `blockLists` (optional): Set to `true` to restore block lists cache files. Default value is `false`.
+- `apps` (optional): Set to `true` to restore the DNS apps. Default value is `false`.
+- `scopes` (optional): Set to `true` to restore DHCP scope files. Default value is `false`.
+- `stats` (optional): Set to `true` to restore dashboard stats files. Default value is `false`.
+- `logs` (optional): Set to `true` to restore log files. Default value is `false`.
 - `deleteExistingFiles` (optional). Set to `true` to delete existing files for selected items. Default value is `false`.
 
 REQUEST:
@@ -5425,6 +5591,7 @@ Administration: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 
 RESPONSE:
 ```
@@ -5496,6 +5663,7 @@ Administration: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `partialToken`: The partial token of the session to delete that was returned by the list of sessions.
 
 RESPONSE:
@@ -5518,6 +5686,7 @@ Administration: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 
 RESPONSE:
 ```
@@ -5592,6 +5761,7 @@ Administration: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `user`: The username for the user account.
 - `includeGroups` (optional): Set `true` to include a list of groups in response.
 
@@ -5601,6 +5771,7 @@ RESPONSE:
 	"response": {
 		"displayName": "Administrator",
 		"username": "admin",
+		"totpEnabled": false,
 		"disabled": false,
 		"previousSessionLoggedOn": "2022-09-16T13:22:45.671Z",
 		"previousSessionRemoteAddress": "127.0.0.1",
@@ -5657,6 +5828,7 @@ WHERE:
 - `user`: The username for the user account.
 - `displayName` (optional): The display name for the user account.
 - `newUser` (optional): A new username for renaming the username for the user account.
+- `totpEnabled` (optional): Set to `false` to disable 2FA for the user account. The parameter cannot have a `true` value.
 - `disabled` (optional): Set `true` to disable the user account and delete all its active sessions.
 - `sessionTimeoutSeconds` (optional): A session time out value in seconds for the user account.
 - `newPass` (optional): A new password to reset the user account password.
@@ -5669,6 +5841,7 @@ RESPONSE:
 	"response": {
 		"displayName": "Administrator",
 		"username": "admin",
+		"totpEnabled": false,
 		"disabled": false,
 		"previousSessionLoggedOn": "2022-09-17T13:22:45.671Z",
 		"previousSessionRemoteAddress": "127.0.0.1",
@@ -5739,6 +5912,7 @@ Administration: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 
 RESPONSE:
 ```
@@ -5801,6 +5975,7 @@ Administration: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `group`: The name of the group.
 - `includeUsers` (optional): Set `true` to include a list of users in response.
 
@@ -5885,6 +6060,7 @@ Administration: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 
 RESPONSE:
 ```
@@ -6224,6 +6400,7 @@ Administration: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `section`: The name of the section as given in the list of permissions API call.
 - `userPermissions` (optional): A pipe `|` separated table data with each row containing username and boolean values for the view, modify and delete permissions. For example: user1|true|true|true|user2|true|false|false
 - `groupPermissions` (optional): A pipe `|` separated table data with each row containing the group name and boolean values for the view, modify and delete permissions. For example: group1|true|true|true|group2|true|true|false
@@ -6260,6 +6437,733 @@ RESPONSE:
 }
 ```
 
+### Get Cluster state
+
+Returns data on the current state of the Cluster.
+
+URL:\
+`http://localhost:5380/api/admin/cluster/state?token=x&includeServerIpAddresses=true`
+
+PERMISSIONS:\
+Administration: View
+
+WHERE:
+- `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
+- `includeServerIpAddresses` (optional): Set to `true` to return a list of static IP addresses configured on the server. Default value is `false` when the parameter is missing.
+
+RESPONSE:
+```
+{
+	"response": {
+		"clusterInitialized": true,
+		"dnsServerDomain": "server1.example.com",
+		"version": "14.0",
+		"clusterDomain": "example.com",
+		"heartbeatRefreshIntervalSeconds": 30,
+		"heartbeatRetryIntervalSeconds": 10,
+		"configRefreshIntervalSeconds": 900,
+		"configRetryIntervalSeconds": 60,
+		"configLastSynced": "2025-09-26T12:30:16Z",
+		"nodes": [
+			{
+				"id": 1342079372,
+				"name": "server1.example.com",
+				"url": "https://server1.example.com:53443/",
+				"ipAddress": "192.168.10.5",
+				"type": "Secondary",
+				"state": "Self",
+				"lastSeen": "0001-01-01T00:00:00"
+			},
+			{
+				"id": 1653399468,
+				"name": "server2.example.com",
+				"url": "https://server2.example.com:53443/",
+				"ipAddress": "192.168.10.101",
+				"type": "Secondary",
+				"state": "Unreachable",
+				"lastSeen": "0001-01-01T00:00:00"
+			},
+			{
+				"id": 1843286864,
+				"name": "server3.example.com",
+				"url": "https://server3.example.com:53443/",
+				"ipAddress": "192.168.10.102",
+				"type": "Primary",
+				"state": "Connected",
+				"lastSeen": "2025-09-26T12:30:16Z"
+			}
+		],
+		"serverIpAddresses": [
+			"192.168.10.5",
+			"192.168.120.1",
+			"192.168.180.1",
+		]
+	},
+	"status": "ok"
+}
+```
+
+### Initialize Cluster
+
+ The initialization of a new Cluster will make the current DNS server its Primary node. You can add other DNS servers to this Cluster later which will get added as Secondary nodes. No data will be lost on this DNS server in this process. 
+
+Note! If the web service does not have HTTPS enabled, then the initialization process will enable it automatically with a self-signed certificate. However, its recommended to manually configure HTTPS with a valid certificate before initializing the cluster.
+
+Note! The initialization process will create two zones if they do not exist. The first zone will be the Cluster Primary zone named as the Cluster domain name specified above. The second zone will be the Cluster Catalog zone that uses 'cluster-catalog' as the subdomain name of the Cluster domain name. Use this Cluster Catalog zone for automatic provisioning of Secondary zones on all of the Cluster Secondary nodes.
+
+Warning! The Cluster domain name cannot be changed later. Make sure that you enter the correct domain name before proceeding. 
+
+URL:\
+`http://localhost:5380/api/admin/cluster/init?token=x&clusterDomain=example.com&primaryNodeIpAddresses=192.168.10.5`
+
+PERMISSIONS:\
+Administration: Delete
+
+WHERE:
+- `token`: The session token generated by the `login` or the `createToken` call.
+- `clusterDomain`: The fully qualified domain name to be used to identify the new Cluster.
+- `primaryNodeIpAddresses`: A comma separated list of IP addresses of this DNS server that will be accessible by all other DNS Servers to be added later as Secondary nodes.
+
+RESPONSE:
+```
+{
+	"response": {
+		"clusterInitialized": true,
+		"dnsServerDomain": "server1.example.com",
+		"version": "14.0",
+		"clusterDomain": "example.com",
+		"heartbeatRefreshIntervalSeconds": 30,
+		"heartbeatRetryIntervalSeconds": 10,
+		"configRefreshIntervalSeconds": 900,
+		"configRetryIntervalSeconds": 60,
+		"nodes": [
+			{
+				"id": 1081800048,
+				"name": "server1.example.com",
+				"url": "https://server1.example.com:53443/",
+				"ipAddresses": [
+					"192.168.10.5"
+				],
+				"type": "Primary",
+				"state": "Self",
+				"lastSeen": "0001-01-01T00:00:00"
+			}
+		]
+	},
+	"status": "ok"
+}
+```
+
+### Delete Cluster
+
+The Delete Cluster process will remove all Cluster configuration from this Primary node. There will be no data loss except for the Cluster configuration. You will need to re-initialize the Cluster again to use clustering features on this DNS server. This call can be made only at the Primary node.
+ 
+Note! You can delete the Cluster only when there are no Secondary nodes in the Cluster. Use the Force Delete Cluster option only when you wish this Primary node to be removed from the Cluster even when there are Secondary nodes in the Cluster. In this case, the Secondary nodes will become orphaned and you will need to promote one of them to be the new Primary node manually.  
+
+URL:\
+`http://localhost:5380/api/admin/cluster/primary/delete?token=x&forceDelete=false`
+
+PERMISSIONS:\
+Administration: Delete
+
+WHERE:
+- `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
+- `forceDelete` (optional): Set to `true` to cause this Primary node to delete the Cluster for itself even when other Secondary nodes still exist, orphaning them. Default value is `false` when the parameter is missing.
+
+RESPONSE:
+```
+{
+	"response": {
+		"clusterInitialized": false,
+		"dnsServerDomain": "server1",
+		"version": "14.0"
+	},
+	"status": "ok"
+}
+```
+
+### Join Cluster
+
+This API call is used by a DNS Server instance to ask the Primary node to allow it to join the Cluster as a Secondary node. This call can be only at the Primary node.
+
+URL:\
+`http://localhost:5380/api/admin/cluster/primary/join?token=x`
+
+PERMISSIONS:\
+Administration: Delete
+
+WHERE:
+- `token`: The session token generated by the `login` or the `createToken` call.
+- `secondaryNodeId`: The Secondary node ID that was generated randomly when the server is initializing as a Secondary node.
+- `secondaryNodeUrl`: The HTTPS URL of the Secondary node's API web service.
+- `secondaryNodeIpAddresses`: A comma separated list of Secondary node IP addresses.
+- `secondaryNodeCertificate`: The Secondary node's TLS certificate used by the API web service.
+
+RESPONSE:
+```
+{
+	"response": {
+		"clusterInitialized": true,
+		"dnsServerDomain": "server1.example.com",
+		"version": "14.0",
+		"clusterDomain": "example.com",
+		"heartbeatRefreshIntervalSeconds": 30,
+		"heartbeatRetryIntervalSeconds": 10,
+		"configRefreshIntervalSeconds": 900,
+		"configRetryIntervalSeconds": 60,
+		"configLastSynced": "2025-09-26T12:30:16Z",
+		"nodes": [
+			{
+				"id": 1342079372,
+				"name": "server1.example.com",
+				"url": "https://server1.example.com:53443/",
+				"ipAddresses": [
+					"192.168.10.5"
+				],
+				"type": "Secondary",
+				"state": "Self",
+				"lastSeen": "0001-01-01T00:00:00"
+			},
+			{
+				"id": 1653399468,
+				"name": "server2.example.com",
+				"url": "https://server2.example.com:53443/",
+				"ipAddresses": [
+					"192.168.10.101"
+				],
+				"type": "Secondary",
+				"state": "Unreachable",
+				"lastSeen": "0001-01-01T00:00:00"
+			}
+		]
+	},
+	"status": "ok"
+}
+```
+
+### Remove Secondary Node
+
+The Remove Node process will ask the selected Secondary node to leave the Cluster gracefully. The Secondary now will then initiate Leave Cluster process as if the Leave Cluster action was performed on that node itself. This call can be made only at the Primary node.
+
+URL:\
+`http://localhost:5380/api/admin/cluster/primary/removeSecondary?token=X&secondaryNodeId=811905692`
+
+PERMISSIONS:\
+Administration: Delete
+
+WHERE:
+- `token`: The session token generated by the `login` or the `createToken` call.
+- `secondaryNodeId`: The Secondary node ID which needs to be asked to leave the Cluster.
+
+RESPONSE:
+```
+{
+	"response": {
+		"clusterInitialized": true,
+		"dnsServerDomain": "server1.example.com",
+		"version": "14.0",
+		"clusterDomain": "example.com",
+		"heartbeatRefreshIntervalSeconds": 30,
+		"heartbeatRetryIntervalSeconds": 10,
+		"configRefreshIntervalSeconds": 900,
+		"configRetryIntervalSeconds": 60,
+		"nodes": [
+			{
+				"id": 1151850285,
+				"name": "server1.example.com",
+				"url": "https://server1.example.com:53443/",
+				"ipAddresses": [
+					"192.168.10.5"
+				],
+				"type": "Primary",
+				"state": "Self",
+				"lastSeen": "0001-01-01T00:00:00"
+			}
+		]
+	},
+	"status": "ok"
+}
+```
+
+### Delete Secondary Node
+
+The Delete Node process will immediately delete the selected Secondary node entry from the Cluster without asking the node to leave graceful. This call can be made only at the Primary node.
+
+URL:\
+`http://localhost:5380/api/admin/cluster/primary/deleteSecondary?token=X&secondaryNodeId=811905692`
+
+PERMISSIONS:\
+Administration: Delete
+
+WHERE:
+- `token`: The session token generated by the `login` or the `createToken` call.
+- `secondaryNodeId`: The Secondary node ID which must be deleted from the Cluster immediately.
+
+RESPONSE:
+```
+{
+	"response": {
+		"clusterInitialized": true,
+		"dnsServerDomain": "server1.example.com",
+		"version": "14.0",
+		"clusterDomain": "example.com",
+		"heartbeatRefreshIntervalSeconds": 30,
+		"heartbeatRetryIntervalSeconds": 10,
+		"configRefreshIntervalSeconds": 900,
+		"configRetryIntervalSeconds": 60,
+		"nodes": [
+			{
+				"id": 1151850285,
+				"name": "server1.example.com",
+				"url": "https://server1.example.com:53443/",
+				"ipAddresses": [
+					"192.168.10.5"
+				],
+				"type": "Primary",
+				"state": "Self",
+				"lastSeen": "0001-01-01T00:00:00"
+			}
+		]
+	},
+	"status": "ok"
+}
+```
+
+### Update Secondary Node
+
+The Update Secondary Node call is used by the Secondary node to update its details like URL, IP Address and TLS certificate on the Primary node. This call can be made only at the Primary node.
+
+URL:\
+`http://localhost:5380/api/admin/cluster/primary/updateSecondary?token=x&secondaryNodeId=811905692&secondaryNodeUrl=https%3A%2F%2Fserver2.example.com%3A53443%2F&secondaryNodeIpAddresses=192.168.10.101&secondaryNodeCertificate=<base64url>`
+
+PERMISSIONS:\
+Administration: Delete
+
+WHERE:
+- `token`: The session token generated by the `login` or the `createToken` call.
+- `secondaryNodeId`: The Secondary node ID that identifies the node.
+- `secondaryNodeUrl`: The HTTPS API web service URL of the Secondary node to be updated.
+- `secondaryNodeIpAddresses`: A comma separated list of IP addresses of the Secondary node to be updated.
+- `secondaryNodeCertificate`: The web service TLS certificate encoded in Base64 URL format.
+
+RESPONSE:
+```
+{
+	"response": {
+		"clusterInitialized": true,
+		"dnsServerDomain": "server1.example.com",
+		"version": "14.0",
+		"clusterDomain": "example.com",
+		"heartbeatRefreshIntervalSeconds": 30,
+		"heartbeatRetryIntervalSeconds": 10,
+		"configRefreshIntervalSeconds": 900,
+		"configRetryIntervalSeconds": 60,
+		"configLastSynced": "2025-09-26T12:30:16Z",
+		"nodes": [
+			{
+				"id": 1342079372,
+				"name": "server1.example.com",
+				"url": "https://server1.example.com:53443/",
+				"ipAddresses": [
+					"192.168.10.5"
+				],
+				"type": "Secondary",
+				"state": "Self",
+				"lastSeen": "0001-01-01T00:00:00"
+			},
+			{
+				"id": 1653399468,
+				"name": "server2.example.com",
+				"url": "https://server2.example.com:53443/",
+				"ipAddresses": [
+					"192.168.10.101"
+				],
+				"type": "Secondary",
+				"state": "Connected",
+				"lastSeen": "0001-01-01T00:00:00"
+			}
+		]
+	},
+	"status": "ok"
+}
+```
+
+### Transfer Config
+
+The Transfer Config call is used by Secondary nodes to  sync the complete config data from the Primary node. This call can be made only at the Primary node.
+
+URL:\
+`http://localhost:5380/api/admin/cluster/primary/transferConfig?token=x&includeZones=`
+
+PERMISSIONS:\
+Administration: Delete
+
+WHERE:
+- `token`: The session token generated by the `login` or the `createToken` call.
+- `includeZones` (optional): A list of comma separated domain names of the zones that should be included to transfer DNSSEC private keys.
+
+RESPONSE HEADERS:\
+- `If-Modified-Since` (optional): The date time stamp of the last config transfer so as to allow transferring only changes done after the specified date time. The format is the standard HTTP header format for `If-Modified-Since`.
+
+RESPONSE: A zip file with content type `application/zip` and content disposition set to `attachment`.
+
+### Set Cluster Options
+
+Allows setting Cluster options to be used by all Secondary nodes. This call can be made only at the Primary node.
+
+URL:\
+`http://localhost:5380/api/admin/cluster/primary/setOptions?token=x`
+
+PERMISSIONS:\
+Administration: Modify
+
+WHERE:
+- `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
+- `heartbeatRefreshIntervalSeconds` (optional): The interval in seconds in which the DNS server must refresh the state of all nodes in the Cluster. The valid range is `10`-`300` and default value is `30`.
+- `heartbeatRetryIntervalSeconds` (optional): The interval in seconds in which the DNS server must retry the state refresh process for all nodes in case of a failure. The valid range is `10`-`300` and default value is `10`.
+- `configRefreshIntervalSeconds` (optional): The interval in seconds in which the DNS server must refresh the configuration from the Primary node. The valid range is `30`-`3600` and default value is `900`.
+- `configRetryIntervalSeconds` (optional): The interval in seconds in which the DNS server must retry the configuration refresh process for the Primary node in case of a failure. The valid range is `30`-`3600` and default value is `60`.
+
+RESPONSE:
+```
+{
+	"response": {
+		"clusterInitialized": true,
+		"dnsServerDomain": "server1.example.com",
+		"version": "14.0",
+		"clusterDomain": "example.com",
+		"heartbeatRefreshIntervalSeconds": 30,
+		"heartbeatRetryIntervalSeconds": 10,
+		"configRefreshIntervalSeconds": 900,
+		"configRetryIntervalSeconds": 60,
+		"configLastSynced": "2025-09-26T12:30:16Z",
+		"nodes": [
+			{
+				"id": 1342079372,
+				"name": "server1.example.com",
+				"url": "https://server1.example.com:53443/",
+				"ipAddresses": [
+					"192.168.10.5"
+				],
+				"type": "Secondary",
+				"state": "Self",
+				"lastSeen": "0001-01-01T00:00:00"
+			},
+			{
+				"id": 1653399468,
+				"name": "server2.example.com",
+				"url": "https://server2.example.com:53443/",
+				"ipAddresses": [
+					"192.168.10.101"
+				],
+				"type": "Secondary",
+				"state": "Connected",
+				"lastSeen": "0001-01-01T00:00:00"
+			}
+		]
+	},
+	"status": "ok"
+}
+```
+
+### Initialize And Join Cluster
+
+Joining a Cluster will make this DNS server its Secondary node. This process will overwrite configuration on this DNS server for Allowed, Blocked, Apps, Settings and Administration sections. The DNS server will automatically synchronize its configuration with the Primary node in the Cluster. This call can be only at the Secondary node.
+ 
+Note! The process to join the Cluster may take a while to complete depending on the amount of initial config data that needs to be synchronized from the Primary node. Please be patient till the process completes.
+
+Note! If the web service does not have HTTPS enabled, then the joining process will enable it automatically with a self-signed certificate. However, its recommended to manually configure HTTPS with a valid certificate before joining the cluster.
+
+Warning! Joining a Cluster will cause configuration on this DNS server to be overwritten permanently for Allowed, Blocked, Apps, Settings and Administration sections! 
+
+URL:\
+`http://server2.home:5380/api/admin/cluster/initJoin?token=x&secondaryNodeIpAddresses=192.168.10.101&primaryNodeUrl=https%3A%2F%2Fserver1.example.com%3A53443%2F&primaryNodeIpAddress=192.168.10.5&ignoreCertificateErrors=true&primaryNodeUsername=admin&primaryNodePassword=admin&primaryNodeTotp=`
+
+PERMISSIONS:\
+Administration: Delete
+
+WHERE:
+- `token`: The session token generated by the `login` or the `createToken` call.
+- `secondaryNodeIpAddresses`: A comma separated list of IP addresses of this DNS server that will be accessible by all other DNS Server nodes in the Cluster.
+- `primaryNodeUrl`: The web service HTTPS URL of the Primary node in the Cluster.
+- `primaryNodeIpAddress` (optional): The IP address of the Primary node in the Cluster. When unspecified, domain name in the Primary node URL will be resolved and used.
+- `ignoreCertificateErrors` (optional): Set to `true` only when you know that the Primary node web service is using a self-signed TLS certificate and is reachable on a private network. 
+- `primaryNodeUsername`: The username of an administrator on the Primary node in the Cluster.
+- `primaryNodePassword`: The password of the administrator user specified above.
+- `primaryNodeTotp` (optional): The the 6-digit code you see in your authenticator app for the administrator user specified above. Only to be used if the user has 2FA enabled.
+
+RESPONSE:
+```
+{
+	"response": {
+		"clusterInitialized": true,
+		"dnsServerDomain": "server2.example.com",
+		"version": "14.0",
+		"clusterDomain": "example.com",
+		"heartbeatRefreshIntervalSeconds": 30,
+		"heartbeatRetryIntervalSeconds": 10,
+		"configRefreshIntervalSeconds": 900,
+		"configRetryIntervalSeconds": 60,
+		"configLastSynced": "2025-09-27T13:19:55Z",
+		"nodes": [
+			{
+				"id": 1151850285,
+				"name": "server1.example.com",
+				"url": "https://server1.example.com:53443/",
+				"ipAddresses": [
+					"192.168.10.5"
+				],
+				"type": "Primary",
+				"state": "Connected",
+				"lastSeen": "2025-09-27T13:19:54.6215569Z"
+			},
+			{
+				"id": 811905692,
+				"name": "server2.example.com",
+				"url": "https://server2.example.com:53443/",
+				"ipAddresses": [
+					"192.168.10.101"
+				],
+				"type": "Secondary",
+				"state": "Self",
+				"lastSeen": "0001-01-01T00:00:00"
+			}
+		]
+	},
+	"status": "ok"
+}
+```
+
+### Leave Cluster
+
+The Leave Cluster process will remove all Cluster configuration from this Secondary node and leave the Cluster gracefully. There will be no data loss except for the Cluster configuration. You will need to re-join the Cluster again to use this DNS server as a Secondary node. This call can be made only at the Secondary node.
+ 
+Note! Use the Force Leave Cluster option only when the Primary node is unreachable/decommissioned and thus cannot leave the Cluster gracefully. 
+
+URL:\
+`http://localhost:5380/api/admin/cluster/secondary/leave?token=x`
+
+PERMISSIONS:\
+Administration: Delete
+
+WHERE:
+- `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
+- `forceLeave` (optional): Set to `true` to make this Secondary node to leave the Cluster without informing the Primary node.
+
+RESPONSE:
+```
+{
+	"response": {
+		"clusterInitialized": false,
+		"dnsServerDomain": "server2",
+		"version": "14.0"
+	},
+	"status": "ok"
+}
+```
+
+### Notify
+
+The Notify call is made by the Primary node to all Secondary nodes in the Cluster whenever there is any change in the configuration that the Secondary zones must sync to. The Secondary nodes have to use the Transfer Config call to sync the config changes when this notification is received. The Notify call also includes the latest details of the Primary node that must be updated and used. This call can be made only at the Secondary node.
+
+URL:\
+`http://localhost:5380/api/admin/cluster/secondary/notify?token=x`
+
+PERMISSIONS:\
+Administration: Delete
+
+WHERE:
+- `token`: The session token generated by the `login` or the `createToken` call.
+- `primaryNodeId`: The calling Primary node's ID to allow identification at the Secondary node.
+- `primaryNodeUrl`: The calling Primary node's API web service URL.
+- `primaryNodeIpAddresses`: A comma separated list of the calling Primary node's IP addresses.
+
+RESPONSE:
+```
+{
+	"status": "ok"
+}
+```
+
+### Resync Cluster
+
+The Resync cluster call allows an admin user to manually trigger a complete configuration resync on the Secondary node. When triggered, the Secondary node will use the Transfer Config call to sync the complete configuration from the Primary node. This call can be made only at the Secondary node.
+
+URL:\
+`http://localhost:5380/api/admin/cluster/secondary/resync?token=x`
+
+PERMISSIONS:\
+Administration: Modify
+
+WHERE:
+- `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
+
+RESPONSE:
+```
+{
+	"status": "ok"
+}
+```
+
+### Update Primary Node
+
+Allows updating the Primary node details like the API URL and IP address on the Secondary node. This call is useful when the Primary node's IP address or URL has changed while the Secondary node was offline causing it to have old details of the Primary node. This call can be made only at the Secondary node.
+
+URL:\
+`http://localhost:5380/api/admin/cluster/secondary/updatePrimary?token=x`
+
+PERMISSIONS:\
+Administration: Modify
+
+WHERE:
+- `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
+- `primaryNodeUrl`: The web service HTTPS URL of the Primary node in the Cluster.
+- `primaryNodeIpAddresses` (optional): The IP address of the Primary node in the Cluster. When unspecified, domain name in the Primary node URL will be resolved and used.
+
+RESPONSE:
+```
+{
+	"response": {
+		"clusterInitialized": true,
+		"dnsServerDomain": "server2.example.com",
+		"version": "14.0",
+		"clusterDomain": "example.com",
+		"heartbeatRefreshIntervalSeconds": 30,
+		"heartbeatRetryIntervalSeconds": 10,
+		"configRefreshIntervalSeconds": 900,
+		"configRetryIntervalSeconds": 60,
+		"configLastSynced": "2025-09-27T13:19:55Z",
+		"nodes": [
+			{
+				"id": 1151850285,
+				"name": "server1.example.com",
+				"url": "https://server1.example.com:53443/",
+				"ipAddresses": [
+					"192.168.10.5"
+				],
+				"type": "Primary",
+				"state": "Connected",
+				"lastSeen": "2025-09-27T13:19:54.6215569Z"
+			},
+			{
+				"id": 811905692,
+				"name": "server2.example.com",
+				"url": "https://server2.example.com:53443/",
+				"ipAddresses": [
+					"192.168.10.101"
+				],
+				"type": "Secondary",
+				"state": "Self",
+				"lastSeen": "0001-01-01T00:00:00"
+			}
+		]
+	},
+	"status": "ok"
+}
+```
+
+### Promote To Primary
+
+The promote To Primary node process will resync complete configuration from the Primary node and then proceed to delete it from the Cluster followed by upgrading the selected Secondary node to become the Primary node in the Cluster. The former Primary node when deleted will cause it to delete all its own Cluster configuration leaving the Cluster without causing any other data loss. This call can be made only at the Secondary node.
+
+Note! Use the Force Delete Current Primary Node option only when the Primary node is unreachable/decommissioned and thus cannot be deleted from the Cluster gracefully.
+
+Note! The process to promote to Primary node may take a while to complete depending on the size of the complete configuration being resynced and the number of local zones that need to be converted. Please be patient till the process completes.
+
+URL:\
+`http://localhost:5380/api/admin/cluster/secondary/promote?token=x`
+
+PERMISSIONS:\
+Administration: Delete
+
+WHERE:
+- `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
+- `forceDeletePrimary` (optional): Set to `true` for the current Primary node to be deleted from the Cluster without resyncing complete configuration from it and without inform it.
+
+RESPONSE:
+```
+{
+	"response": {
+		"clusterInitialized": true,
+		"dnsServerDomain": "server2.example.com",
+		"version": "14.0",
+		"clusterDomain": "example.com",
+		"heartbeatRefreshIntervalSeconds": 30,
+		"heartbeatRetryIntervalSeconds": 10,
+		"configRefreshIntervalSeconds": 900,
+		"configRetryIntervalSeconds": 60,
+		"configLastSynced": "2025-09-27T13:19:55Z",
+		"nodes": [
+			{
+				"id": 811905692,
+				"name": "server2.example.com",
+				"url": "https://server2.example.com:53443/",
+				"ipAddresses": [
+					"192.168.10.101"
+				],
+				"type": "Primary",
+				"state": "Self",
+				"lastSeen": "0001-01-01T00:00:00"
+			}
+		]
+	},
+	"status": "ok"
+}
+```
+
+### Update Node IP Addresses
+
+Allows to update the current Cluster node's IP address. This call can be made at both the Primary and Secondary nodes.
+
+URL:\
+`http://localhost:5380/api/admin/cluster/updateIpAddresses?token=x`
+
+PERMISSIONS:\
+Administration: Modify
+
+WHERE:
+- `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
+- `ipAddresses`: A comma separated list of IP addresses to be updated for the current node.
+
+RESPONSE:
+```
+{
+	"response": {
+		"clusterInitialized": true,
+		"dnsServerDomain": "server2.example.com",
+		"version": "14.0",
+		"clusterDomain": "example.com",
+		"heartbeatRefreshIntervalSeconds": 30,
+		"heartbeatRetryIntervalSeconds": 10,
+		"configRefreshIntervalSeconds": 900,
+		"configRetryIntervalSeconds": 60,
+		"configLastSynced": "2025-09-27T13:19:55Z",
+		"nodes": [
+			{
+				"id": 811905692,
+				"name": "server2.example.com",
+				"url": "https://server2.example.com:53443/",
+				"ipAddresses": [
+					"192.168.10.101"
+				],
+				"type": "Primary",
+				"state": "Self",
+				"lastSeen": "0001-01-01T00:00:00"
+			}
+		]
+	},
+	"status": "ok"
+}
+```
+
 ## Log API Calls
 
 ### List Logs
@@ -6277,6 +7181,7 @@ Logs: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 
 RESPONSE:
 ```
@@ -6324,6 +7229,7 @@ Logs: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `fileName`: The `fileName` returned by the List Logs API call.
 - `limit` (optional): The limit of number of mega bytes to download the log file. Default value is `0` when parameter is missing which indicates there is no limit.
 
@@ -6345,6 +7251,7 @@ Logs: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `log`: The `fileName` returned by the List Logs API call.
 
 RESPONSE:
@@ -6370,6 +7277,7 @@ Logs: Delete
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 
 RESPONSE:
 ```
@@ -6394,6 +7302,7 @@ Logs: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `name`: The name of the installed DNS app.
 - `classPath`: The class path of the DNS app.
 - `pageNumber` (optional): The page number of the data set to retrieve.
@@ -6557,6 +7466,7 @@ Logs: View
 
 WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
+- `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `name`: The name of the installed DNS app.
 - `classPath`: The class path of the DNS app.
 - `start` (optional): The start date time in ISO 8601 format to filter the logs.

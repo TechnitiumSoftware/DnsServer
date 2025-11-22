@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
 using System.Net.Mail;
+using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Proxy;
@@ -35,18 +36,20 @@ namespace DnsServerCore.ApplicationCommon
         /// </summary>
         /// <param name="question">The question record containing the details to query.</param>
         /// <param name="timeout">The timeout value in milliseconds to wait for response.</param>
+        /// <param name="cancellationToken">The cancellation token to cancel the operation.</param>
         /// <returns>The DNS response for the DNS query.</returns>
         /// <exception cref="TimeoutException">When request times out.</exception>
-        Task<DnsDatagram> DirectQueryAsync(DnsQuestionRecord question, int timeout = 4000);
+        Task<DnsDatagram> DirectQueryAsync(DnsQuestionRecord question, int timeout = 4000, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Allows querying the DNS server core directly. This call supports recursion even if its not enabled in the DNS server configuration. The request wont be routed to any of the installed DNS Apps except for processing APP records. The request and its response are not counted in any stats or logged.
         /// </summary>
         /// <param name="request">The DNS request to query.</param>
         /// <param name="timeout">The timeout value in milliseconds to wait for response.</param>
+        /// <param name="cancellationToken">The cancellation token to cancel the operation.</param>
         /// <returns>The DNS response for the DNS query.</returns>
         /// <exception cref="TimeoutException">When request times out.</exception>
-        Task<DnsDatagram> DirectQueryAsync(DnsDatagram request, int timeout = 4000);
+        Task<DnsDatagram> DirectQueryAsync(DnsDatagram request, int timeout = 4000, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Writes a log entry to the DNS server log file.

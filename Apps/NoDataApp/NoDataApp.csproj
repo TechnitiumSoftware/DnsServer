@@ -1,9 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <Version>4.0</Version>
+    <Version>5.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Technitium</Company>
     <Product>Technitium DNS Server</Product>
@@ -12,7 +12,7 @@
     <RootNamespace>NoData</RootNamespace>
     <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-    <Description>Allows creating APP records in a conditional forwarder zone that can returns a NO DATA response for requests that match the configured query type (QTYPE) to allow blocking records.</Description>
+    <Description>Allows creating APP records in Conditional Forwarder zones to return NO DATA response for requests that match the configured query type (QTYPE) to prevent them from being forwarded.</Description>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <OutputType>Library</OutputType>
   </PropertyGroup>

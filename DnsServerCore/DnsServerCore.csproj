@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net8.0</TargetFramework>
+		<TargetFramework>net9.0</TargetFramework>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<Authors>Shreyas Zare</Authors>
@@ -12,7 +12,7 @@
 		<RepositoryType></RepositoryType>
 		<Description></Description>
 		<PackageId>DnsServer</PackageId>
-		<Version>13.6</Version>
+		<Version>14.1</Version>
 		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 	</PropertyGroup>
 
@@ -22,6 +22,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj" />
+		<ProjectReference Include="..\DnsServerCore.HttpApi\DnsServerCore.HttpApi.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -37,10 +38,14 @@
 		<Reference Include="TechnitiumLibrary.Net">
 			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
 		</Reference>
+		<Reference Include="TechnitiumLibrary.Security.OTP">
+			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Security.OTP.dll</HintPath>
+		</Reference>
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="BouncyCastle.Cryptography" Version="2.5.1" />
+		<PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
+		<PackageReference Include="QRCoder" Version="1.7.0" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -86,6 +91,7 @@
 		<None Remove="www\js\auth.js" />
 		<None Remove="www\js\bootstrap.min.js" />
 		<None Remove="www\js\Chart.min.js" />
+		<None Remove="www\js\cluster.js" />
 		<None Remove="www\js\common.js" />
 		<None Remove="www\js\dhcp.js" />
 		<None Remove="www\js\dnsclient.js" />
@@ -199,16 +205,16 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\json\quick-block-lists-builtin.json">
-		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\json\quick-forwarders-list-builtin.json">
-		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\json\readme.txt">
-		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\json\dnsclient-server-list-builtin.json">
-		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\js\apps.js">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -222,11 +228,14 @@
 		<Content Include="www\js\Chart.min.js">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
+		<Content Include="www\js\cluster.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
 		<Content Include="www\js\common.js">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\js\dnsclient.js">
-		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\js\jquery.min.js">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

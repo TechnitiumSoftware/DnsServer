@@ -25,6 +25,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace NxDomain
@@ -35,6 +36,7 @@ namespace NxDomain
 
         byte _appPreference;
 
+        IDnsServer _dnsServer;
         DnsSOARecordData _soaRecord;
 
         bool _enableBlocking;
@@ -92,6 +94,7 @@ namespace NxDomain
 
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
+            _dnsServer = dnsServer;
             _soaRecord = new DnsSOARecordData(dnsServer.ServerDomain, dnsServer.ResponsiblePerson.Address, 1, 14400, 3600, 604800, 60);
 
             using JsonDocument jsonDocument = JsonDocument.Parse(config);
@@ -119,19 +122,24 @@ namespace NxDomain
             if (_allowTxtBlockingReport && (question.Type == DnsResourceRecordType.TXT))
             {
                 //return meta data
-                DnsResourceRecord[] answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData("source=nx-domain-app; domain=" + blockedDomain)) };
+                DnsResourceRecord[] answer = [new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData("source=nx-domain-app; domain=" + blockedDomain))];
 
                 return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answer) { Tag = DnsServerResponseType.Blocked });
             }
             else
             {
+                EDnsOption[] options = null;
+
+                if (_allowTxtBlockingReport && (request.EDNS is not null))
+                    options = [new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Blocked, "source=nx-domain-app; domain=" + blockedDomain))];
+
                 string parentDomain = GetParentZone(blockedDomain);
                 if (parentDomain is null)
                     parentDomain = string.Empty;
 
-                IReadOnlyList<DnsResourceRecord> authority = new DnsResourceRecord[] { new DnsResourceRecord(parentDomain, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) };
+                IReadOnlyList<DnsResourceRecord> authority = [new DnsResourceRecord(parentDomain, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord)];
 
-                return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NxDomain, request.Question, null, authority) { Tag = DnsServerResponseType.Blocked });
+                return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NxDomain, request.Question, null, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, options) { Tag = DnsServerResponseType.Blocked });
             }
         }
 

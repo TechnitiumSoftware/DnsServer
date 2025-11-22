@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Security.Cryptography;
@@ -40,7 +41,7 @@ namespace DnsServerCore.Auth
         readonly string _token;
         readonly UserSessionType _type;
         readonly string _tokenName;
-        readonly User _user;
+        User _user;
         DateTime _lastSeen;
         IPAddress _lastSeenRemoteAddress;
         string _lastSeenUserAgent;
@@ -72,7 +73,7 @@ namespace DnsServerCore.Auth
                 _lastSeenUserAgent = _lastSeenUserAgent.Substring(0, 255);
         }
 
-        public UserSession(BinaryReader bR, AuthManager authManager)
+        public UserSession(BinaryReader bR, IReadOnlyDictionary<string, User> users)
         {
             switch (bR.ReadByte())
             {
@@ -84,7 +85,8 @@ namespace DnsServerCore.Auth
                     if (_tokenName.Length == 0)
                         _tokenName = null;
 
-                    _user = authManager.GetUser(bR.ReadShortString());
+                    users.TryGetValue(bR.ReadShortString().ToLowerInvariant(), out _user);
+
                     _lastSeen = bR.ReadDateTime();
                     _lastSeenRemoteAddress = IPAddressExtensions.ReadFrom(bR);
 
@@ -102,6 +104,12 @@ namespace DnsServerCore.Auth
         #endregion
 
         #region public
+
+        public void UpdateUserObject(IReadOnlyDictionary<string, User> users)
+        {
+            if (users.TryGetValue(_user.Username, out User user))
+                _user = user;
+        }
 
         public void UpdateLastSeen(IPAddress remoteAddress, string lastSeenUserAgent)
         {

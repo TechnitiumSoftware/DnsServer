@@ -1,6 +1,7 @@
 ﻿/*
 Technitium DNS Server
 Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Zafer Balkan (zafer@zaferbalkan.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -35,7 +36,7 @@ namespace LogExporter
         #region variables
 
         IDnsServer? _dnsServer;
-        BufferManagementConfig? _config;
+        AppConfig? _config;
 
         readonly ExportManager _exportManager = new ExportManager();
 
@@ -91,7 +92,7 @@ namespace LogExporter
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
             _dnsServer = dnsServer;
-            _config = BufferManagementConfig.Deserialize(config);
+            _config = AppConfig.Deserialize(config);
 
             if (_config is null)
                 throw new DnsClientException("Invalid application configuration.");
@@ -141,7 +142,7 @@ namespace LogExporter
             if (_enableLogging)
             {
                 if (_queuedLogs.Count < _config!.MaxQueueSize)
-                    _queuedLogs.Enqueue(new LogEntry(timestamp, remoteEP, protocol, request, response));
+                    _queuedLogs.Enqueue(new LogEntry(timestamp, remoteEP, protocol, request, response, _config.EnableEdnsLogging));
             }
 
             return Task.CompletedTask;
