@@ -11,7 +11,7 @@
 		<RepositoryType></RepositoryType>
 		<Description></Description>
 		<PackageId>DnsServerCore.HttpApi</PackageId>
-		<Version>2.0</Version>
+		<Version>3.0</Version>
 		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 		<Nullable>enable</Nullable>
 	</PropertyGroup>
