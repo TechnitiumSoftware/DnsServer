@@ -26,6 +26,7 @@ using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace LogExporter
@@ -80,7 +81,8 @@ namespace LogExporter
             {
                 return;
             }
-            foreach (TechnitiumLibrary.Net.Dns.EDnsOptions.EDnsOption extendedErrorLog in response.EDNS.Options.Where(o => o.Code == TechnitiumLibrary.Net.Dns.EDnsOptions.EDnsOptionCode.EXTENDED_DNS_ERROR))
+
+            foreach (EDnsOption extendedErrorLog in response.EDNS.Options.Where(o => o.Code == EDnsOptionCode.EXTENDED_DNS_ERROR))
             {
                 string[] extractedData = extendedErrorLog.Data.ToString().Replace("[", string.Empty).Replace("]", string.Empty).Split(":", StringSplitOptions.TrimEntries);
 
@@ -138,8 +140,8 @@ namespace LogExporter
 
         public class EDNSLog
         {
-            public string ErrType { get; set; }
-            public string Message { get; set; }
+            public string? ErrType { get; set; }
+            public string? Message { get; set; }
         }
 
         public class JsonDateTimeConverter : JsonConverter<DateTime>
