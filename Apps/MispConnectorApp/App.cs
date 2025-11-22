@@ -29,6 +29,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -300,21 +301,22 @@ namespace MispConnector
 
         private HttpClient CreateHttpClient(Uri serverUrl, bool disableTlsValidation)
         {
-            SocketsHttpHandler handler = new SocketsHttpHandler
-            {
-                Proxy = _dnsServer.Proxy,
-                UseProxy = _dnsServer.Proxy != null,
-                SslOptions = new SslClientAuthenticationOptions(),
-                ConnectTimeout = TimeSpan.FromSeconds(15)
-            };
+            HttpClientNetworkHandler handler = new HttpClientNetworkHandler();
+            handler.Proxy = _dnsServer.Proxy;
+            handler.NetworkType = _dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default;
+            handler.DnsClient = _dnsServer;
 
             if (disableTlsValidation)
             {
-                handler.SslOptions.RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true;
+                handler.InnerHandler.SslOptions.RemoteCertificateValidationCallback = delegate (object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+                {
+                    return true;
+                };
+
                 _dnsServer.WriteLog($"WARNING: TLS certificate validation is DISABLED for MISP server: {serverUrl}");
             }
 
-            return new HttpClient(new HttpClientNetworkHandler(handler, _dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default, _dnsServer));
+            return new HttpClient(handler);
         }
 
         private async Task<HashSet<string>> FetchIocFromMispAsync(CancellationToken cancellationToken)
