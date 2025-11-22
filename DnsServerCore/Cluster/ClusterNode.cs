@@ -209,7 +209,7 @@ namespace DnsServerCore.Cluster
                 if (clusterApiToken is null)
                     throw new InvalidOperationException("No API token was found for the Cluster domain.");
 
-                _apiClient.UseApiToken(clusterApiToken.User.Username, clusterApiToken.Token);
+                _apiClient.UseApiToken(clusterApiToken.Token);
             }
 
             return _apiClient;
@@ -375,13 +375,13 @@ namespace DnsServerCore.Cluster
             _heartbeatTimer?.Change(_clusterManager.HeartbeatRefreshIntervalSeconds * 1000, Timeout.Infinite);
         }
 
-        public async Task<DashboardStats> GetDashboardStatsAsync(DashboardStatsType type = DashboardStatsType.LastHour, bool utcFormat = false, string acceptLanguage = "en-US,en;q=0.5", bool dontTrimQueryTypeData = false, DateTime startDate = default, DateTime endDate = default, CancellationToken cancellationToken = default)
+        public async Task<DashboardStats> GetDashboardStatsAsync(User sessionUser, DashboardStatsType type = DashboardStatsType.LastHour, bool utcFormat = false, string acceptLanguage = "en-US,en;q=0.5", bool dontTrimQueryTypeData = false, DateTime startDate = default, DateTime endDate = default, CancellationToken cancellationToken = default)
         {
             HttpApiClient apiClient = GetApiClient();
 
             try
             {
-                DashboardStats stats = await apiClient.GetDashboardStatsAsync(type, utcFormat, acceptLanguage, dontTrimQueryTypeData, startDate, endDate, cancellationToken);
+                DashboardStats stats = await apiClient.GetDashboardStatsAsync(sessionUser.Username, type, utcFormat, acceptLanguage, dontTrimQueryTypeData, startDate, endDate, cancellationToken);
 
                 _lastSeen = DateTime.UtcNow;
                 _state = ClusterNodeState.Connected;
@@ -395,13 +395,13 @@ namespace DnsServerCore.Cluster
             }
         }
 
-        public async Task<DashboardStats> GetDashboardTopStatsAsync(DashboardTopStatsType statsType, int limit = 1000, DashboardStatsType type = DashboardStatsType.LastHour, DateTime startDate = default, DateTime endDate = default, CancellationToken cancellationToken = default)
+        public async Task<DashboardStats> GetDashboardTopStatsAsync(User sessionUser, DashboardTopStatsType statsType, int limit = 1000, DashboardStatsType type = DashboardStatsType.LastHour, DateTime startDate = default, DateTime endDate = default, CancellationToken cancellationToken = default)
         {
             HttpApiClient apiClient = GetApiClient();
 
             try
             {
-                DashboardStats stats = await apiClient.GetDashboardTopStatsAsync(statsType, limit, type, startDate, endDate, cancellationToken);
+                DashboardStats stats = await apiClient.GetDashboardTopStatsAsync(sessionUser.Username, statsType, limit, type, startDate, endDate, cancellationToken);
 
                 _lastSeen = DateTime.UtcNow;
                 _state = ClusterNodeState.Connected;
@@ -415,7 +415,7 @@ namespace DnsServerCore.Cluster
             }
         }
 
-        public async Task SetClusterSettingsAsync(IReadOnlyDictionary<string, string> clusterParameters, CancellationToken cancellationToken = default)
+        public async Task SetClusterSettingsAsync(User sessionUser, IReadOnlyDictionary<string, string> clusterParameters, CancellationToken cancellationToken = default)
         {
             if (_type != ClusterNodeType.Primary)
                 throw new InvalidOperationException();
@@ -424,7 +424,7 @@ namespace DnsServerCore.Cluster
 
             try
             {
-                await apiClient.SetClusterSettingsAsync(clusterParameters, cancellationToken);
+                await apiClient.SetClusterSettingsAsync(sessionUser.Username, clusterParameters, cancellationToken);
 
                 _lastSeen = DateTime.UtcNow;
                 _state = ClusterNodeState.Connected;
@@ -436,13 +436,13 @@ namespace DnsServerCore.Cluster
             }
         }
 
-        public async Task ForceUpdateBlockListsAsync(CancellationToken cancellationToken = default)
+        public async Task ForceUpdateBlockListsAsync(User sessionUser, CancellationToken cancellationToken = default)
         {
             HttpApiClient apiClient = GetApiClient();
 
             try
             {
-                await apiClient.ForceUpdateBlockListsAsync(cancellationToken);
+                await apiClient.ForceUpdateBlockListsAsync(sessionUser.Username, cancellationToken);
 
                 _lastSeen = DateTime.UtcNow;
                 _state = ClusterNodeState.Connected;
@@ -454,13 +454,13 @@ namespace DnsServerCore.Cluster
             }
         }
 
-        public async Task TemporaryDisableBlockingAsync(int minutes, CancellationToken cancellationToken = default)
+        public async Task TemporaryDisableBlockingAsync(User sessionUser, int minutes, CancellationToken cancellationToken = default)
         {
             HttpApiClient apiClient = GetApiClient();
 
             try
             {
-                await apiClient.TemporaryDisableBlockingAsync(minutes, cancellationToken);
+                await apiClient.TemporaryDisableBlockingAsync(sessionUser.Username, minutes, cancellationToken);
 
                 _lastSeen = DateTime.UtcNow;
                 _state = ClusterNodeState.Connected;
@@ -631,13 +631,13 @@ namespace DnsServerCore.Cluster
             }
         }
 
-        public async Task ProxyRequest(HttpContext context, string username, CancellationToken cancellationToken = default)
+        public async Task ProxyRequest(HttpContext context, string actingUsername, CancellationToken cancellationToken = default)
         {
             HttpApiClient apiClient = GetApiClient();
 
             try
             {
-                await apiClient.ProxyRequest(context, username, cancellationToken);
+                await apiClient.ProxyRequest(context, actingUsername, cancellationToken);
 
                 _lastSeen = DateTime.UtcNow;
                 _state = ClusterNodeState.Connected;
