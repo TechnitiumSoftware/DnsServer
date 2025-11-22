@@ -476,7 +476,7 @@ namespace DnsServerCore
 
                 try
                 {
-                    await _dnsWebService._clusterManager.InitializeAndJoinClusterAsync(secondaryNodeIpAddresses, primaryNodeUrl, primaryNodeUsername, primaryNodePassword, primaryNodeTotp, [primaryNodeIpAddress], ignoreCertificateErrors);
+                    await _dnsWebService._clusterManager.InitializeAndJoinClusterAsync(secondaryNodeIpAddresses, primaryNodeUrl, primaryNodeUsername, primaryNodePassword, primaryNodeTotp, primaryNodeIpAddress is null ? null : [primaryNodeIpAddress], ignoreCertificateErrors);
 
                     _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Joined the Cluster (" + _dnsWebService._clusterManager.ClusterDomain + ") as a Secondary node successfully.");
 
