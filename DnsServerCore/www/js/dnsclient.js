@@ -238,7 +238,7 @@ function queryDnsServer(domain, type, node) {
     $("#txtDnsClientEDnsClientSubnet").val("");
     $("#chkDnsClientDnssecValidation").prop("checked", false);
 
-    if (node != null)
+    if ((node != null) && (node != "cluster"))
         $("#optDnsClientClusterNode").val(node);
 
     $("#mainPanelTabListDashboard").removeClass("active");
