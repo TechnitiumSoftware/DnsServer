@@ -641,6 +641,9 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             foreach (string blockListUrl in _blockListUrls)
             {
+                if (blockListUrl.TrimStart().StartsWith('#'))
+                    continue; //skip comment line
+
                 if (blockListUrl.StartsWith('!'))
                     tasks.Add(DownloadListUrlAsync(new Uri(blockListUrl.Substring(1)), true));
                 else
@@ -736,8 +739,11 @@ namespace DnsServerCore.Dns.ZoneManagers
             List<Uri> allowListUrls = new List<Uri>();
             List<Uri> blockListUrls = new List<Uri>();
 
-            foreach (string listUri in this._blockListUrls)
+            foreach (string listUri in _blockListUrls)
             {
+                if (listUri.TrimStart().StartsWith('#'))
+                    continue; //skip comment line
+
                 if (listUri.StartsWith('!'))
                     allowListUrls.Add(new Uri(listUri.Substring(1)));
                 else
@@ -1023,15 +1029,26 @@ namespace DnsServerCore.Dns.ZoneManagers
                 else
                 {
                     List<string> uniqueList = new List<string>(value.Count);
+                    int commentCount = 0;
 
                     foreach (string url in value)
                     {
                         if (url.Length > 255)
-                            throw new ArgumentException("Block list URL length cannot exceed 255 characters.", nameof(BlockListUrls));
+                            throw new ArgumentException("Block list URL (or comment line) length cannot exceed 255 characters.", nameof(BlockListUrls));
+
+                        if (url.TrimStart().StartsWith('#'))
+                        {
+                            uniqueList.Add(url);
+                            commentCount++;
+                            continue;
+                        }
 
                         if (!uniqueList.Contains(url))
                             uniqueList.Add(url);
                     }
+
+                    if (uniqueList.Count == commentCount)
+                        uniqueList = [];
 
                     value = uniqueList;
                 }
