@@ -2060,7 +2060,9 @@ namespace DnsServerCore
             if ((session.Type == UserSessionType.ApiToken) && _clusterManager.ClusterInitialized && session.TokenName.Equals(_clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
             {
                 //proxy call from cluster node 
-                string username = context.Request.GetQueryOrForm("user");
+                string username = context.Request.GetQueryOrForm("actingUser", null);
+                if (username is null)
+                    return session.User;
 
                 User user = _authManager.GetUser(username);
                 if (user is null)
