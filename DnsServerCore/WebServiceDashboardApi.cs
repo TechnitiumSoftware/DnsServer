@@ -187,7 +187,7 @@ namespace DnsServerCore
 
                             tasks.Add(TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
                             {
-                                return clusterNode.Value.GetDashboardStatsAsync(type, utcFormat, acceptLanguage, true, startDate, endDate, cancellationToken1);
+                                return clusterNode.Value.GetDashboardStatsAsync(sessionUser, type, utcFormat, acceptLanguage, true, startDate, endDate, cancellationToken1);
                             }, CLUSTER_NODE_DASHBOARD_STATS_API_TIMEOUT));
                         }
                     }
@@ -704,7 +704,7 @@ namespace DnsServerCore
 
                             tasks.Add(TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
                             {
-                                return clusterNode.Value.GetDashboardTopStatsAsync(statsType, limit, type, startDate, endDate, cancellationToken1);
+                                return clusterNode.Value.GetDashboardTopStatsAsync(sessionUser, statsType, limit, type, startDate, endDate, cancellationToken1);
                             }, CLUSTER_NODE_DASHBOARD_STATS_API_TIMEOUT));
                         }
                     }
