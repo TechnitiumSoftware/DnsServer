@@ -3,8 +3,8 @@
 	<PropertyGroup>
 		<TargetFramework>net9.0</TargetFramework>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-		<Version>9.0</Version>
-    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+		<Version>9.1</Version>
+		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 		<Company>Technitium</Company>
 		<Product>Technitium DNS Server</Product>
 		<Authors>Shreyas Zare</Authors>
@@ -15,6 +15,7 @@
 		<Description>Blocks domain names using block lists and regex block lists. Supports creating groups based on client's IP address or subnet to enforce different block lists and regex block lists for each group.\n\nNote! This app works independent of the DNS server's built-in blocking feature. The options configured in DNS server Settings section does not apply to this app.</Description>
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
 		<OutputType>Library</OutputType>
+		<Nullable>enable</Nullable>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -25,7 +26,7 @@
 
 	<ItemGroup>
 		<Reference Include="TechnitiumLibrary">
-		  <HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.dll</HintPath>
+			<HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.dll</HintPath>
 			<Private>false</Private>
 		</Reference>
 		<Reference Include="TechnitiumLibrary.Net">
