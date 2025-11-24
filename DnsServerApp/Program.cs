@@ -21,6 +21,7 @@ using DnsServerCore;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 
 namespace DnsServerApp
 {
@@ -82,6 +83,16 @@ namespace DnsServerApp
                     waitHandle.Set();
                     exitHandle.WaitOne();
                 };
+
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) || RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    PosixSignalRegistration.Create(PosixSignal.SIGTERM, (context) =>
+                    {
+                        context.Cancel = true;
+                        waitHandle.Set();
+                        exitHandle.WaitOne();
+                    });
+                }
 
                 Console.WriteLine("Technitium DNS Server was started successfully.\r\nUsing config folder: " + service.ConfigFolder + "\r\n\r\nNote: Open http://" + Environment.MachineName.ToLowerInvariant() + ":" + service.WebServiceHttpPort + "/ in web browser to access web console.\r\n\r\nPress [CTRL + C] to stop...");
 
