@@ -280,6 +280,28 @@ namespace DnsServerCore
                 if (!string.IsNullOrEmpty(webServiceHttpToTlsRedirect))
                     _webServiceHttpToTlsRedirect = bool.Parse(webServiceHttpToTlsRedirect);
 
+                //load TLS certificate if path was provided via environment variable
+                if (!string.IsNullOrEmpty(_webServiceTlsCertificatePath))
+                {
+                    string webServiceTlsCertificateAbsolutePath = ConvertToAbsolutePath(_webServiceTlsCertificatePath);
+                    bool certificateLoaded = false;
+                    try
+                    {
+                        LoadWebServiceTlsCertificate(webServiceTlsCertificateAbsolutePath, _webServiceTlsCertificatePassword);
+                        certificateLoaded = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Write("DNS Server encountered an error while loading Web Service TLS certificate: " + webServiceTlsCertificateAbsolutePath + "\r\n" + ex.ToString());
+                    }
+
+                    if (certificateLoaded)
+                        StartTlsCertificateUpdateTimer();
+                }
+
+                //load self-signed certificate if enabled via environment variable
+                CheckAndLoadSelfSignedCertificate(false, false);
+
                 SaveConfigFileInternal();
             }
             catch (Exception ex)
