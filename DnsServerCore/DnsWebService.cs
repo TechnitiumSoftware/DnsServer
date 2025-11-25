@@ -109,6 +109,9 @@ namespace DnsServerCore
         DateTime _webServiceCertificateLastModifiedOn;
         SslServerAuthenticationOptions _webServiceSslServerAuthenticationOptions;
 
+        bool _pendingLoadCustomCertificate;
+        bool _pendingLoadSelfSignedCertificate;
+
         List<string> _configDisabledZones;
 
         readonly object _saveLock = new object();
@@ -279,6 +282,16 @@ namespace DnsServerCore
                 string webServiceHttpToTlsRedirect = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_HTTP_TO_TLS_REDIRECT");
                 if (!string.IsNullOrEmpty(webServiceHttpToTlsRedirect))
                     _webServiceHttpToTlsRedirect = bool.Parse(webServiceHttpToTlsRedirect);
+
+                //defer TLS certificate loading until after DNS server initialization
+                //since CheckAndLoadSelfSignedCertificate() requires _dnsServer.ServerDomain
+                if (!string.IsNullOrEmpty(_webServiceTlsCertificatePath))
+                    _pendingLoadCustomCertificate = true;
+
+                //only set flag if we actually need to generate/load self-signed cert
+                //CheckAndLoadSelfSignedCertificate also handles cleanup, so always call it
+                if (_webServiceEnableTls || _webServiceUseSelfSignedTlsCertificate)
+                    _pendingLoadSelfSignedCertificate = true;
 
                 SaveConfigFileInternal();
             }
@@ -2411,6 +2424,34 @@ namespace DnsServerCore
 
                 //load cluster config file
                 _clusterManager.LoadConfigFile();
+
+                //load any pending TLS certificates from environment variables
+                //this must happen after _dnsServer is initialized for self-signed cert generation
+                if (_pendingLoadCustomCertificate && !string.IsNullOrEmpty(_webServiceTlsCertificatePath))
+                {
+                    string webServiceTlsCertificateAbsolutePath = ConvertToAbsolutePath(_webServiceTlsCertificatePath);
+
+                    try
+                    {
+                        LoadWebServiceTlsCertificate(webServiceTlsCertificateAbsolutePath, _webServiceTlsCertificatePassword);
+                        StartTlsCertificateUpdateTimer();
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Write("DNS Server encountered an error while loading Web Service TLS certificate: " + webServiceTlsCertificateAbsolutePath + "\r\n" + ex.ToString());
+                    }
+
+                    _pendingLoadCustomCertificate = false;
+                }
+
+                if (_pendingLoadSelfSignedCertificate)
+                {
+                    if (_dnsServer is null)
+                        throw new InvalidOperationException("DNS Server must be initialized before loading self-signed certificates.");
+
+                    CheckAndLoadSelfSignedCertificate(false, false);
+                    _pendingLoadSelfSignedCertificate = false;
+                }
 
                 //start web service
                 if (throwIfBindFails)
