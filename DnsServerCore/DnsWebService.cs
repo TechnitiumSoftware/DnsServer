@@ -288,7 +288,9 @@ namespace DnsServerCore
                 if (!string.IsNullOrEmpty(_webServiceTlsCertificatePath))
                     _pendingLoadCustomCertificate = true;
 
-                if (_webServiceUseSelfSignedTlsCertificate || _webServiceEnableTls)
+                //only set flag if we actually need to generate/load self-signed cert
+                //CheckAndLoadSelfSignedCertificate also handles cleanup, so always call it
+                if (_webServiceEnableTls || _webServiceUseSelfSignedTlsCertificate)
                     _pendingLoadSelfSignedCertificate = true;
 
                 SaveConfigFileInternal();
@@ -2425,7 +2427,7 @@ namespace DnsServerCore
 
                 //load any pending TLS certificates from environment variables
                 //this must happen after _dnsServer is initialized for self-signed cert generation
-                if (_pendingLoadCustomCertificate)
+                if (_pendingLoadCustomCertificate && !string.IsNullOrEmpty(_webServiceTlsCertificatePath))
                 {
                     string webServiceTlsCertificateAbsolutePath = ConvertToAbsolutePath(_webServiceTlsCertificatePath);
 
@@ -2444,6 +2446,9 @@ namespace DnsServerCore
 
                 if (_pendingLoadSelfSignedCertificate)
                 {
+                    if (_dnsServer is null)
+                        throw new InvalidOperationException("DNS Server must be initialized before loading self-signed certificates.");
+
                     CheckAndLoadSelfSignedCertificate(false, false);
                     _pendingLoadSelfSignedCertificate = false;
                 }
