@@ -4,7 +4,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <Version>2.1</Version>
+    <Version>2.2</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Technitium</Company>
     <Product>Technitium DNS Server</Product>
