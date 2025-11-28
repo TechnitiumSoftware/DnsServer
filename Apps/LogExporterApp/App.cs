@@ -21,157 +21,147 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.ApplicationCommon;
 using LogExporter.Strategy;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
-using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
 
 namespace LogExporter
 {
-    public sealed class App : IDnsApplication, IDnsQueryLogger
+    public sealed class App : IDnsApplication, IDnsQueryLogger, IDisposable
     {
         #region variables
 
-        IDnsServer? _dnsServer;
-        AppConfig? _config;
+        private const int BULK_INSERT_COUNT = 1000;
+        private readonly ExportManager _exportManager = new ExportManager();
+        private Task? _backgroundTask;
+        private Channel<LogEntry> _channel = default!;
+        private AppConfig? _config;
+        private CancellationTokenSource? _cts;
+        private bool _disposed;
+        private IDnsServer? _dnsServer;
+        private bool _enableLogging;
 
-        readonly ExportManager _exportManager = new ExportManager();
-
-        bool _enableLogging;
-
-        readonly ConcurrentQueue<LogEntry> _queuedLogs = new ConcurrentQueue<LogEntry>();
-        readonly Timer _queueTimer;
-        const int QUEUE_TIMER_INTERVAL = 10000;
-        const int BULK_INSERT_COUNT = 1000;
-
-        bool _disposed;
-
-        #endregion
+        #endregion variables
 
         #region constructor
 
         public App()
-        {
-            _queueTimer = new Timer(HandleExportLogCallback);
-        }
+        { }
 
-        #endregion
+        #endregion constructor
 
         #region IDisposable
 
         public void Dispose()
         {
-            Dispose(disposing: true);
+            if (_disposed)
+                return;
+
+            _disposed = true;
+
+            try
+            {
+                _cts?.Cancel();
+            }
+            catch { }
+
+            try
+            {
+                _backgroundTask?.GetAwaiter().GetResult();
+            }
+            catch { }
+
+            _exportManager.Dispose();
             GC.SuppressFinalize(this);
         }
 
-        private void Dispose(bool disposing)
-        {
-            if (!_disposed)
-            {
-                if (disposing)
-                {
-                    _queueTimer?.Dispose();
-
-                    ExportLogsAsync().Sync(); //flush any pending logs
-
-                    _exportManager.Dispose();
-                }
-
-                _disposed = true;
-            }
-        }
-
-        #endregion
+        #endregion IDisposable
 
         #region public
 
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
             _dnsServer = dnsServer;
-            _config = AppConfig.Deserialize(config);
+            _config = AppConfig.Deserialize(config)
+                      ?? throw new DnsClientException("Invalid application configuration.");
 
-            if (_config is null)
-                throw new DnsClientException("Invalid application configuration.");
-
-            if (_config.FileTarget!.Enabled)
-            {
-                _exportManager.RemoveStrategy(typeof(FileExportStrategy));
-                _exportManager.AddStrategy(new FileExportStrategy(_config.FileTarget!.Path));
-            }
-            else
-            {
-                _exportManager.RemoveStrategy(typeof(FileExportStrategy));
-            }
-
-            if (_config.HttpTarget!.Enabled)
-            {
-                _exportManager.RemoveStrategy(typeof(HttpExportStrategy));
-                _exportManager.AddStrategy(new HttpExportStrategy(_config.HttpTarget.Endpoint, _config.HttpTarget.Headers));
-            }
-            else
-            {
-                _exportManager.RemoveStrategy(typeof(HttpExportStrategy));
-            }
-
-            if (_config.SyslogTarget!.Enabled)
-            {
-                _exportManager.RemoveStrategy(typeof(SyslogExportStrategy));
-                _exportManager.AddStrategy(new SyslogExportStrategy(_config.SyslogTarget.Address, _config.SyslogTarget.Port, _config.SyslogTarget.Protocol));
-            }
-            else
-            {
-                _exportManager.RemoveStrategy(typeof(SyslogExportStrategy));
-            }
+            ConfigureStrategies();
 
             _enableLogging = _exportManager.HasStrategy();
+            if (!_enableLogging)
+                return Task.CompletedTask;
 
-            if (_enableLogging)
-                _queueTimer.Change(QUEUE_TIMER_INTERVAL, Timeout.Infinite);
-            else
-                _queueTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            // Create bounded channel to avoid memory explosion
+            _channel = Channel.CreateBounded<LogEntry>(
+                new BoundedChannelOptions(_config!.MaxQueueSize)
+                {
+                    SingleReader = true,
+                    SingleWriter = false,
+                    FullMode = BoundedChannelFullMode.DropWrite
+                });
+
+            // Start background worker
+            _cts = new CancellationTokenSource();
+            _backgroundTask = Task.Run(() => BackgroundWorkerAsync(_cts.Token));
 
             return Task.CompletedTask;
         }
 
-        public Task InsertLogAsync(DateTime timestamp, DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
+        public Task InsertLogAsync(DateTime timestamp, DnsDatagram request,
+                                   IPEndPoint remoteEP, DnsTransportProtocol protocol,
+                                   DnsDatagram response)
         {
             if (_enableLogging)
             {
-                if (_queuedLogs.Count < _config!.MaxQueueSize)
-                    _queuedLogs.Enqueue(new LogEntry(timestamp, remoteEP, protocol, request, response, _config.EnableEdnsLogging));
+                var entry = new LogEntry(timestamp, remoteEP, protocol, request, response, _config!.EnableEdnsLogging);
+
+                if (!_channel.Writer.TryWrite(entry))
+                {
+                    _dnsServer?.WriteLog("Log export queue full; dropping entry.");
+                }
             }
 
+            // No async, no warning, no overhead
             return Task.CompletedTask;
         }
 
-        #endregion
+        #endregion public
 
         #region private
 
-        private async Task ExportLogsAsync()
+        private async Task BackgroundWorkerAsync(CancellationToken token)
         {
+            var batch = new List<LogEntry>(BULK_INSERT_COUNT);
+
             try
             {
-                List<LogEntry> logs = new List<LogEntry>(BULK_INSERT_COUNT);
-
-                while (true)
+                // Single-consumer continuous processing
+                while (await _channel.Reader.WaitToReadAsync(token))
                 {
-                    while (logs.Count < BULK_INSERT_COUNT && _queuedLogs.TryDequeue(out LogEntry? log))
+                    while (batch.Count < BULK_INSERT_COUNT &&
+                           _channel.Reader.TryRead(out var entry))
                     {
-                        logs.Add(log);
+                        batch.Add(entry);
                     }
 
-                    if (logs.Count < 1)
-                        break;
+                    if (batch.Count > 0)
+                    {
+                        // Clone for safety
+                        var safeBatch = new List<LogEntry>(batch);
 
-                    await _exportManager.ImplementStrategyAsync(logs);
+                        await _exportManager.ImplementStrategyAsync(safeBatch);
 
-                    logs.Clear();
+                        batch.Clear();
+                    }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                // Drain channel on cancellation
+                await DrainRemainingLogs(batch);
             }
             catch (Exception ex)
             {
@@ -179,37 +169,62 @@ namespace LogExporter
             }
         }
 
-        private async void HandleExportLogCallback(object? state)
+        private void ConfigureStrategies()
+        {
+            // FILE
+            _exportManager.RemoveStrategy(typeof(FileExportStrategy));
+            if (_config!.FileTarget!.Enabled)
+                _exportManager.AddStrategy(new FileExportStrategy(_config.FileTarget.Path));
+
+            // HTTP
+            _exportManager.RemoveStrategy(typeof(HttpExportStrategy));
+            if (_config.HttpTarget!.Enabled)
+                _exportManager.AddStrategy(
+                    new HttpExportStrategy(_config.HttpTarget.Endpoint, _config.HttpTarget.Headers));
+
+            // SYSLOG
+            _exportManager.RemoveStrategy(typeof(SyslogExportStrategy));
+            if (_config.SyslogTarget!.Enabled)
+                _exportManager.AddStrategy(
+                    new SyslogExportStrategy(_config.SyslogTarget.Address,
+                                             _config.SyslogTarget.Port,
+                                             _config.SyslogTarget.Protocol));
+        }
+
+        private async Task DrainRemainingLogs(List<LogEntry> batch)
         {
             try
             {
-                // Process logs within the timer interval, then let the timer reschedule
-                await ExportLogsAsync();
+                while (_channel.Reader.TryRead(out var entry))
+                {
+                    batch.Add(entry);
+
+                    if (batch.Count >= BULK_INSERT_COUNT)
+                    {
+                        await _exportManager.ImplementStrategyAsync(new List<LogEntry>(batch));
+                        batch.Clear();
+                    }
+                }
+
+                if (batch.Count > 0)
+                {
+                    await _exportManager.ImplementStrategyAsync(batch);
+                    batch.Clear();
+                }
             }
             catch (Exception ex)
             {
                 _dnsServer?.WriteLog(ex);
             }
-            finally
-            {
-                try
-                {
-                    _queueTimer?.Change(QUEUE_TIMER_INTERVAL, Timeout.Infinite);
-                }
-                catch (ObjectDisposedException)
-                { }
-            }
         }
 
-        #endregion
+        #endregion private
 
         #region properties
 
-        public string Description
-        {
-            get { return "Allows exporting query logs to third party sinks. It supports exporting to File, HTTP endpoint, and Syslog (UDP, TCP, TLS, and Local protocols)."; }
-        }
+        public string Description =>
+            "Allows exporting query logs to third party sinks. Supports exporting to File, HTTP endpoint, and Syslog.";
 
-        #endregion
+        #endregion properties
     }
 }
