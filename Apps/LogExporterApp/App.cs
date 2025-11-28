@@ -187,8 +187,8 @@ namespace LogExporter
             if (_config.SyslogTarget!.Enabled)
                 _exportManager.AddStrategy(
                     new SyslogExportStrategy(_config.SyslogTarget.Address,
-                                             _config.SyslogTarget.Port,
-                                             _config.SyslogTarget.Protocol));
+                                             _config.SyslogTarget.Port!.Value,
+                                             _config.SyslogTarget.Protocol!));
         }
 
         private async Task DrainRemainingLogs(List<LogEntry> batch)

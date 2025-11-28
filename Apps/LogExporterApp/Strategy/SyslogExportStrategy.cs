@@ -24,7 +24,7 @@ using Serilog.Parsing;
 using Serilog.Sinks.Syslog;
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace LogExporter.Strategy
@@ -35,7 +35,7 @@ namespace LogExporter.Strategy
 
         const string _appName = "Technitium DNS Server";
         const string _sdId = "meta";
-        const string DEFAUL_PROTOCOL = "udp";
+        const string DEFAULT_PROTOCOL = "udp";
         const int DEFAULT_PORT = 514;
 
         readonly Facility _facility = Facility.Local6;
@@ -45,6 +45,11 @@ namespace LogExporter.Strategy
 
         bool _disposed;
 
+        // Reuse the message template instead of parsing it per-log
+        const string TemplateText = "{questionsSummary}; RCODE: {rCode}; ANSWER: [{answersSummary}]";
+        static readonly MessageTemplate Template =
+            new MessageTemplateParser().Parse(TemplateText);
+
         #endregion
 
         #region constructor
@@ -52,20 +57,60 @@ namespace LogExporter.Strategy
         public SyslogExportStrategy(string address, int? port, string? protocol)
         {
             port ??= DEFAULT_PORT;
-            protocol ??= DEFAUL_PROTOCOL;
+            protocol ??= DEFAULT_PROTOCOL;
 
             LoggerConfiguration conf = new LoggerConfiguration();
 
             _sender = protocol.ToLowerInvariant() switch
             {
-                "tls" => conf.WriteTo.TcpSyslog(address, port.Value, _appName, FramingType.OCTET_COUNTING, SyslogFormat.RFC5424, _facility, useTls: true).Enrich.FromLogContext().CreateLogger(),
-                "tcp" => conf.WriteTo.TcpSyslog(address, port.Value, _appName, FramingType.OCTET_COUNTING, SyslogFormat.RFC5424, _facility, useTls: false).Enrich.FromLogContext().CreateLogger(),
-                "udp" => conf.WriteTo.UdpSyslog(address, port.Value, _appName, SyslogFormat.RFC5424, _facility).Enrich.FromLogContext().CreateLogger(),
-                "local" => conf.WriteTo.LocalSyslog(_appName, _facility).Enrich.FromLogContext().CreateLogger(),
+                "tls" => conf.WriteTo.TcpSyslog(
+                            address,
+                            port.Value,
+                            _appName,
+                            FramingType.OCTET_COUNTING,
+                            SyslogFormat.RFC5424,
+                            _facility,
+                            useTls: true)
+                        .Enrich.FromLogContext()
+                        .CreateLogger(),
+
+                "tcp" => conf.WriteTo.TcpSyslog(
+                            address,
+                            port.Value,
+                            _appName,
+                            FramingType.OCTET_COUNTING,
+                            SyslogFormat.RFC5424,
+                            _facility,
+                            useTls: false)
+                        .Enrich.FromLogContext()
+                        .CreateLogger(),
+
+                "udp" => conf.WriteTo.UdpSyslog(
+                            address,
+                            port.Value,
+                            _appName,
+                            SyslogFormat.RFC5424,
+                            _facility)
+                        .Enrich.FromLogContext()
+                        .CreateLogger(),
+
+                "local" => conf.WriteTo.LocalSyslog(
+                            _appName,
+                            _facility)
+                        .Enrich.FromLogContext()
+                        .CreateLogger(),
+
                 _ => throw new NotSupportedException("Syslog protocol is not supported: " + protocol),
             };
 
-            _formatter = new Rfc5424Formatter(_facility, _appName, null, _sdId, Environment.MachineName);
+            // Serilog's RFC5424 formatter used as before
+            _formatter = new Rfc5424Formatter(
+                facility: _facility,
+                applicationName: _appName,
+                templateFormatter: null,
+                messageIdPropertyName: _sdId,
+                sourceHost: Environment.MachineName,
+                severityMapping: null);
         }
 
         #endregion
@@ -74,12 +119,11 @@ namespace LogExporter.Strategy
 
         public void Dispose()
         {
-            if (!_disposed)
-            {
-                _sender.Dispose();
+            if (_disposed)
+                return;
 
-                _disposed = true;
-            }
+            _sender.Dispose();
+            _disposed = true;
         }
 
         #endregion
@@ -89,7 +133,7 @@ namespace LogExporter.Strategy
         public Task ExportAsync(IReadOnlyList<LogEntry> logs)
         {
             foreach (LogEntry log in logs)
-                _sender.Information(_formatter.FormatMessage((LogEvent?)Convert(log)));
+                _sender.Information(_formatter.FormatMessage(Convert(log)));
 
             return Task.CompletedTask;
         }
@@ -100,87 +144,146 @@ namespace LogExporter.Strategy
 
         private static LogEvent Convert(LogEntry log)
         {
-            // Initialize properties with base log details
-            List<LogEventProperty> properties = new List<LogEventProperty>
+            // Rough capacity: 9 base + 4 question + some answers + edns
+            // This avoids repeated List resizes
+            List<LogEventProperty> properties = new List<LogEventProperty>(16)
             {
-                new LogEventProperty("timestamp", new ScalarValue(log.Timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"))),
-                new LogEventProperty("clientIp", new ScalarValue(log.ClientIp)),
-                new LogEventProperty("protocol", new ScalarValue(log.Protocol.ToString())),
-                new LogEventProperty("responseType", new ScalarValue(log.ResponseType.ToString())),
-                new LogEventProperty("responseRtt", new ScalarValue(log.ResponseRtt?.ToString())),
-                new LogEventProperty("rCode", new ScalarValue(log.ResponseCode.ToString())),
-                new LogEventProperty("domain_tld", new ScalarValue(log.DomainInfo.TLD)),
-                new LogEventProperty("domain_basedomain", new ScalarValue(log.DomainInfo.BaseDomain)),
-                new LogEventProperty("domain_subdomain", new ScalarValue(log.DomainInfo.Subdomain))
+                // Base fields (unchanged semantics)
+                new LogEventProperty(
+                "timestamp",
+                new ScalarValue(log.Timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"))),
+                new LogEventProperty(
+                "clientIp",
+                new ScalarValue(log.ClientIp)),
+                new LogEventProperty(
+                "protocol",
+                new ScalarValue(log.Protocol.ToString())),
+                new LogEventProperty(
+                "responseType",
+                new ScalarValue(log.ResponseType.ToString())),
+                new LogEventProperty(
+                "responseRtt",
+                new ScalarValue(log.ResponseRtt?.ToString())),
+                new LogEventProperty(
+                "rCode",
+                new ScalarValue(log.ResponseCode.ToString())),
+                new LogEventProperty(
+                "domain_tld",
+                new ScalarValue(log.DomainInfo.TLD)),
+                new LogEventProperty(
+                "domain_basedomain",
+                new ScalarValue(log.DomainInfo.BaseDomain)),
+                new LogEventProperty(
+                "domain_subdomain",
+                new ScalarValue(log.DomainInfo.Subdomain))
             };
 
-            // Add each question as properties
+            // Question
             if (log.Question != null)
             {
                 LogEntry.DnsQuestion question = log.Question;
-                properties.Add(new LogEventProperty("qName", new ScalarValue(question.QuestionName)));
-                properties.Add(new LogEventProperty("qType", new ScalarValue(question.QuestionType.ToString())));
-                properties.Add(new LogEventProperty("qClass", new ScalarValue(question.QuestionClass.ToString())));
 
-                string questionSummary = $"QNAME: {question.QuestionName}, QTYPE: {question.QuestionType}, QCLASS: {question.QuestionClass}";
-                properties.Add(new LogEventProperty("questionsSummary", new ScalarValue(questionSummary)));
+                properties.Add(new LogEventProperty(
+                    "qName",
+                    new ScalarValue(question.QuestionName)));
+
+                properties.Add(new LogEventProperty(
+                    "qType",
+                    new ScalarValue(question.QuestionType.ToString())));
+
+                properties.Add(new LogEventProperty(
+                    "qClass",
+                    new ScalarValue(question.QuestionClass.ToString())));
+
+                string questionSummary =
+                    $"QNAME: {question.QuestionName}, " +
+                    $"QTYPE: {question.QuestionType}, " +
+                    $"QCLASS: {question.QuestionClass}";
+
+                properties.Add(new LogEventProperty(
+                    "questionsSummary",
+                    new ScalarValue(questionSummary)));
             }
             else
             {
-                properties.Add(new LogEventProperty("questionsSummary", new ScalarValue(string.Empty)));
+                properties.Add(new LogEventProperty(
+                    "questionsSummary",
+                    new ScalarValue(string.Empty)));
             }
 
-            // Add each answer as properties
+            // Answers
             if (log.Answers.Count > 0)
             {
+                // Build answersSummary without LINQ
+                StringBuilder sb = new StringBuilder();
                 for (int i = 0; i < log.Answers.Count; i++)
                 {
                     LogEntry.DnsResourceRecord answer = log.Answers[i];
 
-                    properties.Add(new LogEventProperty($"aName_{i}", new ScalarValue(answer.Name)));
-                    properties.Add(new LogEventProperty($"aType_{i}", new ScalarValue(answer.RecordType.ToString())));
-                    properties.Add(new LogEventProperty($"aClass_{i}", new ScalarValue(answer.RecordClass.ToString())));
-                    properties.Add(new LogEventProperty($"aTtl_{i}", new ScalarValue(answer.RecordTtl.ToString())));
-                    properties.Add(new LogEventProperty($"aRData_{i}", new ScalarValue(answer.RecordData)));
-                    properties.Add(new LogEventProperty($"aDnssecStatus_{i}", new ScalarValue(answer.DnssecStatus.ToString())));
+                    properties.Add(new LogEventProperty(
+                        $"aName_{i}",
+                        new ScalarValue(answer.Name)));
+
+                    properties.Add(new LogEventProperty(
+                        $"aType_{i}",
+                        new ScalarValue(answer.RecordType.ToString())));
+
+                    properties.Add(new LogEventProperty(
+                        $"aClass_{i}",
+                        new ScalarValue(answer.RecordClass.ToString())));
+
+                    properties.Add(new LogEventProperty(
+                        $"aTtl_{i}",
+                        new ScalarValue(answer.RecordTtl.ToString())));
+
+                    properties.Add(new LogEventProperty(
+                        $"aRData_{i}",
+                        new ScalarValue(answer.RecordData)));
+
+                    properties.Add(new LogEventProperty(
+                        $"aDnssecStatus_{i}",
+                        new ScalarValue(answer.DnssecStatus.ToString())));
+
+                    if (i > 0)
+                        sb.Append(", ");
+                    sb.Append(answer.RecordData);
                 }
 
-                // Generate answers summary
-                string answerSummary = string.Join(", ", log.Answers.Select(a => a.RecordData));
-                properties.Add(new LogEventProperty("answersSummary", new ScalarValue(answerSummary)));
+                properties.Add(new LogEventProperty(
+                    "answersSummary",
+                    new ScalarValue(sb.ToString())));
             }
             else
             {
-                properties.Add(new LogEventProperty("answersSummary", new ScalarValue(string.Empty)));
+                properties.Add(new LogEventProperty(
+                    "answersSummary",
+                    new ScalarValue(string.Empty)));
             }
 
-
-            // Add EDNS logs
+            // EDNS
             if (log.EDNS.Count > 0)
             {
                 for (int i = 0; i < log.EDNS.Count; i++)
                 {
-                    var ednsLog = log.EDNS[i];
-                    properties.Add(new LogEventProperty($"ednsErrType_{i}", new ScalarValue(ednsLog.ErrType)));
-                    properties.Add(new LogEventProperty($"ednsMessage_{i}", new ScalarValue(ednsLog.Message)));
+                    LogEntry.EDNSLog ednsLog = log.EDNS[i];
 
+                    properties.Add(new LogEventProperty(
+                        $"ednsErrType_{i}",
+                        new ScalarValue(ednsLog.ErrType)));
+
+                    properties.Add(new LogEventProperty(
+                        $"ednsMessage_{i}",
+                        new ScalarValue(ednsLog.Message)));
                 }
             }
 
-            // Define the message template to match the original summary format
-            const string templateText = "{questionsSummary}; RCODE: {rCode}; ANSWER: [{answersSummary}]";
-
-            // Parse the template
-            MessageTemplate template = new MessageTemplateParser().Parse(templateText);
-
-            // Create the LogEvent and return it
+            // Reuse the static MessageTemplate 'Template'
             return new LogEvent(
                 timestamp: log.Timestamp,
                 level: LogEventLevel.Information,
                 exception: null,
-                messageTemplate: template,
-                properties: properties
-            );
+                messageTemplate: Template,
+                properties: properties);
         }
 
         #endregion
