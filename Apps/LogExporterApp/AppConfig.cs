@@ -32,6 +32,9 @@ namespace LogExporter
         [JsonPropertyName("enableEdnsLogging")]
         public bool EnableEdnsLogging { get; set; }
 
+        [JsonPropertyName("console")]
+        public ConsoleTarget? ConsoleTarget { get; set; }
+
         [JsonPropertyName("file")]
         public FileTarget? FileTarget { get; set; }
 
@@ -53,6 +56,8 @@ namespace LogExporter
         [JsonPropertyName("enabled")]
         public bool Enabled { get; set; }
     }
+
+    public class ConsoleTarget : TargetBase { }
 
     public class SyslogTarget : TargetBase
     {

@@ -171,6 +171,11 @@ namespace LogExporter
 
         private void ConfigureStrategies()
         {
+            // Console
+            _exportManager.RemoveStrategy(typeof(ConsoleExportStrategy));
+            if (_config!.ConsoleTarget!.Enabled)
+                _exportManager.AddStrategy(new ConsoleExportStrategy());
+
             // FILE
             _exportManager.RemoveStrategy(typeof(FileExportStrategy));
             if (_config!.FileTarget!.Enabled)
