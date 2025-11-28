@@ -8,7 +8,7 @@ It maintains an in-memory queue with periodic bulk flushing and supports enriche
 
 * Captures DNS queries and responses using the Technitium DNS `IDnsQueryLogger` interface.
 * Queues log entries asynchronously and flushes them in batches every 10 seconds.
-* Exports logs via pluggable strategies: file output, HTTP POST and Syslog (UDP, TCP, TLS or local).
+* Exports logs via pluggable strategies: console (stdout),file output, HTTP POST and Syslog (UDP, TCP, TLS or local).
 * Includes responding nameserver IP address, question, answer, RTT, response code, domain details (TLD, base domain, subdomain) and optional EDNS Extended DNS Error data.
 * Limits memory usage with a configurable maximum queue size.
 * Flushes all pending logs on shutdown.
@@ -21,6 +21,9 @@ Provide JSON configuration similar to:
 {
   "maxQueueSize": 50000,
   "enableEdnsLogging": true,
+  "console":{
+    "enabled": true
+  },
   "file": {
     "enabled": false,
     "path": "/var/log/technitium/dns.log"
