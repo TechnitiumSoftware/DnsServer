@@ -19,6 +19,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.ApplicationCommon;
+using Nager.PublicSuffix;
+using Nager.PublicSuffix.RuleProviders;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,13 +35,26 @@ namespace LogExporter
 {
     public class LogEntry
     {
+        private static readonly DomainParser? _parser = InitiateParser();
+
         public LogEntry(DateTime timestamp, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram request, DnsDatagram response, bool ednsLogging = false)
         {
             // Assign timestamp and ensure it's in UTC
-            Timestamp = timestamp.Kind == DateTimeKind.Utc ? timestamp : timestamp.ToUniversalTime();
+            if (timestamp.Kind == DateTimeKind.Utc)
+            {
+                // Assign timestamp and ensure it's in UTC
+                Timestamp = timestamp;
+            }
+            else
+            {
+                // Assign timestamp and ensure it's in UTC
+                Timestamp = timestamp.ToUniversalTime();
+            }
 
             // Set hostname
-            NameServer = response.Metadata.NameServer.Host;
+            NameServer = request.Metadata.NameServer.Host;
+
+            DomainInfo = new Domain(request.Question[0].Name);
 
             // Extract client information
             ClientIp = remoteEP.Address.ToString();
@@ -97,19 +112,45 @@ namespace LogExporter
             }
         }
 
-        public string NameServer { get; private set; }
         public List<DnsResourceRecord> Answers { get; private set; }
+
         public string ClientIp { get; private set; }
+
         public List<EDNSLog> EDNS { get; private set; }
+
+        public string NameServer { get; private set; }
+
         public DnsTransportProtocol Protocol { get; private set; }
+
         public DnsQuestion? Question { get; private set; }
+
         public DnsResponseCode ResponseCode { get; private set; }
+
         public double? ResponseRtt { get; private set; }
+
         public DnsServerResponseType ResponseType { get; private set; }
+
         public DateTime Timestamp { get; private set; }
+
+        public Domain DomainInfo { get; private set; }
+
         public override string ToString()
         {
             return JsonSerializer.Serialize(this, DnsLogSerializerOptions.Default);
+        }
+
+        private static DomainParser? InitiateParser()
+        {
+            try
+            {
+                var ruleProvider = new SimpleHttpRuleProvider();
+                ruleProvider.BuildAsync().GetAwaiter().GetResult();
+                return new DomainParser(ruleProvider);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
 
         public static class DnsLogSerializerOptions
@@ -125,19 +166,35 @@ namespace LogExporter
             };
         }
 
+        public class Domain
+        {
+            public string TLD { get; private set; }
+            public string BaseDomain { get; private set; }
+            public string Subdomain { get; private set; }
+
+            public Domain(string name)
+            {
+                if (_parser == null) return;
+                var domainInfo = _parser.Parse(name)!;
+                TLD = domainInfo.TopLevelDomain!;
+                BaseDomain = domainInfo.RegistrableDomain!;
+                Subdomain = domainInfo.Subdomain!;
+            }
+        }
+
         public class DnsQuestion
         {
             public DnsClass QuestionClass { get; set; }
-            public required string QuestionName { get; set; }
+            public string QuestionName { get; set; }
             public DnsResourceRecordType QuestionType { get; set; }
         }
 
         public class DnsResourceRecord
         {
             public DnssecStatus DnssecStatus { get; set; }
-            public required string Name { get; set; }
+            public string Name { get; set; }
             public DnsClass RecordClass { get; set; }
-            public required string RecordData { get; set; }
+            public string RecordData { get; set; }
             public uint RecordTtl { get; set; }
             public DnsResourceRecordType RecordType { get; set; }
         }

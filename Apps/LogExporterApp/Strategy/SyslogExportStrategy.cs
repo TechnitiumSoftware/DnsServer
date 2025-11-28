@@ -108,7 +108,10 @@ namespace LogExporter.Strategy
                 new LogEventProperty("protocol", new ScalarValue(log.Protocol.ToString())),
                 new LogEventProperty("responseType", new ScalarValue(log.ResponseType.ToString())),
                 new LogEventProperty("responseRtt", new ScalarValue(log.ResponseRtt?.ToString())),
-                new LogEventProperty("rCode", new ScalarValue(log.ResponseCode.ToString()))
+                new LogEventProperty("rCode", new ScalarValue(log.ResponseCode.ToString())),
+                new LogEventProperty("domain_tld", new ScalarValue(log.DomainInfo.TLD)),
+                new LogEventProperty("domain_basedomain", new ScalarValue(log.DomainInfo.BaseDomain)),
+                new LogEventProperty("domain_subdomain", new ScalarValue(log.DomainInfo.Subdomain))
             };
 
             // Add each question as properties
@@ -150,6 +153,7 @@ namespace LogExporter.Strategy
             {
                 properties.Add(new LogEventProperty("answersSummary", new ScalarValue(string.Empty)));
             }
+
 
             // Add EDNS logs
             if (log.EDNS.Count > 0)
