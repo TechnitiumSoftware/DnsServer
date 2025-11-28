@@ -18,13 +18,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using Microsoft.Extensions.Configuration;
-using Serilog;
-using Serilog.Sinks.Http;
+using Microsoft.IO;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -34,88 +33,87 @@ namespace LogExporter.Strategy
     {
         #region variables
 
-        readonly Serilog.Core.Logger _sender;
+        private readonly Uri _endpoint;
+        private readonly HttpClient _httpClient;
+        private readonly RecyclableMemoryStreamManager _memoryManager = new();
+        private bool _disposed;
 
-        bool _disposed;
-
-        #endregion
+        #endregion variables
 
         #region constructor
 
         public HttpExportStrategy(string endpoint, Dictionary<string, string?>? headers = null)
         {
-            IConfigurationRoot? configuration = null;
+            if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
+                throw new ArgumentException("Invalid HTTP endpoint.", nameof(endpoint));
+
+            _endpoint = uri;
+            _httpClient = new HttpClient();
+
             if (headers != null)
             {
-                configuration = new ConfigurationBuilder()
-               .AddInMemoryCollection(headers)
-               .Build();
+                foreach (var kv in headers)
+                {
+                    if (!_httpClient.DefaultRequestHeaders.TryAddWithoutValidation(kv.Key, kv.Value))
+                        throw new FormatException($"Failed to add HTTP header '{kv.Key}'.");
+                }
             }
-
-            _sender = new LoggerConfiguration().WriteTo.Http(endpoint, null, httpClient: new CustomHttpClient(), configuration: configuration).Enrich.FromLogContext().CreateLogger();
         }
 
-        #endregion
+        #endregion constructor
 
         #region IDisposable
 
         public void Dispose()
         {
-            if (!_disposed)
-            {
-                _sender.Dispose();
+            if (_disposed)
+                return;
 
-                _disposed = true;
-            }
+            _httpClient.Dispose();
+            _disposed = true;
         }
 
-        #endregion
+        #endregion IDisposable
 
         #region public
 
-        public Task ExportAsync(IReadOnlyList<LogEntry> logs)
+        public async Task ExportAsync(IReadOnlyList<LogEntry> logs)
         {
-            foreach (LogEntry logEntry in logs)
-                _sender.Information(logEntry.ToString());
+            if (logs.Count == 0)
+                return;
 
-            return Task.CompletedTask;
-        }
+            // *** Pooled, arena-like memory buffer ***
+            using var ms = _memoryManager.GetStream("HttpExport-Batch");
 
-        #endregion
-
-        public class CustomHttpClient : IHttpClient
-        {
-            readonly HttpClient _httpClient;
-
-            public CustomHttpClient()
+            // Use Stream overload explicitly to avoid ambiguity
+            using (var jsonWriter = new Utf8JsonWriter((Stream)ms, new JsonWriterOptions
             {
-                _httpClient = new HttpClient();
-            }
-
-            public void Configure(IConfiguration configuration)
+                Indented = false,
+                SkipValidation = true
+            }))
             {
-                foreach (IConfigurationSection pair in configuration.GetChildren())
+                for (int i = 0; i < logs.Count; i++)
                 {
-                    if (!_httpClient.DefaultRequestHeaders.TryAddWithoutValidation(pair.Key, pair.Value))
-                        throw new FormatException($"Failed to add header '{pair.Key}'.");
+                    JsonSerializer.Serialize(jsonWriter, logs[i], LogEntry.DnsLogSerializerOptions.Default);
+
+                    // NDJSON line break
+                    jsonWriter.WriteRawValue("\n"u8, skipInputValidation: true);
                 }
             }
 
-            public void Dispose()
-            {
-                _httpClient?.Dispose();
-                GC.SuppressFinalize(this);
-            }
+            ms.Position = 0;
 
-            public async Task<HttpResponseMessage> PostAsync(string requestUri, Stream contentStream, CancellationToken cancellationToken)
-            {
-                StreamContent content = new StreamContent(contentStream);
-                content.Headers.Add("Content-Type", "application/json");
+            using var content = new StreamContent(ms);
+            content.Headers.Add("Content-Type", "application/x-ndjson");
 
-                return await _httpClient
-                    .PostAsync(requestUri, content, cancellationToken)
-                    .ConfigureAwait(false);
-            }
+            using HttpResponseMessage response = await _httpClient
+                .PostAsync(_endpoint, content, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            // Fail if server rejects logs
+            response.EnsureSuccessStatusCode();
         }
+
+        #endregion public
     }
 }

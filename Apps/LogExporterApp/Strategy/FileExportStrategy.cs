@@ -18,8 +18,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using Serilog;
+using Microsoft.IO;
 using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace LogExporter.Strategy
@@ -28,45 +30,72 @@ namespace LogExporter.Strategy
     {
         #region variables
 
-        readonly Serilog.Core.Logger _sender;
+        private readonly FileStream _fileStream;
+        private readonly RecyclableMemoryStreamManager _memoryManager = new();
+        private readonly StreamWriter _writer;
+        private bool _disposed;
 
-        bool _disposed;
-
-        #endregion
+        #endregion variables
 
         #region constructor
 
         public FileExportStrategy(string filePath)
         {
-            _sender = new LoggerConfiguration().WriteTo.File(filePath, outputTemplate: "{Message:lj}{NewLine}{Exception}").CreateLogger();
+            _fileStream = new FileStream(
+                filePath,
+                FileMode.Append,
+                FileAccess.Write,
+                FileShare.Read,
+                bufferSize: 64 * 1024,
+                useAsync: true);
+
+            _writer = new StreamWriter(_fileStream);
         }
 
-        #endregion
+        #endregion constructor
 
         #region IDisposable
 
         public void Dispose()
         {
-            if (!_disposed)
-            {
-                _sender.Dispose();
+            if (_disposed)
+                return;
 
-                _disposed = true;
-            }
+            _writer.Dispose();
+            _fileStream.Dispose();
+            _disposed = true;
         }
 
-        #endregion
+        #endregion IDisposable
 
         #region public
 
-        public Task ExportAsync(IReadOnlyList<LogEntry> logs)
+        public async Task ExportAsync(IReadOnlyList<LogEntry> logs)
         {
-            foreach (LogEntry logEntry in logs)
-                _sender.Information(logEntry.ToString());
+            // Per-batch pooled buffer ("arena")
+            using var ms = _memoryManager.GetStream("FileExport-Batch");
 
-            return Task.CompletedTask;
+            using (var jsonWriter = new Utf8JsonWriter((Stream)ms, new JsonWriterOptions
+            {
+                Indented = false,
+                SkipValidation = true
+            }))
+            {
+                for (int i = 0; i < logs.Count; i++)
+                {
+                    JsonSerializer.Serialize(jsonWriter, logs[i], LogEntry.DnsLogSerializerOptions.Default);
+                    jsonWriter.WriteRawValue("\n"u8, skipInputValidation: true); // NDJSON
+                }
+            }
+
+            // Reset to beginning for output
+            ms.Position = 0;
+
+            // Copy to the actual file stream
+            await ms.CopyToAsync(_writer.BaseStream);
+            await _writer.BaseStream.FlushAsync();
         }
 
-        #endregion
+        #endregion public
     }
 }
