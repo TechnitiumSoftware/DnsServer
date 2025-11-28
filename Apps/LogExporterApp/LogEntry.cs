@@ -38,6 +38,9 @@ namespace LogExporter
             // Assign timestamp and ensure it's in UTC
             Timestamp = timestamp.Kind == DateTimeKind.Utc ? timestamp : timestamp.ToUniversalTime();
 
+            // Set hostname
+            NameServer = response.Metadata.NameServer.Host;
+
             // Extract client information
             ClientIp = remoteEP.Address.ToString();
             Protocol = protocol;
@@ -94,6 +97,7 @@ namespace LogExporter
             }
         }
 
+        public string NameServer { get; private set; }
         public List<DnsResourceRecord> Answers { get; private set; }
         public string ClientIp { get; private set; }
         public List<EDNSLog> EDNS { get; private set; }
