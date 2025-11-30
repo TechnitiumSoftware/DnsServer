@@ -98,9 +98,12 @@ namespace LogExporter
 
             ConfigureStrategies();
 
-            _enableLogging = _exportManager.HasStrategy();
-            if (!_enableLogging)
+            // If no sinks exist, never enable logging.
+            if (!_exportManager.HasStrategy())
+            {
+                _enableLogging = false;
                 return Task.CompletedTask;
+            }
 
             // Create bounded channel to avoid memory explosion
             _channel = Channel.CreateBounded<LogEntry>(
@@ -114,6 +117,13 @@ namespace LogExporter
             // Start background worker
             _cts = new CancellationTokenSource();
             _backgroundTask = Task.Run(() => BackgroundWorkerAsync(_cts.Token));
+            
+            // ADR: _enableLogging is intentionally set last so that any caller observing
+            // _enableLogging == true can rely on the entire logging pipeline being fully
+            // constructed (channel, CTS, background worker). This prevents subtle race
+            // conditions where concurrent InsertLogAsync calls see "enabled" before internal
+            // structures are ready.
+            _enableLogging = true;
 
             return Task.CompletedTask;
         }
