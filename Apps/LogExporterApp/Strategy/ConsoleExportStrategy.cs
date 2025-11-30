@@ -43,6 +43,10 @@ namespace LogExporter.Strategy
 
         public void Dispose()
         {
+            // ADR: We intentionally do NOT dispose _stdout. The standard output stream is
+            // owned by the process, not by this strategy. Disposing it here would break
+            // all console output for the entire DNS server. Dispose only flips the flag
+            // so that subsequent ExportAsync calls become no-ops during shutdown.
             _disposed = true;
         }
 
