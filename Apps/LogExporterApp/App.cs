@@ -163,9 +163,11 @@ namespace LogExporter
 
                     if (batch.Count > 0)
                     {
-                        var safeBatch = new List<LogEntry>(batch);
-                        await _exportManager.ImplementStrategyAsync(safeBatch);
-                        batch.Clear();
+                        // Pass current batch and reinitialize a new one for next cycle
+                        var toExport = batch;
+                        batch = new List<LogEntry>(BULK_INSERT_COUNT);
+
+                        await _exportManager.ImplementStrategyAsync(toExport);
                     }
                 }
             }
@@ -176,8 +178,6 @@ namespace LogExporter
             catch (Exception ex)
             {
                 _dnsServer?.WriteLog(ex);
-
-                // Attempt final drain to avoid silent data loss
                 await DrainRemainingLogs(batch);
             }
         }
