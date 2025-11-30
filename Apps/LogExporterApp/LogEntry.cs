@@ -19,6 +19,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.ApplicationCommon;
+using Nager.PublicSuffix;
+using Nager.PublicSuffix.RuleProviders;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,10 +35,28 @@ namespace LogExporter
 {
     public class LogEntry
     {
+        // ADR: Loading the PSL must not block or fail plugin startup. We defer
+        // initialization and make it best-effort to avoid network dependencies.
+        private static readonly Lazy<DomainParser?> _parser = new Lazy<DomainParser?>(InitiateParser);
+
         public LogEntry(DateTime timestamp, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram request, DnsDatagram response, bool ednsLogging = false)
         {
             // Assign timestamp and ensure it's in UTC
-            Timestamp = timestamp.Kind == DateTimeKind.Utc ? timestamp : timestamp.ToUniversalTime();
+            if (timestamp.Kind == DateTimeKind.Utc)
+            {
+                // Assign timestamp and ensure it's in UTC
+                Timestamp = timestamp;
+            }
+            else
+            {
+                // Assign timestamp and ensure it's in UTC
+                Timestamp = timestamp.ToUniversalTime();
+            }
+
+            // Set hostname
+            NameServer = request.Metadata.NameServer.Host;
+
+            DomainInfo = new Domain(request.Question[0].Name);
 
             // Extract client information
             ClientIp = remoteEP.Address.ToString();
@@ -84,28 +104,87 @@ namespace LogExporter
 
             foreach (EDnsOption extendedErrorLog in response.EDNS.Options.Where(o => o.Code == EDnsOptionCode.EXTENDED_DNS_ERROR))
             {
-                string[] extractedData = extendedErrorLog.Data.ToString().Replace("[", string.Empty).Replace("]", string.Empty).Split(":", StringSplitOptions.TrimEntries);
+                // ADR: EDNS extended error comes from network input and may not follow
+                // the expected "type: message" format. Previously this code assumed
+                // a well-formed structure and could throw IndexOutOfRangeException,
+                // allowing remote parties to crash the logging pipeline.
+                // We now parse defensively and treat malformed data as a best-effort message.
+
+                var raw = extendedErrorLog.Data?.ToString();
+                if (string.IsNullOrWhiteSpace(raw))
+                    continue;
+
+                raw = raw.Replace("[", "").Replace("]", "");
+
+                string? errType = null;
+                string? message = null;
+
+                var parts = raw.Split(':', 2, StringSplitOptions.TrimEntries);
+                if (parts.Length == 2)
+                {
+                    errType = parts[0];
+                    message = parts[1];
+                }
+                else
+                {
+                    // fallback: treat the raw payload as the message
+                    message = raw;
+                }
 
                 EDNS.Add(new EDNSLog
                 {
-                    ErrType = extractedData[0],
-                    Message = extractedData[1]
+                    ErrType = errType,
+                    Message = message
                 });
             }
         }
 
         public List<DnsResourceRecord> Answers { get; private set; }
+
         public string ClientIp { get; private set; }
+
         public List<EDNSLog> EDNS { get; private set; }
+
+        public string NameServer { get; private set; }
+
         public DnsTransportProtocol Protocol { get; private set; }
+
         public DnsQuestion? Question { get; private set; }
+
         public DnsResponseCode ResponseCode { get; private set; }
+
         public double? ResponseRtt { get; private set; }
+
         public DnsServerResponseType ResponseType { get; private set; }
+
         public DateTime Timestamp { get; private set; }
+
+        public Domain DomainInfo { get; private set; }
+
         public override string ToString()
         {
             return JsonSerializer.Serialize(this, DnsLogSerializerOptions.Default);
+        }
+
+        private static DomainParser? InitiateParser()
+        {
+            // ADR: The PSL download via SimpleHttpRuleProvider performs outbound HTTP.
+            // Relying on external network connectivity at plugin startup is unsafe in
+            // production DNS environments (offline appliances, firewalled networks,
+            // corporate proxies). Initialization must never block or fail due to PSL
+            // retrieval. We therefore treat PSL availability as optional:
+            //   - If the download succeeds, domain parsing is enriched.
+            //   - If it fails, we return null and logging continues without PSL data.
+            try
+            {
+                var provider = new SimpleHttpRuleProvider();
+                provider.BuildAsync().GetAwaiter().GetResult();
+                return new DomainParser(provider);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public static class DnsLogSerializerOptions
@@ -121,19 +200,55 @@ namespace LogExporter
             };
         }
 
+        public class Domain
+        {
+            public string TLD { get; private set; }
+            public string BaseDomain { get; private set; }
+            public string Subdomain { get; private set; }
+
+            public Domain(string name)
+            {
+                // ADR: _parser is a Lazy<DomainParser?> and never null. We check its Value
+                // instead because Value may be null if PSL initialization failed. The old
+                // `_parser == null` check was misleading and is removed for clarity.
+
+                if (string.IsNullOrWhiteSpace(name))
+                    return;
+
+                var parser = _parser.Value;
+                if (parser == null)
+                    return;
+
+                try
+                {
+                    var info = parser.Parse(name);
+                    if (info == null)
+                        return;
+
+                    TLD = info.TopLevelDomain ?? string.Empty;
+                    BaseDomain = info.RegistrableDomain ?? string.Empty;
+                    Subdomain = info.Subdomain ?? string.Empty;
+                }
+                catch
+                {
+                    // Parsing errors are intentionally ignored because PSL is optional.
+                }
+            }
+        }
+
         public class DnsQuestion
         {
             public DnsClass QuestionClass { get; set; }
-            public required string QuestionName { get; set; }
+            public string QuestionName { get; set; }
             public DnsResourceRecordType QuestionType { get; set; }
         }
 
         public class DnsResourceRecord
         {
             public DnssecStatus DnssecStatus { get; set; }
-            public required string Name { get; set; }
+            public string Name { get; set; }
             public DnsClass RecordClass { get; set; }
-            public required string RecordData { get; set; }
+            public string RecordData { get; set; }
             public uint RecordTtl { get; set; }
             public DnsResourceRecordType RecordType { get; set; }
         }
