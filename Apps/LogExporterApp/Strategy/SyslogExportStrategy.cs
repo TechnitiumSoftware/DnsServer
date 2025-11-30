@@ -130,12 +130,17 @@ namespace LogExporter.Strategy
 
         #region public
 
-        public Task ExportAsync(IReadOnlyList<LogEntry> logs)
+        public async Task ExportAsync(IReadOnlyList<LogEntry> logs)
         {
+            // ADR: Once disposed, this strategy must not attempt any I/O. The background
+            // worker may still flush a few batches while shutdown is in progress. Treating
+            // late calls as no-ops avoids spurious ObjectDisposedExceptions during normal
+            // teardown.
+            if (_disposed || logs.Count == 0)
+                return;
+
             foreach (LogEntry log in logs)
                 _sender.Information(_formatter.FormatMessage(Convert(log)));
-
-            return Task.CompletedTask;
         }
 
         #endregion

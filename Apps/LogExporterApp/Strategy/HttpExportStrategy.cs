@@ -79,10 +79,13 @@ namespace LogExporter.Strategy
 
         public async Task ExportAsync(IReadOnlyList<LogEntry> logs)
         {
-            if (logs.Count == 0)
+            // ADR: Once disposed, this strategy must not attempt any I/O. The background
+            // worker may still flush a few batches while shutdown is in progress. Treating
+            // late calls as no-ops avoids spurious ObjectDisposedExceptions during normal
+            // teardown.
+            if (_disposed || logs.Count == 0)
                 return;
 
-            // *** Pooled, arena-like memory buffer ***
             using var ms = _memoryManager.GetStream("HttpExport-Batch");
 
             // Use Stream overload explicitly to avoid ambiguity
