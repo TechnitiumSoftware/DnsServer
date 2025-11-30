@@ -30,7 +30,10 @@ namespace LogExporter.Strategy
     {
         #region variables
 
-        readonly ConcurrentDictionary<Type, IExportStrategy> _exportStrategies = new ConcurrentDictionary<Type, IExportStrategy>();
+        private readonly ConcurrentDictionary<Type, IExportStrategy> _exportStrategies =
+            new ConcurrentDictionary<Type, IExportStrategy>();
+
+        private bool _disposed;
 
         #endregion
 
@@ -38,8 +41,19 @@ namespace LogExporter.Strategy
 
         public void Dispose()
         {
-            foreach (KeyValuePair<Type, IExportStrategy> exportStrategy in _exportStrategies)
-                exportStrategy.Value.Dispose();
+            if (_disposed)
+                return;
+
+            _disposed = true;
+
+            // ADR: Once the manager is disposed, all strategies must be disposed and
+            // removed. Leaving them in the dictionary creates a misleading state
+            // (“manager has strategies”) and allows accidental use-after-dispose.
+            // Clearing ensures the manager becomes inert and conveys finality.
+            foreach (var entry in _exportStrategies)
+                entry.Value.Dispose();
+
+            _exportStrategies.Clear();
         }
 
         #endregion
@@ -48,47 +62,46 @@ namespace LogExporter.Strategy
 
         public void AddStrategy(IExportStrategy strategy)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+
             if (!_exportStrategies.TryAdd(strategy.GetType(), strategy))
-                throw new InvalidOperationException();
+                throw new InvalidOperationException(
+                    $"Strategy of type {strategy.GetType().Name} already registered.");
         }
 
         public void RemoveStrategy(Type type)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+
             if (_exportStrategies.TryRemove(type, out IExportStrategy? existing))
                 existing?.Dispose();
         }
 
         public bool HasStrategy()
         {
+            if (_disposed)
+                return false;
+
             return !_exportStrategies.IsEmpty;
         }
 
         /// <summary>
         /// Executes all configured export strategies for the current batch.
         ///
-        /// ADR: we deliberately await the ExportAsync tasks directly instead of using
-        /// Task.Factory.StartNew with async delegates. The previous implementation
-        /// created Task&lt;Task&gt; wrappers and only awaited the outer tasks, which meant
-        /// exports could continue running after this method returned and exceptions
-        /// were surfaced as unobserved task exceptions. Keeping a simple
-        /// Task.WhenAll over the real strategy tasks guarantees:
-        ///   - backpressure semantics: a slow exporter slows the pipeline predictably
-        ///   - correct exception propagation to the background worker
-        ///   - no fire-and-forget work that can outlive shutdown
-        /// Do not reintroduce Task.Run/StartNew here unless you also handle the
-        /// Task&lt;Task&gt; layering explicitly.
+        /// ADR: ExportManager synchronously awaits each strategy's ExportAsync task.
+        /// This guarantees predictable backpressure and ensures no spillover work
+        /// continues after shutdown. Strategies are responsible for honoring
+        /// cancellation so shutdown stays bounded.
         /// </summary>
         public async Task ImplementStrategyAsync(IReadOnlyList<LogEntry> logs, CancellationToken token)
         {
-            if (logs == null || logs.Count == 0 || _exportStrategies.IsEmpty)
+            if (_disposed || logs == null || logs.Count == 0 || _exportStrategies.IsEmpty)
                 return;
 
             var tasks = new List<Task>(_exportStrategies.Count);
 
             foreach (var strategy in _exportStrategies.Values)
-            {
                 tasks.Add(strategy.ExportAsync(logs, token));
-            }
 
             await Task.WhenAll(tasks).ConfigureAwait(false);
         }
