@@ -131,16 +131,27 @@ namespace LogExporter.Strategy
 
         #region public
 
-        public async Task ExportAsync(IReadOnlyList<LogEntry> logs, CancellationToken token)
+        public Task ExportAsync(IReadOnlyList<LogEntry> logs, CancellationToken token)
         {
-            // ADR: Once disposed, this strategy must not attempt any I/O. The background
-            // worker may still flush a few batches while shutdown is in progress. Treating
-            // late calls as no-ops avoids spurious ObjectDisposedExceptions during normal
-            // teardown.
-            if (_disposed || logs.Count == 0 || token.IsCancellationRequested)
-                return;
+            // ADR: Syslog export previously used Task.Run with a synchronous loop,
+            // causing threadpool churn and preventing timely shutdown. We now execute
+            // sequentially on the caller's async context and check cancellation between
+            // log writes. Serilog remains synchronous, but cancellation ensures bounded
+            // shutdown latency.
 
-            await Task.Run(() => { foreach (LogEntry log in logs) _sender.Information(_formatter.FormatMessage(Convert(log))); }, token);
+            if (_disposed || logs.Count == 0 || token.IsCancellationRequested)
+                return Task.CompletedTask;
+
+            foreach (LogEntry log in logs)
+            {
+                if (token.IsCancellationRequested)
+                    break;
+
+                var message = _formatter.FormatMessage(Convert(log));
+                _sender.Information(message);
+            }
+
+            return Task.CompletedTask;
         }
 
         #endregion
