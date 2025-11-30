@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.32014.148
+# Visual Studio Version 18
+VisualStudioVersion = 18.1.11312.151 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DnsServerApp", "DnsServerApp\DnsServerApp.csproj", "{ADE80805-9FA7-4F66-8A18-57B98F8C0B0F}"
 EndProject
@@ -68,7 +68,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QueryLogsMySqlApp", "Apps\QueryLogsMySqlApp\QueryLogsMySqlApp.csproj", "{699E2A1D-D917-4825-939E-65CDB2B16A96}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MispConnectorApp", "Apps\MispConnectorApp\MispConnectorApp.csproj", "{83C8180A-0F86-F9A0-8F41-6FD61FAC41CB}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DnsServerCore.HttpApi", "DnsServerCore.HttpApi\DnsServerCore.HttpApi.csproj", "{1A49D371-D08C-475E-B7A2-6E8ECD181FD6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TyposquattingDetector", "Apps\TyposquattingDetector\TyposquattingDetector.csproj", "{FC71CB85-F69D-44E5-A447-52B39C7AB5C2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -208,6 +211,10 @@ Global
 		{1A49D371-D08C-475E-B7A2-6E8ECD181FD6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1A49D371-D08C-475E-B7A2-6E8ECD181FD6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1A49D371-D08C-475E-B7A2-6E8ECD181FD6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FC71CB85-F69D-44E5-A447-52B39C7AB5C2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FC71CB85-F69D-44E5-A447-52B39C7AB5C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FC71CB85-F69D-44E5-A447-52B39C7AB5C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FC71CB85-F69D-44E5-A447-52B39C7AB5C2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -240,6 +247,7 @@ Global
 		{6F655C97-FD43-4FE1-B15A-6C783D2D91C9} = {938BF8EF-74B9-4FE0-B46F-11EBB7A4B3D2}
 		{699E2A1D-D917-4825-939E-65CDB2B16A96} = {938BF8EF-74B9-4FE0-B46F-11EBB7A4B3D2}
 		{83C8180A-0F86-F9A0-8F41-6FD61FAC41CB} = {938BF8EF-74B9-4FE0-B46F-11EBB7A4B3D2}
+		{FC71CB85-F69D-44E5-A447-52B39C7AB5C2} = {938BF8EF-74B9-4FE0-B46F-11EBB7A4B3D2}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6747BB6D-2826-4356-A213-805FBCCF9201}

@@ -17,6 +17,8 @@ Nobody really bothers about domain name resolution since it works automatically 
 
 Be it a home network or an organization's network, having a locally running DNS server gives you more insights into your network and helps to understand it better using the DNS logs and stats. It improves overall performance since most queries are served from the DNS cache making web sites load faster by not having to wait for frequent DNS resolutions. It also gives you an additional control over your network allowing you to block domain names network wide and also allows you to route your DNS traffic securely using encrypted DNS protocols.
 
+[![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=zbalkan_DnsServer)](https://sonarcloud.io/summary/new_code?id=zbalkan_DnsServer)
+
 # Sponsored By
 <p align="center">
 	<a href="https://althatech.com/" target="_blank"><img src="https://technitium.com/img/logo-althatech.png" width="250" alt="Altha Technology - Censorship Resistant Data Services" title="Altha Technology - Censorship Resistant Data Services" /></a>
