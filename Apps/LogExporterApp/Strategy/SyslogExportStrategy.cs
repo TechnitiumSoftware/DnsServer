@@ -137,11 +137,10 @@ namespace LogExporter.Strategy
             // worker may still flush a few batches while shutdown is in progress. Treating
             // late calls as no-ops avoids spurious ObjectDisposedExceptions during normal
             // teardown.
-            if (_disposed || logs.Count == 0)
+            if (_disposed || logs.Count == 0 || token.IsCancellationRequested)
                 return;
 
-            foreach (LogEntry log in logs)
-                _sender.Information(_formatter.FormatMessage(Convert(log)));
+            await Task.Run(() => { foreach (LogEntry log in logs) _sender.Information(_formatter.FormatMessage(Convert(log))); }, token);
         }
 
         #endregion

@@ -206,18 +206,18 @@ namespace LogExporter
                         var toExport = batch;
                         batch = new List<LogEntry>(BULK_INSERT_COUNT);
 
-                        await _exportManager.ImplementStrategyAsync(toExport);
+                        await _exportManager.ImplementStrategyAsync(toExport, token);
                     }
                 }
             }
             catch (OperationCanceledException)
             {
-                await DrainRemainingLogs(batch);
+                await DrainRemainingLogs(batch, token);
             }
             catch (Exception ex)
             {
                 _dnsServer?.WriteLog(ex);
-                await DrainRemainingLogs(batch);
+                await DrainRemainingLogs(batch, token);
             }
         }
 
@@ -244,7 +244,7 @@ namespace LogExporter
                                              _config.SyslogTarget.Protocol!));
         }
 
-        private async Task DrainRemainingLogs(List<LogEntry> batch)
+        private async Task DrainRemainingLogs(List<LogEntry> batch, CancellationToken token)
         {
             try
             {
@@ -254,14 +254,14 @@ namespace LogExporter
 
                     if (batch.Count >= BULK_INSERT_COUNT)
                     {
-                        await _exportManager.ImplementStrategyAsync(new List<LogEntry>(batch));
+                        await _exportManager.ImplementStrategyAsync(new List<LogEntry>(batch), token);
                         batch.Clear();
                     }
                 }
 
                 if (batch.Count > 0)
                 {
-                    await _exportManager.ImplementStrategyAsync(batch);
+                    await _exportManager.ImplementStrategyAsync(batch, token);
                     batch.Clear();
                 }
             }

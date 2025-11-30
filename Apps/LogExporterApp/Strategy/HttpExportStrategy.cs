@@ -83,7 +83,7 @@ namespace LogExporter.Strategy
             // worker may still flush a few batches while shutdown is in progress. Treating
             // late calls as no-ops avoids spurious ObjectDisposedExceptions during normal
             // teardown.
-            if (_disposed || logs.Count == 0)
+            if (_disposed || logs.Count == 0 || token.IsCancellationRequested)
                 return;
 
             using var ms = _memoryManager.GetStream("HttpExport-Batch");
@@ -97,7 +97,7 @@ namespace LogExporter.Strategy
             content.Headers.Add("Content-Type", "application/x-ndjson");
 
             using HttpResponseMessage response = await _httpClient
-                .PostAsync(_endpoint, content, CancellationToken.None)
+                .PostAsync(_endpoint, content, token)
                 .ConfigureAwait(false);
 
             // Fail if server rejects logs

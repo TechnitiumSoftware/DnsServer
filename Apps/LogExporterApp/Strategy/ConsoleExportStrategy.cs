@@ -48,34 +48,16 @@ namespace LogExporter.Strategy
 
         public async Task ExportAsync(IReadOnlyList<LogEntry> logs, CancellationToken token)
         {
-            if (_disposed || logs.Count == 0)
+            if (_disposed || logs.Count == 0 || token.IsCancellationRequested)
                 return;
 
             using var ms = _memoryManager.GetStream("ConsoleExport-Batch");
-
-            using (var jsonWriter = new Utf8JsonWriter(
-               (Stream)ms,
-                new JsonWriterOptions
-                {
-                    Indented = false,
-                    SkipValidation = true
-                }))
-            {
-                for (int i = 0; i < logs.Count; i++)
-                {
-                    JsonSerializer.Serialize(
-                        jsonWriter,
-                        logs[i],
-                        LogEntry.DnsLogSerializerOptions.Default);
-
-                    jsonWriter.WriteRawValue("\n"u8, skipInputValidation: true);
-                }
-            }
+            NdjsonSerializer.WriteBatch(ms, logs);
 
             ms.Position = 0;
 
-            await ms.CopyToAsync(_stdout).ConfigureAwait(false);
-            await _stdout.FlushAsync().ConfigureAwait(false);
+            await ms.CopyToAsync(_stdout, token).ConfigureAwait(false);
+            await _stdout.FlushAsync(token).ConfigureAwait(false);
         }
     }
 }

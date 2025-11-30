@@ -77,7 +77,7 @@ namespace LogExporter.Strategy
             // worker may still flush a few batches while shutdown is in progress. Treating
             // late calls as no-ops avoids spurious ObjectDisposedExceptions during normal
             // teardown.
-            if (_disposed || logs.Count == 0)
+            if (_disposed || logs.Count == 0 || token.IsCancellationRequested)
                 return;
 
             // Per-batch pooled buffer ("arena")
@@ -88,7 +88,7 @@ namespace LogExporter.Strategy
             ms.Position = 0;
 
             // Copy to the actual file stream
-            await ms.CopyToAsync(_writer.BaseStream);
+            await ms.CopyToAsync(_writer.BaseStream, token);
             await _writer.BaseStream.FlushAsync();
         }
 

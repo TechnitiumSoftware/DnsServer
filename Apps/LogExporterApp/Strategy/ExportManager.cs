@@ -78,7 +78,7 @@ namespace LogExporter.Strategy
         /// Do not reintroduce Task.Run/StartNew here unless you also handle the
         /// Task&lt;Task&gt; layering explicitly.
         /// </summary>
-        public async Task ImplementStrategyAsync(IReadOnlyList<LogEntry> logs, CancellationToken token = default)
+        public async Task ImplementStrategyAsync(IReadOnlyList<LogEntry> logs, CancellationToken token)
         {
             if (logs == null || logs.Count == 0 || _exportStrategies.IsEmpty)
                 return;
