@@ -199,11 +199,29 @@ namespace LogExporter
 
             public Domain(string name)
             {
-                if (_parser == null) return;
-                var domainInfo = _parser.Parse(name)!;
-                TLD = domainInfo.TopLevelDomain!;
-                BaseDomain = domainInfo.RegistrableDomain!;
-                Subdomain = domainInfo.Subdomain!;
+                // ADR: Domain parsing relies on PSL data fetched at runtime. This may fail
+                // due to network restrictions or malformed domain names. Logging must not
+                // depend on PSL availability, so this constructor must never throw. We treat
+                // PSL output as optional metadata; empty strings mean "not available".
+
+                if (string.IsNullOrWhiteSpace(name) || _parser == null)
+                    return;
+
+                try
+                {
+                    var info = _parser.Parse(name);
+                    if (info == null)
+                        return;
+
+                    TLD = info.TopLevelDomain ?? string.Empty;
+                    BaseDomain = info.RegistrableDomain ?? string.Empty;
+                    Subdomain = info.Subdomain ?? string.Empty;
+                }
+                catch
+                {
+                    // Intentionally swallow all parser errors (library bugs, malformed input,
+                    // missing rule data). Logging correctness takes priority over PSL accuracy.
+                }
             }
         }
 
