@@ -34,16 +34,18 @@ namespace LogExporter
     {
         #region variables
 
-        private const int BULK_INSERT_COUNT = 1000;
-        private readonly ExportManager _exportManager = new ExportManager();
-        private Task? _backgroundTask;
-        private Channel<LogEntry> _channel = default!;
-        private AppConfig? _config;
-        private CancellationTokenSource? _cts;
-        private bool _disposed;
-        private IDnsServer? _dnsServer;
-        private bool _enableLogging;
-
+        const int BULK_INSERT_COUNT = 1000;
+        readonly ExportManager _exportManager = new ExportManager();
+        Task? _backgroundTask;
+        Channel<LogEntry> _channel = default!;
+        AppConfig? _config;
+        CancellationTokenSource? _cts;
+        bool _disposed;
+        IDnsServer? _dnsServer;
+        volatile bool _enableLogging; // volatile to improve cross-thread visibility
+        long _droppedCount;
+        DateTime _lastDropLog = DateTime.UtcNow;
+        static readonly TimeSpan DropLogInterval = TimeSpan.FromSeconds(5);
         #endregion variables
 
         #region constructor
@@ -64,6 +66,12 @@ namespace LogExporter
 
             try
             {
+                // Stop accepting new entries immediately
+                _enableLogging = false;
+
+                // Signal no more writes; safe even if not initialized
+                try { _channel?.Writer.TryComplete(); } catch { }
+
                 _cts?.Cancel();
             }
             catch { }
@@ -111,8 +119,8 @@ namespace LogExporter
         }
 
         public Task InsertLogAsync(DateTime timestamp, DnsDatagram request,
-                                   IPEndPoint remoteEP, DnsTransportProtocol protocol,
-                                   DnsDatagram response)
+                            IPEndPoint remoteEP, DnsTransportProtocol protocol,
+                            DnsDatagram response)
         {
             if (_enableLogging)
             {
@@ -120,11 +128,18 @@ namespace LogExporter
 
                 if (!_channel.Writer.TryWrite(entry))
                 {
-                    _dnsServer?.WriteLog("Log export queue full; dropping entry.");
+                    Interlocked.Increment(ref _droppedCount);
+
+                    var now = DateTime.UtcNow;
+                    if (now - _lastDropLog >= DropLogInterval)
+                    {
+                        var dropped = Interlocked.Exchange(ref _droppedCount, 0);
+                        _lastDropLog = now;
+                        _dnsServer?.WriteLog($"Log export queue full; dropped {dropped} entries over last {DropLogInterval.TotalSeconds:F0}s.");
+                    }
                 }
             }
 
-            // No async, no warning, no overhead
             return Task.CompletedTask;
         }
 
@@ -138,7 +153,6 @@ namespace LogExporter
 
             try
             {
-                // Single-consumer continuous processing
                 while (await _channel.Reader.WaitToReadAsync(token))
                 {
                     while (batch.Count < BULK_INSERT_COUNT &&
@@ -149,47 +163,42 @@ namespace LogExporter
 
                     if (batch.Count > 0)
                     {
-                        // Clone for safety
                         var safeBatch = new List<LogEntry>(batch);
-
                         await _exportManager.ImplementStrategyAsync(safeBatch);
-
                         batch.Clear();
                     }
                 }
             }
             catch (OperationCanceledException)
             {
-                // Drain channel on cancellation
                 await DrainRemainingLogs(batch);
             }
             catch (Exception ex)
             {
                 _dnsServer?.WriteLog(ex);
+
+                // Attempt final drain to avoid silent data loss
+                await DrainRemainingLogs(batch);
             }
         }
 
         private void ConfigureStrategies()
         {
-            // Console
             _exportManager.RemoveStrategy(typeof(ConsoleExportStrategy));
-            if (_config!.ConsoleTarget!.Enabled)
+            if (_config!.ConsoleTarget != null && _config.ConsoleTarget.Enabled)
                 _exportManager.AddStrategy(new ConsoleExportStrategy());
 
-            // FILE
             _exportManager.RemoveStrategy(typeof(FileExportStrategy));
-            if (_config!.FileTarget!.Enabled)
+            if (_config!.FileTarget != null && _config.FileTarget.Enabled)
                 _exportManager.AddStrategy(new FileExportStrategy(_config.FileTarget.Path));
 
-            // HTTP
             _exportManager.RemoveStrategy(typeof(HttpExportStrategy));
-            if (_config.HttpTarget!.Enabled)
+            if (_config!.HttpTarget != null && _config.HttpTarget.Enabled)
                 _exportManager.AddStrategy(
                     new HttpExportStrategy(_config.HttpTarget.Endpoint, _config.HttpTarget.Headers));
 
-            // SYSLOG
             _exportManager.RemoveStrategy(typeof(SyslogExportStrategy));
-            if (_config.SyslogTarget!.Enabled)
+            if (_config!.SyslogTarget != null && _config.SyslogTarget.Enabled)
                 _exportManager.AddStrategy(
                     new SyslogExportStrategy(_config.SyslogTarget.Address,
                                              _config.SyslogTarget.Port!.Value,
