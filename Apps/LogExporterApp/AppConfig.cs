@@ -103,7 +103,7 @@ namespace LogExporter
         public int? Port { get; set; }
 
         [JsonPropertyName("protocol")]
-        [AllowedValues(["udp", "tcp", "tls", "local"])]
+        [AllowedValues(["UDP", "TCP", "TLS", "LOCAL"])]
         public string? Protocol { get; set; }
     }
 

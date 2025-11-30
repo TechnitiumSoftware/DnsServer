@@ -22,6 +22,7 @@ using Microsoft.IO;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace LogExporter.Strategy
@@ -70,7 +71,7 @@ namespace LogExporter.Strategy
 
         #region public
 
-        public async Task ExportAsync(IReadOnlyList<LogEntry> logs)
+        public async Task ExportAsync(IReadOnlyList<LogEntry> logs, CancellationToken token)
         {
             // ADR: Once disposed, this strategy must not attempt any I/O. The background
             // worker may still flush a few batches while shutdown is in progress. Treating

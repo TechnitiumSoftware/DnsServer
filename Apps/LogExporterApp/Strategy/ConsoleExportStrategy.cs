@@ -23,6 +23,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace LogExporter.Strategy
@@ -45,7 +46,7 @@ namespace LogExporter.Strategy
             _disposed = true;
         }
 
-        public async Task ExportAsync(IReadOnlyList<LogEntry> logs)
+        public async Task ExportAsync(IReadOnlyList<LogEntry> logs, CancellationToken token)
         {
             if (_disposed || logs.Count == 0)
                 return;

@@ -77,7 +77,7 @@ namespace LogExporter.Strategy
 
         #region public
 
-        public async Task ExportAsync(IReadOnlyList<LogEntry> logs)
+        public async Task ExportAsync(IReadOnlyList<LogEntry> logs, CancellationToken token)
         {
             // ADR: Once disposed, this strategy must not attempt any I/O. The background
             // worker may still flush a few batches while shutdown is in progress. Treating
