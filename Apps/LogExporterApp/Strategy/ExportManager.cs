@@ -63,19 +63,34 @@ namespace LogExporter.Strategy
             return !_exportStrategies.IsEmpty;
         }
 
+        /// <summary>
+        /// Executes all configured export strategies for the current batch.
+        ///
+        /// ADR: we deliberately await the ExportAsync tasks directly instead of using
+        /// Task.Factory.StartNew with async delegates. The previous implementation
+        /// created Task&lt;Task&gt; wrappers and only awaited the outer tasks, which meant
+        /// exports could continue running after this method returned and exceptions
+        /// were surfaced as unobserved task exceptions. Keeping a simple
+        /// Task.WhenAll over the real strategy tasks guarantees:
+        ///   - backpressure semantics: a slow exporter slows the pipeline predictably
+        ///   - correct exception propagation to the background worker
+        ///   - no fire-and-forget work that can outlive shutdown
+        /// Do not reintroduce Task.Run/StartNew here unless you also handle the
+        /// Task&lt;Task&gt; layering explicitly.
+        /// </summary>
         public async Task ImplementStrategyAsync(IReadOnlyList<LogEntry> logs)
         {
-            List<Task> tasks = new List<Task>(_exportStrategies.Count);
+            if (logs == null || logs.Count == 0 || _exportStrategies.IsEmpty)
+                return;
 
-            foreach (KeyValuePair<Type, IExportStrategy> strategy in _exportStrategies)
+            var tasks = new List<Task>(_exportStrategies.Count);
+
+            foreach (var strategy in _exportStrategies.Values)
             {
-                tasks.Add(Task.Factory.StartNew(delegate (object? state)
-                {
-                    return strategy.Value.ExportAsync(logs);
-                }, null, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Current));
+                tasks.Add(strategy.ExportAsync(logs));
             }
 
-            await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks).ConfigureAwait(false);
         }
 
         #endregion
