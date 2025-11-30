@@ -81,19 +81,7 @@ namespace LogExporter.Strategy
 
             // Per-batch pooled buffer ("arena")
             using var ms = _memoryManager.GetStream("FileExport-Batch");
-
-            using (var jsonWriter = new Utf8JsonWriter((Stream)ms, new JsonWriterOptions
-            {
-                Indented = false,
-                SkipValidation = true
-            }))
-            {
-                for (int i = 0; i < logs.Count; i++)
-                {
-                    JsonSerializer.Serialize(jsonWriter, logs[i], LogEntry.DnsLogSerializerOptions.Default);
-                    jsonWriter.WriteRawValue("\n"u8, skipInputValidation: true); // NDJSON
-                }
-            }
+            NdjsonSerializer.WriteBatch(ms, logs);
 
             // Reset to beginning for output
             ms.Position = 0;

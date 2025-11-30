@@ -89,20 +89,7 @@ namespace LogExporter.Strategy
             using var ms = _memoryManager.GetStream("HttpExport-Batch");
 
             // Use Stream overload explicitly to avoid ambiguity
-            using (var jsonWriter = new Utf8JsonWriter((Stream)ms, new JsonWriterOptions
-            {
-                Indented = false,
-                SkipValidation = true
-            }))
-            {
-                for (int i = 0; i < logs.Count; i++)
-                {
-                    JsonSerializer.Serialize(jsonWriter, logs[i], LogEntry.DnsLogSerializerOptions.Default);
-
-                    // NDJSON line break
-                    jsonWriter.WriteRawValue("\n"u8, skipInputValidation: true);
-                }
-            }
+            NdjsonSerializer.WriteBatch(ms, logs);
 
             ms.Position = 0;
 
