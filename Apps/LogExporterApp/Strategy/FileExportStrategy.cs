@@ -73,23 +73,19 @@ namespace LogExporter.Strategy
 
         public async Task ExportAsync(IReadOnlyList<LogEntry> logs, CancellationToken token)
         {
-            // ADR: Once disposed, this strategy must not attempt any I/O. The background
-            // worker may still flush a few batches while shutdown is in progress. Treating
-            // late calls as no-ops avoids spurious ObjectDisposedExceptions during normal
-            // teardown.
+            // ADR: File writes must honor cancellation so server shutdown cannot block
+            // on slow disks or large flush operations. Previously FlushAsync() was not
+            // cancellable, allowing shutdown to hang indefinitely under I/O pressure.
+            // All I/O operations now respect the provided token.
             if (_disposed || logs.Count == 0 || token.IsCancellationRequested)
                 return;
 
-            // Per-batch pooled buffer ("arena")
             using var ms = _memoryManager.GetStream("FileExport-Batch");
             NdjsonSerializer.WriteBatch(ms, logs);
-
-            // Reset to beginning for output
             ms.Position = 0;
 
-            // Copy to the actual file stream
-            await ms.CopyToAsync(_writer.BaseStream, token);
-            await _writer.BaseStream.FlushAsync();
+            await ms.CopyToAsync(_writer.BaseStream, token).ConfigureAwait(false);
+            await _writer.BaseStream.FlushAsync(token).ConfigureAwait(false);
         }
 
         #endregion public
