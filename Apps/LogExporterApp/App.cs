@@ -248,21 +248,23 @@ namespace LogExporter
         {
             try
             {
-                while (_channel.Reader.TryRead(out var entry))
+                while (_channel!.Reader.TryRead(out var item))
                 {
-                    batch.Add(entry);
+                    if (token.IsCancellationRequested)
+                        break;
+
+                    batch.Add(item);
 
                     if (batch.Count >= BULK_INSERT_COUNT)
                     {
-                        await _exportManager.ImplementStrategyAsync(new List<LogEntry>(batch), token);
-                        batch.Clear();
+                        await _exportManager.ImplementStrategyAsync(batch, token).ConfigureAwait(false);
+                        batch.Clear();  // reuse instead of creating new list
                     }
                 }
 
-                if (batch.Count > 0)
+                if (batch.Count > 0 && !token.IsCancellationRequested)
                 {
-                    await _exportManager.ImplementStrategyAsync(batch, token);
-                    batch.Clear();
+                    await _exportManager.ImplementStrategyAsync(batch, token).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
