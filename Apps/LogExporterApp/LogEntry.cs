@@ -35,7 +35,9 @@ namespace LogExporter
 {
     public class LogEntry
     {
-        private static readonly DomainParser? _parser = InitiateParser();
+        // ADR: Loading the PSL must not block or fail plugin startup. We defer
+        // initialization and make it best-effort to avoid network dependencies.
+        private static readonly Lazy<DomainParser?> _parser = new Lazy<DomainParser?>(InitiateParser);
 
         public LogEntry(DateTime timestamp, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram request, DnsDatagram response, bool ednsLogging = false)
         {
@@ -166,13 +168,20 @@ namespace LogExporter
 
         private static DomainParser? InitiateParser()
         {
+            // ADR: The PSL download via SimpleHttpRuleProvider performs outbound HTTP.
+            // Relying on external network connectivity at plugin startup is unsafe in
+            // production DNS environments (offline appliances, firewalled networks,
+            // corporate proxies). Initialization must never block or fail due to PSL
+            // retrieval. We therefore treat PSL availability as optional:
+            //   - If the download succeeds, domain parsing is enriched.
+            //   - If it fails, we return null and logging continues without PSL data.
             try
             {
-                var ruleProvider = new SimpleHttpRuleProvider();
-                ruleProvider.BuildAsync().GetAwaiter().GetResult();
-                return new DomainParser(ruleProvider);
+                var provider = new SimpleHttpRuleProvider();
+                provider.BuildAsync().GetAwaiter().GetResult();
+                return new DomainParser(provider);
             }
-            catch (Exception)
+            catch
             {
                 return null;
             }
@@ -209,7 +218,11 @@ namespace LogExporter
 
                 try
                 {
-                    var info = _parser.Parse(name);
+                    var parser = _parser.Value;
+                    if (parser == null)
+                        return;
+
+                    var info = parser.Parse(name);
                     if (info == null)
                         return;
 
