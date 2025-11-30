@@ -71,7 +71,6 @@ namespace LogExporter
             // shutdown failures and making diagnosis impossible. We now log every
             // unexpected exception without rethrowing, preserving best-effort teardown
             // while ensuring operational visibility.
-
             try
             {
                 try
@@ -114,7 +113,6 @@ namespace LogExporter
             GC.SuppressFinalize(this);
         }
 
-
         #endregion IDisposable
 
         #region public
@@ -146,7 +144,7 @@ namespace LogExporter
             // Start background worker
             _cts = new CancellationTokenSource();
             _backgroundTask = Task.Run(() => BackgroundWorkerAsync(_cts.Token));
-            
+
             // ADR: _enableLogging is intentionally set last so that any caller observing
             // _enableLogging == true can rely on the entire logging pipeline being fully
             // constructed (channel, CTS, background worker). This prevents subtle race
@@ -158,8 +156,8 @@ namespace LogExporter
         }
 
         public Task InsertLogAsync(DateTime timestamp, DnsDatagram request,
-                            IPEndPoint remoteEP, DnsTransportProtocol protocol,
-                            DnsDatagram response)
+            IPEndPoint remoteEP, DnsTransportProtocol protocol,
+            DnsDatagram response)
         {
             if (_enableLogging)
             {
@@ -188,36 +186,37 @@ namespace LogExporter
 
         private async Task BackgroundWorkerAsync(CancellationToken token)
         {
+            // ADR: Reuse this list buffer to avoid GC churn during high-volume logging.
             var batch = new List<LogEntry>(BULK_INSERT_COUNT);
 
             try
             {
-                while (await _channel.Reader.WaitToReadAsync(token))
+                while (await _channel.Reader.WaitToReadAsync(token).ConfigureAwait(false))
                 {
                     while (batch.Count < BULK_INSERT_COUNT &&
                            _channel.Reader.TryRead(out var entry))
                     {
+                        if (token.IsCancellationRequested)
+                            break;
+
                         batch.Add(entry);
                     }
 
                     if (batch.Count > 0)
                     {
-                        // Pass current batch and reinitialize a new one for next cycle
-                        var toExport = batch;
-                        batch = new List<LogEntry>(BULK_INSERT_COUNT);
-
-                        await _exportManager.ImplementStrategyAsync(toExport, token);
+                        await _exportManager.ImplementStrategyAsync(batch, token).ConfigureAwait(false);
+                        batch.Clear(); // REUSE — do not reassign
                     }
                 }
             }
             catch (OperationCanceledException)
             {
-                await DrainRemainingLogs(batch, token);
+                await DrainRemainingLogs(batch, token).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 _dnsServer?.WriteLog(ex);
-                await DrainRemainingLogs(batch, token);
+                await DrainRemainingLogs(batch, token).ConfigureAwait(false);
             }
         }
 
@@ -228,16 +227,16 @@ namespace LogExporter
                 _exportManager.AddStrategy(new ConsoleExportStrategy());
 
             _exportManager.RemoveStrategy(typeof(FileExportStrategy));
-            if (_config!.FileTarget != null && _config.FileTarget.Enabled)
+            if (_config.FileTarget != null && _config.FileTarget.Enabled)
                 _exportManager.AddStrategy(new FileExportStrategy(_config.FileTarget.Path));
 
             _exportManager.RemoveStrategy(typeof(HttpExportStrategy));
-            if (_config!.HttpTarget != null && _config.HttpTarget.Enabled)
+            if (_config.HttpTarget != null && _config.HttpTarget.Enabled)
                 _exportManager.AddStrategy(
                     new HttpExportStrategy(_config.HttpTarget.Endpoint, _config.HttpTarget.Headers));
 
             _exportManager.RemoveStrategy(typeof(SyslogExportStrategy));
-            if (_config!.SyslogTarget != null && _config.SyslogTarget.Enabled)
+            if (_config.SyslogTarget != null && _config.SyslogTarget.Enabled)
                 _exportManager.AddStrategy(
                     new SyslogExportStrategy(_config.SyslogTarget.Address,
                                              _config.SyslogTarget.Port!.Value,
@@ -265,6 +264,7 @@ namespace LogExporter
                 if (batch.Count > 0 && !token.IsCancellationRequested)
                 {
                     await _exportManager.ImplementStrategyAsync(batch, token).ConfigureAwait(false);
+                    batch.Clear();
                 }
             }
             catch (Exception ex)
