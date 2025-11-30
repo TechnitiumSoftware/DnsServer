@@ -208,20 +208,19 @@ namespace LogExporter
 
             public Domain(string name)
             {
-                // ADR: Domain parsing relies on PSL data fetched at runtime. This may fail
-                // due to network restrictions or malformed domain names. Logging must not
-                // depend on PSL availability, so this constructor must never throw. We treat
-                // PSL output as optional metadata; empty strings mean "not available".
+                // ADR: _parser is a Lazy<DomainParser?> and never null. We check its Value
+                // instead because Value may be null if PSL initialization failed. The old
+                // `_parser == null` check was misleading and is removed for clarity.
 
-                if (string.IsNullOrWhiteSpace(name) || _parser == null)
+                if (string.IsNullOrWhiteSpace(name))
+                    return;
+
+                var parser = _parser.Value;
+                if (parser == null)
                     return;
 
                 try
                 {
-                    var parser = _parser.Value;
-                    if (parser == null)
-                        return;
-
                     var info = parser.Parse(name);
                     if (info == null)
                         return;
@@ -232,8 +231,7 @@ namespace LogExporter
                 }
                 catch
                 {
-                    // Intentionally swallow all parser errors (library bugs, malformed input,
-                    // missing rule data). Logging correctness takes priority over PSL accuracy.
+                    // Parsing errors are intentionally ignored because PSL is optional.
                 }
             }
         }
