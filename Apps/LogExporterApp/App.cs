@@ -64,27 +64,56 @@ namespace LogExporter
 
             _disposed = true;
 
+            // Stop accepting new entries immediately; cannot throw.
+            _enableLogging = false;
+
+            // ADR: Previously Dispose swallowed all exceptions, hiding exporter or
+            // shutdown failures and making diagnosis impossible. We now log every
+            // unexpected exception without rethrowing, preserving best-effort teardown
+            // while ensuring operational visibility.
+
             try
             {
-                // Stop accepting new entries immediately
-                _enableLogging = false;
+                try
+                {
+                    _channel?.Writer.TryComplete();
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer?.WriteLog(ex);
+                }
 
-                // Signal no more writes; safe even if not initialized
-                try { _channel?.Writer.TryComplete(); } catch { }
-
-                _cts?.Cancel();
+                try
+                {
+                    _cts?.Cancel();
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer?.WriteLog(ex);
+                }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                _dnsServer?.WriteLog(ex);
+            }
 
             try
             {
                 _backgroundTask?.GetAwaiter().GetResult();
             }
-            catch { }
+            catch (OperationCanceledException)
+            {
+                // Expected; no log needed.
+            }
+            catch (Exception ex)
+            {
+                _dnsServer?.WriteLog(ex);
+            }
 
             _exportManager.Dispose();
             GC.SuppressFinalize(this);
         }
+
 
         #endregion IDisposable
 
