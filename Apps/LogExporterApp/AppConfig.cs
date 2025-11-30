@@ -18,15 +18,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using TechnitiumLibrary.Net.Dns;
 
 namespace LogExporter
 {
     public class AppConfig
     {
         [JsonPropertyName("maxQueueSize")]
+        [Range(1, int.MaxValue, ErrorMessage = "maxQueueSize must be greater than zero.")]
         public int MaxQueueSize { get; set; }
 
         [JsonPropertyName("enableEdnsLogging")]
@@ -44,10 +48,39 @@ namespace LogExporter
         [JsonPropertyName("syslog")]
         public SyslogTarget? SyslogTarget { get; set; }
 
-        // Load configuration from JSON
-        public static AppConfig? Deserialize(string json)
+        /// <summary>
+        /// Loads config and enforces DataAnnotations validation.
+        ///
+        /// ADR: Validation is intentionally centralized here so that:
+        ///   - App receives only a fully valid configuration.
+        ///   - Errors surface early with domain-specific messages.
+        ///   - No runtime failures occur deep inside the logging pipeline.
+        /// This ensures plugin initialization is deterministic and safe.
+        /// </summary>
+        public static AppConfig Deserialize(string json)
         {
-            return JsonSerializer.Deserialize<AppConfig>(json, DnsConfigSerializerOptions.Default);
+            var config = JsonSerializer.Deserialize<AppConfig>(json, DnsConfigSerializerOptions.Default)
+                         ?? throw new DnsClientException("Configuration could not be deserialized.");
+
+            ValidateObject(config);
+
+            // Validate enabled targets only — disabled ones may be incomplete by design.
+            if (config.FileTarget?.Enabled == true)
+                ValidateObject(config.FileTarget);
+
+            if (config.HttpTarget?.Enabled == true)
+                ValidateObject(config.HttpTarget);
+
+            if (config.SyslogTarget?.Enabled == true)
+                ValidateObject(config.SyslogTarget);
+
+            return config;
+        }
+
+        private static void ValidateObject(object instance)
+        {
+            var ctx = new ValidationContext(instance);
+            Validator.ValidateObject(instance, ctx, validateAllProperties: true);
         }
     }
 
@@ -62,31 +95,41 @@ namespace LogExporter
     public class SyslogTarget : TargetBase
     {
         [JsonPropertyName("address")]
-        public required string Address { get; set; }
+        [Required(ErrorMessage = "syslog.address is required when syslog logging is enabled.")]
+        public string Address { get; set; } = string.Empty;
 
         [JsonPropertyName("port")]
+        [Range(1, 65535)]
         public int? Port { get; set; }
 
         [JsonPropertyName("protocol")]
+        [AllowedValues(["udp", "tcp", "tls", "local"])]
         public string? Protocol { get; set; }
     }
 
     public class FileTarget : TargetBase
     {
         [JsonPropertyName("path")]
-        public required string Path { get; set; }
+        [Required(ErrorMessage = "file.path is required when file logging is enabled.")]
+        public string Path { get; set; } = string.Empty;
     }
 
     public class HttpTarget : TargetBase
     {
         [JsonPropertyName("endpoint")]
-        public required string Endpoint { get; set; }
+        [Required(ErrorMessage = "http.endpoint is required when HTTP logging is enabled.")]
+        [Url]
+        public string Endpoint { get; set; } = string.Empty;
 
         [JsonPropertyName("headers")]
         public Dictionary<string, string?>? Headers { get; set; }
     }
 
-    // Setup reusable options with a single instance
+    /// <summary>
+    /// Shared serializer configuration for reading dnsApp.config.
+    /// ADR: The serializer options are centralized so that parsing behavior
+    /// is stable and predictable across the entire plugin lifetime.
+    /// </summary>
     public static class DnsConfigSerializerOptions
     {
         public static readonly JsonSerializerOptions Default = new JsonSerializerOptions
