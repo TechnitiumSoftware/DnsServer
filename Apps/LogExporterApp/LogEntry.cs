@@ -1,4 +1,4 @@
-﻿/*
+/*
 Technitium DNS Server
 Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 Copyright (C) 2025  Zafer Balkan (zafer@zaferbalkan.com)
@@ -14,13 +14,10 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+along with this program.  If not, see <http://www.gnu.org/licenses/>
 
 */
-
 using DnsServerCore.ApplicationCommon;
-using Nager.PublicSuffix;
-using Nager.PublicSuffix.RuleProviders;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -35,28 +32,28 @@ namespace LogExporter
 {
     public class LogEntry
     {
-        // ADR: Loading the PSL must not block or fail plugin startup. We defer
-        // initialization and make it best-effort to avoid network dependencies.
-        private static readonly Lazy<DomainParser?> _parser = new Lazy<DomainParser?>(InitiateParser);
+        private static readonly DomainCache _domainCache = new DomainCache();
+
+        // Reuse empty lists to avoid allocations when there are no answers or EDNS data
+        private static readonly List<DnsResourceRecord> EmptyAnswers = new();
+        private static readonly List<EDNSLog> EmptyEdns = new();
 
         public LogEntry(DateTime timestamp, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram request, DnsDatagram response, bool ednsLogging = false)
         {
             // Assign timestamp and ensure it's in UTC
             if (timestamp.Kind == DateTimeKind.Utc)
             {
-                // Assign timestamp and ensure it's in UTC
                 Timestamp = timestamp;
             }
             else
             {
-                // Assign timestamp and ensure it's in UTC
                 Timestamp = timestamp.ToUniversalTime();
             }
 
             // Set hostname
             NameServer = request.Metadata.NameServer.Host;
 
-            DomainInfo = new Domain(request.Question[0].Name);
+            DomainInfo = _domainCache.GetOrAdd(request.Question[0].Name);
 
             // Extract client information
             ClientIp = remoteEP.Address.ToString();
@@ -81,10 +78,10 @@ namespace LogExporter
                 };
             }
 
-            // Convert answer section into a simple string summary (comma-separated for multiple answers)
-            Answers = new List<DnsResourceRecord>(response.Answer.Count);
+            // Convert answer section - reuse empty list when no answers
             if (response.Answer.Count > 0)
             {
+                Answers = new List<DnsResourceRecord>(response.Answer.Count);
                 Answers.AddRange(response.Answer.Select(record => new DnsResourceRecord
                 {
                     Name = record.Name,
@@ -95,14 +92,27 @@ namespace LogExporter
                     DnssecStatus = record.DnssecStatus,
                 }));
             }
+            else
+            {
+                Answers = EmptyAnswers;
+            }
 
-            EDNS = new List<EDNSLog>();
+            // Handle EDNS - reuse empty list when no EDNS logging or no errors
             if (!ednsLogging || response.EDNS is null)
             {
+                EDNS = EmptyEdns;
                 return;
             }
 
-            foreach (EDnsOption extendedErrorLog in response.EDNS.Options.Where(o => o.Code == EDnsOptionCode.EXTENDED_DNS_ERROR))
+            var ednsErrors = response.EDNS.Options.Where(o => o.Code == EDnsOptionCode.EXTENDED_DNS_ERROR).ToList();
+            if (ednsErrors.Count == 0)
+            {
+                EDNS = EmptyEdns;
+                return;
+            }
+
+            EDNS = new List<EDNSLog>(ednsErrors.Count);
+            foreach (EDnsOption extendedErrorLog in ednsErrors)
             {
                 // ADR: EDNS extended error comes from network input and may not follow
                 // the expected "type: message" format. Previously this code assumed
@@ -137,6 +147,12 @@ namespace LogExporter
                     Message = message
                 });
             }
+
+            // If no valid EDNS entries were added, use the empty list
+            if (EDNS.Count == 0)
+            {
+                EDNS = EmptyEdns;
+            }
         }
 
         public List<DnsResourceRecord> Answers { get; private set; }
@@ -159,32 +175,11 @@ namespace LogExporter
 
         public DateTime Timestamp { get; private set; }
 
-        public Domain DomainInfo { get; private set; }
+        public DomainInfo DomainInfo { get; private set; }
 
         public override string ToString()
         {
             return JsonSerializer.Serialize(this, DnsLogSerializerOptions.Default);
-        }
-
-        private static DomainParser? InitiateParser()
-        {
-            // ADR: The PSL download via SimpleHttpRuleProvider performs outbound HTTP.
-            // Relying on external network connectivity at plugin startup is unsafe in
-            // production DNS environments (offline appliances, firewalled networks,
-            // corporate proxies). Initialization must never block or fail due to PSL
-            // retrieval. We therefore treat PSL availability as optional:
-            //   - If the download succeeds, domain parsing is enriched.
-            //   - If it fails, we return null and logging continues without PSL data.
-            try
-            {
-                var provider = new SimpleHttpRuleProvider();
-                provider.BuildAsync().GetAwaiter().GetResult();
-                return new DomainParser(provider);
-            }
-            catch
-            {
-                return null;
-            }
         }
 
         public static class DnsLogSerializerOptions
@@ -198,42 +193,6 @@ namespace LogExporter
                 NumberHandling = JsonNumberHandling.Strict,
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
             };
-        }
-
-        public class Domain
-        {
-            public string TLD { get; private set; }
-            public string BaseDomain { get; private set; }
-            public string Subdomain { get; private set; }
-
-            public Domain(string name)
-            {
-                // ADR: _parser is a Lazy<DomainParser?> and never null. We check its Value
-                // instead because Value may be null if PSL initialization failed. The old
-                // `_parser == null` check was misleading and is removed for clarity.
-
-                if (string.IsNullOrWhiteSpace(name))
-                    return;
-
-                var parser = _parser.Value;
-                if (parser == null)
-                    return;
-
-                try
-                {
-                    var info = parser.Parse(name);
-                    if (info == null)
-                        return;
-
-                    TLD = info.TopLevelDomain ?? string.Empty;
-                    BaseDomain = info.RegistrableDomain ?? string.Empty;
-                    Subdomain = info.Subdomain ?? string.Empty;
-                }
-                catch
-                {
-                    // Parsing errors are intentionally ignored because PSL is optional.
-                }
-            }
         }
 
         public class DnsQuestion
