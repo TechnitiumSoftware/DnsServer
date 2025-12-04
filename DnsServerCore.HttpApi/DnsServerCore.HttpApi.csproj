@@ -21,13 +21,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<Reference Include="TechnitiumLibrary">
-			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.dll</HintPath>
-		</Reference>
-		<Reference Include="TechnitiumLibrary.Net">
-			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
-			<Private>false</Private>
-		</Reference>
+	  <ProjectReference Include="..\TechnitiumLibrary\TechnitiumLibrary.Net\TechnitiumLibrary.Net.csproj" />
+	  <ProjectReference Include="..\TechnitiumLibrary\TechnitiumLibrary\TechnitiumLibrary.csproj" />
 	</ItemGroup>
 
 </Project>

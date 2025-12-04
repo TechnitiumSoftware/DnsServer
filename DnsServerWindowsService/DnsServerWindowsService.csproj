@@ -20,18 +20,13 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<Reference Include="TechnitiumLibrary.Net.Firewall">
-			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.Firewall.dll</HintPath>
-		</Reference>
-	</ItemGroup>
-
-	<ItemGroup>
 		<PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.10" />
 		<PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.10" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\DnsServerCore\DnsServerCore.csproj" />
+		<ProjectReference Include="..\TechnitiumLibrary\TechnitiumLibrary.Net.Firewall\TechnitiumLibrary.Net.Firewall.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

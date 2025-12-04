@@ -23,24 +23,11 @@
 	<ItemGroup>
 		<ProjectReference Include="..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj" />
 		<ProjectReference Include="..\DnsServerCore.HttpApi\DnsServerCore.HttpApi.csproj" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<Reference Include="TechnitiumLibrary">
-			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.dll</HintPath>
-		</Reference>
-		<Reference Include="TechnitiumLibrary.ByteTree">
-			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.ByteTree.dll</HintPath>
-		</Reference>
-		<Reference Include="TechnitiumLibrary.IO">
-			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
-		</Reference>
-		<Reference Include="TechnitiumLibrary.Net">
-			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
-		</Reference>
-		<Reference Include="TechnitiumLibrary.Security.OTP">
-			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Security.OTP.dll</HintPath>
-		</Reference>
+		<ProjectReference Include="..\TechnitiumLibrary\TechnitiumLibrary.ByteTree\TechnitiumLibrary.ByteTree.csproj" />
+		<ProjectReference Include="..\TechnitiumLibrary\TechnitiumLibrary.IO\TechnitiumLibrary.IO.csproj" />
+		<ProjectReference Include="..\TechnitiumLibrary\TechnitiumLibrary.Net\TechnitiumLibrary.Net.csproj" />
+		<ProjectReference Include="..\TechnitiumLibrary\TechnitiumLibrary.Security.OTP\TechnitiumLibrary.Security.OTP.csproj" />
+		<ProjectReference Include="..\TechnitiumLibrary\TechnitiumLibrary\TechnitiumLibrary.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

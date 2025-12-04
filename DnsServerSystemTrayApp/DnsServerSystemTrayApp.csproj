@@ -21,15 +21,6 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<Reference Include="TechnitiumLibrary.IO">
-			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
-		</Reference>
-		<Reference Include="TechnitiumLibrary.Net">
-			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
-		</Reference>
-	</ItemGroup>
-
-	<ItemGroup>
 		<Compile Update="Properties\Resources.Designer.cs">
 			<AutoGen>True</AutoGen>
 			<DependentUpon>Resources.resx</DependentUpon>
@@ -44,6 +35,11 @@
 	<ItemGroup>
 		<PackageReference Include="System.Management" Version="9.0.10" />
 		<PackageReference Include="System.ServiceProcess.ServiceController" Version="9.0.10" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\TechnitiumLibrary\TechnitiumLibrary.IO\TechnitiumLibrary.IO.csproj" />
+	  <ProjectReference Include="..\TechnitiumLibrary\TechnitiumLibrary.Net\TechnitiumLibrary.Net.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
