@@ -20,15 +20,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace LogExporter.Strategy
 {
     /// <summary>
     ///     Strategy interface to decide the sinks for exporting the logs.
+    ///     <para> ADR: Export operations must be cancellable so shutdown can abort long-running
+    /// network or disk operations. Without a cancellation token, HTTP, file, or syslog
+    /// sinks may block the DNS server shutdown indefinitely. All sinks must respect
+    /// the provided token to ensure bounded teardown.</para>
     /// </summary>
     public interface IExportStrategy: IDisposable
     {
-        Task ExportAsync(IReadOnlyList<LogEntry> logs);
+        Task ExportAsync(IReadOnlyList<LogEntry> logs, CancellationToken token);
     }
 }

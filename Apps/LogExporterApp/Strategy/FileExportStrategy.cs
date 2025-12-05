@@ -18,8 +18,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using Serilog;
+using Microsoft.IO;
 using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace LogExporter.Strategy
@@ -28,45 +31,63 @@ namespace LogExporter.Strategy
     {
         #region variables
 
-        readonly Serilog.Core.Logger _sender;
+        private readonly FileStream _fileStream;
+        private readonly RecyclableMemoryStreamManager _memoryManager = new();
+        private readonly StreamWriter _writer;
+        private bool _disposed;
 
-        bool _disposed;
-
-        #endregion
+        #endregion variables
 
         #region constructor
 
         public FileExportStrategy(string filePath)
         {
-            _sender = new LoggerConfiguration().WriteTo.File(filePath, outputTemplate: "{Message:lj}{NewLine}{Exception}").CreateLogger();
+            _fileStream = new FileStream(
+                filePath,
+                FileMode.Append,
+                FileAccess.Write,
+                FileShare.Read,
+                bufferSize: 64 * 1024,
+                useAsync: true);
+
+            _writer = new StreamWriter(_fileStream);
         }
 
-        #endregion
+        #endregion constructor
 
         #region IDisposable
 
         public void Dispose()
         {
-            if (!_disposed)
-            {
-                _sender.Dispose();
+            if (_disposed)
+                return;
 
-                _disposed = true;
-            }
+            _writer.Dispose();
+            _fileStream.Dispose();
+            _disposed = true;
         }
 
-        #endregion
+        #endregion IDisposable
 
         #region public
 
-        public Task ExportAsync(IReadOnlyList<LogEntry> logs)
+        public async Task ExportAsync(IReadOnlyList<LogEntry> logs, CancellationToken token)
         {
-            foreach (LogEntry logEntry in logs)
-                _sender.Information(logEntry.ToString());
+            // ADR: File writes must honor cancellation so server shutdown cannot block
+            // on slow disks or large flush operations. Previously FlushAsync() was not
+            // cancellable, allowing shutdown to hang indefinitely under I/O pressure.
+            // All I/O operations now respect the provided token.
+            if (_disposed || logs.Count == 0 || token.IsCancellationRequested)
+                return;
 
-            return Task.CompletedTask;
+            using var ms = _memoryManager.GetStream("FileExport-Batch");
+            NdjsonSerializer.WriteBatch(ms, logs);
+            ms.Position = 0;
+
+            await ms.CopyToAsync(_writer.BaseStream, token).ConfigureAwait(false);
+            await _writer.BaseStream.FlushAsync(token).ConfigureAwait(false);
         }
 
-        #endregion
+        #endregion public
     }
 }
