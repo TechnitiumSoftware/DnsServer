@@ -18,13 +18,16 @@ namespace LogExporter.Strategy
             using var writer = new Utf8JsonWriter(target, new JsonWriterOptions
             {
                 Indented = false,
-                SkipValidation = true
+                SkipValidation = true,
+                NewLine = "\n"
             });
 
             for (int i = 0; i < logs.Count; i++)
             {
                 JsonSerializer.Serialize(writer, logs[i], LogEntry.DnsLogSerializerOptions.Default);
-                writer.WriteRawValue("\n"u8, skipInputValidation: true);
+
+                writer.Flush();
+                target.WriteByte((byte)'\n');
             }
         }
     }
