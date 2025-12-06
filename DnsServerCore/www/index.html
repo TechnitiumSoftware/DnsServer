@@ -1059,7 +1059,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             </div>
                                                         </div>
 
-                                                        <div>Warning! Use this option only if this DNS server has native IPv6 Internet access otherwise it will affect performance.</div>
+                                                        <div>Warning! Use this option only if this DNS server has native IPv6 Internet access otherwise it will affect performance. There are many name servers on the Internet that do not respond over IPv6 and thus enabling this option when you are running DNS server in recursive resolver mode (i.e. without any forwarders) may cause frequent operational issues with resolution that may result increase in Server Failure responses.</div>
                                                     </div>
 
                                                     <div id="divSettingsGeneralUdpSocketPool" class="well well-sm form-horizontal">
@@ -1686,6 +1686,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum stack count the recursive resolver must use for resolving a domain name.</div>
                                                         </div>
 
+                                                        <div style="margin-top: 10px;">Note! The DNS Server supports EDNS and thus all outbound recursive resolution requests will have an OPT record for it in the additional section. If a name server does not respond to a request containing OPT record, the recursive resolver will retry again without the OPT record when possible. This means that the number of retries attempted per name server can be Resolver Retries value multiplied by two for certain cases.</div>
                                                         <div style="margin-top: 10px;">Note! The DNS server uses Epsilon-Greedy machine learning algorithm and will automatically learn which of the name servers are answering faster without errors and will use those name servers most of the time. Since each domain name has a different set of name servers, it may take a while before the algorithm learns about them.</div>
                                                     </div>
                                                 </div>
@@ -2450,6 +2451,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                     </label>
                                                                 </div>
                                                                 <div style="padding-top: 5px; padding-left: 20px;">Enable this option to allow the DHCP server to automatically update forward and reverse DNS entries for clients.</div>
+
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkDnsOverwriteForDynamicLease" type="checkbox"> Enable DNS Overwrite For Dynamic Lease
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to allow the DHCP server to overwrite existing DNS A record matching the client domain name for dynamic leases.</div>
                                                             </div>
                                                         </div>
 
@@ -6554,8 +6562,13 @@ MII...
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary" data-loading-text="Working..." onclick="initializeNewCluster(this); return false;">Initialize</button>
-                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                        <div class="pull-left">
+                            <a href="https://blog.technitium.com/2025/11/understanding-clustering-and-how-to.html" target="_blank">Help: Understanding Clustering And How To Configure It</a>
+                        </div>
+                        <div class="pull-right">
+                            <button type="submit" class="btn btn-primary" data-loading-text="Working..." onclick="initializeNewCluster(this); return false;">Initialize</button>
+                            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -6666,13 +6679,22 @@ MII...
                             </p>
 
                             <p>
+                                <b>Note!</b> The Ignore Certificate Validation Errors option when selected is used only for the initial connection to the Primary node during the joining process. Once the DNS server joins the Cluster, it will always use DANE-EE for authentication using the TLSA records in the Cluster Primary zone that are added for each node in the Cluster.
+                            </p>
+
+                            <p>
                                 <b>Warning!</b> Joining a Cluster will cause configuration on this DNS Server to be overwritten permanently for Allowed, Blocked, Apps, Settings and Administration sections!
                             </p>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary" data-loading-text="Joining..." onclick="initializeJoinCluster(this); return false;">Join</button>
-                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                        <div class="pull-left">
+                            <a href="https://blog.technitium.com/2025/11/understanding-clustering-and-how-to.html" target="_blank">Help: Understanding Clustering And How To Configure It</a>
+                        </div>
+                        <div class="pull-right">
+                            <button type="submit" class="btn btn-primary" data-loading-text="Joining..." onclick="initializeJoinCluster(this); return false;">Join</button>
+                            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                        </div>
                     </div>
                 </div>
             </div>
