@@ -161,20 +161,20 @@ namespace MispConnector
             DnsResourceRecord[] answer = null;
             DnsResourceRecord[] authority = null;
             bool authoritative = false;
-            DnsResponseCode RCODE;
+            DnsResponseCode rCode;
             if (_config.AllowTxtBlockingReport && question.Type == DnsResourceRecordType.TXT)
             {
                 answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, _config.BlockingAnswerTtl, new DnsTXTRecordData(blockingReport)) };
-                RCODE = DnsResponseCode.NoError;
+                rCode = DnsResponseCode.NoError;
             }
             else
             {
                 authority = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.SOA, question.Class, _config.BlockingAnswerTtl, _soaRecord) };
-                RCODE = DnsResponseCode.NxDomain;
+                rCode = DnsResponseCode.NxDomain;
                 authoritative = true;
             }
 
-            return BlockResponse(request: request, options: options, authority: authority, answer: answer, authoritativeAnswer: authoritative, rCode: RCODE);
+            return BlockResponse(request: request, options: options, authority: authority, answer: answer, authoritativeAnswer: authoritative, rCode: rCode);
         }
 
         private Task<DnsDatagram> BlockResponse(DnsDatagram request, EDnsOption[] options, DnsResourceRecord[] authority, DnsResourceRecord[] answer, bool authoritativeAnswer, DnsResponseCode rCode)
@@ -532,8 +532,8 @@ namespace MispConnector
             public string MaxIocAge { get; set; }
 
             [JsonPropertyName("blockingAnswerTtl")]
-            [Range(30, 86400, ErrorMessage = "The minimum available TTL is usually 30, equivalent to 30 seconds. However, most sites use a default TTL of 3600 (one hour). The maximum TTL that you can apply is 86,400 (24 hours).")]
-            public uint BlockingAnswerTtl { get; set; }
+            [Range(30, 86400, ErrorMessage = "blockingAnswerTtl must be between 30 and 86400 seconds.")]
+            public uint BlockingAnswerTtl { get; set; } = 30;
 
             [JsonPropertyName("mispApiKey")]
             [Required(ErrorMessage = "mispApiKey is a required configuration property.")]
