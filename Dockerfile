@@ -19,9 +19,6 @@ HEREDOC
 WORKDIR /opt/technitium/dns
 COPY --link ./DnsServerApp/bin/Release/publish /opt/technitium/dns
 
-# Support for graceful shutdown:
-STOPSIGNAL SIGINT
-
 ENTRYPOINT ["/usr/bin/dotnet", "/opt/technitium/dns/DnsServerApp.dll"]
 CMD ["/etc/dns"]
 
