@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>
 
 */
 using DnsServerCore.ApplicationCommon;
+using LogExporter.Enrichment;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -27,13 +28,12 @@ using System.Text.Json.Serialization;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
+using static LogExporter.Enrichment.PublicSuffixEnrichment;
 
 namespace LogExporter
 {
     public class LogEntry
     {
-        private static readonly DomainCache _domainCache = new DomainCache();
-
         // Reuse empty lists to avoid allocations when there are no answers or EDNS data
         private static readonly DnsResourceRecord[] EmptyAnswers = Array.Empty<DnsResourceRecord>();
         private static readonly EDNSLog[] EmptyEdns = Array.Empty<EDNSLog>();
@@ -45,8 +45,6 @@ namespace LogExporter
 
             // Set hostname
             NameServer = request.Metadata.NameServer.Host;
-
-            DomainInfo = _domainCache.GetOrAdd(request.Question[0].Name);
 
             // Extract client information
             ClientIp = remoteEP.Address.ToString();
@@ -76,20 +74,25 @@ namespace LogExporter
             {
                 Answers = new List<DnsResourceRecord>(
                     response.Answer.Select(record => new DnsResourceRecord
-                {
-                    Name = record.Name,
-                    RecordType = record.Type,
-                    RecordClass = record.Class,
-                    RecordTtl = record.TTL,
-                    RecordData = record.RDATA.ToString(),
-                    DnssecStatus = record.DnssecStatus,
-                })).ToArray();
+                    {
+                        Name = record.Name,
+                        RecordType = record.Type,
+                        RecordClass = record.Class,
+                        RecordTtl = record.TTL,
+                        RecordData = record.RDATA.ToString(),
+                        DnssecStatus = record.DnssecStatus,
+                    })).ToArray();
             }
             else
             {
                 Answers = EmptyAnswers;
             }
 
+            PopulateEDNSLgs(response, ednsLogging);
+        }
+
+        private void PopulateEDNSLgs(DnsDatagram response, bool ednsLogging)
+        {
             // Handle EDNS - reuse empty list when no EDNS logging or no errors
             if (!ednsLogging || response.EDNS is null)
             {
@@ -149,7 +152,7 @@ namespace LogExporter
 
         public string ClientIp { get; }
 
-        public EDNSLog[] EDNS { get; }
+        public EDNSLog[] EDNS { get; private set; }
 
         public string NameServer { get; }
 
@@ -165,7 +168,8 @@ namespace LogExporter
 
         public DateTime Timestamp { get; }
 
-        public DomainInfo DomainInfo { get; }
+        // Enrichment bag populated by enrichment pipeline stages
+        public Dictionary<string, object> Enrichment { get; } = new();
 
         public override string ToString()
         {

@@ -182,16 +182,7 @@ namespace LogExporter.Sinks
                 new ScalarValue(log.ResponseRtt?.ToString())),
                 new LogEventProperty(
                 "rCode",
-                new ScalarValue(log.ResponseCode.ToString())),
-                new LogEventProperty(
-                "domain_tld",
-                new ScalarValue(log.DomainInfo.TLD)),
-                new LogEventProperty(
-                "domain_basedomain",
-                new ScalarValue(log.DomainInfo.BaseDomain)),
-                new LogEventProperty(
-                "domain_subdomain",
-                new ScalarValue(log.DomainInfo.Subdomain))
+                new ScalarValue(log.ResponseCode.ToString()))
             };
 
             // Question
@@ -290,6 +281,17 @@ namespace LogExporter.Sinks
                     properties.Add(new LogEventProperty(
                         $"ednsMessage_{i}",
                         new ScalarValue(ednsLog.Message)));
+                }
+            }
+
+            // Enrichment
+            if (log.Enrichment.Count > 0)
+            {
+                foreach (var enrichment in log.Enrichment)
+                {
+                    var k = enrichment.Key;
+                    var v = enrichment.Value;
+                    properties.Add(new LogEventProperty(k, new ScalarValue(v)));
                 }
             }
 

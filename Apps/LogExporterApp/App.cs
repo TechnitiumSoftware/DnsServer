@@ -1,7 +1,7 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
-Copyright (C) 2025  Zafer Balkan (zafer@zaferbalkan.com)
+Copyright (C) 2025  Shreyas Zare
+Copyright (C) 2025  Zafer Balkan
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -15,10 +15,10 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 */
 
 using DnsServerCore.ApplicationCommon;
+using LogExporter.Enrichment;
 using LogExporter.Sinks;
 using System;
 using System.Collections.Generic;
@@ -34,28 +34,42 @@ namespace LogExporter
     {
         #region variables
 
-        const int BULK_INSERT_COUNT = 1000;
-        readonly SinkDispatcher _sinkDispatcher;
-        Task? _backgroundTask;
-        Channel<LogEntry> _channel = default!;
-        AppConfig? _config;
-        CancellationTokenSource? _cts;
-        bool _disposed;
-        IDnsServer? _dnsServer;
-        volatile bool _enableLogging; // volatile to improve cross-thread visibility
-        long _droppedCount;
-        static readonly TimeSpan DropLogInterval = TimeSpan.FromSeconds(5);
-        long _lastDropTicks;
+        private const int BULK_INSERT_COUNT = 1000;
+
+        private readonly SinkDispatcher _sinkDispatcher;
+        private readonly EnrichmentDispatcher _enrichmentDispatcher;
+
+        // Stage 1 buffer: transformed LogEntry waiting for enrichment
+        private Channel<LogEntry> _transformChannel = default!;
+
+        // Stage 2 buffer: enriched LogEntry waiting for dispatch
+        private Channel<LogEntry> _enrichedChannel = default!;
+
+        private Task? _backgroundTask;
+        private AppConfig? _config;
+        private bool _disposed;
+        private IDnsServer? _dnsServer;
+        private volatile bool _enableLogging; // volatile to improve cross-thread visibility
+
+        private long _droppedCount;
+        private static readonly TimeSpan DropLogInterval = TimeSpan.FromSeconds(5);
+        private long _lastDropTicks;
+
         #endregion variables
 
         #region constructor
+
         public App()
         {
             _sinkDispatcher = new SinkDispatcher();
+            _enrichmentDispatcher = new EnrichmentDispatcher();
+            _lastDropTicks = DateTime.UtcNow.Ticks;
         }
+
         #endregion constructor
 
         #region IDisposable
+
         ~App() => Dispose();
 
         public void Dispose()
@@ -68,24 +82,12 @@ namespace LogExporter
             // Stop accepting new entries immediately; cannot throw.
             _enableLogging = false;
 
-            // ADR: Previously Dispose swallowed all exceptions, hiding exporter or
-            // shutdown failures and making diagnosis impossible. We now log every
-            // unexpected exception without rethrowing, preserving best-effort teardown
-            // while ensuring operational visibility.
+            // Best-effort shutdown: complete input channel so workers drain and exit.
             try
             {
                 try
                 {
-                    _channel?.Writer.TryComplete();
-                }
-                catch (Exception ex)
-                {
-                    _dnsServer?.WriteLog(ex);
-                }
-
-                try
-                {
-                    _cts?.Cancel();
+                    _transformChannel?.Writer.TryComplete();
                 }
                 catch (Exception ex)
                 {
@@ -97,20 +99,39 @@ namespace LogExporter
                 _dnsServer?.WriteLog(ex);
             }
 
+            // Wait for background pipeline to finish.
             try
             {
                 _backgroundTask?.GetAwaiter().GetResult();
             }
             catch (OperationCanceledException)
             {
-                // Expected; no log needed.
+                // Not expected without explicit cancellation, but safe to ignore.
             }
             catch (Exception ex)
             {
                 _dnsServer?.WriteLog(ex);
             }
-            _cts?.Dispose();
-            _sinkDispatcher.Dispose();
+
+            // Dispose sinks and enrichment dispatcher defensively.
+            try
+            {
+                _sinkDispatcher.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _dnsServer?.WriteLog(ex);
+            }
+
+            try
+            {
+                _enrichmentDispatcher.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _dnsServer?.WriteLog(ex);
+            }
+
             GC.SuppressFinalize(this);
         }
 
@@ -123,10 +144,22 @@ namespace LogExporter
             ObjectDisposedException.ThrowIf(_disposed, this);
 
             _dnsServer = dnsServer;
-            _config = AppConfig.Deserialize(config)
-                      ?? throw new DnsClientException("Invalid application configuration.");
 
-            ConfigureSinks();
+            try
+            {
+                _config = AppConfig.Deserialize(config)
+                          ?? throw new DnsClientException("Invalid application configuration.");
+
+                ConfigureSinks();
+                ConfigureEnrichments();
+            }
+            catch (Exception ex)
+            {
+                // Fail fast but log with context; do not partially initialize pipeline.
+                _dnsServer?.WriteLog(ex);
+                _enableLogging = false;
+                throw;
+            }
 
             // If no sinks exist, never enable logging.
             if (!_sinkDispatcher.Any())
@@ -135,22 +168,34 @@ namespace LogExporter
                 return Task.CompletedTask;
             }
 
-            // Create bounded channel to avoid memory explosion
-            _channel = Channel.CreateBounded<LogEntry>(
+            // Stage 1: transform buffer – InsertLogAsync pushes LogEntry here.
+            _transformChannel = Channel.CreateBounded<LogEntry>(
                 new BoundedChannelOptions(_config!.MaxQueueSize)
                 {
                     SingleReader = true,
-                    SingleWriter = false,
+                    SingleWriter = false, // InsertLogAsync may be called concurrently
                     FullMode = BoundedChannelFullMode.DropWrite
                 });
 
-            // Start background worker
-            _cts = new CancellationTokenSource();
-            _backgroundTask = Task.Run(() => BackgroundWorkerAsync(_cts.Token));
+            // Stage 2: enriched buffer – EnrichLogsAsync pushes here, ExportLogsAsync consumes.
+            _enrichedChannel = Channel.CreateBounded<LogEntry>(
+                new BoundedChannelOptions(_config.MaxQueueSize)
+                {
+                    SingleReader = true,
+                    SingleWriter = true, // only enrichment stage writes
+                    FullMode = BoundedChannelFullMode.DropWrite
+                });
+
+            // Start pipeline workers:
+            //  - EnrichLogsAsync: transform -> enrich
+            //  - ExportLogsAsync: enrich -> output
+            _backgroundTask = Task.WhenAll(
+                Task.Run(EnrichLogsAsync),
+                Task.Run(ExportLogsAsync));
 
             // ADR: _enableLogging is intentionally set last so that any caller observing
             // _enableLogging is true can rely on the entire logging pipeline being fully
-            // constructed (channel, CTS, background worker). This prevents subtle race
+            // constructed (channels and background workers). This prevents subtle race
             // conditions where concurrent InsertLogAsync calls see "enabled" before internal
             // structures are ready.
             _enableLogging = true;
@@ -158,25 +203,37 @@ namespace LogExporter
             return Task.CompletedTask;
         }
 
+        // Step 1: input
         public Task InsertLogAsync(DateTime timestamp, DnsDatagram request,
             IPEndPoint remoteEP, DnsTransportProtocol protocol,
             DnsDatagram response)
         {
             if (_enableLogging)
             {
-                LogEntry entry = new LogEntry(timestamp, remoteEP, protocol, request, response, _config!.EnableEdnsLogging);
+                LogEntry entry;
 
-                if (!_channel.Writer.TryWrite(entry))
+                try
                 {
-                    Interlocked.Increment(ref _droppedCount);
+                    // input -> transform: build LogEntry
+                    entry = new LogEntry(timestamp, remoteEP, protocol, request, response, _config!.EnableEdnsLogging);
+                }
+                catch (Exception ex)
+                {
+                    // Malformed packet or unexpected data should not crash the server.
+                    _dnsServer?.WriteLog(ex);
+                    return Task.CompletedTask;
+                }
 
-                    long nowTicks = DateTime.UtcNow.Ticks;
-                    long lastTicks = Volatile.Read(ref _lastDropTicks);
-                    if (new TimeSpan(nowTicks - lastTicks) >= DropLogInterval && Interlocked.CompareExchange(ref _lastDropTicks, nowTicks, lastTicks) == lastTicks)
+                try
+                {
+                    if (!_transformChannel.Writer.TryWrite(entry))
                     {
-                        long dropped = Interlocked.Exchange(ref _droppedCount, 0);
-                        _dnsServer?.WriteLog($"Log export queue full; dropped {dropped} entries over last {DropLogInterval.TotalSeconds:F0}s.");
+                        IncrementDropAndMaybeLog();
                     }
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer?.WriteLog(ex);
                 }
             }
 
@@ -187,39 +244,100 @@ namespace LogExporter
 
         #region private
 
-        private async Task BackgroundWorkerAsync(CancellationToken token)
+        // Step 2: EnrichLogsAsync – transform -> enrich
+        private async Task EnrichLogsAsync()
+        {
+            try
+            {
+                while (await _transformChannel.Reader.WaitToReadAsync().ConfigureAwait(false))
+                {
+                    while (_transformChannel.Reader.TryRead(out LogEntry? entry))
+                    {
+                        // If there is no question, most enrichers cannot do anything.
+                        if (entry.Question != null && _enrichmentDispatcher.Any())
+                        {
+                            try
+                            {
+                                _enrichmentDispatcher.Enrich(entry, ex => _dnsServer?.WriteLog(ex));
+                            }
+                            catch (Exception ex)
+                            {
+                                // Extra guard: dispatcher itself should not tear down the loop.
+                                _dnsServer?.WriteLog(ex);
+                            }
+                        }
+
+                        try
+                        {
+                            if (!_enrichedChannel.Writer.TryWrite(entry))
+                            {
+                                IncrementDropAndMaybeLog();
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _dnsServer?.WriteLog(ex);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _dnsServer?.WriteLog(ex);
+            }
+            finally
+            {
+                // Signal no more enriched entries will be produced.
+                try
+                {
+                    _enrichedChannel.Writer.TryComplete();
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer?.WriteLog(ex);
+                }
+            }
+        }
+
+        // Step 3: ExportLogsAsync – enrich -> output
+        private async Task ExportLogsAsync()
         {
             // ADR: Reuse this list buffer to avoid GC churn during high-volume logging.
             List<LogEntry> batch = new List<LogEntry>(BULK_INSERT_COUNT);
 
             try
             {
-                while (await _channel.Reader.WaitToReadAsync(token).ConfigureAwait(false))
+                while (await _enrichedChannel.Reader.WaitToReadAsync().ConfigureAwait(false))
                 {
                     while (batch.Count < BULK_INSERT_COUNT &&
-                           _channel.Reader.TryRead(out LogEntry? entry))
+                           _enrichedChannel.Reader.TryRead(out LogEntry? entry))
                     {
-                        if (token.IsCancellationRequested)
-                            break;
-
                         batch.Add(entry);
                     }
 
                     if (batch.Count > 0)
                     {
-                        await _sinkDispatcher.DispatchAsync(batch, token).ConfigureAwait(false);
-                        batch.Clear(); // REUSE — do not reassign
+                        try
+                        {
+                            await _sinkDispatcher
+                                .DispatchAsync(batch, CancellationToken.None)
+                                .ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            // Sink failures must be logged but must not crash the server.
+                            _dnsServer?.WriteLog(ex);
+                        }
+                        finally
+                        {
+                            batch.Clear(); // REUSE — do not reassign
+                        }
                     }
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                await DrainRemainingLogs(batch).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 _dnsServer?.WriteLog(ex);
-                await DrainRemainingLogs(batch).ConfigureAwait(false);
             }
         }
 
@@ -245,35 +363,35 @@ namespace LogExporter
             {
                 _sinkDispatcher.Add(
                     new SyslogSink(_config.SyslogSinkConfig.Address,
-                                             _config.SyslogSinkConfig.Port!.Value,
-                                             _config.SyslogSinkConfig.Protocol));
+                                   _config.SyslogSinkConfig.Port!.Value,
+                                   _config.SyslogSinkConfig.Protocol));
             }
         }
 
-        private async Task DrainRemainingLogs(List<LogEntry> batch)
+        private void ConfigureEnrichments()
         {
-            try
+            // Remove any existing enricher types first to avoid duplicate registration.
+            _enrichmentDispatcher.Remove(typeof(PublicSuffixEnrichment));
+
+            if (_config!.PSLEnrichment?.Enabled is true)
             {
-                while (_channel!.Reader.TryRead(out LogEntry? item))
-                {
-                    batch.Add(item);
-
-                    if (batch.Count >= BULK_INSERT_COUNT)
-                    {
-                        await _sinkDispatcher.DispatchAsync(batch, CancellationToken.None).ConfigureAwait(false);
-                        batch.Clear();  // reuse instead of creating new list
-                    }
-                }
-
-                if (batch.Count > 0)
-                {
-                    await _sinkDispatcher.DispatchAsync(batch, CancellationToken.None).ConfigureAwait(false);
-                    batch.Clear();
-                }
+                _enrichmentDispatcher.Add(new PublicSuffixEnrichment());
             }
-            catch (Exception ex)
+        }
+
+        private void IncrementDropAndMaybeLog()
+        {
+            Interlocked.Increment(ref _droppedCount);
+
+            long nowTicks = DateTime.UtcNow.Ticks;
+            long lastTicks = Volatile.Read(ref _lastDropTicks);
+
+            if (new TimeSpan(nowTicks - lastTicks) >= DropLogInterval &&
+                Interlocked.CompareExchange(ref _lastDropTicks, nowTicks, lastTicks) == lastTicks)
             {
-                _dnsServer?.WriteLog(ex);
+                long dropped = Interlocked.Exchange(ref _droppedCount, 0);
+                _dnsServer?.WriteLog(
+                    $"Log export queue full; dropped {dropped} entries over last {DropLogInterval.TotalSeconds:F0}s.");
             }
         }
 

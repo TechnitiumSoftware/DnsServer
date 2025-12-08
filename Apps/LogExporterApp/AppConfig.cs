@@ -36,6 +36,9 @@ namespace LogExporter
         [JsonPropertyName("enableEdnsLogging")]
         public bool EnableEdnsLogging { get; set; }
 
+        [JsonPropertyName("enablePslResolution")]
+        public PSLEnrichment? PSLEnrichment { get; set; }
+
         [JsonPropertyName("console")]
         public ConsoleSinkConfig? ConsoleSinkConfig { get; set; }
 
@@ -85,6 +88,17 @@ namespace LogExporter
         }
     }
 
+    #region Enrichments
+    public class EnrichmentConfigBase
+    {
+        [JsonPropertyName("enabled")]
+        public bool Enabled { get; set; }
+    }
+
+    public class PSLEnrichment : EnrichmentConfigBase { }
+    #endregion
+    
+    #region Sinks
     public class SinkConfigBase
     {
         [JsonPropertyName("enabled")]
@@ -124,7 +138,8 @@ namespace LogExporter
 
         [JsonPropertyName("headers")]
         public Dictionary<string, string?>? Headers { get; set; }
-    }
+    } 
+    #endregion
 
     /// <summary>
     /// Shared serializer configuration for reading dnsApp.config.
