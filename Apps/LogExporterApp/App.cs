@@ -35,7 +35,7 @@ namespace LogExporter
         #region variables
 
         const int BULK_INSERT_COUNT = 1000;
-        readonly SinkDispatcher _sinkkDispatcher = new SinkDispatcher();
+        readonly SinkDispatcher _sinkDispatcher;
         Task? _backgroundTask;
         Channel<LogEntry> _channel = default!;
         AppConfig? _config;
@@ -46,16 +46,25 @@ namespace LogExporter
         long _droppedCount;
         DateTime _lastDropLog = DateTime.UtcNow;
         static readonly TimeSpan DropLogInterval = TimeSpan.FromSeconds(5);
+        bool _initialized;
         #endregion variables
 
         #region constructor
+        public App()
+        {
+            _sinkDispatcher = new SinkDispatcher();
+        }
         #endregion constructor
 
         #region IDisposable
+        ~App() => Dispose();
 
         public void Dispose()
         {
             if (_disposed)
+                return;
+
+            if (!_initialized)
                 return;
 
             _disposed = true;
@@ -104,8 +113,8 @@ namespace LogExporter
             {
                 _dnsServer?.WriteLog(ex);
             }
-
-            _sinkkDispatcher.Dispose();
+            _cts?.Dispose();
+            _sinkDispatcher.Dispose();
             GC.SuppressFinalize(this);
         }
 
@@ -122,7 +131,7 @@ namespace LogExporter
             ConfigureSinks();
 
             // If no sinks exist, never enable logging.
-            if (!_sinkkDispatcher.Any())
+            if (!_sinkDispatcher.Any())
             {
                 _enableLogging = false;
                 return Task.CompletedTask;
@@ -140,6 +149,7 @@ namespace LogExporter
             // Start background worker
             _cts = new CancellationTokenSource();
             _backgroundTask = Task.Run(() => BackgroundWorkerAsync(_cts.Token));
+                        _initialized = true;
 
             // ADR: _enableLogging is intentionally set last so that any caller observing
             // _enableLogging is true can rely on the entire logging pipeline being fully
@@ -200,7 +210,7 @@ namespace LogExporter
 
                     if (batch.Count > 0)
                     {
-                        await _sinkkDispatcher.DispatchAsync(batch, token).ConfigureAwait(false);
+                        await _sinkDispatcher.DispatchAsync(batch, token).ConfigureAwait(false);
                         batch.Clear(); // REUSE — do not reassign
                     }
                 }
@@ -218,25 +228,25 @@ namespace LogExporter
 
         private void ConfigureSinks()
         {
-            _sinkkDispatcher.Remove(typeof(ConsoleSink));
+            _sinkDispatcher.Remove(typeof(ConsoleSink));
             if (_config!.ConsoleSinkConfig != null && _config.ConsoleSinkConfig.Enabled)
-                _sinkkDispatcher.Add(new ConsoleSink());
+                _sinkDispatcher.Add(new ConsoleSink());
 
-            _sinkkDispatcher.Remove(typeof(FileSink));
+            _sinkDispatcher.Remove(typeof(FileSink));
             if (_config.FileSinkConfig?.Enabled is true)
-                _sinkkDispatcher.Add(new FileSink(_config.FileSinkConfig.Path));
+                _sinkDispatcher.Add(new FileSink(_config.FileSinkConfig.Path));
 
-            _sinkkDispatcher.Remove(typeof(HttpSink));
+            _sinkDispatcher.Remove(typeof(HttpSink));
             if (_config.HttpSinkConfig?.Enabled is true)
             {
-                _sinkkDispatcher.Add(
+                _sinkDispatcher.Add(
                     new HttpSink(_config.HttpSinkConfig.Endpoint, _config.HttpSinkConfig.Headers));
             }
 
-            _sinkkDispatcher.Remove(typeof(SyslogSink));
+            _sinkDispatcher.Remove(typeof(SyslogSink));
             if (_config.SyslogSinkConfig?.Enabled is true)
             {
-                _sinkkDispatcher.Add(
+                _sinkDispatcher.Add(
                     new SyslogSink(_config.SyslogSinkConfig.Address,
                                              _config.SyslogSinkConfig.Port!.Value,
                                              _config.SyslogSinkConfig.Protocol));
@@ -256,14 +266,14 @@ namespace LogExporter
 
                     if (batch.Count >= BULK_INSERT_COUNT)
                     {
-                        await _sinkkDispatcher.DispatchAsync(batch, token).ConfigureAwait(false);
+                        await _sinkDispatcher.DispatchAsync(batch, token).ConfigureAwait(false);
                         batch.Clear();  // reuse instead of creating new list
                     }
                 }
 
                 if (batch.Count > 0 && !token.IsCancellationRequested)
                 {
-                    await _sinkkDispatcher.DispatchAsync(batch, token).ConfigureAwait(false);
+                    await _sinkDispatcher.DispatchAsync(batch, token).ConfigureAwait(false);
                     batch.Clear();
                 }
             }
