@@ -44,7 +44,6 @@ namespace LogExporter
         IDnsServer? _dnsServer;
         volatile bool _enableLogging; // volatile to improve cross-thread visibility
         long _droppedCount;
-        DateTime _lastDropLog = DateTime.UtcNow;
         static readonly TimeSpan DropLogInterval = TimeSpan.FromSeconds(5);
         long _lastDropTicks;
         #endregion variables
@@ -215,12 +214,12 @@ namespace LogExporter
             }
             catch (OperationCanceledException)
             {
-                await DrainRemainingLogs(batch, CancellationToken.None).ConfigureAwait(false);
+                await DrainRemainingLogs(batch).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 _dnsServer?.WriteLog(ex);
-                await DrainRemainingLogs(batch, token).ConfigureAwait(false);
+                await DrainRemainingLogs(batch).ConfigureAwait(false);
             }
         }
 
@@ -251,7 +250,7 @@ namespace LogExporter
             }
         }
 
-        private async Task DrainRemainingLogs(List<LogEntry> batch, CancellationToken token)
+        private async Task DrainRemainingLogs(List<LogEntry> batch)
         {
             try
             {
