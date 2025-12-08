@@ -30,7 +30,7 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace LogExporter
 {
-    public sealed class App : IDnsApplication, IDnsQueryLogger, IDisposable
+    public sealed class App : IDnsApplication, IDnsQueryLogger
     {
         #region variables
 

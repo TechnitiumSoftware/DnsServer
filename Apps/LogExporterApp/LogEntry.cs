@@ -35,20 +35,13 @@ namespace LogExporter
         private static readonly DomainCache _domainCache = new DomainCache();
 
         // Reuse empty lists to avoid allocations when there are no answers or EDNS data
-        private static readonly List<DnsResourceRecord> EmptyAnswers = new();
-        private static readonly List<EDNSLog> EmptyEdns = new();
+        private static readonly DnsResourceRecord[] EmptyAnswers = Array.Empty<DnsResourceRecord>();
+        private static readonly EDNSLog[] EmptyEdns = Array.Empty<EDNSLog>();
 
         public LogEntry(DateTime timestamp, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram request, DnsDatagram response, bool ednsLogging = false)
         {
             // Assign timestamp and ensure it's in UTC
-            if (timestamp.Kind == DateTimeKind.Utc)
-            {
-                Timestamp = timestamp;
-            }
-            else
-            {
-                Timestamp = timestamp.ToUniversalTime();
-            }
+            Timestamp = timestamp.Kind == DateTimeKind.Utc ? timestamp : timestamp.ToUniversalTime();
 
             // Set hostname
             NameServer = request.Metadata.NameServer.Host;
@@ -81,8 +74,8 @@ namespace LogExporter
             // Convert answer section - reuse empty list when no answers
             if (response.Answer.Count > 0)
             {
-                Answers = new List<DnsResourceRecord>(response.Answer.Count);
-                Answers.AddRange(response.Answer.Select(record => new DnsResourceRecord
+                Answers = new List<DnsResourceRecord>(
+                    response.Answer.Select(record => new DnsResourceRecord
                 {
                     Name = record.Name,
                     RecordType = record.Type,
@@ -90,7 +83,7 @@ namespace LogExporter
                     RecordTtl = record.TTL,
                     RecordData = record.RDATA.ToString(),
                     DnssecStatus = record.DnssecStatus,
-                }));
+                })).ToArray();
             }
             else
             {
@@ -111,7 +104,7 @@ namespace LogExporter
                 return;
             }
 
-            EDNS = new List<EDNSLog>(ednsErrors.Count);
+            var edns = new List<EDNSLog>(ednsErrors.Count);
             foreach (EDnsOption extendedErrorLog in ednsErrors)
             {
                 // ADR: EDNS extended error comes from network input and may not follow
@@ -141,7 +134,7 @@ namespace LogExporter
                     message = raw;
                 }
 
-                EDNS.Add(new EDNSLog
+                edns.Add(new EDNSLog
                 {
                     ErrType = errType,
                     Message = message
@@ -149,33 +142,30 @@ namespace LogExporter
             }
 
             // If no valid EDNS entries were added, use the empty list
-            if (EDNS.Count == 0)
-            {
-                EDNS = EmptyEdns;
-            }
+            EDNS = edns.Count == 0 ? EmptyEdns : edns.ToArray();
         }
 
-        public List<DnsResourceRecord> Answers { get; private set; }
+        public DnsResourceRecord[] Answers { get; }
 
-        public string ClientIp { get; private set; }
+        public string ClientIp { get; }
 
-        public List<EDNSLog> EDNS { get; private set; }
+        public EDNSLog[] EDNS { get; }
 
-        public string NameServer { get; private set; }
+        public string NameServer { get; }
 
-        public DnsTransportProtocol Protocol { get; private set; }
+        public DnsTransportProtocol Protocol { get; }
 
-        public DnsQuestion? Question { get; private set; }
+        public DnsQuestion? Question { get; }
 
-        public DnsResponseCode ResponseCode { get; private set; }
+        public DnsResponseCode ResponseCode { get; }
 
         public double? ResponseRtt { get; private set; }
 
-        public DnsServerResponseType ResponseType { get; private set; }
+        public DnsServerResponseType ResponseType { get; }
 
-        public DateTime Timestamp { get; private set; }
+        public DateTime Timestamp { get; }
 
-        public DomainInfo DomainInfo { get; private set; }
+        public DomainInfo DomainInfo { get; }
 
         public override string ToString()
         {
