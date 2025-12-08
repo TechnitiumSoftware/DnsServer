@@ -35,8 +35,8 @@ namespace LogExporter
         private static readonly DomainCache _domainCache = new DomainCache();
 
         // Reuse empty lists to avoid allocations when there are no answers or EDNS data
-        private static readonly List<DnsResourceRecord> EmptyAnswers = new();
-        private static readonly List<EDNSLog> EmptyEdns = new();
+        private static readonly DnsResourceRecord[] EmptyAnswers = Array.Empty<DnsResourceRecord>();
+        private static readonly EDNSLog[] EmptyEdns = Array.Empty<EDNSLog>();
 
         public LogEntry(DateTime timestamp, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram request, DnsDatagram response, bool ednsLogging = false)
         {
