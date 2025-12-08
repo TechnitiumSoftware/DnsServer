@@ -214,7 +214,7 @@ namespace LogExporter
             }
             catch (OperationCanceledException)
             {
-                await DrainRemainingLogs(batch, token).ConfigureAwait(false);
+                await DrainRemainingLogs(batch, CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -256,9 +256,6 @@ namespace LogExporter
             {
                 while (_channel!.Reader.TryRead(out LogEntry? item))
                 {
-                    if (token.IsCancellationRequested)
-                        break;
-
                     batch.Add(item);
 
                     if (batch.Count >= BULK_INSERT_COUNT)
