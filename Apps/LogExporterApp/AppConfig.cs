@@ -37,16 +37,16 @@ namespace LogExporter
         public bool EnableEdnsLogging { get; set; }
 
         [JsonPropertyName("console")]
-        public ConsoleTarget? ConsoleTarget { get; set; }
+        public ConsoleSinkConfig? ConsoleSinkConfig { get; set; }
 
         [JsonPropertyName("file")]
-        public FileTarget? FileTarget { get; set; }
+        public FileSinkConfig? FileSinkConfig { get; set; }
 
         [JsonPropertyName("http")]
-        public HttpTarget? HttpTarget { get; set; }
+        public HttpSinkConfig? HttpSinkConfig { get; set; }
 
         [JsonPropertyName("syslog")]
-        public SyslogTarget? SyslogTarget { get; set; }
+        public SyslogSinkConfig? SyslogSinkConfig { get; set; }
 
         /// <summary>
         /// Loads config and enforces DataAnnotations validation.
@@ -66,14 +66,14 @@ namespace LogExporter
             ValidateObject(config);
 
             // Validate enabled targets only — disabled ones may be incomplete by design.
-            if (config.FileTarget?.Enabled is true)
-                ValidateObject(config.FileTarget);
+            if (config.FileSinkConfig?.Enabled is true)
+                ValidateObject(config.FileSinkConfig);
 
-            if (config.HttpTarget?.Enabled is true)
-                ValidateObject(config.HttpTarget);
+            if (config.HttpSinkConfig?.Enabled is true)
+                ValidateObject(config.HttpSinkConfig);
 
-            if (config.SyslogTarget?.Enabled is true)
-                ValidateObject(config.SyslogTarget);
+            if (config.SyslogSinkConfig?.Enabled is true)
+                ValidateObject(config.SyslogSinkConfig);
 
             return config;
         }
@@ -85,15 +85,15 @@ namespace LogExporter
         }
     }
 
-    public class TargetBase
+    public class SinkConfigBase
     {
         [JsonPropertyName("enabled")]
         public bool Enabled { get; set; }
     }
 
-    public class ConsoleTarget : TargetBase { }
+    public class ConsoleSinkConfig : SinkConfigBase { }
 
-    public class SyslogTarget : TargetBase
+    public class SyslogSinkConfig : SinkConfigBase
     {
         [JsonPropertyName("address")]
         [Required(ErrorMessage = "syslog.address is required when syslog logging is enabled.")]
@@ -108,14 +108,14 @@ namespace LogExporter
         public string? Protocol { get; set; }
     }
 
-    public class FileTarget : TargetBase
+    public class FileSinkConfig : SinkConfigBase
     {
         [JsonPropertyName("path")]
         [Required(ErrorMessage = "file.path is required when file logging is enabled.")]
         public string Path { get; set; } = string.Empty;
     }
 
-    public class HttpTarget : TargetBase
+    public class HttpSinkConfig : SinkConfigBase
     {
         [JsonPropertyName("endpoint")]
         [Required(ErrorMessage = "http.endpoint is required when HTTP logging is enabled.")]

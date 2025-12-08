@@ -27,9 +27,9 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace LogExporter.Strategy
+namespace LogExporter.Sinks
 {
-    public sealed class HttpExportStrategy : IExportStrategy
+    public sealed class HttpSink : IOutputSink
     {
         #region variables
 
@@ -42,7 +42,7 @@ namespace LogExporter.Strategy
 
         #region constructor
 
-        public HttpExportStrategy(string endpoint, Dictionary<string, string?>? headers = null)
+        public HttpSink(string endpoint, Dictionary<string, string?>? headers = null)
         {
             if (!Uri.TryCreate(endpoint, UriKind.Absolute, out Uri? uri))
                 throw new ArgumentException("Invalid HTTP endpoint.", nameof(endpoint));

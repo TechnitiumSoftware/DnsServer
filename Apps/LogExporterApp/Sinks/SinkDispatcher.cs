@@ -24,14 +24,14 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace LogExporter.Strategy
+namespace LogExporter.Sinks
 {
-    public sealed class ExportManager : IDisposable
+    public sealed class SinkDispatcher : IDisposable
     {
         #region variables
 
-        private readonly ConcurrentDictionary<Type, IExportStrategy> _exportStrategies =
-            new ConcurrentDictionary<Type, IExportStrategy>();
+        private readonly ConcurrentDictionary<Type, IOutputSink> _sinks =
+            new ConcurrentDictionary<Type, IOutputSink>();
 
         private bool _disposed;
 
@@ -50,39 +50,39 @@ namespace LogExporter.Strategy
             // removed. Leaving them in the dictionary creates a misleading state
             // (“manager has strategies”) and allows accidental use-after-dispose.
             // Clearing ensures the manager becomes inert and conveys finality.
-            foreach (KeyValuePair<Type, IExportStrategy> entry in _exportStrategies)
+            foreach (KeyValuePair<Type, IOutputSink> entry in _sinks)
                 entry.Value.Dispose();
 
-            _exportStrategies.Clear();
+            _sinks.Clear();
         }
 
         #endregion
 
         #region public
 
-        public void AddStrategy(IExportStrategy strategy)
+        public void Add(IOutputSink sink)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
 
-            if (!_exportStrategies.TryAdd(strategy.GetType(), strategy))
+            if (!_sinks.TryAdd(sink.GetType(), sink))
                 throw new InvalidOperationException(
-                    $"Strategy of type {strategy.GetType().Name} already registered.");
+                    $"Strategy of type {sink.GetType().Name} already registered.");
         }
 
-        public void RemoveStrategy(Type type)
+        public void Remove(Type type)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
 
-            if (_exportStrategies.TryRemove(type, out IExportStrategy? existing))
+            if (_sinks.TryRemove(type, out IOutputSink? existing))
                 existing?.Dispose();
         }
 
-        public bool HasStrategy()
+        public bool Any()
         {
             if (_disposed)
                 return false;
 
-            return !_exportStrategies.IsEmpty;
+            return !_sinks.IsEmpty;
         }
 
         /// <summary>
@@ -93,15 +93,15 @@ namespace LogExporter.Strategy
         /// continues after shutdown. Strategies are responsible for honoring
         /// cancellation so shutdown stays bounded.
         /// </summary>
-        public async Task UseStrategyAsync(IReadOnlyList<LogEntry> logs, CancellationToken token)
+        public async Task DispatchAsync(IReadOnlyList<LogEntry> logs, CancellationToken token)
         {
-            if (_disposed || logs == null || logs.Count == 0 || _exportStrategies.IsEmpty)
+            if (_disposed || logs == null || logs.Count == 0 || _sinks.IsEmpty)
                 return;
 
-            List<Task> tasks = new List<Task>(_exportStrategies.Count);
+            List<Task> tasks = new List<Task>(_sinks.Count);
 
-            foreach (IExportStrategy strategy in _exportStrategies.Values)
-                tasks.Add(strategy.ExportAsync(logs, token));
+            foreach (IOutputSink sink in _sinks.Values)
+                tasks.Add(sink.ExportAsync(logs, token));
 
             await Task.WhenAll(tasks).ConfigureAwait(false);
         }

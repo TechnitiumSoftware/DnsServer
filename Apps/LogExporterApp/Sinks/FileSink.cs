@@ -21,13 +21,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using Microsoft.IO;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace LogExporter.Strategy
+namespace LogExporter.Sinks
 {
-    public sealed class FileExportStrategy : IExportStrategy
+    public sealed class FileSink : IOutputSink
     {
         #region variables
 
@@ -40,7 +39,7 @@ namespace LogExporter.Strategy
 
         #region constructor
 
-        public FileExportStrategy(string filePath)
+        public FileSink(string filePath)
         {
             _fileStream = new FileStream(
                 filePath,

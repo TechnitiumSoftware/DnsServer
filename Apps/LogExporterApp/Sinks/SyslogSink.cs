@@ -28,9 +28,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace LogExporter.Strategy
+namespace LogExporter.Sinks
 {
-    public sealed class SyslogExportStrategy : IExportStrategy
+    public sealed class SyslogSink : IOutputSink
     {
         #region variables
 
@@ -55,7 +55,7 @@ namespace LogExporter.Strategy
 
         #region constructor
 
-        public SyslogExportStrategy(string address, int? port, string? protocol)
+        public SyslogSink(string address, int? port, string? protocol)
         {
             port ??= DEFAULT_PORT;
             protocol ??= DEFAULT_PROTOCOL;

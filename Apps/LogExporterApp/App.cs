@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.ApplicationCommon;
-using LogExporter.Strategy;
+using LogExporter.Sinks;
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -35,7 +35,7 @@ namespace LogExporter
         #region variables
 
         const int BULK_INSERT_COUNT = 1000;
-        readonly ExportManager _exportManager = new ExportManager();
+        readonly SinkDispatcher _sinkkDispatcher = new SinkDispatcher();
         Task? _backgroundTask;
         Channel<LogEntry> _channel = default!;
         AppConfig? _config;
@@ -49,10 +49,6 @@ namespace LogExporter
         #endregion variables
 
         #region constructor
-
-        public App()
-        { }
-
         #endregion constructor
 
         #region IDisposable
@@ -109,7 +105,7 @@ namespace LogExporter
                 _dnsServer?.WriteLog(ex);
             }
 
-            _exportManager.Dispose();
+            _sinkkDispatcher.Dispose();
             GC.SuppressFinalize(this);
         }
 
@@ -123,10 +119,10 @@ namespace LogExporter
             _config = AppConfig.Deserialize(config)
                       ?? throw new DnsClientException("Invalid application configuration.");
 
-            ConfigureExport();
+            ConfigureSinks();
 
             // If no sinks exist, never enable logging.
-            if (!_exportManager.HasStrategy())
+            if (!_sinkkDispatcher.Any())
             {
                 _enableLogging = false;
                 return Task.CompletedTask;
@@ -146,7 +142,7 @@ namespace LogExporter
             _backgroundTask = Task.Run(() => BackgroundWorkerAsync(_cts.Token));
 
             // ADR: _enableLogging is intentionally set last so that any caller observing
-            // _enableLogging == true can rely on the entire logging pipeline being fully
+            // _enableLogging is true can rely on the entire logging pipeline being fully
             // constructed (channel, CTS, background worker). This prevents subtle race
             // conditions where concurrent InsertLogAsync calls see "enabled" before internal
             // structures are ready.
@@ -204,7 +200,7 @@ namespace LogExporter
 
                     if (batch.Count > 0)
                     {
-                        await _exportManager.UseStrategyAsync(batch, token).ConfigureAwait(false);
+                        await _sinkkDispatcher.DispatchAsync(batch, token).ConfigureAwait(false);
                         batch.Clear(); // REUSE — do not reassign
                     }
                 }
@@ -220,27 +216,31 @@ namespace LogExporter
             }
         }
 
-        private void ConfigureExport()
+        private void ConfigureSinks()
         {
-            _exportManager.RemoveStrategy(typeof(ConsoleExportStrategy));
-            if (_config!.ConsoleTarget != null && _config.ConsoleTarget.Enabled)
-                _exportManager.AddStrategy(new ConsoleExportStrategy());
+            _sinkkDispatcher.Remove(typeof(ConsoleSink));
+            if (_config!.ConsoleSinkConfig != null && _config.ConsoleSinkConfig.Enabled)
+                _sinkkDispatcher.Add(new ConsoleSink());
 
-            _exportManager.RemoveStrategy(typeof(FileExportStrategy));
-            if (_config.FileTarget != null && _config.FileTarget.Enabled)
-                _exportManager.AddStrategy(new FileExportStrategy(_config.FileTarget.Path));
+            _sinkkDispatcher.Remove(typeof(FileSink));
+            if (_config.FileSinkConfig?.Enabled is true)
+                _sinkkDispatcher.Add(new FileSink(_config.FileSinkConfig.Path));
 
-            _exportManager.RemoveStrategy(typeof(HttpExportStrategy));
-            if (_config.HttpTarget != null && _config.HttpTarget.Enabled)
-                _exportManager.AddStrategy(
-                    new HttpExportStrategy(_config.HttpTarget.Endpoint, _config.HttpTarget.Headers));
+            _sinkkDispatcher.Remove(typeof(HttpSink));
+            if (_config.HttpSinkConfig?.Enabled is true)
+            {
+                _sinkkDispatcher.Add(
+                    new HttpSink(_config.HttpSinkConfig.Endpoint, _config.HttpSinkConfig.Headers));
+            }
 
-            _exportManager.RemoveStrategy(typeof(SyslogExportStrategy));
-            if (_config.SyslogTarget != null && _config.SyslogTarget.Enabled)
-                _exportManager.AddStrategy(
-                    new SyslogExportStrategy(_config.SyslogTarget.Address,
-                                             _config.SyslogTarget.Port!.Value,
-                                             _config.SyslogTarget.Protocol));
+            _sinkkDispatcher.Remove(typeof(SyslogSink));
+            if (_config.SyslogSinkConfig?.Enabled is true)
+            {
+                _sinkkDispatcher.Add(
+                    new SyslogSink(_config.SyslogSinkConfig.Address,
+                                             _config.SyslogSinkConfig.Port!.Value,
+                                             _config.SyslogSinkConfig.Protocol));
+            }
         }
 
         private async Task DrainRemainingLogs(List<LogEntry> batch, CancellationToken token)
@@ -256,14 +256,14 @@ namespace LogExporter
 
                     if (batch.Count >= BULK_INSERT_COUNT)
                     {
-                        await _exportManager.UseStrategyAsync(batch, token).ConfigureAwait(false);
+                        await _sinkkDispatcher.DispatchAsync(batch, token).ConfigureAwait(false);
                         batch.Clear();  // reuse instead of creating new list
                     }
                 }
 
                 if (batch.Count > 0 && !token.IsCancellationRequested)
                 {
-                    await _exportManager.UseStrategyAsync(batch, token).ConfigureAwait(false);
+                    await _sinkkDispatcher.DispatchAsync(batch, token).ConfigureAwait(false);
                     batch.Clear();
                 }
             }

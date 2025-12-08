@@ -26,9 +26,9 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace LogExporter.Strategy
+namespace LogExporter.Sinks
 {
-    public sealed class ConsoleExportStrategy : IExportStrategy
+    public sealed class ConsoleSink : IOutputSink
     {
         private readonly RecyclableMemoryStreamManager _memoryManager =
             new RecyclableMemoryStreamManager();
@@ -36,7 +36,7 @@ namespace LogExporter.Strategy
         private readonly Stream _stdout;
         private bool _disposed;
 
-        public ConsoleExportStrategy()
+        public ConsoleSink()
         {
             _stdout = Console.OpenStandardOutput();
         }

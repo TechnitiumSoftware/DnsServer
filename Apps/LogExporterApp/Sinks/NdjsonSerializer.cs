@@ -2,7 +2,7 @@
 using System.IO;
 using System.Text.Json;
 
-namespace LogExporter.Strategy
+namespace LogExporter.Sinks
 {
     /// <summary>
     /// ADR: NDJSON serialization is used by all export strategies and must remain

@@ -23,7 +23,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace LogExporter.Strategy
+namespace LogExporter.Sinks
 {
     /// <summary>
     ///     Strategy interface to decide the sinks for exporting the logs.
@@ -32,7 +32,7 @@ namespace LogExporter.Strategy
     /// sinks may block the DNS server shutdown indefinitely. All sinks must respect
     /// the provided token to ensure bounded teardown.</para>
     /// </summary>
-    public interface IExportStrategy: IDisposable
+    public interface IOutputSink: IDisposable
     {
         Task ExportAsync(IReadOnlyList<LogEntry> logs, CancellationToken token);
     }
