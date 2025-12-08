@@ -46,6 +46,7 @@ namespace LogExporter
         long _droppedCount;
         DateTime _lastDropLog = DateTime.UtcNow;
         static readonly TimeSpan DropLogInterval = TimeSpan.FromSeconds(5);
+        long _lastDropTicks;
         #endregion variables
 
         #region constructor
@@ -170,11 +171,11 @@ namespace LogExporter
                 {
                     Interlocked.Increment(ref _droppedCount);
 
-                    DateTime now = DateTime.UtcNow;
-                    if (now - _lastDropLog >= DropLogInterval)
+                    long nowTicks = DateTime.UtcNow.Ticks;
+                    long lastTicks = Volatile.Read(ref _lastDropTicks);
+                    if (new TimeSpan(nowTicks - lastTicks) >= DropLogInterval && Interlocked.CompareExchange(ref _lastDropTicks, nowTicks, lastTicks) == lastTicks)
                     {
                         long dropped = Interlocked.Exchange(ref _droppedCount, 0);
-                        _lastDropLog = now;
                         _dnsServer?.WriteLog($"Log export queue full; dropped {dropped} entries over last {DropLogInterval.TotalSeconds:F0}s.");
                     }
                 }
@@ -260,14 +261,14 @@ namespace LogExporter
 
                     if (batch.Count >= BULK_INSERT_COUNT)
                     {
-                        await _sinkDispatcher.DispatchAsync(batch, token).ConfigureAwait(false);
+                        await _sinkDispatcher.DispatchAsync(batch, CancellationToken.None).ConfigureAwait(false);
                         batch.Clear();  // reuse instead of creating new list
                     }
                 }
 
-                if (batch.Count > 0 && !token.IsCancellationRequested)
+                if (batch.Count > 0)
                 {
-                    await _sinkDispatcher.DispatchAsync(batch, token).ConfigureAwait(false);
+                    await _sinkDispatcher.DispatchAsync(batch, CancellationToken.None).ConfigureAwait(false);
                     batch.Clear();
                 }
             }
