@@ -50,7 +50,7 @@ namespace LogExporter.Strategy
             // removed. Leaving them in the dictionary creates a misleading state
             // (“manager has strategies”) and allows accidental use-after-dispose.
             // Clearing ensures the manager becomes inert and conveys finality.
-            foreach (var entry in _exportStrategies)
+            foreach (KeyValuePair<Type, IExportStrategy> entry in _exportStrategies)
                 entry.Value.Dispose();
 
             _exportStrategies.Clear();
@@ -93,14 +93,14 @@ namespace LogExporter.Strategy
         /// continues after shutdown. Strategies are responsible for honoring
         /// cancellation so shutdown stays bounded.
         /// </summary>
-        public async Task ImplementStrategyAsync(IReadOnlyList<LogEntry> logs, CancellationToken token)
+        public async Task UseStrategyAsync(IReadOnlyList<LogEntry> logs, CancellationToken token)
         {
             if (_disposed || logs == null || logs.Count == 0 || _exportStrategies.IsEmpty)
                 return;
 
-            var tasks = new List<Task>(_exportStrategies.Count);
+            List<Task> tasks = new List<Task>(_exportStrategies.Count);
 
-            foreach (var strategy in _exportStrategies.Values)
+            foreach (IExportStrategy strategy in _exportStrategies.Values)
                 tasks.Add(strategy.ExportAsync(logs, token));
 
             await Task.WhenAll(tasks).ConfigureAwait(false);

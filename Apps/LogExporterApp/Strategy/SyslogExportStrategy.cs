@@ -42,7 +42,7 @@ namespace LogExporter.Strategy
         readonly Facility _facility = Facility.Local6;
 
         readonly Rfc5424Formatter _formatter;
-        readonly Serilog.Core.Logger _sender;
+        readonly Serilog.Core.Logger _logger;
 
         bool _disposed;
 
@@ -62,7 +62,7 @@ namespace LogExporter.Strategy
 
             LoggerConfiguration conf = new LoggerConfiguration();
 
-            _sender = protocol.ToLowerInvariant() switch
+            _logger = protocol.ToLowerInvariant() switch
             {
                 "tls" => conf.WriteTo.TcpSyslog(
                             address,
@@ -123,7 +123,7 @@ namespace LogExporter.Strategy
             if (_disposed)
                 return;
 
-            _sender.Dispose();
+            _logger.Dispose();
             _disposed = true;
         }
 
@@ -147,8 +147,8 @@ namespace LogExporter.Strategy
                 if (token.IsCancellationRequested)
                     break;
 
-                var message = _formatter.FormatMessage(Convert(log));
-                _sender.Information(message);
+                string message = _formatter.FormatMessage(Convert(log));
+                _logger.Information(message);
             }
 
             return Task.CompletedTask;
@@ -228,11 +228,11 @@ namespace LogExporter.Strategy
             }
 
             // Answers
-            if (log.Answers.Count > 0)
+            if (log.Answers.Length > 0)
             {
                 // Build answersSummary without LINQ
                 StringBuilder sb = new StringBuilder();
-                for (int i = 0; i < log.Answers.Count; i++)
+                for (int i = 0; i < log.Answers.Length; i++)
                 {
                     LogEntry.DnsResourceRecord answer = log.Answers[i];
 
@@ -277,9 +277,9 @@ namespace LogExporter.Strategy
             }
 
             // EDNS
-            if (log.EDNS.Count > 0)
+            if (log.EDNS.Length > 0)
             {
-                for (int i = 0; i < log.EDNS.Count; i++)
+                for (int i = 0; i < log.EDNS.Length; i++)
                 {
                     LogEntry.EDNSLog ednsLog = log.EDNS[i];
 

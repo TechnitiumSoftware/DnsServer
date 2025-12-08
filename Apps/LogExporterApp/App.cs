@@ -123,7 +123,7 @@ namespace LogExporter
             _config = AppConfig.Deserialize(config)
                       ?? throw new DnsClientException("Invalid application configuration.");
 
-            ConfigureStrategies();
+            ConfigureExport();
 
             // If no sinks exist, never enable logging.
             if (!_exportManager.HasStrategy())
@@ -161,16 +161,16 @@ namespace LogExporter
         {
             if (_enableLogging)
             {
-                var entry = new LogEntry(timestamp, remoteEP, protocol, request, response, _config!.EnableEdnsLogging);
+                LogEntry entry = new LogEntry(timestamp, remoteEP, protocol, request, response, _config!.EnableEdnsLogging);
 
                 if (!_channel.Writer.TryWrite(entry))
                 {
                     Interlocked.Increment(ref _droppedCount);
 
-                    var now = DateTime.UtcNow;
+                    DateTime now = DateTime.UtcNow;
                     if (now - _lastDropLog >= DropLogInterval)
                     {
-                        var dropped = Interlocked.Exchange(ref _droppedCount, 0);
+                        long dropped = Interlocked.Exchange(ref _droppedCount, 0);
                         _lastDropLog = now;
                         _dnsServer?.WriteLog($"Log export queue full; dropped {dropped} entries over last {DropLogInterval.TotalSeconds:F0}s.");
                     }
@@ -187,14 +187,14 @@ namespace LogExporter
         private async Task BackgroundWorkerAsync(CancellationToken token)
         {
             // ADR: Reuse this list buffer to avoid GC churn during high-volume logging.
-            var batch = new List<LogEntry>(BULK_INSERT_COUNT);
+            List<LogEntry> batch = new List<LogEntry>(BULK_INSERT_COUNT);
 
             try
             {
                 while (await _channel.Reader.WaitToReadAsync(token).ConfigureAwait(false))
                 {
                     while (batch.Count < BULK_INSERT_COUNT &&
-                           _channel.Reader.TryRead(out var entry))
+                           _channel.Reader.TryRead(out LogEntry? entry))
                     {
                         if (token.IsCancellationRequested)
                             break;
@@ -204,7 +204,7 @@ namespace LogExporter
 
                     if (batch.Count > 0)
                     {
-                        await _exportManager.ImplementStrategyAsync(batch, token).ConfigureAwait(false);
+                        await _exportManager.UseStrategyAsync(batch, token).ConfigureAwait(false);
                         batch.Clear(); // REUSE — do not reassign
                     }
                 }
@@ -220,7 +220,7 @@ namespace LogExporter
             }
         }
 
-        private void ConfigureStrategies()
+        private void ConfigureExport()
         {
             _exportManager.RemoveStrategy(typeof(ConsoleExportStrategy));
             if (_config!.ConsoleTarget != null && _config.ConsoleTarget.Enabled)
@@ -247,7 +247,7 @@ namespace LogExporter
         {
             try
             {
-                while (_channel!.Reader.TryRead(out var item))
+                while (_channel!.Reader.TryRead(out LogEntry? item))
                 {
                     if (token.IsCancellationRequested)
                         break;
@@ -256,14 +256,14 @@ namespace LogExporter
 
                     if (batch.Count >= BULK_INSERT_COUNT)
                     {
-                        await _exportManager.ImplementStrategyAsync(batch, token).ConfigureAwait(false);
+                        await _exportManager.UseStrategyAsync(batch, token).ConfigureAwait(false);
                         batch.Clear();  // reuse instead of creating new list
                     }
                 }
 
                 if (batch.Count > 0 && !token.IsCancellationRequested)
                 {
-                    await _exportManager.ImplementStrategyAsync(batch, token).ConfigureAwait(false);
+                    await _exportManager.UseStrategyAsync(batch, token).ConfigureAwait(false);
                     batch.Clear();
                 }
             }

@@ -44,7 +44,7 @@ namespace LogExporter.Strategy
 
         public HttpExportStrategy(string endpoint, Dictionary<string, string?>? headers = null)
         {
-            if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
+            if (!Uri.TryCreate(endpoint, UriKind.Absolute, out Uri? uri))
                 throw new ArgumentException("Invalid HTTP endpoint.", nameof(endpoint));
 
             _endpoint = uri;
@@ -52,7 +52,7 @@ namespace LogExporter.Strategy
 
             if (headers != null)
             {
-                foreach (var kv in headers)
+                foreach (KeyValuePair<string, string?> kv in headers)
                 {
                     if (!_httpClient.DefaultRequestHeaders.TryAddWithoutValidation(kv.Key, kv.Value))
                         throw new FormatException($"Failed to add HTTP header '{kv.Key}'.");
@@ -86,14 +86,14 @@ namespace LogExporter.Strategy
             if (_disposed || logs.Count == 0 || token.IsCancellationRequested)
                 return;
 
-            using var ms = _memoryManager.GetStream("HttpExport-Batch");
+            using RecyclableMemoryStream ms = _memoryManager.GetStream("HttpExport-Batch");
 
             // Use Stream overload explicitly to avoid ambiguity
             NdjsonSerializer.WriteBatch(ms, logs);
 
             ms.Position = 0;
 
-            using var content = new StreamContent(ms);
+            using StreamContent content = new StreamContent(ms);
             content.Headers.Add("Content-Type", "application/x-ndjson");
 
             using HttpResponseMessage response = await _httpClient

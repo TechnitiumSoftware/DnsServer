@@ -50,28 +50,29 @@ namespace LogExporter
 
         /// <summary>
         /// Loads config and enforces DataAnnotations validation.
-        ///
+        ///<para>
         /// ADR: Validation is intentionally centralized here so that:
         ///   - App receives only a fully valid configuration.
         ///   - Errors surface early with domain-specific messages.
         ///   - No runtime failures occur deep inside the logging pipeline.
         /// This ensures plugin initialization is deterministic and safe.
+        /// </para>
         /// </summary>
         public static AppConfig Deserialize(string json)
         {
-            var config = JsonSerializer.Deserialize<AppConfig>(json, DnsConfigSerializerOptions.Default)
+            AppConfig config = JsonSerializer.Deserialize<AppConfig>(json, DnsConfigSerializerOptions.Default)
                          ?? throw new DnsClientException("Configuration could not be deserialized.");
 
             ValidateObject(config);
 
             // Validate enabled targets only — disabled ones may be incomplete by design.
-            if (config.FileTarget?.Enabled == true)
+            if (config.FileTarget?.Enabled is true)
                 ValidateObject(config.FileTarget);
 
-            if (config.HttpTarget?.Enabled == true)
+            if (config.HttpTarget?.Enabled is true)
                 ValidateObject(config.HttpTarget);
 
-            if (config.SyslogTarget?.Enabled == true)
+            if (config.SyslogTarget?.Enabled is true)
                 ValidateObject(config.SyslogTarget);
 
             return config;
@@ -79,7 +80,7 @@ namespace LogExporter
 
         private static void ValidateObject(object instance)
         {
-            var ctx = new ValidationContext(instance);
+            ValidationContext ctx = new ValidationContext(instance);
             Validator.ValidateObject(instance, ctx, validateAllProperties: true);
         }
     }

@@ -80,7 +80,7 @@ namespace LogExporter.Strategy
             if (_disposed || logs.Count == 0 || token.IsCancellationRequested)
                 return;
 
-            using var ms = _memoryManager.GetStream("FileExport-Batch");
+            using RecyclableMemoryStream ms = _memoryManager.GetStream("FileExport-Batch");
             NdjsonSerializer.WriteBatch(ms, logs);
             ms.Position = 0;
 

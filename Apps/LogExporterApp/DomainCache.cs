@@ -60,14 +60,14 @@ namespace LogExporter
                 return DomainInfo.Empty;
 
             // Fast path: try cache lookup with original name first (case-insensitive)
-            if (_cache.TryGetValue(domainName, out var node))
+            if (_cache.TryGetValue(domainName, out CacheNode? node))
             {
                 node.Visited = true;
                 return node.Domain;
             }
 
             // Normalize only if needed, using string pool to reduce allocations
-            var normalizedName = GetPooledNormalizedName(domainName);
+            string normalizedName = GetPooledNormalizedName(domainName);
 
             // Check cache again with normalized name (may differ from original)
             if (!ReferenceEquals(normalizedName, domainName) &&
@@ -77,7 +77,7 @@ namespace LogExporter
                 return node.Domain;
             }
 
-            var domain = Parse(domainName);
+            DomainInfo domain = Parse(domainName);
             AddToCache(normalizedName, domain);
             return domain;
         }
@@ -91,10 +91,10 @@ namespace LogExporter
             if (!NeedsNormalization(name))
                 return name;
 
-            var normalized = name.ToLowerInvariant().TrimEnd('.');
+            string normalized = name.ToLowerInvariant().TrimEnd('.');
 
             // Try to get from pool, or add if not present
-            if (_stringPool.TryGetValue(normalized, out var pooled))
+            if (_stringPool.TryGetValue(normalized, out string? pooled))
                 return pooled;
 
             // Limit pool size to prevent unbounded growth
@@ -125,13 +125,13 @@ namespace LogExporter
 
         private static DomainInfo Parse(string name)
         {
-            var parser = _parser.Value;
+            DomainParser? parser = _parser.Value;
             if (parser == null)
                 return DomainInfo.Empty;
 
             try
             {
-                var info = parser.Parse(name);
+                Nager.PublicSuffix.DomainInfo? info = parser.Parse(name);
                 if (info == null)
                     return DomainInfo.Empty;
 
@@ -159,7 +159,7 @@ namespace LogExporter
             //   - If it fails, we return null and logging continues without PSL data.
             try
             {
-                var provider = new SimpleHttpRuleProvider();
+                SimpleHttpRuleProvider provider = new SimpleHttpRuleProvider();
                 provider.BuildAsync().GetAwaiter().GetResult();
                 return new DomainParser(provider);
             }
@@ -179,7 +179,7 @@ namespace LogExporter
                 while (_cache.Count >= MaxSize)
                     Evict();
 
-                var newNode = new CacheNode(key, domain);
+                CacheNode newNode = new CacheNode(key, domain);
                 InsertAtHead(newNode);
                 _cache[key] = newNode;
             }
@@ -195,23 +195,20 @@ namespace LogExporter
 
             _head = node;
 
-            if (_tail == null)
-                _tail = node;
+            _tail ??= node;
 
-            if (_hand == null)
-                _hand = node;
+            _hand ??= node;
         }
 
         private void Evict()
         {
-            if (_hand == null)
-                _hand = _tail;
+            _hand ??= _tail;
 
             while (_hand != null)
             {
                 if (!_hand.Visited)
                 {
-                    var victim = _hand;
+                    CacheNode victim = _hand;
                     _hand = _hand.Prev ?? _tail;
                     RemoveNode(victim);
                     _cache.TryRemove(victim.Key, out _);

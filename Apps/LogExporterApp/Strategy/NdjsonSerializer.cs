@@ -15,7 +15,7 @@ namespace LogExporter.Strategy
     {
         public static void WriteBatch(Stream target, IReadOnlyList<LogEntry> logs)
         {
-            using var writer = new Utf8JsonWriter(target, new JsonWriterOptions
+            using Utf8JsonWriter writer = new Utf8JsonWriter(target, new JsonWriterOptions
             {
                 Indented = false,
                 SkipValidation = true,

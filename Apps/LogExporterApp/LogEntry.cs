@@ -97,14 +97,14 @@ namespace LogExporter
                 return;
             }
 
-            var ednsErrors = response.EDNS.Options.Where(o => o.Code == EDnsOptionCode.EXTENDED_DNS_ERROR).ToList();
+            List<EDnsOption> ednsErrors = response.EDNS.Options.Where(o => o.Code == EDnsOptionCode.EXTENDED_DNS_ERROR).ToList();
             if (ednsErrors.Count == 0)
             {
                 EDNS = EmptyEdns;
                 return;
             }
 
-            var edns = new List<EDNSLog>(ednsErrors.Count);
+            List<EDNSLog> edns = new List<EDNSLog>(ednsErrors.Count);
             foreach (EDnsOption extendedErrorLog in ednsErrors)
             {
                 // ADR: EDNS extended error comes from network input and may not follow
@@ -113,7 +113,7 @@ namespace LogExporter
                 // allowing remote parties to crash the logging pipeline.
                 // We now parse defensively and treat malformed data as a best-effort message.
 
-                var raw = extendedErrorLog.Data?.ToString();
+                string? raw = extendedErrorLog.Data?.ToString();
                 if (string.IsNullOrWhiteSpace(raw))
                     continue;
 
@@ -122,7 +122,7 @@ namespace LogExporter
                 string? errType = null;
                 string? message = null;
 
-                var parts = raw.Split(':', 2, StringSplitOptions.TrimEntries);
+                string[] parts = raw.Split(':', 2, StringSplitOptions.TrimEntries);
                 if (parts.Length == 2)
                 {
                     errType = parts[0];
