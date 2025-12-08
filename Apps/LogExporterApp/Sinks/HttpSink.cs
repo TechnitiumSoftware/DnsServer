@@ -21,9 +21,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using Microsoft.IO;
 using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Linq;
 using System.Net.Http;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -50,13 +49,14 @@ namespace LogExporter.Sinks
             _endpoint = uri;
             _httpClient = new HttpClient();
 
-            if (headers != null)
+            if (headers == null)
             {
-                foreach (KeyValuePair<string, string?> kv in headers)
-                {
-                    if (!_httpClient.DefaultRequestHeaders.TryAddWithoutValidation(kv.Key, kv.Value))
-                        throw new FormatException($"Failed to add HTTP header '{kv.Key}'.");
-                }
+                return;
+            }
+
+            foreach (var kv in headers.Where(kv => !_httpClient.DefaultRequestHeaders.TryAddWithoutValidation(kv.Key, kv.Value)))
+            {
+                throw new FormatException($"Failed to add HTTP header '{kv.Key}'.");
             }
         }
 

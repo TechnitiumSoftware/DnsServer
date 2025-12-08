@@ -46,7 +46,6 @@ namespace LogExporter
         long _droppedCount;
         DateTime _lastDropLog = DateTime.UtcNow;
         static readonly TimeSpan DropLogInterval = TimeSpan.FromSeconds(5);
-        bool _initialized;
         #endregion variables
 
         #region constructor
@@ -62,9 +61,6 @@ namespace LogExporter
         public void Dispose()
         {
             if (_disposed)
-                return;
-
-            if (!_initialized)
                 return;
 
             _disposed = true;
@@ -124,6 +120,8 @@ namespace LogExporter
 
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+
             _dnsServer = dnsServer;
             _config = AppConfig.Deserialize(config)
                       ?? throw new DnsClientException("Invalid application configuration.");
@@ -149,7 +147,6 @@ namespace LogExporter
             // Start background worker
             _cts = new CancellationTokenSource();
             _backgroundTask = Task.Run(() => BackgroundWorkerAsync(_cts.Token));
-                        _initialized = true;
 
             // ADR: _enableLogging is intentionally set last so that any caller observing
             // _enableLogging is true can rely on the entire logging pipeline being fully
