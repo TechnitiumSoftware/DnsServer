@@ -1,4 +1,4 @@
-﻿/*
+/*
 Technitium DNS Server
 Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 Copyright (C) 2025  Zafer Balkan (zafer@zaferbalkan.com)
@@ -15,20 +15,14 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 */
 
 using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
-namespace LogExporter.Strategy
+namespace LogExporter.Enrichment
 {
-    /// <summary>
-    ///     Strategy interface to decide the sinks for exporting the logs.
-    /// </summary>
-    public interface IExportStrategy: IDisposable
+    public interface IEnrichment : IDisposable
     {
-        Task ExportAsync(IReadOnlyList<LogEntry> logs);
+        void Enrich(LogEntry logEntry);
     }
 }

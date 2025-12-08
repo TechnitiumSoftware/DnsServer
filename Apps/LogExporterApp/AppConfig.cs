@@ -18,70 +18,134 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using TechnitiumLibrary.Net.Dns;
 
 namespace LogExporter
 {
     public class AppConfig
     {
         [JsonPropertyName("maxQueueSize")]
+        [Range(1, int.MaxValue, ErrorMessage = "maxQueueSize must be greater than zero.")]
         public int MaxQueueSize { get; set; }
 
-        [JsonPropertyName("enableEdnsLogging ")]
+        [JsonPropertyName("enableEdnsLogging")]
         public bool EnableEdnsLogging { get; set; }
 
+        [JsonPropertyName("enablePslResolution")]
+        public PSLEnrichment? PSLEnrichment { get; set; }
+
+        [JsonPropertyName("console")]
+        public ConsoleSinkConfig? ConsoleSinkConfig { get; set; }
+
         [JsonPropertyName("file")]
-        public FileTarget? FileTarget { get; set; }
+        public FileSinkConfig? FileSinkConfig { get; set; }
 
         [JsonPropertyName("http")]
-        public HttpTarget? HttpTarget { get; set; }
+        public HttpSinkConfig? HttpSinkConfig { get; set; }
 
         [JsonPropertyName("syslog")]
-        public SyslogTarget? SyslogTarget { get; set; }
+        public SyslogSinkConfig? SyslogSinkConfig { get; set; }
 
-        // Load configuration from JSON
-        public static AppConfig? Deserialize(string json)
+        /// <summary>
+        /// Loads config and enforces DataAnnotations validation.
+        ///<para>
+        /// ADR: Validation is intentionally centralized here so that:
+        ///   - App receives only a fully valid configuration.
+        ///   - Errors surface early with domain-specific messages.
+        ///   - No runtime failures occur deep inside the logging pipeline.
+        /// This ensures plugin initialization is deterministic and safe.
+        /// </para>
+        /// </summary>
+        public static AppConfig Deserialize(string json)
         {
-            return JsonSerializer.Deserialize<AppConfig>(json, DnsConfigSerializerOptions.Default);
+            AppConfig config = JsonSerializer.Deserialize<AppConfig>(json, DnsConfigSerializerOptions.Default)
+                         ?? throw new DnsClientException("Configuration could not be deserialized.");
+
+            ValidateObject(config);
+
+            // Validate enabled targets only — disabled ones may be incomplete by design.
+            if (config.FileSinkConfig?.Enabled is true)
+                ValidateObject(config.FileSinkConfig);
+
+            if (config.HttpSinkConfig?.Enabled is true)
+                ValidateObject(config.HttpSinkConfig);
+
+            if (config.SyslogSinkConfig?.Enabled is true)
+                ValidateObject(config.SyslogSinkConfig);
+
+            return config;
+        }
+
+        private static void ValidateObject(object instance)
+        {
+            ValidationContext ctx = new ValidationContext(instance);
+            Validator.ValidateObject(instance, ctx, validateAllProperties: true);
         }
     }
 
-    public class TargetBase
+    #region Enrichments
+    public class EnrichmentConfigBase
     {
         [JsonPropertyName("enabled")]
         public bool Enabled { get; set; }
     }
 
-    public class SyslogTarget : TargetBase
+    public class PSLEnrichment : EnrichmentConfigBase { }
+    #endregion
+    
+    #region Sinks
+    public class SinkConfigBase
+    {
+        [JsonPropertyName("enabled")]
+        public bool Enabled { get; set; }
+    }
+
+    public class ConsoleSinkConfig : SinkConfigBase { }
+
+    public class SyslogSinkConfig : SinkConfigBase
     {
         [JsonPropertyName("address")]
-        public required string Address { get; set; }
+        [Required(ErrorMessage = "syslog.address is required when syslog logging is enabled.")]
+        public string Address { get; set; } = string.Empty;
 
         [JsonPropertyName("port")]
+        [Range(1, 65535)]
         public int? Port { get; set; }
 
         [JsonPropertyName("protocol")]
+        [AllowedValues(["UDP", "TCP", "TLS", "LOCAL"])]
         public string? Protocol { get; set; }
     }
 
-    public class FileTarget : TargetBase
+    public class FileSinkConfig : SinkConfigBase
     {
         [JsonPropertyName("path")]
-        public required string Path { get; set; }
+        [Required(ErrorMessage = "file.path is required when file logging is enabled.")]
+        public string Path { get; set; } = string.Empty;
     }
 
-    public class HttpTarget : TargetBase
+    public class HttpSinkConfig : SinkConfigBase
     {
         [JsonPropertyName("endpoint")]
-        public required string Endpoint { get; set; }
+        [Required(ErrorMessage = "http.endpoint is required when HTTP logging is enabled.")]
+        [Url]
+        public string Endpoint { get; set; } = string.Empty;
 
         [JsonPropertyName("headers")]
         public Dictionary<string, string?>? Headers { get; set; }
-    }
+    } 
+    #endregion
 
-    // Setup reusable options with a single instance
+    /// <summary>
+    /// Shared serializer configuration for reading dnsApp.config.
+    /// ADR: The serializer options are centralized so that parsing behavior
+    /// is stable and predictable across the entire plugin lifetime.
+    /// </summary>
     public static class DnsConfigSerializerOptions
     {
         public static readonly JsonSerializerOptions Default = new JsonSerializerOptions
