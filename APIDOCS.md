@@ -5061,7 +5061,7 @@ WHERE:
 - `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `authConfig` (optional): Set to `true` to backup the authentication config file. Default value is `false`.
 - `clusterConfig` (optional): Set to `true` to backup the Cluster config file. Default value is `false`.
-- `webServiceConfig` (optional): Set to `true` to backup the web service config file. Default value is `false`.
+- `webServiceSettings` (optional): Set to `true` to backup the web service config file. Default value is `false`.
 - `dnsSettings` (optional): Set to `true` to backup DNS settings and certificate files. The Web Service or Optional Protocols TLS certificate (.pfx) files will be included in the backup only if they exist within the DNS server's config folder. Default value is `false`.
 - `logSettings` (optional): Set to `true` to backup log settings file. Default value is `false`.
 - `zones` (optional): Set to `true` to backup DNS zone files. Default value is `false`.
@@ -5094,7 +5094,7 @@ WHERE:
 - `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `authConfig` (optional): Set to `true` to restore the authentication config file. Default value is `false`.
 - `clusterConfig` (optional): Set to `true` to restore the Cluster config file. Default value is `false`.
-- `webServiceConfig` (optional): Set to `true` to restore the web service config file. Default value is `false`.
+- `webServiceSettings` (optional): Set to `true` to restore the web service config file. Default value is `false`.
 - `dnsSettings` (optional): Set to `true` to restore DNS settings and certificate files. Default value is `false`.
 - `logSettings` (optional): Set to `true` to restore log settings file. Default value is `false`.
 - `zones` (optional): Set to `true` to restore DNS zone files. Default value is `false`.
