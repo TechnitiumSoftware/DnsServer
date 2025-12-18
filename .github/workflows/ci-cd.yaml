@@ -6,44 +6,27 @@ on:
       - master
 
 jobs:
-  librairies-build:
-    name: "Building Technitium Libraries"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          repository: TechnitiumSoftware/TechnitiumLibrary
-      - name: "Build the librairies"
-        run: |
-          ls
-          pwd
-          dotnet build TechnitiumLibrary/TechnitiumLibrary.ByteTree/TechnitiumLibrary.ByteTree.csproj -c Release
-          dotnet build TechnitiumLibrary/TechnitiumLibrary.Net/TechnitiumLibrary.Net.csproj -c Release
-          dotnet build TechnitiumLibrary/TechnitiumLibrary.Security.OTP/TechnitiumLibrary.Security.OTP.csproj -c Release
-  
-  application-build:
-    name: "Build the Technitium application"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          repository: ${{ github.repository }}
-      - name: "Build the app"
-        run: |
-          ls
-          pwd
-          dotnet publish DnsServer/DnsServerApp/DnsServerApp.csproj -c Release
-
-  docker-image-build-and-push:
-    name: "Build and Push Docker Image"
+  main:
+    name: "Building the APP and pushing it to GHCR and the DockerHub"
     runs-on: ubuntu-latest
     env:
       registry_user: elspan
     steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: TechnitiumSoftware/TechnitiumLibrary
+          path: TechnitiumLibrary
+      - uses: actions/checkout@v6
+      - name: "Build the librairies"
+        run: |
+          dotnet build TechnitiumLibrary/TechnitiumLibrary.ByteTree/TechnitiumLibrary.ByteTree.csproj -c Release
+          dotnet build TechnitiumLibrary/TechnitiumLibrary.Net/TechnitiumLibrary.Net.csproj -c Release
+          dotnet build TechnitiumLibrary/TechnitiumLibrary.Security.OTP/TechnitiumLibrary.Security.OTP.csproj -c Release
+      - name: "Build the app"
+        run: |
+          dotnet publish DnsServer/DnsServerApp/DnsServerApp.csproj -c Release
       - name: "Push the image to the GHCR"
         run: |
-          ls
-          pwd
           docker login --username $registry_user --password ${{ secrets.GHCR_PAT }} ghcr.io
           docker build DnsServer --tag ghcr.io/$registry_user/technitium:latest
           docker push ghcr.io/$registry_user/technitium:latest
