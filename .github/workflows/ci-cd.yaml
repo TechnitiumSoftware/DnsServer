@@ -6,13 +6,29 @@ on:
       - master
 
 jobs:
-  ghcr:
-    name: "Construire l'image Docker"
+  main:
+    name: "Main CI-CD"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Création et envoi de l'image sur GHCR
+      - name: "Build the APP"
+        run: |
+          sudo add-apt-repository ppa:dotnet/backports
+          sudo apt update
+          sudo apt install dotnet-sdk-9.0 libmsquic -y
+          git clone --depth 1 https://github.com/TechnitiumSoftware/TechnitiumLibrary.git TechnitiumLibrary
+          git clone --depth 1 https://github.com/TechnitiumSoftware/DnsServer.git DnsServer
+          dotnet build TechnitiumLibrary/TechnitiumLibrary.ByteTree/TechnitiumLibrary.ByteTree.csproj -c Release
+          dotnet build TechnitiumLibrary/TechnitiumLibrary.Net/TechnitiumLibrary.Net.csproj -c Release
+          dotnet build TechnitiumLibrary/TechnitiumLibrary.Security.OTP/TechnitiumLibrary.Security.OTP.csproj -c Release
+          dotnet publish DnsServer/DnsServerApp/DnsServerApp.csproj -c Release
+      - name: "Push the image to the GHCR"
         run: |
           docker login --username Elspan --password ${{ secrets.GH_PAT }} ghcr.io
-          docker build . --tag ghcr.io/elspan/technitium:latest
+          docker build DnsServer --tag ghcr.io/elspan/technitium:latest
           docker push ghcr.io/elspan/technitium:latest
+      # - name: "Push the image to the DockerHub"
+      #   run: |
+      #     docker login --username Elspan --password ${{ secrets.DOCKER_HUB_SECRET }}
+      #     docker build DnsServer --tag elspan/technitium:latest
+      #     docker push elspan/technitium:latest
