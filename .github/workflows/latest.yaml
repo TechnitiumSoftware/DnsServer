@@ -1,4 +1,4 @@
-name: "Technitium CI-CD"
+name: "Build latest containers"
 
 on:
   push:
@@ -7,10 +7,8 @@ on:
 
 jobs:
   main:
-    name: "Building the APP and pushing it to GHCR and the DockerHub"
+    name: "Building the portable application and pushing it to GHCR and the DockerHub"
     runs-on: ubuntu-latest
-    env:
-      registry_user: elspan
     steps:
       - uses: actions/checkout@v6
         with:
@@ -29,37 +27,29 @@ jobs:
         run: |
           dotnet publish DnsServer/DnsServerApp/DnsServerApp.csproj -c Release
 
-      # - name: "Push the image to the GHCR"
-      #   run: |
-      #     docker login --username $registry_user --password ${{ secrets.GHCR_PAT }} ghcr.io
-      #     docker build DnsServer --tag ghcr.io/$registry_user/technitium:latest
-      #     docker push ghcr.io/$registry_user/technitium:latest
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: elspan
+          username: technitium
           password: ${{ secrets.GHCR_PAT }}
+
       - name: Building and pushing the image to GHCR
         uses: docker/build-push-action@v6
         with:
           context: DnsServer
           push: true
-          tags: ghcr.io/elspan/technitium:latest
+          tags: ghcr.io/technitium/dns-server:latest
 
-      # - name: "Push the image to the DockerHub"
-      #   run: |
-      #     docker login --username $registry_user --password ${{ secrets.DOCKER_HUB_PAT }}
-      #     docker build DnsServer --tag $registry_user/technitium:latest
-      #     docker push $registry_user/technitium:latest
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: elspan
+          username: technitium
           password: ${{ secrets.DOCKER_HUB_PAT }}
+
       - name: Building and pushing the image to the Docker Hub
         uses: docker/build-push-action@v6
         with:
           context: DnsServer
           push: true
-          tags: elspan/technitium:latest
+          tags: technitium/dns-server:latest
