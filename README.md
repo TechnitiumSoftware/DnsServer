@@ -11,8 +11,6 @@
 <img src="https://technitium.com/dns/ScreenShot1.png" alt="Technitium DNS Server" />
 </p>
 
-Fork visant à être un POC pour une pipeline CI-CD
-
 Technitium DNS Server is an open source authoritative as well as recursive DNS server that can be used for self hosting a DNS server for privacy & security. It works out-of-the-box with no or minimal configuration and provides a user friendly web console accessible using any modern web browser.
 
 Nobody really bothers about domain name resolution since it works automatically behind the scenes and is complex to understand. Most computer software use the operating system's DNS resolver that usually query the configured ISP's DNS server using UDP protocol. This way works well for most people but, your ISP can see and control what website you can visit even when the website employ HTTPS security. Not only that, some ISPs can redirect, block or inject content into websites you visit even when you use a different DNS provider like Google DNS or Cloudflare DNS. Having Technitium DNS Server configured to use [DNS-over-TLS](https://en.wikipedia.org/wiki/DNS_over_TLS), [DNS-over-HTTPS](https://en.wikipedia.org/wiki/DNS_over_HTTPS), or [DNS-over-QUIC](https://www.ietf.org/rfc/rfc9250.html) forwarders, these privacy & security issues can be mitigated very effectively.
