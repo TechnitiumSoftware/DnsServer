@@ -3,7 +3,7 @@ name: Technitium CI-CD
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   ghcr:
