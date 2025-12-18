@@ -1,4 +1,4 @@
-name: Technitium CI-CD
+name: "Technitium CI-CD"
 
 on:
   push:
@@ -13,6 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: "Build the APP"
         run: |
+          pwd && ls
           git clone --depth 1 https://github.com/TechnitiumSoftware/TechnitiumLibrary.git TechnitiumLibrary
           git clone --depth 1 https://github.com/TechnitiumSoftware/DnsServer.git DnsServer
           dotnet build TechnitiumLibrary/TechnitiumLibrary.ByteTree/TechnitiumLibrary.ByteTree.csproj -c Release
@@ -21,6 +22,7 @@ jobs:
           dotnet publish DnsServer/DnsServerApp/DnsServerApp.csproj -c Release
       - name: "Push the image to the GHCR"
         run: |
+          pwd && ls
           docker login --username Elspan --password ${{ secrets.GH_PAT }} ghcr.io
           docker build DnsServer --tag ghcr.io/elspan/technitium:latest
           docker push ghcr.io/elspan/technitium:latest
