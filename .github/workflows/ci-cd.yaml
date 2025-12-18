@@ -10,7 +10,7 @@ jobs:
     name: "Building the APP and pushing it to GHCR and the DockerHub"
     runs-on: ubuntu-latest
     env:
-      registry_user: Elspan
+      registry_user: elspan
     steps:
       - uses: actions/checkout@v4
       - name: "Build the APP"
