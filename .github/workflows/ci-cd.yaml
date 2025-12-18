@@ -7,13 +7,14 @@ on:
 
 jobs:
   main:
-    name: "Main CI-CD"
+    name: "Building the APP and pushing it to GHCR and the DockerHub"
     runs-on: ubuntu-latest
+    env:
+      registry_user: Elspan
     steps:
       - uses: actions/checkout@v4
       - name: "Build the APP"
         run: |
-          pwd && ls
           git clone --depth 1 https://github.com/TechnitiumSoftware/TechnitiumLibrary.git TechnitiumLibrary
           git clone --depth 1 https://github.com/TechnitiumSoftware/DnsServer.git DnsServer
           dotnet build TechnitiumLibrary/TechnitiumLibrary.ByteTree/TechnitiumLibrary.ByteTree.csproj -c Release
@@ -22,12 +23,11 @@ jobs:
           dotnet publish DnsServer/DnsServerApp/DnsServerApp.csproj -c Release
       - name: "Push the image to the GHCR"
         run: |
-          pwd && ls
-          docker login --username Elspan --password ${{ secrets.GH_PAT }} ghcr.io
-          docker build DnsServer --tag ghcr.io/elspan/technitium:latest
-          docker push ghcr.io/elspan/technitium:latest
+          docker login --username $registry_user --password ${{ secrets.GHCR_PAT }} ghcr.io
+          docker build DnsServer --tag ghcr.io/$registry_user/technitium:latest
+          docker push ghcr.io/$registry_user/technitium:latest
       - name: "Push the image to the DockerHub"
         run: |
-          docker login --username elspan --password ${{ secrets.DOCKER_HUB_PAT }}
-          docker build DnsServer --tag elspan/technitium:latest
-          docker push elspan/technitium:latest
+          docker login --username $registry_user --password ${{ secrets.DOCKER_HUB_PAT }}
+          docker build DnsServer --tag $registry_user/technitium:latest
+          docker push $registry_user/technitium:latest
