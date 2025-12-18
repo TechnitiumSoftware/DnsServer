@@ -26,8 +26,8 @@ jobs:
           docker login --username Elspan --password ${{ secrets.GH_PAT }} ghcr.io
           docker build DnsServer --tag ghcr.io/elspan/technitium:latest
           docker push ghcr.io/elspan/technitium:latest
-      # - name: "Push the image to the DockerHub"
-      #   run: |
-      #     docker login --username Elspan --password ${{ secrets.DOCKER_HUB_SECRET }}
-      #     docker build DnsServer --tag elspan/technitium:latest
-      #     docker push elspan/technitium:latest
+      - name: "Push the image to the DockerHub"
+        run: |
+          docker login --username elspan --password ${{ secrets.DOCKER_HUB_PAT }}
+          docker build DnsServer --tag elspan/technitium:latest
+          docker push elspan/technitium:latest
