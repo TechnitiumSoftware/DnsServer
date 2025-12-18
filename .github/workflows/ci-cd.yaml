@@ -13,9 +13,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: "Build the APP"
         run: |
-          sudo add-apt-repository ppa:dotnet/backports
-          sudo apt update
-          sudo apt install dotnet-sdk-9.0 libmsquic -y
           git clone --depth 1 https://github.com/TechnitiumSoftware/TechnitiumLibrary.git TechnitiumLibrary
           git clone --depth 1 https://github.com/TechnitiumSoftware/DnsServer.git DnsServer
           dotnet build TechnitiumLibrary/TechnitiumLibrary.ByteTree/TechnitiumLibrary.ByteTree.csproj -c Release
