@@ -20,12 +20,12 @@ jobs:
           path: TechnitiumLibrary
           repository: TechnitiumSoftware/TechnitiumLibrary
 
-      - name: "Build the librairies"
+      - name: "Building the librairies"
         run: |
           dotnet build TechnitiumLibrary/TechnitiumLibrary.ByteTree/TechnitiumLibrary.ByteTree.csproj -c Release
           dotnet build TechnitiumLibrary/TechnitiumLibrary.Net/TechnitiumLibrary.Net.csproj -c Release
           dotnet build TechnitiumLibrary/TechnitiumLibrary.Security.OTP/TechnitiumLibrary.Security.OTP.csproj -c Release
-      - name: "Build the app"
+      - name: "Building the app"
         run: |
           dotnet publish DnsServer/DnsServerApp/DnsServerApp.csproj -c Release
 
@@ -38,14 +38,14 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: $registry_user
+          username: elspan
           password: ${{ secrets.GHCR_PAT }}
-      - name: Build and push
+      - name: Building and pushing the image to GHCR
         uses: docker/build-push-action@v6
         with:
           context: DnsServer
           push: true
-          tags: ghcr.io/$registry_user/technitium:latest
+          tags: ghcr.io/elspan/technitium:latest
 
       # - name: "Push the image to the DockerHub"
       #   run: |
@@ -55,11 +55,11 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: $registry_user
+          username: elspan
           password: ${{ secrets.DOCKER_HUB_PAT }}
-      - name: Build and push
+      - name: Building and pushing the image to the Docker Hub
         uses: docker/build-push-action@v6
         with:
           context: DnsServer
           push: true
-          tags: $registry_user/technitium:latest
+          tags: elspan/technitium:latest
