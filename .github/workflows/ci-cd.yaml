@@ -15,15 +15,18 @@ jobs:
       - uses: actions/checkout@v6
         with:
           repository: TechnitiumSoftware/TechnitiumLibrary
-          path: TechnitiumLibrary
       - name: "Build the librairies"
         run: |
+          pwd
+          ls
           dotnet build TechnitiumLibrary/TechnitiumLibrary.ByteTree/TechnitiumLibrary.ByteTree.csproj -c Release
           dotnet build TechnitiumLibrary/TechnitiumLibrary.Net/TechnitiumLibrary.Net.csproj -c Release
           dotnet build TechnitiumLibrary/TechnitiumLibrary.Security.OTP/TechnitiumLibrary.Security.OTP.csproj -c Release
       - uses: actions/checkout@v6
       - name: "Build the app"
         run: |
+          pwd
+          ls
           dotnet publish DnsServer/DnsServerApp/DnsServerApp.csproj -c Release
       - name: "Push the image to the GHCR"
         run: |
