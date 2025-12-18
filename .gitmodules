@@ -1,0 +1,3 @@
+[submodule "TechnitiumLibrary"]
+	path = TechnitiumLibrary
+	url = https://github.com/TechnitiumSoftware/TechnitiumLibrary
