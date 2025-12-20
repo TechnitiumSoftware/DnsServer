@@ -83,9 +83,11 @@ RESPONSE:
 	"totpEnabled": false,
 	"token": "932b2a3495852c15af01598f62563ae534460388b6a370bfbbb8bb6094b698e9",
 	"info": {
-		"version": "14.0",
+		"version": "14.3",
 		"dnsServerDomain": "server1",
 		"defaultRecordTtl": 3600,
+		"defaultNsRecordTtl": 14400,
+		"defaultSoaRecordTtl": 900,
 		"permissions": {
 			"Dashboard": {
 				"canView": true,
@@ -1914,7 +1916,7 @@ WHERE:
 - `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The domain name for creating the new zone. The value can be valid domain name, an IP address, or an network address in CIDR format. When value is IP address or network address, a reverse zone is created.
 - `type`: The type of zone to be created. Valid values are [`Primary`, `Secondary`, `Stub`, `Forwarder`, `SecondaryForwarder`, `Catalog`, `SecondaryCatalog`].
-- `catalog` (optional): The name of the catalog zone to become its member zone. This option is valid only for `Primary`, `Stub`, and `Forwarder` zones.
+- `catalog` (optional): The name of the catalog zone to become its member zone. This option is valid only for `Primary`, `Secondary`, `Stub`, and `Forwarder` zones.
 - `useSoaSerialDateScheme` (optional): Set value to `true` to enable using date scheme for SOA serial. This optional parameter is used only with `Primary`, `Forwarder`, and `Catalog` zones. Default value is `false`.
 - `primaryNameServerAddresses` (optional): List of comma separated IP addresses or domain names of the primary name server. This optional parameter is used only with `Secondary`, `SecondaryForwarder`, `SecondaryCatalog`, and `Stub` zones. If this parameter is not used, the DNS server will try to recursively resolve the primary name server addresses automatically for `Secondary` and `Stub` zones. This option is required for `SecondaryForwarder` and `SecondaryCatalog` zones.
 - `zoneTransferProtocol` (optional): The zone transfer protocol to be used by `Secondary`, `SecondaryForwarder`, and `SecondaryCatalog` zones. Valid values are [`Tcp`, `Tls`, `Quic`].
@@ -2244,9 +2246,9 @@ WHERE:
 - `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `zone`: The domain name of the zone to set options.
 - `disabled` (optional): Sets if the zone is enabled or disabled.
-- `catalog` (optional): Set a Catalog zone name to register as its member zone. This option is valid only for `Primary`, `Stub`, and `Forwarder` zones.
-- `overrideCatalogQueryAccess` (optional): Set to `true` to override Query Access option in the Catalog zone. This option is valid only for `Primary`, `Stub`, and `Forwarder` zones.
-- `overrideCatalogZoneTransfer` (optional): Set to `true` to override Zone Transfer option in the Catalog zone. This option is valid only for `Primary`, and `Forwarder` zones.
+- `catalog` (optional): Set a Catalog zone name to register as its member zone. This option is valid only for `Primary`, `Secondary`, `Stub`, and `Forwarder` zones.
+- `overrideCatalogQueryAccess` (optional): Set to `true` to override Query Access option in the Catalog zone. This option is valid only for `Primary`, `Secondary`, `Stub`, and `Forwarder` zones.
+- `overrideCatalogZoneTransfer` (optional): Set to `true` to override Zone Transfer option in the Catalog zone. This option is valid only for `Primary`, `Secondary`, and `Forwarder` zones.
 - `overrideCatalogNotify` (optional): Set to `true` to override Notify option in the Catalog zone.  This option is valid only for `Primary`, and `Forwarder` zones.
 - `primaryNameServerAddresses` (optional): List of comma separated IP addresses or domain names of the primary name server. This optional parameter is used only with `Secondary`, `SecondaryForwarder`, `SecondaryCatalog`, and `Stub` zones. If this parameter is not used, the DNS server will try to recursively resolve the primary name server addresses automatically for `Secondary` and `Stub` zones. This option is required for `SecondaryForwarder` and `SecondaryCatalog` zones.
 - `primaryZoneTransferProtocol `(optional): The zone transfer protocol to be used by `Secondary`, `SecondaryForwarder`, and `SecondaryCatalog` zones. Valid values are [`Tcp`, `Tls`, `Quic`].
@@ -4660,7 +4662,7 @@ RESPONSE:
 ```
 {
 	"response": {
-		"version": "14.0",
+		"version": "14.3",
 		"uptimestamp": "2025-05-31T10:28:21.6864142Z",
 		"dnsServerDomain": "server1",
 		"dnsServerLocalEndPoints": [
@@ -4674,6 +4676,8 @@ RESPONSE:
 			"::"
 		],
 		"defaultRecordTtl": 3600,
+		"defaultNsRecordTtl": 14400,
+		"defaultSoaRecordTtl": 900,
 		"defaultResponsiblePerson": null,
 		"useSoaSerialDateScheme": false,
 		"minSoaRefresh": 300,
@@ -4848,6 +4852,8 @@ WHERE:
 - `dnsServerIPv4SourceAddresses` (optional): A comma separated list of IPv4 source addresses that the DNS server must use for making all outbound DNS requests when the server is connected to two or more networks. Network addresses are also accepted. By default, the IPv4 address of the network with a default route will be used as the source address.
 - `dnsServerIPv6SourceAddresses` (optional): A comma separated list of IPv6 source addresses that the DNS server must use for making all outbound DNS requests when the server is connected to two or more networks. Network addresses are also accepted. By default, the IPv6 address of the network with a default route will be used as the source address. Note that this option will be used only when `Prefer IPv6` option is enabled.
 - `defaultRecordTtl` (optional, cluster parameter): The default TTL value to use if not specified when adding or updating records in a Zone.
+- `defaultNsRecordTtl` (optional, cluster parameter): The default TTL value to use if not specified when adding or updating NS records in a Primary Zone.
+- `defaultSoaRecordTtl` (optional, cluster parameter): The default TTL value to use if not specified when adding or updating SOA records in a Primary Zone.
 - `defaultResponsiblePerson` (optional, cluster parameter): The default SOA Responsible Person email address to use when adding a Primary Zone.
 - `useSoaSerialDateScheme` (optional, cluster parameter): The default SOA Serial option to use if not specified when adding a Primary Zone.
 - `minSoaRefresh` (optional, cluster parameter): The minimum Refresh interval to be used by Secondary, Stub, Secondary Forwarder, and Secondary Catalog zones. This value will be used if a zone's SOA Refresh value is less than the minimum value. Initial value is `300`.
@@ -4931,7 +4937,7 @@ WHERE:
 - `blockingBypassList` (optional, cluster parameter): A comma separated list of IP addresses or network addresses that are allowed to bypass blocking.
 - `blockingType` (optional, cluster parameter): Sets how the DNS server should respond to a blocked domain request. Valid values are [`AnyAddress`, `NxDomain`, `CustomAddress`] where `AnyAddress` is default which response with `0.0.0.0` and `::` IP addresses for blocked domains. Using `NxDomain` will respond with `NX Domain` response. `CustomAddress` will return the specified custom blocking addresses.
 - `blockingAnswerTtl` (optional, cluster parameter): The TTL value in seconds that must be used for the records in a blocking response. This is the TTL value that the client will use to cache the blocking response.
-- `customBlockingAddresses` (optional, cluster parameter): Set the custom blocking addresses to be used for blocked domain response. These addresses are returned only when `blockingType` is set to `CustomAddress`.
+- `customBlockingAddresses` (optional, cluster parameter): A comma separated list of IP addresses. Set the custom blocking addresses to be used for blocked domain response. These addresses are returned only when `blockingType` is set to `CustomAddress`.
 - `blockListUrls` (optional, cluster parameter): A comma separated list of block list URLs that this server must automatically download and use with the block lists zone. DNS Server will use the data returned by the block list URLs to update the block list zone automatically every 24 hours. The expected file format is standard hosts file format or plain text file containing list of domains to block. Set this parameter to `false` to remove existing values.
 - `blockListUpdateIntervalHours` (optional, cluster parameter): The interval in hours to automatically download and update the block lists. Initial value is `24`.
 - `proxyType` (optional, cluster parameter): The type of proxy protocol to be used. Valid values are [`None`, `Http`, `Socks5`].
@@ -5329,6 +5335,7 @@ RESPONSE:
 			"lan"
 		],
 		"dnsUpdates": true,
+		"dnsOverwriteForDynamicLease": false,
 		"dnsTtl": 900,
 		"serverAddress": "192.168.1.1",
 		"serverHostName": "tftp-server-1",
@@ -5422,6 +5429,7 @@ WHERE:
 - `domainName` (optional): The domain name to be used by this network. The DHCP server automatically adds forward and reverse DNS entries for each IP address allocations when domain name is configured. (Option 15)
 - `domainSearchList` (optional): A comma separated list of domain names that the clients can use as a suffix when searching a domain name. (Option 119)
 - `dnsUpdates` (optional): Set this option to `true` to allow the DHCP server to automatically update forward and reverse DNS entries for clients.
+- `dnsOverwriteForDynamicLease` (optional): Set this option to `true` to allow the DHCP server to overwrite existing DNS A record matching the client domain name for dynamic leases.
 - `dnsTtl` (optional): The TTL value used for forward and reverse DNS records.
 - `serverAddress` (optional): The IP address of next server (TFTP) to use in bootstrap by the clients. If not specified, the DHCP server's IP address is used. (siaddr)
 - `serverHostName` (optional): The optional bootstrap server host name to be used by the clients to identify the TFTP server. (sname/Option 66)
@@ -6895,13 +6903,16 @@ WHERE:
 - `primaryNodePassword`: The password of the administrator user specified above.
 - `primaryNodeTotp` (optional): The the 6-digit code you see in your authenticator app for the administrator user specified above. Only to be used if the user has 2FA enabled.
 
+REQUEST:
+This is a `POST` request call where the content type of the request must be `application/x-www-form-urlencoded`.
+
 RESPONSE:
 ```
 {
 	"response": {
 		"clusterInitialized": true,
 		"dnsServerDomain": "server2.example.com",
-		"version": "14.0",
+		"version": "14.3",
 		"clusterDomain": "example.com",
 		"heartbeatRefreshIntervalSeconds": 30,
 		"heartbeatRetryIntervalSeconds": 10,
