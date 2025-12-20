@@ -194,6 +194,7 @@ namespace DnsServerCore
                 }
 
                 jsonWriter.WriteBoolean("dnsUpdates", scope.DnsUpdates);
+                jsonWriter.WriteBoolean("dnsOverwriteForDynamicLease", scope.DnsOverwriteForDynamicLease);
                 jsonWriter.WriteNumber("dnsTtl", scope.DnsTtl);
 
                 if (scope.ServerAddress is not null)
@@ -462,6 +463,9 @@ namespace DnsServerCore
 
                 if (request.TryGetQueryOrForm("dnsUpdates", bool.Parse, out bool dnsUpdates))
                     scope.DnsUpdates = dnsUpdates;
+
+                if (request.TryGetQueryOrForm("dnsOverwriteForDynamicLease", bool.Parse, out bool dnsOverwriteForDynamicLease))
+                    scope.DnsOverwriteForDynamicLease = dnsOverwriteForDynamicLease;
 
                 if (request.TryGetQueryOrForm("dnsTtl", ZoneFile.ParseTtl, out uint dnsTtl))
                     scope.DnsTtl = dnsTtl;
