@@ -63,7 +63,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 <li><a href="#" onclick="showCreateMyApiTokenModal(); return false;">Create API Token</a></li>
                 <li><a href="#" onclick="showChangePasswordModal(); return false;">Change Password</a></li>
                 <li><a href="#" onclick="showConfigure2FAModal(); return false;">Configure 2FA</a></li>
-                <li><a href="#" onclick="toggleTheme(); return false;">Toggle Theme</a></li>
+                <li><a href="#" onclick="toggleTheme(); return false;">Toggle Dark Mode</a></li>
                 <li role="separator" class="divider"></li>
                 <li><a href="#" onclick="logout(); return false;">Logout</a></li>
             </ul>
@@ -976,6 +976,24 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                 <span>seconds (default 3600/1h)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The default TTL value to use if not specified when adding or updating records in a Zone.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDefaultNsRecordTtl" class="col-sm-3 control-label">Default NS Record TTL</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" class="form-control" id="txtDefaultNsRecordTtl" placeholder="TTL" style="width: 100px; display: inline;">
+                                                                <span>seconds (default 14400/4h)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The default TTL value to use if not specified when adding or updating NS records in a Primary Zone.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDefaultSoaRecordTtl" class="col-sm-3 control-label">Default SOA Record TTL</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" class="form-control" id="txtDefaultSoaRecordTtl" placeholder="TTL" style="width: 100px; display: inline;">
+                                                                <span>seconds (default 900/15m)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The default TTL value to use if not specified when adding or updating SOA records in a Primary Zone.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -3897,7 +3915,7 @@ ns1.example.com ([2001:db8::])
                                 <label for="txtAddEditRecordTtl" class="col-sm-4 control-label">TTL</label>
                                 <div class="col-sm-7">
                                     <input id="txtAddEditRecordTtl" type="text" class="form-control" placeholder="3600" style="width: 100px; display: inline;">
-                                    <span>seconds (default 3600/1h)</span>
+                                    <span id="spanAddEditRecordTtlUnit">seconds (default 3600/1h)</span>
                                 </div>
                             </div>
 
