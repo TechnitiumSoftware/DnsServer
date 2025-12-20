@@ -53,6 +53,7 @@ namespace DnsServerApp
             ManualResetEvent waitHandle = new ManualResetEvent(false);
             ManualResetEvent exitHandle = new ManualResetEvent(false);
             DnsWebService? service = null;
+            PosixSignalRegistration? psr = null;
 
             try
             {
@@ -86,9 +87,8 @@ namespace DnsServerApp
 
                 if (Environment.OSVersion.Platform == PlatformID.Unix)
                 {
-                    PosixSignalRegistration.Create(PosixSignal.SIGTERM, delegate (PosixSignalContext context)
+                    psr = PosixSignalRegistration.Create(PosixSignal.SIGTERM, delegate (PosixSignalContext context)
                     {
-                        context.Cancel = true;
                         waitHandle.Set();
                         exitHandle.WaitOne();
                     });
@@ -107,6 +107,7 @@ namespace DnsServerApp
                 Console.WriteLine("\r\nTechnitium DNS Server is stopping...");
 
                 service?.Dispose();
+                psr?.Dispose();
 
                 Console.WriteLine("Technitium DNS Server was stopped successfully.");
                 exitHandle.Set();
