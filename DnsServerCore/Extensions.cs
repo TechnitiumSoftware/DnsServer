@@ -285,11 +285,18 @@ namespace DnsServerCore
             if (request.HttpContext.Items.TryGetValue("jsonContent", out object jsonObject))
             {
                 JsonDocument json = (JsonDocument)jsonObject;
-                return json.RootElement.TryReadArray(parameter, out array);
+
+                if (!json.RootElement.TryReadArray(parameter, out array))
+                    return false;
+
+                if (array is null)
+                    array = [];
+
+                return true;
             }
 
             string value = request.QueryOrForm(parameter);
-            if (string.IsNullOrEmpty(value))
+            if (value is null)
             {
                 array = null;
                 return false;
@@ -313,11 +320,18 @@ namespace DnsServerCore
             if (request.HttpContext.Items.TryGetValue("jsonContent", out object jsonObject))
             {
                 JsonDocument json = (JsonDocument)jsonObject;
-                return json.RootElement.TryReadArray(parameter, parse, out array);
+
+                if (!json.RootElement.TryReadArray(parameter, parse, out array))
+                    return false;
+
+                if (array is null)
+                    array = [];
+
+                return true;
             }
 
             string value = request.QueryOrForm(parameter);
-            if (string.IsNullOrEmpty(value))
+            if (value is null)
             {
                 array = null;
                 return false;
@@ -341,11 +355,18 @@ namespace DnsServerCore
             if (request.HttpContext.Items.TryGetValue("jsonContent", out object jsonObject))
             {
                 JsonDocument json = (JsonDocument)jsonObject;
-                return json.RootElement.TryReadArray(parameter, getObject, out array);
+
+                if (!json.RootElement.TryReadArray(parameter, getObject, out array))
+                    return false;
+
+                if (array is null)
+                    array = [];
+
+                return true;
             }
 
             string value = request.QueryOrForm(parameter);
-            if (string.IsNullOrEmpty(value))
+            if (value is null)
             {
                 array = null;
                 return false;
