@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<TargetFramework>net9.0</TargetFramework>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-		<Version>9.1</Version>
+		<Version>10.0</Version>
 		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 		<Company>Technitium</Company>
 		<Product>Technitium DNS Server</Product>
