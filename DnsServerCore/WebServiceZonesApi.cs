@@ -1635,6 +1635,18 @@ namespace DnsServerCore
                             if (primaryZoneTransferProtocol == DnsTransportProtocol.Quic)
                                 DnsWebService.ValidateQuicSupport();
 
+                            AuthZoneInfo catalogZoneInfo = null;
+
+                            if (catalogZoneName is not null)
+                            {
+                                catalogZoneInfo = _dnsWebService._dnsServer.AuthZoneManager.GetAuthZoneInfo(catalogZoneName);
+                                if (catalogZoneInfo is null)
+                                    throw new DnsWebServiceException("No such Catalog zone was found: " + catalogZoneName);
+
+                                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, catalogZoneInfo.Name, sessionUser, PermissionFlag.Modify))
+                                    throw new DnsWebServiceException("Access was denied to use Catalog zone: " + catalogZoneInfo.Name);
+                            }
+
                             zoneInfo = await _dnsWebService._dnsServer.AuthZoneManager.CreateSecondaryZoneAsync(zoneName, primaryNameServerAddresses, primaryZoneTransferProtocol, primaryZoneTransferTsigKeyName, validateZone);
                             if (zoneInfo is null)
                                 throw new DnsWebServiceException("Zone already exists: " + zoneName);
@@ -1644,6 +1656,14 @@ namespace DnsServerCore
                             _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService._authManager.GetGroup(Group.ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
                             _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService._authManager.GetGroup(Group.DNS_ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
                             _dnsWebService._authManager.SaveConfigFile();
+
+                            //add membership for catalog zone
+                            if (catalogZoneInfo is not null)
+                            {
+                                _dnsWebService._dnsServer.AuthZoneManager.AddCatalogMemberZone(catalogZoneInfo.Name, zoneInfo);
+
+                                zoneInfo.OverrideCatalogPrimaryNameServers = true; //always true for secondary member zones
+                            }
 
                             _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Authoritative Secondary zone was created: " + zoneInfo.DisplayName);
                         }
@@ -3016,6 +3036,7 @@ namespace DnsServerCore
 
                         if (zoneInfo.CatalogZoneName is not null)
                         {
+                            jsonWriter.WriteBoolean("isSecondaryCatalogMember", zoneInfo.ApexZone.SecondaryCatalogZone is not null);
                             jsonWriter.WriteBoolean("overrideCatalogQueryAccess", zoneInfo.OverrideCatalogQueryAccess);
                             jsonWriter.WriteBoolean("overrideCatalogZoneTransfer", zoneInfo.OverrideCatalogZoneTransfer);
                             jsonWriter.WriteBoolean("overrideCatalogPrimaryNameServers", zoneInfo.OverrideCatalogPrimaryNameServers);
@@ -3296,6 +3317,19 @@ namespace DnsServerCore
                         }
                         break;
 
+                    case AuthZoneType.Secondary:
+                        {
+                            if (zoneInfo.ApexZone.SecondaryCatalogZone is not null)
+                                break; //cannot set option for Secondary zone that is a member of Secondary Catalog Zone
+
+                            if (request.TryGetQueryOrForm("overrideCatalogQueryAccess", bool.Parse, out bool overrideCatalogQueryAccess))
+                                zoneInfo.OverrideCatalogQueryAccess = overrideCatalogQueryAccess;
+
+                            if (request.TryGetQueryOrForm("overrideCatalogZoneTransfer", bool.Parse, out bool overrideCatalogZoneTransfer))
+                                zoneInfo.OverrideCatalogZoneTransfer = overrideCatalogZoneTransfer;
+                        }
+                        break;
+
                     case AuthZoneType.Stub:
                         {
                             if (zoneInfo.ApexZone.SecondaryCatalogZone is not null)
@@ -3339,7 +3373,7 @@ namespace DnsServerCore
                                         NameServerAddress nameServer = NameServerAddress.Parse(address);
 
                                         if (nameServer.Protocol != primaryZoneTransferProtocol)
-                                            nameServer = nameServer.ChangeProtocol(primaryZoneTransferProtocol);
+                                            nameServer = nameServer.Clone(primaryZoneTransferProtocol);
 
                                         return nameServer;
                                     }, ',');
@@ -3376,7 +3410,7 @@ namespace DnsServerCore
                                         NameServerAddress nameServer = NameServerAddress.Parse(address);
 
                                         if (nameServer.Protocol != DnsTransportProtocol.Udp)
-                                            nameServer = nameServer.ChangeProtocol(DnsTransportProtocol.Udp);
+                                            nameServer = nameServer.Clone(DnsTransportProtocol.Udp);
 
                                         return nameServer;
                                     }, ',');
@@ -3575,6 +3609,7 @@ namespace DnsServerCore
                 switch (zoneInfo.Type)
                 {
                     case AuthZoneType.Primary:
+                    case AuthZoneType.Secondary:
                     case AuthZoneType.Stub:
                     case AuthZoneType.Forwarder:
                         if (zoneInfo.ApexZone.SecondaryCatalogZone is not null)
@@ -3703,7 +3738,21 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Access was denied.");
 
                 DnsResourceRecordType type = request.GetQueryOrFormEnum<DnsResourceRecordType>("type");
-                uint ttl = request.GetQueryOrForm("ttl", ZoneFile.ParseTtl, _dnsWebService._dnsServer.AuthZoneManager.DefaultRecordTtl);
+
+                uint defaultTtl;
+
+                switch (type)
+                {
+                    case DnsResourceRecordType.NS:
+                        defaultTtl = _dnsWebService._dnsServer.AuthZoneManager.DefaultNsRecordTtl;
+                        break;
+
+                    default:
+                        defaultTtl = _dnsWebService._dnsServer.AuthZoneManager.DefaultRecordTtl;
+                        break;
+                }
+
+                uint ttl = request.GetQueryOrForm("ttl", ZoneFile.ParseTtl, defaultTtl);
                 bool overwrite = request.GetQueryOrForm("overwrite", bool.Parse, false);
                 string comments = request.QueryOrForm("comments");
                 uint expiryTtl = request.GetQueryOrForm("expiryTtl", ZoneFile.ParseTtl, 0u);
@@ -4481,11 +4530,31 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Access was denied.");
 
                 string newDomain = request.GetQueryOrForm("newDomain", domain).Trim('.');
-                uint ttl = request.GetQueryOrForm("ttl", ZoneFile.ParseTtl, _dnsWebService._dnsServer.AuthZoneManager.DefaultRecordTtl);
+
+                DnsResourceRecordType type = request.GetQueryOrFormEnum<DnsResourceRecordType>("type");
+
+                uint defaultTtl;
+
+                switch (type)
+                {
+                    case DnsResourceRecordType.NS:
+                        defaultTtl = _dnsWebService._dnsServer.AuthZoneManager.DefaultNsRecordTtl;
+                        break;
+
+                    case DnsResourceRecordType.SOA:
+                        defaultTtl = _dnsWebService._dnsServer.AuthZoneManager.DefaultSoaRecordTtl;
+                        break;
+
+                    default:
+                        defaultTtl = _dnsWebService._dnsServer.AuthZoneManager.DefaultRecordTtl;
+                        break;
+                }
+
+                uint ttl = request.GetQueryOrForm("ttl", ZoneFile.ParseTtl, defaultTtl);
+
                 bool disable = request.GetQueryOrForm("disable", bool.Parse, false);
                 string comments = request.QueryOrForm("comments");
                 uint expiryTtl = request.GetQueryOrForm("expiryTtl", ZoneFile.ParseTtl, 0u);
-                DnsResourceRecordType type = request.GetQueryOrFormEnum<DnsResourceRecordType>("type");
 
                 DnsResourceRecord oldRecord = null;
                 DnsResourceRecord newRecord;
