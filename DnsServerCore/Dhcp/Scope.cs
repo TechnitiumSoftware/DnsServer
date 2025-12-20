@@ -64,6 +64,7 @@ namespace DnsServerCore.Dhcp
         string _domainName;
         IReadOnlyCollection<string> _domainSearchList;
         bool _dnsUpdates = true;
+        bool _dnsOverwriteForDynamicLease = false;
         uint _dnsTtl = 900;
         IPAddress _serverAddress;
         string _serverHostName;
@@ -142,6 +143,7 @@ namespace DnsServerCore.Dhcp
                 case 7:
                 case 8:
                 case 9:
+                case 10:
                     _name = bR.ReadShortString();
                     _enabled = bR.ReadBoolean();
 
@@ -179,6 +181,9 @@ namespace DnsServerCore.Dhcp
 
                         _dnsUpdates = bR.ReadBoolean();
                     }
+
+                    if (version >= 10)
+                        _dnsOverwriteForDynamicLease = bR.ReadBoolean();
 
                     _dnsTtl = bR.ReadUInt32();
 
@@ -1569,7 +1574,7 @@ namespace DnsServerCore.Dhcp
             BinaryWriter bW = new BinaryWriter(s);
 
             bW.Write(Encoding.ASCII.GetBytes("SC"));
-            bW.Write((byte)9); //version
+            bW.Write((byte)10); //version
 
             bW.WriteShortString(_name);
             bW.Write(_enabled);
@@ -1603,6 +1608,7 @@ namespace DnsServerCore.Dhcp
             }
 
             bW.Write(_dnsUpdates);
+            bW.Write(_dnsOverwriteForDynamicLease);
             bW.Write(_dnsTtl);
 
             if (_serverAddress is null)
@@ -1933,6 +1939,12 @@ namespace DnsServerCore.Dhcp
         {
             get { return _dnsUpdates; }
             set { _dnsUpdates = value; }
+        }
+
+        public bool DnsOverwriteForDynamicLease
+        {
+            get { return _dnsOverwriteForDynamicLease; }
+            set { _dnsOverwriteForDynamicLease = value; }
         }
 
         public uint DnsTtl
