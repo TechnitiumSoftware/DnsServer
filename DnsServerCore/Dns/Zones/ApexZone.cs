@@ -366,11 +366,13 @@ namespace DnsServerCore.Dns.Zones
                                 if (_notifyFailed.Count > 0)
                                 {
                                     //set timer to notify failed name servers again
-                                    _notifyTimer.Change(Math.Max(GetZoneSoaRetry(), _dnsServer.AuthZoneManager.MinSoaRetry) * 1000, Timeout.Infinite);
+                                    _notifyTimer?.Change(Math.Max(GetZoneSoaRetry(), _dnsServer.AuthZoneManager.MinSoaRetry) * 1000, Timeout.Infinite);
                                 }
                             }
                         }
                     }
+                    catch (ObjectDisposedException)
+                    { }
                     catch (Exception ex)
                     {
                         _dnsServer.LogManager.Write(ex);
@@ -383,7 +385,12 @@ namespace DnsServerCore.Dns.Zones
             )
             {
                 //failed to queue notify task; try again in some time
-                _notifyTimer?.Change(NOTIFY_TIMER_INTERVAL, Timeout.Infinite);
+                try
+                {
+                    _notifyTimer?.Change(NOTIFY_TIMER_INTERVAL, Timeout.Infinite);
+                }
+                catch (ObjectDisposedException)
+                { }
             }
         }
 
@@ -1197,16 +1204,9 @@ namespace DnsServerCore.Dns.Zones
                 if (catalogZone is not null)
                 {
                     if (value)
-                    {
-                        //remove catalog zone membership without removing it from zone's options
-                        catalogZone.RemoveMemberZone(_name);
-                        _dnsServer.AuthZoneManager.SaveZoneFile(catalogZone._name);
-                    }
+                        _dnsServer.AuthZoneManager.RemoveCatalogMemberZone(new AuthZoneInfo(this), true); //remove catalog zone membership without removing it from zone's options
                     else
-                    {
-                        //add catalog zone membership
-                        _dnsServer.AuthZoneManager.AddCatalogMemberZone(_catalogZoneName, new AuthZoneInfo(this), true);
-                    }
+                        _dnsServer.AuthZoneManager.AddCatalogMemberZone(_catalogZoneName, new AuthZoneInfo(this), true); //add catalog zone membership
                 }
             }
         }
@@ -1261,7 +1261,7 @@ namespace DnsServerCore.Dns.Zones
                     //update global custom property
                     thisCatalogZone.SetAllowQueryProperty(GetQueryAccessACL());
                 }
-                else if (!Disabled && ((this is PrimaryZone) || (this is StubZone) || (this is ForwarderZone)))
+                else if (!Disabled && ((this is PrimaryZone) || (this is SecondaryZone && this is not SecondaryForwarderZone) || (this is StubZone) || (this is ForwarderZone)))
                 {
                     CatalogZone catalogZone = CatalogZone;
                     if (catalogZone is not null)
@@ -1302,7 +1302,7 @@ namespace DnsServerCore.Dns.Zones
                     //update global custom property
                     thisCatalogZone.SetAllowTransferProperty(GetZoneTranferACL());
                 }
-                else if (!Disabled && (this is PrimaryZone))
+                else if (!Disabled && ((this is PrimaryZone) || (this is SecondaryZone && this is not SecondaryForwarderZone)))
                 {
                     CatalogZone catalogZone = CatalogZone;
                     if (catalogZone is not null)
@@ -1348,7 +1348,7 @@ namespace DnsServerCore.Dns.Zones
                     //update global custom property
                     thisCatalogZone.SetZoneTransferTsigKeyNamesProperty(_zoneTransferTsigKeyNames);
                 }
-                else if (!Disabled && (this is PrimaryZone))
+                else if (!Disabled && ((this is PrimaryZone) || (this is SecondaryZone && this is not SecondaryForwarderZone)))
                 {
                     CatalogZone catalogZone = CatalogZone;
                     if (catalogZone is not null)
@@ -1481,7 +1481,7 @@ namespace DnsServerCore.Dns.Zones
                         if (apexZone is CatalogZone catalogZone)
                             _catalogZone = catalogZone;
                     }
-                    else if (this is StubZone)
+                    else if ((this is StubZone) || (this is SecondaryZone && this is not SecondaryForwarderZone))
                     {
                         ApexZone apexZone = _dnsServer.AuthZoneManager.GetApexZone(_catalogZoneName);
                         if (apexZone is CatalogZone catalogZone)
