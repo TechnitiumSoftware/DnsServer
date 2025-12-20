@@ -51,6 +51,9 @@ $(function () {
                 break;
 
             case "Secondary":
+                if ($("#optAddZoneCatalogZoneName").attr("hasItems") == "true")
+                    $("#divAddZoneCatalogZone").show();
+
                 $("#divAddZonePrimaryNameServerAddresses").show();
                 $("#divAddZoneZoneTransferProtocol").show();
                 $("#divAddZoneTsigKeyName").show();
@@ -104,6 +107,9 @@ $(function () {
                 break;
 
             case "SecondaryRoot":
+                if ($("#optAddZoneCatalogZoneName").attr("hasItems") == "true")
+                    $("#divAddZoneCatalogZone").show();
+
                 $("#txtAddZone").prop("disabled", true);
                 $("#txtAddZone").val(".");
                 break;
@@ -183,12 +189,12 @@ $(function () {
     });
 
     $("#optZoneOptionsCatalogZoneName").on("change", function () {
+        $("#chkZoneOptionsCatalogOverrideQueryAccess").prop("checked", false);
+        $("#chkZoneOptionsCatalogOverrideZoneTransfer").prop("checked", false);
+        $("#chkZoneOptionsCatalogOverrideNotify").prop("checked", false);
+
         var catalog = $("#optZoneOptionsCatalogZoneName").val();
         if (catalog === "") {
-            $("#chkZoneOptionsCatalogOverrideQueryAccess").prop("checked", false);
-            $("#chkZoneOptionsCatalogOverrideZoneTransfer").prop("checked", false);
-            $("#chkZoneOptionsCatalogOverrideNotify").prop("checked", false);
-
             $("#chkZoneOptionsCatalogOverrideQueryAccess").prop("disabled", true);
             $("#chkZoneOptionsCatalogOverrideZoneTransfer").prop("disabled", true);
             $("#chkZoneOptionsCatalogOverrideNotify").prop("disabled", true);
@@ -201,32 +207,46 @@ $(function () {
                     $("#tabListZoneOptionsNotify").show();
                     break;
 
+                case "Secondary":
+                    $("#tabListZoneOptionsQueryAccess").show();
+                    $("#tabListZoneOptionsZoneTranfer").show();
+                    $("#tabListZoneOptionsNotify").show();
+                    break;
+
                 case "Stub":
                     $("#tabListZoneOptionsQueryAccess").show();
                     break;
             }
         }
         else {
-            $("#chkZoneOptionsCatalogOverrideQueryAccess").prop("checked", false);
-            $("#chkZoneOptionsCatalogOverrideZoneTransfer").prop("checked", false);
-            $("#chkZoneOptionsCatalogOverrideNotify").prop("checked", false);
-
             switch ($("#lblZoneOptionsZoneName").attr("data-zone-type")) {
                 case "Primary":
                 case "Forwarder":
                     $("#chkZoneOptionsCatalogOverrideQueryAccess").prop("disabled", false);
                     $("#chkZoneOptionsCatalogOverrideZoneTransfer").prop("disabled", false);
                     $("#chkZoneOptionsCatalogOverrideNotify").prop("disabled", false);
+
+                    $("#tabListZoneOptionsQueryAccess").hide();
+                    $("#tabListZoneOptionsZoneTranfer").hide();
+                    $("#tabListZoneOptionsNotify").hide();
+                    break;
+
+                case "Secondary":
+                    $("#chkZoneOptionsCatalogOverrideQueryAccess").prop("disabled", false);
+                    $("#chkZoneOptionsCatalogOverrideZoneTransfer").prop("disabled", false);
+
+                    $("#tabListZoneOptionsQueryAccess").hide();
+                    $("#tabListZoneOptionsZoneTranfer").hide();
                     break;
 
                 case "Stub":
                     $("#chkZoneOptionsCatalogOverrideQueryAccess").prop("disabled", false);
+
+                    $("#tabListZoneOptionsQueryAccess").hide();
+                    $("#tabListZoneOptionsZoneTranfer").hide();
+                    $("#tabListZoneOptionsNotify").hide();
                     break;
             }
-
-            $("#tabListZoneOptionsQueryAccess").hide();
-            $("#tabListZoneOptionsZoneTranfer").hide();
-            $("#tabListZoneOptionsNotify").hide();
         }
     });
 
@@ -706,7 +726,7 @@ function refreshZones(checkDisplay, pageNumber) {
                 var status = "";
 
                 if (zones[i].disabled)
-                    status = "<span id=\"tdZoneStatus" + id + "\" class=\"label label-warning\">Disabled</span>";
+                    status = "<span id=\"tdZoneStatus" + id + "\" class=\"label label-default\">Disabled</span>";
                 else if (zones[i].isExpired)
                     status = "<span id=\"tdZoneStatus" + id + "\" class=\"label label-danger\">Expired</span>";
                 else if (zones[i].validationFailed)
@@ -1017,7 +1037,7 @@ function disableZoneMenu(objMenuItem) {
 
             $("#mnuEnableZone" + id).show();
             $("#mnuDisableZone" + id).hide();
-            $("#tdZoneStatus" + id).attr("class", "label label-warning");
+            $("#tdZoneStatus" + id).attr("class", "label label-default");
             $("#tdZoneStatus" + id).html("Disabled");
 
             showAlert("success", "Zone Disabled!", "Zone '" + zone + "' was disabled successfully.");
@@ -1050,7 +1070,7 @@ function disableZone(objBtn) {
 
             $("#btnEnableZoneEditZone").show();
             $("#btnDisableZoneEditZone").hide();
-            $("#titleEditZoneStatus").attr("class", "label label-warning");
+            $("#titleEditZoneStatus").attr("class", "label label-default");
             $("#titleEditZoneStatus").html("Disabled");
 
             showAlert("success", "Zone Disabled!", "Zone '" + zone + "' was disabled successfully.");
@@ -1515,7 +1535,7 @@ function showZoneOptionsModal(zone) {
                     break;
 
                 case "Secondary":
-                    if (responseJSON.response.catalog != null) {
+                    if ((responseJSON.response.catalog != null) && responseJSON.response.isSecondaryCatalogMember) {
                         $("#optZoneOptionsCatalogZoneName").html("<option selected>" + htmlEncode(responseJSON.response.catalog) + "</option>");
                         $("#optZoneOptionsCatalogZoneName").prop("disabled", true);
 
@@ -1532,7 +1552,26 @@ function showZoneOptionsModal(zone) {
                         $("#divZoneOptionsGeneralCatalogZone").show();
                         $("#tabListZoneOptionsGeneral").show();
                     } else {
-                        $("#divZoneOptionsGeneralCatalogZone").hide();
+                        if (responseJSON.response.availableCatalogZoneNames.length > 0) {
+                            loadCatalogZoneNamesFrom(responseJSON.response.availableCatalogZoneNames, $("#optZoneOptionsCatalogZoneName"), responseJSON.response.catalog);
+                            $("#optZoneOptionsCatalogZoneName").prop("disabled", false);
+
+                            $("#chkZoneOptionsCatalogOverrideQueryAccess").prop("checked", (responseJSON.response.catalog != null) && responseJSON.response.overrideCatalogQueryAccess);
+                            $("#chkZoneOptionsCatalogOverrideZoneTransfer").prop("checked", (responseJSON.response.catalog != null) && responseJSON.response.overrideCatalogZoneTransfer);
+
+                            $("#chkZoneOptionsCatalogOverrideQueryAccess").prop("disabled", (responseJSON.response.catalog == null));
+                            $("#chkZoneOptionsCatalogOverrideZoneTransfer").prop("disabled", (responseJSON.response.catalog == null));
+
+                            $("#divZoneOptionsCatalogOverrideZoneTransfer").show();
+                            $("#divZoneOptionsCatalogOverrideNotify").hide();
+
+                            $("#divZoneOptionsCatalogOverrideOptions").show();
+                            $("#divZoneOptionsGeneralCatalogZone").show();
+                            $("#tabListZoneOptionsGeneral").show();
+                        }
+                        else {
+                            $("#divZoneOptionsGeneralCatalogZone").hide();
+                        }
                     }
                     break;
 
@@ -1610,20 +1649,19 @@ function showZoneOptionsModal(zone) {
                     $("#divZoneOptionsPrimaryServerZoneTransferProtocol").show();
                     $("#divZoneOptionsPrimaryServerZoneTransferTsigKeyName").show();
 
-                    $("#txtZoneOptionsPrimaryNameServerAddresses").prop("disabled", responseJSON.response.catalog != null);
-                    $("#rdPrimaryZoneTransferProtocolTcp").prop("disabled", responseJSON.response.catalog != null);
-                    $("#rdPrimaryZoneTransferProtocolTls").prop("disabled", responseJSON.response.catalog != null);
-                    $("#rdPrimaryZoneTransferProtocolQuic").prop("disabled", responseJSON.response.catalog != null);
-                    $("#optZoneOptionsPrimaryZoneTransferTsigKeyName").prop("disabled", responseJSON.response.catalog != null);
+                    var disableControls = (responseJSON.response.catalog != null) && responseJSON.response.isSecondaryCatalogMember;
+
+                    $("#txtZoneOptionsPrimaryNameServerAddresses").prop("disabled", disableControls);
+                    $("#rdPrimaryZoneTransferProtocolTcp").prop("disabled", disableControls);
+                    $("#rdPrimaryZoneTransferProtocolTls").prop("disabled", disableControls);
+                    $("#rdPrimaryZoneTransferProtocolQuic").prop("disabled", disableControls);
+                    $("#optZoneOptionsPrimaryZoneTransferTsigKeyName").prop("disabled", disableControls);
+                    $("#chkZoneOptionsValidateZone").prop("disabled", disableControls);
 
                     switch (responseJSON.response.type) {
                         case "Secondary":
                         case "SecondaryForwarder":
-                            if (responseJSON.response.catalog == null) {
-                                $("#divZoneOptionsGeneralPrimaryServer").show();
-                                $("#tabListZoneOptionsGeneral").show();
-                            } else if (responseJSON.response.overrideCatalogPrimaryNameServers) {
-                                $("#divZoneOptionsPrimaryServerValidateZone").hide();
+                            if ((responseJSON.response.catalog == null) || responseJSON.response.overrideCatalogPrimaryNameServers) {
                                 $("#divZoneOptionsGeneralPrimaryServer").show();
                                 $("#tabListZoneOptionsGeneral").show();
                             } else {
@@ -1650,10 +1688,7 @@ function showZoneOptionsModal(zone) {
                         $("#txtZoneOptionsPrimaryNameServerAddresses").val(value);
                     }
 
-                    if ((responseJSON.response.catalog != null) && responseJSON.response.isSecondaryCatalogMember)
-                        $("#txtZoneOptionsPrimaryNameServerAddresses").prop("disabled", true);
-                    else
-                        $("#txtZoneOptionsPrimaryNameServerAddresses").prop("disabled", false);
+                    $("#txtZoneOptionsPrimaryNameServerAddresses").prop("disabled", (responseJSON.response.catalog != null) && responseJSON.response.isSecondaryCatalogMember);
 
                     $("#divZoneOptionsPrimaryServerZoneTransferProtocol").hide();
                     $("#divZoneOptionsPrimaryServerZoneTransferTsigKeyName").hide();
@@ -2793,11 +2828,13 @@ function addZone() {
             var catalog = $("#optAddZoneCatalogZoneName").val();
             var useSoaSerialDateScheme = $("#chkAddZoneUseSoaSerialDateScheme").prop("checked");
 
-            parameters = "&catalog=" + catalog + "&useSoaSerialDateScheme=" + useSoaSerialDateScheme;
+            parameters = "&catalog=" + encodeURIComponent(catalog) + "&useSoaSerialDateScheme=" + useSoaSerialDateScheme;
             break;
 
         case "Secondary":
-            parameters = "&primaryNameServerAddresses=" + encodeURIComponent(cleanTextList($("#txtAddZonePrimaryNameServerAddresses").val()));
+            var catalog = $("#optAddZoneCatalogZoneName").val();
+
+            parameters = "&catalog=" + encodeURIComponent(catalog) + "&primaryNameServerAddresses=" + encodeURIComponent(cleanTextList($("#txtAddZonePrimaryNameServerAddresses").val()));
             parameters += "&zoneTransferProtocol=" + $("input[name=rdAddZoneZoneTransferProtocol]:checked").val();
             parameters += "&tsigKeyName=" + encodeURIComponent($("#optAddZoneTsigKeyName").val());
             parameters += "&validateZone=" + $("#chkAddZoneValidateZone").prop("checked");
@@ -2806,7 +2843,7 @@ function addZone() {
         case "Stub":
             var catalog = $("#optAddZoneCatalogZoneName").val();
 
-            parameters = "&catalog=" + catalog + "&primaryNameServerAddresses=" + encodeURIComponent(cleanTextList($("#txtAddZonePrimaryNameServerAddresses").val()));
+            parameters = "&catalog=" + encodeURIComponent(catalog) + "&primaryNameServerAddresses=" + encodeURIComponent(cleanTextList($("#txtAddZonePrimaryNameServerAddresses").val()));
             break;
 
         case "Forwarder":
@@ -2825,7 +2862,7 @@ function addZone() {
 
                 var dnssecValidation = $("#chkAddZoneForwarderDnssecValidation").prop("checked");
 
-                parameters = "&catalog=" + catalog + "&protocol=" + protocol + "&forwarder=" + encodeURIComponent(forwarder) + "&dnssecValidation=" + dnssecValidation;
+                parameters = "&catalog=" + encodeURIComponent(catalog) + "&protocol=" + protocol + "&forwarder=" + encodeURIComponent(forwarder) + "&dnssecValidation=" + dnssecValidation;
 
                 if (forwarder !== "this-server") {
                     var proxyType = $("input[name=rdAddZoneForwarderProxyType]:checked").val();
@@ -2880,7 +2917,9 @@ function addZone() {
 
         case "SecondaryRoot":
             type = "Secondary";
-            parameters = "&primaryNameServerAddresses=199.9.14.201,192.33.4.12,199.7.91.13,192.5.5.241,192.112.36.4,193.0.14.129,192.0.47.132,192.0.32.132,[2001:500:200::b],[2001:500:2::c],[2001:500:2d::d],[2001:500:2f::f],[2001:500:12::d0d],[2001:7fd::1],[2620:0:2830:202::132],[2620:0:2d0:202::132]";
+            var catalog = $("#optAddZoneCatalogZoneName").val();
+
+            parameters = "&catalog=" + encodeURIComponent(catalog) + "&primaryNameServerAddresses=199.9.14.201,192.33.4.12,199.7.91.13,192.5.5.241,192.112.36.4,193.0.14.129,192.0.47.132,192.0.32.132,[2001:500:200::b],[2001:500:2::c],[2001:500:2d::d],[2001:500:2f::f],[2001:500:12::d0d],[2001:7fd::1],[2620:0:2830:202::132],[2620:0:2d0:202::132]";
             parameters += "&zoneTransferProtocol=Tcp";
             parameters += "&validateZone=true";
             break;
@@ -3062,6 +3101,9 @@ function showEditZone(zone, showPageNumber, zoneFilterName, zoneFilterType) {
 
             switch (status) {
                 case "Disabled":
+                    $("#titleEditZoneStatus").attr("class", "label label-default");
+                    break;
+
                 case "Sync Failed":
                 case "Notify Failed":
                     $("#titleEditZoneStatus").attr("class", "label label-warning");
@@ -4125,6 +4167,8 @@ function clearAddEditRecordForm() {
     $("#txtAddEditRecordName").val("");
     $("#optAddEditRecordType").val("A");
     $("#txtAddEditRecordTtl").val("");
+    $("#txtAddEditRecordTtl").attr("placeholder", sessionData.info.defaultRecordTtl);
+    $("#spanAddEditRecordTtlUnit").text("seconds (default " + sessionData.info.defaultRecordTtl + ")");
 
     $("#divAddEditRecordData").show();
     $("#divAddEditRecordDataUnknownType").hide();
@@ -4337,6 +4381,8 @@ function modifyAddRecordFormByType(addMode) {
     $("#txtAddEditRecordName").prop("placeholder", "@");
     $("#txtAddEditRecordTtl").prop("disabled", false);
     $("#txtAddEditRecordTtl").val("");
+    $("#txtAddEditRecordTtl").attr("placeholder", sessionData.info.defaultRecordTtl);
+    $("#spanAddEditRecordTtlUnit").text("seconds (default " + sessionData.info.defaultRecordTtl + ")");
     $("#txtAddEditRecordDataValue").attr("placeholder", "");
 
     var type = $("#optAddEditRecordType").val();
@@ -4387,6 +4433,8 @@ function modifyAddRecordFormByType(addMode) {
             $("#txtAddEditRecordDataNsNameServer").val("");
             $("#txtAddEditRecordDataNsGlue").val("");
             $("#divAddEditRecordDataNs").show();
+            $("#txtAddEditRecordTtl").attr("placeholder", sessionData.info.defaultNsRecordTtl);
+            $("#spanAddEditRecordTtlUnit").text("seconds (default " + sessionData.info.defaultNsRecordTtl + ")");
             break;
 
         case "SOA":
@@ -4398,6 +4446,8 @@ function modifyAddRecordFormByType(addMode) {
             $("#txtEditRecordDataSoaExpire").val("");
             $("#txtEditRecordDataSoaMinimum").val("");
             $("#divEditRecordDataSoa").show();
+            $("#txtAddEditRecordTtl").attr("placeholder", sessionData.info.defaultSoaRecordTtl);
+            $("#spanAddEditRecordTtlUnit").text("seconds (default " + sessionData.info.defaultSoaRecordTtl + ")");
             break;
 
         case "PTR":
