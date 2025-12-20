@@ -92,6 +92,12 @@
 				"version": "9.1",
 				"url": "https://download.technitium.com/dns/apps/AdvancedBlockingApp-v9.1.zip",
 				"size": "33.08 KB"
+			},
+			{
+				"serverVersion": "14.3",
+				"version": "10.0",
+				"url": "https://download.technitium.com/dns/apps/AdvancedBlockingApp-v10.zip",
+				"size": "33.12 KB"
 			}
 		]
 	},
@@ -284,6 +290,12 @@
 				"version": "7.0",
 				"url": "https://download.technitium.com/dns/apps/BlockPageApp-v7.zip",
 				"size": "28.7 KB"
+			},
+			{
+				"serverVersion": "14.3",
+				"version": "7.1",
+				"url": "https://download.technitium.com/dns/apps/BlockPageApp-v7.1.zip",
+				"size": "28.88 KB"
 			}
 		]
 	},
@@ -572,6 +584,12 @@
 				"version": "9.0",
 				"url": "https://download.technitium.com/dns/apps/FailoverApp-v9.zip",
 				"size": "50.5 KB"
+			},
+			{
+				"serverVersion": "14.3",
+				"version": "9.1",
+				"url": "https://download.technitium.com/dns/apps/FailoverApp-v9.1.zip",
+				"size": "50.54 KB"
 			}
 		]
 	},
@@ -692,6 +710,12 @@
 				"version": "9.0",
 				"url": "https://download.technitium.com/dns/apps/GeoContinentApp-v9.zip",
 				"size": "10.5 MB"
+			},
+			{
+				"serverVersion": "14.3",
+				"version": "9.0.1",
+				"url": "https://download.technitium.com/dns/apps/GeoContinentApp-v9.0.1.zip",
+				"size": "10.59 MB"
 			}
 		]
 	},
@@ -770,6 +794,12 @@
 				"version": "9.0",
 				"url": "https://download.technitium.com/dns/apps/GeoCountryApp-v9.zip",
 				"size": "10.5 MB"
+			},
+			{
+				"serverVersion": "14.3",
+				"version": "9.0.1",
+				"url": "https://download.technitium.com/dns/apps/GeoCountryApp-v9.0.1.zip",
+				"size": "10.59 MB"
 			}
 		]
 	},
@@ -842,6 +872,12 @@
 				"version": "9.0",
 				"url": "https://download.technitium.com/dns/apps/GeoDistanceApp-v9.zip",
 				"size": "35.5 MB"
+			},
+			{
+				"serverVersion": "14.3",
+				"version": "9.0.1",
+				"url": "https://download.technitium.com/dns/apps/GeoDistanceApp-v9.0.1.zip",
+				"size": "35.59 MB"
 			}
 		]
 	},
@@ -1033,7 +1069,7 @@
 	},
 	{
 		"name": "Query Logs (MySQL)",
-		"description": "Logs all incoming DNS requests and their responses in a MySQL/MariaDB database that can be queried from the DNS Server web console.",
+		"description": "Logs all incoming DNS requests and their responses in a MySQL/MariaDB database that can be queried from the DNS Server web console.\n\nNote! You will need to create a user and grant all privileges on the database to the user so that the app will be able to access it. To do that run the following commands with the required database name and username on your mysql root prompt:\nCREATE USER 'user'@'%' IDENTIFIED BY 'password';\nGRANT ALL PRIVILEGES ON DatabaseName.* TO 'user'@'%';\n\nOnce the database is configured, edit the app's config to update the database name, connection string, and set enableLogging to true. The app will automatically create the required database schema for you and start logging queries once you save the config.",
 		"versions": [
 			{
 				"serverVersion": "13.4",
@@ -1064,6 +1100,12 @@
 				"version": "3.0",
 				"url": "https://download.technitium.com/dns/apps/QueryLogsMySqlApp-v3.zip",
 				"size": "478 KB"
+			},
+			{
+				"serverVersion": "14.3",
+				"version": "3.0.1",
+				"url": "https://download.technitium.com/dns/apps/QueryLogsMySqlApp-v3.0.1.zip",
+				"size": "482.76 KB"
 			}
 		]
 	},
@@ -1213,7 +1255,7 @@
 	},
 	{
 		"name": "Split Horizon",
-		"description": "Allows creating APP records in primary and forwarder zones that can return different set of A or AAAA records, or CNAME record for clients querying over public, private, or other specified networks.\n\nEnables Address Translation of IP addresses in a DNS response for A & AAAA type request based on the client's network address and the configured 1:1 translation.",
+		"description": "Allows creating APP records in primary and forwarder zones that can return different set of A or AAAA records, or CNAME record for clients querying over public, private, or other specified networks.\n\nEnables Address Translation of IP addresses in a DNS response for A & AAAA type request based on the client's network address or configured domain names, and the configured 1:1 translation.",
 		"versions": [
 			{
 				"serverVersion": "9.0",
@@ -1286,6 +1328,12 @@
 				"version": "9.0",
 				"url": "https://download.technitium.com/dns/apps/SplitHorizonApp-v9.zip",
 				"size": "19.7 KB"
+			},
+			{
+				"serverVersion": "14.3",
+				"version": "10.0",
+				"url": "https://download.technitium.com/dns/apps/SplitHorizonApp-v10.zip",
+				"size": "20.27 KB"
 			}
 		]
 	},
