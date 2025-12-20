@@ -726,9 +726,12 @@ function initializeJoinCluster(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/admin/cluster/initJoin?token=" + sessionData.token + "&secondaryNodeIpAddresses=" + encodeURIComponent(secondaryNodeIpAddresses)
+        url: "api/admin/cluster/initJoin",
+        method: "POST",
+        data: "token=" + sessionData.token + "&secondaryNodeIpAddresses=" + encodeURIComponent(secondaryNodeIpAddresses)
             + "&primaryNodeUrl=" + encodeURIComponent(primaryNodeUrl) + "&primaryNodeIpAddress=" + encodeURIComponent(primaryNodeIpAddress) + "&ignoreCertificateErrors=" + ignoreCertificateErrors
             + "&primaryNodeUsername=" + encodeURIComponent(primaryNodeUsername) + "&primaryNodePassword=" + encodeURIComponent(primaryNodePassword) + "&primaryNodeTotp=" + encodeURIComponent(primaryNodeTotp),
+        processData: false,
         success: function (responseJSON) {
             $("#modalInitializeJoinCluster").modal("hide");
             btn.button("reset");
