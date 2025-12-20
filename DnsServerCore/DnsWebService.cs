@@ -30,6 +30,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.DependencyInjection;
@@ -241,44 +242,73 @@ namespace DnsServerCore
             }
             catch (FileNotFoundException)
             {
-                TryLoadOldConfigFile();
+                if (!TryLoadOldConfigFile())
+                {
+                    //old config file did not exist; read environment variables and generate new config
+                    CreateForwarderZoneToDisableDnssecForNTP();
 
-                CreateForwarderZoneToDisableDnssecForNTP();
+                    //web service
+                    string strWebServiceLocalAddresses = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_LOCAL_ADDRESSES");
+                    if (!string.IsNullOrEmpty(strWebServiceLocalAddresses))
+                        _webServiceLocalAddresses = strWebServiceLocalAddresses.Split(IPAddress.Parse, commaSeparator);
 
-                //web service
-                string strWebServiceLocalAddresses = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_LOCAL_ADDRESSES");
-                if (!string.IsNullOrEmpty(strWebServiceLocalAddresses))
-                    _webServiceLocalAddresses = strWebServiceLocalAddresses.Split(IPAddress.Parse, commaSeparator);
+                    string strWebServiceHttpPort = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_HTTP_PORT");
+                    if (!string.IsNullOrEmpty(strWebServiceHttpPort))
+                        _webServiceHttpPort = int.Parse(strWebServiceHttpPort);
 
-                string strWebServiceHttpPort = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_HTTP_PORT");
-                if (!string.IsNullOrEmpty(strWebServiceHttpPort))
-                    _webServiceHttpPort = int.Parse(strWebServiceHttpPort);
+                    string webServiceTlsPort = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_HTTPS_PORT");
+                    if (!string.IsNullOrEmpty(webServiceTlsPort))
+                        _webServiceTlsPort = int.Parse(webServiceTlsPort);
 
-                string webServiceTlsPort = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_HTTPS_PORT");
-                if (!string.IsNullOrEmpty(webServiceTlsPort))
-                    _webServiceTlsPort = int.Parse(webServiceTlsPort);
+                    UdpClientConnection.SocketPoolExcludedPorts = [(ushort)_webServiceTlsPort];
 
-                UdpClientConnection.SocketPoolExcludedPorts = [(ushort)_webServiceTlsPort];
+                    string webServiceEnableTls = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_ENABLE_HTTPS");
+                    if (!string.IsNullOrEmpty(webServiceEnableTls))
+                        _webServiceEnableTls = bool.Parse(webServiceEnableTls);
 
-                string webServiceEnableTls = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_ENABLE_HTTPS");
-                if (!string.IsNullOrEmpty(webServiceEnableTls))
-                    _webServiceEnableTls = bool.Parse(webServiceEnableTls);
+                    string webServiceTlsCertificatePassword = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_TLS_CERTIFICATE_PASSWORD");
+                    if (!string.IsNullOrEmpty(webServiceTlsCertificatePassword))
+                        _webServiceTlsCertificatePassword = webServiceTlsCertificatePassword;
 
-                string webServiceUseSelfSignedTlsCertificate = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_USE_SELF_SIGNED_CERT");
-                if (!string.IsNullOrEmpty(webServiceUseSelfSignedTlsCertificate))
-                    _webServiceUseSelfSignedTlsCertificate = bool.Parse(webServiceUseSelfSignedTlsCertificate);
+                    string webServiceTlsCertificatePath = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_TLS_CERTIFICATE_PATH");
+                    if (!string.IsNullOrEmpty(webServiceTlsCertificatePath))
+                    {
+                        _webServiceTlsCertificatePath = webServiceTlsCertificatePath;
 
-                string webServiceTlsCertificatePath = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_TLS_CERTIFICATE_PATH");
-                if (!string.IsNullOrEmpty(webServiceTlsCertificatePath))
-                    _webServiceTlsCertificatePath = webServiceTlsCertificatePath;
+                        string webServiceTlsCertificateAbsolutePath = ConvertToAbsolutePath(_webServiceTlsCertificatePath);
 
-                string webServiceTlsCertificatePassword = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_TLS_CERTIFICATE_PASSWORD");
-                if (!string.IsNullOrEmpty(webServiceTlsCertificatePassword))
-                    _webServiceTlsCertificatePassword = webServiceTlsCertificatePassword;
+                        try
+                        {
+                            LoadWebServiceTlsCertificate(webServiceTlsCertificateAbsolutePath, _webServiceTlsCertificatePassword);
+                        }
+                        catch (Exception ex)
+                        {
+                            _log.Write("DNS Server encountered an error while loading Web Service TLS certificate: " + webServiceTlsCertificateAbsolutePath + "\r\n" + ex.ToString());
+                        }
 
-                string webServiceHttpToTlsRedirect = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_HTTP_TO_TLS_REDIRECT");
-                if (!string.IsNullOrEmpty(webServiceHttpToTlsRedirect))
-                    _webServiceHttpToTlsRedirect = bool.Parse(webServiceHttpToTlsRedirect);
+                        StartTlsCertificateUpdateTimer();
+                    }
+
+                    string webServiceUseSelfSignedTlsCertificate = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_USE_SELF_SIGNED_CERT");
+                    if (!string.IsNullOrEmpty(webServiceUseSelfSignedTlsCertificate))
+                    {
+                        _webServiceUseSelfSignedTlsCertificate = bool.Parse(webServiceUseSelfSignedTlsCertificate);
+
+                        if (_webServiceUseSelfSignedTlsCertificate && !File.Exists(Path.Combine(_configFolder, "dns.config")))
+                        {
+                            //read DNS server domain name here to generate self signed cert
+                            string serverDomain = Environment.GetEnvironmentVariable("DNS_SERVER_DOMAIN");
+                            if (!string.IsNullOrEmpty(serverDomain))
+                                _dnsServer.ServerDomain = serverDomain;
+                        }
+
+                        CheckAndLoadSelfSignedCertificate(false, false);
+                    }
+
+                    string webServiceHttpToTlsRedirect = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_HTTP_TO_TLS_REDIRECT");
+                    if (!string.IsNullOrEmpty(webServiceHttpToTlsRedirect))
+                        _webServiceHttpToTlsRedirect = bool.Parse(webServiceHttpToTlsRedirect);
+                }
 
                 SaveConfigFileInternal();
             }
@@ -906,10 +936,30 @@ namespace DnsServerCore
                     ZipArchiveEntry entry = backupZip.GetEntry("dns.config");
                     if (entry is not null)
                     {
-                        //dynamically load and apply DNS settings config
-                        await using (Stream stream = entry.Open())
+                        try
                         {
-                            _dnsServer.LoadConfig(stream, isConfigTransfer);
+                            //dynamically load and apply DNS settings config
+                            await using (Stream stream = entry.Open())
+                            {
+                                _dnsServer.LoadConfig(stream, isConfigTransfer);
+                            }
+                        }
+                        catch (InvalidDataException)
+                        {
+                            if (isConfigTransfer)
+                                throw; //config being synced; throw same exception
+
+                            //most probably an attempt to restore old config
+                            await using (Stream stream = entry.Open())
+                            {
+                                if (!TryLoadOldConfigFrom(stream))
+                                    throw; //was not old config file so must be corrupt config file; throw same exception
+
+                                _log.Write("Old DNS config file was restored successfully.");
+
+                                //explicitly save webservice.config
+                                SaveConfigFileInternal();
+                            }
                         }
                     }
                 }
@@ -1486,6 +1536,11 @@ namespace DnsServerCore
                 UsePollingFileWatcher = true
             };
 
+            builder.Services.AddResponseCompression(delegate (ResponseCompressionOptions options)
+            {
+                options.EnableForHttps = true;
+            });
+
             builder.WebHost.ConfigureKestrel(delegate (WebHostBuilderContext context, KestrelServerOptions serverOptions)
             {
                 //http
@@ -1526,6 +1581,8 @@ namespace DnsServerCore
             builder.Logging.ClearProviders();
 
             _webService = builder.Build();
+
+            _webService.UseResponseCompression();
 
             if (_webServiceHttpToTlsRedirect && !httpOnlyMode && _webServiceEnableTls && (_webServiceSslServerAuthenticationOptions is not null))
                 _webService.Use(WebServiceHttpsRedirectionMiddleware);
@@ -1747,7 +1804,7 @@ namespace DnsServerCore
             _webService.MapGetAndPost("/api/admin/cluster/primary/updateSecondary", _clusterApi.UpdateSecondaryNode);
             _webService.MapGetAndPost("/api/admin/cluster/primary/transferConfig", _clusterApi.TransferConfigAsync);
             _webService.MapGetAndPost("/api/admin/cluster/primary/setOptions", _clusterApi.SetClusterOptions);
-            _webService.MapGetAndPost("/api/admin/cluster/initJoin", _clusterApi.InitializeAndJoinClusterAsync);
+            _webService.MapPost("/api/admin/cluster/initJoin", _clusterApi.InitializeAndJoinClusterAsync);
             _webService.MapGetAndPost("/api/admin/cluster/secondary/leave", _clusterApi.LeaveClusterAsync);
             _webService.MapGetAndPost("/api/admin/cluster/secondary/notify", _clusterApi.ConfigUpdateNotificationAsync);
             _webService.MapGetAndPost("/api/admin/cluster/secondary/resync", _clusterApi.ResyncCluster);
@@ -1931,8 +1988,12 @@ namespace DnsServerCore
                     }
                     else
                     {
-                        context.Response.StatusCode = StatusCodes.Status404NotFound;
-                        context.Response.ContentLength = 0;
+                        HttpResponse response = context.Response;
+                        response.StatusCode = StatusCodes.Status404NotFound;
+                        response.ContentLength = 0;
+                        response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
+                        response.Headers.Pragma = "no-cache";
+                        response.Headers.Expires = "0";
                         return;
                     }
 
@@ -1970,6 +2031,10 @@ namespace DnsServerCore
 
                 HttpResponse response = context.Response;
 
+                response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
+                response.Headers.Pragma = "no-cache";
+                response.Headers.Expires = "0";
+
                 object apiFallback = context.Items["apiFallback"]; //check api fallback mark
                 if (apiFallback is null)
                 {
@@ -1981,8 +2046,8 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    context.Response.StatusCode = StatusCodes.Status404NotFound;
-                    context.Response.ContentLength = 0;
+                    response.StatusCode = StatusCodes.Status404NotFound;
+                    response.ContentLength = 0;
                 }
             }
         }
@@ -1996,10 +2061,15 @@ namespace DnsServerCore
                 {
                     Exception ex = exceptionHandlerPathFeature.Error;
 
-                    context.Response.StatusCode = StatusCodes.Status200OK;
-                    context.Response.ContentType = "application/json; charset=utf-8";
+                    HttpResponse response = context.Response;
 
-                    await using (Utf8JsonWriter jsonWriter = new Utf8JsonWriter(context.Response.Body))
+                    response.StatusCode = StatusCodes.Status200OK;
+                    response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
+                    response.Headers.Pragma = "no-cache";
+                    response.Headers.Expires = "0";
+                    response.ContentType = "application/json; charset=utf-8";
+
+                    await using (Utf8JsonWriter jsonWriter = new Utf8JsonWriter(response.Body))
                     {
                         jsonWriter.WriteStartObject();
 
@@ -2214,7 +2284,7 @@ namespace DnsServerCore
             StartTlsCertificateUpdateTimer();
         }
 
-        private void CheckAndLoadSelfSignedCertificate(bool generateNew, bool throwException)
+        private void CheckAndLoadSelfSignedCertificate(bool forceGenerateNew, bool throwException)
         {
             string selfSignedCertificateFilePath = Path.Combine(_configFolder, "self-signed-cert.pfx");
 
@@ -2225,7 +2295,7 @@ namespace DnsServerCore
                 if (!oldSelfSignedCertificateFilePath.Equals(ConvertToAbsolutePath(_webServiceTlsCertificatePath), Environment.OSVersion.Platform == PlatformID.Win32NT ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) && File.Exists(oldSelfSignedCertificateFilePath) && !File.Exists(selfSignedCertificateFilePath))
                     File.Move(oldSelfSignedCertificateFilePath, selfSignedCertificateFilePath);
 
-                if (generateNew || !File.Exists(selfSignedCertificateFilePath))
+                if (forceGenerateNew || !File.Exists(selfSignedCertificateFilePath))
                 {
                     RSA rsa = RSA.Create(2048);
                     CertificateRequest req = new CertificateRequest("cn=" + _dnsServer.ServerDomain, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -2256,7 +2326,7 @@ namespace DnsServerCore
                     {
                         LoadWebServiceTlsCertificate(selfSignedCertificateFilePath, null);
 
-                        if (!generateNew)
+                        if (!forceGenerateNew)
                         {
                             if (_webServiceSslServerAuthenticationOptions.ServerCertificateContext.TargetCertificate.NotAfter < DateTime.UtcNow.AddYears(1))
                             {
