@@ -17,6 +17,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+$(function () {
+    $("#chkDhcpScopeDnsUpdates").on("click", function () {
+        var checked = $("#chkDhcpScopeDnsUpdates").prop("checked");
+
+        $("#chkDnsOverwriteForDynamicLease").prop("disabled", !checked);
+    });
+});
+
 function refreshDhcpTab() {
     if ($("#dhcpTabListLeases").hasClass("active"))
         refreshDhcpLeases();
@@ -196,6 +204,7 @@ function refreshDhcpScopes(checkDisplay) {
         return;
 
     var node = $("#optDhcpClusterNode").val();
+    $("#optDhcpClusterNode").prop("disabled", false);
 
     var divDhcpViewScopes = $("#divDhcpViewScopes");
     var divDhcpViewScopesLoader = $("#divDhcpViewScopesLoader");
@@ -309,13 +318,15 @@ function clearDhcpScopeForm() {
     $("#txtDhcpScopeDomainName").val("");
     $("#txtDhcpScopeDomainSearchStrings").val("");
     $("#chkDhcpScopeDnsUpdates").prop("checked", true);
+    $("#chkDnsOverwriteForDynamicLease").prop("disabled", false);
+    $("#chkDnsOverwriteForDynamicLease").prop("checked", false);
     $("#txtDhcpScopeDnsTtl").val("900");
     $("#txtDhcpScopeServerAddress").val("");
     $("#txtDhcpScopeServerHostName").val("");
     $("#txtDhcpScopeBootFileName").val("");
     $("#txtDhcpScopeRouterAddress").val("");
     $("#chkUseThisDnsServer").prop("checked", false);
-    $('#txtDhcpScopeDnsServers').prop('disabled', false);
+    $('#txtDhcpScopeDnsServers').prop("disabled", false);
     $("#txtDhcpScopeDnsServers").val("");
     $("#txtDhcpScopeWinsServers").val("");
     $("#txtDhcpScopeNtpServers").val("");
@@ -330,7 +341,7 @@ function clearDhcpScopeForm() {
     $("#chkAllowOnlyReservedLeases").prop("checked", false);
     $("#chkBlockLocallyAdministeredMacAddresses").prop("checked", false);
     $("#chkIgnoreClientIdentifierOption").prop("checked", true);
-    $("#btnSaveDhcpScope").button('reset');
+    $("#btnSaveDhcpScope").button("reset");
 }
 
 function showAddDhcpScope() {
@@ -338,7 +349,7 @@ function showAddDhcpScope() {
 
     $("#titleDhcpEditScope").html("Add Scope");
     $("#chkUseThisDnsServer").prop("checked", true);
-    $('#txtDhcpScopeDnsServers').prop('disabled', true);
+    $('#txtDhcpScopeDnsServers').prop("disabled", true);
     $("#divDhcpViewScopes").hide();
     $("#divDhcpViewScopesLoader").hide();
     $("#divDhcpEditScope").show();
@@ -382,6 +393,8 @@ function showEditDhcpScope(scopeName) {
                 $("#txtDhcpScopeDomainSearchStrings").val(responseJSON.response.domainSearchList.join("\n"));
 
             $("#chkDhcpScopeDnsUpdates").prop("checked", responseJSON.response.dnsUpdates);
+            $("#chkDnsOverwriteForDynamicLease").prop("disabled", !responseJSON.response.dnsUpdates);
+            $("#chkDnsOverwriteForDynamicLease").prop("checked", responseJSON.response.dnsOverwriteForDynamicLease);
             $("#txtDhcpScopeDnsTtl").val(responseJSON.response.dnsTtl);
 
             if (responseJSON.response.serverAddress != null)
@@ -397,7 +410,7 @@ function showEditDhcpScope(scopeName) {
                 $("#txtDhcpScopeRouterAddress").val(responseJSON.response.routerAddress);
 
             $("#chkUseThisDnsServer").prop("checked", responseJSON.response.useThisDnsServer);
-            $('#txtDhcpScopeDnsServers').prop('disabled', responseJSON.response.useThisDnsServer);
+            $('#txtDhcpScopeDnsServers').prop("disabled", responseJSON.response.useThisDnsServer);
 
             if (responseJSON.response.dnsServers != null)
                 $("#txtDhcpScopeDnsServers").val(responseJSON.response.dnsServers.join("\n"));
@@ -451,6 +464,8 @@ function showEditDhcpScope(scopeName) {
             $("#chkBlockLocallyAdministeredMacAddresses").prop("checked", responseJSON.response.blockLocallyAdministeredMacAddresses);
             $("#chkIgnoreClientIdentifierOption").prop("checked", responseJSON.response.ignoreClientIdentifierOption);
 
+            $("#optDhcpClusterNode").prop("disabled", true);
+
             divDhcpViewScopesLoader.hide();
             divDhcpEditScope.show();
         },
@@ -487,6 +502,7 @@ function saveDhcpScope() {
     var domainName = $("#txtDhcpScopeDomainName").val();
     var domainSearchList = cleanTextList($("#txtDhcpScopeDomainSearchStrings").val());
     var dnsUpdates = $("#chkDhcpScopeDnsUpdates").prop("checked");
+    var dnsOverwriteForDynamicLease = $("#chkDnsOverwriteForDynamicLease").prop("checked");
     var dnsTtl = $("#txtDhcpScopeDnsTtl").val();
 
     var serverAddress = $("#txtDhcpScopeServerAddress").val();
@@ -538,7 +554,7 @@ function saveDhcpScope() {
         method: "POST",
         data: "name=" + encodeURIComponent(name) + (newName == null ? "" : "&newName=" + encodeURIComponent(newName)) + "&startingAddress=" + encodeURIComponent(startingAddress) + "&endingAddress=" + encodeURIComponent(endingAddress) + "&subnetMask=" + encodeURIComponent(subnetMask) +
             "&leaseTimeDays=" + leaseTimeDays + "&leaseTimeHours=" + leaseTimeHours + "&leaseTimeMinutes=" + leaseTimeMinutes + "&offerDelayTime=" + offerDelayTime + "&pingCheckEnabled=" + pingCheckEnabled + "&pingCheckTimeout=" + pingCheckTimeout + "&pingCheckRetries=" + pingCheckRetries +
-            "&domainName=" + encodeURIComponent(domainName) + "&domainSearchList=" + encodeURIComponent(domainSearchList) + "&dnsUpdates=" + dnsUpdates + "&dnsTtl=" + dnsTtl + "&serverAddress=" + encodeURIComponent(serverAddress) + "&serverHostName=" + encodeURIComponent(serverHostName) + "&bootFileName=" + encodeURIComponent(bootFileName) +
+            "&domainName=" + encodeURIComponent(domainName) + "&domainSearchList=" + encodeURIComponent(domainSearchList) + "&dnsUpdates=" + dnsUpdates + "&dnsOverwriteForDynamicLease=" + dnsOverwriteForDynamicLease + "&dnsTtl=" + dnsTtl + "&serverAddress=" + encodeURIComponent(serverAddress) + "&serverHostName=" + encodeURIComponent(serverHostName) + "&bootFileName=" + encodeURIComponent(bootFileName) +
             "&routerAddress=" + encodeURIComponent(routerAddress) + "&useThisDnsServer=" + useThisDnsServer + (useThisDnsServer ? "" : "&dnsServers=" + encodeURIComponent(dnsServers)) + "&winsServers=" + encodeURIComponent(winsServers) + "&ntpServers=" + encodeURIComponent(ntpServers) + "&ntpServerDomainNames=" + encodeURIComponent(ntpServerDomainNames) +
             "&staticRoutes=" + encodeURIComponent(staticRoutes) + "&vendorInfo=" + encodeURIComponent(vendorInfo) + "&capwapAcIpAddresses=" + encodeURIComponent(capwapAcIpAddresses) + "&tftpServerAddresses=" + encodeURIComponent(tftpServerAddresses) + "&genericOptions=" + encodeURIComponent(genericOptions) + "&exclusions=" + encodeURIComponent(exclusions) + "&reservedLeases=" + encodeURIComponent(reservedLeases) + "&allowOnlyReservedLeases=" + allowOnlyReservedLeases + "&blockLocallyAdministeredMacAddresses=" + blockLocallyAdministeredMacAddresses + "&ignoreClientIdentifierOption=" + ignoreClientIdentifierOption,
         processData: false,
