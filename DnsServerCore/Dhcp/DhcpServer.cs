@@ -791,7 +791,7 @@ namespace DnsServerCore.Dhcp
 
                     zoneName = zoneInfo.Name;
 
-                    if (!isReservedLease)
+                    if (!isReservedLease && !scope.DnsOverwriteForDynamicLease)
                     {
                         //check for existing record for the dynamic leases
                         IReadOnlyList<DnsResourceRecord> existingRecords = _dnsServer.AuthZoneManager.GetRecords(zoneName, domain, DnsResourceRecordType.A);
@@ -1268,8 +1268,12 @@ namespace DnsServerCore.Dhcp
                     }
                     finally
                     {
-                        if (!_disposed)
-                            _maintenanceTimer.Change(MAINTENANCE_TIMER_INTERVAL, Timeout.Infinite);
+                        try
+                        {
+                            _maintenanceTimer?.Change(MAINTENANCE_TIMER_INTERVAL, Timeout.Infinite);
+                        }
+                        catch (ObjectDisposedException)
+                        { }
                     }
                 }, null, Timeout.Infinite, Timeout.Infinite);
             }
