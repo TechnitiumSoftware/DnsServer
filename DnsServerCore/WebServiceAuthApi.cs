@@ -73,6 +73,8 @@ namespace DnsServerCore
                     jsonWriter.WriteString("uptimestamp", _dnsWebService._uptimestamp);
                     jsonWriter.WriteString("dnsServerDomain", _dnsWebService._dnsServer.ServerDomain);
                     jsonWriter.WriteNumber("defaultRecordTtl", _dnsWebService._dnsServer.AuthZoneManager.DefaultRecordTtl);
+                    jsonWriter.WriteNumber("defaultNsRecordTtl", _dnsWebService._dnsServer.AuthZoneManager.DefaultNsRecordTtl);
+                    jsonWriter.WriteNumber("defaultSoaRecordTtl", _dnsWebService._dnsServer.AuthZoneManager.DefaultSoaRecordTtl);
                     jsonWriter.WriteBoolean("useSoaSerialDateScheme", _dnsWebService._dnsServer.AuthZoneManager.UseSoaSerialDateScheme);
                     jsonWriter.WriteBoolean("dnssecValidation", _dnsWebService._dnsServer.DnssecValidation);
 
@@ -775,6 +777,28 @@ namespace DnsServerCore
 
                 if (sessionUser.Username.Equals(username, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidOperationException("Invalid operation: cannot delete current user.");
+
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                {
+                    User userToDelete = _dnsWebService._authManager.GetUser(username);
+                    if (userToDelete is null)
+                        throw new DnsWebServiceException("No such user exists: " + username);
+
+                    List<UserSession> userSessions = _dnsWebService.AuthManager.GetSessions(userToDelete);
+                    bool apiTokenExists = false;
+
+                    foreach (UserSession existingSession in userSessions)
+                    {
+                        if ((existingSession.Type == UserSessionType.ApiToken) && (existingSession.TokenName == _dnsWebService._clusterManager.ClusterDomain))
+                        {
+                            apiTokenExists = true;
+                            break;
+                        }
+                    }
+
+                    if (apiTokenExists)
+                        throw new DnsWebServiceException("Invalid operation: cannot delete a user who initialized the Cluster and owns the Cluster API token.");
+                }
 
                 if (!_dnsWebService._authManager.DeleteUser(username))
                     throw new DnsWebServiceException("Failed to delete user: " + username);
