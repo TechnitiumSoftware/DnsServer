@@ -83,7 +83,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Built-in DHCP Server that can work for multiple networks.
 - IPv6 support in DNS server core.
 - HTTP & SOCKS5 proxy support which can be configured to route DNS over [Tor Network](https://www.torproject.org/) or use [Cloudflare's hidden DNS resolver](https://blog.cloudflare.com/welcome-hidden-resolver/).
-- Web console portal for easy configuration using any web browser.
+- Admin web console for easy configuration using any web browser with support for Dark Mode.
 - Built in HTTP API to allow 3rd party apps to control and configure the DNS server.
 - Supports TOTP based Two-factor authentication (2FA).
 - Built-in system logging and query logging.
@@ -118,7 +118,10 @@ Make contribution to Technitium and help making new software, updates, and featu
 [Donate Now!](https://www.patreon.com/technitium)
 
 # Blog Posts
+- [Technitium Blog: Understanding Clustering And How To Configure It](https://blog.technitium.com/2025/11/understanding-clustering-and-how-to.html) (Nov 2025)
+- [How-To Geek: These open-source DNS tools block annoyances and speed up your browsing](https://www.howtogeek.com/block-ad-traffic-and-speed-up-your-browsing-with-these-3-free-open-source-dns-tools/) (Nov 2025)
 - [Technitium Blog: Technitium DNS Server v14 Released!](https://blog.technitium.com/2025/11/technitium-dns-server-v14-released.html) (Nov 2025)
+- [XDA: Technitium is the best local DNS tool you can deploy](https://www.xda-developers.com/technitium-best-local-dns-tool/) (Aug 2025)
 - [Technitium Blog: How To Configure Catalog Zones For Automatic Provisioning Of Secondary Zones](https://blog.technitium.com/2024/10/how-to-configure-catalog-zones-for.html) (Oct 2024)
 - [Technitium Blog: Technitium DNS Server v13 Released!](https://blog.technitium.com/2024/09/technitium-dns-server-v13-released.html) (Sept 2024)
 - [Technitium Blog: Technitium DNS Server v12 Released!](https://blog.technitium.com/2024/02/technitium-dns-server-v12-released.html) (Feb 2024)
