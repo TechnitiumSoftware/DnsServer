@@ -40,7 +40,7 @@ namespace DnsServerCore
     {
         #region legacy config
 
-        private void TryLoadOldConfigFile()
+        private bool TryLoadOldConfigFile()
         {
             string configFile = Path.Combine(_configFolder, "dns.config");
 
@@ -48,18 +48,10 @@ namespace DnsServerCore
             {
                 using (FileStream fS = new FileStream(configFile, FileMode.Open, FileAccess.Read))
                 {
-                    BinaryReader bR = new BinaryReader(fS);
-
-                    if (Encoding.ASCII.GetString(bR.ReadBytes(2)) == "DS")
+                    if (TryLoadOldConfigFrom(fS))
                     {
-                        int version = bR.ReadByte();
-
-                        ReadOldConfigFrom(bR, version);
-
-                        fS.Dispose();
-                        _dnsServer.SaveConfigFileInternal();
-
                         _log.Write("Old DNS config file was loaded: " + configFile);
+                        return true;
                     }
                 }
             }
@@ -71,6 +63,27 @@ namespace DnsServerCore
             {
                 _log.Write("DNS Server encountered an error while trying to load old DNS config file: " + configFile + "\r\n" + ex.ToString());
             }
+
+            return false;
+        }
+
+        private bool TryLoadOldConfigFrom(Stream s)
+        {
+            BinaryReader bR = new BinaryReader(s);
+
+            if (Encoding.ASCII.GetString(bR.ReadBytes(2)) == "DS")
+            {
+                int version = bR.ReadByte();
+
+                ReadOldConfigFrom(bR, version);
+
+                s.Dispose();
+                _dnsServer.SaveConfigFileInternal();
+
+                return true;
+            }
+
+            return false;
         }
 
         private void ReadOldConfigFrom(BinaryReader bR, int version)
@@ -94,7 +107,7 @@ namespace DnsServerCore
                 _dnsServer.EnableDnsOverHttp3 = _dnsServer.EnableDnsOverHttps && IsQuicSupported();
                 _webServiceRealIpHeader = "X-Real-IP";
                 _dnsServer.DnsOverHttpRealIpHeader = "X-Real-IP";
-                _dnsServer.ResponsiblePersonInternal = null;
+                _dnsServer.DefaultResponsiblePerson = null;
                 _dnsServer.AuthZoneManager.UseSoaSerialDateScheme = false;
                 _dnsServer.AuthZoneManager.MinSoaRefresh = 300;
                 _dnsServer.AuthZoneManager.MinSoaRetry = 300;
@@ -251,13 +264,13 @@ namespace DnsServerCore
                 {
                     string rp = bR.ReadString();
                     if (rp.Length == 0)
-                        _dnsServer.ResponsiblePersonInternal = null;
+                        _dnsServer.DefaultResponsiblePerson = null;
                     else
-                        _dnsServer.ResponsiblePersonInternal = new MailAddress(rp);
+                        _dnsServer.DefaultResponsiblePerson = new MailAddress(rp);
                 }
                 else
                 {
-                    _dnsServer.ResponsiblePersonInternal = null;
+                    _dnsServer.DefaultResponsiblePerson = null;
                 }
 
                 if (version >= 33)
@@ -718,7 +731,7 @@ namespace DnsServerCore
                             forwarders[i] = new NameServerAddress(bR);
 
                             if (forwarders[i].Protocol == DnsTransportProtocol.HttpsJson)
-                                forwarders[i] = forwarders[i].ChangeProtocol(DnsTransportProtocol.Https);
+                                forwarders[i] = forwarders[i].Clone(DnsTransportProtocol.Https);
                         }
 
                         _dnsServer.Forwarders = forwarders;
@@ -1055,7 +1068,7 @@ namespace DnsServerCore
                     {
                         forwarders[i] = new NameServerAddress(bR);
                         if (forwarders[i].Protocol == DnsTransportProtocol.HttpsJson)
-                            forwarders[i] = forwarders[i].ChangeProtocol(DnsTransportProtocol.Https);
+                            forwarders[i] = forwarders[i].Clone(DnsTransportProtocol.Https);
                     }
 
                     _dnsServer.Forwarders = forwarders;
@@ -1081,7 +1094,7 @@ namespace DnsServerCore
                         if (forwarder.Protocol == forwarderProtocol)
                             forwarders.Add(forwarder);
                         else
-                            forwarders.Add(forwarder.ChangeProtocol(forwarderProtocol));
+                            forwarders.Add(forwarder.Clone(forwarderProtocol));
                     }
 
                     _dnsServer.Forwarders = forwarders;
