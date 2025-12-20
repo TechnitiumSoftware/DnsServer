@@ -21,6 +21,7 @@ using DnsServerCore.ApplicationCommon;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
@@ -218,6 +219,11 @@ namespace BlockPage
                     };
                 }
 
+                builder.Services.AddResponseCompression(delegate (ResponseCompressionOptions options)
+                {
+                    options.EnableForHttps = true;
+                });
+
                 builder.WebHost.ConfigureKestrel(delegate (WebHostBuilderContext context, KestrelServerOptions serverOptions)
                 {
                     //http
@@ -247,6 +253,8 @@ namespace BlockPage
                 builder.Logging.ClearProviders();
 
                 _webServer = builder.Build();
+
+                _webServer.UseResponseCompression();
 
                 _webServer.UseDefaultFiles();
                 _webServer.UseStaticFiles(new StaticFileOptions()
