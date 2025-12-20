@@ -68,7 +68,7 @@ namespace DnsServerCore.Dns.Zones
             PrimaryNameServerAddresses = primaryNameServerAddresses?.Convert(delegate (NameServerAddress nameServer)
             {
                 if (nameServer.Protocol != DnsTransportProtocol.Udp)
-                    nameServer = nameServer.ChangeProtocol(DnsTransportProtocol.Udp);
+                    nameServer = nameServer.Clone(DnsTransportProtocol.Udp);
 
                 return nameServer;
             });
@@ -240,7 +240,10 @@ namespace DnsServerCore.Dns.Zones
             )
             {
                 //failed to queue refresh zone task; try again in some time
-                _refreshTimer?.Change(REFRESH_TIMER_INTERVAL, Timeout.Infinite);
+                lock (_refreshTimerLock)
+                {
+                    _refreshTimer?.Change(REFRESH_TIMER_INTERVAL, Timeout.Infinite);
+                }
             }
         }
 
@@ -301,7 +304,7 @@ namespace DnsServerCore.Dns.Zones
                 List<NameServerAddress> tcpNameServers = new List<NameServerAddress>();
 
                 foreach (NameServerAddress nameServer in nameServers)
-                    tcpNameServers.Add(nameServer.ChangeProtocol(DnsTransportProtocol.Tcp));
+                    tcpNameServers.Add(nameServer.Clone(DnsTransportProtocol.Tcp));
 
                 client = new DnsClient(tcpNameServers);
 
@@ -524,7 +527,8 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 //update catalog zone property
-                CatalogZone?.SetPrimaryAddressesProperty(_primaryNameServerAddresses, _name);
+                if (!Disabled)
+                    CatalogZone?.SetPrimaryAddressesProperty(_primaryNameServerAddresses, _name);
             }
         }
 
