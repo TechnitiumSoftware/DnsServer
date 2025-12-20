@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -258,8 +258,12 @@ namespace Failover
                 }
                 finally
                 {
-                    if (!_disposed && (_healthCheck is not null))
-                        _healthCheckTimer.Change(_healthCheck.Interval, Timeout.Infinite);
+                    try
+                    {
+                        _healthCheckTimer?.Change(_healthCheck.Interval, Timeout.Infinite);
+                    }
+                    catch (ObjectDisposedException)
+                    { }
                 }
             }, null, Timeout.Infinite, Timeout.Infinite);
 
@@ -279,8 +283,7 @@ namespace Failover
 
             if (disposing)
             {
-                if (_healthCheckTimer is not null)
-                    _healthCheckTimer.Dispose();
+                _healthCheckTimer?.Dispose();
             }
 
             _disposed = true;
