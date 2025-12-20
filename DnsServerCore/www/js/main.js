@@ -1016,7 +1016,12 @@ function loadDnsSettings(responseJSON) {
     $("#txtDnsServerIPv6SourceAddresses").val(getArrayAsString(responseJSON.response.dnsServerIPv6SourceAddresses));
 
     $("#txtDefaultRecordTtl").val(responseJSON.response.defaultRecordTtl);
-    $("#txtAddEditRecordTtl").attr("placeholder", responseJSON.response.defaultRecordTtl);
+    $("#txtDefaultNsRecordTtl").val(responseJSON.response.defaultNsRecordTtl);
+    $("#txtDefaultSoaRecordTtl").val(responseJSON.response.defaultSoaRecordTtl);
+
+    sessionData.info.defaultRecordTtl = responseJSON.response.defaultRecordTtl;
+    sessionData.info.defaultNsRecordTtl = responseJSON.response.defaultNsRecordTtl;
+    sessionData.info.defaultSoaRecordTtl = responseJSON.response.defaultSoaRecordTtl;
 
     $("#txtDefaultResponsiblePerson").val(responseJSON.response.defaultResponsiblePerson);
     $("#chkUseSoaSerialDateScheme").prop("checked", responseJSON.response.useSoaSerialDateScheme);
@@ -1455,6 +1460,8 @@ function saveDnsSettings(objBtn) {
 
     if (includeClusterParameters) {
         var defaultRecordTtl = $("#txtDefaultRecordTtl").val();
+        var defaultNsRecordTtl = $("#txtDefaultNsRecordTtl").val();
+        var defaultSoaRecordTtl = $("#txtDefaultSoaRecordTtl").val();
         var defaultResponsiblePerson = $("#txtDefaultResponsiblePerson").val();
         var useSoaSerialDateScheme = $("#chkUseSoaSerialDateScheme").prop("checked");
         var minSoaRefresh = $("#txtMinSoaRefresh").val();
@@ -1474,7 +1481,7 @@ function saveDnsSettings(objBtn) {
 
         var dnsAppsEnableAutomaticUpdate = $("#chkDnsAppsEnableAutomaticUpdate").prop("checked");
 
-        formData += "&defaultRecordTtl=" + defaultRecordTtl + "&defaultResponsiblePerson=" + encodeURIComponent(defaultResponsiblePerson) + "&useSoaSerialDateScheme=" + useSoaSerialDateScheme + "&minSoaRefresh=" + minSoaRefresh + "&minSoaRetry=" + minSoaRetry + "&zoneTransferAllowedNetworks=" + encodeURIComponent(zoneTransferAllowedNetworks) + "&notifyAllowedNetworks=" + encodeURIComponent(notifyAllowedNetworks) + "&dnsAppsEnableAutomaticUpdate=" + dnsAppsEnableAutomaticUpdate;
+        formData += "&defaultRecordTtl=" + encodeURIComponent(defaultRecordTtl) + "&defaultNsRecordTtl=" + encodeURIComponent(defaultNsRecordTtl) + "&defaultSoaRecordTtl=" + encodeURIComponent(defaultSoaRecordTtl) + "&defaultResponsiblePerson=" + encodeURIComponent(defaultResponsiblePerson) + "&useSoaSerialDateScheme=" + useSoaSerialDateScheme + "&minSoaRefresh=" + encodeURIComponent(minSoaRefresh) + "&minSoaRetry=" + encodeURIComponent(minSoaRetry) + "&zoneTransferAllowedNetworks=" + encodeURIComponent(zoneTransferAllowedNetworks) + "&notifyAllowedNetworks=" + encodeURIComponent(notifyAllowedNetworks) + "&dnsAppsEnableAutomaticUpdate=" + dnsAppsEnableAutomaticUpdate;
     }
 
     if (includeNodeParameters) {
@@ -2860,21 +2867,23 @@ function restoreSettings() {
 }
 
 function applyTheme() {
-    const currentTheme = localStorage.getItem('theme');
-    if (currentTheme === 'dark') {
-        document.body.classList.add('dark-mode');
-    } else {
-        document.body.classList.remove('dark-mode');
-    }
+    const currentTheme = localStorage.getItem("theme");
+
+    if (currentTheme === "dark")
+        document.body.classList.add("dark-mode");
+    else
+        document.body.classList.remove("dark-mode");
 }
 
 function toggleTheme() {
-    document.body.classList.toggle('dark-mode');
-    let theme = 'light';
-    if (document.body.classList.contains('dark-mode')) {
-        theme = 'dark';
-    }
-    localStorage.setItem('theme', theme);
+    document.body.classList.toggle("dark-mode");
+
+    let theme = "light";
+
+    if (document.body.classList.contains("dark-mode"))
+        theme = "dark";
+
+    localStorage.setItem("theme", theme);
 
     if (window.chartDashboardMain) {
         window.chartDashboardMain.update();
@@ -2882,6 +2891,4 @@ function toggleTheme() {
         window.chartDashboardPie2.update();
         window.chartDashboardPie3.update();
     }
-
-    return false;
 }
