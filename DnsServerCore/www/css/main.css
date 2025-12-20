@@ -3,9 +3,9 @@
     scrollbar-gutter: stable;
 }
 
-body.modal-open {
-    padding-right: 0 !important;
-}
+    body.modal-open {
+        padding-right: 0 !important;
+    }
 
 body {
     margin: 0px !important;
@@ -20,8 +20,12 @@ a {
         color: #6699ff;
     }
 
+    a:visited {
+        color: #6699ff;
+    }
+
 th a {
-    color: black;
+    color: black !important;
 }
 
     th a:hover {
@@ -327,6 +331,10 @@ th a {
     text-align: center;
 }
 
+.about h3 a {
+    color: rgb(51,51,51) !important;
+}
+
 .cluster-node-dropdown {
     margin-left: 4px;
     padding: 2px 8px;
@@ -358,14 +366,6 @@ body.dark-mode {
     background-color: #1a1a1a !important;
     color: #dcdcdc !important;
 }
-
-.dark-mode a {
-    color: #8ab4f8 !important;
-}
-
-    .dark-mode a:hover {
-        color: #99c0ff !important;
-    }
 
 .dark-mode th a,
 .dark-mode th a:hover {
@@ -432,28 +432,28 @@ body.dark-mode {
         background-color: #3a3a3c !important;
     }
 
+    .dark-mode .dropdown-menu li a {
+        color: #ffffff !important;
+    }
+
 .dark-mode .divider {
     background-color: #3a3a3c !important;
 }
 
 .dark-mode .nav-tabs {
-    border-bottom: 1px solid #3a3a3c !important;
+    border-bottom: 1px solid #007aff !important;
 }
 
-    .dark-mode .nav-tabs > li > a {
-        border-color: #3a3a3c !important;
-        background-color: #2c2c2e !important;
+    .dark-mode .nav-tabs > li > a:hover {
+        border-color: #4a4a4c !important;
+        border-bottom-color: #007aff !important;
+        background-color: #3a3a3c;
     }
-
-        .dark-mode .nav-tabs > li > a:hover {
-            border-color: #4a4a4c !important;
-            background-color: #3a3a3c !important;
-        }
 
     .dark-mode .nav-tabs > li.active > a,
     .dark-mode .nav-tabs > li.active > a:hover,
     .dark-mode .nav-tabs > li.active > a:focus {
-        background-color: #007aff !important;
+        background-color: #252525;
         border-color: #007aff !important;
         color: #ffffff !important;
         border-bottom-color: transparent !important;
@@ -557,11 +557,20 @@ body.dark-mode {
 .dark-mode .pager li > a {
     background-color: #3a3a3c !important;
     border-color: #4a4a4c !important;
-    color: #f5f5f7 !important;
 }
 
     .dark-mode .pager li > a:hover {
         background-color: #4a4a4c !important;
+    }
+
+.dark-mode .pagination li:not(.active) a {
+    color: white;
+    background-color: #252525;
+    border: 1px solid #337ab7;
+}
+
+    .dark-mode .pagination li:not(.active) a:hover {
+        background-color: #33373a;
     }
 
 .dark-mode #dpCustomDayWiseStart,
@@ -571,9 +580,9 @@ body.dark-mode {
     color-scheme: dark;
 }
 
-.dark-mode #dpCustomDayWiseStart::-webkit-calendar-picker-indicator,
-.dark-mode #dpCustomDayWiseEnd::-webkit-calendar-picker-indicator,
-.dark-mode #txtQueryLogStart::-webkit-calendar-picker-indicator,
-.dark-mode #txtQueryLogEnd::-webkit-calendar-picker-indicator {
-    filter: invert(1);
-}
+    .dark-mode #dpCustomDayWiseStart::-webkit-calendar-picker-indicator,
+    .dark-mode #dpCustomDayWiseEnd::-webkit-calendar-picker-indicator,
+    .dark-mode #txtQueryLogStart::-webkit-calendar-picker-indicator,
+    .dark-mode #txtQueryLogEnd::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+    }
