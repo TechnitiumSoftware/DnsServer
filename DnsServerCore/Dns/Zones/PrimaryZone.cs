@@ -95,18 +95,18 @@ namespace DnsServerCore.Dns.Zones
 
             string rp;
 
-            if (_dnsServer.ResponsiblePersonInternal is null)
+            if (_dnsServer.DefaultResponsiblePerson is null)
                 rp = _name.Length == 0 ? _dnsServer.ResponsiblePerson.Address : "hostadmin@" + _name;
             else
-                rp = _dnsServer.ResponsiblePersonInternal.Address;
+                rp = _dnsServer.DefaultResponsiblePerson.Address;
 
             uint serial = GetNewSerial(0, 0, useSoaSerialDateScheme);
-            DnsSOARecordData soa = new DnsSOARecordData(_dnsServer.ServerDomain, rp, serial, 900, 300, 604800, 900);
+            DnsSOARecordData soa = new DnsSOARecordData(_dnsServer.ServerDomain, rp, serial, 900, 300, 604800, dnsServer.AuthZoneManager.DefaultSoaRecordTtl);
             DnsResourceRecord soaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Minimum, soa);
             soaRecord.GetAuthSOARecordInfo().UseSoaSerialDateScheme = useSoaSerialDateScheme;
             soaRecord.GetAuthSOARecordInfo().LastModified = DateTime.UtcNow;
 
-            DnsResourceRecord nsRecord = new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, 3600, new DnsNSRecordData(soa.PrimaryNameServer));
+            DnsResourceRecord nsRecord = new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, dnsServer.AuthZoneManager.DefaultNsRecordTtl, new DnsNSRecordData(soa.PrimaryNameServer));
             nsRecord.GetAuthNSRecordInfo().LastModified = DateTime.UtcNow;
 
             _entries[DnsResourceRecordType.SOA] = [soaRecord];
@@ -119,7 +119,7 @@ namespace DnsServerCore.Dns.Zones
             _internal = true;
 
             _entries[DnsResourceRecordType.SOA] = [new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Minimum, soa)];
-            _entries[DnsResourceRecordType.NS] = [new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, 3600, ns)];
+            _entries[DnsResourceRecordType.NS] = [new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, dnsServer.AuthZoneManager.DefaultNsRecordTtl, ns)];
         }
 
         #endregion
