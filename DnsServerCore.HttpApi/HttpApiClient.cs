@@ -174,9 +174,23 @@ namespace DnsServerCore.HttpApi
             if (_loggedIn)
                 throw new HttpApiClientException("Already logged in.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/user/login?user={HttpUtility.UrlEncode(username)}&pass={HttpUtility.UrlEncode(password)}&totp={(totp is null ? "" : HttpUtility.UrlEncode(totp))}&includeInfo={includeInfo}", cancellationToken);
+            HttpRequestMessage httpRequest = new HttpRequestMessage(HttpMethod.Post, new Uri(_serverUrl, $"api/user/login"));
 
-            using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+            Dictionary<string, string> parameters = new Dictionary<string, string>
+            {
+                { "user", username },
+                { "pass", password },
+                { "includeInfo", includeInfo.ToString() }
+            };
+
+            if (totp is not null)
+                parameters.Add("totp", totp);
+
+            httpRequest.Content = new FormUrlEncodedContent(parameters);
+
+            HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest, cancellationToken);
+
+            using JsonDocument jsonDoc = await JsonDocument.ParseAsync(httpResponse.Content.ReadAsStream(cancellationToken), cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
 
             CheckResponseStatus(rootElement);
