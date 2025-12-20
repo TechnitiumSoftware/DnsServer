@@ -70,6 +70,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MispConnectorApp", "Apps\MispConnectorApp\MispConnectorApp.csproj", "{83C8180A-0F86-F9A0-8F41-6FD61FAC41CB}"
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DnsServerCore.HttpApi", "DnsServerCore.HttpApi\DnsServerCore.HttpApi.csproj", "{1A49D371-D08C-475E-B7A2-6E8ECD181FD6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QueryLogsPostgresApp", "Apps\QueryLogsPostgresApp\QueryLogsPostgresApp.csproj", "{6E905E99-2446-4B2A-8C25-F87A6ED1B47F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -208,6 +210,10 @@ Global
 		{1A49D371-D08C-475E-B7A2-6E8ECD181FD6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1A49D371-D08C-475E-B7A2-6E8ECD181FD6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1A49D371-D08C-475E-B7A2-6E8ECD181FD6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6E905E99-2446-4B2A-8C25-F87A6ED1B47F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6E905E99-2446-4B2A-8C25-F87A6ED1B47F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6E905E99-2446-4B2A-8C25-F87A6ED1B47F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6E905E99-2446-4B2A-8C25-F87A6ED1B47F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -240,6 +246,7 @@ Global
 		{6F655C97-FD43-4FE1-B15A-6C783D2D91C9} = {938BF8EF-74B9-4FE0-B46F-11EBB7A4B3D2}
 		{699E2A1D-D917-4825-939E-65CDB2B16A96} = {938BF8EF-74B9-4FE0-B46F-11EBB7A4B3D2}
 		{83C8180A-0F86-F9A0-8F41-6FD61FAC41CB} = {938BF8EF-74B9-4FE0-B46F-11EBB7A4B3D2}
+		{6E905E99-2446-4B2A-8C25-F87A6ED1B47F} = {938BF8EF-74B9-4FE0-B46F-11EBB7A4B3D2}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6747BB6D-2826-4356-A213-805FBCCF9201}
