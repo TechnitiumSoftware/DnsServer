@@ -714,7 +714,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     {
                         try
                         {
-                            _blockListUpdateTimer.Change(BLOCK_LIST_UPDATE_TIMER_PERIODIC_INTERVAL, Timeout.Infinite);
+                            _blockListUpdateTimer?.Change(BLOCK_LIST_UPDATE_TIMER_PERIODIC_INTERVAL, Timeout.Infinite);
                         }
                         catch (ObjectDisposedException)
                         { }
