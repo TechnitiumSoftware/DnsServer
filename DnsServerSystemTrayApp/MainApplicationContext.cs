@@ -30,7 +30,7 @@ using System.Net.Sockets;
 using System.ServiceProcess;
 using System.Text;
 using System.Windows.Forms;
-using TechnitiumLibrary.IO;
+using TechnitiumLibrary.Net;
 
 namespace DnsServerSystemTrayApp
 {
@@ -636,37 +636,43 @@ namespace DnsServerSystemTrayApp
         private void DashboardMenuItem_Click(object sender, EventArgs e)
         {
             int port = 5380;
+            string host = "localhost";
 
+            //try finding port number from web service config file
             try
             {
-                //try finding port number from dns config file
+                string webServiceConfigFile = Path.Combine(Path.GetDirectoryName(Program.APP_PATH), "config", "webservice.config");
 
-                string dnsConfigFile = Path.Combine(Path.GetDirectoryName(Program.APP_PATH), "config", "dns.config");
-
-                using (FileStream fS = new FileStream(dnsConfigFile, FileMode.Open, FileAccess.Read))
+                using (FileStream fS = new FileStream(webServiceConfigFile, FileMode.Open, FileAccess.Read))
                 {
                     BinaryReader bR = new BinaryReader(fS);
 
-                    if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "DS") //format
+                    if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "WC") //format
                         throw new InvalidDataException("DNS Server config file format is invalid.");
 
                     int version = bR.ReadByte();
+                    if (version > 0)
+                    {
+                        port = bR.ReadInt32(); //http port
+                        _ = bR.ReadInt32(); //https port
 
-                    if (version >= 28)
-                    {
-                        port = bR.ReadInt32();
-                    }
-                    else if (version > 1)
-                    {
-                        string serverDomain = bR.ReadShortString();
-                        port = bR.ReadInt32();
+                        {
+                            int count = bR.ReadByte();
+                            if (count > 0)
+                            {
+                                IPAddress localAddress = IPAddressExtensions.ReadFrom(bR);
+
+                                if (!IPAddress.IPv6Any.Equals(localAddress) && !IPAddress.Any.Equals(localAddress) && !IPAddress.IsLoopback(localAddress))
+                                    host = localAddress.ToString();
+                            }
+                        }
                     }
                 }
             }
             catch
             { }
 
-            ProcessStartInfo processInfo = new ProcessStartInfo("http://localhost:" + port.ToString());
+            ProcessStartInfo processInfo = new ProcessStartInfo($"http://{host}:{port}");
 
             processInfo.UseShellExecute = true;
             processInfo.Verb = "open";
