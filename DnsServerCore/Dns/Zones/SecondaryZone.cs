@@ -99,7 +99,7 @@ namespace DnsServerCore.Dns.Zones
             PrimaryNameServerAddresses = primaryNameServerAddresses?.Convert(delegate (NameServerAddress nameServer)
             {
                 if (nameServer.Protocol != primaryZoneTransferProtocol)
-                    nameServer = nameServer.ChangeProtocol(primaryZoneTransferProtocol);
+                    nameServer = nameServer.Clone(primaryZoneTransferProtocol);
 
                 return nameServer;
             });
@@ -318,7 +318,10 @@ namespace DnsServerCore.Dns.Zones
             )
             {
                 //failed to queue refresh zone task; try again in some time
-                _refreshTimer?.Change(REFRESH_TIMER_INTERVAL, Timeout.Infinite);
+                lock (_refreshTimerLock)
+                {
+                    _refreshTimer?.Change(REFRESH_TIMER_INTERVAL, Timeout.Infinite);
+                }
             }
         }
 
@@ -349,7 +352,7 @@ namespace DnsServerCore.Dns.Zones
                                 if (primaryNameServer.Protocol == zoneTransferProtocol)
                                     updatedNameServers.Add(primaryNameServer);
                                 else
-                                    updatedNameServers.Add(primaryNameServer.ChangeProtocol(zoneTransferProtocol));
+                                    updatedNameServers.Add(primaryNameServer.Clone(zoneTransferProtocol));
                             }
 
                             break;
@@ -361,7 +364,7 @@ namespace DnsServerCore.Dns.Zones
                                 if (primaryNameServer.Protocol == DnsTransportProtocol.Tcp)
                                     updatedNameServers.Add(primaryNameServer);
                                 else
-                                    updatedNameServers.Add(primaryNameServer.ChangeProtocol(DnsTransportProtocol.Tcp));
+                                    updatedNameServers.Add(primaryNameServer.Clone(DnsTransportProtocol.Tcp));
                             }
 
                             break;
@@ -834,7 +837,11 @@ namespace DnsServerCore.Dns.Zones
 
         public override bool OverrideCatalogNotify
         {
-            get { throw new InvalidOperationException(); }
+            get
+            {
+                //return true so that notification does not trigger when secondary zone is a member of catalog
+                return true;
+            }
             set { throw new InvalidOperationException(); }
         }
 
@@ -886,6 +893,10 @@ namespace DnsServerCore.Dns.Zones
                     throw new ArgumentOutOfRangeException(nameof(PrimaryNameServerAddresses), "Name server addresses cannot have more than 255 entries.");
                 else
                     _primaryNameServerAddresses = value;
+
+                //update catalog zone property
+                if (!Disabled)
+                    CatalogZone?.SetPrimaryAddressesProperty(_primaryNameServerAddresses, _name);
             }
         }
 
@@ -900,6 +911,19 @@ namespace DnsServerCore.Dns.Zones
                     case DnsTransportProtocol.Tls:
                     case DnsTransportProtocol.Quic:
                         _primaryZoneTransferProtocol = value;
+
+                        //update catalog zone property
+                        if (!Disabled)
+                        {
+                            CatalogZone catalogZone = CatalogZone;
+                            if (catalogZone is not null)
+                            {
+                                if (_primaryZoneTransferProtocol != DnsTransportProtocol.Tcp)
+                                    catalogZone.SetPrimaryZoneTransferProtocolProperty(_primaryZoneTransferProtocol, _name); //update member zone custom property
+                                else
+                                    catalogZone.SetPrimaryZoneTransferProtocolProperty(null, _name); //remove member zone custom property
+                            }
+                        }
                         break;
 
                     default:
@@ -917,6 +941,19 @@ namespace DnsServerCore.Dns.Zones
                     _primaryZoneTransferTsigKeyName = string.Empty;
                 else
                     _primaryZoneTransferTsigKeyName = value;
+
+                //update catalog zone property
+                if (!Disabled)
+                {
+                    CatalogZone catalogZone = CatalogZone;
+                    if (catalogZone is not null)
+                    {
+                        if (_primaryZoneTransferTsigKeyName.Length > 0)
+                            catalogZone.SetPrimaryZoneTransferTsigKeyNameProperty(_primaryZoneTransferTsigKeyName, _name); //update member zone custom property
+                        else
+                            catalogZone.SetPrimaryZoneTransferTsigKeyNameProperty(null, _name); //remove member zone custom property
+                    }
+                }
             }
         }
 
@@ -929,7 +966,23 @@ namespace DnsServerCore.Dns.Zones
         public virtual bool ValidateZone
         {
             get { return _validateZone; }
-            set { _validateZone = value; }
+            set
+            {
+                _validateZone = value;
+
+                //update catalog zone property
+                if (!Disabled)
+                {
+                    CatalogZone catalogZone = CatalogZone;
+                    if (catalogZone is not null)
+                    {
+                        if (_validateZone)
+                            catalogZone.SetZoneMdValidationProperty(_validateZone, _name); //update member zone custom property
+                        else
+                            catalogZone.SetZoneMdValidationProperty(null, _name); //remove member zone custom property
+                    }
+                }
+            }
         }
 
         public bool ValidationFailed
