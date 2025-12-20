@@ -610,8 +610,9 @@ namespace DnsServerCore.Cluster
             _configRetryIntervalSeconds = CONFIG_RETRY_INTERVAL_SECONDS;
 
             //update cluster primary zone and save zone file
+            FindExistingRecordTtlValues(out uint nsTtl, out uint aTtl); //find existing record TTL values
             RemoveAllClusterPrimaryZoneNSRecords(); //remove all existing NS records
-            AddClusterPrimaryZoneRecordsFor(selfPrimaryNode, _dnsWebService.WebServiceTlsCertificate);
+            AddClusterPrimaryZoneRecordsFor(selfPrimaryNode, nsTtl, aTtl, _dnsWebService.WebServiceTlsCertificate);
 
             //update cluster catalog zone ACLs, TSIG key name and save zone file
             UpdateClusterCatalogZoneOptions(clusterCatalogZoneInfo);
@@ -681,7 +682,8 @@ namespace DnsServerCore.Cluster
             secondaryNode.InitializeHeartbeatTimer();
 
             //update cluster zone and save zone file
-            AddClusterPrimaryZoneRecordsFor(secondaryNode, secondaryNodeCertificate);
+            FindExistingRecordTtlValues(out uint nsTtl, out uint aTtl); //find existing record TTL values
+            AddClusterPrimaryZoneRecordsFor(secondaryNode, nsTtl, aTtl, secondaryNodeCertificate);
 
             //update cluster catalog zone ACLs and save zone file
             UpdateClusterCatalogZoneOptions();
@@ -799,6 +801,9 @@ namespace DnsServerCore.Cluster
 
             bool secondaryNodeDomainChanged = !secondaryNode.Name.Equals(secondaryNodeUrl.Host, StringComparison.OrdinalIgnoreCase);
 
+            //find existing record TTL values
+            FindExistingRecordTtlValues(out uint nsTtl, out uint aTtl);
+
             //update cluster zone to remove existing records for secondary node
             RemoveClusterPrimaryZoneRecordsFor(secondaryNode);
 
@@ -806,7 +811,7 @@ namespace DnsServerCore.Cluster
             secondaryNode.UpdateNode(secondaryNodeUrl, secondaryNodeIpAddresses);
 
             //update cluster zone to add updated records for secondary node and save zone file
-            AddClusterPrimaryZoneRecordsFor(secondaryNode, secondaryNodeCertificate);
+            AddClusterPrimaryZoneRecordsFor(secondaryNode, nsTtl, aTtl, secondaryNodeCertificate);
 
             //update cluster catalog zone ACLs and save zone file
             UpdateClusterCatalogZoneOptions();
@@ -913,6 +918,41 @@ namespace DnsServerCore.Cluster
             }
         }
 
+        private void FindExistingRecordTtlValues(out uint nsTtl, out uint aTtl)
+        {
+            //try get existing NS record TTL
+            IReadOnlyList<DnsResourceRecord> existingNSRecords = _dnsWebService.DnsServer.AuthZoneManager.GetRecords(_clusterDomain, _clusterDomain, DnsResourceRecordType.NS);
+            if (existingNSRecords.Count > 0)
+            {
+                DnsResourceRecord existingNSRecord = existingNSRecords[0];
+
+                nsTtl = existingNSRecord.TTL;
+
+                string nsDomain = (existingNSRecord.RDATA as DnsNSRecordData).NameServer;
+
+                if (nsDomain.EndsWith("." + _clusterDomain, StringComparison.OrdinalIgnoreCase))
+                {
+                    IReadOnlyList<DnsResourceRecord> existingRecords = _dnsWebService.DnsServer.AuthZoneManager.GetRecords(_clusterDomain, nsDomain, DnsResourceRecordType.A);
+                    if (existingRecords.Count == 0)
+                        existingRecords = _dnsWebService.DnsServer.AuthZoneManager.GetRecords(_clusterDomain, nsDomain, DnsResourceRecordType.AAAA);
+
+                    if (existingRecords.Count > 0)
+                        aTtl = existingRecords[0].TTL;
+                    else
+                        aTtl = _dnsWebService.DnsServer.AuthZoneManager.DefaultRecordTtl;
+                }
+                else
+                {
+                    aTtl = _dnsWebService.DnsServer.AuthZoneManager.DefaultRecordTtl;
+                }
+            }
+            else
+            {
+                nsTtl = _dnsWebService.DnsServer.AuthZoneManager.DefaultNsRecordTtl;
+                aTtl = _dnsWebService.DnsServer.AuthZoneManager.DefaultRecordTtl;
+            }
+        }
+
         private void RemoveAllClusterPrimaryZoneNSRecords()
         {
             //remove all existing NS records
@@ -942,7 +982,7 @@ namespace DnsServerCore.Cluster
             _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(_clusterDomain);
         }
 
-        private void AddClusterPrimaryZoneRecordsFor(ClusterNode node, X509Certificate2 certificate)
+        private void AddClusterPrimaryZoneRecordsFor(ClusterNode node, uint nsTtl, uint aTtl, X509Certificate2 certificate)
         {
             const string recordComments = "Cluster managed record. Do not update or delete.";
 
@@ -960,7 +1000,7 @@ namespace DnsServerCore.Cluster
             }
 
             //add NS record
-            DnsResourceRecord nsRecord = new DnsResourceRecord(_clusterDomain, DnsResourceRecordType.NS, DnsClass.IN, 60, new DnsNSRecordData(node.Name));
+            DnsResourceRecord nsRecord = new DnsResourceRecord(_clusterDomain, DnsResourceRecordType.NS, DnsClass.IN, nsTtl, new DnsNSRecordData(node.Name));
 
             GenericRecordInfo nsRecordInfo = nsRecord.GetAuthGenericRecordInfo();
             nsRecordInfo.LastModified = DateTime.UtcNow;
@@ -979,12 +1019,12 @@ namespace DnsServerCore.Cluster
                 switch (ipAddress.AddressFamily)
                 {
                     case AddressFamily.InterNetwork:
-                        record = new DnsResourceRecord(node.Name, DnsResourceRecordType.A, DnsClass.IN, 60, new DnsARecordData(ipAddress));
+                        record = new DnsResourceRecord(node.Name, DnsResourceRecordType.A, DnsClass.IN, aTtl, new DnsARecordData(ipAddress));
                         ipv4AddressRecords.Add(record);
                         break;
 
                     case AddressFamily.InterNetworkV6:
-                        record = new DnsResourceRecord(node.Name, DnsResourceRecordType.AAAA, DnsClass.IN, 60, new DnsAAAARecordData(ipAddress));
+                        record = new DnsResourceRecord(node.Name, DnsResourceRecordType.AAAA, DnsClass.IN, aTtl, new DnsAAAARecordData(ipAddress));
                         ipv6AddressRecords.Add(record);
                         break;
 
@@ -996,7 +1036,7 @@ namespace DnsServerCore.Cluster
                 recordInfo.LastModified = DateTime.UtcNow;
                 recordInfo.Comments = recordComments;
             }
-            
+
             if (ipv4AddressRecords.Count > 0)
                 _dnsWebService.DnsServer.AuthZoneManager.SetRecords(_clusterDomain, ipv4AddressRecords);
 
@@ -1013,7 +1053,7 @@ namespace DnsServerCore.Cluster
                 {
                     if (!reverseZoneInfo.Internal && (reverseZoneInfo.Type == AuthZoneType.Primary))
                     {
-                        DnsResourceRecord ptrRecord = new DnsResourceRecord(ptrDomain, DnsResourceRecordType.PTR, DnsClass.IN, 60, new DnsPTRRecordData(node.Name));
+                        DnsResourceRecord ptrRecord = new DnsResourceRecord(ptrDomain, DnsResourceRecordType.PTR, DnsClass.IN, aTtl, new DnsPTRRecordData(node.Name));
 
                         GenericRecordInfo ptrRecordInfo = ptrRecord.GetAuthGenericRecordInfo();
                         ptrRecordInfo.LastModified = DateTime.UtcNow;
@@ -1025,7 +1065,7 @@ namespace DnsServerCore.Cluster
             }
 
             //set TLSA DANE-EE record
-            DnsResourceRecord tlsaRecord = new DnsResourceRecord($"_{node.Url.Port}._tcp.{node.Name}", DnsResourceRecordType.TLSA, DnsClass.IN, 60, new DnsTLSARecordData(DnsTLSACertificateUsage.DANE_EE, DnsTLSASelector.SPKI, DnsTLSAMatchingType.SHA2_256, certificate));
+            DnsResourceRecord tlsaRecord = new DnsResourceRecord($"_{node.Url.Port}._tcp.{node.Name}", DnsResourceRecordType.TLSA, DnsClass.IN, aTtl, new DnsTLSARecordData(DnsTLSACertificateUsage.DANE_EE, DnsTLSASelector.SPKI, DnsTLSAMatchingType.SHA2_256, certificate));
 
             GenericRecordInfo tlsaRecordInfo = tlsaRecord.GetAuthGenericRecordInfo();
             tlsaRecordInfo.LastModified = DateTime.UtcNow;
@@ -1049,7 +1089,7 @@ namespace DnsServerCore.Cluster
             if (existingNSRecords.Count > 0)
                 ttl = existingNSRecords[0].TTL;
             else
-                ttl = _dnsWebService.DnsServer.AuthZoneManager.DefaultRecordTtl;
+                ttl = _dnsWebService.DnsServer.AuthZoneManager.DefaultNsRecordTtl;
 
             IReadOnlyDictionary<int, ClusterNode> clusterNodes = _clusterNodes;
             DnsResourceRecord[] nsRecords = new DnsResourceRecord[clusterNodes.Count];
@@ -1332,7 +1372,7 @@ namespace DnsServerCore.Cluster
                     await SyncConfigFromAsync(primaryNodeApiClient, cancellationToken: cancellationToken);
 
                     //create cluster secondary catalog zone
-                    AuthZoneInfo clusterSecondaryCatalogZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.CreateSecondaryCatalogZone(clusterCatalogDomain, primaryNodeIpAddresses.Convert(delegate (IPAddress ipAddress) { return new NameServerAddress(ipAddress); }), DnsTransportProtocol.Tcp, clusterCatalogDomain);
+                    AuthZoneInfo clusterSecondaryCatalogZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.CreateSecondaryCatalogZone(clusterCatalogDomain, primaryNodeIpAddresses.Convert(delegate (IPAddress ipAddress) { return new NameServerAddress(primaryNodeUrl.Host, ipAddress); }), DnsTransportProtocol.Tcp, clusterCatalogDomain);
                     if (clusterSecondaryCatalogZoneInfo is null)
                         throw new DnsServerException($"Failed to join Cluster: the zone '{clusterCatalogDomain}' already exists. Please delete the '{clusterCatalogDomain}' zone and try again.");
 
@@ -1486,7 +1526,7 @@ namespace DnsServerCore.Cluster
             primaryNode.UpdateNode(primaryNodeUrl, primaryNodeIpAddresses);
 
             //update cluster catalog zone's primary name server
-            clusterSecondaryCatalogZoneInfo.PrimaryNameServerAddresses = primaryNodeIpAddresses.Convert(delegate (IPAddress ipAddress) { return new NameServerAddress(ipAddress); });
+            clusterSecondaryCatalogZoneInfo.PrimaryNameServerAddresses = primaryNodeIpAddresses.Convert(delegate (IPAddress ipAddress) { return new NameServerAddress(primaryNodeUrl.Host, ipAddress); });
 
             //save all changes
             _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(clusterSecondaryCatalogZoneInfo.Name);
@@ -1906,12 +1946,15 @@ namespace DnsServerCore.Cluster
                 _dnsWebService.DnsServer.AuthZoneManager.SignPrimaryZone(clusterZoneInfo.Name, kskPrivateKey, zskPrivateKey, 3600, false);
             }
 
+            //find existing record TTL values
+            FindExistingRecordTtlValues(out uint nsTtl, out uint aTtl);
+
             //remove old primary node records from cluster primary zone and save zone file
             if (existingPrimaryNode is not null)
                 RemoveClusterPrimaryZoneRecordsFor(existingPrimaryNode);
 
             //update cluster primary zone for new primary node
-            AddClusterPrimaryZoneRecordsFor(selfNewPrimaryNode, _dnsWebService.WebServiceTlsCertificate);
+            AddClusterPrimaryZoneRecordsFor(selfNewPrimaryNode, nsTtl, aTtl, _dnsWebService.WebServiceTlsCertificate);
 
             //update cluster catalog zone ACLs, TSIG key name and save zone file
             UpdateClusterCatalogZoneOptions(clusterCatalogZoneInfo);
@@ -1992,6 +2035,9 @@ namespace DnsServerCore.Cluster
             switch (selfNode.Type)
             {
                 case ClusterNodeType.Primary:
+                    //find existing record TTL values
+                    FindExistingRecordTtlValues(out uint nsTtl, out uint aTtl);
+
                     //update cluster zone to remove current self node records
                     RemoveClusterPrimaryZoneRecordsFor(selfNode);
 
@@ -1999,7 +2045,7 @@ namespace DnsServerCore.Cluster
                     selfNode.UpdateSelfNodeIPAddresses(ipAddresses);
 
                     //update cluster zone to add updated self node records
-                    AddClusterPrimaryZoneRecordsFor(selfNode, _dnsWebService.WebServiceTlsCertificate);
+                    AddClusterPrimaryZoneRecordsFor(selfNode, nsTtl, aTtl, _dnsWebService.WebServiceTlsCertificate);
 
                     //update cluster catalog zone ACLs and save zone file
                     UpdateClusterCatalogZoneOptions();
@@ -2043,6 +2089,9 @@ namespace DnsServerCore.Cluster
             switch (selfNode.Type)
             {
                 case ClusterNodeType.Primary:
+                    //find existing record TTL values
+                    FindExistingRecordTtlValues(out uint nsTtl, out uint aTtl);
+
                     //update cluster zone to remove current self node records
                     RemoveClusterPrimaryZoneRecordsFor(selfNode);
 
@@ -2050,7 +2099,7 @@ namespace DnsServerCore.Cluster
                     selfNode.UpdateSelfNodeUrl();
 
                     //update cluster zone to add updated self node records
-                    AddClusterPrimaryZoneRecordsFor(selfNode, _dnsWebService.WebServiceTlsCertificate);
+                    AddClusterPrimaryZoneRecordsFor(selfNode, nsTtl, aTtl, _dnsWebService.WebServiceTlsCertificate);
 
                     //save all changes
                     SaveConfigFile();
