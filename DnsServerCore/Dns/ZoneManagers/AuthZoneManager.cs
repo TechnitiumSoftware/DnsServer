@@ -53,6 +53,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         string _serverDomain;
         uint _defaultRecordTtl = 3600;
+        uint _defaultNsRecordTtl = 14400;
+        uint _defaultSoaRecordTtl = 900;
         bool _useSoaSerialDateScheme;
         uint _minSoaRefresh = 300;
         uint _minSoaRetry = 300;
@@ -1695,6 +1697,13 @@ namespace DnsServerCore.Dns.ZoneManagers
                             case AuthZoneType.Secondary:
                                 try
                                 {
+                                    AuthZoneType originalMemberZoneType = newCatalogZone.GetZoneTypeProperty(memberZoneInfo.Name);
+                                    if (originalMemberZoneType != AuthZoneType.Primary)
+                                    {
+                                        memberZoneInfo.ApexZone.CatalogZoneName = newZoneInfo.Name; //reset catalog zone object reference
+                                        break;
+                                    }
+
                                     AuthZoneInfo newMemberZoneInfo = ConvertZoneTypeTo(memberZoneInfo, AuthZoneType.Primary);
                                     newMemberZoneInfo.ApexZone.CatalogZoneName = newZoneInfo.Name;
 
@@ -1756,6 +1765,10 @@ namespace DnsServerCore.Dns.ZoneManagers
                                     //ignore errors since they were already logged
                                 }
                                 break;
+
+                            default: //stub zone
+                                memberZoneInfo.ApexZone.CatalogZoneName = newZoneInfo.Name; //reset catalog zone object reference
+                                break;
                         }
                     }
                 }
@@ -1806,6 +1819,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             switch (memberZoneInfo.Type)
             {
                 case AuthZoneType.Primary:
+                case AuthZoneType.Secondary:
                 case AuthZoneType.Stub:
                 case AuthZoneType.Forwarder:
                     if (!ignoreValidationErrors)
@@ -1824,29 +1838,46 @@ namespace DnsServerCore.Dns.ZoneManagers
                         throw new DnsServerException("No such Catalog zone was found: " + catalogZoneName);
                     }
 
-                    catalogZone.AddMemberZone(memberZoneInfo.Name, memberZoneInfo.Type);
+                    //set catalog zone name in member zone so that properties can be set below correctly
                     memberZoneInfo.ApexZone.CatalogZoneName = catalogZone.Name;
 
-                    //update properties in catalog zone by settings member zone property values again
-                    switch (memberZoneInfo.Type)
+                    if (!memberZoneInfo.Disabled)
                     {
-                        case AuthZoneType.Primary:
-                            memberZoneInfo.QueryAccess = memberZoneInfo.QueryAccess;
-                            memberZoneInfo.ZoneTransfer = memberZoneInfo.ZoneTransfer;
-                            memberZoneInfo.ZoneTransferTsigKeyNames = memberZoneInfo.ZoneTransferTsigKeyNames;
-                            break;
+                        catalogZone.AddMemberZone(memberZoneInfo.Name, memberZoneInfo.Type);
 
-                        case AuthZoneType.Stub:
-                            memberZoneInfo.PrimaryNameServerAddresses = memberZoneInfo.PrimaryNameServerAddresses;
-                            memberZoneInfo.QueryAccess = memberZoneInfo.QueryAccess;
-                            break;
+                        //update properties in catalog zone by settings member zone property values again
+                        switch (memberZoneInfo.Type)
+                        {
+                            case AuthZoneType.Primary:
+                                memberZoneInfo.QueryAccess = memberZoneInfo.QueryAccess;
+                                memberZoneInfo.ZoneTransfer = memberZoneInfo.ZoneTransfer;
+                                memberZoneInfo.ZoneTransferTsigKeyNames = memberZoneInfo.ZoneTransferTsigKeyNames;
+                                break;
 
-                        case AuthZoneType.Forwarder:
-                            memberZoneInfo.QueryAccess = memberZoneInfo.QueryAccess;
-                            break;
+                            case AuthZoneType.Secondary:
+                                memberZoneInfo.PrimaryNameServerAddresses = memberZoneInfo.PrimaryNameServerAddresses;
+                                memberZoneInfo.PrimaryZoneTransferProtocol = memberZoneInfo.PrimaryZoneTransferProtocol;
+                                memberZoneInfo.PrimaryZoneTransferTsigKeyName = memberZoneInfo.PrimaryZoneTransferTsigKeyName;
+                                memberZoneInfo.ValidateZone = memberZoneInfo.ValidateZone;
+                                memberZoneInfo.QueryAccess = memberZoneInfo.QueryAccess;
+                                memberZoneInfo.ZoneTransfer = memberZoneInfo.ZoneTransfer;
+                                memberZoneInfo.ZoneTransferTsigKeyNames = memberZoneInfo.ZoneTransferTsigKeyNames;
+                                break;
+
+                            case AuthZoneType.Stub:
+                                memberZoneInfo.PrimaryNameServerAddresses = memberZoneInfo.PrimaryNameServerAddresses;
+                                memberZoneInfo.QueryAccess = memberZoneInfo.QueryAccess;
+                                break;
+
+                            case AuthZoneType.Forwarder:
+                                memberZoneInfo.QueryAccess = memberZoneInfo.QueryAccess;
+                                break;
+                        }
+
+                        //save catalog changes
+                        SaveZoneFile(catalogZone.Name);
                     }
 
-                    SaveZoneFile(catalogZoneName);
                     break;
 
                 default:
@@ -1854,23 +1885,31 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        public void RemoveCatalogMemberZone(AuthZoneInfo memberZoneInfo)
+        public void RemoveCatalogMemberZone(AuthZoneInfo memberZoneInfo, bool disableOnly = false)
         {
             switch (memberZoneInfo.Type)
             {
                 case AuthZoneType.Primary:
+                case AuthZoneType.Secondary:
                 case AuthZoneType.Stub:
                 case AuthZoneType.Forwarder:
-                case AuthZoneType.Secondary:
                 case AuthZoneType.SecondaryForwarder:
                     string catalogZoneName = memberZoneInfo.ApexZone.CatalogZoneName;
                     if (catalogZoneName is null)
                         return;
 
-                    memberZoneInfo.ApexZone.CatalogZone?.RemoveMemberZone(memberZoneInfo.Name);
+                    CatalogZone catalogZone = memberZoneInfo.ApexZone.CatalogZone;
+                    if (catalogZone is not null)
+                    {
+                        catalogZone.RemoveMemberZone(memberZoneInfo.Name);
 
-                    memberZoneInfo.ApexZone.CatalogZoneName = null;
-                    SaveZoneFile(catalogZoneName);
+                        //save catalog changes
+                        SaveZoneFile(catalogZone.Name);
+                    }
+
+                    if (!disableOnly)
+                        memberZoneInfo.ApexZone.CatalogZoneName = null;
+
                     break;
 
                 default:
@@ -1883,6 +1922,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             switch (memberZoneInfo.Type)
             {
                 case AuthZoneType.Primary:
+                case AuthZoneType.Secondary:
                 case AuthZoneType.Stub:
                 case AuthZoneType.Forwarder:
                     string currentCatalogZoneName = memberZoneInfo.ApexZone.CatalogZoneName;
@@ -1891,11 +1931,18 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                     AddCatalogMemberZone(newCatalogZoneName, memberZoneInfo, true);
 
-                    ApexZone apexZone = _root.GetApexZone(currentCatalogZoneName);
-                    if (apexZone is CatalogZone currentCatalogZone)
-                        currentCatalogZone.ChangeMemberZoneOwnership(memberZoneInfo.Name, newCatalogZoneName);
+                    if (!memberZoneInfo.Disabled)
+                    {
+                        ApexZone apexZone = _root.GetApexZone(currentCatalogZoneName);
+                        if (apexZone is CatalogZone currentCatalogZone)
+                        {
+                            currentCatalogZone.ChangeMemberZoneOwnership(memberZoneInfo.Name, newCatalogZoneName);
 
-                    SaveZoneFile(currentCatalogZoneName);
+                            //save catalog changes
+                            SaveZoneFile(currentCatalogZone.Name);
+                        }
+                    }
+
                     break;
 
                 default:
@@ -3794,6 +3841,18 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             get { return _defaultRecordTtl; }
             set { _defaultRecordTtl = value; }
+        }
+
+        public uint DefaultNsRecordTtl
+        {
+            get { return _defaultNsRecordTtl; }
+            set { _defaultNsRecordTtl = value; }
+        }
+
+        public uint DefaultSoaRecordTtl
+        {
+            get { return _defaultSoaRecordTtl; }
+            set { _defaultSoaRecordTtl = value; }
         }
 
         public bool UseSoaSerialDateScheme
