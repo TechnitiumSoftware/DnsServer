@@ -112,8 +112,8 @@ namespace DnsServerCore.Dns
         IReadOnlyList<IPEndPoint> _localEndPoints;
         readonly LogManager _log;
 
-        MailAddress _responsiblePerson;
         MailAddress _defaultResponsiblePerson;
+        MailAddress _fallbackResponsiblePerson;
 
         NameServerAddress _thisServer;
 
@@ -549,7 +549,7 @@ namespace DnsServerCore.Dns
                         NameServerAddress forwarder = NameServerAddress.Parse(value);
 
                         if (forwarder.Protocol != forwarderProtocol)
-                            forwarder = forwarder.ChangeProtocol(forwarderProtocol);
+                            forwarder = forwarder.Clone(forwarderProtocol);
 
                         return forwarder;
                     }, ',');
@@ -632,7 +632,7 @@ namespace DnsServerCore.Dns
                 throw new InvalidDataException("DNS Server config file format is invalid.");
 
             int version = bR.ReadByte();
-            if (version < 1)
+            if ((version < 1) || (version > 2))
                 throw new InvalidDataException("DNS Server config version not supported.");
 
             //general
@@ -682,11 +682,22 @@ namespace DnsServerCore.Dns
 
             _authZoneManager.DefaultRecordTtl = bR.ReadUInt32();
 
+            if (version >= 2)
+            {
+                _authZoneManager.DefaultNsRecordTtl = bR.ReadUInt32();
+                _authZoneManager.DefaultSoaRecordTtl = bR.ReadUInt32();
+            }
+            else
+            {
+                _authZoneManager.DefaultNsRecordTtl = 14400;
+                _authZoneManager.DefaultSoaRecordTtl = 900;
+            }
+
             string rp = bR.ReadString();
             if (rp.Length == 0)
-                _responsiblePerson = null;
+                _defaultResponsiblePerson = null;
             else
-                _responsiblePerson = new MailAddress(rp);
+                _defaultResponsiblePerson = new MailAddress(rp);
 
             _authZoneManager.UseSoaSerialDateScheme = bR.ReadBoolean();
             _authZoneManager.MinSoaRefresh = bR.ReadUInt32();
@@ -1025,7 +1036,7 @@ namespace DnsServerCore.Dns
                         forwarders[i] = new NameServerAddress(bR);
 
                         if (forwarders[i].Protocol == DnsTransportProtocol.HttpsJson)
-                            forwarders[i] = forwarders[i].ChangeProtocol(DnsTransportProtocol.Https);
+                            forwarders[i] = forwarders[i].Clone(DnsTransportProtocol.Https);
                     }
 
                     _forwarders = forwarders;
@@ -1074,7 +1085,7 @@ namespace DnsServerCore.Dns
             BinaryWriter bW = new BinaryWriter(s);
 
             bW.Write(Encoding.ASCII.GetBytes("DC")); //format
-            bW.Write((byte)1); //version
+            bW.Write((byte)2); //version
 
             //general
             bW.WriteShortString(_serverDomain);
@@ -1090,11 +1101,13 @@ namespace DnsServerCore.Dns
             AuthZoneInfo.WriteNetworkAddressesTo(DnsClientConnection.IPv6SourceAddresses, bW);
 
             bW.Write(_authZoneManager.DefaultRecordTtl);
+            bW.Write(_authZoneManager.DefaultNsRecordTtl);
+            bW.Write(_authZoneManager.DefaultSoaRecordTtl);
 
-            if (_responsiblePerson is null)
+            if (_defaultResponsiblePerson is null)
                 bW.WriteShortString("");
             else
-                bW.WriteShortString(_responsiblePerson.Address);
+                bW.WriteShortString(_defaultResponsiblePerson.Address);
 
             bW.Write(_authZoneManager.UseSoaSerialDateScheme);
             bW.Write(_authZoneManager.MinSoaRefresh);
@@ -1916,7 +1929,7 @@ namespace DnsServerCore.Dns
                     {
                         Task<DnsDatagram> task = DnsDatagram.ReadFromTcpAsync(stream, readBuffer, cancellationTokenSource.Token);
 
-                        if (await Task.WhenAny(task, Task.Delay(_tcpReceiveTimeout, cancellationTokenSource.Token)) != task)
+                        if ((await Task.WhenAny(task, Task.Delay(_tcpReceiveTimeout, cancellationTokenSource.Token)) != task) && (task.Status != TaskStatus.RanToCompletion))
                         {
                             //read timed out
                             await stream.DisposeAsync();
@@ -2094,7 +2107,7 @@ namespace DnsServerCore.Dns
                 {
                     Task<DnsDatagram> task = DnsDatagram.ReadFromTcpAsync(quicStream, sharedBuffer, cancellationTokenSource.Token);
 
-                    if (await Task.WhenAny(task, Task.Delay(_tcpReceiveTimeout, cancellationTokenSource.Token)) != task)
+                    if ((await Task.WhenAny(task, Task.Delay(_tcpReceiveTimeout, cancellationTokenSource.Token)) != task) && (task.Status != TaskStatus.RanToCompletion))
                     {
                         //read timed out
                         quicStream.Abort(QuicAbortDirection.Both, (long)DnsOverQuicErrorCodes.DOQ_UNSPECIFIED_ERROR);
@@ -3122,7 +3135,7 @@ namespace DnsServerCore.Dns
                                         if (primaryNameServer.Protocol == primaryZoneTransferProtocol)
                                             updatedNameServers.Add(primaryNameServer);
                                         else
-                                            updatedNameServers.Add(primaryNameServer.ChangeProtocol(primaryZoneTransferProtocol));
+                                            updatedNameServers.Add(primaryNameServer.Clone(primaryZoneTransferProtocol));
                                     }
 
                                     primaryNameServerAddresses = updatedNameServers;
@@ -3140,7 +3153,7 @@ namespace DnsServerCore.Dns
                                         if (primaryNameServer.Protocol == DnsTransportProtocol.Tcp)
                                             updatedNameServers.Add(primaryNameServer);
                                         else
-                                            updatedNameServers.Add(primaryNameServer.ChangeProtocol(DnsTransportProtocol.Tcp));
+                                            updatedNameServers.Add(primaryNameServer.Clone(DnsTransportProtocol.Tcp));
                                     }
 
                                     primaryNameServerAddresses = updatedNameServers;
@@ -3426,7 +3439,7 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            DnsDatagram appResponse = null;
+            DnsDatagram lastAppResponse = null;
 
             if (!skipDnsAppAuthoritativeRequestHandlers)
             {
@@ -3437,7 +3450,7 @@ namespace DnsServerCore.Dns
                 {
                     try
                     {
-                        appResponse = await requestHandler.ProcessRequestAsync(request, remoteEP, protocol, isRecursionAllowed);
+                        DnsDatagram appResponse = await requestHandler.ProcessRequestAsync(request, remoteEP, protocol, isRecursionAllowed);
                         if (appResponse is not null)
                         {
                             if ((appResponse.RCODE != DnsResponseCode.NoError) || (appResponse.Answer.Count > 0) || (appResponse.Authority.Count == 0) || appResponse.IsFirstAuthoritySOA())
@@ -3446,6 +3459,21 @@ namespace DnsServerCore.Dns
                                     appResponse.Tag = DnsServerResponseType.Authoritative;
 
                                 return appResponse;
+                            }
+
+                            if (lastAppResponse is null)
+                            {
+                                //keep last non-null app response to return later
+                                lastAppResponse = appResponse;
+                            }
+                            else
+                            {
+                                //compare last app response and current app response and select more specific response
+                                DnsResourceRecord appResponseFirstAuthority = appResponse.FindFirstAuthorityRecord();
+                                DnsResourceRecord lastAppResponseFirstAuthority = lastAppResponse.FindFirstAuthorityRecord();
+
+                                if (appResponseFirstAuthority.Name.Length > lastAppResponseFirstAuthority.Name.Length)
+                                    lastAppResponse = appResponse;
                             }
                         }
                     }
@@ -3458,20 +3486,20 @@ namespace DnsServerCore.Dns
 
             if ((authResponse is not null) && (authResponse.Authority.Count > 0))
             {
-                if ((appResponse is not null) && (appResponse.Authority.Count > 0))
+                if ((lastAppResponse is not null) && (lastAppResponse.Authority.Count > 0))
                 {
                     DnsResourceRecord authResponseFirstAuthority = authResponse.FindFirstAuthorityRecord();
-                    DnsResourceRecord appResponseFirstAuthority = appResponse.FindFirstAuthorityRecord();
+                    DnsResourceRecord appResponseFirstAuthority = lastAppResponse.FindFirstAuthorityRecord();
 
                     if (appResponseFirstAuthority.Name.Length > authResponseFirstAuthority.Name.Length)
-                        return appResponse;
+                        return lastAppResponse;
                 }
 
                 return authResponse;
             }
             else
             {
-                return appResponse;
+                return lastAppResponse;
             }
         }
 
@@ -4390,7 +4418,7 @@ namespace DnsServerCore.Dns
                 using CancellationTokenSource timeoutCancellationTokenSource = new CancellationTokenSource();
 
                 //wait till short timeout for response
-                if ((waitTimeout > 0) && (await Task.WhenAny(resolverTask, Task.Delay(waitTimeout, timeoutCancellationTokenSource.Token)) == resolverTask))
+                if ((waitTimeout > 0) && ((await Task.WhenAny(resolverTask, Task.Delay(waitTimeout, timeoutCancellationTokenSource.Token)) == resolverTask) || (resolverTask.Status == TaskStatus.RanToCompletion)))
                 {
                     //resolver signaled
                     timeoutCancellationTokenSource.Cancel(); //to stop delay task
@@ -4415,7 +4443,7 @@ namespace DnsServerCore.Dns
                     //wait till full timeout before responding as ServerFailure
                     int timeout = clientTimeout - waitTimeout;
 
-                    if (await Task.WhenAny(resolverTask, Task.Delay(timeout, timeoutCancellationTokenSource.Token)) == resolverTask)
+                    if ((await Task.WhenAny(resolverTask, Task.Delay(timeout, timeoutCancellationTokenSource.Token)) == resolverTask) || (resolverTask.Status == TaskStatus.RanToCompletion))
                     {
                         //resolver signaled
                         timeoutCancellationTokenSource.Cancel(); //to stop delay task
@@ -4434,7 +4462,7 @@ namespace DnsServerCore.Dns
                 using CancellationTokenSource timeoutCancellationTokenSource = new CancellationTokenSource();
 
                 //wait till full client timeout for response
-                if (await Task.WhenAny(resolverTask, Task.Delay(clientTimeout, timeoutCancellationTokenSource.Token)) == resolverTask)
+                if ((await Task.WhenAny(resolverTask, Task.Delay(clientTimeout, timeoutCancellationTokenSource.Token)) == resolverTask) || (resolverTask.Status == TaskStatus.RanToCompletion))
                 {
                     //resolver signaled
                     timeoutCancellationTokenSource.Cancel(); //to stop delay task
@@ -4500,7 +4528,7 @@ namespace DnsServerCore.Dns
                         break;
 
                     default:
-                        throw new DnsServerException("All name servers failed to answer the request '" + question.ToString() + "'. Received last response with RCODE=" + response.RCODE.ToString() + " from: " + (response.Metadata is null ? "unknown" : response.Metadata.NameServer));
+                        throw new DnsServerException("All name servers failed to answer the request '" + question.ToString() + "'. Received last response with RCODE=" + response.RCODE.ToString() + (response.Metadata is null ? "." : " from: " + response.Metadata.NameServer));
                 }
             }
             catch (Exception ex)
@@ -5501,8 +5529,13 @@ namespace DnsServerCore.Dns
                 {
                     DnsQuestionRecord eligibleQuerySample = eligibleQuery.Key;
 
-                    if (eligibleQuerySample.Type == DnsResourceRecordType.ANY)
-                        continue; //dont refresh type ANY queries
+                    switch (eligibleQuerySample.Type)
+                    {
+                        case DnsResourceRecordType.IXFR:
+                        case DnsResourceRecordType.AXFR:
+                        case DnsResourceRecordType.ANY:
+                            continue; //dont refresh these queries
+                    }
 
                     DnsQuestionRecord refreshQuery = null;
                     IReadOnlyList<DnsResourceRecord> conditionalForwarders = null;
@@ -6575,7 +6608,7 @@ namespace DnsServerCore.Dns
                         throw new DnsServerException("Invalid domain name [" + value + "]: IP address cannot be used for DNS server domain name.");
 
                     _serverDomain = value.ToLowerInvariant();
-                    _defaultResponsiblePerson = new MailAddress("hostadmin@" + _serverDomain);
+                    _fallbackResponsiblePerson = new MailAddress("hostadmin@" + _serverDomain);
 
                     _authZoneManager.TriggerUpdateServerDomain();
                     _allowedZoneManager.UpdateServerDomain();
@@ -6615,23 +6648,23 @@ namespace DnsServerCore.Dns
         public LogManager LogManager
         { get { return _log; } }
 
-        internal MailAddress ResponsiblePersonInternal
+        internal MailAddress DefaultResponsiblePerson
         {
-            get { return _responsiblePerson; }
-            set { _responsiblePerson = value; }
+            get { return _defaultResponsiblePerson; }
+            set { _defaultResponsiblePerson = value; }
         }
 
         public MailAddress ResponsiblePerson
         {
             get
             {
-                if (_responsiblePerson is not null)
-                    return _responsiblePerson;
+                if (_defaultResponsiblePerson is not null)
+                    return _defaultResponsiblePerson;
 
-                if (_defaultResponsiblePerson is null)
-                    _defaultResponsiblePerson = new MailAddress("hostadmin@" + _serverDomain);
+                if (_fallbackResponsiblePerson is null)
+                    _fallbackResponsiblePerson = new MailAddress("hostadmin@" + _serverDomain);
 
-                return _defaultResponsiblePerson;
+                return _fallbackResponsiblePerson;
             }
         }
 
@@ -7391,7 +7424,11 @@ namespace DnsServerCore.Dns
                 if ((value < 1) || (value > 60))
                     throw new ArgumentOutOfRangeException(nameof(CachePrefetchSampleIntervalMinutes), "Valid range is between 1 and 60 minutes.");
 
-                _cachePrefetchSampleIntervalMinutes = value;
+                if (_cachePrefetchSampleIntervalMinutes != value)
+                {
+                    _cachePrefetchSampleIntervalMinutes = value;
+                    ResetPrefetchTimers();
+                }
             }
         }
 
