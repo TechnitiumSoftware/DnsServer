@@ -84,9 +84,9 @@ namespace DnsServerApp
                     exitHandle.WaitOne();
                 };
 
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) || RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                if (Environment.OSVersion.Platform == PlatformID.Unix)
                 {
-                    PosixSignalRegistration.Create(PosixSignal.SIGTERM, (context) =>
+                    PosixSignalRegistration.Create(PosixSignal.SIGTERM, delegate (PosixSignalContext context)
                     {
                         context.Cancel = true;
                         waitHandle.Set();
