@@ -35,15 +35,15 @@ namespace DnsServerCore.Auth
     {
         #region variables
 
-        ConcurrentDictionary<string, Group> _groups = new ConcurrentDictionary<string, Group>(-1, 4);
-        ConcurrentDictionary<string, User> _users = new ConcurrentDictionary<string, User>(-1, 4);
-        ConcurrentDictionary<PermissionSection, Permission> _permissions = new ConcurrentDictionary<PermissionSection, Permission>(-1, 11);
-        ConcurrentDictionary<string, UserSession> _sessions = new ConcurrentDictionary<string, UserSession>(-1, 10);
+        ConcurrentDictionary<string, Group> _groups = new ConcurrentDictionary<string, Group>(1, 4);
+        ConcurrentDictionary<string, User> _users = new ConcurrentDictionary<string, User>(1, 4);
+        ConcurrentDictionary<PermissionSection, Permission> _permissions = new ConcurrentDictionary<PermissionSection, Permission>(1, 11);
+        ConcurrentDictionary<string, UserSession> _sessions = new ConcurrentDictionary<string, UserSession>(1, 10);
 
-        readonly ConcurrentDictionary<IPAddress, int> _failedLoginAttemptNetworks = new ConcurrentDictionary<IPAddress, int>(-1, 10);
+        readonly ConcurrentDictionary<IPAddress, int> _failedLoginAttemptNetworks = new ConcurrentDictionary<IPAddress, int>(1, 10);
         const int MAX_LOGIN_ATTEMPTS = 5;
 
-        readonly ConcurrentDictionary<IPAddress, DateTime> _blockedNetworks = new ConcurrentDictionary<IPAddress, DateTime>(-1, 10);
+        readonly ConcurrentDictionary<IPAddress, DateTime> _blockedNetworks = new ConcurrentDictionary<IPAddress, DateTime>(1, 10);
         const int BLOCK_NETWORK_INTERVAL = 5 * 60 * 1000;
 
         readonly string _configFolder;
@@ -296,10 +296,10 @@ namespace DnsServerCore.Auth
             if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "AS") //format
                 throw new InvalidDataException("DNS Server auth config file format is invalid.");
 
-            ConcurrentDictionary<string, Group> groups = new ConcurrentDictionary<string, Group>(-1, 4);
-            ConcurrentDictionary<string, User> users = new ConcurrentDictionary<string, User>(-1, 4);
-            ConcurrentDictionary<PermissionSection, Permission> permissions = new ConcurrentDictionary<PermissionSection, Permission>(-1, 11);
-            ConcurrentDictionary<string, UserSession> sessions = new ConcurrentDictionary<string, UserSession>(-1, 10);
+            ConcurrentDictionary<string, Group> groups = new ConcurrentDictionary<string, Group>(1, 4);
+            ConcurrentDictionary<string, User> users = new ConcurrentDictionary<string, User>(1, 4);
+            ConcurrentDictionary<PermissionSection, Permission> permissions = new ConcurrentDictionary<PermissionSection, Permission>(1, 11);
+            ConcurrentDictionary<string, UserSession> sessions = new ConcurrentDictionary<string, UserSession>(1, 10);
 
             int version = bR.ReadByte();
             switch (version)
