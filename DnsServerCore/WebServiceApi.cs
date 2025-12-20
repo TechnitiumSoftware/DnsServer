@@ -281,7 +281,7 @@ namespace DnsServerCore
                                 break;
 
                             case DnsTransportProtocol.Tcp:
-                                nameServer = _dnsWebService._dnsServer.ThisServer.ChangeProtocol(DnsTransportProtocol.Tcp);
+                                nameServer = _dnsWebService._dnsServer.ThisServer.Clone(DnsTransportProtocol.Tcp);
                                 break;
 
                             case DnsTransportProtocol.Tls:
@@ -304,7 +304,7 @@ namespace DnsServerCore
                         nameServer = NameServerAddress.Parse(server);
 
                         if (nameServer.Protocol != protocol)
-                            nameServer = nameServer.ChangeProtocol(protocol);
+                            nameServer = nameServer.Clone(protocol);
 
                         if (nameServer.IsIPEndPointStale)
                             await nameServer.ResolveIPAddressAsync(_dnsWebService._dnsServer, _dnsWebService._dnsServer.PreferIPv6);
