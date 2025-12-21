@@ -289,7 +289,7 @@ function addDhcpScopeExclusionRow(startingAddress, endingAddress) {
     $("#tableDhcpScopeExclusions").append(tableHtmlRows);
 }
 
-function addDhcpScopeReservedLeaseRow(hostName, hardwareAddress, address, comments) {
+function addDhcpScopeReservedLeaseRow(hostName, hardwareAddress, address, comments, isEnabled) {
     var id = Math.floor(Math.random() * 10000);
 
     var tableHtmlRows = "<tr id=\"tableDhcpScopeReservedLeaseRow" + id + "\">";
@@ -297,8 +297,8 @@ function addDhcpScopeReservedLeaseRow(hostName, hardwareAddress, address, commen
     tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(hardwareAddress) + "\"></td>";
     tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(address) + "\"></td>";
     tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + (comments == null ? "" : htmlEncode(comments)) + "\" data-optional=\"true\"></td>";
+    tableHtmlRows += "<td style=\"vertical-align: middle !important\" ><input type=\"checkbox\" class=\"checkbox\" " + (isEnabled === true || isEnabled === "True" ? "checked" : "") + " value =\"" + htmlEncode(isEnabled) + "\"></td>";
     tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-danger\" onclick=\"$('#tableDhcpScopeReservedLeaseRow" + id + "').remove();\">Delete</button></td></tr>";
-
     $("#tableDhcpScopeReservedLeases").append(tableHtmlRows);
 }
 
@@ -456,7 +456,7 @@ function showEditDhcpScope(scopeName) {
 
             if (responseJSON.response.reservedLeases != null) {
                 for (var i = 0; i < responseJSON.response.reservedLeases.length; i++) {
-                    addDhcpScopeReservedLeaseRow(responseJSON.response.reservedLeases[i].hostName, responseJSON.response.reservedLeases[i].hardwareAddress, responseJSON.response.reservedLeases[i].address, responseJSON.response.reservedLeases[i].comments);
+                    addDhcpScopeReservedLeaseRow(responseJSON.response.reservedLeases[i].hostName, responseJSON.response.reservedLeases[i].hardwareAddress, responseJSON.response.reservedLeases[i].address, responseJSON.response.reservedLeases[i].comments, responseJSON.response.reservedLeases[i].isEnabled);
                 }
             }
 
@@ -536,7 +536,7 @@ function saveDhcpScope() {
     if (exclusions === false)
         return;
 
-    var reservedLeases = serializeTableData($("#tableDhcpScopeReservedLeases"), 4);
+    var reservedLeases = serializeTableData($("#tableDhcpScopeReservedLeases"), 5);
     if (reservedLeases === false)
         return;
 

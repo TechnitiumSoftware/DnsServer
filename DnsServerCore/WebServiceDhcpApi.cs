@@ -361,7 +361,7 @@ namespace DnsServerCore
                     jsonWriter.WriteString("hardwareAddress", BitConverter.ToString(reservedLease.HardwareAddress));
                     jsonWriter.WriteString("address", reservedLease.Address.ToString());
                     jsonWriter.WriteString("comments", reservedLease.Comments);
-
+                    jsonWriter.WriteString("isEnabled", reservedLease.IsEnabled.ToString());
                     jsonWriter.WriteEndObject();
                 }
 
@@ -634,8 +634,8 @@ namespace DnsServerCore
                         string[] strReservedLeaseParts = strReservedLeases.Split('|');
                         List<Lease> reservedLeases = new List<Lease>();
 
-                        for (int i = 0; i < strReservedLeaseParts.Length; i += 4)
-                            reservedLeases.Add(new Lease(LeaseType.Reserved, strReservedLeaseParts[i + 0], DhcpMessageHardwareAddressType.Ethernet, strReservedLeaseParts[i + 1], IPAddress.Parse(strReservedLeaseParts[i + 2]), strReservedLeaseParts[i + 3]));
+                        for (int i = 0; i < strReservedLeaseParts.Length; i += 5)
+                            reservedLeases.Add(new Lease(LeaseType.Reserved, strReservedLeaseParts[i + 0], DhcpMessageHardwareAddressType.Ethernet, strReservedLeaseParts[i + 1], IPAddress.Parse(strReservedLeaseParts[i + 2]), strReservedLeaseParts[i + 3], Convert.ToBoolean(strReservedLeaseParts[i + 4])));
 
                         scope.ReservedLeases = reservedLeases;
                     }
@@ -690,8 +690,9 @@ namespace DnsServerCore
                 string hardwareAddress = request.GetQueryOrForm("hardwareAddress");
                 string strIpAddress = request.GetQueryOrForm("ipAddress");
                 string comments = request.QueryOrForm("comments");
+                bool isEnabled = Convert.ToBoolean(request.QueryOrForm("isEnabled"));
 
-                Lease reservedLease = new Lease(LeaseType.Reserved, hostName, DhcpMessageHardwareAddressType.Ethernet, hardwareAddress, IPAddress.Parse(strIpAddress), comments);
+                Lease reservedLease = new Lease(LeaseType.Reserved, hostName, DhcpMessageHardwareAddressType.Ethernet, hardwareAddress, IPAddress.Parse(strIpAddress), comments, isEnabled);
 
                 if (!scope.AddReservedLease(reservedLease))
                     throw new DnsWebServiceException("Failed to add reserved lease for scope: " + scopeName);
