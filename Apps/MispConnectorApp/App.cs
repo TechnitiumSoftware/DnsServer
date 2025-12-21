@@ -151,50 +151,47 @@ namespace MispConnector
 
             string blockingReport = $"source=misp-connector;domain={blockedDomain}";
 
+            // Add blocking report as EDE to EDNS options for both TXT and other queries if the query datagram has EDNS field
             EDnsOption[] options = null;
             if (_config.AddExtendedDnsError && request.EDNS is not null)
             {
-                options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Blocked, string.Empty)) };
+                options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Blocked, blockingReport)) };
             }
 
+            DnsResourceRecord[] answer = null;
+            DnsResourceRecord[] authority = null;
+            bool authoritative = false;
+            DnsResponseCode rCode;
             if (_config.AllowTxtBlockingReport && question.Type == DnsResourceRecordType.TXT)
             {
-                DnsResourceRecord[] answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData(string.Empty)) };
-                return Task.FromResult(new DnsDatagram(
-                                    ID: request.Identifier,
-                                    isResponse: true,
-                                    OPCODE: DnsOpcode.StandardQuery,
-                                    authoritativeAnswer: false,
-                                    truncation: false,
-                                    recursionDesired: request.RecursionDesired,
-                                    recursionAvailable: true,
-                                    authenticData: false,
-                                    checkingDisabled: false,
-                                    RCODE: DnsResponseCode.NoError,
-                                    question: request.Question,
-                                    answer: answer,
-                                    authority: null,
-                                    additional: null,
-                                    udpPayloadSize: request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize,
-                                    ednsFlags: EDnsHeaderFlags.None,
-                                    options: options
-                                ));
+                answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, _config.BlockingAnswerTtl, new DnsTXTRecordData(blockingReport)) };
+                rCode = DnsResponseCode.NoError;
+            }
+            else
+            {
+                authority = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.SOA, question.Class, _config.BlockingAnswerTtl, _soaRecord) };
+                rCode = DnsResponseCode.NxDomain;
+                authoritative = true;
             }
 
-            DnsResourceRecord[] authority = { new DnsResourceRecord(question.Name, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) };
+            return BlockResponse(request: request, options: options, authority: authority, answer: answer, authoritativeAnswer: authoritative, rCode: rCode);
+        }
+
+        private Task<DnsDatagram> BlockResponse(DnsDatagram request, EDnsOption[] options, DnsResourceRecord[] authority, DnsResourceRecord[] answer, bool authoritativeAnswer, DnsResponseCode rCode)
+        {
             return Task.FromResult(new DnsDatagram(
                             ID: request.Identifier,
                             isResponse: true,
                             OPCODE: DnsOpcode.StandardQuery,
-                            authoritativeAnswer: true,
+                            authoritativeAnswer: authoritativeAnswer,
                             truncation: false,
                             recursionDesired: request.RecursionDesired,
                             recursionAvailable: true,
                             authenticData: false,
                             checkingDisabled: false,
-                            RCODE: DnsResponseCode.NxDomain,
+                            RCODE: rCode,
                             question: request.Question,
-                            answer: null,
+                            answer: answer,
                             authority: authority,
                             additional: null,
                             udpPayloadSize: request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize,
@@ -528,10 +525,15 @@ namespace MispConnector
 
             [JsonPropertyName("enableBlocking")]
             public bool EnableBlocking { get; set; } = true;
+
             [JsonPropertyName("maxIocAge")]
             [Required(ErrorMessage = "maxIocAge is a required configuration property.")]
             [RegularExpression(@"^\d+[mhd]$", ErrorMessage = "Invalid interval format. Use a number followed by 'm', 'h', or 'd' (e.g., '90m', '2h', '7d').", MatchTimeoutInMilliseconds = 3000)]
             public string MaxIocAge { get; set; }
+
+            [JsonPropertyName("blockingAnswerTtl")]
+            [Range(30, 86400, ErrorMessage = "blockingAnswerTtl must be between 30 and 86400 seconds.")]
+            public uint BlockingAnswerTtl { get; set; } = 30;
 
             [JsonPropertyName("mispApiKey")]
             [Required(ErrorMessage = "mispApiKey is a required configuration property.")]
@@ -542,6 +544,7 @@ namespace MispConnector
             [Required(ErrorMessage = "mispServerUrl is a required configuration property.")]
             [Url(ErrorMessage = "mispServerUrl must be a valid URL.")]
             public string MispServerUrl { get; set; }
+
             [JsonPropertyName("paginationLimit")]
             public int PaginationLimit { get; set; } = 5000;
 
