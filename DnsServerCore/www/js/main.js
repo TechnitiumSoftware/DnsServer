@@ -2879,6 +2879,12 @@ function applyTheme() {
         document.body.classList.remove("dark-mode");
 }
 
+if (window.matchMedia && !localStorage.getItem("theme")) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+        applyTheme();
+    });
+}
+
 function toggleTheme() {
     document.body.classList.toggle("dark-mode");
 
