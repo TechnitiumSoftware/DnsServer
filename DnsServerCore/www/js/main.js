@@ -2871,6 +2871,10 @@ function applyTheme() {
 
     if (currentTheme === "dark")
         document.body.classList.add("dark-mode");
+    else if (currentTheme === "light")
+        document.body.classList.remove("dark-mode");
+    else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        document.body.classList.add("dark-mode");
     else
         document.body.classList.remove("dark-mode");
 }
