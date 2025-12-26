@@ -586,3 +586,98 @@ body.dark-mode {
     .dark-mode #txtQueryLogEnd::-webkit-calendar-picker-indicator {
         filter: invert(1);
     }
+
+.dark-mode .close {
+    color: #fff;
+    text-shadow: 0 1px 0 #3a3a3c;
+}
+
+.dark-mode .close:hover,
+.dark-mode .close:focus {
+    color: #387aff;
+}
+
+.dark-mode button,
+.dark-mode input,
+.dark-mode optgroup,
+.dark-mode select,
+.dark-mode textarea {
+    color-scheme: dark;
+}
+
+.dark-mode code {
+    color: #d44d57;
+    background: #252527;
+}
+
+.dark-mode .btn-danger {
+    color: #fff;
+    background-color: #9f2723;
+    border-color: #bd4339;
+}
+
+    .dark-mode .btn-danger:hover,
+    .dark-mode .btn-danger:focus,
+    .dark-mode .btn-danger:active,
+    .dark-mode .btn-danger.active,
+    .dark-mode .btn-danger.active.focus,
+    .dark-mode .btn-danger.active:focus,
+    .dark-mode .btn-danger.active:hover,
+    .dark-mode .btn-danger:active.focus,
+    .dark-mode .btn-danger:active:focus,
+    .dark-mode .btn-danger:active:hover {
+        background-color: #861b18;
+        border-color: #a9372d;
+    }
+
+.dark-mode .btn-warning {
+    color: #fff;
+    background-color: #c57a11;
+    border-color: #e39431;
+}
+
+    .dark-mode .btn-warning:hover,
+    .dark-mode .btn-warning:focus,
+    .dark-mode .btn-warning:active,
+    .dark-mode .btn-warning.active,
+    .dark-mode .btn-warning.active.focus,
+    .dark-mode .btn-warning.active:focus,
+    .dark-mode .btn-warning.active:hover,
+    .dark-mode .btn-warning:active.focus,
+    .dark-mode .btn-warning:active:focus,
+    .dark-mode .btn-warning:active:hover {
+        background-color: #a05e0e;
+        border-color: #c26b00;
+    }
+
+.dark-mode .btn-success {
+    color: #fff;
+    background-color: #357935;
+    border-color: #50934d;
+}
+
+    .dark-mode .btn-success:hover,
+    .dark-mode .btn-success:focus,
+    .dark-mode .btn-success:active,
+    .dark-mode .btn-success.active,
+    .dark-mode .btn-success.active.focus,
+    .dark-mode .btn-success.active:focus,
+    .dark-mode .btn-success.active:hover,
+    .dark-mode .btn-success:active.focus,
+    .dark-mode .btn-success:active:focus,
+    .dark-mode .btn-success:active:hover {
+        background-color: #236723;
+        border-color: #42833f;
+    }
+
+.dark-mode .label-danger {
+    background-color: #9f2723;
+}
+
+.dark-mode .label-warning {
+    background-color: #c57a11;
+}
+
+.dark-mode .label-success {
+    background-color: #357935;
+}
