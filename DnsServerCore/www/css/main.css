@@ -670,6 +670,10 @@ body.dark-mode {
         border-color: #42833f;
     }
 
+.dark-mode .label-danger {
+    background-color: #9f2723;
+}
+
 .dark-mode .label-warning {
     background-color: #c57a11;
 }
