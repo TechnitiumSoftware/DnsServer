@@ -144,10 +144,19 @@ namespace LogExporter
         [JsonPropertyName("normalize")]
         public NormalizeProcess NormalizeProcessConfig { get; set; }
 
-        public class NormalizeProcess : FeatureBase
-        {
+        [JsonPropertyName("tagging")]
+        public TaggingProcess TaggingProcessConfig {  get; set; }
 
+        public class NormalizeProcess : FeatureBase
+        {}
+
+        public class TaggingProcess : FeatureBase
+        {
+            [Required(ErrorMessage = "tags are required when tagging is enabled.")]
+            [JsonPropertyName("tags")]
+            public List<string> Tags { get; set; } = new List<string>();
         }
+
     }
     /// <summary>
     /// Shared serializer configuration for reading dnsApp.config.

@@ -378,6 +378,10 @@ namespace LogExporter
             {
                 _enrichmentDispatcher.Add(new Normalize());
             }
+            if (_config!.Pipeline.TaggingProcessConfig?.Enabled is true)
+            {
+                _enrichmentDispatcher.Add(new Tags(_config.Pipeline.TaggingProcessConfig.Tags));
+            }
         }
 
         private void IncrementDropAndMaybeLog()
