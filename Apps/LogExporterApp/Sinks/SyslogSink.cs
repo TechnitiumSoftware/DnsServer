@@ -101,7 +101,7 @@ namespace LogExporter.Sinks
                         .Enrich.FromLogContext()
                         .CreateLogger(),
 
-                _ => throw new NotSupportedException("Syslog protocol is not supported: " + protocol),
+                _ => throw new NotSupportedException("SyslogSink protocol is not supported: " + protocol),
             };
 
             // Serilog's RFC5424 formatter used as before
@@ -133,7 +133,7 @@ namespace LogExporter.Sinks
 
         public Task ExportAsync(IReadOnlyList<LogEntry> logs, CancellationToken token)
         {
-            // ADR: Syslog export previously used Task.Run with a synchronous loop,
+            // ADR: SyslogSink export previously used Task.Run with a synchronous loop,
             // causing threadpool churn and preventing timely shutdown. We now execute
             // sequentially on the caller's async context and check cancellation between
             // log writes. Serilog remains synchronous, but cancellation ensures bounded
@@ -284,10 +284,10 @@ namespace LogExporter.Sinks
                 }
             }
 
-            // Enrichment
-            if (log.Enrichment.Count > 0)
+            // Meta
+            if (log.Meta.Count > 0)
             {
-                foreach (var enrichment in log.Enrichment)
+                foreach (var enrichment in log.Meta)
                 {
                     var k = enrichment.Key;
                     var v = enrichment.Value;

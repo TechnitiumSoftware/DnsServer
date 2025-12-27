@@ -18,38 +18,22 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using TechnitiumLibrary.Net.Dns;
+using static LogExporter.SinkConfig;
 
 namespace LogExporter
 {
     public class AppConfig
     {
-        [JsonPropertyName("maxQueueSize")]
-        [Range(1, int.MaxValue, ErrorMessage = "maxQueueSize must be greater than zero.")]
-        public int MaxQueueSize { get; set; }
+        [JsonPropertyName("sinks")]
+        public SinkConfig Sinks { get; set; }
 
-        [JsonPropertyName("enableEdnsLogging")]
-        public bool EnableEdnsLogging { get; set; }
-
-        [JsonPropertyName("enablePslResolution")]
-        public PSLEnrichment? PSLEnrichment { get; set; }
-
-        [JsonPropertyName("console")]
-        public ConsoleSinkConfig? ConsoleSinkConfig { get; set; }
-
-        [JsonPropertyName("file")]
-        public FileSinkConfig? FileSinkConfig { get; set; }
-
-        [JsonPropertyName("http")]
-        public HttpSinkConfig? HttpSinkConfig { get; set; }
-
-        [JsonPropertyName("syslog")]
-        public SyslogSinkConfig? SyslogSinkConfig { get; set; }
+        [JsonPropertyName("pipeline")]
+        public PipelineConfig Pipeline { get; set; }
 
         /// <summary>
         /// Loads config and enforces DataAnnotations validation.
@@ -69,14 +53,15 @@ namespace LogExporter
             ValidateObject(config);
 
             // Validate enabled targets only — disabled ones may be incomplete by design.
-            if (config.FileSinkConfig?.Enabled is true)
-                ValidateObject(config.FileSinkConfig);
 
-            if (config.HttpSinkConfig?.Enabled is true)
-                ValidateObject(config.HttpSinkConfig);
+            if (config.Sinks.FileSinkConfig?.Enabled is true)
+                ValidateObject(config.Sinks.FileSinkConfig);
 
-            if (config.SyslogSinkConfig?.Enabled is true)
-                ValidateObject(config.SyslogSinkConfig);
+            if (config.Sinks.HttpSinkConfig?.Enabled is true)
+                ValidateObject(config.Sinks.HttpSinkConfig);
+
+            if (config.Sinks.SyslogSinkConfig?.Enabled is true)
+                ValidateObject(config.Sinks.SyslogSinkConfig);
 
             return config;
         }
@@ -87,60 +72,83 @@ namespace LogExporter
             Validator.ValidateObject(instance, ctx, validateAllProperties: true);
         }
     }
-
-    #region Enrichments
-    public class EnrichmentConfigBase
+    public class FeatureBase
     {
         [JsonPropertyName("enabled")]
-        public bool Enabled { get; set; }
+        public bool Enabled { get; set; } = true;
     }
 
-    public class PSLEnrichment : EnrichmentConfigBase { }
-    #endregion
-    
-    #region Sinks
-    public class SinkConfigBase
+    public class SinkConfig
     {
-        [JsonPropertyName("enabled")]
-        public bool Enabled { get; set; }
+        [Range(1, int.MaxValue, ErrorMessage = "maxQueueSize must be greater than zero.")]
+
+        [JsonPropertyName("maxQueueSize")]
+        public int MaxQueueSize { get; set; } = int.MaxValue;
+
+        [JsonPropertyName("enableEdnsLogging")]
+        public bool EnableEdnsLogging { get; set; } = true;
+
+        [JsonPropertyName("console")]
+        public ConsoleSink ConsoleSinkConfig { get; set; }
+
+        [JsonPropertyName("file")]
+        public FileSink FileSinkConfig { get; set; }
+
+        [JsonPropertyName("http")]
+        public HttpSink HttpSinkConfig { get; set; }
+
+        [JsonPropertyName("syslog")]
+        public SyslogSink SyslogSinkConfig { get; set; }
+
+        public class SyslogSink : FeatureBase
+        {
+            [Required(ErrorMessage = "syslog.address is required when syslog logging is enabled.")]
+            [JsonPropertyName("address")]
+            public string Address { get; set; }
+
+            [Range(1, 65535)]
+            [JsonPropertyName("port")]
+            public int? Port { get; set; }
+
+            [AllowedValues(["UDP", "TCP", "TLS", "LOCAL"])]
+            [JsonPropertyName("protocol")]
+            public string Protocol { get; set; }
+        }
+
+        public class ConsoleSink : FeatureBase
+        {
+        }
+
+        public class FileSink : FeatureBase
+        {
+            [Required(ErrorMessage = "file.path is required when syslog logging is enabled.")]
+            [JsonPropertyName("path")]
+            public string Path { get; set; }
+        }
+
+        public class HttpSink : FeatureBase
+        {
+
+            [Required(ErrorMessage = "http.endpoint is required when HTTP logging is enabled.")]
+            [Url]
+            [JsonPropertyName("endpoint")]
+            public string Endpoint { get; set; }
+
+            [JsonPropertyName("headers")]
+            public Dictionary<string, string?>? Headers { get; set; }
+        }
     }
 
-    public class ConsoleSinkConfig : SinkConfigBase { }
-
-    public class SyslogSinkConfig : SinkConfigBase
+    public class PipelineConfig
     {
-        [JsonPropertyName("address")]
-        [Required(ErrorMessage = "syslog.address is required when syslog logging is enabled.")]
-        public string Address { get; set; } = string.Empty;
+        [JsonPropertyName("normalize")]
+        public NormalizeProcess NormalizeProcessConfig { get; set; }
 
-        [JsonPropertyName("port")]
-        [Range(1, 65535)]
-        public int? Port { get; set; }
+        public class NormalizeProcess : FeatureBase
+        {
 
-        [JsonPropertyName("protocol")]
-        [AllowedValues(["UDP", "TCP", "TLS", "LOCAL"])]
-        public string? Protocol { get; set; }
+        }
     }
-
-    public class FileSinkConfig : SinkConfigBase
-    {
-        [JsonPropertyName("path")]
-        [Required(ErrorMessage = "file.path is required when file logging is enabled.")]
-        public string Path { get; set; } = string.Empty;
-    }
-
-    public class HttpSinkConfig : SinkConfigBase
-    {
-        [JsonPropertyName("endpoint")]
-        [Required(ErrorMessage = "http.endpoint is required when HTTP logging is enabled.")]
-        [Url]
-        public string Endpoint { get; set; } = string.Empty;
-
-        [JsonPropertyName("headers")]
-        public Dictionary<string, string?>? Headers { get; set; }
-    } 
-    #endregion
-
     /// <summary>
     /// Shared serializer configuration for reading dnsApp.config.
     /// ADR: The serializer options are centralized so that parsing behavior

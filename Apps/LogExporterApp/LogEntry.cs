@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>
 
 */
 using DnsServerCore.ApplicationCommon;
-using LogExporter.Enrichment;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,7 +27,6 @@ using System.Text.Json.Serialization;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
-using static LogExporter.Enrichment.PublicSuffixEnrichment;
 
 namespace LogExporter
 {
@@ -168,8 +166,8 @@ namespace LogExporter
 
         public DateTime Timestamp { get; }
 
-        // Enrichment bag populated by enrichment pipeline stages
-        public Dictionary<string, object> Enrichment { get; } = new();
+        // Meta bag populated by pipeline stages
+        public Dictionary<string, object> Meta { get; } = new();
 
         public override string ToString()
         {

@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.ApplicationCommon;
-using LogExporter.Enrichment;
+using LogExporter.Pipeline;
 using LogExporter.Sinks;
 using System;
 using System.Collections.Generic;
@@ -37,7 +37,7 @@ namespace LogExporter
         private const int BULK_INSERT_COUNT = 1000;
 
         private readonly SinkDispatcher _sinkDispatcher;
-        private readonly EnrichmentDispatcher _enrichmentDispatcher;
+        private readonly PipelineDispatcher _enrichmentDispatcher;
 
         // Stage 1 buffer: transformed LogEntry waiting for enrichment
         private Channel<LogEntry> _transformChannel = default!;
@@ -62,7 +62,7 @@ namespace LogExporter
         public App()
         {
             _sinkDispatcher = new SinkDispatcher();
-            _enrichmentDispatcher = new EnrichmentDispatcher();
+            _enrichmentDispatcher = new PipelineDispatcher();
             _lastDropTicks = DateTime.UtcNow.Ticks;
         }
 
@@ -150,8 +150,9 @@ namespace LogExporter
                 _config = AppConfig.Deserialize(config)
                           ?? throw new DnsClientException("Invalid application configuration.");
 
+                ConfigurePipeline();
+
                 ConfigureSinks();
-                ConfigureEnrichments();
             }
             catch (Exception ex)
             {
@@ -170,7 +171,7 @@ namespace LogExporter
 
             // Stage 1: transform buffer – InsertLogAsync pushes LogEntry here.
             _transformChannel = Channel.CreateBounded<LogEntry>(
-                new BoundedChannelOptions(_config!.MaxQueueSize)
+                new BoundedChannelOptions(_config!.Sinks.MaxQueueSize)
                 {
                     SingleReader = true,
                     SingleWriter = false, // InsertLogAsync may be called concurrently
@@ -179,7 +180,7 @@ namespace LogExporter
 
             // Stage 2: enriched buffer – EnrichLogsAsync pushes here, ExportLogsAsync consumes.
             _enrichedChannel = Channel.CreateBounded<LogEntry>(
-                new BoundedChannelOptions(_config.MaxQueueSize)
+                new BoundedChannelOptions(_config.Sinks.MaxQueueSize)
                 {
                     SingleReader = true,
                     SingleWriter = true, // only enrichment stage writes
@@ -215,7 +216,7 @@ namespace LogExporter
                 try
                 {
                     // input -> transform: build LogEntry
-                    entry = new LogEntry(timestamp, remoteEP, protocol, request, response, _config!.EnableEdnsLogging);
+                    entry = new LogEntry(timestamp, remoteEP, protocol, request, response, _config!.Sinks.EnableEdnsLogging);
                 }
                 catch (Exception ex)
                 {
@@ -258,7 +259,7 @@ namespace LogExporter
                         {
                             try
                             {
-                                _enrichmentDispatcher.Enrich(entry, ex => _dnsServer?.WriteLog(ex));
+                                _enrichmentDispatcher.Run(entry, ex => _dnsServer?.WriteLog(ex));
                             }
                             catch (Exception ex)
                             {
@@ -299,7 +300,7 @@ namespace LogExporter
             }
         }
 
-        // Step 3: ExportLogsAsync – enrich -> output
+        // Step 3: ExportLogsAsync – pipeline -> output
         private async Task ExportLogsAsync()
         {
             // ADR: Reuse this list buffer to avoid GC churn during high-volume logging.
@@ -343,39 +344,39 @@ namespace LogExporter
 
         private void ConfigureSinks()
         {
+            var sinks = _config!.Sinks;
             _sinkDispatcher.Remove(typeof(ConsoleSink));
-            if (_config!.ConsoleSinkConfig != null && _config.ConsoleSinkConfig.Enabled)
+            if (sinks.ConsoleSinkConfig != null && sinks.ConsoleSinkConfig.Enabled)
                 _sinkDispatcher.Add(new ConsoleSink());
 
             _sinkDispatcher.Remove(typeof(FileSink));
-            if (_config.FileSinkConfig?.Enabled is true)
-                _sinkDispatcher.Add(new FileSink(_config.FileSinkConfig.Path));
+            if (sinks.FileSinkConfig?.Enabled is true)
+                _sinkDispatcher.Add(new FileSink(sinks.FileSinkConfig.Path));
 
             _sinkDispatcher.Remove(typeof(HttpSink));
-            if (_config.HttpSinkConfig?.Enabled is true)
+            if (sinks.HttpSinkConfig?.Enabled is true)
             {
                 _sinkDispatcher.Add(
-                    new HttpSink(_config.HttpSinkConfig.Endpoint, _config.HttpSinkConfig.Headers));
+                    new HttpSink(sinks.HttpSinkConfig.Endpoint, sinks.HttpSinkConfig.Headers));
             }
 
             _sinkDispatcher.Remove(typeof(SyslogSink));
-            if (_config.SyslogSinkConfig?.Enabled is true)
+            if (sinks.SyslogSinkConfig?.Enabled is true)
             {
                 _sinkDispatcher.Add(
-                    new SyslogSink(_config.SyslogSinkConfig.Address,
-                                   _config.SyslogSinkConfig.Port!.Value,
-                                   _config.SyslogSinkConfig.Protocol));
+                    new SyslogSink(sinks.SyslogSinkConfig.Address,
+                                   sinks.SyslogSinkConfig.Port!.Value,
+                                   sinks.SyslogSinkConfig.Protocol));
             }
         }
 
-        private void ConfigureEnrichments()
+        private void ConfigurePipeline()
         {
             // Remove any existing enricher types first to avoid duplicate registration.
-            _enrichmentDispatcher.Remove(typeof(PublicSuffixEnrichment));
-
-            if (_config!.PSLEnrichment?.Enabled is true)
+            _enrichmentDispatcher.Remove(typeof(Normalize));
+            if (_config!.Pipeline.NormalizeProcessConfig?.Enabled is true)
             {
-                _enrichmentDispatcher.Add(new PublicSuffixEnrichment());
+                _enrichmentDispatcher.Add(new Normalize());
             }
         }
 
@@ -400,7 +401,7 @@ namespace LogExporter
         #region properties
 
         public string Description =>
-            "Allows exporting query logs to third party sinks. Supports exporting to File, HTTP endpoint, and Syslog.";
+            "Allows exporting query logs to third party sinks. Supports exporting to FileSink, HTTP endpoint, and SyslogSink.";
 
         #endregion properties
     }

@@ -17,25 +17,12 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-namespace LogExporter.Enrichment
+using System;
+
+namespace LogExporter.Pipeline
 {
-    public partial class PublicSuffixEnrichment : IEnrichment
+    public interface IPipelineProcessor : IDisposable
     {
-        private static readonly DomainCache _domainCache = new DomainCache();
-
-        public void Enrich(LogEntry logEntry)
-        {
-            if (logEntry.Question == null)
-                return;
-
-            // store under a well-known key – you can standardize keys if you like
-            logEntry.Enrichment["domainInfo"] = _domainCache.GetOrAdd(logEntry.Question.QuestionName);
-        }
-
-        public void Dispose()
-        {
-            // If DomainCache ever needs disposal, do it here.
-        }
+        void Process(LogEntry logEntry);
     }
-
 }

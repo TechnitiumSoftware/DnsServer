@@ -20,22 +20,22 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using System;
 using System.Collections.Concurrent;
 
-namespace LogExporter.Enrichment
+namespace LogExporter.Pipeline
 {
     /// <summary>
-    /// Dispatches enrichment to all configured IEnrichment strategies.
+    /// Dispatches pipeline actions to all configured IPipelineProcessor strategies.
     ///
-    /// ADR: Enrichment is synchronous and in-process, so this dispatcher
+    /// ADR: Meta is synchronous and in-process, so this dispatcher
     /// executes strategies sequentially to keep ordering deterministic.
-    /// Each enricher is isolated with its own exception boundary so that
-    /// one faulty enricher cannot break the pipeline.
+    /// Each processor is isolated with its own exception boundary so that
+    /// one faulty processor cannot break the pipeline.
     /// </summary>
-    public sealed class EnrichmentDispatcher : IDisposable
+    public sealed class PipelineDispatcher : IDisposable
     {
         #region variables
 
-        private readonly ConcurrentDictionary<Type, IEnrichment> _enrichers =
-            new ConcurrentDictionary<Type, IEnrichment>();
+        private readonly ConcurrentDictionary<Type, IPipelineProcessor> _processors =
+            new ConcurrentDictionary<Type, IPipelineProcessor>();
 
         private bool _disposed;
 
@@ -50,7 +50,7 @@ namespace LogExporter.Enrichment
 
             _disposed = true;
 
-            foreach (IEnrichment enricher in _enrichers.Values)
+            foreach (IPipelineProcessor enricher in _processors.Values)
             {
                 try
                 {
@@ -63,22 +63,21 @@ namespace LogExporter.Enrichment
                 }
             }
 
-            _enrichers.Clear();
+            _processors.Clear();
         }
 
         #endregion
 
         #region public
 
-        public void Add(IEnrichment enricher)
+        public void Add(IPipelineProcessor processor)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (enricher == null)
-                throw new ArgumentNullException(nameof(enricher));
+            ArgumentNullException.ThrowIfNull(processor);
 
-            _enrichers.AddOrUpdate(
-                enricher.GetType(),
-                enricher,
+            _processors.AddOrUpdate(
+                processor.GetType(),
+                processor,
                 (_, existing) =>
                 {
                     // Replace existing instance defensively.
@@ -91,7 +90,7 @@ namespace LogExporter.Enrichment
                         // Ignore disposal failure; new instance still becomes active.
                     }
 
-                    return enricher;
+                    return processor;
                 });
         }
 
@@ -100,7 +99,7 @@ namespace LogExporter.Enrichment
             ObjectDisposedException.ThrowIf(_disposed, this);
             ArgumentNullException.ThrowIfNull(type);
 
-            if (_enrichers.TryRemove(type, out IEnrichment? existing))
+            if (_processors.TryRemove(type, out IPipelineProcessor? existing))
             {
                 try
                 {
@@ -108,7 +107,7 @@ namespace LogExporter.Enrichment
                 }
                 catch
                 {
-                    // Isolation: disposal of one enricher must not affect others.
+                    // Isolation: disposal of one processor must not affect others.
                 }
             }
         }
@@ -118,23 +117,23 @@ namespace LogExporter.Enrichment
             if (_disposed)
                 return false;
 
-            return !_enrichers.IsEmpty;
+            return !_processors.IsEmpty;
         }
 
         /// <summary>
         /// Runs all configured enrichment strategies on a single log entry.
         /// Errors are reported to the optional error callback but never thrown.
         /// </summary>
-        public void Enrich(LogEntry logEntry, Action<Exception>? onError = null)
+        public void Run(LogEntry logEntry, Action<Exception>? onError = null)
         {
-            if (_disposed || logEntry == null || _enrichers.IsEmpty)
+            if (_disposed || logEntry == null || _processors.IsEmpty)
                 return;
 
-            foreach (IEnrichment enricher in _enrichers.Values)
+            foreach (IPipelineProcessor processor in _processors.Values)
             {
                 try
                 {
-                    enricher.Enrich(logEntry);
+                    processor.Process(logEntry);
                 }
                 catch (Exception ex)
                 {

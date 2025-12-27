@@ -19,10 +19,26 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
 
-namespace LogExporter.Enrichment
+namespace LogExporter.Pipeline
 {
-    public interface IEnrichment : IDisposable
+    public partial class Normalize : IPipelineProcessor
     {
-        void Enrich(LogEntry logEntry);
+        private static readonly DomainCache _domainCache = new DomainCache();
+
+        public void Process(LogEntry logEntry)
+        {
+            if (logEntry.Question == null)
+                return;
+
+            // store under a well-known key – you can standardize keys if you like
+            logEntry.Meta["domainInfo"] = _domainCache.GetOrAdd(logEntry.Question.QuestionName);
+        }
+
+        public void Dispose()
+        {
+            // If DomainCache ever needs disposal, do it here.
+            GC.SuppressFinalize(this);
+        }
     }
+
 }

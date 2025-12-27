@@ -22,10 +22,10 @@ using Nager.PublicSuffix.RuleProviders;
 using System;
 using System.Collections.Concurrent;
 
-namespace LogExporter.Enrichment
+namespace LogExporter.Pipeline
 {
 
-    public partial class PublicSuffixEnrichment
+    public partial class Normalize
     {
         /// <summary>
         /// Thread-safe cache for parsed domain information using the SIEVE eviction algorithm. 
@@ -70,7 +70,7 @@ namespace LogExporter.Enrichment
                     return node.Domain;
                 }
 
-                // Normalize only if needed, using string pool to reduce allocations
+                // NormalizeConfig only if needed, using string pool to reduce allocations
                 string normalizedName = GetPooledNormalizedName(domainName);
 
                 // Check cache again with normalized name (may differ from original)

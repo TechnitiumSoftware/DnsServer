@@ -72,7 +72,7 @@ namespace LogExporter.Sinks
 
         public async Task ExportAsync(IReadOnlyList<LogEntry> logs, CancellationToken token)
         {
-            // ADR: File writes must honor cancellation so server shutdown cannot block
+            // ADR: FileSink writes must honor cancellation so server shutdown cannot block
             // on slow disks or large flush operations. Previously FlushAsync() was not
             // cancellable, allowing shutdown to hang indefinitely under I/O pressure.
             // All I/O operations now respect the provided token.
