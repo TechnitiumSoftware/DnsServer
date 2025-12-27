@@ -1,0 +1,39 @@
+﻿/*
+Technitium DNS Server
+Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2025  Zafer Balkan (zafer@zaferbalkan.com)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+*/
+
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace LogExporter.Sinks
+{
+    /// <summary>
+    ///     Strategy interface to decide the sinks for exporting the logs.
+    ///     <para> ADR: Export operations must be cancellable so shutdown can abort long-running
+    /// network or disk operations. Without a cancellation token, HTTP, file, or syslog
+    /// sinks may block the DNS server shutdown indefinitely. All sinks must respect
+    /// the provided token to ensure bounded teardown.</para>
+    /// </summary>
+    public interface IOutputSink: IDisposable
+    {
+        Task ExportAsync(IReadOnlyList<LogEntry> logs, CancellationToken token);
+    }
+}
