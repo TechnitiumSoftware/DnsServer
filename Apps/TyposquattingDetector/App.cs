@@ -151,24 +151,24 @@ namespace TyposquattingDetector
             return Task.FromResult(false);
         }
 
-        public async Task<DnsDatagram?> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP)
+        public Task<DnsDatagram?> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP)
         {
             if (_config?.Enable != true)
             {
-                return null;
+                return Task.FromResult<DnsDatagram?>(null);
             }
 
             // Download takes time. Let's not break the app.
             if (_detector is null)
             {
-                return null;
+                return Task.FromResult<DnsDatagram?>(null);
             }
 
             DnsQuestionRecord question = request.Question[0];
             var res = _detector.Check(question.Name);
             if (res.Status == DetectionStatus.Clean)
             {
-                return null;
+                return Task.FromResult<DnsDatagram?>(null);
             }
 
             string blockingReport = $"source=typosquatting-detector;domain={res.Query};severity={res.Severity};reason={res.Reason}";
@@ -182,7 +182,7 @@ namespace TyposquattingDetector
             if (_config.AllowTxtBlockingReport && question.Type == DnsResourceRecordType.TXT)
             {
                 DnsResourceRecord[] answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData(blockingReport)) };
-                return new DnsDatagram(
+                return Task.FromResult<DnsDatagram?>(new DnsDatagram(
                                     ID: request.Identifier,
                                     isResponse: true,
                                     OPCODE: DnsOpcode.StandardQuery,
@@ -200,11 +200,11 @@ namespace TyposquattingDetector
                                     udpPayloadSize: request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize,
                                     ednsFlags: EDnsHeaderFlags.None,
                                     options: options
-                                );
+                                ));
             }
 
             DnsResourceRecord[] authority = { new DnsResourceRecord(question.Name, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) };
-            return new DnsDatagram(
+            return Task.FromResult<DnsDatagram?>(new DnsDatagram(
                             ID: request.Identifier,
                             isResponse: true,
                             OPCODE: DnsOpcode.StandardQuery,
@@ -222,7 +222,7 @@ namespace TyposquattingDetector
                             udpPayloadSize: request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize,
                             ednsFlags: EDnsHeaderFlags.None,
                             options: options
-                        );
+                        ));
         }
 
         #endregion public
