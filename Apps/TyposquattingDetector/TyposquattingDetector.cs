@@ -157,11 +157,19 @@ namespace TyposquattingDetector
 
             while (reader.ReadLine() is { } line)
             {
-                string? domain = ExtractDomain(line);
-                if (string.IsNullOrEmpty(domain)) continue;
+                string? domain = null;
+                try
+                {
+                    domain = ExtractDomain(line);
+                    if (string.IsNullOrEmpty(domain)) continue;
 
-                _bloomFilter.Add(domain);
+                    _bloomFilter.Add(domain.ToLowerInvariant());
 
+                }
+                catch (Exception)
+                {
+                    continue; // skip corrupted lines
+                }
                 if (!_lenBuckets.TryGetValue(domain.Length, out var list))
                 {
                     list = new List<string>();
