@@ -60,6 +60,7 @@ namespace TyposquattingDetector
         private readonly ThreadLocal<DomainParser> _normalizer;
         private readonly int _threshold;
         private IBloomFilter? _bloomFilter;
+        private static readonly HttpClient _httpClient = new();
         private bool disposedValue;
 
         #endregion variables
@@ -73,7 +74,7 @@ namespace TyposquattingDetector
             if (_sharedRuleProvider == null)
             {
                 var cacheProvider = new Nager.PublicSuffix.RuleProviders.CacheProviders.LocalFileSystemCacheProvider();
-                _sharedRuleProvider = new CachedHttpRuleProvider(cacheProvider, new HttpClient());
+                _sharedRuleProvider = new CachedHttpRuleProvider(cacheProvider, _httpClient);
                 _sharedRuleProvider.BuildAsync().GetAwaiter().GetResult();
             }
 
