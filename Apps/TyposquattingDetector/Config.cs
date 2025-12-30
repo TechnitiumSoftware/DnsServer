@@ -56,7 +56,7 @@ namespace TyposquattingDetector
             public string UpdateInterval { get; set; } = "30d";
         }
 
-        private partial class FileContentValidator
+        public partial class FileContentValidator
         {
             // Optimized Regex: Compiled for performance during "Happy Path" scans
             private static readonly Regex DomainRegex = FilePathPattern();

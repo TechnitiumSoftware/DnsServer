@@ -27,7 +27,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace TyposquattingDetector
 {
@@ -77,54 +76,50 @@ namespace TyposquattingDetector
             LoadData(defaultPath, customPath);
         }
 
-        public async Task<Result> CheckAsync(string query)
+        public Result Check(string query)
         {
-            var normalizedQuery = new Result(Normalize(query));
+            var normalized = Normalize(query);
+            var result = new Result(normalized);
 
             // GATE 1: Known Famous Site
-            // If it's in the top 1M, it's 100% clean.
-            (bool flowControl, Result value) = Prefilter(Normalize(query), normalizedQuery);
+            (bool flowControl, Result? prefilterResult) = Prefilter(normalized, result);
             if (!flowControl)
             {
-                return value;
+                return prefilterResult!;
             }
+
             // GATE 2: Fuzzy Similarity Check
-            return await FuzzyMatchAsync(Normalize(query), normalizedQuery);
+            return FuzzyMatch(normalized, result);
         }
 
-        private async Task<Result> FuzzyMatchAsync(string q, Result r)
+        private Result FuzzyMatch(string q, Result r)
         {
-            return await Task.Run(() =>
+            // Remove Task.Run and the await lambda
+            var candidates = new List<string>();
+            for (int i = -1; i <= 1; i++)
+                if (_lenBuckets.TryGetValue(q.Length + i, out var bucket))
+                    candidates.AddRange(bucket);
+
+            var best = candidates
+                .Select(d => new { d, score = Fuzz.WeightedRatio(q, d) })
+                .OrderByDescending(x => x.score)
+                .FirstOrDefault();
+
+            if (best != null && best.score >= _threshold)
             {
-                var candidates = new List<string>();
-                for (int i = -1; i <= 1; i++)
-                    if (_lenBuckets.TryGetValue(q.Length + i, out var bucket))
-                        candidates.AddRange(bucket);
+                r.BestMatch = best.d;
+                r.FuzzyScore = best.score;
+                r.Status = DetectionStatus.Suspicious;
+                r.Severity = Severity.HIGH;
+                r.Reason = Reason.Typosquatting;
+            }
+            else
+            {
+                r.Status = DetectionStatus.Clean;
+                r.Reason = Reason.BloomReject;
+            }
 
-                var best = candidates
-                    .Select(d => new { d, score = Fuzz.WeightedRatio(q, d) })
-                    .OrderByDescending(x => x.score)
-                    .FirstOrDefault();
-
-                // Logic: If score is [75-99], it's a suspicious lookalike.
-                // If score is < 75, it's just a random domain (Clean).
-                // Note: score of 100 would have been caught by the Bloom Filter.
-                if (best != null && best.score >= _threshold)
-                {
-                    r.BestMatch = best.d;
-                    r.FuzzyScore = best.score;
-                    r.Status = DetectionStatus.Suspicious;
-                    r.Severity = Severity.HIGH;
-                    r.Reason = Reason.Typosquatting;
-                }
-                else
-                {
-                    r.Status = DetectionStatus.Clean;
-                    r.Reason = Reason.BloomReject;
-                }
-
-                return r;
-            });
+            return r;
         }
 
         private (bool flowControl, Result? value) Prefilter(string q, Result r)

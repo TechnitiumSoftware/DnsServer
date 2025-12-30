@@ -91,6 +91,7 @@ namespace TyposquattingDetector
                 Validator.ValidateObject(_config, new ValidationContext(_config), validateAllProperties: true);
                 _updateInterval = ParseUpdateInterval(_config.UpdateInterval);
                 _appShutdownCts = new CancellationTokenSource();
+                await TryUpdate(_appShutdownCts.Token);
 
                 string configDir = _dnsServer.ApplicationFolder;
                 Directory.CreateDirectory(configDir);
@@ -156,14 +157,14 @@ namespace TyposquattingDetector
                 return null;
             }
 
-            // Download takes time. Let's nor break the app.
+            // Download takes time. Let's not break the app.
             if (_detector is null)
             {
                 return null;
             }
 
             DnsQuestionRecord question = request.Question[0];
-            var res = await _detector.CheckAsync(question.Name);
+            var res = _detector.Check(question.Name);
             if (res.Status == DetectionStatus.Clean)
             {
                 return null;
@@ -283,27 +284,38 @@ namespace TyposquattingDetector
 
         private async Task StartUpdateLoopAsync(CancellationToken cancellationToken)
         {
-            await Task.Delay(TimeSpan.FromSeconds(Random.Shared.Next(5, 30)), cancellationToken);
             using PeriodicTimer timer = new PeriodicTimer(_updateInterval);
             while (!cancellationToken.IsCancellationRequested)
             {
-                try
+                bool flowControl = await TryUpdate(cancellationToken);
+                if (!flowControl)
                 {
-                    await UpdateDomainListAsync(cancellationToken);
-                }
-                catch (OperationCanceledException)
-                {
-                    _dnsServer.WriteLog("Update loop is shutting down gracefully.");
                     break;
-                }
-                catch (Exception ex)
-                {
-                    _dnsServer.WriteLog($"FATAL: The Typosquatting Detector update task failed unexpectedly. Error: {ex.Message}");
-                    _dnsServer.WriteLog(ex);
                 }
 
                 await timer.WaitForNextTickAsync(cancellationToken);
             }
+            await Task.Delay(TimeSpan.FromSeconds(Random.Shared.Next(5, 30)), cancellationToken);
+        }
+
+        private async Task<bool> TryUpdate(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await UpdateDomainListAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                _dnsServer.WriteLog("Update loop is shutting down gracefully.");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _dnsServer.WriteLog($"FATAL: The Typosquatting Detector update task failed unexpectedly. Error: {ex.Message}");
+                _dnsServer.WriteLog(ex);
+            }
+
+            return true;
         }
 
         private async Task UpdateDomainListAsync(CancellationToken cancellationToken)
