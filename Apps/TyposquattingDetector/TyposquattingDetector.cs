@@ -31,29 +31,34 @@ using System.Threading.Tasks;
 
 namespace TyposquattingDetector
 {
-    public enum DetectionStatus { Clean, Possible, Suspicious }
-    public enum Severity { NONE, LOW, MEDIUM, HIGH }
-    public enum Reason { BloomReject, Exact, Typosquatting, Medium, Low, NoCandidates }
+    public enum DetectionStatus
+    { Clean, Possible, Suspicious }
+
+    public enum Reason
+    { BloomReject, Exact, Typosquatting, Medium, Low, NoCandidates }
+
+    public enum Severity
+    { NONE, LOW, MEDIUM, HIGH }
 
     public class Result
     {
-        public string Query { get; }
-        public DetectionStatus Status { get; set; }
-        public Severity Severity { get; set; }
-        public Reason Reason { get; set; }
+        public Result(string query) => Query = query;
+
         public string? BestMatch { get; set; }
         public int FuzzyScore { get; set; }
-
-        public Result(string query) => Query = query;
+        public string Query { get; }
+        public Reason Reason { get; set; }
+        public Severity Severity { get; set; }
+        public DetectionStatus Status { get; set; }
     }
 
     public class TyposquattingDetector
     {
-        private static IRuleProvider _sharedRuleProvider;
+        private static CachedHttpRuleProvider? _sharedRuleProvider;
+        private readonly Dictionary<int, List<string>> _lenBuckets = new Dictionary<int, List<string>>();
         private readonly ThreadLocal<DomainParser> _normalizer;
-        private IBloomFilter _bloomFilter;
-        private readonly Dictionary<int, List<string>> _lenBuckets = new();
         private readonly int _threshold;
+        private IBloomFilter? _bloomFilter;
 
         public TyposquattingDetector(string defaultPath, string customPath, int threshold)
         {
@@ -70,6 +75,81 @@ namespace TyposquattingDetector
                 new DomainParser(_sharedRuleProvider, new Nager.PublicSuffix.DomainNormalizers.UriDomainNormalizer()));
 
             LoadData(defaultPath, customPath);
+        }
+
+        public async Task<Result> CheckAsync(string query)
+        {
+            var normalizedQuery = new Result(Normalize(query));
+
+            // GATE 1: Known Famous Site
+            // If it's in the top 1M, it's 100% clean.
+            (bool flowControl, Result value) = Prefilter(Normalize(query), normalizedQuery);
+            if (!flowControl)
+            {
+                return value;
+            }
+            // GATE 2: Fuzzy Similarity Check
+            return await FuzzyMatchAsync(Normalize(query), normalizedQuery);
+        }
+
+        private async Task<Result> FuzzyMatchAsync(string q, Result r)
+        {
+            return await Task.Run(() =>
+            {
+                var candidates = new List<string>();
+                for (int i = -1; i <= 1; i++)
+                    if (_lenBuckets.TryGetValue(q.Length + i, out var bucket))
+                        candidates.AddRange(bucket);
+
+                var best = candidates
+                    .Select(d => new { d, score = Fuzz.WeightedRatio(q, d) })
+                    .OrderByDescending(x => x.score)
+                    .FirstOrDefault();
+
+                // Logic: If score is [75-99], it's a suspicious lookalike.
+                // If score is < 75, it's just a random domain (Clean).
+                // Note: score of 100 would have been caught by the Bloom Filter.
+                if (best != null && best.score >= _threshold)
+                {
+                    r.BestMatch = best.d;
+                    r.FuzzyScore = best.score;
+                    r.Status = DetectionStatus.Suspicious;
+                    r.Severity = Severity.HIGH;
+                    r.Reason = Reason.Typosquatting;
+                }
+                else
+                {
+                    r.Status = DetectionStatus.Clean;
+                    r.Reason = Reason.BloomReject;
+                }
+
+                return r;
+            });
+        }
+
+        private (bool flowControl, Result? value) Prefilter(string q, Result r)
+        {
+            if (_bloomFilter.Contains(q))
+            {
+                r.Status = DetectionStatus.Clean;
+                r.Reason = Reason.Exact;
+                return (flowControl: false, value: r);
+            }
+
+            return (flowControl: true, value: null);
+        }
+
+        private static string? ExtractDomain(string line)
+        {
+            ReadOnlySpan<char> span = line.AsSpan();
+            int firstComma = span.IndexOf(',');
+            if (firstComma == -1) return null;
+            ReadOnlySpan<char> afterFirst = span.Slice(firstComma + 1);
+            int secondComma = afterFirst.IndexOf(',');
+            if (secondComma == -1) return null;
+            ReadOnlySpan<char> afterSecond = afterFirst.Slice(secondComma + 1);
+            int thirdComma = afterSecond.IndexOf(',');
+            return (thirdComma == -1 ? afterSecond : afterSecond.Slice(0, thirdComma)).ToString();
         }
 
         private void LoadData(string filePath, string customPath)
@@ -112,54 +192,6 @@ namespace TyposquattingDetector
             }
         }
 
-        public async Task<Result> FuzzyMatchAsync(string query)
-        {
-            var q = Normalize(query);
-            var r = new Result(q);
-
-            // GATE 1: Known Famous Site
-            // If it's in the top 1M, it's 100% clean.
-            if (_bloomFilter.Contains(q))
-            {
-                r.Status = DetectionStatus.Clean;
-                r.Reason = Reason.Exact;
-                return r;
-            }
-
-            // GATE 2: Fuzzy Similarity Check
-            return await Task.Run(() =>
-            {
-                var candidates = new List<string>();
-                for (int i = -1; i <= 1; i++)
-                    if (_lenBuckets.TryGetValue(q.Length + i, out var bucket))
-                        candidates.AddRange(bucket);
-
-                var best = candidates
-                    .Select(d => new { d, score = Fuzz.WeightedRatio(q, d) })
-                    .OrderByDescending(x => x.score)
-                    .FirstOrDefault();
-
-                // Logic: If score is [75-99], it's a suspicious lookalike.
-                // If score is < 75, it's just a random domain (Clean).
-                // Note: score of 100 would have been caught by the Bloom Filter.
-                if (best != null && best.score >= _threshold)
-                {
-                    r.BestMatch = best.d;
-                    r.FuzzyScore = best.score;
-                    r.Status = DetectionStatus.Suspicious;
-                    r.Severity = Severity.HIGH;
-                    r.Reason = Reason.Typosquatting;
-                }
-                else
-                {
-                    r.Status = DetectionStatus.Clean;
-                    r.Reason = Reason.BloomReject;
-                }
-
-                return r;
-            });
-        }
-
         private string Normalize(string s)
         {
             if (string.IsNullOrWhiteSpace(s)) return s;
@@ -171,19 +203,6 @@ namespace TyposquattingDetector
             {
                 return s.ToLowerInvariant().Trim().Replace("www.", "");
             }
-        }
-
-        private string? ExtractDomain(string line)
-        {
-            ReadOnlySpan<char> span = line.AsSpan();
-            int firstComma = span.IndexOf(',');
-            if (firstComma == -1) return null;
-            ReadOnlySpan<char> afterFirst = span.Slice(firstComma + 1);
-            int secondComma = afterFirst.IndexOf(',');
-            if (secondComma == -1) return null;
-            ReadOnlySpan<char> afterSecond = afterFirst.Slice(secondComma + 1);
-            int thirdComma = afterSecond.IndexOf(',');
-            return (thirdComma == -1 ? afterSecond : afterSecond.Slice(0, thirdComma)).ToString();
         }
     }
 }

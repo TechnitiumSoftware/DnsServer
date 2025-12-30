@@ -39,17 +39,18 @@ namespace TyposquattingDetector
     public sealed partial class App : IDnsApplication, IDnsRequestBlockingHandler
     {
         #region variables
-        string _domainListFilePath;
-        Config _config;
-        IDnsServer _dnsServer;
-        HttpClient _httpClient;
-        DnsSOARecordData _soaRecord;
-        TimeSpan _updateInterval;
-        Task _updateLoopTask;
-        TyposquattingDetector _detector;
-        CancellationTokenSource _appShutdownCts;
 
-        const string DefaultDomainListUrl = "https://downloads.technitium.com/dns/typosquatting/majestic_million.csv";
+        private const string DefaultDomainListUrl = "https://downloads.technitium.com/dns/typosquatting/majestic_million.csv";
+        private CancellationTokenSource? _appShutdownCts;
+        private Config? _config;
+        private TyposquattingDetector? _detector;
+        private IDnsServer? _dnsServer;
+        private string? _domainListFilePath;
+        private HttpClient? _httpClient;
+        private DnsSOARecordData? _soaRecord;
+        private TimeSpan _updateInterval;
+        private Task? _updateLoopTask;
+        private static readonly JsonSerializerOptions _options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
         #endregion variables
 
@@ -85,9 +86,7 @@ namespace TyposquattingDetector
             try
             {
                 _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, _dnsServer.ResponsiblePerson.Address, 1, 14400, 3600, 604800, 60);
-
-                JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                _config = JsonSerializer.Deserialize<Config>(config, options);
+                _config = JsonSerializer.Deserialize<Config>(config, _options);
 
                 Validator.ValidateObject(_config, new ValidationContext(_config), validateAllProperties: true);
                 _updateInterval = ParseUpdateInterval(_config.UpdateInterval);
@@ -157,14 +156,14 @@ namespace TyposquattingDetector
                 return null;
             }
 
-            // Download takes time. Let's nor break the app. 
+            // Download takes time. Let's nor break the app.
             if (_detector is null)
             {
                 return null;
             }
 
             DnsQuestionRecord question = request.Question[0];
-            var res = await _detector.FuzzyMatchAsync(question.Name);
+            var res = await _detector.CheckAsync(question.Name);
             if (res.Status == DetectionStatus.Clean)
             {
                 return null;
@@ -175,12 +174,12 @@ namespace TyposquattingDetector
             EDnsOption[]? options = null;
             if (_config.AddExtendedDnsError && request.EDNS is not null)
             {
-                options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Blocked, string.Empty)) };
+                options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Blocked, blockingReport)) };
             }
 
             if (_config.AllowTxtBlockingReport && question.Type == DnsResourceRecordType.TXT)
             {
-                DnsResourceRecord[] answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData(string.Empty)) };
+                DnsResourceRecord[] answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData(blockingReport)) };
                 return new DnsDatagram(
                                     ID: request.Identifier,
                                     isResponse: true,
@@ -227,32 +226,7 @@ namespace TyposquattingDetector
         #endregion public
 
         #region private
-        private async Task StartUpdateLoopAsync(CancellationToken cancellationToken)
-        {
-            await Task.Delay(TimeSpan.FromSeconds(Random.Shared.Next(5, 30)), cancellationToken);
-            using (PeriodicTimer timer = new PeriodicTimer(_updateInterval))
-            {
-                while (!cancellationToken.IsCancellationRequested)
-                {
-                    try
-                    {
-                        await UpdateDomainListAsync(cancellationToken);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        _dnsServer.WriteLog("Update loop is shutting down gracefully.");
-                        break;
-                    }
-                    catch (Exception ex)
-                    {
-                        _dnsServer.WriteLog($"FATAL: The Typosquatting Detector update task failed unexpectedly. Error: {ex.Message}");
-                        _dnsServer.WriteLog(ex);
-                    }
 
-                    await timer.WaitForNextTickAsync(cancellationToken);
-                }
-            }
-        }
         private static TimeSpan ParseUpdateInterval(string interval)
         {
             if (string.IsNullOrWhiteSpace(interval) || interval.Length < 2)
@@ -278,8 +252,10 @@ namespace TyposquattingDetector
 
                 case "d":
                     return TimeSpan.FromDays(value);
+
                 case "w":
                     return TimeSpan.FromDays(value * 7);
+
                 default:
                     throw new FormatException($"Invalid unit '{unit}' in update interval. Allowed units are 'm', 'h', 'd'. 'w'.");
             }
@@ -305,6 +281,31 @@ namespace TyposquattingDetector
             return new HttpClient(handler);
         }
 
+        private async Task StartUpdateLoopAsync(CancellationToken cancellationToken)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(Random.Shared.Next(5, 30)), cancellationToken);
+            using PeriodicTimer timer = new PeriodicTimer(_updateInterval);
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    await UpdateDomainListAsync(cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    _dnsServer.WriteLog("Update loop is shutting down gracefully.");
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer.WriteLog($"FATAL: The Typosquatting Detector update task failed unexpectedly. Error: {ex.Message}");
+                    _dnsServer.WriteLog(ex);
+                }
+
+                await timer.WaitForNextTickAsync(cancellationToken);
+            }
+        }
+
         private async Task UpdateDomainListAsync(CancellationToken cancellationToken)
         {
             if (cancellationToken.IsCancellationRequested) return;
@@ -314,7 +315,6 @@ namespace TyposquattingDetector
                 _dnsServer.WriteLog($"Typosquatting Detector: Processing domain list...");
                 _detector = new TyposquattingDetector(_domainListFilePath, _config.Path, _config.FuzzyMatchThreshold);
                 _dnsServer.WriteLog($"Typosquatting Detector: Processing completed.");
-
             }
             catch (IOException ex)
             {

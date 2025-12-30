@@ -28,33 +28,32 @@ namespace TyposquattingDetector
     {
         private class Config
         {
+            [JsonPropertyName("addExtendedDnsError")]
+            public bool AddExtendedDnsError { get; set; } = true;
+
+            [JsonPropertyName("allowTxtBlockingReport")]
+            public bool AllowTxtBlockingReport { get; set; } = true;
+
+            [JsonPropertyName("disableTlsValidation")]
+            public bool DisableTlsValidation { get; set; } = false;
+
             [JsonPropertyName("enable")]
             public bool Enable { get; set; } = true;
+
+            [JsonPropertyName("fuzzyMatchThreshold")]
+            [Range(75, 90, ErrorMessage = "fuzzyMatchThreshold must be between 75 and 90.")]
+            [Required(ErrorMessage = "fuzzyMatchThreshold is a required configuration property. The lower threshold means more false positives.")]
+            public int FuzzyMatchThreshold { get; set; } = 75;
 
             [JsonPropertyName("customList")]
             [RegularExpression("^(?:[a-zA-Z]:\\\\(?:[^\\\\\\/:*?\"<>|\\r\\n]+\\\\)*[^\\\\\\/:*?\"<>|\\r\\n]*|(?:\\/[^\\/\\0]+)+\\/?)$", ErrorMessage = "customList must be a valid file path with one domain per line.")]
             [CustomValidation(typeof(FileContentValidator), nameof(FileContentValidator.ValidateDomainFile))]
             public string? Path { get; set; }
 
-            [JsonPropertyName("disableTlsValidation")]
-            public bool DisableTlsValidation { get; set; } = false;
-
             [JsonPropertyName("updateInterval")]
             [Required(ErrorMessage = "updateInterval is a required configuration property.")]
             [RegularExpression(@"^\d+[mhd]$", ErrorMessage = "Invalid interval format. Use a number followed by 'm', 'h', or 'd' (e.g., '90m', '2h', '7d').", MatchTimeoutInMilliseconds = 3000)]
-            public string UpdateInterval { get; set; }  = "30d";
-
-            [JsonPropertyName("allowTxtBlockingReport")]
-            public bool AllowTxtBlockingReport { get; set; } = true;
-
-
-            [JsonPropertyName("addExtendedDnsError")]
-            public bool AddExtendedDnsError { get; set; } = true;
-
-            [JsonPropertyName("fuzzyMatchThreshold")]
-            [Range(75, 90, ErrorMessage = "fuzzyMatchThreshold must be between 75 and 90.")]
-            [Required(ErrorMessage = "fuzzyMatchThreshold is a required configuration property. The lower threshold means more false positives.")]
-            public int FuzzyMatchThreshold { get; set; } = 75;
+            public string UpdateInterval { get; set; } = "30d";
         }
 
         private partial class FileContentValidator
@@ -64,7 +63,7 @@ namespace TyposquattingDetector
 
             public static ValidationResult? ValidateDomainFile(string? path, ValidationContext context)
             {
-                // 1. If path is null/empty, we assume validation is not required here 
+                // 1. If path is null/empty, we assume validation is not required here
                 // (Use [Required] on the property if you want to force a path to be provided)
                 if (string.IsNullOrWhiteSpace(path)) return ValidationResult.Success;
 
@@ -105,6 +104,4 @@ namespace TyposquattingDetector
             private static partial Regex FilePathPattern();
         }
     }
-
-
 }
