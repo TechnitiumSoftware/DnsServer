@@ -25,6 +25,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Security;
+using System.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Threading;
@@ -325,7 +326,14 @@ namespace TyposquattingDetector
             try
             {
                 _dnsServer.WriteLog($"Typosquatting Detector: Processing domain list...");
-                _detector = new TyposquattingDetector(_domainListFilePath, _config.Path, _config.FuzzyMatchThreshold);
+                string safePath = string.Empty;
+                if (!string.IsNullOrEmpty(_config.Path))
+                {
+                    safePath = Path.GetFullPath(_config.Path);
+                    if (!safePath.StartsWith(_dnsServer.ApplicationFolder)) throw new SecurityException("Access Denied");
+
+                }
+                _detector = new TyposquattingDetector(_domainListFilePath, safePath, _config.FuzzyMatchThreshold);
                 _dnsServer.WriteLog($"Typosquatting Detector: Processing completed.");
             }
             catch (IOException ex)
