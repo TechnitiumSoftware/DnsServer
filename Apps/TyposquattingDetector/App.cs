@@ -87,10 +87,18 @@ namespace TyposquattingDetector
             try
             {
                 _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, _dnsServer.ResponsiblePerson.Address, 1, 14400, 3600, 604800, 60);
-                _config = JsonSerializer.Deserialize<Config>(config, _options);
 
-                Validator.ValidateObject(_config, new ValidationContext(_config), validateAllProperties: true);
-                _updateInterval = ParseUpdateInterval(_config.UpdateInterval);
+                try
+                {
+                    _config = JsonSerializer.Deserialize<Config>(config, _options);
+                }
+                catch (Exception e)
+                {
+                    throw new AggregateException("Invalid configuration for TyposquattingDetector app.", e);
+                }
+
+                Validator.ValidateObject(_config!, new ValidationContext(_config!), validateAllProperties: true);
+                _updateInterval = ParseUpdateInterval(_config!.UpdateInterval);
                 _appShutdownCts = new CancellationTokenSource();
                 await TryUpdate(_appShutdownCts.Token);
 
@@ -197,7 +205,7 @@ namespace TyposquattingDetector
                                     answer: answer,
                                     authority: null,
                                     additional: null,
-                                    udpPayloadSize: request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize,
+                                    udpPayloadSize: request.EDNS is null ? ushort.MinValue : _dnsServer!.UdpPayloadSize,
                                     ednsFlags: EDnsHeaderFlags.None,
                                     options: options
                                 ));
@@ -219,7 +227,7 @@ namespace TyposquattingDetector
                             answer: null,
                             authority: authority,
                             additional: null,
-                            udpPayloadSize: request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize,
+                            udpPayloadSize: request.EDNS is null ? ushort.MinValue : _dnsServer!.UdpPayloadSize,
                             ednsFlags: EDnsHeaderFlags.None,
                             options: options
                         ));
@@ -266,13 +274,13 @@ namespace TyposquattingDetector
         private HttpClient CreateHttpClient(Uri serverUrl, bool disableTlsValidation)
         {
             HttpClientNetworkHandler handler = new HttpClientNetworkHandler();
-            handler.Proxy = _dnsServer.Proxy;
+            handler.Proxy = _dnsServer!.Proxy;
             handler.NetworkType = _dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default;
             handler.DnsClient = _dnsServer;
 
             if (disableTlsValidation)
             {
-                handler.InnerHandler.SslOptions.RemoteCertificateValidationCallback = delegate (object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+                handler.InnerHandler.SslOptions.RemoteCertificateValidationCallback = delegate (object sender, X509Certificate? certificate, X509Chain? chain, SslPolicyErrors sslPolicyErrors)
                 {
                     return true;
                 };
@@ -307,12 +315,12 @@ namespace TyposquattingDetector
             }
             catch (OperationCanceledException)
             {
-                _dnsServer.WriteLog("Update loop is shutting down gracefully.");
+                _dnsServer!.WriteLog("Update loop is shutting down gracefully.");
                 return false;
             }
             catch (Exception ex)
             {
-                _dnsServer.WriteLog($"FATAL: The Typosquatting Detector update task failed unexpectedly. Error: {ex.Message}");
+                _dnsServer!.WriteLog($"FATAL: The Typosquatting Detector update task failed unexpectedly. Error: {ex.Message}");
                 _dnsServer.WriteLog(ex);
             }
 
@@ -325,22 +333,22 @@ namespace TyposquattingDetector
 
             try
             {
-                _dnsServer.WriteLog($"Typosquatting Detector: Processing domain list...");
+                _dnsServer!.WriteLog($"Typosquatting Detector: Processing domain list...");
                 string safePath = string.Empty;
-                if (!string.IsNullOrEmpty(_config.Path))
+                if (!string.IsNullOrEmpty(_config!.Path))
                 {
                     safePath = Path.GetFullPath(_config.Path);
                     if (!safePath.StartsWith(_dnsServer.ApplicationFolder)) throw new SecurityException("Access Denied");
 
                 }
                 var oldDetector = _detector;
-                _detector = new TyposquattingDetector(_domainListFilePath, safePath, _config.FuzzyMatchThreshold);
+                _detector = new TyposquattingDetector(_domainListFilePath!, safePath, _config.FuzzyMatchThreshold);
                 oldDetector?.Dispose();
                 _dnsServer.WriteLog($"Typosquatting Detector: Processing completed.");
             }
             catch (IOException ex)
             {
-                _dnsServer.WriteLog($"ERROR: Failed to read cache file '{_domainListFilePath}'. Error: {ex.Message}");
+                _dnsServer!.WriteLog($"ERROR: Failed to read cache file '{_domainListFilePath}'. Error: {ex.Message}");
             }
         }
 
