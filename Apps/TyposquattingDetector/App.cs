@@ -44,7 +44,7 @@ namespace TyposquattingDetector
         private const string DefaultDomainListUrl = "https://downloads.technitium.com/dns/typosquatting/majestic_million.csv";
         private CancellationTokenSource? _appShutdownCts;
         private Config? _config;
-        private TyposquattingDetector? _detector;
+        private volatile TyposquattingDetector? _detector;
         private IDnsServer? _dnsServer;
         private string? _domainListFilePath;
         private HttpClient? _httpClient;
