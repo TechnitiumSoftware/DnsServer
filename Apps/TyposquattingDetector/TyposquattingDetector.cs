@@ -55,7 +55,7 @@ namespace TyposquattingDetector
         private readonly Dictionary<int, List<string>> _lenBuckets = new();
         private readonly int _threshold;
 
-        public TyposquattingDetector(string path, int threshold)
+        public TyposquattingDetector(string defaultPath, string customPath, int threshold)
         {
             _threshold = threshold;
 
@@ -69,10 +69,10 @@ namespace TyposquattingDetector
             _normalizer = new ThreadLocal<DomainParser>(() =>
                 new DomainParser(_sharedRuleProvider, new Nager.PublicSuffix.DomainNormalizers.UriDomainNormalizer()));
 
-            LoadData(path);
+            LoadData(defaultPath, customPath);
         }
 
-        private void LoadData(string filePath)
+        private void LoadData(string filePath, string customPath)
         {
             _bloomFilter = FilterBuilder.Build(1_000_000, 0.01);
 
@@ -93,6 +93,22 @@ namespace TyposquattingDetector
                     _lenBuckets[domain.Length] = list;
                 }
                 if (list.Count < 10000) list.Add(domain);
+            }
+
+            if (!string.IsNullOrEmpty(customPath) && File.Exists(customPath))
+            {
+                foreach (var line in File.ReadLines(customPath))
+                {
+                    var domain = line.Trim();
+                    if (string.IsNullOrEmpty(domain)) continue;
+                    _bloomFilter.Add(domain);
+                    if (!_lenBuckets.TryGetValue(domain.Length, out var list))
+                    {
+                        list = new List<string>();
+                        _lenBuckets[domain.Length] = list;
+                    }
+                    if (list.Count < 10000) list.Add(domain);
+                }
             }
         }
 

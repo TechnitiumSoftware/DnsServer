@@ -49,6 +49,8 @@ namespace TyposquattingDetector
         TyposquattingDetector _detector;
         CancellationTokenSource _appShutdownCts;
 
+        const string DefaultDomainListUrl = "https://downloads.technitium.com/dns/typosquatting/majestic_million.csv";
+
         #endregion variables
 
         #region IDisposable
@@ -103,7 +105,7 @@ namespace TyposquattingDetector
                 {
                     _dnsServer.WriteLog($"Typosquatting Detector: Started downloading domain list to path: '{_domainListFilePath}'.");
 
-                    Uri domainList = new Uri(_config.Url);
+                    Uri domainList = new Uri(DefaultDomainListUrl);
                     _httpClient = CreateHttpClient(domainList, _config.DisableTlsValidation);
                     await _httpClient.GetStreamAsync(domainList).ContinueWith(async t =>
                     {
@@ -124,9 +126,6 @@ namespace TyposquattingDetector
                     }).GetAwaiter().GetResult().ConfigureAwait(false);
                 }
                 _dnsServer.WriteLog($"Typosquatting Detector: Domain list saved to path: '{_domainListFilePath}'.");
-                _dnsServer.WriteLog($"Typosquatting Detector: Processing domain list...");
-                _detector = new TyposquattingDetector(_domainListFilePath, _config.FuzzyMatchThreshold);
-                _dnsServer.WriteLog($"Typosquatting Detector: Processing completed.");
 
                 // We do not await this, as it's designed to run for the lifetime of the app.
                 _updateLoopTask = StartUpdateLoopAsync(_appShutdownCts.Token);
@@ -312,9 +311,10 @@ namespace TyposquattingDetector
 
             try
             {
-                var detector = new TyposquattingDetector(_domainListFilePath, _config.FuzzyMatchThreshold);
+                _dnsServer.WriteLog($"Typosquatting Detector: Processing domain list...");
+                _detector = new TyposquattingDetector(_domainListFilePath, _config.Path, _config.FuzzyMatchThreshold);
+                _dnsServer.WriteLog($"Typosquatting Detector: Processing completed.");
 
-                _dnsServer.WriteLog($"Typosquatting Detector: Loaded Alexa Top 1M domains from file.");
             }
             catch (IOException ex)
             {

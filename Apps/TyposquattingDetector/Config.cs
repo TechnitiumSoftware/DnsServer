@@ -18,7 +18,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using System.ComponentModel.DataAnnotations;
+using System.IO;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace TyposquattingDetector
 {
@@ -29,10 +31,10 @@ namespace TyposquattingDetector
             [JsonPropertyName("enable")]
             public bool Enable { get; set; } = true;
 
-            [JsonPropertyName("url")]
-            [Required(ErrorMessage = "url is a required configuration property.")]
-            [Url(ErrorMessage = "url must be a valid URL.")]
-            public string Url { get; set; }
+            [JsonPropertyName("customList")]
+            [RegularExpression("^(?:[a-zA-Z]:\\\\(?:[^\\\\\\/:*?\"<>|\\r\\n]+\\\\)*[^\\\\\\/:*?\"<>|\\r\\n]*|(?:\\/[^\\/\\0]+)+\\/?)$", ErrorMessage = "customList must be a valid file path with one domain per line.")]
+            [CustomValidation(typeof(FileContentValidator), nameof(FileContentValidator.ValidateDomainFile))]
+            public string? Path { get; set; }
 
             [JsonPropertyName("disableTlsValidation")]
             public bool DisableTlsValidation { get; set; } = false;
@@ -40,7 +42,7 @@ namespace TyposquattingDetector
             [JsonPropertyName("updateInterval")]
             [Required(ErrorMessage = "updateInterval is a required configuration property.")]
             [RegularExpression(@"^\d+[mhd]$", ErrorMessage = "Invalid interval format. Use a number followed by 'm', 'h', or 'd' (e.g., '90m', '2h', '7d').", MatchTimeoutInMilliseconds = 3000)]
-            public string UpdateInterval { get; set; }
+            public string UpdateInterval { get; set; }  = "30d";
 
             [JsonPropertyName("allowTxtBlockingReport")]
             public bool AllowTxtBlockingReport { get; set; } = true;
@@ -48,11 +50,61 @@ namespace TyposquattingDetector
 
             [JsonPropertyName("addExtendedDnsError")]
             public bool AddExtendedDnsError { get; set; } = true;
-            
+
             [JsonPropertyName("fuzzyMatchThreshold")]
             [Range(75, 90, ErrorMessage = "fuzzyMatchThreshold must be between 75 and 90.")]
             [Required(ErrorMessage = "fuzzyMatchThreshold is a required configuration property. The lower threshold means more false positives.")]
             public int FuzzyMatchThreshold { get; set; } = 75;
         }
+
+        private partial class FileContentValidator
+        {
+            // Optimized Regex: Compiled for performance during "Happy Path" scans
+            private static readonly Regex DomainRegex = FilePathPattern();
+
+            public static ValidationResult? ValidateDomainFile(string? path, ValidationContext context)
+            {
+                // 1. If path is null/empty, we assume validation is not required here 
+                // (Use [Required] on the property if you want to force a path to be provided)
+                if (string.IsNullOrWhiteSpace(path)) return ValidationResult.Success;
+
+                // 2. Existence Check
+                if (!File.Exists(path))
+                    return new ValidationResult($"File not found: {path}");
+
+                try
+                {
+                    // 3. Stream through lines
+                    // If the file is empty, this loop is simply skipped
+                    foreach (string line in File.ReadLines(path))
+                    {
+                        string trimmedLine = line.Trim();
+
+                        // Skip truly empty lines (whitespace only)
+                        if (string.IsNullOrEmpty(trimmedLine)) continue;
+
+                        // 4. Fail-Fast Logic
+                        // If any content exists, it MUST follow the domain rules
+                        if (trimmedLine.Contains("*") || !DomainRegex.IsMatch(trimmedLine))
+                        {
+                            return new ValidationResult($"Invalid content: '{trimmedLine}'. Wildcards are not allowed.");
+                        }
+                    }
+                }
+                catch (IOException ex)
+                {
+                    return new ValidationResult($"File access error: {ex.Message}");
+                }
+
+                // 5. Success Path
+                // Reached if the file was empty OR all lines passed validation
+                return ValidationResult.Success;
+            }
+
+            [GeneratedRegex(@"^(?!-)[A-Za-z0-9-]+([\-\.]{1}[a-z0-9]+)*\.[A-Za-z]{2,63}$", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-US")]
+            private static partial Regex FilePathPattern();
+        }
     }
+
+
 }
