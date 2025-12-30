@@ -51,13 +51,20 @@ namespace TyposquattingDetector
         public DetectionStatus Status { get; set; }
     }
 
-    public class TyposquattingDetector
+    public class TyposquattingDetector : IDisposable
     {
+        #region variables
+
         private static CachedHttpRuleProvider? _sharedRuleProvider;
         private readonly Dictionary<int, List<string>> _lenBuckets = new Dictionary<int, List<string>>();
         private readonly ThreadLocal<DomainParser> _normalizer;
         private readonly int _threshold;
         private IBloomFilter? _bloomFilter;
+        private bool disposedValue;
+
+        #endregion variables
+
+        #region constructor
 
         public TyposquattingDetector(string defaultPath, string customPath, int threshold)
         {
@@ -76,6 +83,32 @@ namespace TyposquattingDetector
             LoadData(defaultPath, customPath);
         }
 
+
+        #endregion constructor
+
+        #region Dispose
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    _normalizer.Dispose();
+                }
+                disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
+        #endregion Dispose
+
+        #region public
         public Result Check(string query)
         {
             var normalized = Normalize(query);
@@ -91,35 +124,37 @@ namespace TyposquattingDetector
             // GATE 2: Fuzzy Similarity Check
             return FuzzyMatch(normalized, result);
         }
+        #endregion public
 
-        private Result FuzzyMatch(string q, Result r)
+        #region private
+        private Result FuzzyMatch(string query, Result result)
         {
             // Remove Task.Run and the await lambda
             var candidates = new List<string>();
             for (int i = -1; i <= 1; i++)
-                if (_lenBuckets.TryGetValue(q.Length + i, out var bucket))
+                if (_lenBuckets.TryGetValue(query.Length + i, out var bucket))
                     candidates.AddRange(bucket);
 
             var best = candidates
-                .Select(d => new { d, score = Fuzz.WeightedRatio(q, d) })
+                .Select(d => new { d, score = Fuzz.WeightedRatio(query, d) })
                 .OrderByDescending(x => x.score)
                 .FirstOrDefault();
 
             if (best != null && best.score >= _threshold)
             {
-                r.BestMatch = best.d;
-                r.FuzzyScore = best.score;
-                r.Status = DetectionStatus.Suspicious;
-                r.Severity = Severity.HIGH;
-                r.Reason = Reason.Typosquatting;
+                result.BestMatch = best.d;
+                result.FuzzyScore = best.score;
+                result.Status = DetectionStatus.Suspicious;
+                result.Severity = Severity.HIGH;
+                result.Reason = Reason.Typosquatting;
             }
             else
             {
-                r.Status = DetectionStatus.Clean;
-                r.Reason = Reason.BloomReject;
+                result.Status = DetectionStatus.Clean;
+                result.Reason = Reason.BloomReject;
             }
 
-            return r;
+            return result;
         }
 
         private (bool flowControl, Result? value) Prefilter(string q, Result r)
@@ -207,5 +242,6 @@ namespace TyposquattingDetector
                 return s.ToLowerInvariant().Trim().Replace("www.", "");
             }
         }
+        #endregion private
     }
 }
