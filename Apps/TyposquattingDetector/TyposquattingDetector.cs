@@ -75,7 +75,7 @@ namespace TyposquattingDetector
             {
                 var cacheProvider = new Nager.PublicSuffix.RuleProviders.CacheProviders.LocalFileSystemCacheProvider();
                 _sharedRuleProvider = new CachedHttpRuleProvider(cacheProvider, _httpClient);
-                _sharedRuleProvider.BuildAsync().GetAwaiter().GetResult();
+                _sharedRuleProvider.BuildAsync().GetAwaiter().GetResult(); // Initialize synchronously, explicitly
             }
 
             _normalizer = new ThreadLocal<DomainParser>(() =>
@@ -160,7 +160,7 @@ namespace TyposquattingDetector
 
         private (bool flowControl, Result? value) Prefilter(string q, Result r)
         {
-            if (_bloomFilter.Contains(q))
+            if (_bloomFilter is not null && _bloomFilter.Contains(q))
             {
                 r.Status = DetectionStatus.Clean;
                 r.Reason = Reason.Exact;
