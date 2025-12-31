@@ -22,10 +22,12 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Security;
 using System.Security;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Threading;
@@ -41,7 +43,7 @@ namespace TyposquattingDetector
     {
         #region variables
 
-        private const string DefaultDomainListUrl = "https://downloads.technitium.com/dns/typosquatting/majestic_million.csv";
+        private const string DefaultDomainListUrl = "https://downloads.majestic.com/majestic_million.csv";
         private CancellationTokenSource? _appShutdownCts;
         private Config? _config;
         private volatile TyposquattingDetector? _detector;
@@ -52,7 +54,7 @@ namespace TyposquattingDetector
         private TimeSpan _updateInterval;
         private Task? _updateLoopTask;
         private static readonly JsonSerializerOptions _options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
+        private bool _changed = false;
         #endregion variables
 
         #region IDisposable
@@ -100,7 +102,6 @@ namespace TyposquattingDetector
                 Validator.ValidateObject(_config!, new ValidationContext(_config!), validateAllProperties: true);
                 _updateInterval = ParseUpdateInterval(_config!.UpdateInterval);
                 _appShutdownCts = new CancellationTokenSource();
-                await TryUpdate(_appShutdownCts.Token);
 
                 string configDir = _dnsServer.ApplicationFolder;
                 Directory.CreateDirectory(configDir);
@@ -120,10 +121,31 @@ namespace TyposquattingDetector
                     {
                         try
                         {
+                            var hashPath = Path.Combine(configDir, "majestic_million.csv.sha256");
                             using (Stream stream = await t)
                             using (FileStream fs = new FileStream(_domainListFilePath, FileMode.Create, FileAccess.Write, FileShare.None))
                             {
-                                await stream.CopyToAsync(fs);
+                                await stream.CopyToAsync(fs, _appShutdownCts.Token);
+                            }
+
+                            // Re-read file to calculate hash (or use a CryptoStream during download)
+                            using (FileStream fs = new FileStream(_domainListFilePath, FileMode.Open, FileAccess.Read))
+                            {
+                                string sha256 = Convert.ToHexString(await SHA256.HashDataAsync(fs));
+                                _dnsServer.WriteLog($"Typosquatting Detector: SHA256 hash of downloaded domain list: {sha256}");
+
+                                if (File.Exists(hashPath) && File.ReadLines(hashPath).ToArray()[0] == sha256)
+                                {
+                                    _changed = false;
+                                    _dnsServer.WriteLog($"Typosquatting Detector: Downloaded domain list is identical to the previous one. No changes made.");
+                                }
+                                else
+                                {
+                                    using StreamWriter writer = new StreamWriter(new FileStream(hashPath, FileMode.Create, FileAccess.Write, FileShare.None));
+                                    await writer.WriteAsync(sha256);
+                                    _changed = true;
+                                    _dnsServer.WriteLog($"Typosquatting Detector: Hash file is saved.");
+                                }
                             }
                             _dnsServer.WriteLog($"Typosquatting Detector: Downloaded domain list from '{domainList}' to '{_domainListFilePath}'.");
                         }
@@ -134,18 +156,17 @@ namespace TyposquattingDetector
                         }
                     }).GetAwaiter().GetResult().ConfigureAwait(false);
                 }
-                _dnsServer.WriteLog($"Typosquatting Detector: Domain list saved to path: '{_domainListFilePath}'.");
 
                 // We do not await this, as it's designed to run for the lifetime of the app.
                 _updateLoopTask = StartUpdateLoopAsync(_appShutdownCts.Token);
                 _ = _updateLoopTask.ContinueWith(t =>
-               {
-                   if (t.IsFaulted)
-                   {
-                       _dnsServer.WriteLog($"FATAL: Update loop terminated unexpectedly: {t.Exception?.GetBaseException().Message}");
-                       _dnsServer.WriteLog(t.Exception);
-                   }
-               }, TaskContinuationOptions.OnlyOnFaulted);
+                           {
+                               if (t.IsFaulted)
+                               {
+                                   _dnsServer.WriteLog($"FATAL: Update loop terminated unexpectedly: {t.Exception?.GetBaseException().Message}");
+                                   _dnsServer.WriteLog(t.Exception);
+                               }
+                           }, TaskContinuationOptions.OnlyOnFaulted);
             }
             catch (Exception ex)
             {
@@ -241,7 +262,7 @@ namespace TyposquattingDetector
         {
             if (string.IsNullOrWhiteSpace(interval) || interval.Length < 2)
             {
-                throw new FormatException("Update interval is not in a valid format (e.g., '60m', '2h', '7d').");
+                throw new FormatException("Update interval is not in a valid format (e.g., '30m', '12h', '1d', '2w').");
             }
 
             string unit = interval.Substring(interval.Length - 1).ToLowerInvariant();
@@ -293,18 +314,25 @@ namespace TyposquattingDetector
 
         private async Task StartUpdateLoopAsync(CancellationToken cancellationToken)
         {
-            using PeriodicTimer timer = new PeriodicTimer(_updateInterval);
-            while (!cancellationToken.IsCancellationRequested)
+            if (!_changed)
             {
-                bool flowControl = await TryUpdate(cancellationToken);
-                if (!flowControl)
-                {
-                    break;
-                }
-
-                await timer.WaitForNextTickAsync(cancellationToken);
+                // Nothing changed, skip first update
             }
-            await Task.Delay(TimeSpan.FromSeconds(Random.Shared.Next(5, 30)), cancellationToken);
+            else
+            {
+                using PeriodicTimer timer = new PeriodicTimer(_updateInterval);
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    bool flowControl = await TryUpdate(cancellationToken);
+                    if (!flowControl)
+                    {
+                        break;
+                    }
+
+                    await timer.WaitForNextTickAsync(cancellationToken);
+                }
+            }
+            await Task.Delay(TimeSpan.FromSeconds(Random.Shared.Next(0, 60)), cancellationToken);
         }
 
         private async Task<bool> TryUpdate(CancellationToken cancellationToken)
@@ -335,12 +363,9 @@ namespace TyposquattingDetector
             {
                 _dnsServer!.WriteLog($"Typosquatting Detector: Processing domain list...");
                 string safePath = string.Empty;
-                if (!string.IsNullOrEmpty(_config!.Path))
-                {
-                    safePath = Path.GetFullPath(_config.Path);
-                    if (!safePath.StartsWith(_dnsServer.ApplicationFolder)) throw new SecurityException("Access Denied");
+                safePath = Path.GetFullPath(_domainListFilePath!);
+                if (!safePath.StartsWith(_dnsServer.ApplicationFolder)) throw new SecurityException("Access Denied");
 
-                }
                 var oldDetector = _detector;
                 _detector = new TyposquattingDetector(_domainListFilePath!, safePath, _config.FuzzyMatchThreshold);
                 oldDetector?.Dispose();

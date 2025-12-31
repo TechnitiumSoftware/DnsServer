@@ -130,7 +130,6 @@ namespace TyposquattingDetector
         #region private
         private Result FuzzyMatch(string query, Result result)
         {
-            // Remove Task.Run and the await lambda
             var candidates = new List<string>();
             for (int i = -1; i <= 1; i++)
                 if (_lenBuckets.TryGetValue(query.Length + i, out var bucket))
@@ -214,20 +213,22 @@ namespace TyposquattingDetector
                 if (list.Count < 10000) list.Add(domain);
             }
 
-            if (!string.IsNullOrEmpty(customPath) && File.Exists(customPath))
+            if (string.IsNullOrEmpty(customPath) || !File.Exists(customPath))
             {
-                foreach (var line in File.ReadLines(customPath))
+                return;
+            }
+
+            foreach (var line in File.ReadLines(customPath))
+            {
+                var domain = line.Trim();
+                if (string.IsNullOrEmpty(domain)) continue;
+                _bloomFilter.Add(domain);
+                if (!_lenBuckets.TryGetValue(domain.Length, out var list))
                 {
-                    var domain = line.Trim();
-                    if (string.IsNullOrEmpty(domain)) continue;
-                    _bloomFilter.Add(domain);
-                    if (!_lenBuckets.TryGetValue(domain.Length, out var list))
-                    {
-                        list = new List<string>();
-                        _lenBuckets[domain.Length] = list;
-                    }
-                    if (list.Count < 10000) list.Add(domain);
+                    list = new List<string>();
+                    _lenBuckets[domain.Length] = list;
                 }
+                if (list.Count < 10000) list.Add(domain);
             }
         }
 
