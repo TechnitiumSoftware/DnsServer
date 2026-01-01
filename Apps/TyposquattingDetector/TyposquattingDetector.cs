@@ -345,16 +345,17 @@ namespace TyposquattingDetector
 
         private string? Normalize(string s)
         {
-            if (string.IsNullOrWhiteSpace(s)|| string.IsNullOrEmpty(s)) return null;
+            if (string.IsNullOrWhiteSpace(s)) return null;
 
             try
             {
-                var registrableDomain = _normalizer?.Value?.Parse(s)?.RegistrableDomain;
-                return registrableDomain ?? s;
+                var rd = _normalizer.Value?.Parse(s)?.RegistrableDomain;
+                if (string.IsNullOrWhiteSpace(rd)) rd = s;
+                return rd.TrimEnd('.').ToLowerInvariant();
             }
             catch
             {
-                var clean = s.ToLowerInvariant().Trim();
+                var clean = s.Trim().TrimEnd('.').ToLowerInvariant();
                 if (clean.StartsWith("www.")) clean = clean.Substring(4);
                 if (clean.StartsWith("m.")) clean = clean.Substring(2);
                 return clean;
