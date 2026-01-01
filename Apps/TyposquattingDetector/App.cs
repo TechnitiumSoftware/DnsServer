@@ -137,7 +137,7 @@ namespace TyposquattingDetector
                     string sha256 = Convert.ToHexString(await SHA256.HashDataAsync(fs));
                     _dnsServer.WriteLog($"Typosquatting Detector: SHA256 hash of downloaded domain list: {sha256}");
 
-                    var hashPath = Path.Combine(configDir, "majestic_million.csv.sha256");
+                    string hashPath = Path.Combine(configDir, "majestic_million.csv.sha256");
                     string? previousHash = null;
                     if (File.Exists(hashPath))
                     {
@@ -199,7 +199,7 @@ namespace TyposquattingDetector
             }
 
             DnsQuestionRecord question = request.Question[0];
-            var res = _detector.Check(question.Name);
+            Result res = _detector.Check(question.Name);
             if (res.IsSuspicious == false)
             {
                 return Task.FromResult<DnsDatagram?>(null);
@@ -394,8 +394,8 @@ namespace TyposquattingDetector
             using (HttpClient httpClient = CreateHttpClient(domainList, _config!.DisableTlsValidation))
             using (Stream netStream = await httpClient.GetStreamAsync(domainList, cancellationToken))
             using (FileStream fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, 128 * 1024, useAsync: true))
-            using (var sha = SHA256.Create())
-            using (var crypto = new CryptoStream(fs, sha, CryptoStreamMode.Write, leaveOpen: true))
+            using (SHA256 sha = SHA256.Create())
+            using (CryptoStream crypto = new CryptoStream(fs, sha, CryptoStreamMode.Write, leaveOpen: true))
             {
                 await netStream.CopyToAsync(crypto, 128 * 1024, cancellationToken);
                 await crypto.FlushAsync(cancellationToken);
@@ -453,8 +453,8 @@ namespace TyposquattingDetector
                         throw new SecurityException("Access Denied");
                 }
 
-                var newDetector = new TyposquattingDetector(majesticPath, customListPath, _config.FuzzyMatchThreshold);
-                var oldDetector = Interlocked.Exchange(ref _detector, newDetector);
+                TyposquattingDetector newDetector = new TyposquattingDetector(majesticPath, customListPath, _config.FuzzyMatchThreshold);
+                TyposquattingDetector? oldDetector = Interlocked.Exchange(ref _detector, newDetector);
                 oldDetector?.Dispose();
 
                 _dnsServer.WriteLog("Typosquatting Detector: Processing completed.");

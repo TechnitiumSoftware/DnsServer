@@ -21,6 +21,7 @@ using BloomFilter;
 using FuzzySharp;
 using Nager.PublicSuffix;
 using Nager.PublicSuffix.RuleProviders;
+using Nager.PublicSuffix.RuleProviders.CacheProviders;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -64,12 +65,10 @@ namespace TyposquattingDetector
 
 
         private static readonly Lazy<CachedHttpRuleProvider> _sharedRuleProvider =
-            new Lazy<CachedHttpRuleProvider>(() =>
+            new Lazy<CachedHttpRuleProvider>(static () =>
             {
-                var cacheProvider =
-                    new Nager.PublicSuffix.RuleProviders.CacheProviders.LocalFileSystemCacheProvider();
-
-                var rp = new CachedHttpRuleProvider(cacheProvider, _pslHttpClient);
+                LocalFileSystemCacheProvider cacheProvider = new LocalFileSystemCacheProvider();
+                CachedHttpRuleProvider rp = new CachedHttpRuleProvider(cacheProvider, _pslHttpClient);
                 rp.BuildAsync().GetAwaiter().GetResult();
                 return rp;
             }, isThreadSafe: true);
@@ -124,7 +123,7 @@ namespace TyposquattingDetector
         #region public
         public Result Check(string query)
         {
-            var normalized = Normalize(query);
+            string? normalized = Normalize(query);
             if (normalized == null)
             {
                 return new Result(query)
@@ -134,7 +133,7 @@ namespace TyposquattingDetector
                 };
             }
 
-            var result = new Result(normalized);
+            Result result = new Result(normalized);
 
             // GATE 1: Bloom Filter Prefilter (O(1))
             if (_bloomFilter is not null && _bloomFilter.Contains(normalized))
@@ -152,13 +151,13 @@ namespace TyposquattingDetector
         #region private
         private Result FuzzyMatch(string query, Result result)
         {
-            var globalState = new MatchState { BestDomain = null, BestScore = 0 };
+            MatchState globalState = new MatchState { BestDomain = null, BestScore = 0 };
 
-            var bucketIndices = new[] { query.Length - 1, query.Length, query.Length + 1 };
+            int[] bucketIndices = new[] { query.Length - 1, query.Length, query.Length + 1 };
 
             foreach (int len in bucketIndices)
             {
-                if (!_lenBuckets.TryGetValue(len, out var bucket)) continue;
+                if (!_lenBuckets.TryGetValue(len, out List<string>? bucket)) continue;
 
                 const int SequentialCutoff = 256;
 
@@ -193,7 +192,7 @@ namespace TyposquattingDetector
 
         private void SequentialMatch(string query, MatchState state, List<string> bucket)
         {
-            foreach (var domain in bucket)
+            foreach (string domain in bucket)
             {
                 if (state.BestScore >= 98) break;
 
@@ -314,7 +313,7 @@ namespace TyposquattingDetector
 
                 domain = domain.ToLowerInvariant();
                 _bloomFilter.Add(domain);
-                if (!_lenBuckets.TryGetValue(domain.Length, out var list))
+                if (!_lenBuckets.TryGetValue(domain.Length, out List<string>? list))
                 {
                     list = new List<string>();
                     _lenBuckets[domain.Length] = list;
@@ -326,20 +325,20 @@ namespace TyposquattingDetector
             // 1. Load custom list
             if (!string.IsNullOrEmpty(customPath) && File.Exists(customPath))
             {
-                foreach (var line in File.ReadLines(customPath))
+                foreach (string line in File.ReadLines(customPath))
                     processDomain(line.Trim());
             }
 
             // 2. Load Majestic 1M
             if (File.Exists(oneMilFilePath))
             {
-                using var fs = new FileStream(oneMilFilePath, FileMode.Open, FileAccess.Read, FileShare.Read, 128 * 1024);
-                using var reader = new StreamReader(fs);
+                using FileStream fs = new FileStream(oneMilFilePath, FileMode.Open, FileAccess.Read, FileShare.Read, 128 * 1024);
+                using StreamReader reader = new StreamReader(fs);
                 reader.ReadLine(); // Skip header
 
                 while (reader.ReadLine() is { } line)
                 {
-                    var domain = ExtractDomain(line);
+                    string? domain = ExtractDomain(line);
                     if (domain != null) processDomain(domain);
                 }
             }
@@ -351,13 +350,13 @@ namespace TyposquattingDetector
 
             try
             {
-                var rd = _normalizer.Value?.Parse(s)?.RegistrableDomain;
+                string? rd = _normalizer.Value?.Parse(s)?.RegistrableDomain;
                 if (string.IsNullOrWhiteSpace(rd)) rd = s;
                 return rd.TrimEnd('.').ToLowerInvariant();
             }
             catch
             {
-                var clean = s.Trim().TrimEnd('.').ToLowerInvariant();
+                string? clean = s.Trim().TrimEnd('.').ToLowerInvariant();
                 if (clean.StartsWith("www.")) clean = clean.Substring(4);
                 if (clean.StartsWith("m.")) clean = clean.Substring(2);
                 return clean;
