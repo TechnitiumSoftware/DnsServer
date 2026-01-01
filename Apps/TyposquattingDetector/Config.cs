@@ -52,7 +52,7 @@ namespace TyposquattingDetector
 
             [JsonPropertyName("updateInterval")]
             [Required(ErrorMessage = "updateInterval is a required configuration property.")]
-            [RegularExpression(@"^\d+[mhd]$", ErrorMessage = "Invalid interval format. Use a number followed by 'm', 'h', or 'd' (e.g., '90m', '2h', '7d').", MatchTimeoutInMilliseconds = 3000)]
+            [RegularExpression(@"^\d+[mhdw]$", ErrorMessage = "Invalid interval format. Use a number followed by 'm', 'h', or 'd' (e.g., '90m', '2h', '7d').", MatchTimeoutInMilliseconds = 3000)]
             public string UpdateInterval { get; set; } = "30d";
         }
 
@@ -84,7 +84,7 @@ namespace TyposquattingDetector
 
                         // 4. Fail-Fast Logic
                         // If any content exists, it MUST follow the domain rules
-                        if (trimmedLine.Contains("*") || !DomainRegex.IsMatch(trimmedLine))
+                        if (trimmedLine.Contains('*') || !DomainRegex.IsMatch(trimmedLine))
                         {
                             return new ValidationResult($"Invalid content: '{trimmedLine}'. Wildcards are not allowed.");
                         }
