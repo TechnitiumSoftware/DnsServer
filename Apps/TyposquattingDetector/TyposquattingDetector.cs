@@ -31,9 +31,6 @@ using System.Threading.Tasks;
 
 namespace TyposquattingDetector
 {
-    public enum DetectionStatus
-    { Clean, Possible, Suspicious }
-
     public enum Reason
     { BloomReject, Exact, Typosquatting, Medium, Low, NoCandidates }
 
@@ -49,7 +46,7 @@ namespace TyposquattingDetector
         public string Query { get; }
         public Reason Reason { get; set; }
         public Severity Severity { get; set; }
-        public DetectionStatus Status { get; set; }
+        public bool IsSuspicious { get; set; }
     }
 
     public class TyposquattingDetector : IDisposable
@@ -119,7 +116,7 @@ namespace TyposquattingDetector
             // GATE 1: Bloom Filter Prefilter (O(1))
             if (_bloomFilter is not null && _bloomFilter.Contains(normalized))
             {
-                result.Status = DetectionStatus.Clean;
+                result.IsSuspicious = false;
                 result.Reason = Reason.Exact;
                 return result;
             }
@@ -230,13 +227,13 @@ namespace TyposquattingDetector
             {
                 result.BestMatch = bestDomain;
                 result.FuzzyScore = bestScore;
-                result.Status = DetectionStatus.Suspicious;
+                result.IsSuspicious = true;
                 result.Severity = bestScore > 90 ? Severity.HIGH : Severity.MEDIUM;
                 result.Reason = Reason.Typosquatting;
             }
             else
             {
-                result.Status = DetectionStatus.Clean;
+                result.IsSuspicious = false;
                 result.Reason = Reason.NoCandidates;
             }
 

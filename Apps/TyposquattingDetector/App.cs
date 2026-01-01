@@ -199,7 +199,7 @@ namespace TyposquattingDetector
 
             DnsQuestionRecord question = request.Question[0];
             var res = _detector.Check(question.Name);
-            if (res.Status == DetectionStatus.Clean)
+            if (res.IsSuspicious == false)
             {
                 return Task.FromResult<DnsDatagram?>(null);
             }
