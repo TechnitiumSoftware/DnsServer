@@ -53,15 +53,27 @@ namespace TyposquattingDetector
     {
         #region variables
 
-        private static CachedHttpRuleProvider? _sharedRuleProvider;
         private readonly Dictionary<int, List<string>> _lenBuckets = new Dictionary<int, List<string>>();
         private readonly ThreadLocal<DomainParser> _normalizer;
         private readonly int _threshold;
         private IBloomFilter? _bloomFilter;
-        private readonly static HttpClient _httpClient = new HttpClient();
+        private readonly static HttpClient _pslHttpClient = new HttpClient();
         private static readonly Lock _staticInitLock = new Lock();
         private readonly ParallelOptions _po;
         private bool _disposedValue;
+
+
+        private static readonly Lazy<CachedHttpRuleProvider> _sharedRuleProvider =
+            new Lazy<CachedHttpRuleProvider>(() =>
+            {
+                var cacheProvider =
+                    new Nager.PublicSuffix.RuleProviders.CacheProviders.LocalFileSystemCacheProvider();
+
+                var rp = new CachedHttpRuleProvider(cacheProvider, _pslHttpClient);
+                rp.BuildAsync().GetAwaiter().GetResult();
+                return rp;
+            }, isThreadSafe: true);
+
         private class MatchState
         {
             public string? BestDomain;
@@ -77,19 +89,9 @@ namespace TyposquattingDetector
             _threshold = threshold;
             _po = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount / 2) };
 
-            // Thread-safe static initialization
-            lock (_staticInitLock)
-            {
-                if (_sharedRuleProvider == null)
-                {
-                    var cacheProvider = new Nager.PublicSuffix.RuleProviders.CacheProviders.LocalFileSystemCacheProvider();
-                    _sharedRuleProvider = new CachedHttpRuleProvider(cacheProvider, _httpClient);
-                    _sharedRuleProvider.BuildAsync().GetAwaiter().GetResult();
-                }
-            }
-
             _normalizer = new ThreadLocal<DomainParser>(() =>
-                new DomainParser(_sharedRuleProvider, new Nager.PublicSuffix.DomainNormalizers.UriDomainNormalizer()));
+                new DomainParser(_sharedRuleProvider.Value, new Nager.PublicSuffix.DomainNormalizers.UriDomainNormalizer()));
+
 
             LoadData(defaultPath, customPath);
         }
