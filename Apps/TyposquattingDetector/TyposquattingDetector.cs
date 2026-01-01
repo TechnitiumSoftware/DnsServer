@@ -59,7 +59,14 @@ namespace TyposquattingDetector
         private readonly int _threshold;
         private IBloomFilter? _bloomFilter;
         private readonly HttpClient _httpClient = new HttpClient();
-        private bool disposedValue;
+        private readonly object _reductionLock = new object();
+        private static readonly object _staticInitLock = new object();
+        private bool _disposedValue;
+        private class MatchState
+        {
+            public string? BestDomain;
+            public int BestScore;
+        }
 
         #endregion variables
 
@@ -69,11 +76,15 @@ namespace TyposquattingDetector
         {
             _threshold = threshold;
 
-            if (_sharedRuleProvider == null)
+            // Thread-safe static initialization
+            lock (_staticInitLock)
             {
-                var cacheProvider = new Nager.PublicSuffix.RuleProviders.CacheProviders.LocalFileSystemCacheProvider();
-                _sharedRuleProvider = new CachedHttpRuleProvider(cacheProvider, _httpClient);
-                _sharedRuleProvider.BuildAsync().GetAwaiter().GetResult(); // Initialize synchronously, explicitly
+                if (_sharedRuleProvider == null)
+                {
+                    var cacheProvider = new Nager.PublicSuffix.RuleProviders.CacheProviders.LocalFileSystemCacheProvider();
+                    _sharedRuleProvider = new CachedHttpRuleProvider(cacheProvider, _httpClient);
+                    _sharedRuleProvider.BuildAsync().GetAwaiter().GetResult();
+                }
             }
 
             _normalizer = new ThreadLocal<DomainParser>(() =>
@@ -88,14 +99,14 @@ namespace TyposquattingDetector
         #region Dispose
         protected virtual void Dispose(bool disposing)
         {
-            if (!disposedValue)
+            if (!_disposedValue)
             {
                 if (disposing)
                 {
                     _httpClient?.Dispose();
                     _normalizer?.Dispose();
                 }
-                disposedValue = true;
+                _disposedValue = true;
             }
         }
 
@@ -130,77 +141,35 @@ namespace TyposquattingDetector
         #region private
         private Result FuzzyMatch(string query, Result result)
         {
-            string? bestDomain = null;
-            int bestScore = 0;
+            var globalState = new MatchState { BestDomain = null, BestScore = 0 };
 
-            // Collect candidate buckets (Length ±1)
-            var buckets = new List<string>?[3];
-            int bi = 0;
+            var bucketIndices = new[] { query.Length - 1, query.Length, query.Length + 1 };
 
-            for (int i = -1; i <= 1; i++)
+            foreach (int len in bucketIndices)
             {
-                if (_lenBuckets.TryGetValue(query.Length + i, out var b))
-                    buckets[bi++] = b;
-            }
+                if (!_lenBuckets.TryGetValue(len, out var bucket)) continue;
 
-            // --- cheap lexical + trigram prefilter ---
-            static bool PassesPrefilter(string q, string d, int threshold)
-            {
-                int dl = d.Length;
-                int ql = q.Length;
-
-                // reject far-length candidates
-                if (Math.Abs(dl - ql) > 2)
-                    return false;
-
-                // fast first-char rejection
-                if (q[0] != d[0])
-                    return false;
-
-                // tiny strings → go straight to Fuzz()
-                if (ql < 4 || dl < 4)
-                    return true;
-
-                // small trigram overlap check (no alloc)
-                int hits = 0;
-                for (int i = 0; i < Math.Min(ql, dl) - 2; i++)
-                    if (d.AsSpan().IndexOf(q.AsSpan(i, 3)) >= 0) hits++;
-
-                // require minimal neighborhood similarity
-                return hits >= 1 || threshold <= 80;
-            }
-
-            // --- shard scan with thread-local best ---
-            for (int i = 0; i < bi; i++)
-            {
-                var bucket = buckets[i];
-                if (bucket is null) continue;
-
-                // Tuneable knobs
                 const int SequentialCutoff = 256;
                 int maxDop = Math.Max(1, Environment.ProcessorCount / 2);
 
                 if (bucket.Count <= SequentialCutoff)
                 {
-                    // Sequential fast-path for small buckets
-                    SequentialMatch(query, ref bestDomain, ref bestScore, bucket);
+                    SequentialMatch(query, globalState, bucket);
                 }
                 else
                 {
-                    (bool flowControl, (bestDomain, bestScore)) = ParallelMatch(query, bestDomain, bestScore, bucket, maxDop);
-                    if (!flowControl)
-                    {
-                        break;
-                    }
+                    ParallelMatch(query, globalState, bucket, maxDop);
                 }
+
+                if (globalState.BestScore >= 98) break;
             }
 
-            if (bestDomain != null)
+            if (globalState.BestDomain != null)
             {
-                result.BestMatch = bestDomain;
-                result.FuzzyScore = bestScore;
+                result.BestMatch = globalState.BestDomain;
+                result.FuzzyScore = globalState.BestScore;
                 result.IsSuspicious = true;
-                result.Severity = bestScore > 90 ? Severity.HIGH : Severity.MEDIUM;
+                result.Severity = globalState.BestScore > 90 ? Severity.HIGH : Severity.MEDIUM;
                 result.Reason = Reason.Typosquatting;
             }
             else
@@ -210,93 +179,100 @@ namespace TyposquattingDetector
             }
 
             return result;
+        }
 
-            (bool flowControl, (string? bestDomain, int bestScore) value) ParallelMatch(string query, string? bestDomain, int bestScore, List<string> bucket, int maxDop)
+        private void SequentialMatch(string query, MatchState state, List<string> bucket)
+        {
+            foreach (var domain in bucket)
             {
+                if (state.BestScore >= 98) break;
+
+                if (!PassesPrefilter(query, domain, _threshold))
+                    continue;
+
+                int score = Fuzz.WeightedRatio(query, domain);
+
+                if (score > state.BestScore)
                 {
-                    // Bounded parallelism for large buckets
-                    var locals = new System.Collections.Concurrent.ConcurrentBag<(int score, string dom)>();
-                    var po = new ParallelOptions { MaxDegreeOfParallelism = maxDop };
-
-                    Parallel.ForEach(
-                        bucket,
-                        po,
-                        () => (score: 0, dom: (string?)null),
-
-                        (domain, state, local) =>
-                        {
-                            if (bestScore >= 98)
-                            {
-                                state.Stop();
-                                return local;
-                            }
-
-                            if (!PassesPrefilter(query, domain, _threshold))
-                                return local;
-
-                            int score = Fuzz.WeightedRatio(query, domain);
-
-                            if (score > local.score)
-                                local = (score, domain);
-
-                            if (score >= 95)
-                                state.Stop();
-
-                            return local;
-                        },
-
-                        local =>
-                        {
-                            if (local.score > 0 && local.dom is not null)
-                                locals.Add((local.score, local.dom));
-                        }
-                    );
-
-                    foreach (var l in locals)
-                        if (l.score > bestScore)
-                        {
-                            bestScore = l.score;
-                            bestDomain = l.dom;
-                        }
-
-
-                    // serial reduction (no races)
-                    foreach (var l in locals)
-                    {
-                        if (l.score > bestScore)
-                        {
-                            bestScore = l.score;
-                            bestDomain = l.dom;
-                        }
-                    }
-                    if (bestScore >= 98)
-                        return (flowControl: false, value: default);
+                    state.BestScore = score;
+                    state.BestDomain = domain;
                 }
 
-                return (flowControl: true, value: default);
+                if (score >= 95) break;
             }
+        }
 
-            void SequentialMatch(string query, ref string? bestDomain, ref int bestScore, List<string> bucket)
-            {
-                foreach (var domain in bucket)
+        private void ParallelMatch(string query, MatchState globalState, List<string> bucket, int maxDop)
+        {
+            var po = new ParallelOptions { MaxDegreeOfParallelism = maxDop };
+
+            Parallel.ForEach(
+                bucket,
+                po,
+                () => (score: 0, dom: (string?)null), // Thread-local state
+                (domain, state, local) =>
                 {
-                    if (bestScore >= 98) break;
+                    // Volatile check for early exit
+                    if (Volatile.Read(ref globalState.BestScore) >= 98)
+                    {
+                        state.Stop();
+                        return local;
+                    }
 
                     if (!PassesPrefilter(query, domain, _threshold))
-                        continue;
+                        return local;
 
                     int score = Fuzz.WeightedRatio(query, domain);
 
-                    if (score > bestScore)
-                    {
-                        bestScore = score;
-                        bestDomain = domain;
-                    }
+                    if (score > local.score)
+                        local = (score, domain);
 
-                    if (score >= 95)
-                        break;
+                    if (score >= 95) state.Stop();
+
+                    return local;
+                },
+                local =>
+                {
+                    // Reduction phase: Merge thread-local winner into global state
+                    if (local.dom != null)
+                    {
+                        lock (globalState) // Lock on the state object
+                        {
+                            if (local.score > globalState.BestScore)
+                            {
+                                globalState.BestScore = local.score;
+                                globalState.BestDomain = local.dom;
+                            }
+                        }
+                    }
                 }
-            }
+            );
+        }
+
+        private static bool PassesPrefilter(string q, string d, int threshold)
+        {
+            int dl = d.Length;
+            int ql = q.Length;
+
+            // reject far-length candidates
+            if (Math.Abs(dl - ql) > 2)
+                return false;
+
+            // fast first-char rejection
+            if (q[0] != d[0])
+                return false;
+
+            // tiny strings → go straight to Fuzz()
+            if (ql < 4 || dl < 4)
+                return true;
+
+            // small trigram overlap check (no alloc)
+            int hits = 0;
+            for (int i = 0; i < Math.Min(ql, dl) - 2; i++)
+                if (d.AsSpan().IndexOf(q.AsSpan(i, 3)) >= 0) hits++;
+
+            // require minimal neighborhood similarity
+            return hits >= 1 || threshold <= 80;
         }
 
         private static string? ExtractDomain(string line)
