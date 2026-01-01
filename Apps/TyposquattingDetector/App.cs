@@ -115,50 +115,52 @@ namespace TyposquattingDetector
                 {
                     _dnsServer.WriteLog($"Typosquatting Detector: Started downloading domain list to path: '{_domainListFilePath}'.");
 
-                    Uri domainList = new Uri(DefaultDomainListUrl);
-                    _httpClient = CreateHttpClient(domainList, _config.DisableTlsValidation);
-                    await _httpClient.GetStreamAsync(domainList).ContinueWith(async t =>
+                    try
                     {
-                        try
+                        Uri domainList = new Uri(DefaultDomainListUrl);
+                        _httpClient = CreateHttpClient(domainList, _config.DisableTlsValidation);
+
+                        using (Stream stream = await _httpClient.GetStreamAsync(domainList))
+                        using (FileStream fs = new FileStream(_domainListFilePath, FileMode.Create, FileAccess.Write, FileShare.None))
                         {
+                            await stream.CopyToAsync(fs, _appShutdownCts.Token);
+                        }
+
+                        // Re-read file to calculate hash (or use a CryptoStream during download)
+                        using (FileStream fs = new FileStream(_domainListFilePath, FileMode.Open, FileAccess.Read))
+                        {
+                            string sha256 = Convert.ToHexString(await SHA256.HashDataAsync(fs));
+                            _dnsServer.WriteLog($"Typosquatting Detector: SHA256 hash of downloaded domain list: {sha256}");
+
                             var hashPath = Path.Combine(configDir, "majestic_million.csv.sha256");
-                            using (Stream stream = await t)
-                            using (FileStream fs = new FileStream(_domainListFilePath, FileMode.Create, FileAccess.Write, FileShare.None))
+                            if (File.Exists(hashPath) && File.ReadLines(hashPath).ToArray()[0] == sha256)
                             {
-                                await stream.CopyToAsync(fs, _appShutdownCts.Token);
+                                _changed = false;
+                                _dnsServer.WriteLog($"Typosquatting Detector: Downloaded domain list is identical to the previous one. No changes made.");
                             }
-
-                            // Re-read file to calculate hash (or use a CryptoStream during download)
-                            using (FileStream fs = new FileStream(_domainListFilePath, FileMode.Open, FileAccess.Read))
+                            else
                             {
-                                string sha256 = Convert.ToHexString(await SHA256.HashDataAsync(fs));
-                                _dnsServer.WriteLog($"Typosquatting Detector: SHA256 hash of downloaded domain list: {sha256}");
-
-                                if (File.Exists(hashPath) && File.ReadLines(hashPath).ToArray()[0] == sha256)
-                                {
-                                    _changed = false;
-                                    _dnsServer.WriteLog($"Typosquatting Detector: Downloaded domain list is identical to the previous one. No changes made.");
-                                }
-                                else
-                                {
-                                    using StreamWriter writer = new StreamWriter(new FileStream(hashPath, FileMode.Create, FileAccess.Write, FileShare.None));
-                                    await writer.WriteAsync(sha256);
-                                    _changed = true;
-                                    _dnsServer.WriteLog($"Typosquatting Detector: Hash file is saved.");
-                                }
+                                await File.WriteAllTextAsync(hashPath, sha256, _appShutdownCts.Token);
+                                _changed = true;
+                                _dnsServer.WriteLog($"Typosquatting Detector: Hash file is saved.");
                             }
-                            _dnsServer.WriteLog($"Typosquatting Detector: Downloaded domain list from '{domainList}' to '{_domainListFilePath}'.");
                         }
-                        catch (Exception ex)
-                        {
-                            _dnsServer.WriteLog($"FATAL: Failed to download domain list from '{domainList}'. Error: {ex.Message}");
-                            _dnsServer.WriteLog(ex);
-                        }
-                    }).GetAwaiter().GetResult().ConfigureAwait(false);
+                        _dnsServer.WriteLog($"Typosquatting Detector: Downloaded domain list from '{domainList}' to '{_domainListFilePath}'.");
+                    }
+                    catch (Exception ex)
+                    {
+                        _dnsServer.WriteLog($"FATAL: Failed to download domain list. Error: {ex.Message}");
+                        _dnsServer.WriteLog(ex);
+                    }
                 }
 
-                // We do not await this, as it's designed to run for the lifetime of the app.
+
+                // We await this so InitializeAsync doesn't finish until the detector is ready.
+                await UpdateDomainListAsync(_appShutdownCts.Token);
+
+                // Now that _detector is initiated, start the periodic update loop
                 _updateLoopTask = StartUpdateLoopAsync(_appShutdownCts.Token);
+
                 _ = _updateLoopTask.ContinueWith(t =>
                            {
                                if (t.IsFaulted)
