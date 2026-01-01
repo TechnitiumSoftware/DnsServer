@@ -45,7 +45,7 @@ namespace TyposquattingDetector
         public int FuzzyScore { get; set; }
         public string Query { get; }
         public Reason Reason { get; set; }
-        public Severity Severity { get; set; }
+        public Severity Severity { get; set; } = Severity.NONE;
         public bool IsSuspicious { get; set; }
     }
 
