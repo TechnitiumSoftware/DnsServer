@@ -27,6 +27,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace TyposquattingDetector
 {
@@ -115,58 +116,73 @@ namespace TyposquattingDetector
             var normalized = Normalize(query);
             var result = new Result(normalized);
 
-            // GATE 1: Known Famous Site
-            (bool flowControl, Result? prefilterResult) = Prefilter(normalized, result);
-            if (!flowControl)
+            // GATE 1: Bloom Filter Prefilter (O(1))
+            if (_bloomFilter is not null && _bloomFilter.Contains(normalized))
             {
-                return prefilterResult!;
+                result.Status = DetectionStatus.Clean;
+                result.Reason = Reason.Exact;
+                return result;
             }
 
             // GATE 2: Fuzzy Similarity Check
             return FuzzyMatch(normalized, result);
         }
-        #endregion public
 
-        #region private
         private Result FuzzyMatch(string query, Result result)
         {
-            var candidates = new List<string>();
+            string? bestDomain = null;
+            int maxScore = 0;
+            object lockObj = new object();
+
+            // Collect relevant buckets (Length +/- 1)
+            var targetBuckets = new List<List<string>>();
             for (int i = -1; i <= 1; i++)
-                if (_lenBuckets.TryGetValue(query.Length + i, out var bucket))
-                    candidates.AddRange(bucket);
-
-            var best = candidates
-                .Select(d => new { d, score = Fuzz.WeightedRatio(query, d) })
-                .OrderByDescending(x => x.score)
-                .FirstOrDefault();
-
-            if (best != null && best.score >= _threshold)
             {
-                result.BestMatch = best.d;
-                result.FuzzyScore = best.score;
+                if (_lenBuckets.TryGetValue(query.Length + i, out var bucket))
+                    targetBuckets.Add(bucket);
+            }
+
+            // High-performance parallel search with adaptive pruning
+            foreach (var bucket in targetBuckets)
+            {
+                Parallel.ForEach(bucket, (domain, state) =>
+                {
+                    // Adaptive Pruning: If another thread found a near-perfect match, stop
+                    if (maxScore >= 98) state.Stop();
+
+                    int score = Fuzz.WeightedRatio(query, domain);
+
+                    if (score > _threshold)
+                    {
+                        lock (lockObj)
+                        {
+                            if (score > maxScore)
+                            {
+                                maxScore = score;
+                                bestDomain = domain;
+                            }
+                        }
+                    }
+                });
+
+                if (maxScore >= 98) break; // Optimization: Stop checking other buckets if we found a top match
+            }
+
+            if (bestDomain != null)
+            {
+                result.BestMatch = bestDomain;
+                result.FuzzyScore = maxScore;
                 result.Status = DetectionStatus.Suspicious;
-                result.Severity = Severity.HIGH;
+                result.Severity = maxScore > 90 ? Severity.HIGH : Severity.MEDIUM;
                 result.Reason = Reason.Typosquatting;
             }
             else
             {
                 result.Status = DetectionStatus.Clean;
-                result.Reason = Reason.BloomReject;
+                result.Reason = Reason.NoCandidates;
             }
 
             return result;
-        }
-
-        private (bool flowControl, Result? value) Prefilter(string q, Result r)
-        {
-            if (_bloomFilter is not null && _bloomFilter.Contains(q))
-            {
-                r.Status = DetectionStatus.Clean;
-                r.Reason = Reason.Exact;
-                return (flowControl: false, value: r);
-            }
-
-            return (flowControl: true, value: null);
         }
 
         private static string? ExtractDomain(string line)
@@ -184,54 +200,43 @@ namespace TyposquattingDetector
 
         private void LoadData(string oneMilFilePath, string customPath)
         {
-            _bloomFilter = FilterBuilder.Build(1_000_000, 0.01);
+            // Capacity for 1M domains + custom list
+            _bloomFilter = FilterBuilder.Build(1_100_000, 0.001);
 
-            // Load custom list first
-            if (string.IsNullOrEmpty(customPath) || !File.Exists(customPath))
+            // Helper to add domains to both Bloom and Buckets
+            void processDomain(string domain)
             {
-                return;
-            }
-
-            foreach (var line in File.ReadLines(customPath))
-            {
-                var domain = line.Trim();
-                if (string.IsNullOrEmpty(domain)) continue;
+                if (string.IsNullOrWhiteSpace(domain)) return;
+                domain = domain.ToLowerInvariant();
                 _bloomFilter.Add(domain);
                 if (!_lenBuckets.TryGetValue(domain.Length, out var list))
                 {
                     list = new List<string>();
                     _lenBuckets[domain.Length] = list;
                 }
-                if (list.Count < 10000) list.Add(domain);
+                // Cap fuzzy search candidates per length to keep search times predictable
+                if (list.Count < 15000) list.Add(domain);
             }
 
-
-            // Load majestic 1 million list later
-            using var fs = new FileStream(oneMilFilePath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536);
-            using var reader = new StreamReader(fs);
-            reader.ReadLine();
-
-            while (reader.ReadLine() is { } line)
+            // 1. Load custom list
+            if (!string.IsNullOrEmpty(customPath) && File.Exists(customPath))
             {
-                string? domain = null;
-                try
-                {
-                    domain = ExtractDomain(line);
-                    if (string.IsNullOrEmpty(domain)) continue;
+                foreach (var line in File.ReadLines(customPath))
+                    processDomain(line.Trim());
+            }
 
-                    _bloomFilter.Add(domain.ToLowerInvariant());
+            // 2. Load Majestic 1M
+            if (File.Exists(oneMilFilePath))
+            {
+                using var fs = new FileStream(oneMilFilePath, FileMode.Open, FileAccess.Read, FileShare.Read, 128 * 1024);
+                using var reader = new StreamReader(fs);
+                reader.ReadLine(); // Skip header
 
-                }
-                catch (Exception)
+                while (reader.ReadLine() is { } line)
                 {
-                    continue; // skip corrupted lines
+                    var domain = ExtractDomain(line);
+                    if (domain != null) processDomain(domain);
                 }
-                if (!_lenBuckets.TryGetValue(domain.Length, out var list))
-                {
-                    list = new List<string>();
-                    _lenBuckets[domain.Length] = list;
-                }
-                if (list.Count < 10000) list.Add(domain);
             }
         }
 
