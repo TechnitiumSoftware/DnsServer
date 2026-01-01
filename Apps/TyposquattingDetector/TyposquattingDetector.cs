@@ -58,7 +58,7 @@ namespace TyposquattingDetector
         private readonly ThreadLocal<DomainParser> _normalizer;
         private readonly int _threshold;
         private IBloomFilter? _bloomFilter;
-        private static readonly HttpClient _httpClient = new();
+        private readonly HttpClient _httpClient = new HttpClient();
         private bool disposedValue;
 
         #endregion variables
@@ -92,7 +92,8 @@ namespace TyposquattingDetector
             {
                 if (disposing)
                 {
-                    _normalizer.Dispose();
+                    _httpClient?.Dispose();
+                    _normalizer?.Dispose();
                 }
                 disposedValue = true;
             }
