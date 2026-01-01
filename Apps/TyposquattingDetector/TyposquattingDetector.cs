@@ -131,49 +131,105 @@ namespace TyposquattingDetector
         private Result FuzzyMatch(string query, Result result)
         {
             string? bestDomain = null;
-            int maxScore = 0;
-            object lockObj = new object();
+            int bestScore = 0;
 
-            // Collect relevant buckets (Length +/- 1)
-            var targetBuckets = new List<List<string>>();
+            // Collect candidate buckets (Length ±1)
+            var buckets = new List<string>?[3];
+            int bi = 0;
+
             for (int i = -1; i <= 1; i++)
             {
-                if (_lenBuckets.TryGetValue(query.Length + i, out var bucket))
-                    targetBuckets.Add(bucket);
+                if (_lenBuckets.TryGetValue(query.Length + i, out var b))
+                    buckets[bi++] = b;
             }
 
-            // High-performance parallel search with adaptive pruning
-            foreach (var bucket in targetBuckets)
+            // --- cheap lexical + trigram prefilter ---
+            static bool PassesPrefilter(string q, string d, int threshold)
             {
-                Parallel.ForEach(bucket, (domain, state) =>
-                {
-                    // Adaptive Pruning: If another thread found a near-perfect match, stop
-                    if (maxScore >= 98) state.Stop();
+                int dl = d.Length;
+                int ql = q.Length;
 
-                    int score = Fuzz.WeightedRatio(query, domain);
+                // reject far-length candidates
+                if (Math.Abs(dl - ql) > 2)
+                    return false;
 
-                    if (score > _threshold)
+                // fast first-char rejection
+                if (q[0] != d[0])
+                    return false;
+
+                // tiny strings → go straight to Fuzz()
+                if (ql < 4 || dl < 4)
+                    return true;
+
+                // small trigram overlap check (no alloc)
+                int hits = 0;
+                for (int i = 0; i < Math.Min(ql, dl) - 2; i++)
+                    if (d.AsSpan().IndexOf(q.AsSpan(i, 3)) >= 0) hits++;
+
+                // require minimal neighborhood similarity
+                return hits >= 1 || threshold <= 80;
+            }
+
+            // --- shard scan with thread-local best ---
+            for (int i = 0; i < bi; i++)
+            {
+                var bucket = buckets[i];
+                if (bucket is null) continue;
+
+                var locals = new System.Collections.Concurrent.ConcurrentBag<(int score, string dom)>();
+
+                Parallel.ForEach(
+                    bucket,
+                    () => (score: 0, dom: (string?)null),
+
+                    (domain, state, local) =>
                     {
-                        lock (lockObj)
+                        if (bestScore >= 98)
                         {
-                            if (score > maxScore)
-                            {
-                                maxScore = score;
-                                bestDomain = domain;
-                            }
+                            state.Stop();
+                            return local;
                         }
-                    }
-                });
 
-                if (maxScore >= 98) break; // Optimization: Stop checking other buckets if we found a top match
+                        if (!PassesPrefilter(query, domain, _threshold))
+                            return local;
+
+                        int score = Fuzz.WeightedRatio(query, domain);
+
+                        if (score > local.score)
+                            local = (score, domain);
+
+                        if (score >= 95)
+                            state.Stop();
+
+                        return local;
+                    },
+
+                    local =>
+                    {
+                        if (local.score > 0 && local.dom is not null)
+                            locals.Add((local.score, local.dom));
+                    }
+                );
+
+                // serial reduction (no races)
+                foreach (var l in locals)
+                {
+                    if (l.score > bestScore)
+                    {
+                        bestScore = l.score;
+                        bestDomain = l.dom;
+                    }
+                }
+                if (bestScore >= 98)
+                    break;
             }
 
             if (bestDomain != null)
             {
                 result.BestMatch = bestDomain;
-                result.FuzzyScore = maxScore;
+                result.FuzzyScore = bestScore;
                 result.Status = DetectionStatus.Suspicious;
-                result.Severity = maxScore > 90 ? Severity.HIGH : Severity.MEDIUM;
+                result.Severity = bestScore > 90 ? Severity.HIGH : Severity.MEDIUM;
                 result.Reason = Reason.Typosquatting;
             }
             else

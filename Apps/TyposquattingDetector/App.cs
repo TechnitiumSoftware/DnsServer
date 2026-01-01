@@ -372,7 +372,7 @@ namespace TyposquattingDetector
                 if (!safePath.StartsWith(_dnsServer.ApplicationFolder)) throw new SecurityException("Access Denied");
 
                 var oldDetector = _detector;
-                _detector = new TyposquattingDetector(_domainListFilePath!, safePath, _config.FuzzyMatchThreshold);
+                _detector = new TyposquattingDetector(_domainListFilePath!, safePath, _config!.FuzzyMatchThreshold);
                 oldDetector?.Dispose();
                 _dnsServer.WriteLog($"Typosquatting Detector: Processing completed.");
             }
