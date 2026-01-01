@@ -143,7 +143,13 @@ namespace TyposquattingDetector
                     _dnsServer.WriteLog($"Typosquatting Detector: SHA256 hash of downloaded domain list: {sha256}");
 
                     var hashPath = Path.Combine(configDir, "majestic_million.csv.sha256");
-                    if (File.Exists(hashPath) && File.ReadLines(hashPath).ToArray()[0] == sha256)
+                    string? previousHash = null;
+                    if (File.Exists(hashPath))
+                    {
+                        // Safely read the first line; handle empty or corrupted hash file
+                        previousHash = File.ReadLines(hashPath).FirstOrDefault()?.Trim();
+                    }
+                    if (!string.IsNullOrEmpty(previousHash) && string.Equals(previousHash, sha256, StringComparison.OrdinalIgnoreCase))
                     {
                         _changed = false;
                         _dnsServer.WriteLog($"Typosquatting Detector: Downloaded domain list is identical to the previous one. No changes made.");
