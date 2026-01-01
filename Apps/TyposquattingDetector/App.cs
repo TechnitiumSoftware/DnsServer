@@ -368,10 +368,23 @@ namespace TyposquattingDetector
             try
             {
                 _dnsServer!.WriteLog($"Typosquatting Detector: Processing domain list...");
-                string safePath = string.Empty;
-                safePath = Path.GetFullPath(_domainListFilePath!);
-                if (!safePath.StartsWith(_dnsServer.ApplicationFolder)) throw new SecurityException("Access Denied");
-                var newDetector = new TyposquattingDetector(_domainListFilePath!, safePath, _config!.FuzzyMatchThreshold);
+                // Validate Majestic list path (must be inside app folder)
+                string majesticPath = Path.GetFullPath(_domainListFilePath!);
+                if (!majesticPath.StartsWith(_dnsServer.ApplicationFolder, StringComparison.OrdinalIgnoreCase))
+                    throw new SecurityException("Access Denied");
+
+                // Resolve custom list path from config (optional)
+                string customListPath = string.Empty;
+                if (!string.IsNullOrWhiteSpace(_config!.Path))
+                {
+                    customListPath = Path.GetFullPath(_config.Path);
+
+                    // Keep policy consistent: restrict custom list to app folder.
+                    // If you want to allow arbitrary paths, remove this check.
+                    if (!customListPath.StartsWith(_dnsServer.ApplicationFolder, StringComparison.OrdinalIgnoreCase))
+                        throw new SecurityException("Access Denied");
+                }
+                var newDetector = new TyposquattingDetector(majesticPath, customListPath, _config!.FuzzyMatchThreshold);
                 var oldDetector = Interlocked.Exchange(ref _detector, newDetector);
                 oldDetector?.Dispose();
                 _dnsServer.WriteLog($"Typosquatting Detector: Processing completed.");
