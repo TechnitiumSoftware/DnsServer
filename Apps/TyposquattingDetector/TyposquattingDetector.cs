@@ -279,7 +279,8 @@ namespace TyposquattingDetector
 
             // small trigram overlap check (no alloc)
             int hits = 0;
-            for (int i = 0; i < Math.Min(ql, dl) - 2; i++)
+            int maxTrigrams = Math.Min(10, Math.Min(ql, dl) - 2);
+            for (int i = 0; i < maxTrigrams; i++)
                 if (d.AsSpan().IndexOf(q.AsSpan(i, 3)) >= 0) hits++;
 
             // require minimal neighborhood similarity
