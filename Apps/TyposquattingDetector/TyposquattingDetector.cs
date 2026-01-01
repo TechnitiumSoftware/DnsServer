@@ -182,11 +182,32 @@ namespace TyposquattingDetector
             return (thirdComma == -1 ? afterSecond : afterSecond.Slice(0, thirdComma)).ToString();
         }
 
-        private void LoadData(string filePath, string customPath)
+        private void LoadData(string oneMilFilePath, string customPath)
         {
             _bloomFilter = FilterBuilder.Build(1_000_000, 0.01);
 
-            using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536);
+            // Load custom list first
+            if (string.IsNullOrEmpty(customPath) || !File.Exists(customPath))
+            {
+                return;
+            }
+
+            foreach (var line in File.ReadLines(customPath))
+            {
+                var domain = line.Trim();
+                if (string.IsNullOrEmpty(domain)) continue;
+                _bloomFilter.Add(domain);
+                if (!_lenBuckets.TryGetValue(domain.Length, out var list))
+                {
+                    list = new List<string>();
+                    _lenBuckets[domain.Length] = list;
+                }
+                if (list.Count < 10000) list.Add(domain);
+            }
+
+
+            // Load majestic 1 million list later
+            using var fs = new FileStream(oneMilFilePath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536);
             using var reader = new StreamReader(fs);
             reader.ReadLine();
 
@@ -205,24 +226,6 @@ namespace TyposquattingDetector
                 {
                     continue; // skip corrupted lines
                 }
-                if (!_lenBuckets.TryGetValue(domain.Length, out var list))
-                {
-                    list = new List<string>();
-                    _lenBuckets[domain.Length] = list;
-                }
-                if (list.Count < 10000) list.Add(domain);
-            }
-
-            if (string.IsNullOrEmpty(customPath) || !File.Exists(customPath))
-            {
-                return;
-            }
-
-            foreach (var line in File.ReadLines(customPath))
-            {
-                var domain = line.Trim();
-                if (string.IsNullOrEmpty(domain)) continue;
-                _bloomFilter.Add(domain);
                 if (!_lenBuckets.TryGetValue(domain.Length, out var list))
                 {
                     list = new List<string>();
