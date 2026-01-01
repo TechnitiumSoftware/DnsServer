@@ -127,7 +127,9 @@ namespace TyposquattingDetector
             // GATE 2: Fuzzy Similarity Check
             return FuzzyMatch(normalized, result);
         }
+        #endregion public
 
+        #region private
         private Result FuzzyMatch(string query, Result result)
         {
             string? bestDomain = null;
