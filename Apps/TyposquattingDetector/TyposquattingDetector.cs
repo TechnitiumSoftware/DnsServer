@@ -58,7 +58,7 @@ namespace TyposquattingDetector
         private readonly ThreadLocal<DomainParser> _normalizer;
         private readonly int _threshold;
         private IBloomFilter? _bloomFilter;
-        private readonly HttpClient _httpClient = new HttpClient();
+        private readonly static HttpClient _httpClient = new HttpClient();
         private readonly object _reductionLock = new object();
         private static readonly object _staticInitLock = new object();
         private bool _disposedValue;
@@ -103,7 +103,6 @@ namespace TyposquattingDetector
             {
                 if (disposing)
                 {
-                    _httpClient?.Dispose();
                     _normalizer?.Dispose();
                 }
                 _disposedValue = true;
@@ -236,7 +235,7 @@ namespace TyposquattingDetector
                     // Reduction phase: Merge thread-local winner into global state
                     if (local.dom != null)
                     {
-                        lock (globalState) // Lock on the state object
+                        lock (_reductionLock)
                         {
                             if (local.score > globalState.BestScore)
                             {
@@ -251,6 +250,9 @@ namespace TyposquattingDetector
 
         private static bool PassesPrefilter(string q, string d, int threshold)
         {
+            if (string.IsNullOrEmpty(q) || string.IsNullOrEmpty(d))
+                return false;
+
             int dl = d.Length;
             int ql = q.Length;
 
