@@ -293,7 +293,7 @@ namespace TyposquattingDetector
                     return TimeSpan.FromDays(value * 7);
 
                 default:
-                    throw new FormatException($"Invalid unit '{unit}' in update interval. Allowed units are 'm', 'h', 'd'. 'w'.");
+                    throw new FormatException($"Invalid unit '{unit}' in update interval. Allowed units are 'm', 'h', 'd', 'w'.");
             }
         }
 
@@ -371,9 +371,8 @@ namespace TyposquattingDetector
                 string safePath = string.Empty;
                 safePath = Path.GetFullPath(_domainListFilePath!);
                 if (!safePath.StartsWith(_dnsServer.ApplicationFolder)) throw new SecurityException("Access Denied");
-
-                var oldDetector = _detector;
-                _detector = new TyposquattingDetector(_domainListFilePath!, safePath, _config!.FuzzyMatchThreshold);
+                var newDetector = new TyposquattingDetector(_domainListFilePath!, safePath, _config!.FuzzyMatchThreshold);
+                var oldDetector = Interlocked.Exchange(ref _detector, newDetector);
                 oldDetector?.Dispose();
                 _dnsServer.WriteLog($"Typosquatting Detector: Processing completed.");
             }
