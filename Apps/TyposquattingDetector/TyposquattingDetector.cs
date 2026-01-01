@@ -59,8 +59,7 @@ namespace TyposquattingDetector
         private readonly int _threshold;
         private IBloomFilter? _bloomFilter;
         private readonly static HttpClient _httpClient = new HttpClient();
-        private readonly object _reductionLock = new object();
-        private static readonly object _staticInitLock = new object();
+        private static readonly Lock _staticInitLock = new Lock();
         private bool _disposedValue;
         private class MatchState
         {
@@ -242,16 +241,18 @@ namespace TyposquattingDetector
                 local =>
                 {
                     // Reduction phase: Merge thread-local winner into global state
-                    if (local.dom != null)
+                    if (local.dom == null)
                     {
-                        lock (_reductionLock)
+                        return;
+                    }
+                    lock (globalState)
+                    {
+                        if (local.score <= globalState.BestScore)
                         {
-                            if (local.score > globalState.BestScore)
-                            {
-                                globalState.BestScore = local.score;
-                                globalState.BestDomain = local.dom;
-                            }
+                            return;
                         }
+                        globalState.BestScore = local.score;
+                        globalState.BestDomain = local.dom;
                     }
                 }
             );
