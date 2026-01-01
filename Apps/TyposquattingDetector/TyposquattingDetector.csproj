@@ -12,7 +12,7 @@
 		<RootNamespace>TyposquattingDetector</RootNamespace>
 		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-		<Description>Detects if a queried domainname MIGHT be a typosquatting attempt or not.</Description>
+		<Description>Evaluates queried domains against a trusted corpus and flags visually similar near-matches as potential typosquatting. Allows blocking of suspicious queries and exposes structured detection details. The fuzzy-match threshold and optional custom domain list are operator-tunable; adjust cautiously to reduce false-positive impact.</Description>
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
 		<OutputType>Library</OutputType>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
