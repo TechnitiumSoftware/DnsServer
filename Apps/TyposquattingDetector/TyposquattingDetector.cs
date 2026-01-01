@@ -32,7 +32,7 @@ using System.Threading.Tasks;
 namespace TyposquattingDetector
 {
     public enum Reason
-    { BloomReject, Exact, Typosquatting, Medium, Low, NoCandidates }
+    { Exact, Typosquatting, NoCandidates }
 
     public enum Severity
     { NONE, LOW, MEDIUM, HIGH }
