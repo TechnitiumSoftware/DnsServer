@@ -114,13 +114,10 @@ namespace TyposquattingDetector
                     try
                     {
                         Uri domainList = new Uri(DefaultDomainListUrl);
-                        _httpClient = CreateHttpClient(domainList, _config.DisableTlsValidation);
-
-                        using (Stream stream = await _httpClient.GetStreamAsync(domainList))
-                        using (FileStream fs = new FileStream(_domainListFilePath, FileMode.Create, FileAccess.Write, FileShare.None))
-                        {
-                            await stream.CopyToAsync(fs, _appShutdownCts.Token);
-                        }
+                        using HttpClient httpClient = CreateHttpClient(domainList, _config.DisableTlsValidation);
+                        using Stream stream = await httpClient.GetStreamAsync(domainList);
+                        using FileStream fs = new FileStream(_domainListFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
+                        await stream.CopyToAsync(fs, _appShutdownCts.Token);
 
                         _dnsServer.WriteLog($"Typosquatting Detector: Downloaded domain list from '{domainList}' to '{_domainListFilePath}'.");
                     }
