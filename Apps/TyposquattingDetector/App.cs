@@ -321,7 +321,7 @@ namespace TyposquattingDetector
         {
             using PeriodicTimer timer = new PeriodicTimer(_updateInterval);
 
-            if (!_changed)
+            if (!Volatile.Read(ref _changed))
             {
                 // Nothing changed, skip first update
             }
