@@ -321,78 +321,150 @@ namespace TyposquattingDetector
         {
             using PeriodicTimer timer = new PeriodicTimer(_updateInterval);
 
-            if (!Volatile.Read(ref _changed))
+            // If init already checked hash and found no change, you can skip the *first* interval check.
+            bool skipFirst = !Volatile.Read(ref _changed);
+
+            // Jitter to avoid stampede after restart
+            await Task.Delay(TimeSpan.FromSeconds(Random.Shared.Next(0, 60)), cancellationToken);
+
+            while (!cancellationToken.IsCancellationRequested)
             {
-                // Nothing changed, skip first update
-            }
-            else
-            {
-                while (!cancellationToken.IsCancellationRequested)
+                if (skipFirst)
+                {
+                    skipFirst = false;
+                }
+                else
                 {
                     bool flowControl = await TryUpdate(cancellationToken);
                     if (!flowControl)
-                    {
                         break;
-                    }
-
-                    await timer.WaitForNextTickAsync(cancellationToken);
                 }
+
+                await timer.WaitForNextTickAsync(cancellationToken);
             }
-            await Task.Delay(TimeSpan.FromSeconds(Random.Shared.Next(0, 60)), cancellationToken);
         }
 
         private async Task<bool> TryUpdate(CancellationToken cancellationToken)
         {
             try
             {
-                await UpdateDomainListAsync(cancellationToken);
+                bool changed = await DownloadIfChangedAndReloadAsync(cancellationToken);
+                if (changed)
+                    _dnsServer!.WriteLog("Typosquatting Detector: Domain list updated and detector reloaded.");
             }
             catch (OperationCanceledException)
             {
-                _dnsServer!.WriteLog("Update loop is shutting down gracefully.");
+                _dnsServer!.WriteLog("Typosquatting Detector: Update loop is shutting down gracefully.");
                 return false;
             }
             catch (Exception ex)
             {
-                _dnsServer!.WriteLog($"FATAL: The Typosquatting Detector update task failed unexpectedly. Error: {ex.Message}");
-                _dnsServer.WriteLog(ex);
+                _dnsServer!.WriteLog($"ERROR: Typosquatting Detector update failed. {ex.Message}");
+                _dnsServer!.WriteLog(ex);
             }
 
             return true;
         }
 
-        private async Task UpdateDomainListAsync(CancellationToken cancellationToken)
+        private async Task<bool> DownloadIfChangedAndReloadAsync(CancellationToken cancellationToken)
         {
-            if (cancellationToken.IsCancellationRequested) return;
+            if (cancellationToken.IsCancellationRequested) return false;
+
+            string configDir = _dnsServer!.ApplicationFolder;
+            string majesticPath = Path.GetFullPath(_domainListFilePath!);
+
+            if (!majesticPath.StartsWith(configDir, StringComparison.OrdinalIgnoreCase))
+                throw new SecurityException("Access Denied");
+
+            string hashPath = Path.Combine(configDir, "majestic_million.csv.sha256");
+            string tempPath = Path.Combine(configDir, "majestic_million.csv.tmp");
+
+            // Avoid concurrent temp collisions (paranoia)
+            if (File.Exists(tempPath))
+            {
+                try { File.Delete(tempPath); } catch { /* ignore */ }
+            }
+
+            _dnsServer.WriteLog("Typosquatting Detector: Checking for updated domain list...");
+
+            // Download to temp and compute hash while writing (single pass)
+            string newHash;
+            Uri domainList = new Uri(DefaultDomainListUrl);
+
+            using (HttpClient httpClient = CreateHttpClient(domainList, _config!.DisableTlsValidation))
+            using (Stream netStream = await httpClient.GetStreamAsync(domainList, cancellationToken))
+            using (FileStream fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, 128 * 1024, useAsync: true))
+            using (var sha = SHA256.Create())
+            using (var crypto = new CryptoStream(fs, sha, CryptoStreamMode.Write, leaveOpen: true))
+            {
+                await netStream.CopyToAsync(crypto, 128 * 1024, cancellationToken);
+                await crypto.FlushAsync(cancellationToken);
+                crypto.FlushFinalBlock();
+
+                newHash = Convert.ToHexString(sha.Hash!);
+            }
+
+            // Read old hash (if any)
+            string? oldHash = null;
+            if (File.Exists(hashPath))
+                oldHash = File.ReadLines(hashPath).FirstOrDefault()?.Trim();
+
+            if (!string.IsNullOrEmpty(oldHash) && string.Equals(oldHash, newHash, StringComparison.OrdinalIgnoreCase))
+            {
+                // No change → delete temp
+                try { File.Delete(tempPath); } catch { /* ignore */ }
+                Volatile.Write(ref _changed, false);
+                _dnsServer.WriteLog("Typosquatting Detector: No change in domain list.");
+                return false;
+            }
+
+            // Changed → replace live file atomically (temp is in same directory)
+            // File.Move(tempPath, majesticPath, overwrite: true) is supported on modern .NET.
+            File.Move(tempPath, majesticPath, overwrite: true);
+
+            await File.WriteAllTextAsync(hashPath, newHash, cancellationToken);
+            Volatile.Write(ref _changed, true);
+
+            // Reload detector from the updated file
+            await UpdateDomainListAsync(cancellationToken);
+
+            return true;
+        }
+
+        private Task UpdateDomainListAsync(CancellationToken cancellationToken)
+        {
+            if (cancellationToken.IsCancellationRequested) return Task.CompletedTask;
 
             try
             {
-                _dnsServer!.WriteLog($"Typosquatting Detector: Processing domain list...");
-                // Validate Majestic list path (must be inside app folder)
+                _dnsServer!.WriteLog("Typosquatting Detector: Processing domain list...");
+
+                string configDir = _dnsServer.ApplicationFolder;
+
                 string majesticPath = Path.GetFullPath(_domainListFilePath!);
-                if (!majesticPath.StartsWith(_dnsServer.ApplicationFolder, StringComparison.OrdinalIgnoreCase))
+                if (!majesticPath.StartsWith(configDir, StringComparison.OrdinalIgnoreCase))
                     throw new SecurityException("Access Denied");
 
-                // Resolve custom list path from config (optional)
                 string customListPath = string.Empty;
                 if (!string.IsNullOrWhiteSpace(_config!.Path))
                 {
                     customListPath = Path.GetFullPath(_config.Path);
-
-                    // Keep policy consistent: restrict custom list to app folder.
-                    // If you want to allow arbitrary paths, remove this check.
-                    if (!customListPath.StartsWith(_dnsServer.ApplicationFolder, StringComparison.OrdinalIgnoreCase))
+                    if (!customListPath.StartsWith(configDir, StringComparison.OrdinalIgnoreCase))
                         throw new SecurityException("Access Denied");
                 }
-                var newDetector = new TyposquattingDetector(majesticPath, customListPath, _config!.FuzzyMatchThreshold);
+
+                var newDetector = new TyposquattingDetector(majesticPath, customListPath, _config.FuzzyMatchThreshold);
                 var oldDetector = Interlocked.Exchange(ref _detector, newDetector);
                 oldDetector?.Dispose();
-                _dnsServer.WriteLog($"Typosquatting Detector: Processing completed.");
+
+                _dnsServer.WriteLog("Typosquatting Detector: Processing completed.");
             }
             catch (IOException ex)
             {
                 _dnsServer!.WriteLog($"ERROR: Failed to read cache file '{_domainListFilePath}'. Error: {ex.Message}");
             }
+
+            return Task.CompletedTask;
         }
 
         #endregion private
