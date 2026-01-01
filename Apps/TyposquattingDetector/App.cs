@@ -318,13 +318,14 @@ namespace TyposquattingDetector
 
         private async Task StartUpdateLoopAsync(CancellationToken cancellationToken)
         {
+            using PeriodicTimer timer = new PeriodicTimer(_updateInterval);
+
             if (!_changed)
             {
                 // Nothing changed, skip first update
             }
             else
             {
-                using PeriodicTimer timer = new PeriodicTimer(_updateInterval);
                 while (!cancellationToken.IsCancellationRequested)
                 {
                     bool flowControl = await TryUpdate(cancellationToken);
