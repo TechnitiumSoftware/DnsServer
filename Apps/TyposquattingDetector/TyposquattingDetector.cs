@@ -60,6 +60,7 @@ namespace TyposquattingDetector
         private IBloomFilter? _bloomFilter;
         private readonly static HttpClient _httpClient = new HttpClient();
         private static readonly Lock _staticInitLock = new Lock();
+        private readonly ParallelOptions _po;
         private bool _disposedValue;
         private class MatchState
         {
@@ -74,6 +75,7 @@ namespace TyposquattingDetector
         public TyposquattingDetector(string defaultPath, string customPath, int threshold)
         {
             _threshold = threshold;
+            _po = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount / 2) };
 
             // Thread-safe static initialization
             lock (_staticInitLock)
@@ -157,7 +159,6 @@ namespace TyposquattingDetector
                 if (!_lenBuckets.TryGetValue(len, out var bucket)) continue;
 
                 const int SequentialCutoff = 256;
-                int maxDop = Math.Max(1, Environment.ProcessorCount / 2);
 
                 if (bucket.Count <= SequentialCutoff)
                 {
@@ -165,7 +166,7 @@ namespace TyposquattingDetector
                 }
                 else
                 {
-                    ParallelMatch(query, globalState, bucket, maxDop);
+                    ParallelMatch(query, globalState, bucket);
                 }
 
                 if (globalState.BestScore >= 98) break;
@@ -209,13 +210,11 @@ namespace TyposquattingDetector
             }
         }
 
-        private void ParallelMatch(string query, MatchState globalState, List<string> bucket, int maxDop)
+        private void ParallelMatch(string query, MatchState globalState, List<string> bucket)
         {
-            var po = new ParallelOptions { MaxDegreeOfParallelism = maxDop };
-
             Parallel.ForEach(
                 bucket,
-                po,
+                _po,
                 () => (score: 0, dom: (string?)null), // Thread-local state
                 (domain, state, local) =>
                 {
