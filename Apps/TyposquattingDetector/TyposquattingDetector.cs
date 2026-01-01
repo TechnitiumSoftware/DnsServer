@@ -303,7 +303,8 @@ namespace TyposquattingDetector
             if (string.IsNullOrWhiteSpace(s)) return s;
             try
             {
-                return _normalizer!.Value!.Parse(s)!.RegistrableDomain ?? s;
+                var registrableDomain = _normalizer?.Value?.Parse(s)?.RegistrableDomain;
+                return registrableDomain ?? s;
             }
             catch
             {
