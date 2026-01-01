@@ -122,6 +122,15 @@ namespace TyposquattingDetector
         public Result Check(string query)
         {
             var normalized = Normalize(query);
+            if (normalized == null)
+            {
+                return new Result(query)
+                {
+                    IsSuspicious = false,
+                    Reason = Reason.NoCandidates
+                };
+            }
+
             var result = new Result(normalized);
 
             // GATE 1: Bloom Filter Prefilter (O(1))
@@ -298,7 +307,8 @@ namespace TyposquattingDetector
             // Helper to add domains to both Bloom and Buckets
             void processDomain(string domain)
             {
-                if (string.IsNullOrWhiteSpace(domain)) return;
+                if (string.IsNullOrWhiteSpace(domain) || string.IsNullOrEmpty(domain)) return;
+
                 domain = domain.ToLowerInvariant();
                 _bloomFilter.Add(domain);
                 if (!_lenBuckets.TryGetValue(domain.Length, out var list))
@@ -332,9 +342,10 @@ namespace TyposquattingDetector
             }
         }
 
-        private string Normalize(string s)
+        private string? Normalize(string s)
         {
-            if (string.IsNullOrWhiteSpace(s)) return s;
+            if (string.IsNullOrWhiteSpace(s)|| string.IsNullOrEmpty(s)) return null;
+
             try
             {
                 var registrableDomain = _normalizer?.Value?.Parse(s)?.RegistrableDomain;
