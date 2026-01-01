@@ -107,11 +107,7 @@ namespace TyposquattingDetector
                 Directory.CreateDirectory(configDir);
                 _domainListFilePath = Path.Combine(configDir, "majestic_million.csv");
 
-                if (Path.Exists(_domainListFilePath))
-                {
-                    _dnsServer.WriteLog($"Typosquatting Detector: Domain list exists at path: '{_domainListFilePath}'.");
-                }
-                else
+                if (!Path.Exists(_domainListFilePath))
                 {
                     _dnsServer.WriteLog($"Typosquatting Detector: Started downloading domain list to path: '{_domainListFilePath}'.");
 
@@ -126,31 +122,37 @@ namespace TyposquattingDetector
                             await stream.CopyToAsync(fs, _appShutdownCts.Token);
                         }
 
-                        // Re-read file to calculate hash (or use a CryptoStream during download)
-                        using (FileStream fs = new FileStream(_domainListFilePath, FileMode.Open, FileAccess.Read))
-                        {
-                            string sha256 = Convert.ToHexString(await SHA256.HashDataAsync(fs));
-                            _dnsServer.WriteLog($"Typosquatting Detector: SHA256 hash of downloaded domain list: {sha256}");
-
-                            var hashPath = Path.Combine(configDir, "majestic_million.csv.sha256");
-                            if (File.Exists(hashPath) && File.ReadLines(hashPath).ToArray()[0] == sha256)
-                            {
-                                _changed = false;
-                                _dnsServer.WriteLog($"Typosquatting Detector: Downloaded domain list is identical to the previous one. No changes made.");
-                            }
-                            else
-                            {
-                                await File.WriteAllTextAsync(hashPath, sha256, _appShutdownCts.Token);
-                                _changed = true;
-                                _dnsServer.WriteLog($"Typosquatting Detector: Hash file is saved.");
-                            }
-                        }
                         _dnsServer.WriteLog($"Typosquatting Detector: Downloaded domain list from '{domainList}' to '{_domainListFilePath}'.");
                     }
                     catch (Exception ex)
                     {
                         _dnsServer.WriteLog($"FATAL: Failed to download domain list. Error: {ex.Message}");
                         _dnsServer.WriteLog(ex);
+                    }
+                }
+                else
+                {
+                    _dnsServer.WriteLog($"Typosquatting Detector: Domain list exists at path: '{_domainListFilePath}'.");
+                }
+
+
+                // Re-read file to calculate hash (or use a CryptoStream during download)
+                using (FileStream fs = new FileStream(_domainListFilePath, FileMode.Open, FileAccess.Read))
+                {
+                    string sha256 = Convert.ToHexString(await SHA256.HashDataAsync(fs));
+                    _dnsServer.WriteLog($"Typosquatting Detector: SHA256 hash of downloaded domain list: {sha256}");
+
+                    var hashPath = Path.Combine(configDir, "majestic_million.csv.sha256");
+                    if (File.Exists(hashPath) && File.ReadLines(hashPath).ToArray()[0] == sha256)
+                    {
+                        _changed = false;
+                        _dnsServer.WriteLog($"Typosquatting Detector: Downloaded domain list is identical to the previous one. No changes made.");
+                    }
+                    else
+                    {
+                        await File.WriteAllTextAsync(hashPath, sha256, _appShutdownCts.Token);
+                        _changed = true;
+                        _dnsServer.WriteLog($"Typosquatting Detector: Hash file is saved.");
                     }
                 }
 
