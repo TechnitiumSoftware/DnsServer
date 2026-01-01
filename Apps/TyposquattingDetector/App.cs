@@ -393,7 +393,7 @@ namespace TyposquattingDetector
         {
             get
             {
-                return "Downloads Alexa toip 1 million domains, runs a fuzzy logic, and if the match is high but not 100, it may be a typosquatting attempt.";
+                return "Evaluates queried domains against a trusted corpus and flags visually similar near-matches as potential typosquatting. Allows blocking of suspicious queries and exposes structured detection details. The fuzzy-match threshold and optional custom domain list are operator-tunable; adjust cautiously to reduce false-positive impact.";
             }
         }
 
