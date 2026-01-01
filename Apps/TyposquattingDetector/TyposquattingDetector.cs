@@ -244,7 +244,10 @@ namespace TyposquattingDetector
             }
             catch
             {
-                return s.ToLowerInvariant().Trim().Replace("www.", "");
+                var clean = s.ToLowerInvariant().Trim();
+                if (clean.StartsWith("www.")) clean = clean.Substring(4);
+                if (clean.StartsWith("m.")) clean = clean.Substring(2);
+                return clean;
             }
         }
         #endregion private
