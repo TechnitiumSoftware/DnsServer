@@ -49,7 +49,6 @@ namespace TyposquattingDetector
         private volatile TyposquattingDetector? _detector;
         private IDnsServer? _dnsServer;
         private string? _domainListFilePath;
-        private HttpClient? _httpClient;
         private DnsSOARecordData? _soaRecord;
         private TimeSpan _updateInterval;
         private Task? _updateLoopTask;
@@ -75,7 +74,6 @@ namespace TyposquattingDetector
             finally
             {
                 _appShutdownCts?.Dispose();
-                _httpClient?.Dispose();
             }
         }
 
