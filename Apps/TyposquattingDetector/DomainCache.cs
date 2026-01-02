@@ -104,8 +104,14 @@ namespace TyposquattingDetector
 
         public void Clear()
         {
-            _cache.Clear();
-            _stringPool.Clear();
+            lock (_evictionLock)
+            {
+                _cache.Clear();
+                _stringPool.Clear();
+                _head = null;
+                _tail = null;
+                _hand = null;
+            }
         }
 
         #endregion
