@@ -439,18 +439,16 @@ namespace TyposquattingDetector
             {
                 _dnsServer!.WriteLog("Typosquatting Detector: Processing domain list...");
 
-                string configDir = _dnsServer.ApplicationFolder;
+                string configDirFullPath = Path.GetFullPath(_dnsServer.ApplicationFolder);
 
                 string majesticPath = Path.GetFullPath(_domainListFilePath!);
-                if (!majesticPath.StartsWith(configDir, StringComparison.OrdinalIgnoreCase))
-                    throw new SecurityException("Access Denied");
+                EnsureUnderBaseSymlinkSafe(configDirFullPath, majesticPath);
 
                 string customListPath = string.Empty;
                 if (!string.IsNullOrWhiteSpace(_config!.Path))
                 {
                     customListPath = Path.GetFullPath(_config.Path);
-                    if (!customListPath.StartsWith(configDir, StringComparison.OrdinalIgnoreCase))
-                        throw new SecurityException("Access Denied");
+                    EnsureUnderBaseSymlinkSafe(configDirFullPath, customListPath);
                 }
 
                 TyposquattingDetector newDetector = new TyposquattingDetector(majesticPath, customListPath, _config.FuzzyMatchThreshold);
@@ -465,6 +463,35 @@ namespace TyposquattingDetector
             }
 
             return Task.CompletedTask;
+        }
+
+        private static void EnsureUnderBaseSymlinkSafe(string baseDirFullPath, string candidateFullPath)
+        {
+            baseDirFullPath = Path.GetFullPath(baseDirFullPath);
+            candidateFullPath = Path.GetFullPath(candidateFullPath);
+
+            // First: lexical traversal guard
+            string rel = Path.GetRelativePath(baseDirFullPath, candidateFullPath);
+            if (rel == ".." ||
+                rel.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+                rel.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal))
+                throw new SecurityException("Access Denied");
+
+            // Second: resolve each component and block symlink escape
+            var current = new DirectoryInfo(candidateFullPath);
+            while (current != null &&
+                   !current.FullName.Equals(baseDirFullPath, StringComparison.OrdinalIgnoreCase))
+            {
+                // If any component is a symlink → reject
+                if ((current.Attributes & FileAttributes.ReparsePoint) != 0)
+                    throw new SecurityException("Access Denied");
+
+                current = current.Parent;
+            }
+
+            // If we walked to filesystem root without hitting base folder → reject
+            if (current == null)
+                throw new SecurityException("Access Denied");
         }
 
         #endregion private
