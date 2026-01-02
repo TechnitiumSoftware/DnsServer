@@ -304,7 +304,7 @@ namespace TyposquattingDetector
             result.BestMatch = globalState.BestDomain;
             result.FuzzyScore = globalState.BestScore;
             result.IsSuspicious = true;
-            result.Severity = globalState.BestScore > 90 ? Severity.HIGH : Severity.MEDIUM;
+            result.Severity = globalState.BestScore > 85 ? Severity.HIGH : Severity.MEDIUM;
             result.Reason = Reason.Typosquatting;
         }
 
