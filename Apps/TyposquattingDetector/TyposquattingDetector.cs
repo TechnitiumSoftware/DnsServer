@@ -69,7 +69,12 @@ namespace TyposquattingDetector
         // Length -> (prefixKey -> candidates)
         private readonly Dictionary<int, Dictionary<uint, List<string>>> _lenPrefixBuckets = new Dictionary<int, Dictionary<uint, List<string>>>();
         private const int MaxCandidatesPerPrefix2Bucket = 2000;  // Tune caps to bound worst-case CPU per query
-        private const int MaxCandidatesPerPrefix1Bucket = 8000;
+
+        // Prefix1 shards are broad (all domains sharing first char). Keep them small to save memory.
+        private const int MaxCandidatesPerPrefix1Bucket = 2000;
+
+        // Only consult prefix1 when prefix2 didn't yield a strong candidate.
+        private const int Prefix1FallbackMinScore = 88;
 
         readonly DomainCache _domainCache;
         private readonly ParallelOptions _po;
@@ -223,7 +228,10 @@ namespace TyposquattingDetector
                 }
 
                 // 2) Prefix1 fallback shard (covers second-character differences)
-                if (q1 != q2 && shardMap.TryGetValue(q1, out var bucket1))
+                // Only pay this cost if prefix2 didn't already produce a decent match.
+                if (globalState.BestScore < Prefix1FallbackMinScore &&
+                    q1 != q2 &&
+                    shardMap.TryGetValue(q1, out var bucket1))
                 {
                     if (bucket1.Count <= SequentialCutoff)
                         SequentialMatch(query, globalState, bucket1);
@@ -316,9 +324,11 @@ namespace TyposquattingDetector
                 AddToBucket(len, p2, domain, MaxCandidatesPerPrefix2Bucket);
 
                 // Fallback shard: prefix1 (helps if the 2nd character differs)
+                // Note: capped low to bound memory + fallback is gated on score.
                 uint p1 = Prefix1Key(domain);
                 if (p1 != p2)
                     AddToBucket(len, p1, domain, MaxCandidatesPerPrefix1Bucket);
+
             }
 
             // 1. Load custom list
