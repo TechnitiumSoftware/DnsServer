@@ -66,22 +66,12 @@ namespace TyposquattingDetector
     {
         #region variables
 
-        private static readonly HttpClient _pslHttpClient = new HttpClient();
-
-        private static readonly Lazy<CachedHttpRuleProvider> _sharedRuleProvider =
-            new Lazy<CachedHttpRuleProvider>(static () =>
-            {
-                LocalFileSystemCacheProvider cacheProvider = new LocalFileSystemCacheProvider();
-                CachedHttpRuleProvider rp = new CachedHttpRuleProvider(cacheProvider, _pslHttpClient);
-                rp.BuildAsync().GetAwaiter().GetResult();
-                return rp;
-            }, isThreadSafe: true);
         // Length -> (prefixKey -> candidates)
         private readonly Dictionary<int, Dictionary<uint, List<string>>> _lenPrefixBuckets = new Dictionary<int, Dictionary<uint, List<string>>>();
         private const int MaxCandidatesPerPrefix2Bucket = 2000;  // Tune caps to bound worst-case CPU per query
         private const int MaxCandidatesPerPrefix1Bucket = 8000;
 
-        private readonly ThreadLocal<DomainParser> _normalizer;
+        readonly DomainCache _domainCache;
         private readonly ParallelOptions _po;
         private readonly int _threshold;
         private IBloomFilter? _bloomFilter;
@@ -89,6 +79,7 @@ namespace TyposquattingDetector
         // Use sequential processing for smaller buckets; benchmarks showed that below ~256
         // candidates, the overhead of parallelism outweighs its benefits.
         const int SequentialCutoff = 256;
+
 
         private bool _disposedValue;
 
@@ -99,11 +90,8 @@ namespace TyposquattingDetector
         public TyposquattingDetector(string defaultPath, string customPath, int threshold)
         {
             _threshold = threshold;
+            _domainCache = new DomainCache();
             _po = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount / 2) };
-
-            _normalizer = new ThreadLocal<DomainParser>(() =>
-                new DomainParser(_sharedRuleProvider.Value, new Nager.PublicSuffix.DomainNormalizers.UriDomainNormalizer()));
-
             LoadData(defaultPath, customPath);
         }
 
@@ -124,7 +112,7 @@ namespace TyposquattingDetector
             {
                 if (disposing)
                 {
-                    _normalizer?.Dispose();
+                    _domainCache.Clear();
                 }
                 _disposedValue = true;
             }
@@ -361,7 +349,7 @@ namespace TyposquattingDetector
 
             try
             {
-                string? rd = _normalizer.Value?.Parse(s)?.RegistrableDomain;
+                string? rd = _domainCache.GetOrAdd(s)?.RegistrableDomain;
                 if (string.IsNullOrWhiteSpace(rd)) rd = s;
                 return rd.TrimEnd('.').ToLowerInvariant();
             }
