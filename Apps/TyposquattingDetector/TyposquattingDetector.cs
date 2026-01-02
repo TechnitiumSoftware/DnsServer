@@ -33,36 +33,40 @@ using System.Threading.Tasks;
 namespace TyposquattingDetector
 {
     public enum Reason
-    { Exact, Typosquatting, NoCandidates }
+    {
+        Exact,
+        Typosquatting,
+        NoCandidates
+    }
 
     public enum Severity
-    { NONE, LOW, MEDIUM, HIGH }
+    {
+        NONE,
+        LOW,
+        MEDIUM,
+        HIGH
+    }
 
     public class Result
     {
-        public Result(string query) => Query = query;
+        public Result(string query)
+        {
+            Query = query;
+        }
 
         public string? BestMatch { get; set; }
         public int FuzzyScore { get; set; }
+        public bool IsSuspicious { get; set; }
         public string Query { get; }
         public Reason Reason { get; set; }
         public Severity Severity { get; set; } = Severity.NONE;
-        public bool IsSuspicious { get; set; }
     }
 
-    public class TyposquattingDetector : IDisposable
+     public class TyposquattingDetector : IDisposable
     {
         #region variables
 
-        private readonly Dictionary<int, List<string>> _lenBuckets = new Dictionary<int, List<string>>();
-        private readonly ThreadLocal<DomainParser> _normalizer;
-        private readonly int _threshold;
-        private IBloomFilter? _bloomFilter;
-        private readonly static HttpClient _pslHttpClient = new HttpClient();
-        private static readonly Lock _staticInitLock = new Lock();
-        private readonly ParallelOptions _po;
-        private bool _disposedValue;
-
+        private static readonly HttpClient _pslHttpClient = new HttpClient();
 
         private static readonly Lazy<CachedHttpRuleProvider> _sharedRuleProvider =
             new Lazy<CachedHttpRuleProvider>(static () =>
@@ -72,6 +76,13 @@ namespace TyposquattingDetector
                 rp.BuildAsync().GetAwaiter().GetResult();
                 return rp;
             }, isThreadSafe: true);
+
+        private readonly Dictionary<int, List<string>> _lenBuckets = new Dictionary<int, List<string>>();
+        private readonly ThreadLocal<DomainParser> _normalizer;
+        private readonly ParallelOptions _po;
+        private readonly int _threshold;
+        private IBloomFilter? _bloomFilter;
+        private bool _disposedValue;
 
         private class MatchState
         {
@@ -91,14 +102,20 @@ namespace TyposquattingDetector
             _normalizer = new ThreadLocal<DomainParser>(() =>
                 new DomainParser(_sharedRuleProvider.Value, new Nager.PublicSuffix.DomainNormalizers.UriDomainNormalizer()));
 
-
             LoadData(defaultPath, customPath);
         }
-
 
         #endregion constructor
 
         #region Dispose
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
         protected virtual void Dispose(bool disposing)
         {
             if (!_disposedValue)
@@ -111,16 +128,10 @@ namespace TyposquattingDetector
             }
         }
 
-        public void Dispose()
-        {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
-        }
-
         #endregion Dispose
 
         #region public
+
         public Result Check(string query)
         {
             string? normalized = Normalize(query);
@@ -146,9 +157,54 @@ namespace TyposquattingDetector
             // GATE 2: Fuzzy Similarity Check
             return FuzzyMatch(normalized, result);
         }
+
         #endregion public
 
         #region private
+
+        private static string? ExtractDomain(string line)
+        {
+            ReadOnlySpan<char> span = line.AsSpan();
+            int firstComma = span.IndexOf(',');
+            if (firstComma == -1) return null;
+            ReadOnlySpan<char> afterFirst = span.Slice(firstComma + 1);
+            int secondComma = afterFirst.IndexOf(',');
+            if (secondComma == -1) return null;
+            ReadOnlySpan<char> afterSecond = afterFirst.Slice(secondComma + 1);
+            int thirdComma = afterSecond.IndexOf(',');
+            return (thirdComma == -1 ? afterSecond : afterSecond.Slice(0, thirdComma)).ToString();
+        }
+
+        private static bool PassesPrefilter(string q, string d, int threshold)
+        {
+            if (string.IsNullOrEmpty(q) || string.IsNullOrEmpty(d))
+                return false;
+
+            int dl = d.Length;
+            int ql = q.Length;
+
+            // reject far-length candidates
+            if (Math.Abs(dl - ql) > 2)
+                return false;
+
+            // fast first-char rejection
+            if (q[0] != d[0])
+                return false;
+
+            // tiny strings → go straight to Fuzz()
+            if (ql < 4 || dl < 4)
+                return true;
+
+            // small trigram overlap check (no alloc)
+            int hits = 0;
+            int maxTrigrams = Math.Min(10, Math.Min(ql, dl) - 2);
+            for (int i = 0; i < maxTrigrams; i++)
+                if (d.AsSpan().IndexOf(q.AsSpan(i, 3)) >= 0) hits++;
+
+            // require minimal neighborhood similarity
+            return hits >= 1 || threshold <= 80;
+        }
+
         private Result FuzzyMatch(string query, Result result)
         {
             MatchState globalState = new MatchState { BestDomain = null, BestScore = 0 };
@@ -188,117 +244,6 @@ namespace TyposquattingDetector
             }
 
             return result;
-        }
-
-        private void SequentialMatch(string query, MatchState state, List<string> bucket)
-        {
-            foreach (string domain in bucket)
-            {
-                if (state.BestScore >= 98) break;
-
-                if (!PassesPrefilter(query, domain, _threshold))
-                    continue;
-
-                int score = Fuzz.WeightedRatio(query, domain);
-
-                if (score > state.BestScore)
-                {
-                    state.BestScore = score;
-                    state.BestDomain = domain;
-                }
-
-                if (score >= 95) break;
-            }
-        }
-
-        private void ParallelMatch(string query, MatchState globalState, List<string> bucket)
-        {
-            Parallel.ForEach(
-                bucket,
-                _po,
-                () => (score: 0, dom: (string?)null), // Thread-local state
-                (domain, state, local) =>
-                {
-                    // Volatile check for early exit
-                    if (Volatile.Read(ref globalState.BestScore) >= 98)
-                    {
-                        state.Stop();
-                        return local;
-                    }
-
-                    if (!PassesPrefilter(query, domain, _threshold))
-                        return local;
-
-                    int score = Fuzz.WeightedRatio(query, domain);
-
-                    if (score > local.score)
-                        local = (score, domain);
-
-                    if (score >= 95) state.Stop();
-
-                    return local;
-                },
-                local =>
-                {
-                    // Reduction phase: Merge thread-local winner into global state
-                    if (local.dom == null)
-                    {
-                        return;
-                    }
-                    lock (globalState)
-                    {
-                        if (local.score <= globalState.BestScore)
-                        {
-                            return;
-                        }
-                        globalState.BestScore = local.score;
-                        globalState.BestDomain = local.dom;
-                    }
-                }
-            );
-        }
-
-        private static bool PassesPrefilter(string q, string d, int threshold)
-        {
-            if (string.IsNullOrEmpty(q) || string.IsNullOrEmpty(d))
-                return false;
-
-            int dl = d.Length;
-            int ql = q.Length;
-
-            // reject far-length candidates
-            if (Math.Abs(dl - ql) > 2)
-                return false;
-
-            // fast first-char rejection
-            if (q[0] != d[0])
-                return false;
-
-            // tiny strings → go straight to Fuzz()
-            if (ql < 4 || dl < 4)
-                return true;
-
-            // small trigram overlap check (no alloc)
-            int hits = 0;
-            int maxTrigrams = Math.Min(10, Math.Min(ql, dl) - 2);
-            for (int i = 0; i < maxTrigrams; i++)
-                if (d.AsSpan().IndexOf(q.AsSpan(i, 3)) >= 0) hits++;
-
-            // require minimal neighborhood similarity
-            return hits >= 1 || threshold <= 80;
-        }
-
-        private static string? ExtractDomain(string line)
-        {
-            ReadOnlySpan<char> span = line.AsSpan();
-            int firstComma = span.IndexOf(',');
-            if (firstComma == -1) return null;
-            ReadOnlySpan<char> afterFirst = span.Slice(firstComma + 1);
-            int secondComma = afterFirst.IndexOf(',');
-            if (secondComma == -1) return null;
-            ReadOnlySpan<char> afterSecond = afterFirst.Slice(secondComma + 1);
-            int thirdComma = afterSecond.IndexOf(',');
-            return (thirdComma == -1 ? afterSecond : afterSecond.Slice(0, thirdComma)).ToString();
         }
 
         private void LoadData(string oneMilFilePath, string customPath)
@@ -362,6 +307,75 @@ namespace TyposquattingDetector
                 return clean;
             }
         }
+
+        private void ParallelMatch(string query, MatchState globalState, List<string> bucket)
+        {
+            Parallel.ForEach(
+                bucket,
+                _po,
+                () => (score: 0, dom: (string?)null), // Thread-local state
+                (domain, state, local) =>
+                {
+                    // Volatile check for early exit
+                    if (Volatile.Read(ref globalState.BestScore) >= 98)
+                    {
+                        state.Stop();
+                        return local;
+                    }
+
+                    if (!PassesPrefilter(query, domain, _threshold))
+                        return local;
+
+                    int score = Fuzz.WeightedRatio(query, domain);
+
+                    if (score > local.score)
+                        local = (score, domain);
+
+                    if (score >= 95) state.Stop();
+
+                    return local;
+                },
+                local =>
+                {
+                    // Reduction phase: Merge thread-local winner into global state
+                    if (local.dom == null)
+                    {
+                        return;
+                    }
+                    lock (globalState)
+                    {
+                        if (local.score <= globalState.BestScore)
+                        {
+                            return;
+                        }
+                        globalState.BestScore = local.score;
+                        globalState.BestDomain = local.dom;
+                    }
+                }
+            );
+        }
+
+        private void SequentialMatch(string query, MatchState state, List<string> bucket)
+        {
+            foreach (string domain in bucket)
+            {
+                if (state.BestScore >= 98) break;
+
+                if (!PassesPrefilter(query, domain, _threshold))
+                    continue;
+
+                int score = Fuzz.WeightedRatio(query, domain);
+
+                if (score > state.BestScore)
+                {
+                    state.BestScore = score;
+                    state.BestDomain = domain;
+                }
+
+                if (score >= 95) break;
+            }
+        }
+
         #endregion private
     }
 }
