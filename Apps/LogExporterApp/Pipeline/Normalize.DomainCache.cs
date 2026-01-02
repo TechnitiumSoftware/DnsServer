@@ -19,8 +19,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using Nager.PublicSuffix;
 using Nager.PublicSuffix.RuleProviders;
+using Nager.PublicSuffix.RuleProviders.CacheProviders;
 using System;
 using System.Collections.Concurrent;
+using System.Net.Http;
+using System.Threading;
 
 namespace LogExporter.Pipeline
 {
@@ -37,27 +40,40 @@ namespace LogExporter.Pipeline
         /// </summary>
         internal sealed class DomainCache
         {
+            #region variables
+
             private const int MaxSize = 10000;
             private const int StringPoolMaxSize = 10000;
-            private static DomainInfo Empty = new DomainInfo();
+            private static readonly DomainInfo Empty = new DomainInfo();
 
             // ADR: Loading the PSL must not block or fail plugin startup. We defer
             // initialization and make it best-effort to avoid network dependencies.
             private static readonly Lazy<DomainParser?> _parser = new Lazy<DomainParser?>(InitializeParser);
 
+            private static readonly HttpClient _pslHttpClient = new HttpClient();
+
+            private static readonly Lazy<CachedHttpRuleProvider> _sharedRuleProvider =
+                new Lazy<CachedHttpRuleProvider>(static () =>
+                {
+                    LocalFileSystemCacheProvider cacheProvider = new LocalFileSystemCacheProvider();
+                    CachedHttpRuleProvider rp = new CachedHttpRuleProvider(cacheProvider, _pslHttpClient);
+                    rp.BuildAsync().GetAwaiter().GetResult();
+                    return rp;
+                }, isThreadSafe: true);
+
             private readonly ConcurrentDictionary<string, CacheNode> _cache =
                 new ConcurrentDictionary<string, CacheNode>(StringComparer.OrdinalIgnoreCase);
             private readonly ConcurrentDictionary<string, string> _stringPool =
                 new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            private readonly object _evictionLock = new object();
+            private readonly Lock _evictionLock = new Lock();
 
             // SIEVE data structures
             private CacheNode? _head;
             private CacheNode? _tail;
             private CacheNode? _hand;
+            #endregion
 
-            public int Count => _cache.Count;
-
+            #region public
             public DomainInfo GetOrAdd(string domainName)
             {
                 if (string.IsNullOrWhiteSpace(domainName))
@@ -86,11 +102,22 @@ namespace LogExporter.Pipeline
                 return domain;
             }
 
+
             public void Clear()
             {
-                _cache.Clear();
-                _stringPool.Clear();
+                lock (_evictionLock)
+                {
+                    _cache.Clear();
+                    _stringPool.Clear();
+                    _head = null;
+                    _tail = null;
+                    _hand = null;
+                }
             }
+
+            #endregion
+
+            #region private
 
             /// <summary>
             /// Returns a pooled, normalized version of the domain name to reduce allocations.
@@ -161,9 +188,7 @@ namespace LogExporter.Pipeline
                 //   - If it fails, we return null and logging continues without PSL data.
                 try
                 {
-                    SimpleHttpRuleProvider provider = new SimpleHttpRuleProvider();
-                    provider.BuildAsync().GetAwaiter().GetResult();
-                    return new DomainParser(provider);
+                    return new DomainParser(_sharedRuleProvider.Value);
                 }
                 catch
                 {
@@ -252,6 +277,7 @@ namespace LogExporter.Pipeline
                     Domain = domain;
                 }
             }
+            #endregion
         }
     }
 
