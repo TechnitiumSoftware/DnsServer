@@ -209,41 +209,47 @@ namespace TyposquattingDetector
         {
             MatchState globalState = new MatchState { BestDomain = null, BestScore = 0 };
 
-            int[] bucketIndices = new[] { query.Length - 1, query.Length, query.Length + 1 };
-
-            foreach (int len in bucketIndices)
+            for (int delta = -1; delta <= 1; delta++)
             {
-                if (!_lenBuckets.TryGetValue(len, out List<string>? bucket)) continue;
+                int len = query.Length + delta;
+                if (!_lenBuckets.TryGetValue(len, out var bucket)) continue;
 
                 const int SequentialCutoff = 256;
 
                 if (bucket.Count <= SequentialCutoff)
-                {
                     SequentialMatch(query, globalState, bucket);
-                }
                 else
-                {
                     ParallelMatch(query, globalState, bucket);
-                }
 
                 if (globalState.BestScore >= 98) break;
             }
 
+
             if (globalState.BestDomain != null)
             {
-                result.BestMatch = globalState.BestDomain;
-                result.FuzzyScore = globalState.BestScore;
-                result.IsSuspicious = true;
-                result.Severity = globalState.BestScore > 90 ? Severity.HIGH : Severity.MEDIUM;
-                result.Reason = Reason.Typosquatting;
+                GetSuspiciousResult(result, globalState);
             }
             else
             {
-                result.IsSuspicious = false;
-                result.Reason = Reason.NoCandidates;
+                GetNormalResult(result);
             }
 
             return result;
+        }
+
+        private static void GetNormalResult(Result result)
+        {
+            result.IsSuspicious = false;
+            result.Reason = Reason.NoCandidates;
+        }
+
+        private static void GetSuspiciousResult(Result result, MatchState globalState)
+        {
+            result.BestMatch = globalState.BestDomain;
+            result.FuzzyScore = globalState.BestScore;
+            result.IsSuspicious = true;
+            result.Severity = globalState.BestScore > 90 ? Severity.HIGH : Severity.MEDIUM;
+            result.Reason = Reason.Typosquatting;
         }
 
         private void LoadData(string oneMilFilePath, string customPath)
