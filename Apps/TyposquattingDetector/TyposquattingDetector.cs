@@ -62,7 +62,7 @@ namespace TyposquattingDetector
         public Severity Severity { get; set; } = Severity.NONE;
     }
 
-     public partial class TyposquattingDetector : IDisposable
+    public partial class TyposquattingDetector : IDisposable
     {
         #region variables
 
@@ -76,12 +76,20 @@ namespace TyposquattingDetector
                 rp.BuildAsync().GetAwaiter().GetResult();
                 return rp;
             }, isThreadSafe: true);
+        // Length -> (prefixKey -> candidates)
+        private readonly Dictionary<int, Dictionary<uint, List<string>>> _lenPrefixBuckets = new Dictionary<int, Dictionary<uint, List<string>>>();
+        private const int MaxCandidatesPerPrefix2Bucket = 2000;  // Tune caps to bound worst-case CPU per query
+        private const int MaxCandidatesPerPrefix1Bucket = 8000;
 
-        private readonly Dictionary<int, List<string>> _lenBuckets = new Dictionary<int, List<string>>();
         private readonly ThreadLocal<DomainParser> _normalizer;
         private readonly ParallelOptions _po;
         private readonly int _threshold;
         private IBloomFilter? _bloomFilter;
+
+        // Use sequential processing for smaller buckets; benchmarks showed that below ~256
+        // candidates, the overhead of parallelism outweighs its benefits.
+        const int SequentialCutoff = 256;
+        
         private bool _disposedValue;
 
         #endregion variables
@@ -201,27 +209,42 @@ namespace TyposquattingDetector
 
         private Result FuzzyMatch(string query, Result result)
         {
-
-            //MatchState globalState = new MatchState { BestDomain = null, BestScore = 0 };
             MatchState globalState = GetState();
             globalState.BestDomain = null;
             globalState.BestScore = 0;
 
+            uint q2 = Prefix2Key(query);
+            uint q1 = Prefix1Key(query);
+
             for (int delta = -1; delta <= 1; delta++)
             {
                 int len = query.Length + delta;
-                if (!_lenBuckets.TryGetValue(len, out var bucket)) continue;
 
-                const int SequentialCutoff = 256;
+                if (!_lenPrefixBuckets.TryGetValue(len, out var shardMap))
+                    continue;
 
-                if (bucket.Count <= SequentialCutoff)
-                    SequentialMatch(query, globalState, bucket);
-                else
-                    ParallelMatch(query, globalState, bucket);
+                // 1) Exact prefix2 shard first (fastest / smallest)
+                if (shardMap.TryGetValue(q2, out var bucket2))
+                {
+                    if (bucket2.Count <= SequentialCutoff)
+                        SequentialMatch(query, globalState, bucket2);
+                    else
+                        ParallelMatch(query, globalState, bucket2);
 
-                if (globalState.BestScore >= 98) break;
+                    if (globalState.BestScore >= 98) break;
+                }
+
+                // 2) Prefix1 fallback shard (covers second-character differences)
+                if (q1 != q2 && shardMap.TryGetValue(q1, out var bucket1))
+                {
+                    if (bucket1.Count <= SequentialCutoff)
+                        SequentialMatch(query, globalState, bucket1);
+                    else
+                        ParallelMatch(query, globalState, bucket1);
+
+                    if (globalState.BestScore >= 98) break;
+                }
             }
-
 
             if (globalState.BestDomain != null)
             {
@@ -235,6 +258,41 @@ namespace TyposquattingDetector
             return result;
         }
 
+        private static uint Prefix2Key(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return 0;
+
+            char c0 = s[0];
+            char c1 = s.Length > 1 ? s[1] : '\0';
+            return (uint)c0 | ((uint)c1 << 16);
+        }
+
+        private static uint Prefix1Key(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return 0;
+
+            char c0 = s[0];
+            return (uint)c0; // equivalent to (uint)c0 | (0u << 16)
+        }
+
+        private void AddToBucket(int len, uint key, string domain, int cap)
+        {
+            if (!_lenPrefixBuckets.TryGetValue(len, out var shardMap))
+            {
+                shardMap = new Dictionary<uint, List<string>>(capacity: 128);
+                _lenPrefixBuckets[len] = shardMap;
+            }
+
+            if (!shardMap.TryGetValue(key, out var list))
+            {
+                // Small initial capacity; grows if needed but capped by `cap`
+                list = new List<string>(capacity: Math.Min(256, cap));
+                shardMap[key] = list;
+            }
+
+            if (list.Count < cap)
+                list.Add(domain);
+        }
         private static void GetNormalResult(Result result)
         {
             result.IsSuspicious = false;
@@ -262,13 +320,17 @@ namespace TyposquattingDetector
 
                 domain = domain.ToLowerInvariant();
                 _bloomFilter.Add(domain);
-                if (!_lenBuckets.TryGetValue(domain.Length, out List<string>? list))
-                {
-                    list = new List<string>();
-                    _lenBuckets[domain.Length] = list;
-                }
-                // Cap fuzzy search candidates per length to keep search times predictable
-                if (list.Count < 15000) list.Add(domain);
+
+                int len = domain.Length;
+
+                // Primary shard: prefix2
+                uint p2 = Prefix2Key(domain);
+                AddToBucket(len, p2, domain, MaxCandidatesPerPrefix2Bucket);
+
+                // Fallback shard: prefix1 (helps if the 2nd character differs)
+                uint p1 = Prefix1Key(domain);
+                if (p1 != p2)
+                    AddToBucket(len, p1, domain, MaxCandidatesPerPrefix1Bucket);
             }
 
             // 1. Load custom list
@@ -306,9 +368,10 @@ namespace TyposquattingDetector
             catch
             {
                 string? clean = s.Trim().TrimEnd('.').ToLowerInvariant();
-                if (clean.StartsWith("www.")) clean = clean.Substring(4);
-                if (clean.StartsWith("m.")) clean = clean.Substring(2);
-                return clean;
+                ReadOnlySpan<char> span = clean.AsSpan();
+                if (span.StartsWith("www.".AsSpan())) span = span[4..];
+                if (span.StartsWith("m.".AsSpan())) span = span[2..];
+                return new string(span);
             }
         }
 
