@@ -89,7 +89,7 @@ namespace TyposquattingDetector
         // Use sequential processing for smaller buckets; benchmarks showed that below ~256
         // candidates, the overhead of parallelism outweighs its benefits.
         const int SequentialCutoff = 256;
-        
+
         private bool _disposedValue;
 
         #endregion variables
@@ -368,6 +368,7 @@ namespace TyposquattingDetector
             catch
             {
                 string? clean = s.Trim().TrimEnd('.').ToLowerInvariant();
+                if (string.IsNullOrEmpty(clean)) return null;
                 ReadOnlySpan<char> span = clean.AsSpan();
                 if (span.StartsWith("www.".AsSpan())) span = span[4..];
                 if (span.StartsWith("m.".AsSpan())) span = span[2..];
