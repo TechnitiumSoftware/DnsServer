@@ -17,39 +17,59 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+using System;
 using System.Collections.Concurrent;
+using System.Threading;
 
 namespace TyposquattingDetector
 {
-     public partial class TyposquattingDetector
+    public partial class TyposquattingDetector
     {
-        // Define the state as a class to allow locking
-        private class MatchState
-        {
-            public string? BestDomain;
-            public int BestScore;
+        // Bound the pool so burst traffic cannot cause permanent memory growth.
+        // Size heuristic: a few multiples of CPU is enough to cover typical concurrency.
+        private static readonly int MaxStatePoolSize = Math.Max(16, Environment.ProcessorCount * 4);
 
-            // Reset method for reuse
-            public void Reset()
-            {
-                BestDomain = null;
-                BestScore = 0;
-            }
-        }
-
-        // Simple thread-safe pool
         private readonly ConcurrentQueue<MatchState> _statePool = new ConcurrentQueue<MatchState>();
+
+        private int _statePoolCount;
 
         private MatchState GetState()
         {
-            if (_statePool.TryDequeue(out var state)) return state;
+            if (_statePool.TryDequeue(out MatchState? state))
+            {
+                Interlocked.Decrement(ref _statePoolCount);
+                return state;
+            }
+
             return new MatchState();
         }
 
         private void ReturnState(MatchState state)
         {
             state.Reset();
-            _statePool.Enqueue(state);
+
+            int newCount = Interlocked.Increment(ref _statePoolCount);
+            if (newCount <= MaxStatePoolSize)
+            {
+                _statePool.Enqueue(state);
+                return;
+            }
+
+            // Over cap: undo the count and let GC reclaim this instance.
+            Interlocked.Decrement(ref _statePoolCount);
+        }
+
+        // Define the state as a class to allow locking
+        private sealed class MatchState
+        {
+            public string? BestDomain;
+            public int BestScore;
+
+            public void Reset()
+            {
+                BestDomain = null;
+                BestScore = 0;
+            }
         }
     }
 }
