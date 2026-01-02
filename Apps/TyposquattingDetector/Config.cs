@@ -46,7 +46,6 @@ namespace TyposquattingDetector
             public int FuzzyMatchThreshold { get; set; } = 75;
 
             [JsonPropertyName("customList")]
-            [RegularExpression("^(?:[a-zA-Z]:\\\\(?:[^\\\\\\/:*?\"<>|\\r\\n]+\\\\)*[^\\\\\\/:*?\"<>|\\r\\n]*|(?:\\/[^\\/\\0]+)+\\/?)$", ErrorMessage = "customList must be a valid file path with one domain per line.")]
             [CustomValidation(typeof(FileContentValidator), nameof(FileContentValidator.ValidateDomainFile))]
             public string? Path { get; set; }
 
@@ -59,7 +58,7 @@ namespace TyposquattingDetector
         public partial class FileContentValidator
         {
             // Optimized Regex: Compiled for performance during "Happy Path" scans
-            private static readonly Regex DomainRegex = FilePathPattern();
+            private static readonly Regex DomainRegex = DomainPattern();
 
             public static ValidationResult? ValidateDomainFile(string? path, ValidationContext context)
             {
@@ -100,8 +99,8 @@ namespace TyposquattingDetector
                 return ValidationResult.Success;
             }
 
-            [GeneratedRegex(@"^(?!-)[A-Za-z0-9-]+([\-\.]{1}[a-z0-9]+)*\.[A-Za-z]{2,63}$", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-US")]
-            private static partial Regex FilePathPattern();
+            [GeneratedRegex(@"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-US")]
+            private static partial Regex DomainPattern();
         }
     }
 }
