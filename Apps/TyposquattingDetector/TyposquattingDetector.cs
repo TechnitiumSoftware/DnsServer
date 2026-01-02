@@ -62,7 +62,7 @@ namespace TyposquattingDetector
         public Severity Severity { get; set; } = Severity.NONE;
     }
 
-     public class TyposquattingDetector : IDisposable
+     public partial class TyposquattingDetector : IDisposable
     {
         #region variables
 
@@ -83,12 +83,6 @@ namespace TyposquattingDetector
         private readonly int _threshold;
         private IBloomFilter? _bloomFilter;
         private bool _disposedValue;
-
-        private class MatchState
-        {
-            public string? BestDomain;
-            public int BestScore;
-        }
 
         #endregion variables
 
@@ -207,7 +201,11 @@ namespace TyposquattingDetector
 
         private Result FuzzyMatch(string query, Result result)
         {
-            MatchState globalState = new MatchState { BestDomain = null, BestScore = 0 };
+
+            //MatchState globalState = new MatchState { BestDomain = null, BestScore = 0 };
+            MatchState globalState = GetState();
+            globalState.BestDomain = null;
+            globalState.BestScore = 0;
 
             for (int delta = -1; delta <= 1; delta++)
             {
@@ -233,7 +231,7 @@ namespace TyposquattingDetector
             {
                 GetNormalResult(result);
             }
-
+            ReturnState(globalState);
             return result;
         }
 
