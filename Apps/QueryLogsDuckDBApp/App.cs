@@ -36,8 +36,8 @@ namespace QueryLogsDuckDB
     {
         #region variables
 
-        private const int CHANNEL_CAPACITY = 200_000;
-        private const int MAX_BATCH_SIZE = 10_000;
+        private const int CHANNEL_CAPACITY = 20_000;
+        private const int MAX_BATCH_SIZE = 1000;
         private Channel<LogEntry> _channel;
         private DuckDBConnection _conn;
         private Task _consumerTask;
@@ -77,7 +77,7 @@ namespace QueryLogsDuckDB
                 resp.Answer.Select(r => $"{r.Type} {r.RDATA}"));
         }
 
-        private async Task BulkInsertAsync(List<LogEntry> logs)
+        private void BulkInsert(List<LogEntry> logs)
         {
             try
             {
@@ -199,13 +199,13 @@ CREATE TABLE IF NOT EXISTS dns_logs (
 
                 if (batch.Count > 0)
                 {
-                    await BulkInsertAsync(batch);
+                    BulkInsert(batch);
                     batch.Clear();
                 }
             }
 
             if (batch.Count > 0)
-                await BulkInsertAsync(batch);
+                BulkInsert(batch);
         }
 
         #endregion private
