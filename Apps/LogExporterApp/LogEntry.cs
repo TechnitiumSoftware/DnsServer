@@ -86,10 +86,10 @@ namespace LogExporter
                 Answers = EmptyAnswers;
             }
 
-            PopulateEDNSLgs(response, ednsLogging);
+            PopulateEDNSLogs(response, ednsLogging);
         }
 
-        private void PopulateEDNSLgs(DnsDatagram response, bool ednsLogging)
+        private void PopulateEDNSLogs(DnsDatagram response, bool ednsLogging)
         {
             // Handle EDNS - reuse empty list when no EDNS logging or no errors
             if (!ednsLogging || response.EDNS is null)
