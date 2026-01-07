@@ -68,12 +68,20 @@ internal sealed class PveService
 
         foreach (var qemu in qemus)
         {
-            var agentResponse = await GetProxmoxDataAsync(
-                $"api2/json/nodes/{node}/qemu/{qemu.VmId}/agent/network-get-interfaces",
-                new QemuAgentResponse<VmNetworkInterface[]>{ Result = [] },
-                cancellationToken);
-                
-            result.Add(Map(qemu, agentResponse.Result));
+            try
+            {
+                var agentResponse = await GetProxmoxDataAsync(
+                    $"api2/json/nodes/{node}/qemu/{qemu.VmId}/agent/network-get-interfaces",
+                    new QemuAgentResponse<VmNetworkInterface[]> { Result = [] },
+                    cancellationToken);
+                result.Add(Map(qemu, agentResponse.Result));
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.InternalServerError && ex.Message.Contains("No QEMU guest agent configured"))
+            {
+                // Proxmox returns '500 No QEMU guest agent configured' when QEMU agent not configured.
+                // Catching this case and treating it as empty interfaces list so DNS server can return empty response instead of NXDomain
+                result.Add(Map(qemu, []));
+            }
         }
         
         return result;
