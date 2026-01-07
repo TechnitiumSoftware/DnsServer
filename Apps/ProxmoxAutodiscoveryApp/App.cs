@@ -90,7 +90,6 @@ namespace ProxmoxAutodiscovery
                 {
                     await _cts.CancelAsync();
                     await _backgroundUpdateLoopTask;
-                        
                     _cts.Dispose();
                 }
                 
@@ -245,23 +244,24 @@ namespace ProxmoxAutodiscovery
         
         #region properties
 
-        public string Description => "Allows configuring autodiscovery for Proxmox QEMUs and LXCs based on a set of filters.";
+        public string Description
+            { get { return "Allows configuring autodiscovery for Proxmox QEMUs and LXCs based on a set of filters."; } }
         
-        public string ApplicationRecordDataTemplate =>
-            """
-            {
-                "type": "qemu",
-                "tags": [
-                    "autodiscovery"
-                ],
-                "networks": [
-                    "10.0.0.0/8",
-                    "172.16.0.0/12",
-                    "192.168.0.0/16",
-                    "fc00::/7"
-                ]
-            }
-            """;
+        public string ApplicationRecordDataTemplate
+            { get { return  """
+                            {
+                                "type": "qemu",
+                                "tags": [
+                                    "autodiscovery"
+                                ],
+                                "networks": [
+                                    "10.0.0.0/8",
+                                    "172.16.0.0/12",
+                                    "192.168.0.0/16",
+                                    "fc00::/7"
+                                ]
+                            }
+                            """; } }
 
         #endregion
         
