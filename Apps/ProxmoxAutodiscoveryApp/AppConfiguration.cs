@@ -20,6 +20,6 @@ public sealed class AppConfiguration
     [JsonPropertyName("accessToken")]
     public string AccessToken { get; set; }
     
-    [JsonPropertyName("periodSeconds")]
-    public int PeriodSeconds { get; set; } = 60;
+    [JsonPropertyName("updateIntervalSeconds")]
+    public int UpdateIntervalSeconds { get; set; } = 60;
 }

@@ -22,7 +22,7 @@ Supply a JSON configuration like the following:
     "timeoutSeconds": 10,
     "disableSslValidation": false,
     "accessToken": "user@pve!token-name=token-secret",
-    "periodSeconds": 60
+    "updateIntervalSeconds": 60
 }
 ```
 
@@ -31,7 +31,7 @@ Supply a JSON configuration like the following:
 - `timeoutSeconds` - configurable timeout of HTTP calls to Proxmox API.
 - `disableSslValidation` - disables SSL certificate validation of Proxmox API.
 - `accessToken` - Proxmox API access token in specified format. Read-only permissions are enough.
-- `periodSeconds` - how often app must query Proxmox API for data.
+- `updateIntervalSeconds` - how often app must query Proxmox API for new data.
 
 ## APP record configuration
 

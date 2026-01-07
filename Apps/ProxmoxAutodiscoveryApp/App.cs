@@ -125,7 +125,7 @@ namespace ProxmoxAutodiscovery
 
                 var answer = GetMatchingIps(
                         vm.Addresses,
-                        recordConfig.Cidr,
+                        recordConfig.Networks,
                         isIpv6 ? AddressFamily.InterNetworkV6 : AddressFamily.InterNetwork)
                     .Select(x => new DnsResourceRecord(
                         question.Name,
@@ -170,7 +170,7 @@ namespace ProxmoxAutodiscovery
             {
                 try
                 {
-                    await Task.Delay(_appConfig.PeriodSeconds * 1000, _cts.Token);
+                    await Task.Delay(_appConfig.UpdateIntervalSeconds * 1000, _cts.Token);
                     if (_appConfig.Enabled)
                         _autodiscoveryData = await _pveService.DiscoverVmsAsync(_cts.Token);
                 }
@@ -238,8 +238,8 @@ namespace ProxmoxAutodiscovery
             [JsonPropertyName("tags")]
             public string[] Tags { get; set; }
             
-            [JsonPropertyName("cidr")]
-            public IPNetwork[] Cidr { get; set; }
+            [JsonPropertyName("networks")]
+            public IPNetwork[] Networks { get; set; }
         }
         
         private sealed class IpNetworkConverter : JsonConverter<IPNetwork>
@@ -272,7 +272,7 @@ namespace ProxmoxAutodiscovery
                 "tags": [
                     "autodiscovery"
                 ],
-                "cidr": [
+                "networks": [
                     "10.0.0.0/8",
                     "172.16.0.0/12",
                     "192.168.0.0/16",
