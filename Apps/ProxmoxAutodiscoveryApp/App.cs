@@ -177,22 +177,24 @@ namespace ProxmoxAutodiscovery
             _dnsServer.WriteLog("Starting background data update loop.");
             
             using var pt = new PeriodicTimer(updateInterval);
-            while (await pt.WaitForNextTickAsync(_cts.Token))
+            try
             {
-                try
+                while (await pt.WaitForNextTickAsync(_cts.Token))
                 {
-                    _autodiscoveryData = await _pveService.DiscoverVmsAsync(_cts.Token);
+                    try
+                    {
+                        _autodiscoveryData = await _pveService.DiscoverVmsAsync(_cts.Token);
+                    }
+                    catch (Exception ex)
+                    {
+                        _dnsServer.WriteLog("Unexpected error while updating Proxmox data in background.");
+                        _dnsServer.WriteLog(ex);
+                    }
                 }
-                catch (OperationCanceledException oce) when (oce.CancellationToken == _cts.Token)
-                {
-                    // Host is shutting APP down, so we are stopping update loop
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    _dnsServer.WriteLog("Unexpected error while updating Proxmox data in background.");
-                    _dnsServer.WriteLog(ex);
-                }
+            }
+            catch (OperationCanceledException oce) when (oce.CancellationToken == _cts.Token)
+            {
+                // To simplify calling code, on cancellation we're just completing the task and exiting the loop
             }
         }
         
