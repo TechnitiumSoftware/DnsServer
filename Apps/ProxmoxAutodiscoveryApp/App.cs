@@ -36,7 +36,6 @@ namespace ProxmoxAutodiscovery
     {
         private static readonly JsonSerializerOptions SerializerOptions = new()
         {
-            WriteIndented = true,
             Converters =
             {
                 new IpNetworkConverter()
@@ -81,11 +80,15 @@ namespace ProxmoxAutodiscovery
 
             try
             {
-                _autodiscoveryData = await _pveService.DiscoverVmsAsync(CancellationToken.None);
-                _dnsServer.WriteLog("Successfully initialized ProxmoxAutodiscoveryApp");
+                if (_appConfig.Enabled)
+                {
+                    _autodiscoveryData = await _pveService.DiscoverVmsAsync(CancellationToken.None);
+                    _dnsServer.WriteLog("Successfully initialized autodiscovery cache");
+                }
             }
             catch (Exception ex)
             {
+                _dnsServer.WriteLog("Error while initializing autodiscovery cache");
                 _dnsServer.WriteLog(ex);
             }
 
@@ -166,20 +169,22 @@ namespace ProxmoxAutodiscovery
 
         private async Task UpdateLoop()
         {
-            while (!_cts.IsCancellationRequested)
+            using var pt = new PeriodicTimer(TimeSpan.FromSeconds(_appConfig.UpdateIntervalSeconds));
+            while (await pt.WaitForNextTickAsync(_cts.Token))
             {
                 try
                 {
-                    await Task.Delay(_appConfig.UpdateIntervalSeconds * 1000, _cts.Token);
                     if (_appConfig.Enabled)
                         _autodiscoveryData = await _pveService.DiscoverVmsAsync(_cts.Token);
                 }
                 catch (OperationCanceledException oce) when (oce.CancellationToken == _cts.Token)
                 {
-                    break;
+                    // Host shutting APP down, so we are stopping update loop
+                    return;
                 }
                 catch (Exception ex)
                 {
+                    _dnsServer.WriteLog("Unexpected error while updating Proxmox data in background.");
                     _dnsServer.WriteLog(ex);
                 }
             }
@@ -187,25 +192,28 @@ namespace ProxmoxAutodiscovery
 
         private static bool TryGetHostname(string qname, string appRecordName, out string hostname)
         {
+            hostname = null;
+            
             var query = qname.ToLowerInvariant();
-            var postfix = $".{appRecordName}".ToLowerInvariant();
-            // qname must be {hostname}.{appRecordName}
 
-            if (query.EndsWith(postfix))
+            if (query.Length <= appRecordName.Length)
+                return false;
+
+            if (!query.EndsWith(appRecordName))
+                return false;
+
+            if (query[^(appRecordName.Length + 1)] != '.')
+                return false;
+            
+            hostname = qname.Substring(0, qname.Length - appRecordName.Length - 1);
+
+            if (hostname.Contains('.'))
             {
-                hostname = qname.Substring(0, qname.Length - postfix.Length);
-
-                if (hostname.Contains('.'))
-                {
-                    hostname = null;
-                    return false;
-                }
-                
-                return true;
+                hostname = null;
+                return false;
             }
 
-            hostname = null;
-            return false;
+            return true;
         }
         
         private static bool IsVmMatchFilters(DiscoveredVm network, string type, string[] tags)
