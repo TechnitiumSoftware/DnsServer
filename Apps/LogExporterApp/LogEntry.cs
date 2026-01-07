@@ -1,4 +1,4 @@
-﻿/*
+/*
 Technitium DNS Server
 Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 Copyright (C) 2025  Zafer Balkan (zafer@zaferbalkan.com)
@@ -14,10 +14,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+along with this program.  If not, see <http://www.gnu.org/licenses/>
 
 */
-
 using DnsServerCore.ApplicationCommon;
 using System;
 using System.Collections.Generic;
@@ -33,10 +32,17 @@ namespace LogExporter
 {
     public class LogEntry
     {
+        // Reuse empty lists to avoid allocations when there are no answers or EDNS data
+        private static readonly DnsResourceRecord[] EmptyAnswers = Array.Empty<DnsResourceRecord>();
+        private static readonly EDNSLog[] EmptyEdns = Array.Empty<EDNSLog>();
+
         public LogEntry(DateTime timestamp, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram request, DnsDatagram response, bool ednsLogging = false)
         {
             // Assign timestamp and ensure it's in UTC
             Timestamp = timestamp.Kind == DateTimeKind.Utc ? timestamp : timestamp.ToUniversalTime();
+
+            // Set hostname
+            NameServer = request.Metadata.NameServer.Host;
 
             // Extract client information
             ClientIp = remoteEP.Address.ToString();
@@ -61,48 +67,108 @@ namespace LogExporter
                 };
             }
 
-            // Convert answer section into a simple string summary (comma-separated for multiple answers)
-            Answers = new List<DnsResourceRecord>(response.Answer.Count);
+            // Convert answer section - reuse empty list when no answers
             if (response.Answer.Count > 0)
             {
-                Answers.AddRange(response.Answer.Select(record => new DnsResourceRecord
-                {
-                    Name = record.Name,
-                    RecordType = record.Type,
-                    RecordClass = record.Class,
-                    RecordTtl = record.TTL,
-                    RecordData = record.RDATA.ToString(),
-                    DnssecStatus = record.DnssecStatus,
-                }));
+                Answers = new List<DnsResourceRecord>(
+                    response.Answer.Select(record => new DnsResourceRecord
+                    {
+                        Name = record.Name,
+                        RecordType = record.Type,
+                        RecordClass = record.Class,
+                        RecordTtl = record.TTL,
+                        RecordData = record.RDATA.ToString(),
+                        DnssecStatus = record.DnssecStatus,
+                    })).ToArray();
+            }
+            else
+            {
+                Answers = EmptyAnswers;
             }
 
-            EDNS = new List<EDNSLog>();
+            PopulateEDNSLogs(response, ednsLogging);
+        }
+
+        private void PopulateEDNSLogs(DnsDatagram response, bool ednsLogging)
+        {
+            // Handle EDNS - reuse empty list when no EDNS logging or no errors
             if (!ednsLogging || response.EDNS is null)
             {
+                EDNS = EmptyEdns;
                 return;
             }
 
-            foreach (EDnsOption extendedErrorLog in response.EDNS.Options.Where(o => o.Code == EDnsOptionCode.EXTENDED_DNS_ERROR))
+            List<EDnsOption> ednsErrors = response.EDNS.Options.Where(o => o.Code == EDnsOptionCode.EXTENDED_DNS_ERROR).ToList();
+            if (ednsErrors.Count == 0)
             {
-                string[] extractedData = extendedErrorLog.Data.ToString().Replace("[", string.Empty).Replace("]", string.Empty).Split(":", StringSplitOptions.TrimEntries);
+                EDNS = EmptyEdns;
+                return;
+            }
 
-                EDNS.Add(new EDNSLog
+            List<EDNSLog> edns = new List<EDNSLog>(ednsErrors.Count);
+            foreach (EDnsOption extendedErrorLog in ednsErrors)
+            {
+                // ADR: EDNS extended error comes from network input and may not follow
+                // the expected "type: message" format. Previously this code assumed
+                // a well-formed structure and could throw IndexOutOfRangeException,
+                // allowing remote parties to crash the logging pipeline.
+                // We now parse defensively and treat malformed data as a best-effort message.
+
+                string? raw = extendedErrorLog.Data?.ToString();
+                if (string.IsNullOrWhiteSpace(raw))
+                    continue;
+
+                raw = raw.Replace("[", "").Replace("]", "");
+
+                string? errType = null;
+                string? message = null;
+
+                string[] parts = raw.Split(':', 2, StringSplitOptions.TrimEntries);
+                if (parts.Length == 2)
                 {
-                    ErrType = extractedData[0],
-                    Message = extractedData[1]
+                    errType = parts[0];
+                    message = parts[1];
+                }
+                else
+                {
+                    // fallback: treat the raw payload as the message
+                    message = raw;
+                }
+
+                edns.Add(new EDNSLog
+                {
+                    ErrType = errType,
+                    Message = message
                 });
             }
+
+            // If no valid EDNS entries were added, use the empty list
+            EDNS = edns.Count == 0 ? EmptyEdns : edns.ToArray();
         }
 
-        public List<DnsResourceRecord> Answers { get; private set; }
-        public string ClientIp { get; private set; }
-        public List<EDNSLog> EDNS { get; private set; }
-        public DnsTransportProtocol Protocol { get; private set; }
-        public DnsQuestion? Question { get; private set; }
-        public DnsResponseCode ResponseCode { get; private set; }
+        public DnsResourceRecord[] Answers { get; }
+
+        public string ClientIp { get; }
+
+        public EDNSLog[] EDNS { get; private set; }
+
+        public string NameServer { get; }
+
+        public DnsTransportProtocol Protocol { get; }
+
+        public DnsQuestion? Question { get; }
+
+        public DnsResponseCode ResponseCode { get; }
+
         public double? ResponseRtt { get; private set; }
-        public DnsServerResponseType ResponseType { get; private set; }
-        public DateTime Timestamp { get; private set; }
+
+        public DnsServerResponseType ResponseType { get; }
+
+        public DateTime Timestamp { get; }
+
+        // Meta bag populated by pipeline stages
+        public Dictionary<string, object> Meta { get; } = new();
+
         public override string ToString()
         {
             return JsonSerializer.Serialize(this, DnsLogSerializerOptions.Default);
@@ -124,16 +190,16 @@ namespace LogExporter
         public class DnsQuestion
         {
             public DnsClass QuestionClass { get; set; }
-            public required string QuestionName { get; set; }
+            public string QuestionName { get; set; }
             public DnsResourceRecordType QuestionType { get; set; }
         }
 
         public class DnsResourceRecord
         {
             public DnssecStatus DnssecStatus { get; set; }
-            public required string Name { get; set; }
+            public string Name { get; set; }
             public DnsClass RecordClass { get; set; }
-            public required string RecordData { get; set; }
+            public string RecordData { get; set; }
             public uint RecordTtl { get; set; }
             public DnsResourceRecordType RecordType { get; set; }
         }

@@ -15,20 +15,31 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 */
 
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
+using System.Linq;
 
-namespace LogExporter.Strategy
+namespace LogExporter.Pipeline
 {
-    /// <summary>
-    ///     Strategy interface to decide the sinks for exporting the logs.
-    /// </summary>
-    public interface IExportStrategy: IDisposable
+    public partial class Tags : IPipelineProcessor
     {
-        Task ExportAsync(IReadOnlyList<LogEntry> logs);
+        private readonly string[] _tags; 
+        public Tags(IEnumerable<string> tags)
+        {
+            _tags = tags.ToArray();
+        }
+
+        public void Process(LogEntry logEntry)
+        {
+            logEntry.Meta["tags"] = _tags;
+        }
+
+        public void Dispose()
+        {
+            // If DomainCache ever needs disposal, do it here.
+            GC.SuppressFinalize(this);
+        }
     }
 }
