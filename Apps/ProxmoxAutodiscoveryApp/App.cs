@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -75,6 +76,7 @@ namespace ProxmoxAutodiscovery
             _dnsServer = dnsServer;
             
             var appConfig = JsonSerializer.Deserialize<AppConfig>(config);
+            Validator.ValidateObject(appConfig, new ValidationContext(appConfig), validateAllProperties: true);
 
             _pveService = new PveService(
                 appConfig.ProxmoxHost,
@@ -131,7 +133,8 @@ namespace ProxmoxAutodiscovery
                 return Task.FromResult<DnsDatagram>(null);
             
             var recordConfig = JsonSerializer.Deserialize<AppRecordConfig>(appRecordData, SerializerOptions);
-
+            Validator.ValidateObject(recordConfig, new ValidationContext(recordConfig), validateAllProperties: true);
+            
             if (!IsVmMatchFilters(vm, recordConfig.Type, recordConfig.Tags ?? []))
                 return Task.FromResult<DnsDatagram>(null);
             
@@ -272,15 +275,17 @@ namespace ProxmoxAutodiscovery
             [JsonPropertyName("enabled")]
             public bool Enabled { get; set; }
     
+            [Required]
             [JsonPropertyName("proxmoxHost")]
             public Uri ProxmoxHost { get; set; }
     
             [JsonPropertyName("timeoutSeconds")]
             public int TimeoutSeconds { get; set; } = 15;
-    
+            
             [JsonPropertyName("disableSslValidation")]
             public bool DisableSslValidation { get; set; }
-    
+            
+            [Required]
             [JsonPropertyName("accessToken")]
             public string AccessToken { get; set; }
     
@@ -290,12 +295,15 @@ namespace ProxmoxAutodiscovery
         
         private sealed class AppRecordConfig
         {
+            [AllowedValues("lxc", "qemu", null)]
             [JsonPropertyName("type")]
             public string Type { get; set; }
             
+            [Required]
             [JsonPropertyName("tags")]
             public string[] Tags { get; set; }
             
+            [Required]
             [JsonPropertyName("networks")]
             public IPNetwork[] Networks { get; set; }
         }
