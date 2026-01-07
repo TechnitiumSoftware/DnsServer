@@ -34,6 +34,8 @@ namespace ProxmoxAutodiscovery
 {
     public sealed class App : IDnsApplication, IDnsAppRecordRequestHandler
     {
+        #region variables
+
         private static readonly JsonSerializerOptions SerializerOptions = new()
         {
             Converters =
@@ -43,47 +45,62 @@ namespace ProxmoxAutodiscovery
         };
         
         private IDnsServer _dnsServer;
-
-        private AppConfiguration _appConfig;
+        
         private PveService _pveService;
         private IReadOnlyDictionary<string, DiscoveredVm> _autodiscoveryData = new Dictionary<string, DiscoveredVm>(StringComparer.OrdinalIgnoreCase);
         
-        private CancellationTokenSource _cts = new();
+        private CancellationTokenSource _cts;
+        private Task _backgroundUpdateLoopTask;
 
-        private Task _updateLoop = Task.CompletedTask;
-
-        #region Dispose
+        #endregion
+        
+        #region IDisposable
         
         public void Dispose()
         {
-            _cts.Cancel();
-            _updateLoop.GetAwaiter().GetResult();
+            if (_cts is { IsCancellationRequested: false } && _backgroundUpdateLoopTask?.IsCompleted == false)
+            {
+                _cts.Cancel();
+                _backgroundUpdateLoopTask.GetAwaiter().GetResult();
+                _cts.Dispose();
+            }
         }
         
         #endregion
 
-        #region Public
+        #region public
         
         public async Task InitializeAsync(IDnsServer dnsServer, string config)
         {
             _dnsServer = dnsServer;
             
-            _appConfig = JsonSerializer.Deserialize<AppConfiguration>(config);
+            var appConfig = JsonSerializer.Deserialize<AppConfig>(config);
 
-            _pveService = new PveService(new PveApi(
-                _appConfig.ProxmoxHost,
-                _appConfig.AccessToken,
-                _appConfig.DisableSslValidation,
-                TimeSpan.FromSeconds(_appConfig.TimeoutSeconds),
+            _pveService = new PveService(
+                appConfig.ProxmoxHost,
+                appConfig.AccessToken,
+                appConfig.DisableSslValidation,
+                TimeSpan.FromSeconds(appConfig.TimeoutSeconds),
                 _dnsServer.Proxy
-            ));
+            );
 
             try
             {
-                if (_appConfig.Enabled)
+                if (_cts is { IsCancellationRequested: false } && _backgroundUpdateLoopTask?.IsCompleted == false)
+                {
+                    await _cts.CancelAsync();
+                    await _backgroundUpdateLoopTask;
+                        
+                    _cts.Dispose();
+                }
+                
+                if (appConfig.Enabled)
                 {
                     _autodiscoveryData = await _pveService.DiscoverVmsAsync(CancellationToken.None);
                     _dnsServer.WriteLog("Successfully initialized autodiscovery cache");
+                    
+                    _cts = new CancellationTokenSource();
+                    _backgroundUpdateLoopTask = BackgroundUpdateLoop(TimeSpan.FromSeconds(appConfig.UpdateIntervalSeconds));
                 }
             }
             catch (Exception ex)
@@ -91,9 +108,6 @@ namespace ProxmoxAutodiscovery
                 _dnsServer.WriteLog("Error while initializing autodiscovery cache");
                 _dnsServer.WriteLog(ex);
             }
-
-            _cts = new CancellationTokenSource();
-            _updateLoop = UpdateLoop();
         }
 
         public Task<DnsDatagram> ProcessRequestAsync(
@@ -106,80 +120,73 @@ namespace ProxmoxAutodiscovery
             uint appRecordTtl,
             string appRecordData)
         {
-            try
-            {
-                var question = request.Question[0];
+            var question = request.Question[0];
 
-                if (question is not { Type: DnsResourceRecordType.A or DnsResourceRecordType.AAAA })
-                    return Task.FromResult<DnsDatagram>(null);
-
-                if (!TryGetHostname(question.Name, appRecordName, out var hostname))
-                    return Task.FromResult<DnsDatagram>(null);
-
-                if (!_autodiscoveryData.TryGetValue(hostname, out var vm))
-                    return Task.FromResult<DnsDatagram>(null);
-                
-                var recordConfig = JsonSerializer.Deserialize<AppRecordConfig>(appRecordData, SerializerOptions);
-
-                if (!IsVmMatchFilters(vm, recordConfig.Type, recordConfig.Tags ?? []))
-                    return Task.FromResult<DnsDatagram>(null);
-                
-                var isIpv6 = question.Type == DnsResourceRecordType.AAAA;
-
-                var answer = GetMatchingIps(
-                        vm.Addresses,
-                        recordConfig.Networks,
-                        isIpv6 ? AddressFamily.InterNetworkV6 : AddressFamily.InterNetwork)
-                    .Select(x => new DnsResourceRecord(
-                        question.Name,
-                        question.Type,
-                        DnsClass.IN,
-                        appRecordTtl,
-                        isIpv6
-                            ? new DnsAAAARecordData(x)
-                            : new DnsARecordData(x)
-                    )).ToList();
-                
-                var data = new DnsDatagram(
-                    request.Identifier,
-                    true,
-                    request.OPCODE,
-                    true,
-                    false,
-                    request.RecursionDesired,
-                    isRecursionAllowed,
-                    false,
-                    false,
-                    DnsResponseCode.NoError,
-                    request.Question,
-                    answer: answer);
-
-                return Task.FromResult(data);
-            }
-            catch (Exception ex)
-            {
-                _dnsServer.WriteLog(ex);
+            if (question is not { Type: DnsResourceRecordType.A or DnsResourceRecordType.AAAA })
                 return Task.FromResult<DnsDatagram>(null);
-            }
+
+            if (!TryGetHostname(question.Name, appRecordName, out var hostname))
+                return Task.FromResult<DnsDatagram>(null);
+
+            if (!_autodiscoveryData.TryGetValue(hostname, out var vm))
+                return Task.FromResult<DnsDatagram>(null);
+            
+            var recordConfig = JsonSerializer.Deserialize<AppRecordConfig>(appRecordData, SerializerOptions);
+
+            if (!IsVmMatchFilters(vm, recordConfig.Type, recordConfig.Tags ?? []))
+                return Task.FromResult<DnsDatagram>(null);
+            
+            var isIpv6 = question.Type == DnsResourceRecordType.AAAA;
+
+            var answer = GetMatchingIps(
+                    vm.Addresses,
+                    recordConfig.Networks,
+                    isIpv6 ? AddressFamily.InterNetworkV6 : AddressFamily.InterNetwork)
+                .Select(x => new DnsResourceRecord(
+                    question.Name,
+                    question.Type,
+                    DnsClass.IN,
+                    appRecordTtl,
+                    isIpv6
+                        ? new DnsAAAARecordData(x)
+                        : new DnsARecordData(x)
+                )).ToList();
+            
+            var data = new DnsDatagram(
+                request.Identifier,
+                true,
+                request.OPCODE,
+                true,
+                false,
+                request.RecursionDesired,
+                isRecursionAllowed,
+                false,
+                false,
+                DnsResponseCode.NoError,
+                request.Question,
+                answer: answer);
+
+            return Task.FromResult(data);
         }
 
         #endregion
 
-        #region Private
+        #region private
 
-        private async Task UpdateLoop()
+        private async Task BackgroundUpdateLoop(TimeSpan updateInterval)
         {
-            using var pt = new PeriodicTimer(TimeSpan.FromSeconds(_appConfig.UpdateIntervalSeconds));
+            _dnsServer.WriteLog("Starting background data update loop.");
+            
+            using var pt = new PeriodicTimer(updateInterval);
             while (await pt.WaitForNextTickAsync(_cts.Token))
             {
                 try
                 {
-                    if (_appConfig.Enabled)
-                        _autodiscoveryData = await _pveService.DiscoverVmsAsync(_cts.Token);
+                    _autodiscoveryData = await _pveService.DiscoverVmsAsync(_cts.Token);
                 }
                 catch (OperationCanceledException oce) when (oce.CancellationToken == _cts.Token)
                 {
-                    // Host shutting APP down, so we are stopping update loop
+                    // Host is shutting APP down, so we are stopping update loop
                     return;
                 }
                 catch (Exception ex)
@@ -189,7 +196,7 @@ namespace ProxmoxAutodiscovery
                 }
             }
         }
-
+        
         private static bool TryGetHostname(string qname, string appRecordName, out string hostname)
         {
             hostname = null;
@@ -235,9 +242,50 @@ namespace ProxmoxAutodiscovery
         }
 
         #endregion
+        
+        #region properties
 
-        #region Helper Classes
+        public string Description => "Allows configuring autodiscovery for Proxmox QEMUs and LXCs based on a set of filters.";
+        
+        public string ApplicationRecordDataTemplate =>
+            """
+            {
+                "type": "qemu",
+                "tags": [
+                    "autodiscovery"
+                ],
+                "networks": [
+                    "10.0.0.0/8",
+                    "172.16.0.0/12",
+                    "192.168.0.0/16",
+                    "fc00::/7"
+                ]
+            }
+            """;
 
+        #endregion
+        
+        private sealed class AppConfig
+        {
+            [JsonPropertyName("enabled")]
+            public bool Enabled { get; set; }
+    
+            [JsonPropertyName("proxmoxHost")]
+            public Uri ProxmoxHost { get; set; }
+    
+            [JsonPropertyName("timeoutSeconds")]
+            public int TimeoutSeconds { get; set; } = 15;
+    
+            [JsonPropertyName("disableSslValidation")]
+            public bool DisableSslValidation { get; set; }
+    
+            [JsonPropertyName("accessToken")]
+            public string AccessToken { get; set; }
+    
+            [JsonPropertyName("updateIntervalSeconds")]
+            public int UpdateIntervalSeconds { get; set; } = 60;
+        }
+        
         private sealed class AppRecordConfig
         {
             [JsonPropertyName("type")]
@@ -266,29 +314,5 @@ namespace ProxmoxAutodiscovery
                 writer.WriteStringValue(value.ToString());
             }
         }
-
-        #endregion
-        
-        #region Properties
-
-        public string Description => "Allows configuring autodiscovery for Proxmox QEMUs and LXCs based on a set of filters.";
-        
-        public string ApplicationRecordDataTemplate =>
-            """
-            {
-                "type": "qemu",
-                "tags": [
-                    "autodiscovery"
-                ],
-                "networks": [
-                    "10.0.0.0/8",
-                    "172.16.0.0/12",
-                    "192.168.0.0/16",
-                    "fc00::/7"
-                ]
-            }
-            """;
-
-        #endregion
     }
 }
