@@ -63,11 +63,58 @@ Supply a JSON configuration like the following:
 
 - `type` - type of guests to autodiscover. Supported values are `qemu` for QEMU vms, `lxc` for LXCs and `null` for both.
 - `tags` - filter guests by tag list.
-  - `allowed` - guest must have all specified tags to be discovered.
-  - `excluded` - guest must have no tags from the list to be discovered.
+  - `allowed` - guest must have all specified tags to be discovered. Empty list means all guests are discoverable.
+  - `excluded` - guest must have no tags from the list to be discovered. Empty list means no guests are excluded.
 - `networks` - filter returned IP addresses by networks.
-  - `allowed` - resolve only addresses belonging to any network from the list.
-  - `exluded` - resolve only addresses not belonging any networks from the list.
+  - `allowed` - resolve only addresses belonging to any network from the list. Empty list means no IPs are discoverable.
+  - `exluded` - resolve only addresses not belonging any networks from the list. Empty list means no IPs are excluded.
+
+## Example
+
+Discover all Proxmox guests:
+
+```json
+{
+  "type": null,
+  "tags": {
+    "allowed": [],
+    "excluded": []
+  },
+  "networks": {
+    "allowed": [
+      "0.0.0.0/0",
+      "::/0"
+    ],
+    "excluded": [
+    ]
+  }
+}
+```
+
+Discover only QEMUs with `test`, `provider` tags, excluding `broken`. Resolve only IPv4 addresses in private range excluding default docker bridge:
+
+```json
+{
+  "type": "qemu",
+  "tags": {
+    "allowed": [
+      "test",
+      "provider"
+    ],
+    "excluded": [
+      "broken"
+    ]
+  },
+  "networks": {
+    "allowed": [
+      "172.16.0.0/12"
+    ],
+    "excluded": [
+      "172.17.0.0/16"
+    ]
+  }
+}
+```
 
 # Acknowledgement
 

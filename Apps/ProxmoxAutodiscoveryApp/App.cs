@@ -285,6 +285,7 @@ namespace ProxmoxAutodiscovery
                                         "fc00::/7"
                                     ],
                                     "excluded": [
+                                        "172.17.0.0/16"
                                     ]
                                 }
                             }
