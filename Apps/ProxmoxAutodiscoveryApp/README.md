@@ -39,22 +39,35 @@ Supply a JSON configuration like the following:
 
 ```json
 {
-    "type": "qemu",
-    "tags": [
-        "autodiscovery"
+  "type": "qemu",
+  "tags": {
+    "allowed": [
+      "autodiscovery"
     ],
-    "cidr": [
-        "10.0.0.0/8",
-        "172.16.0.0/12",
-        "192.168.0.0/16",
-        "fc00::/7"
+    "excluded": [
+      "hidden"
     ]
+  },
+  "networks": {
+    "allowed": [
+      "10.0.0.0/8",
+      "172.16.0.0/12",
+      "192.168.0.0/16",
+      "fc00::/7"
+    ],
+    "excluded": [
+    ]
+  }
 }
 ```
 
 - `type` - type of guests to autodiscover. Supported values are `qemu` for QEMU vms, `lxc` for LXCs and `null` for both.
-- `tags` - list of tags. Only guests that have all tags in the list will be discovered.
-- `cidr` - list of networks in CIDR notation. Server will return only addresses in these networks.
+- `tags` - filter guests by tag list.
+  - `allowed` - guest must have all specified tags to be discovered.
+  - `excluded` - guest must have no tags from the list to be discovered.
+- `networks` - filter returned IP addresses by networks.
+  - `allowed` - resolve only addresses belonging to any network from the list.
+  - `exluded` - resolve only addresses not belonging any networks from the list.
 
 # Acknowledgement
 

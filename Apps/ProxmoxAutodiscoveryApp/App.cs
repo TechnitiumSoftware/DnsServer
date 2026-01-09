@@ -135,7 +135,7 @@ namespace ProxmoxAutodiscovery
             var recordConfig = JsonSerializer.Deserialize<AppRecordConfig>(appRecordData, SerializerOptions);
             Validator.ValidateObject(recordConfig, new ValidationContext(recordConfig), validateAllProperties: true);
             
-            if (!IsVmMatchFilters(vm, recordConfig.Type, recordConfig.Tags ?? []))
+            if (!IsVmMatchFilters(vm, recordConfig.Type, recordConfig.Tags))
                 return Task.FromResult<DnsDatagram>(null);
             
             var isIpv6 = question.Type == DnsResourceRecordType.AAAA;
@@ -227,22 +227,35 @@ namespace ProxmoxAutodiscovery
             return true;
         }
         
-        private static bool IsVmMatchFilters(DiscoveredVm network, string type, string[] tags)
+        private static bool IsVmMatchFilters(DiscoveredVm network, string type, Filter<string> tagFilter)
         {
+            // If type is specified, and it's not matching VM type - do not discover this host
             if (type != null && network.Type != type)
                 return false;
             
-            if (tags.Length > 0 && !tags.All(x => network.Tags.Contains(x)))
+            // If allowed tags are specified, VM must have all tags in the list to be discovered
+            if (tagFilter.Allowed.Length > 0 && !tagFilter.Allowed.All(x => network.Tags.Contains(x)))
+                return false;
+            
+            // If excluded tags are specified, VM must have no tags from the list to be discovered
+            if (tagFilter.Excluded.Length > 0 && tagFilter.Excluded.Any(x => network.Tags.Contains(x)))
                 return false;
 
             return true;
         }
 
-        private static IEnumerable<IPAddress> GetMatchingIps(IPAddress[] vmAddresses, IPNetwork[] allowedNetworks, AddressFamily addressFamily)
+        private static IEnumerable<IPAddress> GetMatchingIps(
+            IPAddress[] vmAddresses,
+            Filter<IPNetwork> networkFilter,
+            AddressFamily addressFamily)
         {
             return vmAddresses
+                // Picking only IPv4 or IPv6 addresses
                 .Where(x => x.AddressFamily == addressFamily)
-                .Where(ip => allowedNetworks.Any(net => net.Contains(ip)));
+                // IP address must be in one of the allowed networks
+                .Where(ip => networkFilter.Allowed.Any(net => net.Contains(ip)))
+                // IP address must be in none of the blocked networks
+                .Where(ip => networkFilter.Excluded.All(net => !net.Contains(ip)));
         }
 
         #endregion
@@ -256,15 +269,24 @@ namespace ProxmoxAutodiscovery
             { get { return  """
                             {
                                 "type": "qemu",
-                                "tags": [
-                                    "autodiscovery"
-                                ],
-                                "networks": [
-                                    "10.0.0.0/8",
-                                    "172.16.0.0/12",
-                                    "192.168.0.0/16",
-                                    "fc00::/7"
-                                ]
+                                "tags": {
+                                    "allowed": [
+                                        "autodiscovery"
+                                    ],
+                                    "excluded": [
+                                        "hidden"
+                                    ]
+                                },
+                                "networks": {
+                                    "allowed": [
+                                        "10.0.0.0/8",
+                                        "172.16.0.0/12",
+                                        "192.168.0.0/16",
+                                        "fc00::/7"
+                                    ],
+                                    "excluded": [
+                                    ]
+                                }
                             }
                             """; } }
 
@@ -301,11 +323,22 @@ namespace ProxmoxAutodiscovery
             
             [Required]
             [JsonPropertyName("tags")]
-            public string[] Tags { get; set; }
+            public Filter<string> Tags { get; set; }
             
             [Required]
             [JsonPropertyName("networks")]
-            public IPNetwork[] Networks { get; set; }
+            public Filter<IPNetwork> Networks { get; set; }
+        }
+
+        private sealed class Filter<T>
+        {
+            [Required]
+            [JsonPropertyName("allowed")]
+            public T[] Allowed { get; set; }
+            
+            [Required]
+            [JsonPropertyName("excluded")]
+            public T[] Excluded { get; set; }
         }
         
         private sealed class IpNetworkConverter : JsonConverter<IPNetwork>
@@ -315,7 +348,7 @@ namespace ProxmoxAutodiscovery
                 var str = reader.GetString();
                 if (!string.IsNullOrEmpty(str))
                     return IPNetwork.Parse(str);
-
+                
                 return default;
             }
 
