@@ -268,26 +268,26 @@ namespace ProxmoxAutodiscovery
         public string ApplicationRecordDataTemplate
             { get { return  """
                             {
-                                "type": "qemu",
-                                "tags": {
-                                    "allowed": [
-                                        "autodiscovery"
-                                    ],
-                                    "excluded": [
-                                        "hidden"
-                                    ]
-                                },
-                                "networks": {
-                                    "allowed": [
-                                        "10.0.0.0/8",
-                                        "172.16.0.0/12",
-                                        "192.168.0.0/16",
-                                        "fc00::/7"
-                                    ],
-                                    "excluded": [
-                                        "172.17.0.0/16"
-                                    ]
-                                }
+                              "type": "qemu",
+                              "tags": {
+                                "allowed": [
+                                  "autodiscovery"
+                                ],
+                                "excluded": [
+                                  "hidden"
+                                ]
+                              },
+                              "networks": {
+                                "allowed": [
+                                  "10.0.0.0/8",
+                                  "172.16.0.0/12",
+                                  "192.168.0.0/16",
+                                  "fc00::/7"
+                                ],
+                                "excluded": [
+                                  "172.17.0.0/16"
+                                ]
+                              }
                             }
                             """; } }
 
