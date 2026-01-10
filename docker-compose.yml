@@ -2,7 +2,7 @@ services:
   dns-server:
     container_name: dns-server
     hostname: dns-server
-    image: technitium/dns-server:latest
+    image: docker.io/technitium/dns-server:latest
     # For DHCP deployments, use "host" network mode and remove all the port mappings, including the ports array by commenting them
     # network_mode: "host"
     ports:
