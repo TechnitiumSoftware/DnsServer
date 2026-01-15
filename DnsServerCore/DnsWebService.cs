@@ -24,12 +24,19 @@ using DnsServerCore.Dns;
 using DnsServerCore.Dns.Applications;
 using DnsServerCore.Dns.Dnssec;
 using DnsServerCore.Dns.Zones;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.IdentityModel.Protocols;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.StaticFiles;
@@ -42,6 +49,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Net.Quic;
 using System.Net.Security;
 using System.Reflection;
@@ -102,6 +110,20 @@ namespace DnsServerCore
         string _webServiceTlsCertificatePath;
         string _webServiceTlsCertificatePassword;
         string _webServiceRealIpHeader = "X-Real-IP";
+        internal bool _webServiceSsoEnabled;
+
+        internal string _webServiceSsoAuthority;
+        internal string _webServiceSsoClientId;
+        internal string _webServiceSsoClientSecret;
+        internal string _webServiceSsoScopes;
+        // internal string _webServiceSsoCallbackPath; // Removed in favor of Redirect URI
+        internal string _webServiceSsoRedirectUri;
+        internal string _webServiceSsoMetadataAddress;
+        internal bool _webServiceSsoAllowHttp;
+        internal bool _webServiceSsoAllowSignup;
+        internal string _webServiceSsoGroupMappings;
+
+        internal bool _webServiceSsoVerboseLogging;
 
         Timer _tlsCertificateUpdateTimer;
         const int TLS_CERTIFICATE_UPDATE_TIMER_INITIAL_INTERVAL = 60000;
@@ -438,7 +460,7 @@ namespace DnsServerCore
                 throw new InvalidDataException("Web Service config file format is invalid.");
 
             int version = bR.ReadByte();
-            if (version > 1)
+            if (version > 2)
                 throw new InvalidDataException("Web Service config version not supported.");
 
             _webServiceHttpPort = bR.ReadInt32();
@@ -499,6 +521,28 @@ namespace DnsServerCore
             CheckAndLoadSelfSignedCertificate(false, false);
 
             _webServiceRealIpHeader = bR.ReadShortString();
+
+            if (version >= 2)
+            {
+                _webServiceSsoAuthority = bR.ReadShortString();
+                _webServiceSsoClientId = bR.ReadShortString();
+                _webServiceSsoClientSecret = bR.ReadShortString();
+                _webServiceSsoScopes = bR.ReadShortString();
+                // _webServiceSsoCallbackPath = bR.ReadShortString(); // Legacy; read but ignore or just read empty string if needed for compat? 
+                // Actually, binary format must be respected. We must read it to advance the stream.
+                _ = bR.ReadShortString(); // _webServiceSsoCallbackPath (deprecated)
+                _webServiceSsoMetadataAddress = bR.ReadShortString();
+                _webServiceSsoAllowHttp = bR.ReadBoolean();
+                _webServiceSsoAllowSignup = bR.ReadBoolean();
+                _webServiceSsoGroupMappings = bR.ReadShortString();
+                _webServiceSsoVerboseLogging = bR.ReadBoolean();
+
+                // Read new fields safely for backward compatibility
+                if (bR.BaseStream.Position < bR.BaseStream.Length)
+                {
+                    _webServiceSsoRedirectUri = bR.ReadShortString();
+                }
+            }
         }
 
         private void WriteConfigTo(Stream s)
@@ -506,7 +550,7 @@ namespace DnsServerCore
             BinaryWriter bW = new BinaryWriter(s);
 
             bW.Write(Encoding.ASCII.GetBytes("WC")); //format
-            bW.Write((byte)1); //version
+            bW.Write((byte)2); //version
 
             bW.Write(_webServiceHttpPort);
             bW.Write(_webServiceTlsPort);
@@ -534,6 +578,19 @@ namespace DnsServerCore
                 bW.WriteShortString(_webServiceTlsCertificatePassword);
 
             bW.WriteShortString(_webServiceRealIpHeader);
+
+            //version 2 - SSO settings
+            bW.WriteShortString(_webServiceSsoAuthority ?? "");
+            bW.WriteShortString(_webServiceSsoClientId ?? "");
+            bW.WriteShortString(_webServiceSsoClientSecret ?? "");
+            bW.WriteShortString(_webServiceSsoScopes ?? "");
+            bW.WriteShortString(""); // _webServiceSsoCallbackPath (deprecated)
+            bW.WriteShortString(_webServiceSsoMetadataAddress ?? "");
+            bW.Write(_webServiceSsoAllowHttp);
+            bW.Write(_webServiceSsoAllowSignup);
+            bW.WriteShortString(_webServiceSsoGroupMappings ?? "");
+            bW.Write(_webServiceSsoVerboseLogging);
+            bW.WriteShortString(_webServiceSsoRedirectUri ?? "");
         }
 
         #endregion
@@ -851,7 +908,7 @@ namespace DnsServerCore
                         //extract log files from backup
                         foreach (ZipArchiveEntry entry in backupZip.Entries)
                         {
-                            if (entry.FullName.StartsWith("logs/"))
+                            if (entry.FullName.StartsWith("logs/", StringComparison.OrdinalIgnoreCase))
                             {
                                 try
                                 {
@@ -897,7 +954,7 @@ namespace DnsServerCore
                     //extract any certs
                     foreach (ZipArchiveEntry certEntry in backupZip.Entries)
                     {
-                        if (certEntry.FullName.StartsWith("apps/"))
+                        if (certEntry.FullName.StartsWith("apps/", StringComparison.OrdinalIgnoreCase))
                             continue;
 
                         if (certEntry.FullName.EndsWith(".pfx", StringComparison.OrdinalIgnoreCase) || certEntry.FullName.EndsWith(".p12", StringComparison.OrdinalIgnoreCase))
@@ -976,7 +1033,7 @@ namespace DnsServerCore
 
                             foreach (ZipArchiveEntry entry in backupZip.Entries)
                             {
-                                if (!entry.FullName.StartsWith("zones/") || !entry.FullName.EndsWith(".keys", StringComparison.Ordinal))
+                                if (!entry.FullName.StartsWith("zones/", StringComparison.OrdinalIgnoreCase) || !entry.FullName.EndsWith(".keys", StringComparison.OrdinalIgnoreCase))
                                     continue;
 
                                 string memberZoneName = Path.GetFileNameWithoutExtension(entry.Name);
@@ -1041,7 +1098,7 @@ namespace DnsServerCore
                         //extract zone files from backup
                         foreach (ZipArchiveEntry entry in backupZip.Entries)
                         {
-                            if (entry.FullName.StartsWith("zones/"))
+                            if (entry.FullName.StartsWith("zones/", StringComparison.OrdinalIgnoreCase))
                             {
                                 try
                                 {
@@ -1109,7 +1166,7 @@ namespace DnsServerCore
                     //extract block list files from backup
                     foreach (ZipArchiveEntry entry in backupZip.Entries)
                     {
-                        if (entry.FullName.StartsWith("blocklists/"))
+                        if (entry.FullName.StartsWith("blocklists/", StringComparison.OrdinalIgnoreCase))
                         {
                             try
                             {
@@ -1144,7 +1201,7 @@ namespace DnsServerCore
                         //install or update app from zip
                         foreach (ZipArchiveEntry entry in backupZip.Entries)
                         {
-                            if (!entry.FullName.StartsWith("apps/"))
+                            if (!entry.FullName.StartsWith("apps/", StringComparison.OrdinalIgnoreCase))
                                 continue;
 
                             string[] fullNameParts = entry.FullName.Split('/');
@@ -1178,7 +1235,7 @@ namespace DnsServerCore
                         //update app config
                         foreach (ZipArchiveEntry entry in backupZip.Entries)
                         {
-                            if (!entry.FullName.StartsWith("apps/"))
+                            if (!entry.FullName.StartsWith("apps/", StringComparison.OrdinalIgnoreCase))
                                 continue;
 
                             string[] fullNameParts = entry.FullName.Split('/');
@@ -1219,7 +1276,7 @@ namespace DnsServerCore
 
                         foreach (ZipArchiveEntry entry in backupZip.Entries)
                         {
-                            if (!entry.FullName.StartsWith("apps/"))
+                            if (!entry.FullName.StartsWith("apps/", StringComparison.OrdinalIgnoreCase))
                                 continue;
 
                             string[] fullNameParts = entry.FullName.Split('/');
@@ -1265,7 +1322,7 @@ namespace DnsServerCore
                         //extract apps files from backup
                         foreach (ZipArchiveEntry entry in backupZip.Entries)
                         {
-                            if (entry.FullName.StartsWith("apps/"))
+                            if (entry.FullName.StartsWith("apps/", StringComparison.OrdinalIgnoreCase))
                             {
                                 string entryPath = entry.FullName;
 
@@ -1320,7 +1377,7 @@ namespace DnsServerCore
                         //extract scope files from backup
                         foreach (ZipArchiveEntry entry in backupZip.Entries)
                         {
-                            if (entry.FullName.StartsWith("scopes/"))
+                            if (entry.FullName.StartsWith("scopes/", StringComparison.OrdinalIgnoreCase))
                             {
                                 try
                                 {
@@ -1377,7 +1434,7 @@ namespace DnsServerCore
                     //extract stats files from backup
                     foreach (ZipArchiveEntry entry in backupZip.Entries)
                     {
-                        if (entry.FullName.StartsWith("stats/"))
+                        if (entry.FullName.StartsWith("stats/", StringComparison.OrdinalIgnoreCase))
                         {
                             try
                             {
@@ -1523,6 +1580,299 @@ namespace DnsServerCore
         private async Task StartWebServiceAsync(bool httpOnlyMode)
         {
             WebApplicationBuilder builder = WebApplication.CreateBuilder();
+#if DEBUG
+            Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true;
+#else
+            Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = false;
+#endif
+
+            // Load cookie secret with auto-generation for seamless upgrades
+            string cookieSecret = Environment.GetEnvironmentVariable("DNS_SERVER_COOKIE_SECRET");
+            string cookieSecretFile = Environment.GetEnvironmentVariable("DNS_SERVER_COOKIE_SECRET_FILE");
+            string cookieSecretFilePath = Path.Combine(_configFolder, "cookie.secret");
+
+            if (!string.IsNullOrEmpty(cookieSecretFile) && File.Exists(cookieSecretFile))
+            {
+                cookieSecret = File.ReadAllText(cookieSecretFile).Trim();
+                _log.Write($"Loaded DNS_SERVER_COOKIE_SECRET from file: {cookieSecretFile}");
+            }
+
+            // Auto-generate and persist if not provided
+            if (string.IsNullOrEmpty(cookieSecret))
+            {
+                if (File.Exists(cookieSecretFilePath))
+                {
+                    // Load previously generated secret
+                    cookieSecret = File.ReadAllText(cookieSecretFilePath).Trim();
+                    _log.Write("Loaded auto-generated DNS_SERVER_COOKIE_SECRET from config folder");
+                }
+                else
+                {
+                    // Generate new secret
+                    using (var rng = System.Security.Cryptography.RandomNumberGenerator.Create())
+                    {
+                        byte[] secretBytes = new byte[32];
+                        rng.GetBytes(secretBytes);
+                        cookieSecret = Convert.ToBase64String(secretBytes);
+                    }
+                    
+                    // Persist for future restarts
+                    try
+                    {
+                        File.WriteAllText(cookieSecretFilePath, cookieSecret);
+                        _log.Write("========================================");
+                        _log.Write("AUTO-GENERATED DNS_SERVER_COOKIE_SECRET");
+                        _log.Write("========================================");
+                        _log.Write($"Cookie Secret: {cookieSecret}");
+                        _log.Write($"Saved to: {cookieSecretFilePath}");
+                        _log.Write("");
+                        _log.Write("IMPORTANT: For production deployments, set DNS_SERVER_COOKIE_SECRET environment variable");
+                        _log.Write("or DNS_SERVER_COOKIE_SECRET_FILE to persist this value across container recreations.");
+                        _log.Write("========================================");
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Write($"WARNING: Failed to persist cookie secret: {ex.Message}");
+                        _log.Write("Cookie secret will regenerate on restart (sessions will be invalidated)");
+                    }
+                }
+            }
+
+            // Helper method to load config from env var or file
+            string LoadConfigValue(string envVarName, string fileEnvVarName, string defaultValue = null)
+            {
+                string value = Environment.GetEnvironmentVariable(envVarName);
+                string filePath = Environment.GetEnvironmentVariable(fileEnvVarName);
+                
+                if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+                {
+                    try
+                    {
+                        value = File.ReadAllText(filePath).Trim();
+                        _log.Write($"Loaded {envVarName} from file: {filePath}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Write($"ERROR: Failed to read {fileEnvVarName}: {ex.Message}");
+                    }
+                }
+                
+                if (string.IsNullOrEmpty(value))
+                    value = defaultValue;
+
+                return value;
+            }
+
+            // Load all SSO configuration with file-based secret support
+            string ssoAuthority = LoadConfigValue("DNS_SERVER_SSO_AUTHORITY", "DNS_SERVER_SSO_AUTHORITY_FILE", _webServiceSsoAuthority);
+            string ssoClientId = LoadConfigValue("DNS_SERVER_SSO_CLIENT_ID", "DNS_SERVER_SSO_CLIENT_ID_FILE", _webServiceSsoClientId);
+            string ssoClientSecret = LoadConfigValue("DNS_SERVER_SSO_CLIENT_SECRET", "DNS_SERVER_SSO_CLIENT_SECRET_FILE", _webServiceSsoClientSecret);
+            
+            _webServiceSsoEnabled = !string.IsNullOrEmpty(ssoAuthority) && !string.IsNullOrEmpty(ssoClientId);
+
+            // Configure Data Protection for cookie encryption
+            IDataProtectionBuilder dataProtectionBuilder = builder.Services.AddDataProtection()
+                .SetApplicationName("DnsServer")
+                .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(_configFolder, "keys")));
+
+            if (OperatingSystem.IsWindows())
+            {
+                dataProtectionBuilder.ProtectKeysWithDpapi(protectToLocalMachine: true);
+            }
+
+            if (_webServiceSsoEnabled)
+            {
+                builder.Services.AddAuthentication(options =>
+                {
+                    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+                    options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+                })
+                .AddCookie(options =>
+                {
+                    options.Cookie.Name = "dnsserver_session";
+                    options.Cookie.HttpOnly = true;
+                    options.Cookie.SecurePolicy = _webServiceEnableTls ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
+                    options.Cookie.SameSite = SameSiteMode.Lax;
+                    options.ExpireTimeSpan = TimeSpan.FromHours(24);
+                    options.SlidingExpiration = true;
+                })
+                .AddOpenIdConnect(options =>
+                {
+                    options.Authority = ssoAuthority;
+                    options.ClientId = ssoClientId;
+                    options.ClientSecret = ssoClientSecret;
+                    options.ResponseType = "code";
+                    
+                    // Enable SSO session refresh
+                    options.UseTokenLifetime = true; // Respect IdP token expiration
+                    options.SaveTokens = true;       // Required for refresh token support
+                    
+                    // HTTPS enforcement with override for reverse proxy deployments
+                    string envAllowHttp = LoadConfigValue("DNS_SERVER_SSO_ALLOW_HTTP", "DNS_SERVER_SSO_ALLOW_HTTP_FILE", _webServiceSsoAllowHttp.ToString());
+                    bool allowHttp = bool.Parse(envAllowHttp ?? "false");
+
+                    string envAllowSignup = LoadConfigValue("DNS_SERVER_SSO_ALLOW_SIGNUP", "DNS_SERVER_SSO_ALLOW_SIGNUP_FILE", _webServiceSsoAllowSignup.ToString());
+                    bool allowSignup = bool.Parse(envAllowSignup ?? "false");
+                    
+                    // We load this for use in AuthApi but don't set options here (options doesn't use it directly)
+                    // Just ensuring the property reflects the effective config
+                    _webServiceSsoAllowSignup = allowSignup;
+
+                    string groupMappings = LoadConfigValue("DNS_SERVER_SSO_GROUP_MAPPINGS", "DNS_SERVER_SSO_GROUP_MAPPINGS_FILE", _webServiceSsoGroupMappings);
+                    _webServiceSsoGroupMappings = groupMappings;
+
+                    // Validate group mappings JSON at startup to fail fast on invalid configuration
+                    if (!string.IsNullOrEmpty(groupMappings))
+                    {
+                        try
+                        {
+                            JsonSerializer.Deserialize<Dictionary<string, string>>(groupMappings);
+                            _log.Write($"SSO: Group mappings validated successfully");
+                        }
+                        catch (Exception ex)
+                        {
+                            throw new Exception($"Invalid DNS_SERVER_SSO_GROUP_MAPPINGS JSON: {ex.Message}. Expected format: {{\"oidc-group-guid\":\"LocalGroupName\"}}", ex);
+                        }
+                    }
+
+                    options.RequireHttpsMetadata = !allowHttp;
+
+                    
+                    if (allowHttp)
+                    {
+                        _log.Write("WARNING: SSO metadata over HTTP is allowed (DNS_SERVER_SSO_ALLOW_HTTP=true). This is INSECURE. Only use behind TLS-terminating reverse proxy.");
+                    }
+
+                    options.Scope.Clear();
+                    string scopes = LoadConfigValue("DNS_SERVER_SSO_SCOPES", "DNS_SERVER_SSO_SCOPES_FILE", _webServiceSsoScopes);
+                    if (string.IsNullOrEmpty(scopes))
+                        scopes = "openid profile email";
+
+                    foreach (string scope in scopes.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        options.Scope.Add(scope);
+                    }
+                    
+                    // Configurable redirect URI (for proxy support and consolidated configuration)
+                    string ssoRedirectUri = LoadConfigValue("DNS_SERVER_SSO_REDIRECT_URI", "DNS_SERVER_SSO_REDIRECT_URI_FILE", _webServiceSsoRedirectUri);
+                    
+                    if (!string.IsNullOrEmpty(ssoRedirectUri))
+                    {
+                        if (Uri.TryCreate(ssoRedirectUri, UriKind.Absolute, out Uri uri))
+                        {
+                            options.CallbackPath = PathString.FromUriComponent(uri);
+                            
+                            // Warn if using HTTP without explicit permission
+                            if (uri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase) && !allowHttp)
+                            {
+                                _log.Write("WARNING: DNS_SERVER_SSO_REDIRECT_URI is using HTTP. This is insecure. Set DNS_SERVER_SSO_ALLOW_HTTP=true to suppress this warning if using a trusted reverse proxy.");
+                            }
+                        }
+                        else
+                        {
+                            _log.Write($"ERROR: Invalid DNS_SERVER_SSO_REDIRECT_URI: {ssoRedirectUri}. Falling back to default callback path.");
+                             options.CallbackPath = new PathString("/oidc/callback");
+                        }
+                    }
+                    else
+                    {
+                        options.CallbackPath = new PathString("/oidc/callback");
+                    }
+
+                    string ssoMetadataAddress = LoadConfigValue("DNS_SERVER_SSO_METADATA_ADDRESS", "DNS_SERVER_SSO_METADATA_ADDRESS_FILE", _webServiceSsoMetadataAddress);
+                    if (!string.IsNullOrEmpty(ssoMetadataAddress))
+                    {
+                        options.MetadataAddress = ssoMetadataAddress;
+                        options.ConfigurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(
+                            ssoMetadataAddress, 
+                            new OpenIdConnectConfigurationRetriever(), 
+                            new HttpDocumentRetriever(options.Backchannel) { RequireHttps = options.RequireHttpsMetadata }
+                        );
+                    }
+
+                    options.Events = new OpenIdConnectEvents
+                    {
+                        OnRedirectToIdentityProvider = context =>
+                        {
+                            if (!string.IsNullOrEmpty(ssoRedirectUri))
+                            {
+                                context.ProtocolMessage.RedirectUri = ssoRedirectUri;
+                                _log.Write($"OIDC: Overriding Redirect URI to: {ssoRedirectUri}");
+                            }
+
+                            _log.Write($"OIDC: Redirecting to IdP: {context.ProtocolMessage.IssuerAddress}");
+                            if (string.IsNullOrEmpty(context.ProtocolMessage.State))
+                            {
+                                _log.Write("OIDC: WARNING - No state parameter generated!");
+                            }
+                            return Task.CompletedTask;
+                        },
+                        OnAuthorizationCodeReceived = context =>
+                        {
+                            if (!string.IsNullOrEmpty(ssoRedirectUri))
+                            {
+                                context.TokenEndpointRequest.RedirectUri = ssoRedirectUri;
+                            }
+                            return Task.CompletedTask;
+                        },
+                        OnMessageReceived = context =>
+                        {
+                            _log.Write("OIDC: Authorization code received");
+                            if (string.IsNullOrEmpty(context.ProtocolMessage.State))
+                            {
+                                _log.Write("OIDC: WARNING - No state parameter in callback!");
+                                context.Response.Redirect("/");
+                                return Task.CompletedTask;
+                            }
+                            return Task.CompletedTask;
+                        },
+                        OnTokenValidated = context =>
+                        {
+                            string userId = context.Principal?.FindFirst("sub")?.Value ?? "unknown";
+                            _log.Write($"OIDC: Token validated for user: {userId}");
+                            return Task.CompletedTask;
+                        },
+                        OnAuthenticationFailed = context =>
+                        {
+                            _log.Write($"OIDC: Authentication failed - {context.Exception?.Message}");
+                            if (context.Exception?.InnerException != null)
+                                _log.Write($"OIDC: Inner exception - {context.Exception.InnerException.Message}");
+                            
+                            context.HandleResponse();
+                            context.Response.Redirect("/index.html?error=sso_failed");
+                            return Task.CompletedTask;
+                        },
+                        OnRemoteFailure = context =>
+                        {
+                            _log.Write($"OIDC: Remote failure - {context.Failure?.Message}");
+                            context.HandleResponse();
+                            context.Response.Redirect("/index.html?error=sso_failed");
+                            return Task.CompletedTask;
+                        }
+                    };
+                });
+            }
+            else
+            {
+                 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie();
+            }
+
+            builder.Services.AddAuthorization();
+            
+            builder.Services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+                options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                        factory: partition => new FixedWindowRateLimiterOptions
+                        {
+                            AutoReplenishment = true,
+                            PermitLimit = 300,
+                            QueueLimit = 2,
+                            Window = TimeSpan.FromMinutes(1)
+                        }));
+            });
 
             builder.Environment.ContentRootFileProvider = new PhysicalFileProvider(_appFolder)
             {
@@ -1535,6 +1885,8 @@ namespace DnsServerCore
                 UseActivePolling = true,
                 UsePollingFileWatcher = true
             };
+
+
 
             builder.Services.AddResponseCompression(delegate (ResponseCompressionOptions options)
             {
@@ -1582,7 +1934,42 @@ namespace DnsServerCore
 
             _webService = builder.Build();
 
+            _webService.UseExceptionHandler(WebServiceExceptionHandler);
+
             _webService.UseResponseCompression();
+
+            _webService.UseRateLimiter();
+
+            // Add security headers middleware
+            _webService.Use(async (context, next) =>
+            {
+                // Security headers for all responses
+                context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+                context.Response.Headers["X-Frame-Options"] = "DENY";
+                context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
+                context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+                
+                // HSTS only on HTTPS connections
+                if (context.Request.IsHttps)
+                {
+                    context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+                }
+                
+                // CSP for HTML pages (not API endpoints)
+                if (!context.Request.Path.StartsWithSegments("/api"))
+                {
+                    context.Response.Headers["Content-Security-Policy"] = 
+                        "default-src 'self'; " +
+                        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+                        "style-src 'self' 'unsafe-inline'; " +
+                        "img-src 'self' data:; " +
+                        "connect-src 'self'; " +
+                        "font-src 'self'; " +
+                        "frame-ancestors 'none'";
+                }
+                
+                await next();
+            });
 
             if (_webServiceHttpToTlsRedirect && !httpOnlyMode && _webServiceEnableTls && (_webServiceSslServerAuthenticationOptions is not null))
                 _webService.Use(WebServiceHttpsRedirectionMiddleware);
@@ -1598,6 +1985,9 @@ namespace DnsServerCore
                 ServeUnknownFileTypes = true
             });
 
+            _webService.UseAuthentication();
+            _webService.UseAuthorization();
+            
             ConfigureWebServiceRoutes();
 
             try
@@ -1657,26 +2047,27 @@ namespace DnsServerCore
 
         private void ConfigureWebServiceRoutes()
         {
-            _webService.UseExceptionHandler(WebServiceExceptionHandler);
-
             _webService.Use(WebServiceApiMiddleware);
 
             _webService.UseRouting();
 
             //user auth
+            _webService.MapGet("/api/user/status", delegate (HttpContext context) { return _authApi.StatusAsync(context); });
             _webService.MapGetAndPost("/api/user/login", delegate (HttpContext context) { return _authApi.LoginAsync(context, UserSessionType.Standard); });
-            _webService.MapGetAndPost("/api/user/createToken", delegate (HttpContext context) { return _authApi.LoginAsync(context, UserSessionType.ApiToken); });
-            _webService.MapGetAndPost("/api/user/logout", _authApi.Logout);
+            _webService.MapPost("/api/user/createToken", delegate (HttpContext context) { return _authApi.LoginAsync(context, UserSessionType.ApiToken); });
+            _webService.MapPost("/api/user/logout", _authApi.Logout);
+            _webService.MapGetAndPost("/api/user/sso/login", _authApi.SsoLoginAsync);
+            _webService.MapGetAndPost("/api/user/sso/finalize", _authApi.SsoFinalizeAsync);
 
             //user
-            _webService.MapGetAndPost("/api/user/session/get", _authApi.GetCurrentSessionDetails);
-            _webService.MapGetAndPost("/api/user/session/delete", delegate (HttpContext context) { _authApi.DeleteSession(context, false); });
-            _webService.MapGetAndPost("/api/user/changePassword", _authApi.ChangePasswordAsync);
+            _webService.MapGet("/api/user/session/get", _authApi.GetCurrentSessionDetails);
+            _webService.MapPost("/api/user/session/delete", delegate (HttpContext context) { _authApi.DeleteSession(context, false); });
+            _webService.MapPost("/api/user/changePassword", _authApi.ChangePasswordAsync);
             _webService.MapGetAndPost("/api/user/2fa/init", _authApi.Initialize2FA);
-            _webService.MapGetAndPost("/api/user/2fa/enable", _authApi.Enable2FA);
-            _webService.MapGetAndPost("/api/user/2fa/disable", _authApi.Disable2FA);
-            _webService.MapGetAndPost("/api/user/profile/get", _authApi.GetProfile);
-            _webService.MapGetAndPost("/api/user/profile/set", _authApi.SetProfile);
+            _webService.MapPost("/api/user/2fa/enable", _authApi.Enable2FA);
+            _webService.MapPost("/api/user/2fa/disable", _authApi.Disable2FA);
+            _webService.MapGet("/api/user/profile/get", _authApi.GetProfile);
+            _webService.MapPost("/api/user/profile/set", _authApi.SetProfile);
             _webService.MapGetAndPost("/api/user/checkForUpdate", _api.CheckForUpdateAsync);
 
             //dashboard
@@ -1756,8 +2147,8 @@ namespace DnsServerCore
             _webService.MapGetAndPost("/api/dnsClient/resolve", _api.ResolveQueryAsync);
 
             //settings
-            _webService.MapGetAndPost("/api/settings/get", _settingsApi.GetDnsSettings);
-            _webService.MapGetAndPost("/api/settings/set", _settingsApi.SetDnsSettingsAsync);
+            _webService.MapGet("/api/settings/get", _settingsApi.GetDnsSettings);
+            _webService.MapPost("/api/settings/set", _settingsApi.SetDnsSettingsAsync);
             _webService.MapGetAndPost("/api/settings/getTsigKeyNames", _settingsApi.GetTsigKeyNames);
             _webService.MapGetAndPost("/api/settings/forceUpdateBlockLists", _settingsApi.ForceUpdateBlockLists);
             _webService.MapGetAndPost("/api/settings/temporaryDisableBlocking", _settingsApi.TemporaryDisableBlocking);
@@ -1944,8 +2335,11 @@ namespace DnsServerCore
             switch (request.Path)
             {
                 case "/api/user/login":
+                case "/api/user/status":
                 case "/api/user/createToken":
                 case "/api/user/logout":
+                case "/api/user/sso/login":
+                case "/api/user/sso/finalize":
                     needsJsonResponseObject = false;
                     break;
 
@@ -2038,6 +2432,12 @@ namespace DnsServerCore
                 object apiFallback = context.Items["apiFallback"]; //check api fallback mark
                 if (apiFallback is null)
                 {
+                    if (response.StatusCode == StatusCodes.Status302Found || response.StatusCode == StatusCodes.Status301MovedPermanently || response.StatusCode == StatusCodes.Status307TemporaryRedirect || response.StatusCode == StatusCodes.Status308PermanentRedirect)
+                    {
+                        // Response is a redirect, don't overwrite it with JSON success
+                        return;
+                    }
+
                     response.StatusCode = StatusCodes.Status200OK;
                     response.ContentType = "application/json; charset=utf-8";
                     response.ContentLength = mS.Length;
@@ -2057,9 +2457,15 @@ namespace DnsServerCore
             exceptionHandlerApp.Run(async delegate (HttpContext context)
             {
                 IExceptionHandlerPathFeature exceptionHandlerPathFeature = context.Features.Get<IExceptionHandlerPathFeature>();
+                if (exceptionHandlerPathFeature == null)
+                    return;
+
+                Exception ex = exceptionHandlerPathFeature.Error;
+
                 if (exceptionHandlerPathFeature.Path.StartsWith("/api/"))
                 {
-                    Exception ex = exceptionHandlerPathFeature.Error;
+                    if (ex != null && ex is not InvalidTokenWebServiceException)
+                        _log.Write(context.GetRemoteEndPoint(_webServiceRealIpHeader), ex);
 
                     HttpResponse response = context.Response;
 
@@ -2087,11 +2493,8 @@ namespace DnsServerCore
                         }
                         else
                         {
-                            _log.Write(context.GetRemoteEndPoint(_webServiceRealIpHeader), ex);
-
                             jsonWriter.WriteString("status", "error");
                             jsonWriter.WriteString("errorMessage", ex.Message);
-                            jsonWriter.WriteString("stackTrace", ex.StackTrace);
 
                             if (ex.InnerException is not null)
                                 jsonWriter.WriteString("innerErrorMessage", ex.InnerException.Message);
@@ -2105,7 +2508,28 @@ namespace DnsServerCore
 
         private bool TryGetSession(HttpContext context, out UserSession session)
         {
-            string token = context.Request.GetQueryOrForm("token");
+            // Try query/form first, then fallback to cookie
+            string token = context.Request.GetQueryOrForm("token", null);
+            
+            if (string.IsNullOrEmpty(token))
+            {
+                // Check for session_token cookie
+                token = context.Request.Cookies["session_token"];
+            }
+            
+            if (string.IsNullOrEmpty(token))
+            {
+                // Check for ASP.NET Core Identity (SSO) authentication
+                if (context.User.Identity.IsAuthenticated)
+                {
+                    // SSO users get their session via cookie set during SsoFinalizeAsync
+                    // If we reach here with IsAuthenticated but no token, the session_token cookie wasn't set
+                }
+            
+                session = null;
+                return false;
+            }
+            
             session = _authManager.GetSession(token);
             if ((session is null) || session.User.Disabled)
                 return false;

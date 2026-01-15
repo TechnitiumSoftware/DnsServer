@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFramework>net9.0</TargetFramework>
@@ -27,25 +27,26 @@
 
 	<ItemGroup>
 		<Reference Include="TechnitiumLibrary">
-			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.dll</HintPath>
+			<HintPath>..\TechnitiumLibrary\bin\TechnitiumLibrary.dll</HintPath>
 		</Reference>
 		<Reference Include="TechnitiumLibrary.ByteTree">
-			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.ByteTree.dll</HintPath>
+			<HintPath>..\TechnitiumLibrary\bin\TechnitiumLibrary.ByteTree.dll</HintPath>
 		</Reference>
 		<Reference Include="TechnitiumLibrary.IO">
-			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
+			<HintPath>..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
 		</Reference>
 		<Reference Include="TechnitiumLibrary.Net">
-			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
+			<HintPath>..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
 		</Reference>
 		<Reference Include="TechnitiumLibrary.Security.OTP">
-			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Security.OTP.dll</HintPath>
+			<HintPath>..\TechnitiumLibrary\bin\TechnitiumLibrary.Security.OTP.dll</HintPath>
 		</Reference>
 	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
 		<PackageReference Include="QRCoder" Version="1.7.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="9.0.0" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -264,3 +265,4 @@
 	</ItemGroup>
 
 </Project>
+

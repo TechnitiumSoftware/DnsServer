@@ -20,33 +20,68 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 var sessionData = null;
 
 $(function () {
-    var token = localStorage.getItem("token");
-    if (token == null) {
-        showPageLogin();
-        login("admin", "admin");
-    }
-    else {
-        HTTPRequest({
-            url: "api/user/session/get?token=" + token,
-            success: function (responseJSON) {
-                sessionData = responseJSON;
-                localStorage.setItem("token", sessionData.token);
+    var urlParams = new URLSearchParams(window.location.search);
 
-                $("#mnuUserDisplayName").text(sessionData.displayName);
-                document.title = sessionData.info.dnsServerDomain + " - " + "Technitium DNS Server v" + sessionData.info.version;
-                $("#lblAboutVersion").text(sessionData.info.version);
-                $("#lblAboutUptime").text(moment(sessionData.info.uptimestamp).local().format("lll") + " (" + moment(sessionData.info.uptimestamp).fromNow() + ")");
-                $("#lblDnsServerDomain").text(" - " + sessionData.info.dnsServerDomain);
-                $("#chkUseSoaSerialDateScheme").prop("checked", sessionData.info.useSoaSerialDateScheme);
-                $("#chkDnssecValidation").prop("checked", sessionData.info.dnssecValidation);
+    // Explicitly hide OTP box on load to prevent flash/regression
+    $("#div2FAOTP").hide();
 
-                showPageMain();
-            },
-            error: function () {
-                showPageLogin();
+    // Check SSO Status
+    HTTPRequest({
+        url: "api/user/status",
+        success: function (response) {
+            if (response.ssoEnabled) {
+                $("#divSsoLogin").show();
             }
-        });
+        },
+        error: function () {
+            console.error("Failed to check SSO status");
+        }
+    });
+
+    // Check for SSO error from redirect
+    var errorParam = urlParams.get('error');
+    if (errorParam) {
+        var reason = urlParams.get('reason');
+        var errorMsg = "SSO Login Failed";
+        if (errorParam === 'sso_failed') errorMsg = "SSO authentication failed. Please try again.";
+        else if (errorParam === 'no_username_claim') errorMsg = "SSO provider did not return required user information.";
+        else if (errorParam === 'access_denied') {
+            if (reason === 'not_registered') errorMsg = "Access denied. Your account is not registered.";
+            else if (reason === 'account_disabled') errorMsg = "Access denied. Your account is disabled.";
+        }
+        else if (errorParam === 'rate_limited') errorMsg = "Too many provisioning attempts. Please try again later.";
+        else if (errorParam === 'system_full') errorMsg = "System is at user capacity. Contact administrator.";
+
+        showAlert("danger", "Login Error", errorMsg);
+
+        // Clear error from URL
+        var cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+
+        showPageLogin();
+        return;
     }
+
+    // Check if we have a valid session (cookie-based)
+    HTTPRequest({
+        url: "api/user/session/get",
+        success: function (responseJSON) {
+            sessionData = responseJSON;
+
+            $("#mnuUserDisplayName").text(sessionData.displayName);
+            document.title = sessionData.info.dnsServerDomain + " - " + "Technitium DNS Server v" + sessionData.info.version;
+            $("#lblAboutVersion").text(sessionData.info.version);
+            $("#lblAboutUptime").text(moment(sessionData.info.uptimestamp).local().format("lll") + " (" + moment(sessionData.info.uptimestamp).fromNow() + ")");
+            $("#lblDnsServerDomain").text(" - " + sessionData.info.dnsServerDomain);
+            $("#chkUseSoaSerialDateScheme").prop("checked", sessionData.info.useSoaSerialDateScheme);
+            $("#chkDnssecValidation").prop("checked", sessionData.info.dnssecValidation);
+
+            showPageMain();
+        },
+        error: function () {
+            showPageLogin();
+        }
+    });
 
     $("#optGroupDetailsUserList").on("change", function () {
         var selectedUser = $("#optGroupDetailsUserList").val();
@@ -219,7 +254,7 @@ function login(username, password) {
         procecssData: false,
         success: function (responseJSON) {
             sessionData = responseJSON;
-            localStorage.setItem("token", sessionData.token);
+            // Token now managed via HTTP-only cookie, no localStorage needed
 
             $("#mnuUserDisplayName").text(sessionData.displayName);
             document.title = sessionData.info.dnsServerDomain + " - " + "Technitium DNS Server v" + sessionData.info.version;
@@ -264,13 +299,24 @@ function login(username, password) {
 function logout() {
     HTTPRequest({
         url: "api/user/logout?token=" + sessionData.token,
+        method: "POST",
         success: function (responseJSON) {
             sessionData = null;
-            showPageLogin();
+            localStorage.removeItem("token");
+            localStorage.removeItem("token_expires");
+            // Explicitly delete the session cookie
+            document.cookie = "session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            // Force page reload to ensure clean state
+            window.location.reload();
         },
         error: function () {
             sessionData = null;
-            showPageLogin();
+            localStorage.removeItem("token");
+            localStorage.removeItem("token_expires");
+            // Explicitly delete the session cookie
+            document.cookie = "session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            // Force page reload to ensure clean state
+            window.location.reload();
         }
     });
 }
@@ -567,6 +613,7 @@ function enable2FA(objBtn) {
 
     HTTPRequest({
         url: "api/user/2fa/enable?token=" + sessionData.token + "&totp=" + encodeURIComponent(totp),
+        method: "POST",
         success: function (responseJSON) {
             sessionData.totpEnabled = true;
 
@@ -601,6 +648,7 @@ function disable2FA(objBtn) {
 
     HTTPRequest({
         url: "api/user/2fa/disable?token=" + sessionData.token,
+        method: "POST",
         success: function (responseJSON) {
             sessionData.totpEnabled = false;
 
@@ -734,6 +782,7 @@ function saveMyProfile(objBtn) {
 
     HTTPRequest({
         url: apiUrl,
+        method: "POST",
         success: function (responseJSON) {
             sessionData.displayName = responseJSON.response.displayName;
             $("#mnuUserDisplayName").text(sessionData.displayName);
@@ -1098,6 +1147,30 @@ function getAdminUsersRowHtml(id, user) {
     return tableHtmlRows;
 }
 
+function showPageLogin() {
+    $("#pageMain").hide();
+    $("#pageLogin").show();
+    $("#txtUser").focus();
+
+    // Check SSO status
+    HTTPRequest({
+        url: "api/user/status",
+        success: function (responseJSON) {
+            if (responseJSON.ssoEnabled) {
+                $("#btnSsoLogin").show();
+                $("#divSsoLogin").show();
+            } else {
+                $("#btnSsoLogin").hide();
+                $("#divSsoLogin").hide();
+            }
+        },
+        error: function () {
+            $("#btnSsoLogin").hide();
+            $("#divSsoLogin").hide();
+        }
+    });
+}
+
 function showAddUserModal() {
     $("#divAddUserAlert").html("");
 
@@ -1199,6 +1272,20 @@ function showUserDetailsModal(objMenuItem) {
         success: function (responseJSON) {
             $("#txtUserDetailsDisplayName").val(responseJSON.response.displayName);
             $("#txtUserDetailsUsername").val(responseJSON.response.username);
+            $("#txtUserDetailsUsername").data("original-username", responseJSON.response.username);
+
+            var identitySource = responseJSON.response.identitySource || "Local";
+            $("#lblUserDetailsIdentitySource").text(identitySource);
+
+            // Disable username editing for SSO users
+            if ((identitySource === "Remote/SSO") || responseJSON.response.username.toLowerCase().startsWith("sso_")) {
+                $("#txtUserDetailsUsername").prop("disabled", true);
+                $("#txtUserDetailsUsername").attr("title", "Username is managed by SSO identity provider and cannot be changed");
+            } else {
+                $("#txtUserDetailsUsername").prop("disabled", false);
+                $("#txtUserDetailsUsername").attr("title", "");
+            }
+
             $("#lblUserDetails2FAStatus").text(responseJSON.response.totpEnabled ? "Enabled" : "Disabled");
             $("#chkUserDetailsDisableAccount").prop("checked", responseJSON.response.disabled);
             $("#txtUserDetailsSessionTimeout").val(responseJSON.response.sessionTimeoutSeconds);
@@ -1331,8 +1418,19 @@ function saveUserDetails(objBtn) {
 
     var id = btn.attr("data-id");
     var username = btn.attr("data-username");
-    var newUsername = $("#txtUserDetailsUsername").val();
     var displayName = $("#txtUserDetailsDisplayName").val();
+    var newUsername = $("#txtUserDetailsUsername").val();
+    var originalUsername = $("#txtUserDetailsUsername").data("original-username");
+
+    // Prevent changing SSO usernames
+    if (originalUsername && originalUsername.toLowerCase().startsWith("sso_") &&
+        newUsername !== originalUsername) {
+        showAlert("warning", "Cannot Change Username",
+            "SSO user usernames are managed by the identity provider and cannot be changed.",
+            divUserDetailsAlert);
+        return;
+    }
+
     var disabled = $("#chkUserDetailsDisableAccount").prop("checked");
 
     var sessionTimeoutSeconds = $("#txtUserDetailsSessionTimeout").val();

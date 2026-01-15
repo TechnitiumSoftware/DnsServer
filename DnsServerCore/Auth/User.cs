@@ -52,6 +52,7 @@ namespace DnsServerCore.Auth
         AuthenticatorKeyUri _totpKeyUri;
         bool _totpEnabled;
         bool _disabled;
+        bool _isSsoUser; // New field for SSO tracking
         int _sessionTimeoutSeconds = 30 * 60; //default 30 mins
 
         DateTime _previousSessionLoggedOn;
@@ -59,23 +60,16 @@ namespace DnsServerCore.Auth
         DateTime _recentSessionLoggedOn;
         IPAddress _recentSessionRemoteAddress;
 
-        readonly ConcurrentDictionary<string, Group> _memberOfGroups;
-
-        #endregion
-
-        #region constructor
-
-        public User(string displayName, string username, string password, int iterations = DEFAULT_ITERATIONS)
+        ConcurrentDictionary<string, Group> _memberOfGroups;
+        public User(string displayName, string username, string password, int iterations)
         {
-            Username = username;
             DisplayName = displayName;
-
+            Username = username;
             ChangePassword(password, iterations);
 
+            _memberOfGroups = new ConcurrentDictionary<string, Group>();
             _previousSessionRemoteAddress = IPAddress.Any;
             _recentSessionRemoteAddress = IPAddress.Any;
-
-            _memberOfGroups = new ConcurrentDictionary<string, Group>(1, 2);
         }
 
         public User(BinaryReader bR, IReadOnlyDictionary<string, Group> groups)
@@ -85,6 +79,7 @@ namespace DnsServerCore.Auth
             {
                 case 1:
                 case 2:
+                case 3: // Version 3 adds IsSsoUser
                     _displayName = bR.ReadShortString();
                     _username = bR.ReadShortString();
                     _passwordHashType = (UserPasswordHashType)bR.ReadByte();
@@ -102,6 +97,12 @@ namespace DnsServerCore.Auth
                     }
 
                     _disabled = bR.ReadBoolean();
+
+                    if (version >= 3)
+                    {
+                        _isSsoUser = bR.ReadBoolean();
+                    }
+
                     _sessionTimeoutSeconds = bR.ReadInt32();
 
                     _previousSessionLoggedOn = bR.ReadDateTime();
@@ -259,13 +260,13 @@ namespace DnsServerCore.Auth
 
         public void WriteTo(BinaryWriter bW)
         {
-            bW.Write((byte)2);
-            bW.WriteShortString(_displayName);
-            bW.WriteShortString(_username);
+            bW.Write((byte)3); // Bump version to 3
+            bW.WriteShortString(_displayName ?? "");
+            bW.WriteShortString(_username ?? "");
             bW.Write((byte)_passwordHashType);
             bW.Write(_iterations);
-            bW.WriteBuffer(_salt);
-            bW.WriteShortString(_passwordHash);
+            bW.WriteBuffer(_salt ?? Array.Empty<byte>());
+            bW.WriteShortString(_passwordHash ?? "");
 
             if (_totpKeyUri is null)
                 bW.Write("");
@@ -274,6 +275,7 @@ namespace DnsServerCore.Auth
 
             bW.Write(_totpEnabled);
             bW.Write(_disabled);
+            bW.Write(_isSsoUser); // Write IsSsoUser
             bW.Write(_sessionTimeoutSeconds);
 
             bW.Write(_previousSessionLoggedOn);
@@ -284,7 +286,7 @@ namespace DnsServerCore.Auth
             bW.Write(Convert.ToByte(_memberOfGroups.Count));
 
             foreach (KeyValuePair<string, Group> group in _memberOfGroups)
-                bW.WriteShortString(group.Value.Name.ToLowerInvariant());
+                bW.WriteShortString(group.Value.Name?.ToLowerInvariant() ?? "");
         }
 
         public override bool Equals(object obj)
@@ -416,6 +418,12 @@ namespace DnsServerCore.Auth
 
         public ICollection<Group> MemberOfGroups
         { get { return _memberOfGroups.Values; } }
+
+        public bool IsSsoUser
+        {
+            get { return _isSsoUser; }
+            set { _isSsoUser = value; }
+        }
 
         #endregion
     }

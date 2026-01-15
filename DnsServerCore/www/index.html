@@ -111,6 +111,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     <a href="#" data-toggle="modal" data-target="#modalForgotPassword">Forgot Password?</a>
                                 </div>
                             </div>
+
+                            <div class="form-group" id="divSsoLogin" style="display: none; margin-top: 5px;">
+                                <div class="col-sm-offset-3 col-sm-4">
+                                    <button type="button" id="btnSsoLogin" class="btn btn-info btn-block" onclick="window.location='/api/user/sso/login'">Login with SSO</button>
+                                </div>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -1416,6 +1422,109 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
 
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2023/02/configuring-dns-over-quic-and-https3.html" target="_blank">Help: Configuring DNS-over-QUIC and HTTPS/3 For Technitium DNS Server</a></div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Single Sign-On (SSO)</label>
+                                                            <div class="col-sm-9">
+                                                                <p class="form-control-static">Configure OpenID Connect (OIDC) settings here.<br /><br />Clear Authority and Client ID to disable SSO.<br /><br />Note! Environment variables will take precedence over these settings.</p>
+                                                            </div>
+                                                        </div>
+
+                                                        <div id="divSsoSettings">
+                                                            <div class="form-group">
+                                                                <label for="txtSsoAuthority" class="col-sm-3 control-label">Authority</label>
+                                                                <div class="col-sm-6">
+                                                                    <input type="text" class="form-control" id="txtSsoAuthority" placeholder="https://accounts.google.com">
+                                                                </div>
+                                                                <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The OIDC Authority URL (Issuer).</div>
+                                                            </div>
+
+                                                            <div class="form-group">
+                                                                <label for="txtSsoClientId" class="col-sm-3 control-label">Client ID</label>
+                                                                <div class="col-sm-6">
+                                                                    <input type="text" class="form-control" id="txtSsoClientId" placeholder="client-id">
+                                                                </div>
+                                                                <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The OIDC Client ID.</div>
+                                                            </div>
+
+                                                            <div class="form-group">
+                                                                <label for="txtSsoClientSecret" class="col-sm-3 control-label">Client Secret</label>
+                                                                <div class="col-sm-6">
+                                                                    <input type="password" class="form-control" id="txtSsoClientSecret" placeholder="client-secret">
+                                                                </div>
+                                                                <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The OIDC Client Secret.</div>
+                                                            </div>
+
+                                                            <div class="form-group">
+                                                                <label for="txtSsoScopes" class="col-sm-3 control-label">Scopes</label>
+                                                                <div class="col-sm-6">
+                                                                    <input type="text" class="form-control" id="txtSsoScopes" placeholder="openid profile email">
+                                                                </div>
+                                                                <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Space-separated list of scopes to request.</div>
+                                                            </div>
+
+                                                            <div class="form-group">
+                                                                <label for="txtSsoRedirectUri" class="col-sm-3 control-label">Redirect URI</label>
+                                                                <div class="col-sm-6">
+                                                                    <input type="text" class="form-control" id="txtSsoRedirectUri" placeholder="https://dns.example.com/oidc/callback">
+                                                                </div>
+                                                                <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The complete redirect URI (callback URL) registered with the OIDC provider.</div>
+                                                            </div>
+
+                                                            <div class="form-group">
+                                                                <label for="txtSsoMetadataAddress" class="col-sm-3 control-label">Metadata Address</label>
+                                                                <div class="col-sm-6">
+                                                                    <input type="text" class="form-control" id="txtSsoMetadataAddress" placeholder="(Optional) Full URL to .well-known/openid-configuration">
+                                                                </div>
+                                                                <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Optional. Overrides the default metadata discovery URL.</div>
+                                                            </div>
+
+                                                            <div class="form-group">
+                                                                <label class="col-sm-3 control-label">Allow HTTP</label>
+                                                                <div class="col-sm-8">
+                                                                    <div class="checkbox">
+                                                                        <label>
+                                                                            <input id="chkSsoAllowHttp" type="checkbox">
+                                                                            Allow HTTP Metadata
+                                                                        </label>
+                                                                    </div>
+                                                                    <div style="padding-top: 5px; padding-left: 20px;">Support OIDC over HTTP (e.g. for testing or internal reverse proxies).</div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="form-group">
+                                                                <label class="col-sm-3 control-label">Allow Signup</label>
+                                                                <div class="col-sm-8">
+                                                                    <div class="checkbox">
+                                                                        <label>
+                                                                            <input id="chkSsoAllowSignup" type="checkbox">
+                                                                            Allow New User Signup
+                                                                        </label>
+                                                                    </div>
+                                                                    <div style="padding-top: 5px; padding-left: 20px;">Automatically provision local accounts for new users who log in via SSO.</div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="form-group">
+                                                                <label for="txtSsoGroupMappings" class="col-sm-3 control-label">Group Mappings</label>
+                                                                <div class="col-sm-6">
+                                                                    <textarea id="txtSsoGroupMappings" class="form-control" rows="5" spellcheck="false" placeholder='{"oidc-group-claim": "Administrators", "another-oidc-group-claim": "LocalGroup"}'></textarea>
+                                                                    <div style="padding-top: 5px;">
+                                                                        <p>Note! Map OIDC groups/roles to local user groups (JSON format). Key is the OIDC group claim value, Value is the local group name. If a user's mapped group does not exist, it will be created.</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="form-group">
+                                                                <label for="txtSsoDefaultGroup" class="col-sm-3 control-label">Default Group</label>
+                                                                <div class="col-sm-6">
+                                                                    <input type="text" class="form-control" id="txtSsoDefaultGroup" placeholder="(Optional) Group name">
+                                                                </div>
+                                                                <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Default group to assign all auto-provisioned SSO users. Leave empty for no default group.</div>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
 

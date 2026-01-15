@@ -20,10 +20,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.Auth;
 using Microsoft.AspNetCore.Http;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using System.Security.Cryptography;
 using TechnitiumLibrary.Security.OTP;
 
 namespace DnsServerCore
@@ -35,6 +42,17 @@ namespace DnsServerCore
             #region variables
 
             readonly DnsWebService _dnsWebService;
+
+            // Rate limiting for SSO user provisioning
+            private static readonly ConcurrentDictionary<string, DateTime> _provisioningAttempts = new ConcurrentDictionary<string, DateTime>();
+            private const int MAX_PROVISIONING_PER_HOUR = 100;
+
+            // Allowed redirect paths for security
+            private static readonly HashSet<string> _allowedRedirectPaths = new HashSet<string> 
+            { 
+                "/index.html", 
+                "/api/user/sso/finalize" 
+            };
 
             #endregion
 
@@ -49,11 +67,46 @@ namespace DnsServerCore
 
             #region private
 
+            private void SafeRedirect(HttpContext context, string path, Dictionary<string, string> queryParams = null)
+            {
+                string basePath = path.Split('?')[0];
+                
+                if (!_allowedRedirectPaths.Contains(basePath))
+                {
+                    _dnsWebService._log.Write($"SSO: WARNING - Blocked unsafe redirect to: {path}");
+                    path = "/index.html";
+                    queryParams = new Dictionary<string, string> { ["error"] = "invalid_redirect" };
+                }
+                
+                if (queryParams != null && queryParams.Count > 0)
+                {
+                    var validParams = new[] { "error", "reason" };
+                    var query = string.Join("&", queryParams
+                        .Where(kv => validParams.Contains(kv.Key))
+                        .Select(kv => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}"));
+                    
+                    path += "?" + query;
+                }
+                
+                context.Response.Redirect(path);
+            }
+
+            private static string ComputeSha256Hash(string input)
+            {
+                using (var sha256 = System.Security.Cryptography.SHA256.Create())
+                {
+                    byte[] bytes = Encoding.UTF8.GetBytes(input);
+                    byte[] hash = sha256.ComputeHash(bytes);
+                    return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+                }
+            }
+
             private void WriteCurrentSessionDetails(Utf8JsonWriter jsonWriter, UserSession currentSession, bool includeInfo)
             {
                 if (currentSession.Type == UserSessionType.ApiToken)
                 {
                     jsonWriter.WriteString("username", currentSession.User.Username);
+                    jsonWriter.WriteString("identitySource", currentSession.User.IsSsoUser ? "Remote/SSO" : "Local");
                     jsonWriter.WriteString("tokenName", currentSession.TokenName);
                     jsonWriter.WriteString("token", currentSession.Token);
                 }
@@ -61,6 +114,7 @@ namespace DnsServerCore
                 {
                     jsonWriter.WriteString("displayName", currentSession.User.DisplayName);
                     jsonWriter.WriteString("username", currentSession.User.Username);
+                    jsonWriter.WriteString("identitySource", currentSession.User.IsSsoUser ? "Remote/SSO" : "Local");
                     jsonWriter.WriteBoolean("totpEnabled", currentSession.User.TOTPEnabled);
                     jsonWriter.WriteString("token", currentSession.Token);
                 }
@@ -115,6 +169,10 @@ namespace DnsServerCore
                 jsonWriter.WriteString("username", user.Username);
                 jsonWriter.WriteBoolean("totpEnabled", user.TOTPEnabled);
                 jsonWriter.WriteBoolean("disabled", user.Disabled);
+                
+                // Add identity source
+                jsonWriter.WriteString("identitySource", user.IsSsoUser ? "Remote/SSO" : "Local");
+
                 jsonWriter.WriteString("previousSessionLoggedOn", user.PreviousSessionLoggedOn);
                 jsonWriter.WriteString("previousSessionRemoteAddress", user.PreviousSessionRemoteAddress.ToString());
                 jsonWriter.WriteString("recentSessionLoggedOn", user.RecentSessionLoggedOn);
@@ -330,6 +388,18 @@ namespace DnsServerCore
                     if (_dnsWebService._clusterManager.ClusterInitialized)
                         _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
                 }
+                else
+                {
+                    // Set session cookie for standard user sessions (not API tokens)
+                    context.Response.Cookies.Append("session_token", session.Token, new CookieOptions
+                    {
+                        HttpOnly = true,
+                        Secure = context.Request.IsHttps,
+                        SameSite = SameSiteMode.Lax,
+                        MaxAge = TimeSpan.FromHours(24),
+                        Path = "/"
+                    });
+                }
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteCurrentSessionDetails(jsonWriter, session, includeInfo);
@@ -346,6 +416,9 @@ namespace DnsServerCore
 
                     _dnsWebService._authManager.SaveConfigFile();
                 }
+
+                // Clear the session cookie
+                context.Response.Cookies.Delete("session_token");
             }
 
             public void GetCurrentSessionDetails(HttpContext context)
@@ -407,7 +480,10 @@ namespace DnsServerCore
                 User sessionUser = _dnsWebService.GetSessionUser(context, true);
                 HttpRequest request = context.Request;
 
-                string totp = request.GetQueryOrForm("totp");
+    if (sessionUser.IsSsoUser)
+        throw new DnsWebServiceException("Two-factor authentication is managed by your SSO provider.");
+
+    string totp = request.GetQueryOrForm("totp");
 
                 sessionUser.EnableTOTP(totp);
 
@@ -679,7 +755,13 @@ namespace DnsServerCore
                         user.DisplayName = displayName;
 
                     if (request.TryGetQueryOrForm("newUser", out string newUsername))
-                        _dnsWebService._authManager.ChangeUsername(user, newUsername);
+        {
+            // Prevent changing usernames for SSO users (identified by sso_ prefix)
+            if (user.Username.StartsWith("sso_", StringComparison.OrdinalIgnoreCase))
+                throw new DnsWebServiceException("Cannot change username for SSO users. Username is managed by identity provider.");
+            
+            _dnsWebService._authManager.ChangeUsername(user, newUsername);
+        }
 
                     if (request.TryGetQueryOrForm("totpEnabled", bool.Parse, out bool totpEnabled))
                     {
@@ -1193,6 +1275,274 @@ namespace DnsServerCore
             }
 
             #endregion
+            public async Task SsoLoginAsync(HttpContext context)
+            {
+                try
+                {
+                    await context.ChallengeAsync(OpenIdConnectDefaults.AuthenticationScheme, new AuthenticationProperties()
+                    {
+                        RedirectUri = "/api/user/sso/finalize"
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), ex);
+                    throw new DnsWebServiceException("SSO Login failed: " + ex.Message, ex);
+                }
+            }
+
+            public async Task SsoFinalizeAsync(HttpContext context)
+            {
+                try
+                {
+                    AuthenticateResult result = await context.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+                    if (!result.Succeeded)
+                    {
+                        SafeRedirect(context, "/index.html", new Dictionary<string, string> { ["error"] = "sso_failed" });
+                        return;
+                    }
+
+                    // Verbose logging control
+                    bool verboseLogging = _dnsWebService._webServiceSsoVerboseLogging;
+                    
+                    if (verboseLogging)
+                    {
+                        _dnsWebService._log.Write("SSO: ========== OIDC Claims Received ==========");
+                        foreach (var claim in result.Principal.Claims)
+                        {
+                            // Don't log sensitive 'sub' claim value
+                            if (claim.Type == "sub")
+                                _dnsWebService._log.Write($"SSO: Claim [sub] = <redacted>");
+                            else
+                                _dnsWebService._log.Write($"SSO: Claim [{claim.Type}] = {claim.Value}");
+                        }
+                        _dnsWebService._log.Write("SSO: ==========================================");
+                    }
+
+                    // Extract claims - try standard 'sub' first, then Microsoft-specific claims
+                    string uniqueId = result.Principal.FindFirst("sub")?.Value
+                        ?? result.Principal.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value
+                        ?? result.Principal.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
+                        ?? result.Principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+                    if (string.IsNullOrEmpty(uniqueId))
+                    {
+                        _dnsWebService._log.Write("SSO: CRITICAL - No unique identifier claim found (tried 'sub', nameidentifier, objectidentifier)");
+                        SafeRedirect(context, "/index.html", new Dictionary<string, string> { ["error"] = "no_username_claim" });
+                        return;
+                    }
+                    string email = result.Principal.FindFirst("email")?.Value 
+                        ?? result.Principal.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+                    
+                    string displayName = result.Principal.FindFirst("name")?.Value 
+                        ?? result.Principal.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+                        ?? email;
+
+                    // Stable username generation using SHA256 hash of sub
+                    string username = $"sso_{ComputeSha256Hash(uniqueId).Substring(0, 16)}";
+
+                    _dnsWebService._log.Write($"SSO: Finalizing login for '{displayName}' (username: {username}, email: {email ?? "none"})");    
+                    // Get or provision user
+                    User user = _dnsWebService._authManager.GetUser(username);
+                    
+                    if (user != null)
+                    {
+                        // Ensure IsSsoUser flag is set for SSO-provisioned users
+                        if (!user.IsSsoUser)
+                        {
+                            user.IsSsoUser = true;
+                            try { _dnsWebService._authManager.SaveConfigFile(); } catch { }
+                            _dnsWebService._log.Write($"SSO: Migrated existing user '{username}' to IsSsoUser=true");
+                        }
+
+                        // Check disabled status
+                        if (user.Disabled)
+                        {
+                            _dnsWebService._log.Write($"SSO: Login denied for disabled user: {username}");
+                            SafeRedirect(context, "/index.html", new Dictionary<string, string> 
+                            { 
+                                ["error"] = "access_denied",
+                                ["reason"] = "account_disabled"
+                            });
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        // User doesn't exist - check if auto-provisioning allowed
+                        bool allowSignup = _dnsWebService._webServiceSsoAllowSignup;
+                        
+                        if (!allowSignup)
+                        {
+                            _dnsWebService._log.Write($"SSO: Auto-provisioning disabled, user not found: {username}");
+                            SafeRedirect(context, "/index.html", new Dictionary<string, string> 
+                            { 
+                                ["error"] = "access_denied",
+                                ["reason"] = "not_registered"
+                            });
+                            return;
+                        }
+
+                        // Rate limiting
+                        string provisionKey = context.Connection.RemoteIpAddress.ToString();
+                        var recentAttempts = _provisioningAttempts
+                            .Where(kv => kv.Key.StartsWith(provisionKey) && DateTime.UtcNow - kv.Value < TimeSpan.FromHours(1))
+                            .Count();
+                        
+                        if (recentAttempts >= MAX_PROVISIONING_PER_HOUR)
+                        {
+                            _dnsWebService._log.Write($"SSO: Provisioning rate limit exceeded for {provisionKey} ({recentAttempts} attempts in last hour)");
+                            SafeRedirect(context, "/index.html", new Dictionary<string, string> { ["error"] = "rate_limited" });
+                            return;
+                        }
+
+                        // Check system capacity
+                        if (_dnsWebService._authManager.Users.Count >= 250)
+                        {
+                            _dnsWebService._log.Write($"SSO: User provisioning blocked - system at capacity ({_dnsWebService._authManager.Users.Count}/255 users)");
+                            SafeRedirect(context, "/index.html", new Dictionary<string, string> { ["error"] = "system_full" });
+                            return;
+                        }
+
+                        // Auto-provision user
+                        // Cleanup old provisioning attempts if dictionary grows too large
+                        if (_provisioningAttempts.Count > 1000)
+                        {
+                            var expiredKeys = _provisioningAttempts
+                                .Where(kv => DateTime.UtcNow - kv.Value > TimeSpan.FromHours(1))
+                                .Select(kv => kv.Key)
+                                .ToList();
+                            
+                            foreach (var key in expiredKeys)
+                            {
+                                _provisioningAttempts.TryRemove(key, out _);
+                            }
+                            
+                            _dnsWebService._log.Write($"SSO: Cleaned up {expiredKeys.Count} expired provisioning attempt entries");
+                        }
+
+                        _provisioningAttempts[$"{provisionKey}_{DateTime.UtcNow.Ticks}"] = DateTime.UtcNow;
+
+                        
+                        using (var rng = RandomNumberGenerator.Create())
+                        {
+                            byte[] randomBytes = new byte[32];
+                            rng.GetBytes(randomBytes);
+                            string randomPassword = Convert.ToBase64String(randomBytes);
+
+                            user = _dnsWebService._authManager.CreateUser(
+                                displayName ?? email ?? username, 
+                                username, 
+                                randomPassword
+                            );
+                        }
+                        
+                        // Mark as SSO user
+        user.IsSsoUser = true;
+        
+        _dnsWebService._log.Write($"SSO: Auto-provisioned new user '{username}' (display: {displayName}, email: {email})");
+                    }
+                    // Enforce 2FA disablement for SSO users (handled by IdP)
+                    if (user.TOTPEnabled)
+                    {
+                        user.DisableTOTP();
+                        _dnsWebService._log.Write($"SSO: Disabled local 2FA for user '{username}' (enforced by SSO)");
+                    }
+
+                    // Default Group
+                    string defaultGroupName = Environment.GetEnvironmentVariable("DNS_SERVER_SSO_DEFAULT_GROUP");
+                    if (!string.IsNullOrEmpty(defaultGroupName))
+                    {
+                        Group defaultGroup = _dnsWebService._authManager.GetGroup(defaultGroupName);
+                        if (defaultGroup != null)
+                        {
+                            if (!user.IsMemberOfGroup(defaultGroup))
+                            {
+                                user.AddToGroup(defaultGroup);
+                                _dnsWebService._log.Write($"SSO: Added user {username} to default group: {defaultGroupName}");
+                            }
+                        }
+                        else
+                        {
+                             _dnsWebService._log.Write($"SSO: WARNING - Default group '{defaultGroupName}' not found.");
+                        }
+                    }
+
+                    // Group Mapping
+                   string groupMappingsJson = _dnsWebService._webServiceSsoGroupMappings;
+
+
+                   if (!string.IsNullOrEmpty(groupMappingsJson))
+                   {
+                       try 
+                       {
+                           Dictionary<string, string> mappings = JsonSerializer.Deserialize<Dictionary<string, string>>(groupMappingsJson);
+                           if (mappings != null)
+                           {
+                                foreach (var mapping in mappings)
+                                {
+                                    string oidcGroup = mapping.Key;
+                                    string localGroupName = mapping.Value;
+
+                                    if (result.Principal.HasClaim(c => (c.Type == "groups" || c.Type == "roles" || c.Type == System.Security.Claims.ClaimTypes.Role) && c.Value == oidcGroup))
+                                    {
+                                        Group localGroup = _dnsWebService._authManager.GetGroup(localGroupName);
+                                        if (localGroup != null)
+                                        {
+                                            if (!user.IsMemberOfGroup(localGroup))
+                                            {
+                                                user.AddToGroup(localGroup);
+                                                _dnsWebService._log.Write($"SSO: Added user {username} to group '{localGroupName}' based on OIDC claim '{oidcGroup}'");
+                                            }
+                                        }
+                                        else
+                                        {
+                                             _dnsWebService._log.Write($"SSO: WARNING - Mapped local group '{localGroupName}' not found.");
+                                        }
+                                    }
+                                }
+                           }
+                       }
+                       catch (Exception ex)
+                       {
+                           _dnsWebService._log.Write("SSO: Failed to parse group mappings JSON: " + ex.Message);
+                       }
+                   }
+
+                    // Create Session
+                    UserSession session = _dnsWebService._authManager.CreateSsoSession(user, context.Connection.RemoteIpAddress, context.Request.Headers.UserAgent);
+
+                    // Store session token in encrypted cookie (NOT in URL)
+                    context.Response.Cookies.Append("session_token", session.Token, new CookieOptions
+                    {
+                        HttpOnly = true,
+                        Secure = context.Request.IsHttps,
+                        SameSite = SameSiteMode.Lax,
+                        MaxAge = TimeSpan.FromHours(24),
+                        Path = "/"
+                    });
+
+                    _dnsWebService._log.Write($"SSO: Session created for {username}");
+                    _dnsWebService._authManager.SaveConfigFile();
+
+                    // Redirect without token in URL
+                    SafeRedirect(context, "/index.html", null);
+                }
+                catch (Exception ex)
+                {
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), ex);
+                    SafeRedirect(context, "/index.html", new Dictionary<string, string> { ["error"] = "sso_failed" });
+                }
+            }
+
+            public Task StatusAsync(HttpContext context)
+            {
+                Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+                jsonWriter.WriteBoolean("ssoEnabled", _dnsWebService._webServiceSsoEnabled);
+                return Task.CompletedTask;
+            }
+        
         }
     }
 }

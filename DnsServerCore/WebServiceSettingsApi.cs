@@ -251,6 +251,54 @@ namespace DnsServerCore
                 jsonWriter.WriteString("webServiceTlsCertificatePath", _dnsWebService._webServiceTlsCertificatePath);
                 jsonWriter.WriteString("webServiceTlsCertificatePassword", "************");
                 jsonWriter.WriteString("webServiceRealIpHeader", _dnsWebService._webServiceRealIpHeader);
+  
+                //sso
+                jsonWriter.WriteBoolean("ssoEnabled", _dnsWebService._webServiceSsoEnabled);
+                
+                string ssoAuthority = GetEffectiveSsoConfig("DNS_SERVER_SSO_AUTHORITY", "DNS_SERVER_SSO_AUTHORITY_FILE", _dnsWebService._webServiceSsoAuthority);
+                jsonWriter.WriteBoolean("ssoAuthorityReadOnly", IsEnvVarSet("DNS_SERVER_SSO_AUTHORITY", "DNS_SERVER_SSO_AUTHORITY_FILE"));
+                jsonWriter.WriteString("ssoAuthority", ssoAuthority);
+
+                string ssoClientId = GetEffectiveSsoConfig("DNS_SERVER_SSO_CLIENT_ID", "DNS_SERVER_SSO_CLIENT_ID_FILE", _dnsWebService._webServiceSsoClientId);
+                jsonWriter.WriteBoolean("ssoClientIdReadOnly", IsEnvVarSet("DNS_SERVER_SSO_CLIENT_ID", "DNS_SERVER_SSO_CLIENT_ID_FILE"));
+                jsonWriter.WriteString("ssoClientId", ssoClientId);
+
+                string ssoClientSecret = GetEffectiveSsoConfig("DNS_SERVER_SSO_CLIENT_SECRET", "DNS_SERVER_SSO_CLIENT_SECRET_FILE", _dnsWebService._webServiceSsoClientSecret);
+                jsonWriter.WriteBoolean("ssoClientSecretReadOnly", IsEnvVarSet("DNS_SERVER_SSO_CLIENT_SECRET", "DNS_SERVER_SSO_CLIENT_SECRET_FILE"));
+                jsonWriter.WriteString("ssoClientSecret", string.IsNullOrEmpty(ssoClientSecret) ? "" : "************");
+
+                string ssoScopes = GetEffectiveSsoConfig("DNS_SERVER_SSO_SCOPES", "DNS_SERVER_SSO_SCOPES_FILE", _dnsWebService._webServiceSsoScopes);
+                jsonWriter.WriteBoolean("ssoScopesReadOnly", IsEnvVarSet("DNS_SERVER_SSO_SCOPES", "DNS_SERVER_SSO_SCOPES_FILE"));
+                jsonWriter.WriteString("ssoScopes", ssoScopes);
+
+                string ssoRedirectUri = GetEffectiveSsoConfig("DNS_SERVER_SSO_REDIRECT_URI", "DNS_SERVER_SSO_REDIRECT_URI_FILE", _dnsWebService._webServiceSsoRedirectUri);
+                jsonWriter.WriteBoolean("ssoRedirectUriReadOnly", IsEnvVarSet("DNS_SERVER_SSO_REDIRECT_URI", "DNS_SERVER_SSO_REDIRECT_URI_FILE"));
+                jsonWriter.WriteString("ssoRedirectUri", ssoRedirectUri);
+
+                string ssoMetadataAddress = GetEffectiveSsoConfig("DNS_SERVER_SSO_METADATA_ADDRESS", "DNS_SERVER_SSO_METADATA_ADDRESS_FILE", _dnsWebService._webServiceSsoMetadataAddress);
+                jsonWriter.WriteBoolean("ssoMetadataAddressReadOnly", IsEnvVarSet("DNS_SERVER_SSO_METADATA_ADDRESS", "DNS_SERVER_SSO_METADATA_ADDRESS_FILE"));
+                jsonWriter.WriteString("ssoMetadataAddress", ssoMetadataAddress);
+
+                string envSsoAllowHttp = Environment.GetEnvironmentVariable("DNS_SERVER_SSO_ALLOW_HTTP");
+                bool ssoAllowHttp = !string.IsNullOrEmpty(envSsoAllowHttp) ? bool.Parse(envSsoAllowHttp) : _dnsWebService._webServiceSsoAllowHttp;
+                jsonWriter.WriteBoolean("ssoAllowHttpReadOnly", !string.IsNullOrEmpty(envSsoAllowHttp));
+                jsonWriter.WriteBoolean("ssoAllowHttp", ssoAllowHttp);
+                
+                string envSsoAllowSignup = Environment.GetEnvironmentVariable("DNS_SERVER_SSO_ALLOW_SIGNUP");
+                bool ssoAllowSignup = !string.IsNullOrEmpty(envSsoAllowSignup) ? bool.Parse(envSsoAllowSignup) : _dnsWebService._webServiceSsoAllowSignup;
+                jsonWriter.WriteBoolean("ssoAllowSignupReadOnly", !string.IsNullOrEmpty(envSsoAllowSignup));
+                jsonWriter.WriteBoolean("ssoAllowSignup", ssoAllowSignup);
+
+                string envSsoVerboseLogging = Environment.GetEnvironmentVariable("DNS_SERVER_SSO_VERBOSE_LOGGING");
+                bool ssoVerboseLogging = !string.IsNullOrEmpty(envSsoVerboseLogging) ? bool.Parse(envSsoVerboseLogging) : _dnsWebService._webServiceSsoVerboseLogging;
+                jsonWriter.WriteBoolean("ssoVerboseLoggingReadOnly", !string.IsNullOrEmpty(envSsoVerboseLogging));
+                jsonWriter.WriteBoolean("ssoVerboseLogging", ssoVerboseLogging);
+
+                string ssoGroupMappings = GetEffectiveSsoConfig("DNS_SERVER_SSO_GROUP_MAPPINGS", "DNS_SERVER_SSO_GROUP_MAPPINGS_FILE", _dnsWebService._webServiceSsoGroupMappings);
+                jsonWriter.WriteBoolean("ssoGroupMappingsReadOnly", IsEnvVarSet("DNS_SERVER_SSO_GROUP_MAPPINGS", "DNS_SERVER_SSO_GROUP_MAPPINGS_FILE"));
+                jsonWriter.WriteString("ssoGroupMappings", ssoGroupMappings);
+
+
 
                 //optional protocols
                 jsonWriter.WriteBoolean("enableDnsOverUdpProxy", _dnsWebService._dnsServer.EnableDnsOverUdpProxy);
@@ -988,6 +1036,125 @@ namespace DnsServerCore
                                 throw new ArgumentException("Web service Real IP header name cannot contain invalid characters.", nameof(webServiceRealIpHeader));
 
                             _dnsWebService._webServiceRealIpHeader = webServiceRealIpHeader;
+                            _dnsWebService._webServiceRealIpHeader = webServiceRealIpHeader;
+                        }
+
+                        string ssoAuthority = request.QueryOrForm("ssoAuthority");
+                        if (ssoAuthority is not null)
+                        {
+                            if (ssoAuthority.Length > 0 && !Uri.TryCreate(ssoAuthority, UriKind.Absolute, out _))
+                                throw new ArgumentException("Invalid SSO Authority URL.", nameof(ssoAuthority));
+
+                            if (ssoAuthority != _dnsWebService._webServiceSsoAuthority)
+                            {
+                                _dnsWebService._webServiceSsoAuthority = ssoAuthority;
+                                restartWebService = true;
+                            }
+                        }
+
+                        string ssoClientId = request.QueryOrForm("ssoClientId");
+                        if (ssoClientId is not null)
+                        {
+                            if (ssoClientId != _dnsWebService._webServiceSsoClientId)
+                            {
+                                _dnsWebService._webServiceSsoClientId = ssoClientId;
+                                restartWebService = true;
+                            }
+                        }
+
+                        string ssoClientSecret = request.QueryOrForm("ssoClientSecret");
+                        if ((ssoClientSecret is not null) && (ssoClientSecret != "************"))
+                        {
+                            if (ssoClientSecret != _dnsWebService._webServiceSsoClientSecret)
+                            {
+                                _dnsWebService._webServiceSsoClientSecret = ssoClientSecret;
+                                restartWebService = true;
+                            }
+                        }
+
+                        string ssoScopes = request.QueryOrForm("ssoScopes");
+                        if (ssoScopes is not null)
+                        {
+                            if (ssoScopes != _dnsWebService._webServiceSsoScopes)
+                            {
+                                _dnsWebService._webServiceSsoScopes = ssoScopes;
+                                restartWebService = true;
+                            }
+                        }
+
+                        string ssoRedirectUri = request.QueryOrForm("ssoRedirectUri");
+                        if (ssoRedirectUri is not null)
+                        {
+                            if (ssoRedirectUri.Length > 0 && !Uri.TryCreate(ssoRedirectUri, UriKind.Absolute, out _))
+                                throw new ArgumentException("Invalid SSO Redirect URI. It must be a valid absolute URL.", nameof(ssoRedirectUri));
+
+                            if (ssoRedirectUri != _dnsWebService._webServiceSsoRedirectUri)
+                            {
+                                _dnsWebService._webServiceSsoRedirectUri = ssoRedirectUri;
+                                restartWebService = true;
+                            }
+                        }
+
+                        string ssoMetadataAddress = request.QueryOrForm("ssoMetadataAddress");
+                        if (ssoMetadataAddress is not null)
+                        {
+                            if (ssoMetadataAddress.Length > 0 && !Uri.TryCreate(ssoMetadataAddress, UriKind.Absolute, out _))
+                                throw new ArgumentException("Invalid SSO Metadata Address URL.", nameof(ssoMetadataAddress));
+
+                            if (ssoMetadataAddress != _dnsWebService._webServiceSsoMetadataAddress)
+                            {
+                                _dnsWebService._webServiceSsoMetadataAddress = ssoMetadataAddress;
+                                restartWebService = true;
+                            }
+                        }
+
+                        if (request.TryGetQueryOrForm("ssoAllowHttp", bool.Parse, out bool ssoAllowHttp))
+                        {
+                            if (_dnsWebService._webServiceSsoAllowHttp != ssoAllowHttp)
+                            {
+                                _dnsWebService._webServiceSsoAllowHttp = ssoAllowHttp;
+                                restartWebService = true;
+                            }
+                        }
+
+                        if (request.TryGetQueryOrForm("ssoAllowSignup", bool.Parse, out bool ssoAllowSignup))
+                        {
+                            if (_dnsWebService._webServiceSsoAllowSignup != ssoAllowSignup)
+                            {
+                                _dnsWebService._webServiceSsoAllowSignup = ssoAllowSignup;
+                                restartWebService = true;
+                            }
+                        }
+
+                        if (request.TryGetQueryOrForm("ssoVerboseLogging", bool.Parse, out bool ssoVerboseLogging))
+                        {
+                            if (_dnsWebService._webServiceSsoVerboseLogging != ssoVerboseLogging)
+                            {
+                                _dnsWebService._webServiceSsoVerboseLogging = ssoVerboseLogging;
+                                restartWebService = true;
+                            }
+                        }
+
+                        string ssoGroupMappings = request.QueryOrForm("ssoGroupMappings");
+                        if (ssoGroupMappings is not null)
+                        {
+                            if (!string.IsNullOrEmpty(ssoGroupMappings))
+                            {
+                                try
+                                {
+                                    JsonSerializer.Deserialize<Dictionary<string, string>>(ssoGroupMappings);
+                                }
+                                catch
+                                {
+                                    throw new ArgumentException("Invalid Group Mappings JSON. It must be a valid JSON object (e.g. {\"OidcGroup\": \"LocalGroup\"}).", nameof(ssoGroupMappings));
+                                }
+                            }
+
+                            if (ssoGroupMappings != _dnsWebService._webServiceSsoGroupMappings)
+                            {
+                                _dnsWebService._webServiceSsoGroupMappings = ssoGroupMappings;
+                                restartWebService = true;
+                            }
                         }
 
                         #endregion
@@ -1916,6 +2083,40 @@ namespace DnsServerCore
             }
 
             #endregion
+            private bool IsEnvVarSet(string envVarName, string fileEnvVarName)
+            {
+                if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable(envVarName)))
+                    return true;
+
+                string filePath = Environment.GetEnvironmentVariable(fileEnvVarName);
+                if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+                    return true;
+
+                return false;
+            }
+
+            private string GetEffectiveSsoConfig(string envVarName, string fileEnvVarName, string configValue)
+            {
+                string value = Environment.GetEnvironmentVariable(envVarName);
+                string filePath = Environment.GetEnvironmentVariable(fileEnvVarName);
+
+                if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+                {
+                    try
+                    {
+                        value = File.ReadAllText(filePath).Trim();
+                    }
+                    catch
+                    {
+                        // ignore error
+                    }
+                }
+
+                if (string.IsNullOrEmpty(value))
+                    value = configValue;
+
+                return value;
+            }
         }
     }
 }
