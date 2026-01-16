@@ -331,6 +331,47 @@ namespace DnsServerCore
                     jsonWriter.WriteNumber("allowListZones", dashboardStats.Stats.AllowListZones);
                     jsonWriter.WriteNumber("blockListZones", dashboardStats.Stats.BlockListZones);
 
+                    // Response time metrics (nullable - null when stats version < 10)
+                    if (dashboardStats.Stats.AverageResponseTimeMs.HasValue)
+                        jsonWriter.WriteNumber("avgResponseTime", Math.Round(dashboardStats.Stats.AverageResponseTimeMs.Value, 2));
+                    else
+                        jsonWriter.WriteNull("avgResponseTime");
+
+                    if (dashboardStats.Stats.CachedAverageResponseTimeMs.HasValue)
+                        jsonWriter.WriteNumber("cachedAvgResponseTime", Math.Round(dashboardStats.Stats.CachedAverageResponseTimeMs.Value, 2));
+                    else
+                        jsonWriter.WriteNull("cachedAvgResponseTime");
+
+                    if (dashboardStats.Stats.RecursiveAverageResponseTimeMs.HasValue)
+                        jsonWriter.WriteNumber("recursiveAvgResponseTime", Math.Round(dashboardStats.Stats.RecursiveAverageResponseTimeMs.Value, 2));
+                    else
+                        jsonWriter.WriteNull("recursiveAvgResponseTime");
+
+                    if (dashboardStats.Stats.MinResponseTimeMs.HasValue)
+                        jsonWriter.WriteNumber("minResponseTime", Math.Round(dashboardStats.Stats.MinResponseTimeMs.Value, 2));
+                    else
+                        jsonWriter.WriteNull("minResponseTime");
+
+                    if (dashboardStats.Stats.MaxResponseTimeMs.HasValue)
+                        jsonWriter.WriteNumber("maxResponseTime", Math.Round(dashboardStats.Stats.MaxResponseTimeMs.Value, 2));
+                    else
+                        jsonWriter.WriteNull("maxResponseTime");
+
+                    if (dashboardStats.Stats.P50ResponseTimeMs.HasValue)
+                        jsonWriter.WriteNumber("p50ResponseTime", Math.Round(dashboardStats.Stats.P50ResponseTimeMs.Value, 2));
+                    else
+                        jsonWriter.WriteNull("p50ResponseTime");
+
+                    if (dashboardStats.Stats.P95ResponseTimeMs.HasValue)
+                        jsonWriter.WriteNumber("p95ResponseTime", Math.Round(dashboardStats.Stats.P95ResponseTimeMs.Value, 2));
+                    else
+                        jsonWriter.WriteNull("p95ResponseTime");
+
+                    if (dashboardStats.Stats.P99ResponseTimeMs.HasValue)
+                        jsonWriter.WriteNumber("p99ResponseTime", Math.Round(dashboardStats.Stats.P99ResponseTimeMs.Value, 2));
+                    else
+                        jsonWriter.WriteNull("p99ResponseTime");
+
                     jsonWriter.WriteEndObject();
                 }
 

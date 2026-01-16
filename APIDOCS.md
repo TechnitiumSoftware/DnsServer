@@ -587,7 +587,15 @@ RESPONSE:
 			"allowedZones": 10,
 			"blockedZones": 1,
 			"allowListZones": 0,
-			"blockListZones": 307447
+			"blockListZones": 307447,
+			"averageResponseTimeMs": 25.5,
+			"cachedAverageResponseTimeMs": 5.2,
+			"recursiveAverageResponseTimeMs": 85.3,
+			"minResponseTimeMs": 0.5,
+			"maxResponseTimeMs": 350.0,
+			"p50ResponseTimeMs": 5.0,
+			"p95ResponseTimeMs": 100.0,
+			"p99ResponseTimeMs": 250.0
 		},
 		"mainChartData": {
 			"labelFormat": "HH:mm",

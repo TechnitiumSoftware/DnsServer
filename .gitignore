@@ -245,3 +245,10 @@ ModelManifest.xml
 .fake/
 
 Other/
+
+# Ignore directories for specific tools and IDEs
+.specify/
+.vscode/
+.github/agents/
+.github/prompts/
+specs/
