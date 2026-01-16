@@ -298,6 +298,86 @@ th a {
             font-weight: bold;
         }
 
+/* Response Time Panel Styles */
+.response-time-panel .response-time-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: space-around;
+}
+
+.response-time-panel .response-time-item {
+    flex: 1 1 calc(12.5% - 10px);
+    min-width: 80px;
+    max-width: 120px;
+    padding: 8px;
+    text-align: center;
+    border-radius: 4px;
+    color: #ffffff;
+}
+
+    .response-time-panel .response-time-item .number {
+        font-size: 18px;
+        font-weight: bold;
+    }
+
+    .response-time-panel .response-time-item .unit {
+        font-size: 10px;
+        opacity: 0.8;
+    }
+
+    .response-time-panel .response-time-item .title {
+        font-size: 11px;
+        font-weight: bold;
+        margin-top: 4px;
+    }
+
+/* Response time color coding based on thresholds */
+.response-time-panel .avg-response {
+    background-color: rgba(51, 122, 183, 0.8);
+}
+
+.response-time-panel .cached-response {
+    background-color: rgba(92, 184, 92, 0.8);
+}
+
+.response-time-panel .recursive-response {
+    background-color: rgba(23, 162, 184, 0.8);
+}
+
+.response-time-panel .min-response {
+    background-color: rgba(92, 184, 92, 0.7);
+}
+
+.response-time-panel .max-response {
+    background-color: rgba(120, 120, 120, 0.7);
+}
+
+.response-time-panel .p50-response {
+    background-color: rgba(111, 84, 153, 0.8);
+}
+
+.response-time-panel .p95-response {
+    background-color: rgba(255, 165, 0, 0.8);
+}
+
+.response-time-panel .p99-response {
+    background-color: rgba(217, 83, 79, 0.8);
+}
+
+/* Color-coded thresholds for average response time */
+.response-time-panel .response-time-item.rt-good {
+    background-color: rgba(92, 184, 92, 0.8) !important;
+}
+
+.response-time-panel .response-time-item.rt-warning {
+    background-color: rgba(255, 165, 0, 0.8) !important;
+}
+
+.response-time-panel .response-time-item.rt-danger {
+    background-color: rgba(217, 83, 79, 0.8) !important;
+}
+
 .zone-stats-panel {
     margin-bottom: 15px;
 }
@@ -532,7 +612,8 @@ body.dark-mode {
 }
 
 .dark-mode .stats-panel .stats-item,
-.dark-mode .zone-stats-panel .stats-item {
+.dark-mode .zone-stats-panel .stats-item,
+.dark-mode .response-time-panel .response-time-item {
     color: #fff !important;
 }
 

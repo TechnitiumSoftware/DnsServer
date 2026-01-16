@@ -48,6 +48,7 @@ namespace DnsServerCore.HttpApi.Models
         public ChartData? QueryResponseChartData { get; set; }
         public ChartData? QueryTypeChartData { get; set; }
         public ChartData? ProtocolTypeChartData { get; set; }
+        public ChartData? ResponseTimeChartData { get; set; }
         public TopClientStats[]? TopClients { get; set; }
         public TopStats[]? TopDomains { get; set; }
         public TopStats[]? TopBlockedDomains { get; set; }
@@ -68,6 +69,9 @@ namespace DnsServerCore.HttpApi.Models
 
             if ((ProtocolTypeChartData is not null) && (other.ProtocolTypeChartData is not null))
                 ProtocolTypeChartData = ChartData.Merge(ProtocolTypeChartData, other.ProtocolTypeChartData, true);
+
+            if ((ResponseTimeChartData is not null) && (other.ResponseTimeChartData is not null))
+                ResponseTimeChartData = ChartData.Merge(ResponseTimeChartData, other.ResponseTimeChartData, false);
 
             if ((TopClients is not null) && (other.TopClients is not null))
                 TopClients = TopStats.Merge(TopClients, other.TopClients, limit);
@@ -99,6 +103,65 @@ namespace DnsServerCore.HttpApi.Models
             public int AllowListZones { get; set; }
             public int BlockListZones { get; set; }
 
+            /// <summary>
+            /// Gets or sets the average response time across all queries in milliseconds.
+            /// Null when stats were collected with version &lt; 10 (no response time tracking).
+            /// </summary>
+            public double? AverageResponseTimeMs { get; set; }
+
+            /// <summary>
+            /// Gets or sets the average response time for cached queries in milliseconds.
+            /// Cached responses are typically faster as they don't require upstream resolution.
+            /// Null when stats were collected with version &lt; 10.
+            /// </summary>
+            public double? CachedAverageResponseTimeMs { get; set; }
+
+            /// <summary>
+            /// Gets or sets the average response time for recursive queries in milliseconds.
+            /// Recursive queries require upstream resolution and are typically slower than cached.
+            /// Null when stats were collected with version &lt; 10.
+            /// </summary>
+            public double? RecursiveAverageResponseTimeMs { get; set; }
+
+            /// <summary>
+            /// Gets or sets the minimum response time observed in milliseconds.
+            /// Null when stats were collected with version &lt; 10 or no queries recorded.
+            /// </summary>
+            public double? MinResponseTimeMs { get; set; }
+
+            /// <summary>
+            /// Gets or sets the maximum response time observed in milliseconds.
+            /// Null when stats were collected with version &lt; 10 or no queries recorded.
+            /// </summary>
+            public double? MaxResponseTimeMs { get; set; }
+
+            /// <summary>
+            /// Gets or sets the 50th percentile (median) response time in milliseconds.
+            /// 50% of queries complete faster than this value.
+            /// Null when stats were collected with version &lt; 10.
+            /// </summary>
+            public double? P50ResponseTimeMs { get; set; }
+
+            /// <summary>
+            /// Gets or sets the 95th percentile response time in milliseconds.
+            /// 95% of queries complete faster than this value. Useful for SLA monitoring.
+            /// Null when stats were collected with version &lt; 10.
+            /// </summary>
+            public double? P95ResponseTimeMs { get; set; }
+
+            /// <summary>
+            /// Gets or sets the 99th percentile response time in milliseconds.
+            /// 99% of queries complete faster than this value. Identifies worst-case latency.
+            /// Null when stats were collected with version &lt; 10.
+            /// </summary>
+            public double? P99ResponseTimeMs { get; set; }
+
+            /// <summary>
+            /// Merges statistics from another node in cluster mode.
+            /// Averages are combined using simple averaging, min/max use extreme values,
+            /// and percentiles use conservative max approach.
+            /// </summary>
+            /// <param name="statsData">The stats data from another cluster node to merge.</param>
             public void Merge(StatsData statsData)
             {
                 TotalQueries += statsData.TotalQueries;
@@ -133,6 +196,63 @@ namespace DnsServerCore.HttpApi.Models
 
                 if (statsData.BlockListZones > BlockListZones)
                     BlockListZones = statsData.BlockListZones;
+
+                // Merge response time metrics - weighted average for averages, min/max across nodes
+                if (AverageResponseTimeMs.HasValue && statsData.AverageResponseTimeMs.HasValue)
+                    AverageResponseTimeMs = (AverageResponseTimeMs.Value + statsData.AverageResponseTimeMs.Value) / 2;
+                else if (statsData.AverageResponseTimeMs.HasValue)
+                    AverageResponseTimeMs = statsData.AverageResponseTimeMs;
+
+                if (CachedAverageResponseTimeMs.HasValue && statsData.CachedAverageResponseTimeMs.HasValue)
+                    CachedAverageResponseTimeMs = (CachedAverageResponseTimeMs.Value + statsData.CachedAverageResponseTimeMs.Value) / 2;
+                else if (statsData.CachedAverageResponseTimeMs.HasValue)
+                    CachedAverageResponseTimeMs = statsData.CachedAverageResponseTimeMs;
+
+                if (RecursiveAverageResponseTimeMs.HasValue && statsData.RecursiveAverageResponseTimeMs.HasValue)
+                    RecursiveAverageResponseTimeMs = (RecursiveAverageResponseTimeMs.Value + statsData.RecursiveAverageResponseTimeMs.Value) / 2;
+                else if (statsData.RecursiveAverageResponseTimeMs.HasValue)
+                    RecursiveAverageResponseTimeMs = statsData.RecursiveAverageResponseTimeMs;
+
+                if (MinResponseTimeMs.HasValue && statsData.MinResponseTimeMs.HasValue)
+                {
+                    if (statsData.MinResponseTimeMs.Value < MinResponseTimeMs.Value)
+                        MinResponseTimeMs = statsData.MinResponseTimeMs;
+                }
+                else if (statsData.MinResponseTimeMs.HasValue)
+                    MinResponseTimeMs = statsData.MinResponseTimeMs;
+
+                if (MaxResponseTimeMs.HasValue && statsData.MaxResponseTimeMs.HasValue)
+                {
+                    if (statsData.MaxResponseTimeMs.Value > MaxResponseTimeMs.Value)
+                        MaxResponseTimeMs = statsData.MaxResponseTimeMs;
+                }
+                else if (statsData.MaxResponseTimeMs.HasValue)
+                    MaxResponseTimeMs = statsData.MaxResponseTimeMs;
+
+                // For percentiles in cluster, use conservative approach (max across nodes)
+                if (P50ResponseTimeMs.HasValue && statsData.P50ResponseTimeMs.HasValue)
+                {
+                    if (statsData.P50ResponseTimeMs.Value > P50ResponseTimeMs.Value)
+                        P50ResponseTimeMs = statsData.P50ResponseTimeMs;
+                }
+                else if (statsData.P50ResponseTimeMs.HasValue)
+                    P50ResponseTimeMs = statsData.P50ResponseTimeMs;
+
+                if (P95ResponseTimeMs.HasValue && statsData.P95ResponseTimeMs.HasValue)
+                {
+                    if (statsData.P95ResponseTimeMs.Value > P95ResponseTimeMs.Value)
+                        P95ResponseTimeMs = statsData.P95ResponseTimeMs;
+                }
+                else if (statsData.P95ResponseTimeMs.HasValue)
+                    P95ResponseTimeMs = statsData.P95ResponseTimeMs;
+
+                if (P99ResponseTimeMs.HasValue && statsData.P99ResponseTimeMs.HasValue)
+                {
+                    if (statsData.P99ResponseTimeMs.Value > P99ResponseTimeMs.Value)
+                        P99ResponseTimeMs = statsData.P99ResponseTimeMs;
+                }
+                else if (statsData.P99ResponseTimeMs.HasValue)
+                    P99ResponseTimeMs = statsData.P99ResponseTimeMs;
             }
         }
 

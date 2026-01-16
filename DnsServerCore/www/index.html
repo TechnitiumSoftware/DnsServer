@@ -254,6 +254,72 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                             </div>
                                         </div>
 
+                                        <!-- Response Time Metrics Panel -->
+                                        <div class="response-time-panel" id="divResponseTimePanel">
+                                            <div class="panel panel-default" style="margin: 10px 0;">
+                                                <div class="panel-heading">
+                                                    <h4 class="panel-title" style="margin: 0;">
+                                                        <span class="glyphicon glyphicon-time" aria-hidden="true"></span>
+                                                        Response Time Metrics
+                                                        <span class="response-time-tooltip" title="Measures time from query reception to response transmission. Cached queries are typically faster (<5ms). Recursive queries require upstream resolution (10-500ms typical).">
+                                                            <span class="glyphicon glyphicon-info-sign" style="margin-left: 5px; color: #888;"></span>
+                                                        </span>
+                                                    </h4>
+                                                </div>
+                                                <div class="panel-body">
+                                                    <div class="response-time-stats">
+                                                        <div class="response-time-item avg-response" id="divResponseTimeAvg">
+                                                            <div class="number" id="divDashboardStatsAvgResponseTime">--</div>
+                                                            <div class="unit">ms</div>
+                                                            <div class="title">Average</div>
+                                                        </div>
+
+                                                        <div class="response-time-item cached-response" id="divResponseTimeCached">
+                                                            <div class="number" id="divDashboardStatsCachedAvgResponseTime">--</div>
+                                                            <div class="unit">ms</div>
+                                                            <div class="title" title="Average response time for queries served from cache">Cached Avg</div>
+                                                        </div>
+
+                                                        <div class="response-time-item recursive-response" id="divResponseTimeRecursive">
+                                                            <div class="number" id="divDashboardStatsRecursiveAvgResponseTime">--</div>
+                                                            <div class="unit">ms</div>
+                                                            <div class="title" title="Average response time for recursive/forwarded queries">Recursive Avg</div>
+                                                        </div>
+
+                                                        <div class="response-time-item min-response">
+                                                            <div class="number" id="divDashboardStatsMinResponseTime">--</div>
+                                                            <div class="unit">ms</div>
+                                                            <div class="title">Min</div>
+                                                        </div>
+
+                                                        <div class="response-time-item max-response">
+                                                            <div class="number" id="divDashboardStatsMaxResponseTime">--</div>
+                                                            <div class="unit">ms</div>
+                                                            <div class="title">Max</div>
+                                                        </div>
+
+                                                        <div class="response-time-item p50-response">
+                                                            <div class="number" id="divDashboardStatsP50ResponseTime">--</div>
+                                                            <div class="unit">ms</div>
+                                                            <div class="title" title="50th percentile (median) - 50% of queries are faster than this">P50</div>
+                                                        </div>
+
+                                                        <div class="response-time-item p95-response">
+                                                            <div class="number" id="divDashboardStatsP95ResponseTime">--</div>
+                                                            <div class="unit">ms</div>
+                                                            <div class="title" title="95th percentile - 95% of queries are faster than this">P95</div>
+                                                        </div>
+
+                                                        <div class="response-time-item p99-response">
+                                                            <div class="number" id="divDashboardStatsP99ResponseTime">--</div>
+                                                            <div class="unit">ms</div>
+                                                            <div class="title" title="99th percentile - 99% of queries are faster than this">P99</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <div>
                                             <canvas id="canvasDashboardMain" style="margin: 10px 0 10px 0;"></canvas>
                                         </div>

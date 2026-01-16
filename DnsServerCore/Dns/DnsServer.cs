@@ -35,6 +35,7 @@ using System;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Mail;
@@ -1680,6 +1681,7 @@ namespace DnsServerCore.Dns
         private async Task ProcessUdpRequestAsync(Socket udpListener, IPEndPoint remoteEP, IPEndPoint returnEP, DnsTransportProtocol protocol, DnsDatagram request, bool sendTruncationResponse)
         {
             byte[] sendBuffer = null;
+            double responseTimeMs = 0;
 
             try
             {
@@ -1692,7 +1694,10 @@ namespace DnsServerCore.Dns
                 }
                 else
                 {
+                    Stopwatch stopwatch = Stopwatch.StartNew();
                     response = await ProcessRequestAsync(request, remoteEP, protocol, recursionAllowed);
+                    stopwatch.Stop();
+                    responseTimeMs = stopwatch.Elapsed.TotalMilliseconds;
                     if (response is null)
                     {
                         _statsManager.QueueUpdate(null, remoteEP, protocol, null, false);
@@ -1768,7 +1773,7 @@ namespace DnsServerCore.Dns
                 }
 
                 _queryLog?.Write(remoteEP, protocol, request, response);
-                _statsManager.QueueUpdate(request, remoteEP, protocol, response, false);
+                _statsManager.QueueUpdate(request, remoteEP, protocol, response, false, responseTimeMs);
             }
             catch (ObjectDisposedException)
             {
@@ -1964,7 +1969,11 @@ namespace DnsServerCore.Dns
         {
             try
             {
+                Stopwatch stopwatch = Stopwatch.StartNew();
                 DnsDatagram response = await ProcessRequestAsync(request, remoteEP, protocol, IsRecursionAllowed(remoteEP.Address));
+                stopwatch.Stop();
+                double responseTimeMs = stopwatch.Elapsed.TotalMilliseconds;
+
                 if (response is null)
                 {
                     await stream.DisposeAsync();
@@ -1990,7 +1999,7 @@ namespace DnsServerCore.Dns
                 }, _tcpSendTimeout);
 
                 _queryLog?.Write(remoteEP, protocol, request, response);
-                _statsManager.QueueUpdate(request, remoteEP, protocol, response, false);
+                _statsManager.QueueUpdate(request, remoteEP, protocol, response, false, responseTimeMs);
             }
             catch (ObjectDisposedException)
             {
@@ -2121,7 +2130,11 @@ namespace DnsServerCore.Dns
                 }
 
                 //process request async
+                Stopwatch stopwatch = Stopwatch.StartNew();
                 DnsDatagram response = await ProcessRequestAsync(request, remoteEP, DnsTransportProtocol.Quic, IsRecursionAllowed(remoteEP.Address));
+                stopwatch.Stop();
+                double responseTimeMs = stopwatch.Elapsed.TotalMilliseconds;
+
                 if (response is null)
                 {
                     _statsManager.QueueUpdate(null, remoteEP, DnsTransportProtocol.Quic, null, false);
@@ -2132,7 +2145,7 @@ namespace DnsServerCore.Dns
                 await response.WriteToTcpAsync(quicStream, sharedBuffer);
 
                 _queryLog?.Write(remoteEP, DnsTransportProtocol.Quic, request, response);
-                _statsManager.QueueUpdate(request, remoteEP, DnsTransportProtocol.Quic, response, false);
+                _statsManager.QueueUpdate(request, remoteEP, DnsTransportProtocol.Quic, response, false, responseTimeMs);
             }
             catch (IOException)
             {
@@ -2268,7 +2281,11 @@ namespace DnsServerCore.Dns
                         throw new InvalidOperationException();
                 }
 
+                Stopwatch stopwatch = Stopwatch.StartNew();
                 DnsDatagram dnsResponse = await ProcessRequestAsync(dnsRequest, remoteEP, DnsTransportProtocol.Https, IsRecursionAllowed(remoteEP.Address));
+                stopwatch.Stop();
+                double responseTimeMs = stopwatch.Elapsed.TotalMilliseconds;
+
                 if (dnsResponse is null)
                 {
                     //drop request
@@ -2296,7 +2313,7 @@ namespace DnsServerCore.Dns
                 }
 
                 _queryLog?.Write(remoteEP, DnsTransportProtocol.Https, dnsRequest, dnsResponse);
-                _statsManager.QueueUpdate(dnsRequest, remoteEP, DnsTransportProtocol.Https, dnsResponse, false);
+                _statsManager.QueueUpdate(dnsRequest, remoteEP, DnsTransportProtocol.Https, dnsResponse, false, responseTimeMs);
             }
             catch (IOException)
             {

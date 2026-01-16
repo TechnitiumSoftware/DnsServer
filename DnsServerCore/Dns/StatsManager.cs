@@ -146,7 +146,7 @@ namespace DnsServerCore.Dns
                             else
                                 responseType = (DnsServerResponseType)item._response.Tag;
 
-                            statCounter.Update(query, item._response is null ? DnsResponseCode.NoError : item._response.RCODE, responseType, item._remoteEP.Address, item._protocol, item._rateLimited);
+                            statCounter.Update(query, item._response is null ? DnsResponseCode.NoError : item._response.RCODE, responseType, item._remoteEP.Address, item._protocol, item._rateLimited, item._responseTimeMs);
                         }
 
                         if ((item._request is null) || (item._response is null))
@@ -569,9 +569,20 @@ namespace DnsServerCore.Dns
             Flush();
         }
 
-        public void QueueUpdate(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response, bool rateLimited)
+        public void QueueUpdate(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response, bool rateLimited, double responseTimeMs = 0)
         {
-            _channelWriter.TryWrite(new StatsQueueItem(request, remoteEP, protocol, response, rateLimited));
+            // Validate response time measurement (T058-T059)
+            if (responseTimeMs < 0)
+            {
+                _dnsServer.LogManager?.Write("Warning: Negative response time detected (" + responseTimeMs.ToString("F3") + "ms), setting to 0");
+                responseTimeMs = 0;
+            }
+            else if (responseTimeMs > 60000)
+            {
+                _dnsServer.LogManager?.Write("Warning: Unusually high response time (" + responseTimeMs.ToString("F3") + "ms), recording actual value");
+            }
+
+            _channelWriter.TryWrite(new StatsQueueItem(request, remoteEP, protocol, response, rateLimited, responseTimeMs));
         }
 
         public DashboardStats GetLastHourMinuteWiseStats(bool utcFormat)
@@ -1727,6 +1738,8 @@ namespace DnsServerCore.Dns
             readonly ConcurrentDictionary<IPAddress, (Counter, Counter)> _clientIpAddressesUdpTcp;
             readonly ConcurrentDictionary<DnsQuestionRecord, Counter> _queries;
 
+            ResponseTimeStats _responseTimeStats;
+
             bool _truncationFoundDuringMerge;
             long _totalClientsDailyStatsSummation;
 
@@ -1742,6 +1755,7 @@ namespace DnsServerCore.Dns
                 _protocolTypes = new ConcurrentDictionary<DnsTransportProtocol, Counter>();
                 _clientIpAddressesUdpTcp = new ConcurrentDictionary<IPAddress, (Counter, Counter)>();
                 _queries = new ConcurrentDictionary<DnsQuestionRecord, Counter>();
+                _responseTimeStats = new ResponseTimeStats();
             }
 
             public StatCounter(BinaryReader bR)
@@ -1846,6 +1860,7 @@ namespace DnsServerCore.Dns
                     case 7:
                     case 8:
                     case 9:
+                    case 10:
                         _totalQueries = bR.ReadInt64();
                         _totalNoError = bR.ReadInt64();
                         _totalServerFailure = bR.ReadInt64();
@@ -1933,6 +1948,15 @@ namespace DnsServerCore.Dns
                                 errorIpAddresses.TryAdd(IPAddressExtensions.ReadFrom(bR), new Counter(bR.ReadInt64()));
                         }
 
+                        if (version >= 10)
+                        {
+                            _responseTimeStats = new ResponseTimeStats(bR);
+                        }
+                        else
+                        {
+                            _responseTimeStats = new ResponseTimeStats();
+                        }
+
                         break;
 
                     default:
@@ -1978,7 +2002,7 @@ namespace DnsServerCore.Dns
                 _locked = true;
             }
 
-            public void Update(DnsQuestionRecord query, DnsResponseCode responseCode, DnsServerResponseType responseType, IPAddress clientIpAddress, DnsTransportProtocol protocol, bool rateLimited)
+            public void Update(DnsQuestionRecord query, DnsResponseCode responseCode, DnsServerResponseType responseType, IPAddress clientIpAddress, DnsTransportProtocol protocol, bool rateLimited, double responseTimeMs = 0)
             {
                 if (_locked)
                     return;
@@ -1987,6 +2011,12 @@ namespace DnsServerCore.Dns
                     clientIpAddress = clientIpAddress.MapToIPv4();
 
                 _totalQueries++;
+
+                // Record response time if provided
+                if (responseTimeMs > 0 && responseType != DnsServerResponseType.Dropped)
+                {
+                    _responseTimeStats.Update(responseTimeMs, responseType);
+                }
 
                 if (responseType == DnsServerResponseType.Dropped)
                 {
@@ -2136,6 +2166,14 @@ namespace DnsServerCore.Dns
                 foreach (KeyValuePair<DnsQuestionRecord, Counter> query in statCounter._queries)
                     _queries.GetOrAdd(query.Key, GetNewCounter).Merge(query.Value);
 
+                if (statCounter._responseTimeStats is not null)
+                {
+                    if (_responseTimeStats is null)
+                        _responseTimeStats = new ResponseTimeStats();
+
+                    _responseTimeStats.Merge(statCounter._responseTimeStats);
+                }
+
                 _totalClients = _clientIpAddressesUdpTcp.Count;
                 _totalClientsDailyStatsSummation += statCounter._totalClients;
 
@@ -2255,7 +2293,7 @@ namespace DnsServerCore.Dns
                     throw new DnsServerException("StatCounter must be locked.");
 
                 bW.Write(Encoding.ASCII.GetBytes("SC")); //format
-                bW.Write((byte)9); //version
+                bW.Write((byte)10); //version
 
                 bW.Write(_totalQueries);
                 bW.Write(_totalNoError);
@@ -2325,6 +2363,9 @@ namespace DnsServerCore.Dns
                         bW.Write(query.Value.Count);
                     }
                 }
+
+                // Write response time stats (version 10+)
+                _responseTimeStats.WriteTo(bW);
             }
 
             public DashboardStats.StatsData GetStatsData()
@@ -2343,7 +2384,16 @@ namespace DnsServerCore.Dns
                     TotalBlocked = _totalBlocked,
                     TotalDropped = _totalDropped,
 
-                    TotalClients = _totalClients
+                    TotalClients = _totalClients,
+
+                    AverageResponseTimeMs = _responseTimeStats?.AverageResponseTimeMs,
+                    CachedAverageResponseTimeMs = _responseTimeStats?.CachedAverageResponseTimeMs,
+                    RecursiveAverageResponseTimeMs = _responseTimeStats?.RecursiveAverageResponseTimeMs,
+                    MinResponseTimeMs = _responseTimeStats?.MinResponseTimeMs,
+                    MaxResponseTimeMs = _responseTimeStats?.MaxResponseTimeMs,
+                    P50ResponseTimeMs = _responseTimeStats?.P50,
+                    P95ResponseTimeMs = _responseTimeStats?.P95,
+                    P99ResponseTimeMs = _responseTimeStats?.P99
                 };
             }
 
@@ -2604,6 +2654,259 @@ namespace DnsServerCore.Dns
 
             #endregion
 
+            /// <summary>
+            /// Tracks DNS query response time statistics including averages, min/max, percentiles, and cached/recursive breakdown.
+            /// Uses a 10-bucket histogram for efficient percentile calculation.
+            /// </summary>
+            class ResponseTimeStats
+            {
+                #region variables
+
+                /// <summary>
+                /// Histogram bucket thresholds in milliseconds: 5, 10, 25, 50, 100, 250, 500, 1000, 5000, ∞
+                /// </summary>
+                private static readonly double[] BucketThresholds = new double[] { 5, 10, 25, 50, 100, 250, 500, 1000, 5000, double.PositiveInfinity };
+
+                private double _totalResponseTimeMs;
+                private long _totalCount;
+                private double _minResponseTimeMs;
+                private double _maxResponseTimeMs;
+
+                private double _cachedTotalResponseTimeMs;
+                private long _cachedTotalCount;
+
+                private double _recursiveTotalResponseTimeMs;
+                private long _recursiveTotalCount;
+
+                private readonly long[] _buckets; // 10 buckets for histogram
+
+                #endregion
+
+                #region constructor
+
+                /// <summary>
+                /// Creates a new ResponseTimeStats instance with default values.
+                /// </summary>
+                public ResponseTimeStats()
+                {
+                    _minResponseTimeMs = double.MaxValue;
+                    _buckets = new long[10];
+                }
+
+                /// <summary>
+                /// Deserializes a ResponseTimeStats instance from binary format.
+                /// </summary>
+                /// <param name="bR">The binary reader to read from.</param>
+                public ResponseTimeStats(BinaryReader bR)
+                {
+                    _totalResponseTimeMs = bR.ReadDouble();
+                    _totalCount = bR.ReadInt64();
+                    _minResponseTimeMs = bR.ReadDouble();
+                    _maxResponseTimeMs = bR.ReadDouble();
+
+                    _cachedTotalResponseTimeMs = bR.ReadDouble();
+                    _cachedTotalCount = bR.ReadInt64();
+
+                    _recursiveTotalResponseTimeMs = bR.ReadDouble();
+                    _recursiveTotalCount = bR.ReadInt64();
+
+                    _buckets = new long[10];
+                    for (int i = 0; i < 10; i++)
+                        _buckets[i] = bR.ReadInt64();
+                }
+
+                #endregion
+
+                #region public
+
+                /// <summary>
+                /// Records a DNS query response time.
+                /// </summary>
+                /// <param name="responseTimeMs">The response time in milliseconds.</param>
+                /// <param name="responseType">The type of response (cached or recursive).</param>
+                public void Update(double responseTimeMs, DnsServerResponseType responseType)
+                {
+                    _totalResponseTimeMs += responseTimeMs;
+                    _totalCount++;
+
+                    if (responseTimeMs < _minResponseTimeMs)
+                        _minResponseTimeMs = responseTimeMs;
+
+                    if (responseTimeMs > _maxResponseTimeMs)
+                        _maxResponseTimeMs = responseTimeMs;
+
+                    // Update cached vs recursive breakdown
+                    switch (responseType)
+                    {
+                        case DnsServerResponseType.Cached:
+                        case DnsServerResponseType.UpstreamBlockedCached:
+                            _cachedTotalResponseTimeMs += responseTimeMs;
+                            _cachedTotalCount++;
+                            break;
+
+                        case DnsServerResponseType.Recursive:
+                        case DnsServerResponseType.UpstreamBlocked:
+                            _recursiveTotalResponseTimeMs += responseTimeMs;
+                            _recursiveTotalCount++;
+                            break;
+                    }
+
+                    // Update histogram bucket
+                    for (int i = 0; i < BucketThresholds.Length; i++)
+                    {
+                        if (responseTimeMs < BucketThresholds[i])
+                        {
+                            _buckets[i]++;
+                            break;
+                        }
+                    }
+                }
+
+                /// <summary>
+                /// Calculates the specified percentile from the histogram data.
+                /// </summary>
+                /// <param name="percentile">The percentile to calculate (e.g., 50, 95, 99).</param>
+                /// <returns>The response time in milliseconds at the specified percentile, or 0 if no data.</returns>
+                public double CalculatePercentile(double percentile)
+                {
+                    if (_totalCount == 0)
+                        return 0;
+
+                    long targetCount = (long)Math.Ceiling(_totalCount * percentile / 100.0);
+                    long cumulativeCount = 0;
+
+                    for (int i = 0; i < _buckets.Length; i++)
+                    {
+                        cumulativeCount += _buckets[i];
+                        if (cumulativeCount >= targetCount)
+                        {
+                            // Return the bucket's midpoint for better accuracy
+                            double lowerBound = i == 0 ? 0 : BucketThresholds[i - 1];
+                            double upperBound = BucketThresholds[i];
+                            
+                            // For the last bucket (infinity), use max observed value
+                            if (double.IsPositiveInfinity(upperBound))
+                                return _maxResponseTimeMs;
+                            
+                            return (lowerBound + upperBound) / 2.0;
+                        }
+                    }
+
+                    return _maxResponseTimeMs;
+                }
+
+                /// <summary>
+                /// Merges another ResponseTimeStats instance into this one.
+                /// </summary>
+                /// <param name="other">The other stats to merge.</param>
+                public void Merge(ResponseTimeStats other)
+                {
+                    _totalResponseTimeMs += other._totalResponseTimeMs;
+                    _totalCount += other._totalCount;
+
+                    if (other._minResponseTimeMs < _minResponseTimeMs)
+                        _minResponseTimeMs = other._minResponseTimeMs;
+
+                    if (other._maxResponseTimeMs > _maxResponseTimeMs)
+                        _maxResponseTimeMs = other._maxResponseTimeMs;
+
+                    _cachedTotalResponseTimeMs += other._cachedTotalResponseTimeMs;
+                    _cachedTotalCount += other._cachedTotalCount;
+
+                    _recursiveTotalResponseTimeMs += other._recursiveTotalResponseTimeMs;
+                    _recursiveTotalCount += other._recursiveTotalCount;
+
+                    for (int i = 0; i < _buckets.Length; i++)
+                        _buckets[i] += other._buckets[i];
+                }
+
+                /// <summary>
+                /// Serializes the ResponseTimeStats to binary format.
+                /// </summary>
+                /// <param name="bW">The binary writer to write to.</param>
+                public void WriteTo(BinaryWriter bW)
+                {
+                    bW.Write(_totalResponseTimeMs);
+                    bW.Write(_totalCount);
+                    bW.Write(_minResponseTimeMs);
+                    bW.Write(_maxResponseTimeMs);
+
+                    bW.Write(_cachedTotalResponseTimeMs);
+                    bW.Write(_cachedTotalCount);
+
+                    bW.Write(_recursiveTotalResponseTimeMs);
+                    bW.Write(_recursiveTotalCount);
+
+                    for (int i = 0; i < 10; i++)
+                        bW.Write(_buckets[i]);
+                }
+
+                #endregion
+
+                #region properties
+
+                /// <summary>
+                /// Gets the average response time across all queries in milliseconds.
+                /// </summary>
+                public double AverageResponseTimeMs
+                {
+                    get
+                    {
+                        if (_totalCount == 0)
+                            return 0;
+
+                        return _totalResponseTimeMs / _totalCount;
+                    }
+                }
+
+                public double CachedAverageResponseTimeMs
+                {
+                    get
+                    {
+                        if (_cachedTotalCount == 0)
+                            return 0;
+
+                        return _cachedTotalResponseTimeMs / _cachedTotalCount;
+                    }
+                }
+
+                public double RecursiveAverageResponseTimeMs
+                {
+                    get
+                    {
+                        if (_recursiveTotalCount == 0)
+                            return 0;
+
+                        return _recursiveTotalResponseTimeMs / _recursiveTotalCount;
+                    }
+                }
+
+                public double MinResponseTimeMs
+                {
+                    get
+                    {
+                        if (_totalCount == 0)
+                            return 0;
+
+                        return _minResponseTimeMs;
+                    }
+                }
+
+                public double MaxResponseTimeMs
+                { get { return _maxResponseTimeMs; } }
+
+                public double P50
+                { get { return CalculatePercentile(50); } }
+
+                public double P95
+                { get { return CalculatePercentile(95); } }
+
+                public double P99
+                { get { return CalculatePercentile(99); } }
+
+                #endregion
+            }
+
             class Counter
             {
                 #region variables
@@ -2658,12 +2961,13 @@ namespace DnsServerCore.Dns
             public readonly DnsTransportProtocol _protocol;
             public readonly DnsDatagram _response;
             public readonly bool _rateLimited;
+            public readonly double _responseTimeMs;
 
             #endregion
 
             #region constructor
 
-            public StatsQueueItem(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response, bool rateLimited)
+            public StatsQueueItem(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response, bool rateLimited, double responseTimeMs = 0)
             {
                 _timestamp = DateTime.UtcNow;
 
@@ -2672,6 +2976,7 @@ namespace DnsServerCore.Dns
                 _protocol = protocol;
                 _response = response;
                 _rateLimited = rateLimited;
+                _responseTimeMs = responseTimeMs;
             }
 
             #endregion

@@ -2255,6 +2255,92 @@ var chartLegendOnClick = function (e, legendItem) {
     saveChartLegendSettings(this.chart);
 }
 
+// Response Time Metrics Helper Functions
+function formatResponseTime(value) {
+    if (value === null || value === undefined) {
+        return "N/A";
+    }
+    if (value < 1) {
+        return value.toFixed(2);
+    } else if (value < 100) {
+        return value.toFixed(1);
+    } else {
+        return Math.round(value).toLocaleString();
+    }
+}
+
+function getResponseTimeThresholdClass(value) {
+    // Color-coded thresholds: green <50ms, yellow 50-200ms, red >200ms
+    if (value === null || value === undefined) {
+        return "";
+    }
+    if (value < 50) {
+        return "rt-good";
+    } else if (value < 200) {
+        return "rt-warning";
+    } else {
+        return "rt-danger";
+    }
+}
+
+function updateResponseTimeMetrics(stats) {
+    // Update response time panel visibility and values
+    var hasResponseTimeData = stats.avgResponseTime !== null && stats.avgResponseTime !== undefined;
+    
+    if (hasResponseTimeData) {
+        $("#divResponseTimePanel").show();
+        
+        // Average response time with color coding
+        var avgElement = $("#divResponseTimeAvg");
+        avgElement.removeClass("rt-good rt-warning rt-danger");
+        avgElement.addClass(getResponseTimeThresholdClass(stats.avgResponseTime));
+        $("#divDashboardStatsAvgResponseTime").text(formatResponseTime(stats.avgResponseTime));
+        
+        // Cached average with color coding
+        var cachedElement = $("#divResponseTimeCached");
+        cachedElement.removeClass("rt-good rt-warning rt-danger");
+        if (stats.cachedAvgResponseTime !== null) {
+            cachedElement.addClass(getResponseTimeThresholdClass(stats.cachedAvgResponseTime));
+        }
+        $("#divDashboardStatsCachedAvgResponseTime").text(formatResponseTime(stats.cachedAvgResponseTime));
+        
+        // Recursive average with color coding
+        var recursiveElement = $("#divResponseTimeRecursive");
+        recursiveElement.removeClass("rt-good rt-warning rt-danger");
+        if (stats.recursiveAvgResponseTime !== null) {
+            recursiveElement.addClass(getResponseTimeThresholdClass(stats.recursiveAvgResponseTime));
+        }
+        $("#divDashboardStatsRecursiveAvgResponseTime").text(formatResponseTime(stats.recursiveAvgResponseTime));
+        
+        // Min/Max
+        $("#divDashboardStatsMinResponseTime").text(formatResponseTime(stats.minResponseTime));
+        $("#divDashboardStatsMaxResponseTime").text(formatResponseTime(stats.maxResponseTime));
+        
+        // Percentiles
+        $("#divDashboardStatsP50ResponseTime").text(formatResponseTime(stats.p50ResponseTime));
+        $("#divDashboardStatsP95ResponseTime").text(formatResponseTime(stats.p95ResponseTime));
+        $("#divDashboardStatsP99ResponseTime").text(formatResponseTime(stats.p99ResponseTime));
+    } else {
+        // No response time data available (old stats version or no queries)
+        $("#divResponseTimePanel").show();
+        
+        // Reset all to N/A
+        $("#divDashboardStatsAvgResponseTime").text("N/A");
+        $("#divDashboardStatsCachedAvgResponseTime").text("N/A");
+        $("#divDashboardStatsRecursiveAvgResponseTime").text("N/A");
+        $("#divDashboardStatsMinResponseTime").text("N/A");
+        $("#divDashboardStatsMaxResponseTime").text("N/A");
+        $("#divDashboardStatsP50ResponseTime").text("N/A");
+        $("#divDashboardStatsP95ResponseTime").text("N/A");
+        $("#divDashboardStatsP99ResponseTime").text("N/A");
+        
+        // Remove threshold classes
+        $("#divResponseTimeAvg").removeClass("rt-good rt-warning rt-danger");
+        $("#divResponseTimeCached").removeClass("rt-good rt-warning rt-danger");
+        $("#divResponseTimeRecursive").removeClass("rt-good rt-warning rt-danger");
+    }
+}
+
 function refreshDashboard(hideLoader) {
     if (!$("#mainPanelTabPaneDashboard").hasClass("active"))
         return;
@@ -2355,6 +2441,9 @@ function refreshDashboard(hideLoader) {
                 $("#divDashboardStatsTotalBlockedPercentage").text("0%");
                 $("#divDashboardStatsTotalDroppedPercentage").text("0%");
             }
+
+            //response time metrics
+            updateResponseTimeMetrics(responseJSON.response.stats);
 
             //main chart
 
