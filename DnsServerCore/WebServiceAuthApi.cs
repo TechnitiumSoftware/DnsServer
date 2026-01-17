@@ -116,7 +116,7 @@ namespace DnsServerCore
                     jsonWriter.WriteString("username", currentSession.User.Username);
                     jsonWriter.WriteString("identitySource", currentSession.User.IsSsoUser ? "Remote/SSO" : "Local");
                     jsonWriter.WriteBoolean("totpEnabled", currentSession.User.TOTPEnabled);
-                    jsonWriter.WriteString("token", currentSession.Token);
+                    //token is not sent for standard sessions to prevent leakage
                 }
 
                 if (includeInfo)
@@ -407,14 +407,20 @@ namespace DnsServerCore
 
             public void Logout(HttpContext context)
             {
-                string token = context.Request.GetQueryOrForm("token");
+                string token = context.Request.GetQueryOrForm("token", null);
 
-                UserSession session = _dnsWebService._authManager.DeleteSession(token);
-                if (session is not null)
+                if (string.IsNullOrEmpty(token))
+                    token = context.Request.Cookies["session_token"];
+
+                if (!string.IsNullOrEmpty(token))
                 {
-                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User logged out.");
+                    UserSession session = _dnsWebService._authManager.DeleteSession(token);
+                    if (session is not null)
+                    {
+                        _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User logged out.");
 
-                    _dnsWebService._authManager.SaveConfigFile();
+                        _dnsWebService._authManager.SaveConfigFile();
+                    }
                 }
 
                 // Clear the session cookie

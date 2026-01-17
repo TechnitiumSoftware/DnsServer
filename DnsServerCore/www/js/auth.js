@@ -67,6 +67,7 @@ $(function () {
         url: "api/user/session/get",
         success: function (responseJSON) {
             sessionData = responseJSON;
+            if (!sessionData.token) sessionData.token = "";
 
             $("#mnuUserDisplayName").text(sessionData.displayName);
             document.title = sessionData.info.dnsServerDomain + " - " + "Technitium DNS Server v" + sessionData.info.version;
@@ -254,6 +255,7 @@ function login(username, password) {
         procecssData: false,
         success: function (responseJSON) {
             sessionData = responseJSON;
+            if (!sessionData.token) sessionData.token = "";
             // Token now managed via HTTP-only cookie, no localStorage needed
 
             $("#mnuUserDisplayName").text(sessionData.displayName);
@@ -304,8 +306,9 @@ function logout() {
             sessionData = null;
             localStorage.removeItem("token");
             localStorage.removeItem("token_expires");
-            // Explicitly delete the session cookie
-            document.cookie = "session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            // HttpOnly cookie is cleared by server response
+
+
             // Force page reload to ensure clean state
             window.location.reload();
         },
@@ -313,8 +316,9 @@ function logout() {
             sessionData = null;
             localStorage.removeItem("token");
             localStorage.removeItem("token_expires");
-            // Explicitly delete the session cookie
-            document.cookie = "session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            // HttpOnly cookie is cleared by server response
+
+
             // Force page reload to ensure clean state
             window.location.reload();
         }

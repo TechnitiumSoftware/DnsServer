@@ -869,6 +869,21 @@ namespace DnsServerCore.Auth
             return session;
         }
 
+        public UserSession CreateSsoSession(User user, IPAddress remoteAddress, string userAgent)
+        {
+            if (user.Disabled)
+                throw new DnsWebServiceException("Account is suspended.");
+
+            UserSession session = new UserSession(UserSessionType.Standard, null, user, remoteAddress, userAgent);
+
+            if (!_sessions.TryAdd(session.Token, session))
+                throw new DnsWebServiceException("Error while creating session. Please try again.");
+
+            user.LoggedInFrom(remoteAddress);
+
+            return session;
+        }
+
         public UserSession DeleteSession(string token)
         {
             if (_sessions.TryRemove(token, out UserSession session))
