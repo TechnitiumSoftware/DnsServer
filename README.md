@@ -87,12 +87,12 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Built in HTTP API to allow 3rd party apps to control and configure the DNS server.
 - Supports TOTP based Two-factor authentication (2FA).
 - Built-in system logging and query logging.
-- Open source cross-platform .NET 9 implementation hosted on [GitHub](https://github.com/TechnitiumSoftware/DnsServer).
+- Open source cross-platform .NET 10 implementation hosted on [GitHub](https://github.com/TechnitiumSoftware/DnsServer).
 
 # Installation
 - **Windows**: [Download setup installer](https://download.technitium.com/dns/DnsServerSetup.zip) for easy installation.
 - **Linux & Raspberry Pi**: Follow install instructions from [this blog post](https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html).
-- **Cross-Platform**: [Download portable app](https://download.technitium.com/dns/DnsServerPortable.tar.gz) to run on any platform that has .NET 9 installed.
+- **Cross-Platform**: [Download portable app](https://download.technitium.com/dns/DnsServerPortable.tar.gz) to run on any platform that has .NET 10 installed.
 - **Docker**: Pull the official image from [Docker Hub](https://hub.docker.com/r/technitium/dns-server). Use the [docker-compose.yml](https://github.com/TechnitiumSoftware/DnsServer/blob/master/docker-compose.yml) example to create a new container and edit it as required for your deployments. For more details and troubleshooting read the [install instructions](https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html).
 
 # Build Instructions

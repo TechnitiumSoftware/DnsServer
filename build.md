@@ -20,7 +20,7 @@ sudo apt update
 sudo apt install curl git -y
 ```
 
-2. Follow the [install instructions](https://learn.microsoft.com/en-us/dotnet/core/install/linux-ubuntu-install?tabs=dotnet9&pivots=os-linux-ubuntu-2404) to be able to install ASP.NET Core SDK on your distro. Use the instructions given in the link to install the repository for other distros not shown in below examples:
+2. Follow the [install instructions](https://learn.microsoft.com/en-us/dotnet/core/install/linux-ubuntu-install?tabs=dotnet10&pivots=os-linux-ubuntu-2404) to be able to install ASP.NET Core SDK on your distro. Use the instructions given in the link to install the repository for other distros not shown in below examples:
 
 - Ubuntu 24.04
 ```
@@ -37,7 +37,7 @@ sudo apt update
 
 3. Install ASP.NET Core 9 SDK and `libmsquic` for DNS-over-QUIC support.
 ```
-sudo apt install dotnet-sdk-9.0 libmsquic -y
+sudo apt install dotnet-sdk-10.0 libmsquic -y
 ```
 
 Note! If you do not plan to use DNS-over-QUIC or HTTP/3 support, or you intend to just build a docker image then you can skip installing `libmsquic`.
