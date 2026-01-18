@@ -74,12 +74,13 @@ internal sealed class PveService
                     $"api2/json/nodes/{node}/qemu/{qemu.VmId}/agent/network-get-interfaces",
                     new QemuAgentResponse<VmNetworkInterface[]> { Result = [] },
                     cancellationToken);
-                result.Add(Map(qemu, agentResponse.Result));
+                result.Add(Map(qemu, agentResponse.Result ?? []));
             }
-            catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.InternalServerError && ex.Message.Contains("No QEMU guest agent configured"))
+            catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.InternalServerError)
             {
-                // Proxmox returns '500 No QEMU guest agent configured' when QEMU agent not configured.
-                // Catching this case and treating it as empty interfaces list so DNS server can return empty response instead of NXDomain
+                // Proxmox returns 500 when there is something wrong with QEMU Guest Agent (it's disabled or not running)
+                // Since at this point we already called Proxmox VE API multiple times with successful results, we can
+                // treat all 500 responses here as empty interfaces list
                 result.Add(Map(qemu, []));
             }
         }
