@@ -68,6 +68,13 @@ internal sealed class PveService
 
         foreach (var qemu in qemus)
         {
+            // stopped guests have no information about network interfaces
+            if (qemu.Status != "running")
+            {
+                result.Add(Map(qemu, []));
+                continue;
+            }
+            
             try
             {
                 var agentResponse = await GetProxmoxDataAsync(
@@ -98,6 +105,13 @@ internal sealed class PveService
         
         foreach (var lxc in lxcs)
         {
+            // stopped guests have no information about network interfaces
+            if (lxc.Status != "running")
+            {
+                result.Add(Map(lxc, []));
+                continue;
+            }
+            
             var interfaces = await GetProxmoxDataAsync<VmNetworkInterface[]>(
                 $"api2/json/nodes/{node}/lxc/{lxc.VmId}/interfaces",
                 [],
@@ -121,7 +135,7 @@ internal sealed class PveService
         return new DiscoveredVm(
             Name: vm.Name,
             Type: vm.Type,
-            Tags: vm.Tags.ToLowerInvariant().Split(';'),
+            Tags: vm.Tags?.Split(';') ?? [],
             Addresses: interfaces
                 .Where(x => x.Name != "lo") // always excluding loopback interface
                 .SelectMany(x => x.IpAddresses)
@@ -156,6 +170,9 @@ internal sealed class PveService
     
         [JsonPropertyName("type")]
         public string Type { get; set; }
+        
+        [JsonPropertyName("status")]
+        public string Status { get; set; }
     }
 
     private sealed class QemuAgentResponse<T>
