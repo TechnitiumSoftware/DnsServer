@@ -73,6 +73,29 @@ namespace DnsServerCore.Auth
                 _lastSeenUserAgent = _lastSeenUserAgent.Substring(0, 255);
         }
 
+        public UserSession(UserSessionType type, string tokenName, User user, IPAddress remoteAddress, string lastSeenUserAgent, string token)
+        {
+            if ((tokenName is not null) && (tokenName.Length > 255))
+                throw new ArgumentOutOfRangeException(nameof(tokenName), "Token name length cannot exceed 255 characters.");
+
+            if (string.IsNullOrWhiteSpace(token) || !IsValidTokenFormat(token))
+                throw new ArgumentOutOfRangeException(nameof(token), "Token must be a 64-character hex string.");
+
+            if (remoteAddress.IsIPv4MappedToIPv6)
+                remoteAddress = remoteAddress.MapToIPv4();
+
+            _token = token.ToLowerInvariant();
+            _type = type;
+            _tokenName = tokenName;
+            _user = user;
+            _lastSeen = DateTime.UtcNow;
+            _lastSeenRemoteAddress = remoteAddress;
+            _lastSeenUserAgent = lastSeenUserAgent;
+
+            if ((_lastSeenUserAgent is not null) && (_lastSeenUserAgent.Length > 255))
+                _lastSeenUserAgent = _lastSeenUserAgent.Substring(0, 255);
+        }
+
         public UserSession(BinaryReader bR, IReadOnlyDictionary<string, User> users)
         {
             switch (bR.ReadByte())
@@ -159,6 +182,28 @@ namespace DnsServerCore.Auth
         public int CompareTo(UserSession other)
         {
             return other._lastSeen.CompareTo(_lastSeen);
+        }
+
+        #endregion
+
+        #region private
+
+        private static bool IsValidTokenFormat(string token)
+        {
+            if (token.Length != 64)
+                return false;
+
+            foreach (char ch in token)
+            {
+                bool isHex = (ch >= '0' && ch <= '9') ||
+                             (ch >= 'a' && ch <= 'f') ||
+                             (ch >= 'A' && ch <= 'F');
+
+                if (!isHex)
+                    return false;
+            }
+
+            return true;
         }
 
         #endregion

@@ -21,6 +21,8 @@ services:
       - DNS_SERVER_DOMAIN=dns-server #The primary domain name used by this DNS Server to identify itself.
       # - DNS_SERVER_ADMIN_PASSWORD=password #DNS web console admin user password.
       # - DNS_SERVER_ADMIN_PASSWORD_FILE=password.txt #The path to a file that contains a plain text password for the DNS web console admin user.
+      # - DNS_SERVER_ADMIN_API_TOKEN=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef #Admin API token (64-character hex). Requires admin password env var or file.
+      # - DNS_SERVER_ADMIN_API_TOKEN_FILE=token.txt #The path to a file that contains a plain text admin API token. Requires admin password env var or file.
       # - DNS_SERVER_PREFER_IPV6=false #DNS Server will use IPv6 for querying whenever possible with this option enabled.
       # - DNS_SERVER_WEB_SERVICE_LOCAL_ADDRESSES=172.17.0.1,127.0.0.1 #Comma separated list of network interface IP addresses that you want the web service to listen on for requests. The "172.17.0.1" address is the built-in Docker bridge. The "[::]" is the default value if not specified. Note! This must be used only with "host" network mode.
       # - DNS_SERVER_WEB_SERVICE_HTTP_PORT=5380 #The TCP port number for the DNS web console over HTTP protocol.

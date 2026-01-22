@@ -485,6 +485,14 @@ namespace DnsServerCore.Auth
 
             string adminPassword = Environment.GetEnvironmentVariable("DNS_SERVER_ADMIN_PASSWORD");
             string adminPasswordFile = Environment.GetEnvironmentVariable("DNS_SERVER_ADMIN_PASSWORD_FILE");
+            string adminApiToken = Environment.GetEnvironmentVariable("DNS_SERVER_ADMIN_API_TOKEN");
+            string adminApiTokenFile = Environment.GetEnvironmentVariable("DNS_SERVER_ADMIN_API_TOKEN_FILE");
+
+            bool passwordProvided = !string.IsNullOrEmpty(adminPassword) || !string.IsNullOrEmpty(adminPasswordFile);
+            bool apiTokenProvided = !string.IsNullOrEmpty(adminApiToken) || !string.IsNullOrEmpty(adminApiTokenFile);
+
+            if (apiTokenProvided && !passwordProvided)
+                throw new InvalidOperationException("DNS_SERVER_ADMIN_API_TOKEN requires DNS_SERVER_ADMIN_PASSWORD or DNS_SERVER_ADMIN_PASSWORD_FILE.");
 
             User adminUser;
 
@@ -515,6 +523,36 @@ namespace DnsServerCore.Auth
             }
 
             adminUser.AddToGroup(adminGroup);
+
+            if (apiTokenProvided)
+            {
+                string adminApiTokenValue = null;
+
+                if (!string.IsNullOrEmpty(adminApiToken))
+                {
+                    adminApiTokenValue = adminApiToken;
+                }
+                else if (!string.IsNullOrEmpty(adminApiTokenFile))
+                {
+                    try
+                    {
+                        using (StreamReader sR = new StreamReader(adminApiTokenFile, true))
+                        {
+                            adminApiTokenValue = sR.ReadLine();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Write(ex);
+                        throw new InvalidOperationException("Failed to read DNS_SERVER_ADMIN_API_TOKEN_FILE.");
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(adminApiTokenValue))
+                    throw new InvalidOperationException("DNS_SERVER_ADMIN_API_TOKEN must be a 64-character hex string.");
+
+                CreateApiTokenWithToken("Initial Admin Token", adminUser.Username, IPAddress.Loopback, "Environment Variable", adminApiTokenValue);
+            }
         }
 
         private async Task<User> AuthenticateUserAsync(string username, string password, string totp, IPAddress remoteAddress)
@@ -863,6 +901,25 @@ namespace DnsServerCore.Auth
 
             if (!_sessions.TryAdd(session.Token, session))
                 throw new DnsWebServiceException("Error while creating session. Please try again.");
+
+            user.LoggedInFrom(remoteAddress);
+
+            return session;
+        }
+
+        public UserSession CreateApiTokenWithToken(string tokenName, string username, IPAddress remoteAddress, string userAgent, string token)
+        {
+            User user = GetUser(username);
+            if (user is null)
+                throw new DnsWebServiceException("No such user exists: " + username);
+
+            if (user.Disabled)
+                throw new DnsWebServiceException("Account is suspended.");
+
+            UserSession session = new UserSession(UserSessionType.ApiToken, tokenName, user, remoteAddress, userAgent, token);
+
+            if (!_sessions.TryAdd(session.Token, session))
+                throw new DnsWebServiceException("API token already exists.");
 
             user.LoggedInFrom(remoteAddress);
 

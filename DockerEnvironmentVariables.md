@@ -11,6 +11,8 @@ The environment variables are described below:
 | DNS_SERVER_DOMAIN                              | String  | The primary domain name used by this DNS Server to identify itself.                                                                      |
 | DNS_SERVER_ADMIN_PASSWORD                      | String  | The DNS web console admin user password.                                                                                                 |
 | DNS_SERVER_ADMIN_PASSWORD_FILE                 | String  | The path to a file that contains a plain text password for the DNS web console admin user.                                               |
+| DNS_SERVER_ADMIN_API_TOKEN                     | String  | The admin user's API token (64-character hex string). Requires DNS_SERVER_ADMIN_PASSWORD or DNS_SERVER_ADMIN_PASSWORD_FILE.             |
+| DNS_SERVER_ADMIN_API_TOKEN_FILE                | String  | The path to a file that contains a plain text admin API token (64-character hex string). Requires DNS_SERVER_ADMIN_PASSWORD or DNS_SERVER_ADMIN_PASSWORD_FILE. |
 | DNS_SERVER_PREFER_IPV6                         | Boolean | DNS Server will use IPv6 for querying whenever possible with this option enabled.                                                        |
 | DNS_SERVER_WEB_SERVICE_LOCAL_ADDRESSES         | String  | A comma separated list of IP addresses for the DNS web console to listen on.                                                             |
 | DNS_SERVER_WEB_SERVICE_HTTP_PORT               | Integer | The TCP port number for the DNS web console over HTTP protocol.                                                                          |
