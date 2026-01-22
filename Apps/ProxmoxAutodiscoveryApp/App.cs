@@ -59,10 +59,10 @@ namespace ProxmoxAutodiscovery
         
         public void Dispose()
         {
-            if (_cts is { IsCancellationRequested: false } && _backgroundUpdateLoopTask?.IsCompleted == false)
+            if (_cts is { IsCancellationRequested: false } && _backgroundUpdateLoopTask is { IsCompleted: false })
             {
                 _cts.Cancel();
-                _backgroundUpdateLoopTask.GetAwaiter().GetResult();
+                _backgroundUpdateLoopTask?.GetAwaiter().GetResult();
                 _cts.Dispose();
             }
         }
@@ -86,28 +86,28 @@ namespace ProxmoxAutodiscovery
                 _dnsServer.Proxy
             );
 
-            try
+            if (_cts is { IsCancellationRequested: false } && _backgroundUpdateLoopTask is { IsCompleted: false })
             {
-                if (_cts is { IsCancellationRequested: false } && _backgroundUpdateLoopTask?.IsCompleted == false)
-                {
-                    await _cts.CancelAsync();
-                    await _backgroundUpdateLoopTask;
-                    _cts.Dispose();
-                }
-                
-                if (appConfig.Enabled)
+                await _cts.CancelAsync();
+                await _backgroundUpdateLoopTask;
+                _cts.Dispose();
+            }
+            
+            if (appConfig.Enabled)
+            {
+                try
                 {
                     _autodiscoveryData = await _pveService.DiscoverVmsAsync(CancellationToken.None);
-                    _dnsServer.WriteLog("Successfully initialized autodiscovery cache");
-                    
-                    _cts = new CancellationTokenSource();
-                    _backgroundUpdateLoopTask = BackgroundUpdateLoop(TimeSpan.FromSeconds(appConfig.UpdateIntervalSeconds));
+                    _dnsServer.WriteLog("Successfully initialized autodiscovery cache.");
                 }
-            }
-            catch (Exception ex)
-            {
-                _dnsServer.WriteLog("Error while initializing autodiscovery cache");
-                _dnsServer.WriteLog(ex);
+                catch (Exception ex)
+                {
+                    _dnsServer.WriteLog("Error while initializing autodiscovery cache.");
+                    _dnsServer.WriteLog(ex);
+                }
+                
+                _cts = new CancellationTokenSource();
+                _backgroundUpdateLoopTask = BackgroundUpdateLoop(TimeSpan.FromSeconds(appConfig.UpdateIntervalSeconds));
             }
         }
 
@@ -190,7 +190,7 @@ namespace ProxmoxAutodiscovery
                     }
                     catch (Exception ex)
                     {
-                        _dnsServer.WriteLog("Unexpected error while updating Proxmox data in background.");
+                        _dnsServer.WriteLog("Unexpected error while updating Proxmox data.");
                         _dnsServer.WriteLog(ex);
                     }
                 }
@@ -213,17 +213,12 @@ namespace ProxmoxAutodiscovery
             if (!query.EndsWith(appRecordName))
                 return false;
 
+            // if appRecordName is `domain.com` we expect query to be `hostname.domain.com`
+            // we already know that query ends with appRecordName, now we need to check that query ends with dot-appRecordName
             if (query[^(appRecordName.Length + 1)] != '.')
                 return false;
             
             hostname = qname.Substring(0, qname.Length - appRecordName.Length - 1);
-
-            if (hostname.Contains('.'))
-            {
-                hostname = null;
-                return false;
-            }
-
             return true;
         }
         
