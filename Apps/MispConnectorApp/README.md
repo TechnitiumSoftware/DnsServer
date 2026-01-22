@@ -4,6 +4,12 @@ A plugin that pulls malicious domain names from MISP feeds and enforces blocking
 
 It maintains in-memory blocklists with disk-backed caching and periodically refreshes from the source.
 
+## What is MISP 
+
+MISP is a threat intelligence platform for sharing, storing and correlating Indicators of Compromise (IOC) of targeted attacks, threat intelligence, financial fraud information, vulnerability information or even counter-terrorism information. Refer to the [project documentation for more details](https://www.misp-project.org/documentation/). This plugin assumes an existing MISP instance to connect to. Installation and configuration is out of scope of Technitium DNS Server.
+
+See [this article](https://zaferbalkan.com/technitium-misp/) for a sample use case. 
+
 ## Features
 
 - Retrieves indicators of compromise (IOCs) aka. malicious domain names from a MISP server via its REST API.
