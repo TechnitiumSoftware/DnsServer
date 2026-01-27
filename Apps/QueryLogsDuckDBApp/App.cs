@@ -36,7 +36,6 @@ namespace QueryLogsDuckDB
     {
         #region variables
 
-        private const int CHANNEL_CAPACITY = 20_000;
         private const int MAX_BATCH_SIZE = 1000;
         private Channel<LogEntry> _channel;
         private DuckDBConnection _conn;
@@ -44,6 +43,7 @@ namespace QueryLogsDuckDB
         private bool _disposed;
         private IDnsServer _dnsServer;
         private bool _enableLogging;
+        private int _maxQueueSize;
         #endregion variables
 
         #region IDisposable
@@ -216,11 +216,13 @@ CREATE TABLE IF NOT EXISTS dns_logs (
 
             string dbPath = cfg.GetPropertyValue("dbPath", "querylogs.db");
 
+            _maxQueueSize = cfg.GetPropertyValue("maxQueueSize", 20000);
+
             if (!System.IO.Path.IsPathRooted(dbPath))
                 dbPath = System.IO.Path.Combine(dnsServer.ApplicationFolder, dbPath);
 
             _channel = Channel.CreateBounded<LogEntry>(
-                 new BoundedChannelOptions(CHANNEL_CAPACITY)
+                 new BoundedChannelOptions(_maxQueueSize)
                  {
                      SingleReader = true,
                      SingleWriter = true,
