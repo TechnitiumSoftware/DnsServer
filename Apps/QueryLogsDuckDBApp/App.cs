@@ -165,24 +165,9 @@ CREATE TABLE IF NOT EXISTS dns_logs (
 );";
             await cmd.ExecuteNonQueryAsync();
 
-            string[] indexes =
-            [
-                "CREATE INDEX IF NOT EXISTS idx_srv ON dns_logs(server);",
-                "CREATE INDEX IF NOT EXISTS idx_ts ON dns_logs(timestamp);",
-                "CREATE INDEX IF NOT EXISTS idx_ip ON dns_logs(client_ip);",
-                "CREATE INDEX IF NOT EXISTS idx_proto ON dns_logs(protocol);",
-                "CREATE INDEX IF NOT EXISTS idx_resp ON dns_logs(response_type);",
-                "CREATE INDEX IF NOT EXISTS idx_rcode ON dns_logs(rcode);",
-                "CREATE INDEX IF NOT EXISTS idx_qname ON dns_logs(qname);",
-                "CREATE INDEX IF NOT EXISTS idx_qtype ON dns_logs(qtype);",
-                "CREATE INDEX IF NOT EXISTS idx_qclass ON dns_logs(qclass);"
-            ];
-
-            foreach (string sql in indexes)
-            {
-                cmd.CommandText = sql;
-                await cmd.ExecuteNonQueryAsync();
-            }
+            string index = "CREATE INDEX IF NOT EXISTS idx_ts_srv_ip ON dns_logs(timestamp, server, client_ip);";
+            cmd.CommandText = index;
+            await cmd.ExecuteNonQueryAsync();
         }
 
         private async Task ProcessLogsAsync()
