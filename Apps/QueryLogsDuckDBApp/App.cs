@@ -63,7 +63,7 @@ namespace QueryLogsDuckDB
                 {
                     try { _channel?.Writer.TryComplete(); } catch { }
                     try { _consumerTask?.Wait(5000); } catch { }
-                    try { _conn?.Dispose(); } catch { }
+                    try { _conn?.Close(); _conn?.Dispose(); } catch { }
                 }
 
                 _disposed = true;
