@@ -354,7 +354,7 @@ OFFSET {(pageNumber - 1) * entriesPerPage}";
         #region properties
 
         public string Description
-        { get { return "Logs DNS requests to DuckDB using Parquet for high-performance analytical storage."; } }
+        { get { return "Logs all incoming DNS requests and their responses in a DuckDB database that can be queried from the DNS Server web console."; } }
 
         #endregion properties
 
