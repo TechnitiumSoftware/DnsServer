@@ -44,23 +44,31 @@ namespace QueryLogsDuckDB
         private bool _disposed;
         private IDnsServer _dnsServer;
         private bool _enableLogging;
-
         #endregion variables
 
         #region IDisposable
 
         public void Dispose()
         {
-            if (_disposed)
-                return;
-
-            try { _channel?.Writer.TryComplete(); } catch { }
-            try { _consumerTask?.Wait(5000); } catch { }
-            try { _conn?.Dispose(); } catch { }
-
-            _disposed = true;
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
 
+        private void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    try { _channel?.Writer.TryComplete(); } catch { }
+                    try { _consumerTask?.Wait(5000); } catch { }
+                    try { _conn?.Dispose(); } catch { }
+                }
+
+                _disposed = true;
+            }
+        }
         #endregion IDisposable
 
         #region private
