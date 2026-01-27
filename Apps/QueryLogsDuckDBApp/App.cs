@@ -223,6 +223,7 @@ CREATE TABLE IF NOT EXISTS dns_logs (
                  new BoundedChannelOptions(CHANNEL_CAPACITY)
                  {
                      SingleReader = true,
+                     SingleWriter = true,
                      FullMode = BoundedChannelFullMode.DropWrite
                  });
 
