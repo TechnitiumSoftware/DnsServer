@@ -370,8 +370,11 @@ CREATE TABLE IF NOT EXISTS dns_logs (
 
             if (!string.IsNullOrWhiteSpace(qname))
             {
-                qname = qname.Trim();
-
+                qname = qname.Trim().ToLowerInvariant();
+                if (qname.Contains('*'))
+                {
+                    qname = qname.Replace('*', '%');
+                }
                 filters.Add("qname = $qname");
                 cmd.Parameters.Add(
                     new DuckDBParameter("qname", qname));
