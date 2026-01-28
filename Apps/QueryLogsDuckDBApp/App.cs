@@ -67,6 +67,9 @@ namespace QueryLogsDuckDB
             {
                 if (disposing)
                 {
+                    // To prevent blocking shutdown, we attempt to complete the channel and wait for the consumer task to finish.
+                    // We leave catch blocks empty explicitly to ignore any exceptions during disposal.
+                    // This ensures that the application can shut down gracefully without being hindered by logging operations.
                     try { _channel?.Writer.TryComplete(); } catch { }
                     try { _consumerTask?.Wait(5000); } catch { }
                     try { _conn?.Close(); _conn?.Dispose(); } catch { }
