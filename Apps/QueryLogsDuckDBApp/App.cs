@@ -270,20 +270,71 @@ CREATE TABLE IF NOT EXISTS dns_logs (
 
             if (start is not null)
             {
-                filters.Add("timestamp >= @s");
-                cmd.Parameters.Add(new DuckDBParameter("@s", start));
+                filters.Add("timestamp >= $s");
+                cmd.Parameters.Add(new DuckDBParameter("s", start));
             }
 
             if (end is not null)
             {
-                filters.Add("timestamp <= @e");
-                cmd.Parameters.Add(new DuckDBParameter("@e", end));
+                filters.Add("timestamp <= $e");
+                cmd.Parameters.Add(new DuckDBParameter("e", end));
             }
 
-            string whereSql = filters.Count > 0
-                    ? " WHERE " + string.Join(" AND ", filters)
-                : string.Empty;
+            if (clientIpAddress is not null)
+            {
+                filters.Add("client_ip = $cip");
+                cmd.Parameters.Add(
+                    new DuckDBParameter("cip", clientIpAddress.ToString()));
+            }
 
+            if (protocol is not null)
+            {
+                filters.Add("protocol = $proto");
+                cmd.Parameters.Add(
+                    new DuckDBParameter("proto", (byte)protocol.Value));
+            }
+
+            if (responseType is not null)
+            {
+                filters.Add("response_type = $rtype");
+                cmd.Parameters.Add(
+                    new DuckDBParameter("rtype", (byte)responseType.Value));
+            }
+
+            if (rcode is not null)
+            {
+                filters.Add("rcode = $rcode");
+                cmd.Parameters.Add(
+                    new DuckDBParameter("rcode", (byte)rcode.Value));
+            }
+
+            if (!string.IsNullOrWhiteSpace(qname))
+            {
+                filters.Add("qname = $qname");
+                cmd.Parameters.Add(
+                    new DuckDBParameter("qname", qname));
+            }
+
+            if (qtype is not null)
+            {
+                filters.Add("qtype = $qtype");
+                cmd.Parameters.Add(
+                    new DuckDBParameter("qtype", (short)qtype.Value));
+            }
+
+            if (qclass is not null)
+            {
+                filters.Add("qclass = $qclass");
+                cmd.Parameters.Add(
+                    new DuckDBParameter("qclass", (short)qclass.Value));
+            }
+
+            string whereSql =
+                filters.Count > 0
+                    ? " WHERE " + string.Join(" AND ", filters)
+                    : string.Empty;
+
+            // Count query
             cmd.CommandText = $"SELECT count() FROM dns_logs {whereSql}";
             long totalEntries = Convert.ToInt64(await cmd.ExecuteScalarAsync());
 
@@ -292,14 +343,33 @@ CREATE TABLE IF NOT EXISTS dns_logs (
 
             pageNumber = Math.Clamp(pageNumber, 1, Math.Max(1, totalPages));
 
+            long offset = (pageNumber - 1) * entriesPerPage;
+
+            //Pagination parameters
+            cmd.Parameters.Add(
+                new DuckDBParameter("limit", entriesPerPage));
+
+            cmd.Parameters.Add(
+                new DuckDBParameter("offset", offset));
+
+            // Main query
             cmd.CommandText = $@"
-SELECT server, timestamp, client_ip, protocol, response_type,
-       response_rtt, rcode, qname, qtype, qclass, answer
+SELECT server,
+       timestamp,
+       client_ip,
+       protocol,
+       response_type,
+       response_rtt,
+       rcode,
+       qname,
+       qtype,
+       qclass,
+       answer
 FROM dns_logs
 {whereSql}
 ORDER BY timestamp {(descendingOrder ? "DESC" : "ASC")}
-LIMIT {entriesPerPage}
-OFFSET {(pageNumber - 1) * entriesPerPage}";
+LIMIT $limit
+OFFSET $offset";
 
             List<DnsLogEntry> list = new List<DnsLogEntry>();
 
