@@ -49,15 +49,12 @@ namespace QueryLogsDuckDB
 
         [ThreadStatic]
         private static StringBuilder? _sb;
-        Config _config;
-
         private Channel<LogEntry>? _channel;
+        Config? _config;
         private DuckDBConnection? _conn;
         private Task? _consumerTask;
         private bool _disposed;
         private IDnsServer? _dnsServer;
-        private bool _enableLogging;
-        private int _maxQueueSize; // Maximum number of log entries in the queue, default 200,000
         #endregion variables
 
         #region IDisposable
@@ -248,6 +245,83 @@ CREATE TABLE IF NOT EXISTS dns_logs (
                 BulkInsert(batch);
         }
 
+        private async Task RetentionLoopAsync()
+        {
+            // Initial delay
+            await Task.Delay(TimeSpan.FromMinutes(1));
+
+            while (!_disposed)
+            {
+                try
+                {
+                    await RunRetentionAsync();
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer?.WriteLog(ex);
+                }
+
+                await Task.Delay(TimeSpan.FromMinutes(15));
+            }
+        }
+
+        private async Task RunRetentionAsync()
+        {
+            if (_conn is null || _config is null)
+                return;
+
+            using DuckDBCommand cmd = _conn.CreateCommand();
+
+            long deleted = 0;
+
+            /* ---------------------------------
+               Max records
+               --------------------------------- */
+
+            if (_config.MaxLogRecords > 0)
+            {
+                cmd.CommandText = @"
+DELETE FROM dns_logs
+WHERE timestamp NOT IN (
+    SELECT timestamp
+    FROM dns_logs
+    ORDER BY timestamp DESC
+    LIMIT $limit
+);";
+
+                cmd.Parameters.Clear();
+                cmd.Parameters.Add(
+                    new DuckDBParameter("limit", _config.MaxLogRecords));
+
+                deleted += await cmd.ExecuteNonQueryAsync();
+            }
+
+            /* ---------------------------------
+               Max days
+               --------------------------------- */
+
+            if (_config.MaxLogDays > 0)
+            {
+                DateTime cutoff =
+                    DateTime.UtcNow.AddDays(-_config.MaxLogDays);
+
+                cmd.CommandText =
+                    "DELETE FROM dns_logs WHERE timestamp < $cutoff;";
+
+                cmd.Parameters.Clear();
+                cmd.Parameters.Add(
+                    new DuckDBParameter("cutoff", cutoff));
+
+                deleted += await cmd.ExecuteNonQueryAsync();
+            }
+
+            if (deleted > 0)
+            {
+                cmd.Parameters.Clear();
+                cmd.CommandText = "CHECKPOINT;";
+                await cmd.ExecuteNonQueryAsync();
+            }
+        }
         #endregion private
 
         #region public
@@ -258,6 +332,7 @@ CREATE TABLE IF NOT EXISTS dns_logs (
 
             JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             _config = JsonSerializer.Deserialize<Config>(config, options);
+            _config ??= new Config();
             Validator.ValidateObject(_config, new ValidationContext(_config), validateAllProperties: true);
 
             if (!System.IO.Path.IsPathRooted(_config.DbPath))
@@ -276,6 +351,7 @@ CREATE TABLE IF NOT EXISTS dns_logs (
             await CreateSchemaAsync();
 
             _consumerTask = Task.Run(ProcessLogsAsync);
+            _ = Task.Run(RetentionLoopAsync);
         }
 
         public Task InsertLogAsync(
@@ -285,7 +361,7 @@ CREATE TABLE IF NOT EXISTS dns_logs (
             DnsTransportProtocol protocol,
             DnsDatagram response)
         {
-            if (_config.EnableLogging)
+            if (_config!.EnableLogging)
                 _channel!.Writer.TryWrite(
                     new LogEntry(timestamp, request, remoteEP, protocol, response));
 
@@ -588,11 +664,16 @@ OFFSET $offset";
 
         private class Config
         {
-            [JsonPropertyName("enableLogging")]
-            public bool EnableLogging { get; set; } = true;
-
             [JsonPropertyName("dbPath")]
             public string DbPath { get; set; } = "querylogs.db";
+
+            [JsonPropertyName("enableLogging")]
+            public bool EnableLogging { get; set; } = true;
+            [JsonPropertyName("maxLogDays")]
+            public int MaxLogDays { get; set; } = 30;
+
+            [JsonPropertyName("maxLogRecords")]
+            public long MaxLogRecords { get; set; } = 1_000_000;
 
             [JsonPropertyName("maxQueueSize")]
             public int MaxQueueSize { get; set; } = 200_000;
