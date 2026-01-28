@@ -521,8 +521,8 @@ OFFSET $offset";
                 {
                     question = new DnsQuestionRecord(
                         qn,
-                        (DnsResourceRecordType)reader.GetInt16(8),
-                        (DnsClass)reader.GetInt16(9),
+                        (DnsResourceRecordType)reader.GetFieldValue<ushort>(8),
+                        (DnsClass)reader.GetFieldValue<ushort>(9),
                         false);
                 }
 
