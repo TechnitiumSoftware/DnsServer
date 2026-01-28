@@ -150,22 +150,50 @@ namespace QueryLogsDuckDB
                         rtt = log.Response.Metadata.RoundTripTime;
                     }
 
-                    //Answer
+                    // Answer (bounded, safe)
                     string? answer = null;
-                    if (log.Response.Answer.Count != 0)
+
+                    if (log.Response.Answer.Count > 0)
                     {
-                        StringBuilder answerBuilder = GetStringBuilder();
-                        bool first = true;
-                        foreach (DnsResourceRecord? record in log.Response.Answer)
+                        if (log.Response.IsZoneTransfer && log.Response.Answer.Count > 2)
                         {
-                            if (!first)
-                                answerBuilder.Append(", ");
-                            answerBuilder.Append(record.Type);
-                            answerBuilder.Append(' ');
-                            answerBuilder.Append(record.RDATA);
-                            first = false;
+                            answer = "[ZONE TRANSFER]";
                         }
-                        answer = answerBuilder.ToString();
+                        else
+                        {
+                            StringBuilder sb = GetStringBuilder();
+                            bool first = true;
+
+                            foreach (DnsResourceRecord record in log.Response.Answer)
+                            {
+                                if (!first)
+                                {
+                                    if (sb.Length + 2 >= MAX_ANSWER_SIZE)
+                                        break;
+
+                                    sb.Append(", ");
+                                }
+
+                                string part = $"{record.Type} {record.RDATA}";
+
+                                int remaining =
+                                    MAX_ANSWER_SIZE - sb.Length;
+
+                                if (remaining <= 0)
+                                    break;
+
+                                if (part.Length > remaining)
+                                {
+                                    sb.Append(part.AsSpan(0, remaining));
+                                    break;
+                                }
+
+                                sb.Append(part);
+                                first = false;
+                            }
+
+                            answer = sb.Length == 0 ? null : sb.ToString();
+                        }
                     }
 
                     //Insert Row
