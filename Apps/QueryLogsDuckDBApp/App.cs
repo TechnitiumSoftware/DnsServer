@@ -76,12 +76,27 @@ namespace QueryLogsDuckDB
                 if (disposing)
                 {
                     // To prevent blocking shutdown, we attempt to complete the channel and wait for the consumer task to finish.
-                    // We leave catch blocks empty explicitly to ignore any exceptions during disposal.
                     // This ensures that the application can shut down gracefully without being hindered by logging operations.
-                    try { _channel?.Writer.TryComplete(); } catch { }
-                    try { _consumerTask?.Wait(5000); _consumerTask?.Dispose(); } catch { }
-                    try { _retentionTask?.Wait(5000); _retentionTask?.Dispose(); } catch { }
-                    try { _conn?.Close(); _conn?.Dispose(); } catch { }
+                    try { _channel?.Writer.TryComplete(); }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine("QueryLogsDuckDB.App: Error while completing log channel during Dispose: " + ex);
+                    }
+                    try { _consumerTask?.Wait(5000); _consumerTask?.Dispose(); }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine("QueryLogsDuckDB.App: Error while waiting for consumer task during Dispose: " + ex);
+                    }
+                    try { _retentionTask?.Wait(5000); _retentionTask?.Dispose(); }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine("QueryLogsDuckDB.App: Error while waiting for retention task during Dispose: " + ex);
+                    }
+                    try { _conn?.Close(); _conn?.Dispose(); }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine("QueryLogsDuckDB.App: Error while closing/disposing DuckDB connection during Dispose: " + ex);
+                    }
                 }
 
                 _disposed = true;
