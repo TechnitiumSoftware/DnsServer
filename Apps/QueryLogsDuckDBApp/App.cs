@@ -23,6 +23,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -83,10 +84,10 @@ namespace QueryLogsDuckDB
                 // It makes the flush to disk more frequent, but ensures data integrity in case of crashes.
                 // Each batch flush is atomic.
                 using DuckDBAppender appender = _conn.CreateAppender("dns_logs");
-                foreach (var log in logs
+                foreach (LogEntry log in logs
                     .Where(log => log.Request is not null && log.Response is not null))
                 {
-                    var question =
+                    DnsQuestionRecord? question =
                         log.Request.Question.Count > 0
                             ? log.Request.Question[0]
                             : null;
@@ -108,31 +109,22 @@ namespace QueryLogsDuckDB
                         rtt = log.Response.Metadata.RoundTripTime;
                     }
 
-                    //Answer (Aligned with SQLite)
-                    string? answer = null;
-
-                    if (log.Response.Answer.Count == 0)
+                    //Answer
+                    StringBuilder answerBuilder = new StringBuilder();
+                    bool first = true;
+                    foreach (DnsResourceRecord? record in log.Response.Answer)
                     {
-                        answer = null;
+                        if (!first)
+                            answerBuilder.Append(", ");
+                        answerBuilder.Append(record.Type);
+                        answerBuilder.Append(' ');
+                        answerBuilder.Append(record.RDATA);
+                        first = false;
                     }
-                    else if (log.Response.Answer.Count > 2 &&
-                             log.Response.IsZoneTransfer)
-                    {
-                        answer = "[ZONE TRANSFER]";
-                    }
-                    else
-                    {
-                        foreach (var record in log.Response.Answer)
-                        {
-                            if (answer is null)
-                                answer = record.Type + " " + record.RDATA;
-                            else
-                                answer += ", " + record.Type + " " + record.RDATA;
-                        }
-                    }
+                    string? answer = answerBuilder.ToString();
 
                     //Insert Row
-                    var row = appender.CreateRow();
+                    IDuckDBAppenderRow row = appender.CreateRow();
 
                     row.AppendValue(_dnsServer.ServerDomain);
                     row.AppendValue(log.Timestamp);
@@ -202,12 +194,12 @@ CREATE TABLE IF NOT EXISTS dns_logs (
 
         private async Task ProcessLogsAsync()
         {
-            var batch = new List<LogEntry>(MAX_BATCH_SIZE);
+            List<LogEntry> batch = new List<LogEntry>(MAX_BATCH_SIZE);
 
             while (await _channel.Reader.WaitToReadAsync())
             {
                 while (batch.Count < MAX_BATCH_SIZE &&
-                       _channel.Reader.TryRead(out var log))
+                       _channel.Reader.TryRead(out LogEntry log))
                 {
                     batch.Add(log);
                 }
@@ -461,7 +453,7 @@ OFFSET $offset";
                Read
                --------------------------------- */
 
-            using var reader =
+            using System.Data.Common.DbDataReader reader =
                 await cmd.ExecuteReaderAsync();
 
             while (await reader.ReadAsync())
