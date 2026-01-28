@@ -21,10 +21,12 @@ using DnsServerCore.ApplicationCommon;
 using DuckDB.NET.Data;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
@@ -47,6 +49,7 @@ namespace QueryLogsDuckDB
 
         [ThreadStatic]
         private static StringBuilder? _sb;
+        Config _config;
 
         private Channel<LogEntry>? _channel;
         private DuckDBConnection? _conn;
@@ -253,27 +256,22 @@ CREATE TABLE IF NOT EXISTS dns_logs (
         {
             _dnsServer = dnsServer;
 
-            using JsonDocument json = JsonDocument.Parse(config);
-            JsonElement cfg = json.RootElement;
+            JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            _config = JsonSerializer.Deserialize<Config>(config, options);
+            Validator.ValidateObject(_config, new ValidationContext(_config), validateAllProperties: true);
 
-            _enableLogging = cfg.GetPropertyValue("enableLogging", true);
-
-            string dbPath = cfg.GetPropertyValue("dbPath", "querylogs.db");
-
-            _maxQueueSize = cfg.GetPropertyValue("maxQueueSize", 200_000);
-
-            if (!System.IO.Path.IsPathRooted(dbPath))
-                dbPath = System.IO.Path.Combine(dnsServer.ApplicationFolder, dbPath);
+            if (!System.IO.Path.IsPathRooted(_config.DbPath))
+                _config.DbPath = System.IO.Path.Combine(dnsServer.ApplicationFolder, _config.DbPath);
 
             _channel = Channel.CreateBounded<LogEntry>(
-                 new BoundedChannelOptions(_maxQueueSize)
+                 new BoundedChannelOptions(_config.MaxQueueSize)
                  {
                      SingleReader = true,
                      SingleWriter = true,
                      FullMode = BoundedChannelFullMode.DropWrite
                  });
 
-            _conn = new DuckDBConnection($"Data Source={dbPath}");
+            _conn = new DuckDBConnection($"Data Source={_config.DbPath}");
             await _conn.OpenAsync();
             await CreateSchemaAsync();
 
@@ -287,7 +285,7 @@ CREATE TABLE IF NOT EXISTS dns_logs (
             DnsTransportProtocol protocol,
             DnsDatagram response)
         {
-            if (_enableLogging)
+            if (_config.EnableLogging)
                 _channel!.Writer.TryWrite(
                     new LogEntry(timestamp, request, remoteEP, protocol, response));
 
@@ -586,6 +584,18 @@ OFFSET $offset";
             }
 
             #endregion constructor
+        }
+
+        private class Config
+        {
+            [JsonPropertyName("enableLogging")]
+            public bool EnableLogging { get; set; } = true;
+
+            [JsonPropertyName("dbPath")]
+            public string DbPath { get; set; } = "querylogs.db";
+
+            [JsonPropertyName("maxQueueSize")]
+            public int MaxQueueSize { get; set; } = 200_000;
         }
     }
 }
