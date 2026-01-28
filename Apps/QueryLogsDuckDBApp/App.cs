@@ -80,22 +80,52 @@ namespace QueryLogsDuckDB
                     try { _channel?.Writer.TryComplete(); }
                     catch (Exception ex)
                     {
-                        Console.Error.WriteLine("QueryLogsDuckDB.App: Error while completing log channel during Dispose: " + ex);
+                        _dnsServer?.WriteLog("QueryLogsDuckDB.App: Error while completing log channel during Dispose: " + ex);
                     }
-                    try { _consumerTask?.Wait(5000); _consumerTask?.Dispose(); }
+                    try
+                    {
+                        if (_consumerTask != null)
+                        {
+                            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(5000));
+                            try
+                            {
+                                _consumerTask.WaitAsync(cts.Token).GetAwaiter().GetResult();
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                // Ignore timeout/cancellation during dispose to avoid blocking shutdown indefinitely.
+                            }
+                            _consumerTask.Dispose();
+                        }
+                    }
                     catch (Exception ex)
                     {
-                        Console.Error.WriteLine("QueryLogsDuckDB.App: Error while waiting for consumer task during Dispose: " + ex);
+                        _dnsServer?.WriteLog("QueryLogsDuckDB.App: Error while waiting for consumer task during Dispose: " + ex);
                     }
-                    try { _retentionTask?.Wait(5000); _retentionTask?.Dispose(); }
+                    try
+                    {
+                        if (_retentionTask != null)
+                        {
+                            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(5000));
+                            try
+                            {
+                                _retentionTask.WaitAsync(cts.Token).GetAwaiter().GetResult();
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                // Ignore timeout/cancellation during dispose to avoid blocking shutdown indefinitely.
+                            }
+                            _retentionTask.Dispose();
+                        }
+                    }
                     catch (Exception ex)
                     {
-                        Console.Error.WriteLine("QueryLogsDuckDB.App: Error while waiting for retention task during Dispose: " + ex);
+                        _dnsServer?.WriteLog("QueryLogsDuckDB.App: Error while waiting for retention task during Dispose: " + ex);
                     }
                     try { _conn?.Close(); _conn?.Dispose(); }
                     catch (Exception ex)
                     {
-                        Console.Error.WriteLine("QueryLogsDuckDB.App: Error while closing/disposing DuckDB connection during Dispose: " + ex);
+                        _dnsServer?.WriteLog("QueryLogsDuckDB.App: Error while closing/disposing DuckDB connection during Dispose: " + ex);
                     }
                 }
 
