@@ -252,21 +252,20 @@ CREATE TABLE IF NOT EXISTS dns_logs (
 
         private async Task RetentionLoopAsync()
         {
-            // Initial delay
             await Task.Delay(TimeSpan.FromMinutes(1));
 
             while (!_disposed)
             {
                 try
                 {
+                    await Task.Delay(TimeSpan.FromMinutes(15));
+                    if (_disposed) break;
                     await RunRetentionAsync();
                 }
                 catch (Exception ex)
                 {
                     _dnsServer?.WriteLog(ex);
                 }
-
-                await Task.Delay(TimeSpan.FromMinutes(15));
             }
         }
 
