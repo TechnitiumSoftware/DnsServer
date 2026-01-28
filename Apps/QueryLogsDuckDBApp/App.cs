@@ -330,6 +330,7 @@ WHERE timestamp < (SELECT timestamp FROM cutoff);
                     cmd.Parameters.Clear();
                     cmd.CommandText = "CHECKPOINT;";
                     await cmd.ExecuteNonQueryAsync();
+                    _dnsServer?.WriteLog($"DuckDB retention removed {deleted} records.");
                 }
             }
             finally
