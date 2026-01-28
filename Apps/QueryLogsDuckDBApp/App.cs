@@ -227,7 +227,7 @@ CREATE TABLE IF NOT EXISTS dns_logs (
 
             string dbPath = cfg.GetPropertyValue("dbPath", "querylogs.db");
 
-            _maxQueueSize = cfg.GetPropertyValue("maxQueueSize", 20000);
+            _maxQueueSize = cfg.GetPropertyValue("maxQueueSize", 200_000);
 
             if (!System.IO.Path.IsPathRooted(dbPath))
                 dbPath = System.IO.Path.Combine(dnsServer.ApplicationFolder, dbPath);
