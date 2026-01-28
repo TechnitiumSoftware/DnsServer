@@ -76,8 +76,12 @@ namespace QueryLogsDuckDB
         {
             try
             {
-                using var appender = _conn.CreateAppender("dns_logs");
-
+                // We create a new appender for each batch to avoid issues with concurrent usage
+                // By default, the appender performs commits every 204,800 rows.
+                // Since we are using smaller batches, we are forcing appender to close after each batch.
+                // It makes the flush to disk more frequent, but ensures data integrity in case of crashes.
+                // Each batch flush is atomic.
+                using DuckDBAppender appender = _conn.CreateAppender("dns_logs");
                 foreach (var log in logs)
                 {
                     if (log.Request is null || log.Response is null)
