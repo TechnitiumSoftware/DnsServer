@@ -304,23 +304,35 @@ CREATE TABLE IF NOT EXISTS dns_logs (
 
                 if (_config.MaxLogRecords > 0)
                 {
-                    cmd.CommandText = @"
+                    // Count first to avoid running a DELETE when there is nothing to prune.
+                    cmd.Parameters.Clear();
+                    cmd.CommandText = "SELECT count() FROM dns_logs;";
+                    long totalRows = Convert.ToInt64(await cmd.ExecuteScalarAsync());
+                    if (totalRows > _config.MaxLogRecords)
+                    {
+                        // Keep newest N rows (by timestamp). The cutoff is the Nth newest row.
+                        // NOTE: Timestamp collisions can still cause >N rows to be retained; strict N
+                        // requires a stable tiebreaker column (handled in a separate PR if needed).
+                        cmd.Parameters.Clear();
+
+
+                        cmd.CommandText = @"
 WITH cutoff AS (
     SELECT timestamp
     FROM dns_logs
     ORDER BY timestamp DESC
-    OFFSET $limit
+    OFFSET ($limit - 1)
     LIMIT 1
 )
 DELETE FROM dns_logs
 WHERE timestamp < (SELECT timestamp FROM cutoff);
 ";
+                        cmd.Parameters.Clear();
+                        cmd.Parameters.Add(
+                            new DuckDBParameter("limit", _config.MaxLogRecords));
 
-                    cmd.Parameters.Clear();
-                    cmd.Parameters.Add(
-                        new DuckDBParameter("limit", _config.MaxLogRecords));
-
-                    deleted += await cmd.ExecuteNonQueryAsync();
+                        deleted += await cmd.ExecuteNonQueryAsync();
+                    }
                 }
 
                 /* ---------------------------------
