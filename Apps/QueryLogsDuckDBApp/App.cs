@@ -281,13 +281,16 @@ CREATE TABLE IF NOT EXISTS dns_logs (
             if (_config.MaxLogRecords > 0)
             {
                 cmd.CommandText = @"
-DELETE FROM dns_logs
-WHERE timestamp NOT IN (
+WITH cutoff AS (
     SELECT timestamp
     FROM dns_logs
     ORDER BY timestamp DESC
-    LIMIT $limit
-);";
+    OFFSET $limit
+    LIMIT 1
+)
+DELETE FROM dns_logs
+WHERE timestamp < (SELECT timestamp FROM cutoff);
+";
 
                 cmd.Parameters.Clear();
                 cmd.Parameters.Add(
