@@ -40,16 +40,16 @@ namespace QueryLogsDuckDB
         [ThreadStatic]
         private static StringBuilder? _sb;
 
-        private const int DEFAULT_ANSWER_SIZE = 256;
-        private const int MAX_ANSWER_SIZE = 4000;
-        private const int MAX_BATCH_SIZE = 1000;
+        private const int DEFAULT_ANSWER_SIZE = 256; // Initial capacity for answer StringBuilder
+        private const int MAX_ANSWER_SIZE = 4000; // To prevent excessive memory usage, answers larger than this will be truncated. Used the value of MySQL app.
+        private const int MAX_BATCH_SIZE = 1000; // Maximum number of log entries to process in a single batch
         private Channel<LogEntry> _channel;
         private DuckDBConnection _conn;
         private Task _consumerTask;
         private bool _disposed;
         private IDnsServer _dnsServer;
         private bool _enableLogging;
-        private int _maxQueueSize;
+        private int _maxQueueSize; // Maximum number of log entries in the queue, default 200,000
         #endregion variables
 
         #region IDisposable
@@ -181,6 +181,9 @@ namespace QueryLogsDuckDB
             catch (Exception ex)
             {
                 _dnsServer?.WriteLog(ex);
+                // No need for a wait as this is running synchronously in the background,
+                // we just log and continue.
+                // No risk of concurrency issues and waiting here would block the logging thread.
             }
         }
 
