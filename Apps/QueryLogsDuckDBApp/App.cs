@@ -424,10 +424,18 @@ WHERE timestamp < (SELECT timestamp FROM cutoff);
             await CreateSchemaAsync();
 
             _consumerTask = Task.Run(ProcessLogsAsync).ContinueWith(
-                t => { var _ = t.Exception; },
+               t =>
+               {
+                   if (t.Exception != null)
+                       _dnsServer?.WriteLog(t.Exception);
+               },
                 TaskContinuationOptions.OnlyOnFaulted);
             _retentionTask = Task.Run(RetentionLoopAsync).ContinueWith(
-                t => { var _ = t.Exception; },
+                t =>
+                {
+                    if (t.Exception != null)
+                        _dnsServer?.WriteLog(t.Exception);
+                },
                 TaskContinuationOptions.OnlyOnFaulted);
         }
 
