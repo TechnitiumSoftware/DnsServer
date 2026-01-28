@@ -21,6 +21,7 @@ using DnsServerCore.ApplicationCommon;
 using DuckDB.NET.Data;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Text.Json;
 using System.Threading.Channels;
@@ -82,11 +83,9 @@ namespace QueryLogsDuckDB
                 // It makes the flush to disk more frequent, but ensures data integrity in case of crashes.
                 // Each batch flush is atomic.
                 using DuckDBAppender appender = _conn.CreateAppender("dns_logs");
-                foreach (var log in logs)
+                foreach (var log in logs
+                    .Where(log => log.Request is not null && log.Response is not null))
                 {
-                    if (log.Request is null || log.Response is null)
-                        continue;
-
                     var question =
                         log.Request.Question.Count > 0
                             ? log.Request.Question[0]
