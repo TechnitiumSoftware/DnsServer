@@ -387,7 +387,6 @@ WITH cutoff AS (
 DELETE FROM dns_logs
 WHERE timestamp < (SELECT timestamp FROM cutoff);
 ";
-                        cmd.Parameters.Clear();
                         cmd.Parameters.Add(
                             new DuckDBParameter("limit", _config.MaxLogRecords));
 
