@@ -53,6 +53,7 @@ namespace QueryLogsDuckDB
         Config? _config;
         private DuckDBConnection? _conn;
         private Task? _consumerTask;
+        private Task? _retentionTask;
         private bool _disposed;
         private IDnsServer? _dnsServer;
         private readonly SemaphoreSlim _dbGate = new(1, 1);
@@ -78,7 +79,8 @@ namespace QueryLogsDuckDB
                     // We leave catch blocks empty explicitly to ignore any exceptions during disposal.
                     // This ensures that the application can shut down gracefully without being hindered by logging operations.
                     try { _channel?.Writer.TryComplete(); } catch { }
-                    try { _consumerTask?.Wait(5000); } catch { }
+                    try { _consumerTask?.Wait(5000); _consumerTask?.Dispose(); } catch { }
+                    try { _retentionTask?.Wait(5000); _retentionTask?.Dispose(); } catch { }
                     try { _conn?.Close(); _conn?.Dispose(); } catch { }
                 }
 
@@ -366,8 +368,12 @@ WHERE timestamp < (SELECT timestamp FROM cutoff);
             await _conn.OpenAsync();
             await CreateSchemaAsync();
 
-            _consumerTask = Task.Run(ProcessLogsAsync);
-            _ = Task.Run(RetentionLoopAsync);
+            _consumerTask = Task.Run(ProcessLogsAsync).ContinueWith(
+                t => { var _ = t.Exception; },
+                TaskContinuationOptions.OnlyOnFaulted);
+            _retentionTask = Task.Run(RetentionLoopAsync).ContinueWith(
+                t => { var _ = t.Exception; },
+                TaskContinuationOptions.OnlyOnFaulted);
         }
 
         public Task InsertLogAsync(
@@ -378,8 +384,8 @@ WHERE timestamp < (SELECT timestamp FROM cutoff);
             DnsDatagram response)
         {
             if (_disposed) return Task.CompletedTask;
-            if(_config is null) return Task.CompletedTask;
-            if(_conn is null) return Task.CompletedTask;
+            if (_config is null) return Task.CompletedTask;
+            if (_conn is null) return Task.CompletedTask;
 
             if (_config.EnableLogging)
                 _channel!.Writer.TryWrite(
@@ -689,7 +695,7 @@ OFFSET $offset";
 
             [JsonPropertyName("enableLogging")]
             public bool EnableLogging { get; set; } = true;
-            
+
             [JsonPropertyName("maxLogDays")]
             [Range(1, 365)]
             public int MaxLogDays { get; set; } = 30;
