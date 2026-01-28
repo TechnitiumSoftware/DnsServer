@@ -479,7 +479,7 @@ WHERE timestamp < (SELECT timestamp FROM cutoff);
                 {
                     qname = qname.Replace('*', '%');
                 }
-                filters.Add("qname = $qname");
+                filters.Add("qname LIKE $qname");
                 cmd.Parameters.Add(
                     new DuckDBParameter("qname", qname));
             }
