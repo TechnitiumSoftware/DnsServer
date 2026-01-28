@@ -358,14 +358,14 @@ CREATE TABLE IF NOT EXISTS dns_logs (
             {
                 filters.Add("qtype = $qtype");
                 cmd.Parameters.Add(
-                    new DuckDBParameter("qtype", (short)qtype.Value));
+                    new DuckDBParameter("qtype", (ushort)qtype.Value));
             }
 
             if (qclass is not null)
             {
                 filters.Add("qclass = $qclass");
                 cmd.Parameters.Add(
-                    new DuckDBParameter("qclass", (short)qclass.Value));
+                    new DuckDBParameter("qclass", (ushort)qclass.Value));
             }
 
             string whereSql =
