@@ -383,10 +383,11 @@ WHERE timestamp < (SELECT timestamp FROM cutoff);
             await _conn.OpenAsync();
             await CreateSchemaAsync();
 
-            _consumerTask = Task.Run(ProcessLogsAsync).ContinueWith(
-                t => { var _ = t.Exception; },
+            _consumerTask = Task.Run(ProcessLogsAsync);
+            await _consumerTask.ContinueWith(t => { var _ = t.Exception; },
                 TaskContinuationOptions.OnlyOnFaulted);
-            _retentionTask = Task.Run(RetentionLoopAsync).ContinueWith(
+            _retentionTask = Task.Run(RetentionLoopAsync);
+            await _retentionTask.ContinueWith(
                 t => { var _ = t.Exception; },
                 TaskContinuationOptions.OnlyOnFaulted);
         }
