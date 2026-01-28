@@ -127,6 +127,8 @@ namespace QueryLogsDuckDB
                     {
                         _dnsServer?.WriteLog("QueryLogsDuckDB.App: Error while closing/disposing DuckDB connection during Dispose: " + ex);
                     }
+
+                    _dbGate.Dispose();
                 }
 
                 _disposed = true;
