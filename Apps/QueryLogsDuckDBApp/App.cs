@@ -73,18 +73,6 @@ namespace QueryLogsDuckDB
 
         #region private
 
-        private static string? FormatAnswer(DnsDatagram resp)
-        {
-            if (resp.Answer.Count == 0)
-                return null;
-
-            if (resp.Answer.Count > 2 && resp.IsZoneTransfer)
-                return "[ZONE TRANSFER]";
-
-            return string.Join(", ",
-                resp.Answer.Select(r => $"{r.Type} {r.RDATA}"));
-        }
-
         private void BulkInsert(List<LogEntry> logs)
         {
             try
@@ -101,11 +89,47 @@ namespace QueryLogsDuckDB
                             ? log.Request.Question[0]
                             : null;
 
-                    double? rtt =
-                        (log.Response.Tag is null && log.Response.Metadata is not null)
-                        ? log.Response.Metadata.RoundTripTime
-                        : null;
+                    //Response Type(Aligned)
+                    DnsServerResponseType responseType;
 
+                    if (log.Response.Tag is null)
+                        responseType = DnsServerResponseType.Recursive;
+                    else
+                        responseType = (DnsServerResponseType)log.Response.Tag;
+
+                    //RTT
+                    double? rtt = null;
+
+                    if (responseType == DnsServerResponseType.Recursive &&
+                        log.Response.Metadata is not null)
+                    {
+                        rtt = log.Response.Metadata.RoundTripTime;
+                    }
+
+                    //Answer (Aligned with SQLite)
+                    string? answer = null;
+
+                    if (log.Response.Answer.Count == 0)
+                    {
+                        answer = null;
+                    }
+                    else if (log.Response.Answer.Count > 2 &&
+                             log.Response.IsZoneTransfer)
+                    {
+                        answer = "[ZONE TRANSFER]";
+                    }
+                    else
+                    {
+                        foreach (var record in log.Response.Answer)
+                        {
+                            if (answer is null)
+                                answer = record.Type + " " + record.RDATA;
+                            else
+                                answer += ", " + record.Type + " " + record.RDATA;
+                        }
+                    }
+
+                    //Insert Row
                     var row = appender.CreateRow();
 
                     row.AppendValue(_dnsServer.ServerDomain);
@@ -113,10 +137,7 @@ namespace QueryLogsDuckDB
                     row.AppendValue(log.RemoteEP.Address.ToString());
                     row.AppendValue((byte)log.Protocol);
 
-                    if (log.Response.Tag is null)
-                        row.AppendNullValue();
-                    else
-                        row.AppendValue((byte)log.Response.Tag);
+                    row.AppendValue((byte)responseType);
 
                     if (rtt is null)
                         row.AppendNullValue();
@@ -138,7 +159,6 @@ namespace QueryLogsDuckDB
                         row.AppendValue((ushort)question.Class);
                     }
 
-                    var answer = FormatAnswer(log.Response);
                     if (answer is null)
                         row.AppendNullValue();
                     else
@@ -382,10 +402,7 @@ OFFSET $offset";
                 IPAddress ip = IPAddress.Parse(reader.GetString(2));
                 DnsTransportProtocol proto = (DnsTransportProtocol)reader.GetByte(3);
 
-                DnsServerResponseType respType =
-                    reader.IsDBNull(4)
-                        ? default
-                        : (DnsServerResponseType)reader.GetByte(4);
+                DnsServerResponseType respType = (DnsServerResponseType)reader.GetByte(4);
 
                 double? rtt =
                     reader.IsDBNull(5)
