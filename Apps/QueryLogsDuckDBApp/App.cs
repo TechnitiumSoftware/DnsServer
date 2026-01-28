@@ -27,9 +27,9 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -55,6 +55,8 @@ namespace QueryLogsDuckDB
         private Task? _consumerTask;
         private bool _disposed;
         private IDnsServer? _dnsServer;
+        private readonly SemaphoreSlim _dbGate = new(1, 1);
+
         #endregion variables
 
         #region IDisposable
@@ -98,8 +100,9 @@ namespace QueryLogsDuckDB
             return sb;
         }
 
-        private void BulkInsert(List<LogEntry> logs)
+        private async Task BulkInsertAsync(List<LogEntry> logs)
         {
+            await _dbGate.WaitAsync();
             try
             {
                 // We create a new appender for each batch to avoid issues with concurrent usage
@@ -193,6 +196,10 @@ namespace QueryLogsDuckDB
                 // we just log and continue.
                 // No risk of concurrency issues and waiting here would block the logging thread.
             }
+            finally
+            {
+                _dbGate.Release();
+            }
         }
 
         private async Task CreateSchemaAsync()
@@ -222,11 +229,9 @@ CREATE TABLE IF NOT EXISTS dns_logs (
 
         private async Task ProcessLogsAsync()
         {
-            if (_disposed) return;
-
             List<LogEntry> batch = new List<LogEntry>(MAX_BATCH_SIZE);
 
-            while (await _channel!.Reader.WaitToReadAsync())
+            while (!_disposed && await _channel!.Reader.WaitToReadAsync())
             {
                 while (batch.Count < MAX_BATCH_SIZE &&
                        _channel.Reader.TryRead(out LogEntry log))
@@ -236,13 +241,13 @@ CREATE TABLE IF NOT EXISTS dns_logs (
 
                 if (batch.Count > 0)
                 {
-                    BulkInsert(batch);
+                    await BulkInsertAsync(batch);
                     batch.Clear();
                 }
             }
 
             if (batch.Count > 0)
-                BulkInsert(batch);
+                await BulkInsertAsync(batch);
         }
 
         private async Task RetentionLoopAsync()
@@ -270,17 +275,20 @@ CREATE TABLE IF NOT EXISTS dns_logs (
             if (_conn is null || _config is null)
                 return;
 
-            using DuckDBCommand cmd = _conn.CreateCommand();
-
-            long deleted = 0;
-
-            /* ---------------------------------
-               Max records
-               --------------------------------- */
-
-            if (_config.MaxLogRecords > 0)
+            await _dbGate.WaitAsync();
+            try
             {
-                cmd.CommandText = @"
+                using DuckDBCommand cmd = _conn.CreateCommand();
+
+                long deleted = 0;
+
+                /* ---------------------------------
+                   Max records
+                   --------------------------------- */
+
+                if (_config.MaxLogRecords > 0)
+                {
+                    cmd.CommandText = @"
 WITH cutoff AS (
     SELECT timestamp
     FROM dns_logs
@@ -292,37 +300,42 @@ DELETE FROM dns_logs
 WHERE timestamp < (SELECT timestamp FROM cutoff);
 ";
 
-                cmd.Parameters.Clear();
-                cmd.Parameters.Add(
-                    new DuckDBParameter("limit", _config.MaxLogRecords));
+                    cmd.Parameters.Clear();
+                    cmd.Parameters.Add(
+                        new DuckDBParameter("limit", _config.MaxLogRecords));
 
-                deleted += await cmd.ExecuteNonQueryAsync();
+                    deleted += await cmd.ExecuteNonQueryAsync();
+                }
+
+                /* ---------------------------------
+                   Max days
+                   --------------------------------- */
+
+                if (_config.MaxLogDays > 0)
+                {
+                    DateTime cutoff =
+                        DateTime.UtcNow.AddDays(-_config.MaxLogDays);
+
+                    cmd.CommandText =
+                        "DELETE FROM dns_logs WHERE timestamp < $cutoff;";
+
+                    cmd.Parameters.Clear();
+                    cmd.Parameters.Add(
+                        new DuckDBParameter("cutoff", cutoff));
+
+                    deleted += await cmd.ExecuteNonQueryAsync();
+                }
+
+                if (deleted > 0)
+                {
+                    cmd.Parameters.Clear();
+                    cmd.CommandText = "CHECKPOINT;";
+                    await cmd.ExecuteNonQueryAsync();
+                }
             }
-
-            /* ---------------------------------
-               Max days
-               --------------------------------- */
-
-            if (_config.MaxLogDays > 0)
+            finally
             {
-                DateTime cutoff =
-                    DateTime.UtcNow.AddDays(-_config.MaxLogDays);
-
-                cmd.CommandText =
-                    "DELETE FROM dns_logs WHERE timestamp < $cutoff;";
-
-                cmd.Parameters.Clear();
-                cmd.Parameters.Add(
-                    new DuckDBParameter("cutoff", cutoff));
-
-                deleted += await cmd.ExecuteNonQueryAsync();
-            }
-
-            if (deleted > 0)
-            {
-                cmd.Parameters.Clear();
-                cmd.CommandText = "CHECKPOINT;";
-                await cmd.ExecuteNonQueryAsync();
+                _dbGate.Release();
             }
         }
         #endregion private
@@ -364,7 +377,11 @@ WHERE timestamp < (SELECT timestamp FROM cutoff);
             DnsTransportProtocol protocol,
             DnsDatagram response)
         {
-            if (_config!.EnableLogging)
+            if (_disposed) return Task.CompletedTask;
+            if(_config is null) return Task.CompletedTask;
+            if(_conn is null) return Task.CompletedTask;
+
+            if (_config.EnableLogging)
                 _channel!.Writer.TryWrite(
                     new LogEntry(timestamp, request, remoteEP, protocol, response));
 
