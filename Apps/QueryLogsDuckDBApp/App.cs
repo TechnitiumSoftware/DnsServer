@@ -37,6 +37,11 @@ namespace QueryLogsDuckDB
     {
         #region variables
 
+        [ThreadStatic]
+        private static StringBuilder? _sb;
+
+        private const int DEFAULT_ANSWER_SIZE = 256;
+        private const int MAX_ANSWER_SIZE = 4000;
         private const int MAX_BATCH_SIZE = 1000;
         private Channel<LogEntry> _channel;
         private DuckDBConnection _conn;
@@ -74,6 +79,17 @@ namespace QueryLogsDuckDB
 
         #region private
 
+        private static StringBuilder GetStringBuilder()
+        {
+            StringBuilder? sb = _sb;
+
+            if (sb is null)
+                return _sb = new StringBuilder(DEFAULT_ANSWER_SIZE, MAX_ANSWER_SIZE);
+
+            sb.Clear();
+            return sb;
+        }
+
         private void BulkInsert(List<LogEntry> logs)
         {
             try
@@ -107,18 +123,22 @@ namespace QueryLogsDuckDB
                     }
 
                     //Answer
-                    StringBuilder answerBuilder = new StringBuilder();
-                    bool first = true;
-                    foreach (DnsResourceRecord? record in log.Response.Answer)
+                    string? answer = string.Empty;
+                    if (log.Response.Answer.Count != 0)
                     {
-                        if (!first)
-                            answerBuilder.Append(", ");
-                        answerBuilder.Append(record.Type);
-                        answerBuilder.Append(' ');
-                        answerBuilder.Append(record.RDATA);
-                        first = false;
+                        StringBuilder answerBuilder = GetStringBuilder();
+                        bool first = true;
+                        foreach (DnsResourceRecord? record in log.Response.Answer)
+                        {
+                            if (!first)
+                                answerBuilder.Append(", ");
+                            answerBuilder.Append(record.Type);
+                            answerBuilder.Append(' ');
+                            answerBuilder.Append(record.RDATA);
+                            first = false;
+                        }
+                        answer = answerBuilder.ToString();
                     }
-                    string? answer = answerBuilder.ToString();
 
                     //Insert Row
                     IDuckDBAppenderRow row = appender.CreateRow();
