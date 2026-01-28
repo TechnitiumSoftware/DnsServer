@@ -222,6 +222,8 @@ CREATE TABLE IF NOT EXISTS dns_logs (
 
         private async Task ProcessLogsAsync()
         {
+            if (_disposed) return;
+
             List<LogEntry> batch = new List<LogEntry>(MAX_BATCH_SIZE);
 
             while (await _channel!.Reader.WaitToReadAsync())
