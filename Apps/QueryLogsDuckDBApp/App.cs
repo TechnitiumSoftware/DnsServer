@@ -93,12 +93,9 @@ namespace QueryLogsDuckDB
                             : null;
 
                     //Response Type(Aligned)
-                    DnsServerResponseType responseType;
-
-                    if (log.Response.Tag is null)
-                        responseType = DnsServerResponseType.Recursive;
-                    else
-                        responseType = (DnsServerResponseType)log.Response.Tag;
+                    DnsServerResponseType responseType = log.Response.Tag is null
+                        ? DnsServerResponseType.Recursive
+                        : (DnsServerResponseType)log.Response.Tag;
 
                     //RTT
                     double? rtt = null;
