@@ -36,18 +36,23 @@ namespace QueryLogsDuckDB
     public sealed class App : IDnsApplication, IDnsQueryLogger, IDnsQueryLogs
     {
         #region variables
+        // Initial capacity for answer StringBuilder
+        private const int DEFAULT_ANSWER_SIZE = 256;
+
+        // To prevent excessive memory usage, answers larger than this will be truncated. Used the value of MySQL app.
+        private const int MAX_ANSWER_SIZE = 4000;
+
+        // Maximum number of log entries to process in a single batch
+        private const int MAX_BATCH_SIZE = 1000;
 
         [ThreadStatic]
         private static StringBuilder? _sb;
 
-        private const int DEFAULT_ANSWER_SIZE = 256; // Initial capacity for answer StringBuilder
-        private const int MAX_ANSWER_SIZE = 4000; // To prevent excessive memory usage, answers larger than this will be truncated. Used the value of MySQL app.
-        private const int MAX_BATCH_SIZE = 1000; // Maximum number of log entries to process in a single batch
-        private Channel<LogEntry> _channel;
-        private DuckDBConnection _conn;
-        private Task _consumerTask;
+        private Channel<LogEntry>? _channel;
+        private DuckDBConnection? _conn;
+        private Task? _consumerTask;
         private bool _disposed;
-        private IDnsServer _dnsServer;
+        private IDnsServer? _dnsServer;
         private bool _enableLogging;
         private int _maxQueueSize; // Maximum number of log entries in the queue, default 200,000
         #endregion variables
@@ -102,7 +107,7 @@ namespace QueryLogsDuckDB
                 // Since we are using smaller batches, we are forcing appender to close after each batch.
                 // It makes the flush to disk more frequent, but ensures data integrity in case of crashes.
                 // Each batch flush is atomic.
-                using DuckDBAppender appender = _conn.CreateAppender("dns_logs");
+                using DuckDBAppender appender = _conn!.CreateAppender("dns_logs");
                 foreach (LogEntry log in logs
                     .Where(log => log.Request is not null && log.Response is not null))
                 {
@@ -146,7 +151,7 @@ namespace QueryLogsDuckDB
                     //Insert Row
                     IDuckDBAppenderRow row = appender.CreateRow();
 
-                    row.AppendValue(_dnsServer.ServerDomain);
+                    row.AppendValue(_dnsServer!.ServerDomain);
                     row.AppendValue(log.Timestamp);
                     row.AppendValue(log.RemoteEP.Address.ToString());
                     row.AppendValue((byte)log.Protocol);
@@ -192,7 +197,7 @@ namespace QueryLogsDuckDB
 
         private async Task CreateSchemaAsync()
         {
-            using DuckDBCommand cmd = _conn.CreateCommand();
+            using DuckDBCommand cmd = _conn!.CreateCommand();
 
             cmd.CommandText = @"
 CREATE TABLE IF NOT EXISTS dns_logs (
@@ -219,7 +224,7 @@ CREATE TABLE IF NOT EXISTS dns_logs (
         {
             List<LogEntry> batch = new List<LogEntry>(MAX_BATCH_SIZE);
 
-            while (await _channel.Reader.WaitToReadAsync())
+            while (await _channel!.Reader.WaitToReadAsync())
             {
                 while (batch.Count < MAX_BATCH_SIZE &&
                        _channel.Reader.TryRead(out LogEntry log))
@@ -281,7 +286,7 @@ CREATE TABLE IF NOT EXISTS dns_logs (
             DnsDatagram response)
         {
             if (_enableLogging)
-                _channel.Writer.TryWrite(
+                _channel!.Writer.TryWrite(
                     new LogEntry(timestamp, request, remoteEP, protocol, response));
 
             return Task.CompletedTask;
@@ -323,9 +328,9 @@ CREATE TABLE IF NOT EXISTS dns_logs (
                 (start, end) = (end, start);
             }
 
-            using DuckDBCommand cmd = _conn.CreateCommand();
+            using DuckDBCommand cmd = _conn!.CreateCommand();
 
-            List<string> filters = new();
+            List<string> filters = new List<string>();
 
             /* ---------------------------------
                Filters
