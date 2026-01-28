@@ -756,7 +756,7 @@ OFFSET $offset";
             public int MaxLogDays { get; set; } = 30;
 
             [JsonPropertyName("maxLogRecords")]
-            [Range(1, 5_000_000_000)]
+            [Range(1, 5_000_000)]
             public long MaxLogRecords { get; set; } = 1_000_000;
 
             [JsonPropertyName("maxQueueSize")]
