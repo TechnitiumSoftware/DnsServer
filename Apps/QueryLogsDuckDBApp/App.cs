@@ -131,7 +131,7 @@ namespace QueryLogsDuckDB
                     }
 
                     //Answer
-                    string? answer = string.Empty;
+                    string? answer = null;
                     if (log.Response.Answer.Count != 0)
                     {
                         StringBuilder answerBuilder = GetStringBuilder();
