@@ -680,72 +680,78 @@ OFFSET $offset";
             /* ---------------------------------
                Read
                --------------------------------- */
-
-            using System.Data.Common.DbDataReader reader =
-                await cmd.ExecuteReaderAsync();
-
-            while (await reader.ReadAsync())
+            await _dbGate.WaitAsync();
+            try
             {
-                DateTime ts = reader.GetDateTime(1);
+                using System.Data.Common.DbDataReader reader = await cmd.ExecuteReaderAsync();
 
-                IPAddress ip =
-                    IPAddress.Parse(reader.GetString(2));
-
-                DnsTransportProtocol proto =
-                    (DnsTransportProtocol)reader.GetByte(3);
-
-                DnsServerResponseType respType =
-                    (DnsServerResponseType)reader.GetByte(4);
-
-                double? rtt =
-                    reader.IsDBNull(5)
-                        ? null
-                        : reader.GetDouble(5);
-
-                DnsResponseCode rc =
-                    (DnsResponseCode)reader.GetByte(6);
-
-                string? qn =
-                    reader.IsDBNull(7)
-                        ? null
-                        : reader.GetString(7);
-
-                DnsQuestionRecord? question = null;
-
-                if (qn is not null &&
-                    !reader.IsDBNull(8) &&
-                    !reader.IsDBNull(9))
+                while (await reader.ReadAsync())
                 {
-                    question = new DnsQuestionRecord(
-                        qn,
-                        (DnsResourceRecordType)reader.GetFieldValue<ushort>(8),
-                        (DnsClass)reader.GetFieldValue<ushort>(9),
-                        false);
+                    DateTime ts = reader.GetDateTime(1);
+
+                    IPAddress ip =
+                        IPAddress.Parse(reader.GetString(2));
+
+                    DnsTransportProtocol proto =
+                        (DnsTransportProtocol)reader.GetByte(3);
+
+                    DnsServerResponseType respType =
+                        (DnsServerResponseType)reader.GetByte(4);
+
+                    double? rtt =
+                        reader.IsDBNull(5)
+                            ? null
+                            : reader.GetDouble(5);
+
+                    DnsResponseCode rc =
+                        (DnsResponseCode)reader.GetByte(6);
+
+                    string? qn =
+                        reader.IsDBNull(7)
+                            ? null
+                            : reader.GetString(7);
+
+                    DnsQuestionRecord? question = null;
+
+                    if (qn is not null &&
+                        !reader.IsDBNull(8) &&
+                        !reader.IsDBNull(9))
+                    {
+                        question = new DnsQuestionRecord(
+                            qn,
+                            (DnsResourceRecordType)reader.GetFieldValue<ushort>(8),
+                            (DnsClass)reader.GetFieldValue<ushort>(9),
+                            false);
+                    }
+
+                    string? ans =
+                        reader.IsDBNull(10)
+                            ? null
+                            : reader.GetString(10);
+
+                    list.Add(
+                        new DnsLogEntry(
+                            0,
+                            ts,
+                            ip,
+                            proto,
+                            respType,
+                            rtt,
+                            rc,
+                            question,
+                            ans));
                 }
 
-                string? ans =
-                    reader.IsDBNull(10)
-                        ? null
-                        : reader.GetString(10);
-
-                list.Add(
-                    new DnsLogEntry(
-                        0,
-                        ts,
-                        ip,
-                        proto,
-                        respType,
-                        rtt,
-                        rc,
-                        question,
-                        ans));
+                return new DnsLogPage(
+                    pageNumber,
+                    totalPages,
+                    totalEntries,
+                    list);
             }
-
-            return new DnsLogPage(
-                pageNumber,
-                totalPages,
-                totalEntries,
-                list);
+            finally
+            {
+                _dbGate.Release();
+            }
         }
 
         #endregion public
