@@ -49,15 +49,15 @@ namespace QueryLogsDuckDB
 
         [ThreadStatic]
         private static StringBuilder? _sb;
+        private readonly SemaphoreSlim _dbGate = new(1, 1);
+        private readonly JsonSerializerOptions _options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         private Channel<LogEntry>? _channel;
         Config? _config;
         private DuckDBConnection? _conn;
         private Task? _consumerTask;
-        private Task? _retentionTask;
         private bool _disposed;
         private IDnsServer? _dnsServer;
-        private readonly SemaphoreSlim _dbGate = new(1, 1);
-
+        private Task? _retentionTask;
         #endregion variables
 
         #region IDisposable
@@ -434,8 +434,7 @@ WHERE timestamp < (SELECT timestamp FROM cutoff);
         {
             _dnsServer = dnsServer;
 
-            JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            _config = JsonSerializer.Deserialize<Config>(config, options);
+            _config = JsonSerializer.Deserialize<Config>(config, _options);
             _config ??= new Config();
             Validator.ValidateObject(_config, new ValidationContext(_config), validateAllProperties: true);
 
