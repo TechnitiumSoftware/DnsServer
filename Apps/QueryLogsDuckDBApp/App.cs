@@ -21,7 +21,6 @@ using DnsServerCore.ApplicationCommon;
 using DuckDB.NET.Data;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Text.Json;
 using System.Threading.Channels;
@@ -284,9 +283,35 @@ CREATE TABLE IF NOT EXISTS dns_logs (
             DnsResourceRecordType? qtype,
             DnsClass? qclass)
         {
+            if (entriesPerPage <= 0)
+                throw new ArgumentOutOfRangeException(
+                    nameof(entriesPerPage),
+                    "entriesPerPage must be greater than zero.");
+
+            // Prevent pathological page sizes (DoS / memory abuse)
+            const int MaxPageSize = 10_000;
+
+            if (entriesPerPage > MaxPageSize)
+                entriesPerPage = MaxPageSize;
+
+            if (pageNumber < 1)
+                pageNumber = 1;
+
+            // Normalize inverted time ranges
+            if (start is not null &&
+                end is not null &&
+                start > end)
+            {
+                (start, end) = (end, start);
+            }
+
             using DuckDBCommand cmd = _conn.CreateCommand();
 
-            List<string> filters = new List<string>();
+            List<string> filters = new();
+
+            /* ---------------------------------
+               Filters
+               --------------------------------- */
 
             if (start is not null)
             {
@@ -330,6 +355,8 @@ CREATE TABLE IF NOT EXISTS dns_logs (
 
             if (!string.IsNullOrWhiteSpace(qname))
             {
+                qname = qname.Trim();
+
                 filters.Add("qname = $qname");
                 cmd.Parameters.Add(
                     new DuckDBParameter("qname", qname));
@@ -354,25 +381,59 @@ CREATE TABLE IF NOT EXISTS dns_logs (
                     ? " WHERE " + string.Join(" AND ", filters)
                     : string.Empty;
 
-            // Count query
-            cmd.CommandText = $"SELECT count() FROM dns_logs {whereSql}";
-            long totalEntries = Convert.ToInt64(await cmd.ExecuteScalarAsync());
+            /* ---------------------------------
+               Count
+               --------------------------------- */
+
+            cmd.CommandText =
+                $"SELECT count() FROM dns_logs {whereSql}";
+
+            long totalEntries =
+                Convert.ToInt64(await cmd.ExecuteScalarAsync());
 
             long totalPages =
-                (long)Math.Ceiling((double)totalEntries / entriesPerPage);
+                totalEntries == 0
+                    ? 1
+                    : (long)Math.Ceiling(
+                        (double)totalEntries / entriesPerPage);
 
-            pageNumber = Math.Clamp(pageNumber, 1, Math.Max(1, totalPages));
+            pageNumber =
+                Math.Clamp(pageNumber, 1, totalPages);
 
-            long offset = (pageNumber - 1) * entriesPerPage;
+            /* ---------------------------------
+               Offset (overflow-safe)
+               --------------------------------- */
 
-            //Pagination parameters
+            long offset;
+
+            try
+            {
+                checked
+                {
+                    offset =
+                        (pageNumber - 1) * entriesPerPage;
+                }
+            }
+            catch (OverflowException)
+            {
+                offset = 0;
+                pageNumber = 1;
+            }
+
+            /* ---------------------------------
+               Pagination parameters
+               --------------------------------- */
+
             cmd.Parameters.Add(
                 new DuckDBParameter("limit", entriesPerPage));
 
             cmd.Parameters.Add(
                 new DuckDBParameter("offset", offset));
 
-            // Main query
+            /* ---------------------------------
+               Main query
+               --------------------------------- */
+
             cmd.CommandText = $@"
 SELECT server,
        timestamp,
@@ -391,34 +452,46 @@ ORDER BY timestamp {(descendingOrder ? "DESC" : "ASC")}
 LIMIT $limit
 OFFSET $offset";
 
-            List<DnsLogEntry> list = new List<DnsLogEntry>();
+            List<DnsLogEntry> list = new List<DnsLogEntry>(entriesPerPage);
 
-            using System.Data.Common.DbDataReader reader = await cmd.ExecuteReaderAsync();
+            /* ---------------------------------
+               Read
+               --------------------------------- */
+
+            using var reader =
+                await cmd.ExecuteReaderAsync();
 
             while (await reader.ReadAsync())
             {
-                var server = reader.GetString(0);
                 DateTime ts = reader.GetDateTime(1);
-                IPAddress ip = IPAddress.Parse(reader.GetString(2));
-                DnsTransportProtocol proto = (DnsTransportProtocol)reader.GetByte(3);
 
-                DnsServerResponseType respType = (DnsServerResponseType)reader.GetByte(4);
+                IPAddress ip =
+                    IPAddress.Parse(reader.GetString(2));
+
+                DnsTransportProtocol proto =
+                    (DnsTransportProtocol)reader.GetByte(3);
+
+                DnsServerResponseType respType =
+                    (DnsServerResponseType)reader.GetByte(4);
 
                 double? rtt =
                     reader.IsDBNull(5)
                         ? null
                         : reader.GetDouble(5);
 
-                DnsResponseCode rc = (DnsResponseCode)reader.GetByte(6);
+                DnsResponseCode rc =
+                    (DnsResponseCode)reader.GetByte(6);
 
                 string? qn =
-                    reader.IsDBNull(7) ? null : reader.GetString(7);
+                    reader.IsDBNull(7)
+                        ? null
+                        : reader.GetString(7);
 
                 DnsQuestionRecord? question = null;
 
-                if (!reader.IsDBNull(8) &&
-                    !reader.IsDBNull(9) &&
-                    qn is not null)
+                if (qn is not null &&
+                    !reader.IsDBNull(8) &&
+                    !reader.IsDBNull(9))
                 {
                     question = new DnsQuestionRecord(
                         qn,
@@ -428,14 +501,28 @@ OFFSET $offset";
                 }
 
                 string? ans =
-                    reader.IsDBNull(10) ? null : reader.GetString(10);
+                    reader.IsDBNull(10)
+                        ? null
+                        : reader.GetString(10);
 
                 list.Add(
                     new DnsLogEntry(
-                        0, ts, ip, proto, respType, rtt, rc, question, ans));
+                        0,
+                        ts,
+                        ip,
+                        proto,
+                        respType,
+                        rtt,
+                        rc,
+                        question,
+                        ans));
             }
 
-            return new DnsLogPage(pageNumber, totalPages, totalEntries, list);
+            return new DnsLogPage(
+                pageNumber,
+                totalPages,
+                totalEntries,
+                list);
         }
 
         #endregion public
