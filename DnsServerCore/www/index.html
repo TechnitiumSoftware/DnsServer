@@ -103,9 +103,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 </div>
                             </div>
 
-                            <div class="form-group" style="margin-bottom: 0px;">
+                            <div class="form-group" style="margin-bottom: 10px;">
                                 <div class="col-sm-offset-3 col-sm-4">
-                                    <button id="btnLogin" type="submit" class="btn btn-primary" data-loading-text="Working..." onclick="login(); return false;">Login</button>
+                                    <button id="btnLogin" type="submit" class="btn btn-primary btn-block" data-loading-text="Working..." onclick="login(); return false;">Login</button>
                                 </div>
                                 <div class="col-sm-4" style="padding: 6px; text-align: right;">
                                     <a href="#" data-toggle="modal" data-target="#modalForgotPassword">Forgot Password?</a>
@@ -1428,7 +1428,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <div class="form-group">
                                                             <label class="col-sm-3 control-label">Single Sign-On (SSO)</label>
                                                             <div class="col-sm-9">
-                                                                <p class="form-control-static">Configure OpenID Connect (OIDC) settings here.<br /><br />Clear Authority and Client ID to disable SSO.<br /><br />Note! Environment variables will take precedence over these settings.</p>
+                                                                <p class="form-control-static">Configure OpenID Connect (OIDC) settings here.<br /><br />
+                                                                    Clear Authority and Client ID to disable SSO.<br /><br />
+                                                                    Note! Environment variables will take precedence over these settings.</p>
                                                             </div>
                                                         </div>
 
@@ -1454,7 +1456,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                 <div class="col-sm-6">
                                                                     <input type="password" class="form-control" id="txtSsoClientSecret" placeholder="client-secret">
                                                                 </div>
-                                                                <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The OIDC Client Secret.</div>
+                                                                <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">
+                                                                    The OIDC Client Secret.
+                                                                    <div style="margin-top: 5px; padding: 8px; background-color: #fcf8e3; border: 1px solid #faebcc; border-radius: 4px; font-size: 12px;">
+                                                                        <strong>Security Note:</strong> The client secret is stored in plain text in <code>webservice.config</code>. Ensure this file has restricted permissions (e.g., <code>chmod 600</code> on Linux). For enhanced security, use the <code>DNS_SERVER_SSO_CLIENT_SECRET</code> environment variable instead.
+                                                                    </div>
+                                                                </div>
                                                             </div>
 
                                                             <div class="form-group">
@@ -1486,8 +1493,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                 <div class="col-sm-8">
                                                                     <div class="checkbox">
                                                                         <label>
-                                                                            <input id="chkSsoAllowHttp" type="checkbox">
-                                                                            Allow HTTP Metadata
+                                                                            <input id="chkSsoAllowHttp" type="checkbox"> Allow HTTP Metadata
                                                                         </label>
                                                                     </div>
                                                                     <div style="padding-top: 5px; padding-left: 20px;">Support OIDC over HTTP (e.g. for testing or internal reverse proxies).</div>
@@ -1499,8 +1505,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                 <div class="col-sm-8">
                                                                     <div class="checkbox">
                                                                         <label>
-                                                                            <input id="chkSsoAllowSignup" type="checkbox">
-                                                                            Allow New User Signup
+                                                                            <input id="chkSsoAllowSignup" type="checkbox"> Allow New User Signup
                                                                         </label>
                                                                     </div>
                                                                     <div style="padding-top: 5px; padding-left: 20px;">Automatically provision local accounts for new users who log in via SSO.</div>
@@ -1512,7 +1517,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                 <div class="col-sm-6">
                                                                     <textarea id="txtSsoGroupMappings" class="form-control" rows="5" spellcheck="false" placeholder='{"oidc-group-claim": "Administrators", "another-oidc-group-claim": "LocalGroup"}'></textarea>
                                                                     <div style="padding-top: 5px;">
-                                                                        <p>Note! Map OIDC groups/roles to local user groups (JSON format). Key is the OIDC group claim value, Value is the local group name. If a user's mapped group does not exist, it will be created.</p>
+                                                                        <p>Note! Map OIDC groups/roles to local user groups (JSON format). Key is the OIDC group claim value, Value is the local group name. If a user maps to multiple local groups, they are assigned all matched roles (union).</p>
+                                                                        <b>Example:</b>
+                                                                        <pre>{"google-group-name": "DNS Administrators", "entra-group-guid": "DHCP Administrators"}</pre>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -1520,9 +1527,23 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="form-group">
                                                                 <label for="txtSsoDefaultGroup" class="col-sm-3 control-label">Default Group</label>
                                                                 <div class="col-sm-6">
-                                                                    <input type="text" class="form-control" id="txtSsoDefaultGroup" placeholder="(Optional) Group name">
+                                                                    <input type="text" class="form-control" id="txtSsoDefaultGroup" placeholder="Administrators">
+                                                                    <div style="padding-top: 5px;">
+                                                                        <p>Optional. Group name to assign all auto-provisioned SSO users. Leave empty for no default group.</p>
+                                                                    </div>
                                                                 </div>
-                                                                <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Default group to assign all auto-provisioned SSO users. Leave empty for no default group.</div>
+                                                            </div>
+
+                                                            <div class="form-group">
+                                                                <label class="col-sm-3 control-label">Verbose Logging</label>
+                                                                <div class="col-sm-8">
+                                                                    <div class="checkbox">
+                                                                        <label>
+                                                                            <input id="chkSsoVerboseLogging" type="checkbox"> Enable Verbose Logging
+                                                                        </label>
+                                                                    </div>
+                                                                    <div style="padding-top: 5px; padding-left: 20px;">Enable this option to log detailed OIDC claims and debugging information.</div>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -6416,6 +6437,13 @@ MII...
                                 <label for="txtUserDetailsUsername" class="col-sm-4 control-label">Username</label>
                                 <div class="col-sm-7">
                                     <input id="txtUserDetailsUsername" type="text" class="form-control" placeholder="username" maxlength="255">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="lblUserDetailsIdentitySource" class="col-sm-4 control-label">Identity Source</label>
+                                <div class="col-sm-7">
+                                    <div id="lblUserDetailsIdentitySource" style="padding: 6px 0; font-weight: bold;"></div>
                                 </div>
                             </div>
 

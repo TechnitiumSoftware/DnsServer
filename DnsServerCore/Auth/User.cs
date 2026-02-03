@@ -60,16 +60,23 @@ namespace DnsServerCore.Auth
         DateTime _recentSessionLoggedOn;
         IPAddress _recentSessionRemoteAddress;
 
-        ConcurrentDictionary<string, Group> _memberOfGroups;
-        public User(string displayName, string username, string password, int iterations)
+        readonly ConcurrentDictionary<string, Group> _memberOfGroups;
+
+        #endregion
+
+        #region constructor
+
+        public User(string displayName, string username, string password, int iterations = DEFAULT_ITERATIONS)
         {
-            DisplayName = displayName;
             Username = username;
+            DisplayName = displayName;
+
             ChangePassword(password, iterations);
 
-            _memberOfGroups = new ConcurrentDictionary<string, Group>();
             _previousSessionRemoteAddress = IPAddress.Any;
             _recentSessionRemoteAddress = IPAddress.Any;
+
+            _memberOfGroups = new ConcurrentDictionary<string, Group>(1, 2);
         }
 
         public User(BinaryReader bR, IReadOnlyDictionary<string, Group> groups)
@@ -261,12 +268,12 @@ namespace DnsServerCore.Auth
         public void WriteTo(BinaryWriter bW)
         {
             bW.Write((byte)3); // Bump version to 3
-            bW.WriteShortString(_displayName ?? "");
-            bW.WriteShortString(_username ?? "");
+            bW.WriteShortString(_displayName);
+            bW.WriteShortString(_username);
             bW.Write((byte)_passwordHashType);
             bW.Write(_iterations);
-            bW.WriteBuffer(_salt ?? Array.Empty<byte>());
-            bW.WriteShortString(_passwordHash ?? "");
+            bW.WriteBuffer(_salt);
+            bW.WriteShortString(_passwordHash);
 
             if (_totpKeyUri is null)
                 bW.Write("");
@@ -286,7 +293,7 @@ namespace DnsServerCore.Auth
             bW.Write(Convert.ToByte(_memberOfGroups.Count));
 
             foreach (KeyValuePair<string, Group> group in _memberOfGroups)
-                bW.WriteShortString(group.Value.Name?.ToLowerInvariant() ?? "");
+                bW.WriteShortString(group.Value.Name.ToLowerInvariant());
         }
 
         public override bool Equals(object obj)

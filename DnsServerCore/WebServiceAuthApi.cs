@@ -43,9 +43,11 @@ namespace DnsServerCore
 
             readonly DnsWebService _dnsWebService;
 
-            // Rate limiting for SSO user provisioning
+            // SSO Settings
+            private const int DEFAULT_SSO_PROVISIONING_RATE_LIMIT = 25; // Conservative: 25 attempts per hour per IP
+            private const int DEFAULT_SSO_MAX_AUTO_PROVISION = 25; // Conservative default for DNS server admin teams
+            // Rate limiting tracking
             private static readonly ConcurrentDictionary<string, DateTime> _provisioningAttempts = new ConcurrentDictionary<string, DateTime>();
-            private const int MAX_PROVISIONING_PER_HOUR = 100;
 
             // Allowed redirect paths for security
             private static readonly HashSet<string> _allowedRedirectPaths = new HashSet<string> 
@@ -101,7 +103,7 @@ namespace DnsServerCore
                 }
             }
 
-            private void WriteCurrentSessionDetails(Utf8JsonWriter jsonWriter, UserSession currentSession, bool includeInfo)
+            private void WriteCurrentSessionDetails(Utf8JsonWriter jsonWriter, UserSession currentSession, bool includeInfo, bool includeToken = true)
             {
                 if (currentSession.Type == UserSessionType.ApiToken)
                 {
@@ -116,7 +118,9 @@ namespace DnsServerCore
                     jsonWriter.WriteString("username", currentSession.User.Username);
                     jsonWriter.WriteString("identitySource", currentSession.User.IsSsoUser ? "Remote/SSO" : "Local");
                     jsonWriter.WriteBoolean("totpEnabled", currentSession.User.TOTPEnabled);
-                    //token is not sent for standard sessions to prevent leakage
+                    
+                    if (includeToken)
+                        jsonWriter.WriteString("token", currentSession.Token);
                 }
 
                 if (includeInfo)
@@ -376,6 +380,18 @@ namespace DnsServerCore
                 bool includeInfo = request.GetQueryOrForm("includeInfo", bool.Parse, false);
                 IPEndPoint remoteEP = context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader);
 
+                // Block SSO users from using standard login form (they must use OIDC flow)
+                // API token creation is still allowed for SSO users
+                if (sessionType == UserSessionType.Standard)
+                {
+                    User existingUser = _dnsWebService._authManager.GetUser(username);
+                    if (existingUser != null && existingUser.IsSsoUser)
+                    {
+                        _dnsWebService._log.Write(remoteEP, "[" + username + "] SSO user attempted to use standard login form. Blocked.");
+                        throw new DnsWebServiceException("SSO users must use the 'Login with SSO' option. Standard password login is not available for SSO accounts.");
+                    }
+                }
+
                 UserSession session = await _dnsWebService._authManager.CreateSessionAsync(sessionType, tokenName, username, password, totp, remoteEP.Address, request.Headers.UserAgent);
 
                 _dnsWebService._log.Write(remoteEP, "[" + session.User.Username + "] User logged in.");
@@ -391,6 +407,7 @@ namespace DnsServerCore
                 else
                 {
                     // Set session cookie for standard user sessions (not API tokens)
+                    // This is done regardless of cookie_auth flag to ensure optional convenience for scripts that handle cookies
                     context.Response.Cookies.Append("session_token", session.Token, new CookieOptions
                     {
                         HttpOnly = true,
@@ -401,8 +418,10 @@ namespace DnsServerCore
                     });
                 }
 
+                bool cookieAuth = request.GetQueryOrForm("cookie_auth", bool.Parse, false);
+
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
-                WriteCurrentSessionDetails(jsonWriter, session, includeInfo);
+                WriteCurrentSessionDetails(jsonWriter, session, includeInfo, !cookieAuth);
             }
 
             public void Logout(HttpContext context)
@@ -429,10 +448,13 @@ namespace DnsServerCore
 
             public void GetCurrentSessionDetails(HttpContext context)
             {
+                HttpRequest request = context.Request;
+                bool includeToken = request.GetQueryOrForm("includeToken", bool.Parse, true);
+
                 UserSession session = context.GetCurrentSession();
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
-                WriteCurrentSessionDetails(jsonWriter, session, true);
+                WriteCurrentSessionDetails(jsonWriter, session, true, includeToken);
             }
 
             public async Task ChangePasswordAsync(HttpContext context)
@@ -486,10 +508,10 @@ namespace DnsServerCore
                 User sessionUser = _dnsWebService.GetSessionUser(context, true);
                 HttpRequest request = context.Request;
 
-    if (sessionUser.IsSsoUser)
-        throw new DnsWebServiceException("Two-factor authentication is managed by your SSO provider.");
+                if (sessionUser.IsSsoUser)
+                    throw new DnsWebServiceException("Two-factor authentication is managed by your SSO provider.");
 
-    string totp = request.GetQueryOrForm("totp");
+                string totp = request.GetQueryOrForm("totp");
 
                 sessionUser.EnableTOTP(totp);
 
@@ -1281,6 +1303,9 @@ namespace DnsServerCore
             }
 
             #endregion
+
+            #region SSO
+
             public async Task SsoLoginAsync(HttpContext context)
             {
                 try
@@ -1339,7 +1364,10 @@ namespace DnsServerCore
                         return;
                     }
                     string email = result.Principal.FindFirst("email")?.Value 
-                        ?? result.Principal.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+                        ?? result.Principal.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+                        ?? result.Principal.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn")?.Value
+                        ?? result.Principal.FindFirst("upn")?.Value
+                        ?? result.Principal.FindFirst("preferred_username")?.Value;
                     
                     string displayName = result.Principal.FindFirst("name")?.Value 
                         ?? result.Principal.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
@@ -1390,23 +1418,42 @@ namespace DnsServerCore
                             return;
                         }
 
-                        // Rate limiting
+                        // Rate limiting for auto-provisioning
+                        // Configurable via DNS_SERVER_SSO_PROVISIONING_RATE_LIMIT env var (default: 25 per hour, 0 = unlimited)
                         string provisionKey = context.Connection.RemoteIpAddress.ToString();
-                        var recentAttempts = _provisioningAttempts
-                            .Where(kv => kv.Key.StartsWith(provisionKey) && DateTime.UtcNow - kv.Value < TimeSpan.FromHours(1))
-                            .Count();
-                        
-                        if (recentAttempts >= MAX_PROVISIONING_PER_HOUR)
+                        int maxProvisioningPerHour = DEFAULT_SSO_PROVISIONING_RATE_LIMIT;
+                        string maxProvisioningEnv = Environment.GetEnvironmentVariable("DNS_SERVER_SSO_PROVISIONING_RATE_LIMIT");
+                        if (!string.IsNullOrEmpty(maxProvisioningEnv) && int.TryParse(maxProvisioningEnv, out int parsedRateLimit))
                         {
-                            _dnsWebService._log.Write($"SSO: Provisioning rate limit exceeded for {provisionKey} ({recentAttempts} attempts in last hour)");
-                            SafeRedirect(context, "/index.html", new Dictionary<string, string> { ["error"] = "rate_limited" });
-                            return;
+                            maxProvisioningPerHour = parsedRateLimit;
                         }
 
-                        // Check system capacity
-                        if (_dnsWebService._authManager.Users.Count >= 250)
+                        if (maxProvisioningPerHour > 0)
                         {
-                            _dnsWebService._log.Write($"SSO: User provisioning blocked - system at capacity ({_dnsWebService._authManager.Users.Count}/255 users)");
+                            var recentAttempts = _provisioningAttempts
+                                .Where(kv => kv.Key.StartsWith(provisionKey) && DateTime.UtcNow - kv.Value < TimeSpan.FromHours(1))
+                                .Count();
+                            
+                            if (recentAttempts >= maxProvisioningPerHour)
+                            {
+                                _dnsWebService._log.Write($"SSO: Provisioning rate limit exceeded for {provisionKey} ({recentAttempts}/{maxProvisioningPerHour} attempts in last hour). Set DNS_SERVER_SSO_PROVISIONING_RATE_LIMIT=0 to disable or increase the value.");
+                                SafeRedirect(context, "/index.html", new Dictionary<string, string> { ["error"] = "rate_limited" });
+                                return;
+                            }
+                        }
+
+                        // Check system capacity for auto-provisioning
+                        // Configurable via DNS_SERVER_SSO_MAX_AUTO_PROVISION env var (default: 25, 0 = unlimited)
+                        int maxAutoProvision = DEFAULT_SSO_MAX_AUTO_PROVISION;
+                        string maxAutoProvisionEnv = Environment.GetEnvironmentVariable("DNS_SERVER_SSO_MAX_AUTO_PROVISION");
+                        if (!string.IsNullOrEmpty(maxAutoProvisionEnv) && int.TryParse(maxAutoProvisionEnv, out int parsedLimit))
+                        {
+                            maxAutoProvision = parsedLimit;
+                        }
+
+                        if (maxAutoProvision > 0 && _dnsWebService._authManager.Users.Count >= maxAutoProvision)
+                        {
+                            _dnsWebService._log.Write($"SSO: User auto-provisioning blocked - system at capacity ({_dnsWebService._authManager.Users.Count}/{maxAutoProvision} users). Set DNS_SERVER_SSO_MAX_AUTO_PROVISION=0 to disable limit or increase the value.");
                             SafeRedirect(context, "/index.html", new Dictionary<string, string> { ["error"] = "system_full" });
                             return;
                         }
@@ -1548,6 +1595,8 @@ namespace DnsServerCore
                 jsonWriter.WriteBoolean("ssoEnabled", _dnsWebService._webServiceSsoEnabled);
                 return Task.CompletedTask;
             }
+
+            #endregion
         
         }
     }

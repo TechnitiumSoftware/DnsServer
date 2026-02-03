@@ -35,8 +35,6 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
-using Microsoft.AspNetCore.RateLimiting;
-using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.StaticFiles;
@@ -110,19 +108,18 @@ namespace DnsServerCore
         string _webServiceTlsCertificatePath;
         string _webServiceTlsCertificatePassword;
         string _webServiceRealIpHeader = "X-Real-IP";
+        
+        //SSO
         internal bool _webServiceSsoEnabled;
-
         internal string _webServiceSsoAuthority;
         internal string _webServiceSsoClientId;
         internal string _webServiceSsoClientSecret;
         internal string _webServiceSsoScopes;
-        // internal string _webServiceSsoCallbackPath; // Removed in favor of Redirect URI
         internal string _webServiceSsoRedirectUri;
         internal string _webServiceSsoMetadataAddress;
         internal bool _webServiceSsoAllowHttp;
         internal bool _webServiceSsoAllowSignup;
         internal string _webServiceSsoGroupMappings;
-
         internal bool _webServiceSsoVerboseLogging;
 
         Timer _tlsCertificateUpdateTimer;
@@ -528,16 +525,13 @@ namespace DnsServerCore
                 _webServiceSsoClientId = bR.ReadShortString();
                 _webServiceSsoClientSecret = bR.ReadShortString();
                 _webServiceSsoScopes = bR.ReadShortString();
-                // _webServiceSsoCallbackPath = bR.ReadShortString(); // Legacy; read but ignore or just read empty string if needed for compat? 
-                // Actually, binary format must be respected. We must read it to advance the stream.
-                _ = bR.ReadShortString(); // _webServiceSsoCallbackPath (deprecated)
+                _ = bR.ReadShortString();
                 _webServiceSsoMetadataAddress = bR.ReadShortString();
                 _webServiceSsoAllowHttp = bR.ReadBoolean();
                 _webServiceSsoAllowSignup = bR.ReadBoolean();
                 _webServiceSsoGroupMappings = bR.ReadShortString();
                 _webServiceSsoVerboseLogging = bR.ReadBoolean();
 
-                // Read new fields safely for backward compatibility
                 if (bR.BaseStream.Position < bR.BaseStream.Length)
                 {
                     _webServiceSsoRedirectUri = bR.ReadShortString();
@@ -549,8 +543,8 @@ namespace DnsServerCore
         {
             BinaryWriter bW = new BinaryWriter(s);
 
-            bW.Write(Encoding.ASCII.GetBytes("WC")); //format
-            bW.Write((byte)2); //version
+            bW.Write(Encoding.ASCII.GetBytes("WC"));
+            bW.Write((byte)2);
 
             bW.Write(_webServiceHttpPort);
             bW.Write(_webServiceTlsPort);
@@ -582,9 +576,12 @@ namespace DnsServerCore
             //version 2 - SSO settings
             bW.WriteShortString(_webServiceSsoAuthority ?? "");
             bW.WriteShortString(_webServiceSsoClientId ?? "");
+            // SECURITY NOTE: Client secret is stored in plain text (same as TLS cert password).
+            // Ensure webservice.config has restricted file permissions (chmod 600 on Linux).
+            // For production, consider using environment variable DNS_SERVER_SSO_CLIENT_SECRET.
             bW.WriteShortString(_webServiceSsoClientSecret ?? "");
             bW.WriteShortString(_webServiceSsoScopes ?? "");
-            bW.WriteShortString(""); // _webServiceSsoCallbackPath (deprecated)
+            bW.WriteShortString(""); 
             bW.WriteShortString(_webServiceSsoMetadataAddress ?? "");
             bW.Write(_webServiceSsoAllowHttp);
             bW.Write(_webServiceSsoAllowSignup);
@@ -908,7 +905,7 @@ namespace DnsServerCore
                         //extract log files from backup
                         foreach (ZipArchiveEntry entry in backupZip.Entries)
                         {
-                            if (entry.FullName.StartsWith("logs/", StringComparison.OrdinalIgnoreCase))
+                            if (entry.FullName.StartsWith("logs/"))
                             {
                                 try
                                 {
@@ -954,7 +951,7 @@ namespace DnsServerCore
                     //extract any certs
                     foreach (ZipArchiveEntry certEntry in backupZip.Entries)
                     {
-                        if (certEntry.FullName.StartsWith("apps/", StringComparison.OrdinalIgnoreCase))
+                        if (certEntry.FullName.StartsWith("apps/"))
                             continue;
 
                         if (certEntry.FullName.EndsWith(".pfx", StringComparison.OrdinalIgnoreCase) || certEntry.FullName.EndsWith(".p12", StringComparison.OrdinalIgnoreCase))
@@ -1033,7 +1030,7 @@ namespace DnsServerCore
 
                             foreach (ZipArchiveEntry entry in backupZip.Entries)
                             {
-                                if (!entry.FullName.StartsWith("zones/", StringComparison.OrdinalIgnoreCase) || !entry.FullName.EndsWith(".keys", StringComparison.OrdinalIgnoreCase))
+                                if (!entry.FullName.StartsWith("zones/") || !entry.FullName.EndsWith(".keys", StringComparison.Ordinal))
                                     continue;
 
                                 string memberZoneName = Path.GetFileNameWithoutExtension(entry.Name);
@@ -1098,7 +1095,7 @@ namespace DnsServerCore
                         //extract zone files from backup
                         foreach (ZipArchiveEntry entry in backupZip.Entries)
                         {
-                            if (entry.FullName.StartsWith("zones/", StringComparison.OrdinalIgnoreCase))
+                            if (entry.FullName.StartsWith("zones/"))
                             {
                                 try
                                 {
@@ -1166,7 +1163,7 @@ namespace DnsServerCore
                     //extract block list files from backup
                     foreach (ZipArchiveEntry entry in backupZip.Entries)
                     {
-                        if (entry.FullName.StartsWith("blocklists/", StringComparison.OrdinalIgnoreCase))
+                        if (entry.FullName.StartsWith("blocklists/"))
                         {
                             try
                             {
@@ -1201,7 +1198,7 @@ namespace DnsServerCore
                         //install or update app from zip
                         foreach (ZipArchiveEntry entry in backupZip.Entries)
                         {
-                            if (!entry.FullName.StartsWith("apps/", StringComparison.OrdinalIgnoreCase))
+                            if (!entry.FullName.StartsWith("apps/"))
                                 continue;
 
                             string[] fullNameParts = entry.FullName.Split('/');
@@ -1235,7 +1232,7 @@ namespace DnsServerCore
                         //update app config
                         foreach (ZipArchiveEntry entry in backupZip.Entries)
                         {
-                            if (!entry.FullName.StartsWith("apps/", StringComparison.OrdinalIgnoreCase))
+                            if (!entry.FullName.StartsWith("apps/"))
                                 continue;
 
                             string[] fullNameParts = entry.FullName.Split('/');
@@ -1276,7 +1273,7 @@ namespace DnsServerCore
 
                         foreach (ZipArchiveEntry entry in backupZip.Entries)
                         {
-                            if (!entry.FullName.StartsWith("apps/", StringComparison.OrdinalIgnoreCase))
+                            if (!entry.FullName.StartsWith("apps/"))
                                 continue;
 
                             string[] fullNameParts = entry.FullName.Split('/');
@@ -1322,7 +1319,7 @@ namespace DnsServerCore
                         //extract apps files from backup
                         foreach (ZipArchiveEntry entry in backupZip.Entries)
                         {
-                            if (entry.FullName.StartsWith("apps/", StringComparison.OrdinalIgnoreCase))
+                            if (entry.FullName.StartsWith("apps/"))
                             {
                                 string entryPath = entry.FullName;
 
@@ -1377,7 +1374,7 @@ namespace DnsServerCore
                         //extract scope files from backup
                         foreach (ZipArchiveEntry entry in backupZip.Entries)
                         {
-                            if (entry.FullName.StartsWith("scopes/", StringComparison.OrdinalIgnoreCase))
+                            if (entry.FullName.StartsWith("scopes/"))
                             {
                                 try
                                 {
@@ -1434,7 +1431,7 @@ namespace DnsServerCore
                     //extract stats files from backup
                     foreach (ZipArchiveEntry entry in backupZip.Entries)
                     {
-                        if (entry.FullName.StartsWith("stats/", StringComparison.OrdinalIgnoreCase))
+                        if (entry.FullName.StartsWith("stats/"))
                         {
                             try
                             {
@@ -1580,6 +1577,18 @@ namespace DnsServerCore
         private async Task StartWebServiceAsync(bool httpOnlyMode)
         {
             WebApplicationBuilder builder = WebApplication.CreateBuilder();
+
+            builder.Environment.ContentRootFileProvider = new PhysicalFileProvider(_appFolder)
+            {
+                UseActivePolling = true,
+                UsePollingFileWatcher = true
+            };
+
+            builder.Environment.WebRootFileProvider = new PhysicalFileProvider(Path.Combine(_appFolder, "www"))
+            {
+                UseActivePolling = true,
+                UsePollingFileWatcher = true
+            };
 #if DEBUG
             Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true;
 #else
@@ -1679,6 +1688,8 @@ namespace DnsServerCore
             {
                 dataProtectionBuilder.ProtectKeysWithDpapi(protectToLocalMachine: true);
             }
+
+            #region SSO Configuration
 
             if (_webServiceSsoEnabled)
             {
@@ -1828,7 +1839,10 @@ namespace DnsServerCore
                         },
                         OnTokenValidated = context =>
                         {
-                            string userId = context.Principal?.FindFirst("sub")?.Value ?? "unknown";
+                            string userId = context.Principal?.FindFirst("sub")?.Value 
+                                ?? context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                                ?? context.Principal?.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
+                                ?? "unknown";
                             _log.Write($"OIDC: Token validated for user: {userId}");
                             return Task.CompletedTask;
                         },
@@ -1857,22 +1871,9 @@ namespace DnsServerCore
                  builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie();
             }
 
+            #endregion
+
             builder.Services.AddAuthorization();
-            
-            builder.Services.AddRateLimiter(options =>
-            {
-                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-                options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-                    RateLimitPartition.GetFixedWindowLimiter(
-                        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                        factory: partition => new FixedWindowRateLimiterOptions
-                        {
-                            AutoReplenishment = true,
-                            PermitLimit = 300,
-                            QueueLimit = 2,
-                            Window = TimeSpan.FromMinutes(1)
-                        }));
-            });
 
             builder.Environment.ContentRootFileProvider = new PhysicalFileProvider(_appFolder)
             {
@@ -1885,8 +1886,6 @@ namespace DnsServerCore
                 UseActivePolling = true,
                 UsePollingFileWatcher = true
             };
-
-
 
             builder.Services.AddResponseCompression(delegate (ResponseCompressionOptions options)
             {
@@ -1938,8 +1937,6 @@ namespace DnsServerCore
 
             _webService.UseResponseCompression();
 
-            _webService.UseRateLimiter();
-
             // Add security headers middleware
             _webService.Use(async (context, next) =>
             {
@@ -1952,7 +1949,7 @@ namespace DnsServerCore
                 // HSTS only on HTTPS connections
                 if (context.Request.IsHttps)
                 {
-                    context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+                    context.Response.Headers["Strict-Transport-Security"] = "max-age=86400; includeSubDomains";
                 }
                 
                 // CSP for HTML pages (not API endpoints)
@@ -2047,27 +2044,29 @@ namespace DnsServerCore
 
         private void ConfigureWebServiceRoutes()
         {
+            _webService.UseExceptionHandler(WebServiceExceptionHandler);
+
             _webService.Use(WebServiceApiMiddleware);
 
             _webService.UseRouting();
 
             //user auth
-            _webService.MapGet("/api/user/status", delegate (HttpContext context) { return _authApi.StatusAsync(context); });
             _webService.MapGetAndPost("/api/user/login", delegate (HttpContext context) { return _authApi.LoginAsync(context, UserSessionType.Standard); });
-            _webService.MapPost("/api/user/createToken", delegate (HttpContext context) { return _authApi.LoginAsync(context, UserSessionType.ApiToken); });
-            _webService.MapPost("/api/user/logout", _authApi.Logout);
+            _webService.MapGetAndPost("/api/user/createToken", delegate (HttpContext context) { return _authApi.LoginAsync(context, UserSessionType.ApiToken); });
+            _webService.MapGetAndPost("/api/user/logout", _authApi.Logout);
             _webService.MapGetAndPost("/api/user/sso/login", _authApi.SsoLoginAsync);
             _webService.MapGetAndPost("/api/user/sso/finalize", _authApi.SsoFinalizeAsync);
+            _webService.MapGetAndPost("/api/user/status", _authApi.StatusAsync);
 
             //user
-            _webService.MapGet("/api/user/session/get", _authApi.GetCurrentSessionDetails);
-            _webService.MapPost("/api/user/session/delete", delegate (HttpContext context) { _authApi.DeleteSession(context, false); });
-            _webService.MapPost("/api/user/changePassword", _authApi.ChangePasswordAsync);
+            _webService.MapGetAndPost("/api/user/session/get", _authApi.GetCurrentSessionDetails);
+            _webService.MapGetAndPost("/api/user/session/delete", delegate (HttpContext context) { _authApi.DeleteSession(context, false); });
+            _webService.MapGetAndPost("/api/user/changePassword", _authApi.ChangePasswordAsync);
             _webService.MapGetAndPost("/api/user/2fa/init", _authApi.Initialize2FA);
-            _webService.MapPost("/api/user/2fa/enable", _authApi.Enable2FA);
-            _webService.MapPost("/api/user/2fa/disable", _authApi.Disable2FA);
-            _webService.MapGet("/api/user/profile/get", _authApi.GetProfile);
-            _webService.MapPost("/api/user/profile/set", _authApi.SetProfile);
+            _webService.MapGetAndPost("/api/user/2fa/enable", _authApi.Enable2FA);
+            _webService.MapGetAndPost("/api/user/2fa/disable", _authApi.Disable2FA);
+            _webService.MapGetAndPost("/api/user/profile/get", _authApi.GetProfile);
+            _webService.MapGetAndPost("/api/user/profile/set", _authApi.SetProfile);
             _webService.MapGetAndPost("/api/user/checkForUpdate", _api.CheckForUpdateAsync);
 
             //dashboard
@@ -2147,8 +2146,8 @@ namespace DnsServerCore
             _webService.MapGetAndPost("/api/dnsClient/resolve", _api.ResolveQueryAsync);
 
             //settings
-            _webService.MapGet("/api/settings/get", _settingsApi.GetDnsSettings);
-            _webService.MapPost("/api/settings/set", _settingsApi.SetDnsSettingsAsync);
+            _webService.MapGetAndPost("/api/settings/get", _settingsApi.GetDnsSettings);
+            _webService.MapGetAndPost("/api/settings/set", _settingsApi.SetDnsSettingsAsync);
             _webService.MapGetAndPost("/api/settings/getTsigKeyNames", _settingsApi.GetTsigKeyNames);
             _webService.MapGetAndPost("/api/settings/forceUpdateBlockLists", _settingsApi.ForceUpdateBlockLists);
             _webService.MapGetAndPost("/api/settings/temporaryDisableBlocking", _settingsApi.TemporaryDisableBlocking);
@@ -2493,8 +2492,11 @@ namespace DnsServerCore
                         }
                         else
                         {
+                            _log.Write(context.GetRemoteEndPoint(_webServiceRealIpHeader), ex);
+
                             jsonWriter.WriteString("status", "error");
                             jsonWriter.WriteString("errorMessage", ex.Message);
+                            jsonWriter.WriteString("stackTrace", ex.StackTrace);
 
                             if (ex.InnerException is not null)
                                 jsonWriter.WriteString("innerErrorMessage", ex.InnerException.Message);

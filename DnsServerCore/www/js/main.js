@@ -1112,6 +1112,33 @@ function loadDnsSettings(responseJSON) {
     $("#lblWebServiceRealIpHeader").text(responseJSON.response.webServiceRealIpHeader);
     $("#lblWebServiceRealIpNginx").text("proxy_set_header " + responseJSON.response.webServiceRealIpHeader + " $remote_addr;");
 
+    // SSO
+    $("#txtSsoAuthority").val(responseJSON.response.ssoAuthority);
+    $("#txtSsoClientId").val(responseJSON.response.ssoClientId);
+    $("#txtSsoClientSecret").val(responseJSON.response.ssoClientSecret);
+    $("#txtSsoScopes").val(responseJSON.response.ssoScopes);
+    $("#txtSsoCallbackPath").val(responseJSON.response.ssoCallbackPath);
+    $("#txtSsoRedirectUri").val(responseJSON.response.ssoRedirectUri);
+    $("#txtSsoMetadataAddress").val(responseJSON.response.ssoMetadataAddress);
+    $("#chkSsoAllowHttp").prop("checked", responseJSON.response.ssoAllowHttp);
+
+    $("#txtSsoAuthority").prop("disabled", responseJSON.response.ssoAuthorityReadOnly);
+    $("#txtSsoClientId").prop("disabled", responseJSON.response.ssoClientIdReadOnly);
+    $("#txtSsoClientSecret").prop("disabled", responseJSON.response.ssoClientSecretReadOnly);
+    $("#txtSsoScopes").prop("disabled", responseJSON.response.ssoScopesReadOnly);
+    $("#txtSsoRedirectUri").prop("disabled", responseJSON.response.ssoRedirectUriReadOnly);
+    $("#txtSsoMetadataAddress").prop("disabled", responseJSON.response.ssoMetadataAddressReadOnly);
+    $("#chkSsoAllowHttp").prop("disabled", responseJSON.response.ssoAllowHttpReadOnly);
+
+    $("#chkSsoAllowSignup").prop("checked", responseJSON.response.ssoAllowSignup);
+    $("#chkSsoAllowSignup").prop("disabled", responseJSON.response.ssoAllowSignupReadOnly);
+
+    $("#txtSsoGroupMappings").val(responseJSON.response.ssoGroupMappings);
+    $("#txtSsoGroupMappings").prop("disabled", responseJSON.response.ssoGroupMappingsReadOnly);
+
+    $("#chkSsoVerboseLogging").prop("checked", responseJSON.response.ssoVerboseLogging);
+    $("#chkSsoVerboseLogging").prop("disabled", responseJSON.response.ssoVerboseLoggingReadOnly);
+
     //optional protocols
     $("#chkEnableDnsOverUdpProxy").prop("checked", responseJSON.response.enableDnsOverUdpProxy);
     $("#chkEnableDnsOverTcpProxy").prop("checked", responseJSON.response.enableDnsOverTcpProxy);
@@ -1632,7 +1659,19 @@ function saveDnsSettings(objBtn) {
         var webServiceTlsCertificatePassword = $("#txtWebServiceTlsCertificatePassword").val();
         var webServiceRealIpHeader = $("#txtWebServiceRealIpHeader").val();
 
+        var ssoAuthority = $("#txtSsoAuthority").val();
+        var ssoClientId = $("#txtSsoClientId").val();
+        var ssoClientSecret = $("#txtSsoClientSecret").val();
+        var ssoScopes = $("#txtSsoScopes").val();
+        var ssoRedirectUri = $("#txtSsoRedirectUri").val();
+        var ssoMetadataAddress = $("#txtSsoMetadataAddress").val();
+        var ssoAllowHttp = $("#chkSsoAllowHttp").prop("checked");
+        var ssoAllowSignup = $("#chkSsoAllowSignup").prop("checked");
+        var ssoGroupMappings = $("#txtSsoGroupMappings").val();
+        var ssoVerboseLogging = $("#chkSsoVerboseLogging").prop("checked");
+
         formData += "&webServiceLocalAddresses=" + encodeURIComponent(webServiceLocalAddresses) + "&webServiceHttpPort=" + webServiceHttpPort + "&webServiceEnableTls=" + webServiceEnableTls + "&webServiceEnableHttp3=" + webServiceEnableHttp3 + "&webServiceHttpToTlsRedirect=" + webServiceHttpToTlsRedirect + "&webServiceUseSelfSignedTlsCertificate=" + webServiceUseSelfSignedTlsCertificate + "&webServiceTlsPort=" + webServiceTlsPort + "&webServiceTlsCertificatePath=" + encodeURIComponent(webServiceTlsCertificatePath) + "&webServiceTlsCertificatePassword=" + encodeURIComponent(webServiceTlsCertificatePassword) + "&webServiceRealIpHeader=" + encodeURIComponent(webServiceRealIpHeader);
+        formData += "&ssoAuthority=" + encodeURIComponent(ssoAuthority) + "&ssoClientId=" + encodeURIComponent(ssoClientId) + "&ssoClientSecret=" + encodeURIComponent(ssoClientSecret) + "&ssoScopes=" + encodeURIComponent(ssoScopes) + "&ssoRedirectUri=" + encodeURIComponent(ssoRedirectUri) + "&ssoMetadataAddress=" + encodeURIComponent(ssoMetadataAddress) + "&ssoAllowHttp=" + ssoAllowHttp + "&ssoAllowSignup=" + ssoAllowSignup + "&ssoGroupMappings=" + encodeURIComponent(ssoGroupMappings) + "&ssoVerboseLogging=" + ssoVerboseLogging;
     }
 
     //optional protocols

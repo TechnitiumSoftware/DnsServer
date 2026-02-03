@@ -840,6 +840,9 @@ namespace DnsServerCore.Auth
         {
             User user = await AuthenticateUserAsync(username, password, totp, remoteAddress);
 
+            if (user.IsSsoUser && (type == UserSessionType.Standard))
+                throw new DnsWebServiceException("SSO users must login via SSO provider.");
+
             UserSession session = new UserSession(type, tokenName, user, remoteAddress, userAgent);
 
             if (!_sessions.TryAdd(session.Token, session))

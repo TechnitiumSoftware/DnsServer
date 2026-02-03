@@ -57,6 +57,8 @@ The following environment variables configure OpenID Connect (OIDC) Single Sign-
 | DNS_SERVER_SSO_GROUP_MAPPINGS            | String  | JSON mapping of OIDC group GUIDs/claims to DNS Server groups (e.g., `{"oidc-group-guid": "Admins"}`).                                    |
 | DNS_SERVER_SSO_GROUP_MAPPINGS_FILE       | String  | Path to file containing JSON group mappings.                                                                                             |
 | DNS_SERVER_SSO_VERBOSE_LOGGING           | Boolean | Enable verbose logging of OIDC claims and SSO flow (for debugging). Default: `false`.                                                    |
+| DNS_SERVER_SSO_MAX_AUTO_PROVISION        | Integer | Maximum number of users that can be auto-provisioned via SSO. Default: `25`. Set to `0` for unlimited.                                   |
+| DNS_SERVER_SSO_PROVISIONING_RATE_LIMIT   | Integer | Maximum SSO auto-provisioning attempts per IP address per hour. Default: `25`. Set to `0` for unlimited.                                  |
 
 **SSO Notes:**
 - The `_FILE` variants allow reading sensitive values from files (Docker secrets pattern)

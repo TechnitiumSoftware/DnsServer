@@ -34,7 +34,7 @@ $(function () {
             }
         },
         error: function () {
-            console.error("Failed to check SSO status");
+            // SSO status check failed, hide SSO login option
         }
     });
 
@@ -62,9 +62,9 @@ $(function () {
         return;
     }
 
-    // Check if we have a valid session (cookie-based)
+    // Check if we have a valid session (cookie-based or token-based)
     HTTPRequest({
-        url: "api/user/session/get",
+        url: "api/user/session/get?includeToken=false",
         success: function (responseJSON) {
             sessionData = responseJSON;
             if (!sessionData.token) sessionData.token = "";
@@ -81,6 +81,8 @@ $(function () {
         },
         error: function () {
             showPageLogin();
+            // Auto-login with default credentials (for fresh installs)
+            login("admin", "admin");
         }
     });
 
@@ -251,7 +253,7 @@ function login(username, password) {
     HTTPRequest({
         url: "api/user/login",
         method: "POST",
-        data: "user=" + encodeURIComponent(username) + "&pass=" + encodeURIComponent(password) + "&totp=" + encodeURIComponent(totp) + "&includeInfo=true",
+        data: "user=" + encodeURIComponent(username) + "&pass=" + encodeURIComponent(password) + "&totp=" + encodeURIComponent(totp) + "&includeInfo=true&cookie_auth=true",
         procecssData: false,
         success: function (responseJSON) {
             sessionData = responseJSON;
@@ -301,7 +303,6 @@ function login(username, password) {
 function logout() {
     HTTPRequest({
         url: "api/user/logout?token=" + sessionData.token,
-        method: "POST",
         success: function (responseJSON) {
             sessionData = null;
             localStorage.removeItem("token");
@@ -617,7 +618,6 @@ function enable2FA(objBtn) {
 
     HTTPRequest({
         url: "api/user/2fa/enable?token=" + sessionData.token + "&totp=" + encodeURIComponent(totp),
-        method: "POST",
         success: function (responseJSON) {
             sessionData.totpEnabled = true;
 
@@ -652,7 +652,6 @@ function disable2FA(objBtn) {
 
     HTTPRequest({
         url: "api/user/2fa/disable?token=" + sessionData.token,
-        method: "POST",
         success: function (responseJSON) {
             sessionData.totpEnabled = false;
 
@@ -786,7 +785,6 @@ function saveMyProfile(objBtn) {
 
     HTTPRequest({
         url: apiUrl,
-        method: "POST",
         success: function (responseJSON) {
             sessionData.displayName = responseJSON.response.displayName;
             $("#mnuUserDisplayName").text(sessionData.displayName);
@@ -1422,8 +1420,8 @@ function saveUserDetails(objBtn) {
 
     var id = btn.attr("data-id");
     var username = btn.attr("data-username");
-    var displayName = $("#txtUserDetailsDisplayName").val();
     var newUsername = $("#txtUserDetailsUsername").val();
+    var displayName = $("#txtUserDetailsDisplayName").val();
     var originalUsername = $("#txtUserDetailsUsername").data("original-username");
 
     // Prevent changing SSO usernames
