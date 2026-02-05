@@ -70,7 +70,13 @@ namespace MispConnector
             {
                 if (_updateLoopTask != null)
                 {
-                    _updateLoopTask?.WaitAsync(TimeSpan.FromSeconds(2)).Wait();
+                    try
+                    {
+                        _updateLoopTask?.WaitAsync(TimeSpan.FromSeconds(2))
+                                       .GetAwaiter()
+                                       .GetResult();
+                    }
+                    catch { }
                 }
             }
             catch
