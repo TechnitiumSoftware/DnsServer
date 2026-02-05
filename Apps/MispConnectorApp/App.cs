@@ -24,7 +24,6 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Security;
@@ -53,6 +52,7 @@ namespace MispConnector
         HttpClient _httpClient;
 
         Uri _mispApiUrl;
+        Uri _mispServerUrl;
 
         DnsSOARecordData _soaRecord;
         TimeSpan _updateInterval;
@@ -105,9 +105,9 @@ namespace MispConnector
 
                 _updateInterval = ParseUpdateInterval(_config.UpdateInterval);
 
-                Uri mispServerUrl = new Uri(_config.MispServerUrl);
-                _mispApiUrl = new Uri(mispServerUrl, "/attributes/restSearch");
-                _httpClient = CreateHttpClient(mispServerUrl, _config.DisableTlsValidation);
+                _mispServerUrl = new Uri(_config.MispServerUrl);
+                _mispApiUrl = new Uri(_mispServerUrl, "/attributes/restSearch");
+                _httpClient = CreateHttpClient(_mispServerUrl, _config.DisableTlsValidation);
 
                 await LoadBlocklistFromCacheAsync();
                 _appShutdownCts = new CancellationTokenSource();
@@ -514,7 +514,7 @@ namespace MispConnector
 
         private async Task UpdateIocsAsync(CancellationToken cancellationToken)
         {
-            if (!await CheckTcpPortAsync(new Uri(_config.MispServerUrl), cancellationToken))
+            if (!await CheckTcpPortAsync(_mispServerUrl, cancellationToken))
             {
                 return;
             }
