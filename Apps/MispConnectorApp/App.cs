@@ -70,7 +70,7 @@ namespace MispConnector
             {
                 if (_updateLoopTask != null)
                 {
-                    _ = Task.WhenAny(_updateLoopTask, Task.Delay(TimeSpan.FromSeconds(2))).GetAwaiter().GetResult();
+                    _updateLoopTask?.WaitAsync(TimeSpan.FromSeconds(2)).Wait();
                 }
             }
             catch
