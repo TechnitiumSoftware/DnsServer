@@ -467,7 +467,15 @@ namespace MispConnector
             {
                 try
                 {
-                    FrozenSet<string> domains = (await File.ReadAllLinesAsync(_domainCacheFilePath)).ToHashSet(StringComparer.OrdinalIgnoreCase).ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+                    var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                    await foreach (var line in File.ReadLinesAsync(_domainCacheFilePath))
+                    {
+                        if (!string.IsNullOrWhiteSpace(line))
+                            set.Add(line);
+                    }
+
+                    FrozenSet<string> domains = set.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
                     Interlocked.Exchange(ref _domainBlocklist, domains);
                     _dnsServer.WriteLog($"MISP Connector: Loaded {domains.Count} domains from cache.");
                 }
