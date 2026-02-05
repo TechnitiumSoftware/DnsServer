@@ -272,11 +272,11 @@ namespace MispConnector
 
             try
             {
-                using (CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, new CancellationTokenSource(timeout).Token))
-                using (TcpClient client = new TcpClient())
-                {
-                    await client.ConnectAsync(host, port, cts.Token);
-                }
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts.CancelAfter(timeout);
+
+                using var client = new TcpClient();
+                await client.ConnectAsync(host, port, cts.Token);
 
                 _dnsServer.WriteLog($"Pre-flight TCP check successful for {host}:{port}.");
                 return true;
