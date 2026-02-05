@@ -216,7 +216,7 @@ namespace MispConnector
             await Task.Delay(TimeSpan.FromSeconds(Random.Shared.Next(5, 30)), cancellationToken);
             using (PeriodicTimer timer = new PeriodicTimer(_updateInterval))
             {
-                while (!cancellationToken.IsCancellationRequested)
+                while (true)
                 {
                     try
                     {
