@@ -395,7 +395,8 @@ namespace MispConnector
 
                 foreach (MispAttribute attribute in attributes)
                 {
-                    string ioc = attribute.Value?.Trim().ToLowerInvariant();
+                    string ioc = attribute.Value?.Trim();
+
                     if (!string.IsNullOrEmpty(ioc))
                     {
                         if (DnsClient.IsDomainNameValid(ioc))
