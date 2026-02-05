@@ -216,18 +216,20 @@ namespace MispConnector
                     {
                         await UpdateIocsAsync(cancellationToken);
                     }
-                    catch (OperationCanceledException)
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                     {
                         _dnsServer.WriteLog("Update loop is shutting down gracefully.");
                         break;
                     }
+
                     catch (Exception ex)
                     {
                         _dnsServer.WriteLog($"FATAL: The MispConnector update task failed unexpectedly. Error: {ex.Message}");
                         _dnsServer.WriteLog(ex);
                     }
 
-                    await timer.WaitForNextTickAsync(cancellationToken);
+                    if (!await timer.WaitForNextTickAsync(cancellationToken))
+                        break;
                 }
             }
         }
@@ -379,11 +381,13 @@ namespace MispConnector
                     }
                     catch (HttpRequestException ex)
                     {
-                        await HandleRetry(ex, page, maxRetries, attempt, cancellationToken);
+                        if (!await HandleRetry(ex, page, maxRetries, attempt, cancellationToken))
+                            throw;
                     }
                     catch (SocketException ex)
                     {
-                        await HandleRetry(ex, page, maxRetries, attempt, cancellationToken);
+                        if (!await HandleRetry(ex, page, maxRetries, attempt, cancellationToken))
+                            throw;
                     }
 
                 }
@@ -424,23 +428,37 @@ namespace MispConnector
             _dnsServer.WriteLog($"Finished paginated fetch. Freezing {iocSet.Count} IOCs for optimal read performance...");
             return iocSet;
         }
-        private async Task HandleRetry(Exception ex, int page, int maxRetries, int attempt, CancellationToken cancellationToken)
+
+        private async Task<bool> HandleRetry(
+            Exception ex,
+            int page,
+            int maxRetries,
+            int attempt,
+            CancellationToken cancellationToken)
         {
-            // These are likely transient network errors, so we should retry.
-            _dnsServer.WriteLog($"WARNING: A transient network error occurred on page {page}, attempt {attempt}/{maxRetries}. Error: {ex.Message}");
+            _dnsServer.WriteLog(
+                $"WARNING: A transient network error occurred on page {page}, " +
+                $"attempt {attempt}/{maxRetries}. Error: {ex.Message}");
+
             if (attempt < maxRetries)
             {
-                TimeSpan delay = TimeSpan.FromSeconds(Math.Pow(2, attempt)) + TimeSpan.FromMilliseconds(Random.Shared.Next(0, 1000));
-                _dnsServer.WriteLog($"Waiting for {delay.TotalSeconds:F1} seconds before retrying...");
+                TimeSpan delay =
+                    TimeSpan.FromSeconds(Math.Pow(2, attempt)) +
+                    TimeSpan.FromMilliseconds(Random.Shared.Next(0, 1000));
+
+                _dnsServer.WriteLog(
+                    $"Waiting for {delay.TotalSeconds:F1} seconds before retrying...");
+
                 await Task.Delay(delay, cancellationToken);
+                return true; // retry
             }
-            else
-            {
-                // All retries have failed for this page.
-                _dnsServer.WriteLog($"ERROR: Failed to fetch page {page} after {maxRetries} attempts. Aborting entire update cycle.");
-                throw ex;
-            }
+
+            _dnsServer.WriteLog(
+                $"ERROR: Failed to fetch page {page} after {maxRetries} attempts.");
+
+            return false; // abort
         }
+
 
         private bool IsDomainBlocked(string domain, out string foundZone)
         {
