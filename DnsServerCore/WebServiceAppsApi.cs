@@ -345,8 +345,17 @@ namespace DnsServerCore
 
                 string name = request.GetQueryOrForm("name").Trim();
 
+                // Validate name for path traversal sequences
+                if (string.IsNullOrWhiteSpace(name) || name.Contains("..") || name.Contains("/") || name.Contains("\\") || Path.GetInvalidFileNameChars().Any(c => name.Contains(c)))
+                    throw new DnsWebServiceException("Invalid application name. Name must not contain path traversal sequences or invalid characters.");
+
                 if (!request.HasFormContentType || (request.Form.Files.Count == 0))
                     throw new DnsWebServiceException("DNS application zip file is missing.");
+
+                // Validate uploaded filename for path traversal sequences
+                string uploadedFileName = request.Form.Files[0].FileName;
+                if (string.IsNullOrWhiteSpace(uploadedFileName) || uploadedFileName.Contains("..") || Path.GetFileName(uploadedFileName) != uploadedFileName)
+                    throw new DnsWebServiceException("Invalid file name. File name must not contain path traversal sequences.");
 
                 string tmpFile = Path.GetTempFileName();
                 try
