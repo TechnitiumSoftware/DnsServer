@@ -424,24 +424,20 @@ namespace MispConnector
         {
             FrozenSet<string> currentBlocklist = _domainBlocklist;
 
+            // Span-based lookup
+            FrozenSet<string>.AlternateLookup<ReadOnlySpan<char>> lookup = currentBlocklist.GetAlternateLookup<ReadOnlySpan<char>>();
+
             ReadOnlySpan<char> currentSpan = domain.AsSpan();
 
             while (true)
             {
-                // To look up in a HashSet<string>, we must provide a string.
-                string key = new string(currentSpan);
-                if (currentBlocklist.TryGetValue(key, out foundZone))
-                {
+                if (lookup.TryGetValue(currentSpan, out foundZone))
                     return true;
-                }
 
                 int dotIndex = currentSpan.IndexOf('.');
-                if (dotIndex == -1)
-                {
-                    break; // No more parent domains.
-                }
+                if (dotIndex < 0)
+                    break;
 
-                // Slice to the parent domain view. No allocation here.
                 currentSpan = currentSpan.Slice(dotIndex + 1);
             }
 
@@ -483,11 +479,11 @@ namespace MispConnector
             {
                 await WriteIocsToCacheAsync(domains, cancellationToken);
                 Interlocked.Exchange(ref _domainBlocklist, domains);
-                _dnsServer.WriteLog($"MISP Connector: Successfully updated blocklist with {domains.Count} domains.");
+                _dnsServer.WriteLog($"MISP Connector: Successfully updated currentBlocklist with {domains.Count} domains.");
             }
             else
             {
-                _dnsServer.WriteLog("MISP data has not changed. No update to blocklist or cache is necessary.");
+                _dnsServer.WriteLog("MISP data has not changed. No update to currentBlocklist or cache is necessary.");
             }
         }
 
