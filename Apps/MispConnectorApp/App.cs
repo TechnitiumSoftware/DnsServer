@@ -130,6 +130,8 @@ namespace MispConnector
             }
         }
 
+        // No allowlist override in this app.
+        // ProcessRequestAsync handles blocking.
         public Task<bool> IsAllowedAsync(DnsDatagram request, IPEndPoint remoteEP)
         {
             return Task.FromResult(false);
