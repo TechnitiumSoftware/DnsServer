@@ -382,8 +382,10 @@ namespace MispConnector
 
                 }
 
-                List<MispAttribute> attributes = mispResponse?.Response?.Attribute;
-                if (attributes == null || attributes.Count == 0)
+                List<MispAttribute> attributes = (mispResponse?.Response?.Attribute) ?? 
+                    throw new InvalidDataException("Invalid or unexpected MISP response schema.");
+                
+                if (attributes.Count == 0)
                 {
                     hasMorePages = false;
                     continue;
