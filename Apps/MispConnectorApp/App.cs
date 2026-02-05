@@ -405,12 +405,9 @@ namespace MispConnector
                 {
                     string ioc = attribute.Value?.Trim();
 
-                    if (!string.IsNullOrEmpty(ioc))
+                    if (!string.IsNullOrEmpty(ioc) && DnsClient.IsDomainNameValid(ioc))
                     {
-                        if (DnsClient.IsDomainNameValid(ioc))
-                        {
-                            iocSet.Add(ioc);
-                        }
+                        iocSet.Add(ioc);
                     }
                 }
 
