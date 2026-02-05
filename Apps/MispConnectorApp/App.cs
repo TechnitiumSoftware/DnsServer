@@ -281,6 +281,10 @@ namespace MispConnector
                 _dnsServer.WriteLog($"Pre-flight TCP check successful for {host}:{port}.");
                 return true;
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (OperationCanceledException)
             {
                 _dnsServer.WriteLog($"ERROR: Pre-flight TCP check failed: Connection to {host}:{port} timed out after {timeout.TotalSeconds} seconds. Check firewall rules or network route.");
