@@ -495,8 +495,10 @@ namespace MispConnector
 
                     await foreach (var line in File.ReadLinesAsync(_domainCacheFilePath))
                     {
-                        if (!string.IsNullOrWhiteSpace(line))
-                            set.Add(line);
+                        var d = line.Trim();
+
+                        if (d.Length > 0)
+                            set.Add(d);
                     }
 
                     FrozenSet<string> domains = set.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
