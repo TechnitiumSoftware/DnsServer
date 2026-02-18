@@ -49,6 +49,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using DnsServerCore.Dns.Security;
 using TechnitiumLibrary;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
@@ -272,6 +273,23 @@ namespace DnsServerCore.Dns
         readonly Timer _saveTimer;
         const int SAVE_TIMER_INITIAL_INTERVAL = 5000;
 
+        // DNS Cookies (RFC 7873)
+        readonly bool _dnsCookiesEnabled = true;
+        readonly string _dnsCookiesSecretFile = "dns.cookies.state";
+        readonly int _dnsCookiesRotationPeriodHours = 1;
+        readonly bool _dnsCookiesSetTcOnBadCookie = true;
+        readonly bool _dnsCookiesAlwaysEcho = true;
+
+        Security.DnsCookieSecretManager _cookieSecrets;
+        Security.DnsCookieValidator _cookieValidator;
+        Timer _cookieRotationTimer;
+
+        // Optional observability counters
+        long _cookieValid;
+        long _cookieInvalid;
+        long _cookieMissing;
+        long _cookieBadcookieSent;
+
         #endregion
 
         #region constructor
@@ -433,6 +451,9 @@ namespace DnsServerCore.Dns
                     _log.Write(ex);
                 }
             }
+
+            _cookieRotationTimer?.Dispose();
+            _cookieRotationTimer = null;
 
             _disposed = true;
             GC.SuppressFinalize(this);
@@ -1125,6 +1146,14 @@ namespace DnsServerCore.Dns
             int maxStatFileDays = bR.ReadInt32();
             if (!isConfigTransfer)
                 _statsManager.MaxStatFileDays = maxStatFileDays;
+
+            if (!isConfigTransfer)
+            {
+                _cookieRotationTimer?.Dispose();
+                _cookieRotationTimer = null;
+
+                InitDnsCookiesIfEnabled();
+            }
         }
 
         private void WriteConfigTo(Stream s)
@@ -1409,6 +1438,13 @@ namespace DnsServerCore.Dns
             bW.Write(_queryLog is not null); //log all queries
             bW.Write(_statsManager.EnableInMemoryStats);
             bW.Write(_statsManager.MaxStatFileDays);
+
+            // DNS cookies
+            bW.Write(_dnsCookiesEnabled);
+            bW.Write(_dnsCookiesSecretFile ?? "dns.cookies.state");
+            bW.Write(_dnsCookiesRotationPeriodHours);
+            bW.Write(_dnsCookiesSetTcOnBadCookie);
+            bW.Write(_dnsCookiesAlwaysEcho);
         }
 
         #endregion
@@ -1574,6 +1610,146 @@ namespace DnsServerCore.Dns
                 return path;
 
             return Path.Combine(_configFolder, path);
+        }
+
+        private void InitDnsCookiesIfEnabled()
+        {
+            if (!_dnsCookiesEnabled)
+                return;
+
+            string secretPath = Path.IsPathRooted(_dnsCookiesSecretFile)
+                ? _dnsCookiesSecretFile
+                : Path.Combine(_configFolder, _dnsCookiesSecretFile);
+
+            _cookieSecrets = new Security.DnsCookieSecretManager(secretPath);
+            _cookieValidator = new Security.DnsCookieValidator(_cookieSecrets);
+
+            _cookieRotationTimer?.Dispose();
+            if (_dnsCookiesRotationPeriodHours > 0)
+            {
+                _cookieRotationTimer = new Timer(
+                    _ =>
+                    {
+                        try { _cookieSecrets.Rotate(); }
+                        catch (Exception ex) { _log.Write(ex); }
+                    },
+                    null,
+                    dueTime: TimeSpan.FromMinutes(5),
+                    period: TimeSpan.FromHours(_dnsCookiesRotationPeriodHours));
+            }
+        }
+
+        private static EDnsCookieOptionData TryGetCookieOption(DnsDatagram request)
+        {
+            DnsDatagramEdns edns = request.EDNS;
+            if (edns is null)
+                return null;
+
+            foreach (EDnsOption opt in edns.Options)
+            {
+                if (opt.Code == EDnsOptionCode.COOKIE && opt.Data is EDnsCookieOptionData c)
+                    return c;
+            }
+
+            return null;
+        }
+
+        private DnsDatagram BuildBadCookieResponse(
+            DnsDatagram request,
+            IPEndPoint remoteEP,
+            bool isRecursionAllowed,
+            EDnsCookieOptionData responseCookie)
+        {
+            IReadOnlyList<EDnsOption> options =
+                MergeCookieOption(request.EDNS?.Options, responseCookie);
+
+            ushort udpPayload = request.EDNS?.UdpPayloadSize ?? 512;
+            EDnsHeaderFlags flags = request.EDNS?.Flags ?? EDnsHeaderFlags.None;
+
+            return new DnsDatagram(
+                request.Identifier,
+                true,
+                request.OPCODE,
+                false,
+                truncation: true, // REQUIRED by RFC 7873 §5.2.3
+                recursionDesired: request.RecursionDesired,
+                recursionAvailable: isRecursionAllowed,
+                authenticData: false,
+                checkingDisabled: request.CheckingDisabled,
+                DnsResponseCode.BADCOOKIE,
+                request.Question,
+                null,
+                null,
+                null,
+                udpPayload,
+                flags,
+                options
+            )
+            {
+                Tag = DnsServerResponseType.Authoritative
+            };
+        }
+
+        private static IReadOnlyList<EDnsOption> MergeCookieOption(
+            IReadOnlyList<EDnsOption> existing,
+            EDnsCookieOptionData cookie)
+        {
+            List<EDnsOption> list;
+
+            if (existing == null)
+                list = new List<EDnsOption>(1);
+            else
+                list = new List<EDnsOption>(existing.Count + 1);
+
+            if (existing != null)
+            {
+                foreach (var opt in existing)
+                {
+                    if (opt.Code != EDnsOptionCode.COOKIE)
+                        list.Add(opt);
+                }
+            }
+
+            list.Add(new EDnsOption(EDnsOptionCode.COOKIE, cookie));
+
+            return list;
+        }
+
+        private static IReadOnlyList<DnsResourceRecord> UpsertOptRecord(
+            IReadOnlyList<DnsResourceRecord> existingAdditional,
+            DnsDatagram request,
+            DnsDatagram response,
+            IReadOnlyList<EDnsOption> options)
+        {
+            var baseEdns = response.EDNS ?? request.EDNS;
+
+            ushort udp = baseEdns?.UdpPayloadSize ?? 512;
+            var flags = baseEdns?.Flags ?? EDnsHeaderFlags.None;
+
+            var opt = DnsDatagramEdns.GetOPTFor(
+                udpPayloadSize: udp,
+                extendedRCODE: 0,
+                version: 0,
+                flags: flags,
+                options: options);
+
+            List<DnsResourceRecord> list =
+                existingAdditional == null
+                ? new List<DnsResourceRecord>(1)
+                : new List<DnsResourceRecord>(existingAdditional.Count + 1);
+
+            if (existingAdditional != null)
+            {
+                foreach (var rr in existingAdditional)
+                {
+                    if (rr.Type != DnsResourceRecordType.OPT)
+                        list.Add(rr);
+                }
+            }
+
+            list.Add(opt);
+
+            return list;
         }
 
         #endregion
@@ -2643,9 +2819,82 @@ namespace DnsServerCore.Dns
                     return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, DnsResponseCode.BADVERS, request.Question, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative };
             }
 
+            // DNS Cookies (RFC 7873)
+            if (_dnsCookiesEnabled &&
+                request.EDNS != null &&
+                _cookieValidator != null)
+            {
+                EDnsCookieOptionData cookie =
+                    TryGetCookieOption(request);
+
+                if (cookie == null)
+                {
+                    Interlocked.Increment(ref _cookieMissing);
+                }
+                else
+                {
+                    if (cookie.ServerCookie != null && cookie.ServerCookie.Length > 0)
+                    {
+                        if (!_cookieValidator.Validate(
+                            remoteEP.Address,
+                            cookie))
+                        {
+                            Interlocked.Increment(ref _cookieInvalid);
+
+                            var respCookie =
+                                _cookieValidator.CreateResponseCookie(
+                                    remoteEP.Address,
+                                    cookie);
+
+                            Interlocked.Increment(
+                                ref _cookieBadcookieSent);
+
+                            return BuildBadCookieResponse(
+                                request,
+                                remoteEP,
+                                isRecursionAllowed,
+                                respCookie);
+                        }
+
+                        Interlocked.Increment(ref _cookieValid);
+                    }
+                }
+            }
+
             DnsDatagram response = await ProcessQueryAsync(request, remoteEP, protocol, isRecursionAllowed, false, _clientTimeout, null);
             if (response is null)
                 return null;
+
+            // Attach cookie to response if needed
+            if (_dnsCookiesEnabled && _cookieValidator != null && request.EDNS != null)
+            {
+                EDnsCookieOptionData requestCookie = TryGetCookieOption(request);
+                if (requestCookie != null)
+                {
+                    bool shouldSendServerCookie =
+                        _dnsCookiesAlwaysEcho ||
+                        requestCookie.ServerCookie == null ||
+                        requestCookie.ServerCookie.Length == 0;
+
+                    if (shouldSendServerCookie)
+                    {
+                        EDnsCookieOptionData responseCookie =
+                            _cookieValidator.CreateResponseCookie(
+                                remoteEP.Address,
+                                requestCookie);
+
+                        IReadOnlyList<EDnsOption> mergedOptions =
+                            MergeCookieOption(response.EDNS?.Options, responseCookie);
+
+                        response = response.Clone(
+                            additional: UpsertOptRecord(
+                                response.Additional,
+                                request,
+                                response,
+                                mergedOptions));
+                    }
+                }
+            }
 
             return await PostProcessQueryAsync(request, remoteEP, protocol, response);
         }
