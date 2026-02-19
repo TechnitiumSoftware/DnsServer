@@ -212,6 +212,8 @@ namespace DnsServerCore.Dns.Security
                 throw new ArgumentException("Client cookie must be 8 bytes");
 
             byte[] currentSecret = _secretManager.GetCurrentSecret();
+            if (currentSecret is null || currentSecret.Length < 16)
+                throw new InvalidOperationException("Server cookie secret is not available or too short.");
             byte[] serverCookie = ComputeServerCookie(clientAddress, requestCookie.ClientCookie, currentSecret);
 
             return new EDnsCookieOptionData(requestCookie.ClientCookie.ToArray(), serverCookie);
