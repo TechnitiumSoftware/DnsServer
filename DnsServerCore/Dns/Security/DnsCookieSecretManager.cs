@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
@@ -27,6 +26,19 @@ namespace DnsServerCore.Dns.Security
 {
     public class DnsCookieSecretManager
     {
+        #region constants
+
+        private const int FileVersion = 1;
+
+        // Operational bounds; keep aligned with validator policy.
+        private const int MinSecretLen = 16;
+        private const int MaxSecretLen = 256;
+
+        // Default secret size (256-bit)
+        private const int DefaultSecretLen = 32;
+
+        #endregion
+
         #region variables
 
         readonly string _secretFilePath;
@@ -42,98 +54,113 @@ namespace DnsServerCore.Dns.Security
 
         public DnsCookieSecretManager(string secretFilePath)
         {
+            if (string.IsNullOrWhiteSpace(secretFilePath))
+                throw new ArgumentException("Secret file path must not be null or empty.", nameof(secretFilePath));
+
             _secretFilePath = secretFilePath;
-            Load();
+
+            lock (_lock)
+            {
+                LoadLocked();
+            }
         }
 
         #endregion
 
         #region private
 
-        private void Load()
+        private void LoadLocked()
         {
-            lock (_lock)
+            // Caller must hold _lock
+            if (!File.Exists(_secretFilePath))
             {
-                if (File.Exists(_secretFilePath))
+                GenerateNewSecretsLocked();
+                return;
+            }
+
+            try
+            {
+                byte[] data = File.ReadAllBytes(_secretFilePath);
+                using MemoryStream ms = new MemoryStream(data, writable: false);
+                using BinaryReader br = new BinaryReader(ms);
+
+                int version = br.ReadInt32();
+                if (version != FileVersion)
+                    throw new InvalidDataException("Unsupported secret file version.");
+
+                _currentSecretCreated = new DateTime(br.ReadInt64(), DateTimeKind.Utc);
+
+                int currentLen = br.ReadInt32();
+                if (currentLen < MinSecretLen || currentLen > MaxSecretLen)
+                    throw new InvalidDataException("Invalid current secret length.");
+
+                byte[] current = br.ReadBytes(currentLen);
+                if (current.Length != currentLen)
+                    throw new EndOfStreamException("Unexpected end of secret file (current secret).");
+
+                int previousLen = br.ReadInt32();
+                byte[] previous = null;
+
+                if (previousLen != 0)
                 {
-                    try
-                    {
-                        byte[] data = File.ReadAllBytes(_secretFilePath);
-                        using (MemoryStream ms = new MemoryStream(data))
-                        using (BinaryReader br = new BinaryReader(ms))
-                        {
-                            int version = br.ReadInt32();
-                            if (version != 1)
-                                throw new InvalidDataException("Unsupported secret file version.");
+                    if (previousLen < MinSecretLen || previousLen > MaxSecretLen)
+                        throw new InvalidDataException("Invalid previous secret length.");
 
-                            _currentSecretCreated = new DateTime(br.ReadInt64(), DateTimeKind.Utc);
+                    previous = br.ReadBytes(previousLen);
+                    if (previous.Length != previousLen)
+                        throw new EndOfStreamException("Unexpected end of secret file (previous secret).");
+                }
 
-                            int currentLen = br.ReadInt32();
-                            if (currentLen < 8 || currentLen > 256)
-                                throw new InvalidDataException("Invalid current secret length.");
+                _currentSecret = current;
+                _previousSecret = previous;
+            }
+            catch
+            {
+                GenerateNewSecretsLocked();
+            }
+        }
 
-                            _currentSecret = br.ReadBytes(currentLen);
+        private void SaveLocked()
+        {
+            // Caller must hold _lock
+            if (_currentSecret is null || _currentSecret.Length < MinSecretLen)
+                throw new InvalidOperationException("Current secret is missing or too short.");
 
-                            int previousLen = br.ReadInt32();
-                            if (previousLen < 8 || previousLen > 256)
-                                throw new InvalidDataException("Invalid previous secret length.");
+            using MemoryStream ms = new MemoryStream();
+            using (BinaryWriter bw = new BinaryWriter(ms))
+            {
+                bw.Write(FileVersion);
+                bw.Write(_currentSecretCreated.Ticks);
 
-                                _previousSecret = br.ReadBytes(previousLen);
-                        }
-                    }
-                    catch
-                    {
-                        // If loading fails, generate new secrets
-                        GenerateNewSecrets();
-                    }
+                bw.Write(_currentSecret.Length);
+                bw.Write(_currentSecret);
+
+                if (_previousSecret is { Length: >= MinSecretLen and <= MaxSecretLen })
+                {
+                    bw.Write(_previousSecret.Length);
+                    bw.Write(_previousSecret);
                 }
                 else
                 {
-                    GenerateNewSecrets();
+                    bw.Write(0);
                 }
             }
+
+            string directory = Path.GetDirectoryName(_secretFilePath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                Directory.CreateDirectory(directory);
+
+            File.WriteAllBytes(_secretFilePath, ms.ToArray());
         }
 
-        private void Save()
+        private void GenerateNewSecretsLocked()
         {
-            lock (_lock)
-            {
-                using (MemoryStream ms = new MemoryStream())
-                {
-                    using (BinaryWriter bw = new BinaryWriter(ms))
-                    {
-                        bw.Write(1); // version
-                        bw.Write(_currentSecretCreated.Ticks);
-
-                        bw.Write(_currentSecret.Length);
-                        bw.Write(_currentSecret);
-
-                        if (_previousSecret != null)
-                        {
-                            bw.Write(_previousSecret.Length);
-                            bw.Write(_previousSecret);
-                        }
-                        else
-                        {
-                            bw.Write(0);
-                        }
-                    }
-
-                    string directory = Path.GetDirectoryName(_secretFilePath);
-                    if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                        Directory.CreateDirectory(directory);
-
-                    File.WriteAllBytes(_secretFilePath, ms.ToArray());
-                }
-            }
-        }
-
-        private void GenerateNewSecrets()
-        {
-            _currentSecret = RandomNumberGenerator.GetBytes(32);
+            // Caller must hold _lock
+            _currentSecret = RandomNumberGenerator.GetBytes(DefaultSecretLen);
             _currentSecretCreated = DateTime.UtcNow;
             _previousSecret = null;
-            Save();
+
+            SaveLocked();
         }
 
         #endregion
@@ -144,26 +171,28 @@ namespace DnsServerCore.Dns.Security
         {
             lock (_lock)
             {
-                _previousSecret = _currentSecret != null ? (byte[])_currentSecret.Clone() : null;
-                _currentSecret = RandomNumberGenerator.GetBytes(32);
+                _previousSecret = _currentSecret is null ? null : (byte[])_currentSecret.Clone();
+                _currentSecret = RandomNumberGenerator.GetBytes(DefaultSecretLen);
                 _currentSecretCreated = DateTime.UtcNow;
-                Save();
+
+                SaveLocked();
             }
         }
 
-        public ReadOnlySpan<byte> GetCurrentSecret()
+        // Returning spans here is unsafe once the lock is released; return a clone instead.
+        public byte[] GetCurrentSecret()
         {
             lock (_lock)
             {
-                return new ReadOnlySpan<byte>(_currentSecret);
+                return _currentSecret is null ? null : (byte[])_currentSecret.Clone();
             }
         }
 
-        public ReadOnlySpan<byte> GetPreviousSecret()
+        public byte[] GetPreviousSecret()
         {
             lock (_lock)
             {
-                return new ReadOnlySpan<byte>(_previousSecret);
+                return _previousSecret is null ? null : (byte[])_previousSecret.Clone();
             }
         }
 
