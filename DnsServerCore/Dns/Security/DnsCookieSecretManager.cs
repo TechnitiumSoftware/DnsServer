@@ -137,7 +137,7 @@ namespace DnsServerCore.Dns.Security
         {
             lock (_lock)
             {
-                _previousSecret = _currentSecret;
+                _previousSecret = _currentSecret != null ? (byte[])_currentSecret.Clone() : null;
                 _currentSecret = RandomNumberGenerator.GetBytes(32);
                 _currentSecretCreated = DateTime.UtcNow;
                 Save();
