@@ -61,8 +61,12 @@ namespace DnsServerCore.Dns.Security
                     bw.Write((byte)0);
 
                     // Timestamp (Unix time in seconds)
-                    uint timestamp = (uint)(DateTimeOffset.UtcNow.ToUnixTimeSeconds() & 0xFFFFFFFF);
-                    bw.Write(timestamp);
+                    // RFC 9018 Section 4.1 specifies that the timestamp should be in network byte order (big-endian).
+                    uint timestamp = unchecked((uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                    bw.Write((byte)(timestamp >> 24));
+                    bw.Write((byte)(timestamp >> 16));
+                    bw.Write((byte)(timestamp >> 8));
+                    bw.Write((byte)(timestamp >> 0));
 
                     // Compute HMAC-SHA256 hash
                     byte[] hashInput;
