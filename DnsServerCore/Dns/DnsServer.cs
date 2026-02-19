@@ -1698,12 +1698,12 @@ namespace DnsServerCore.Dns
             List<EDnsOption> list;
 
             if (existing == null)
-                list = new List<EDnsOption>(1);
-            else
-                list = new List<EDnsOption>(existing.Count + 1);
-
-            if (existing != null)
             {
+                list = new List<EDnsOption>(1);
+            }
+            else
+            {
+                list = new List<EDnsOption>(existing.Count + 1);
                 foreach (var opt in existing)
                 {
                     if (opt.Code != EDnsOptionCode.COOKIE)
