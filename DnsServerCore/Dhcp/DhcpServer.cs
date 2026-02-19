@@ -244,12 +244,12 @@ namespace DnsServerCore.Dhcp
                     if (!request.RelayAgentIpAddress.Equals(IPAddress.Any))
                     {
                         //received request via relay agent so send unicast response to relay agent on port 67
-                        await udpListener.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.None, new IPEndPoint(request.RelayAgentIpAddress, 67));
+                        await udpListener.SendMessageToAsync(new ReadOnlyMemory<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.None, new IPEndPoint(request.RelayAgentIpAddress, 67), ipPacketInformation);
                     }
                     else if (!request.ClientIpAddress.Equals(IPAddress.Any))
                     {
                         //client is already configured and renewing lease so send unicast response on port 68
-                        await udpListener.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.None, new IPEndPoint(request.ClientIpAddress, 68));
+                        await udpListener.SendMessageToAsync(new ReadOnlyMemory<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.None, new IPEndPoint(request.ClientIpAddress, 68), ipPacketInformation);
                     }
                     else
                     {
@@ -941,6 +941,8 @@ namespace DnsServerCore.Dhcp
                     //bind to interface address
                     if (Environment.OSVersion.Platform == PlatformID.Unix)
                         udpSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1); //to allow binding to same port with different addresses
+
+                    udpSocket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.PacketInformation, true);
 
                     udpSocket.EnableBroadcast = true;
                     udpSocket.ExclusiveAddressUse = false;

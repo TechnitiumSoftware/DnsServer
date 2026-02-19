@@ -1635,7 +1635,7 @@ namespace DnsServerCore.Dns
                             DnsDatagram request = DnsDatagram.ReadFrom(recvBufferStream);
                             request.SetMetadata(new NameServerAddress(new IPEndPoint(result.PacketInformation.Address, localPort), DnsTransportProtocol.Udp));
 
-                            _ = ProcessUdpRequestAsync(udpListener, remoteEP, returnEP, protocol, request, sendTruncationResponse);
+                            _ = ProcessUdpRequestAsync(udpListener, remoteEP, returnEP, result.PacketInformation, protocol, request, sendTruncationResponse);
                         }
                         catch (EndOfStreamException)
                         {
@@ -1677,7 +1677,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task ProcessUdpRequestAsync(Socket udpListener, IPEndPoint remoteEP, IPEndPoint returnEP, DnsTransportProtocol protocol, DnsDatagram request, bool sendTruncationResponse)
+        private async Task ProcessUdpRequestAsync(Socket udpListener, IPEndPoint remoteEP, IPEndPoint returnEP, IPPacketInformation ipPacketInformation, DnsTransportProtocol protocol, DnsDatagram request, bool sendTruncationResponse)
         {
             byte[] sendBuffer = null;
 
@@ -1764,7 +1764,7 @@ namespace DnsServerCore.Dns
                     }
 
                     //send dns datagram async
-                    await udpListener.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.None, returnEP);
+                    await udpListener.SendMessageToAsync(new ReadOnlyMemory<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.None, returnEP, ipPacketInformation);
                 }
 
                 _queryLog?.Write(remoteEP, protocol, request, response);
@@ -6156,6 +6156,11 @@ namespace DnsServerCore.Dns
                     if (Environment.OSVersion.Platform == PlatformID.Unix)
                         udpListener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1); //to allow binding to same port with different addresses
 
+                    if (localEP.AddressFamily == AddressFamily.InterNetwork)
+                        udpListener.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.PacketInformation, true);
+                    else if (localEP.AddressFamily == AddressFamily.InterNetworkV6)
+                        udpListener.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.PacketInformation, true);
+
                     udpListener.ReceiveBufferSize = 512 * 1024;
                     udpListener.SendBufferSize = 512 * 1024;
 
@@ -6215,6 +6220,11 @@ namespace DnsServerCore.Dns
 
                         if (Environment.OSVersion.Platform == PlatformID.Unix)
                             udpProxyListener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1); //to allow binding to same port with different addresses
+
+                        if (udpProxyEP.AddressFamily == AddressFamily.InterNetwork)
+                            udpProxyListener.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.PacketInformation, true);
+                        else if (udpProxyEP.AddressFamily == AddressFamily.InterNetworkV6)
+                            udpProxyListener.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.PacketInformation, true);
 
                         udpProxyListener.ReceiveBufferSize = 512 * 1024;
                         udpProxyListener.SendBufferSize = 512 * 1024;
