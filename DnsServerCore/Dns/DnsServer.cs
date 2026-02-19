@@ -2811,7 +2811,8 @@ namespace DnsServerCore.Dns
             }
 
             // DNS Cookies (RFC 7873)
-            if (request.EDNS != null &&
+            if (protocol == DnsTransportProtocol.Udp &&
+                request.EDNS != null &&
                 _cookieValidator != null)
             {
                 EDnsCookieOptionData cookie =
