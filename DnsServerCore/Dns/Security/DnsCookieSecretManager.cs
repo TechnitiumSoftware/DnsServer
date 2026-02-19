@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using System;
 using System.IO;
 using System.Security.Cryptography;
+using System.Threading;
 
 namespace DnsServerCore.Dns.Security
 {
@@ -28,7 +29,7 @@ namespace DnsServerCore.Dns.Security
         #region variables
 
         readonly string _secretFilePath;
-        readonly object _lock = new object();
+        readonly Lock _lock = new Lock();
 
         byte[] _currentSecret;
         byte[] _previousSecret;
