@@ -115,61 +115,67 @@ namespace DnsServerCore.Dns.Security
             return cookie.ToArray();
         }
 
-
-        private static bool ValidateServerCookieWithSecret(IPAddress clientAddress, ReadOnlySpan<byte> clientCookie, ReadOnlySpan<byte> serverCookie, byte[] secret)
+        private static bool ValidateServerCookieWithSecret(
+            IPAddress clientAddress,
+            ReadOnlySpan<byte> clientCookie,
+            ReadOnlySpan<byte> serverCookie,
+            byte[] secret)
         {
-            if (serverCookie.Length < 8 || serverCookie.Length > 32)
+            if (clientAddress is null || secret is null)
                 return false;
 
-            // Extract timestamp from server cookie
-            if (serverCookie.Length < 6)
+            // Server cookie v1 structure is fixed 14 bytes in this implementation.
+            if (serverCookie.Length != 14)
                 return false;
 
-            byte version = serverCookie[0];
-            if (version != 1)
+            // Client cookie is fixed 8 bytes by your public Validate() already,
+            // but keep it defensive here too.
+            if (clientCookie.Length != 8)
                 return false;
 
-            uint cookieTimestamp = BitConverter.ToUInt32(serverCookie.ToArray(), 2);
-            uint currentTimestamp = (uint)(DateTimeOffset.UtcNow.ToUnixTimeSeconds() & 0xFFFFFFFF);
-
-            // Check timestamp is within 5 minutes (300 seconds) - RFC 9018 recommendation
-            uint timeDiff = currentTimestamp > cookieTimestamp
-                ? currentTimestamp - cookieTimestamp
-                : cookieTimestamp - currentTimestamp;
-
-            if (timeDiff > 300)
+            // Version / reserved
+            if (serverCookie[0] != 1)
                 return false;
 
-            // Recompute hash with the same timestamp
-            using (MemoryStream hashMs = new MemoryStream())
-            {
-                using (BinaryWriter hashBw = new BinaryWriter(hashMs))
-                {
-                    hashBw.Write((byte)1);
-                    hashBw.Write((byte)0);
-                    hashBw.Write(cookieTimestamp);
-                    hashBw.Write(clientCookie);
-                    hashBw.Write(clientAddress.GetAddressBytes());
-                }
+            // enforce reserved == 0 (you always emit 0)
+            if (serverCookie[1] != 0)
+                return false;
 
-                using (HMACSHA256 hmac = new HMACSHA256(secret))
-                {
-                    byte[] hash = hmac.ComputeHash(hashMs.ToArray());
+            // Only IPv4/IPv6; canonicalize IPv4-mapped IPv6 to IPv4 (must match compute policy)
+            if (clientAddress.AddressFamily != AddressFamily.InterNetwork &&
+                clientAddress.AddressFamily != AddressFamily.InterNetworkV6)
+                return false;
 
-                    // Compare first 8 bytes
-                    if (serverCookie.Length >= 14)
-                    {
-                        for (int i = 0; i < 8; i++)
-                        {
-                            if (serverCookie[6 + i] != hash[i])
-                                return false;
-                        }
-                        return true;
-                    }
-                }
-            }
+            if (clientAddress.IsIPv4MappedToIPv6)
+                clientAddress = clientAddress.MapToIPv4();
 
-            return false;
+            // Timestamp validation (big-endian)
+            uint cookieTs = BinaryPrimitives.ReadUInt32BigEndian(serverCookie.Slice(2, 4));
+            uint nowTs = unchecked((uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+
+            uint diff = nowTs >= cookieTs ? (nowTs - cookieTs) : (cookieTs - nowTs);
+            if (diff > 300) // 5 minutes
+                return false;
+
+            // Recompute MAC over exact bytes: version|reserved|timestampBytes|clientCookie|clientIP
+            byte[] ipBytes = clientAddress.GetAddressBytes();
+            int inputLen = 1 + 1 + 4 + clientCookie.Length + ipBytes.Length;
+
+            byte[] input = GC.AllocateUninitializedArray<byte>(inputLen);
+            input[0] = serverCookie[0];
+            input[1] = serverCookie[1];
+            serverCookie.Slice(2, 4).CopyTo(input.AsSpan(2, 4));
+            clientCookie.CopyTo(input.AsSpan(6));
+            ipBytes.AsSpan().CopyTo(input.AsSpan(6 + clientCookie.Length));
+
+            Span<byte> fullMac = stackalloc byte[32];
+            HMACSHA256.HashData(secret, input, fullMac);
+
+            // Compare first 8 bytes in constant time
+            Span<byte> expected = fullMac.Slice(0, 8);
+            ReadOnlySpan<byte> provided = serverCookie.Slice(6, 8);
+
+            return CryptographicOperations.FixedTimeEquals(expected, provided);
         }
 
         #endregion
