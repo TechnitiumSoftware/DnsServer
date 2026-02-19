@@ -273,10 +273,8 @@ namespace DnsServerCore.Dns
         const int SAVE_TIMER_INITIAL_INTERVAL = 5000;
 
         // DNS Cookies (RFC 7873)
-        readonly bool _dnsCookiesEnabled = true;
         readonly string _dnsCookiesSecretFile = "dns.cookies.state";
         readonly int _dnsCookiesRotationPeriodHours = 1;
-        readonly bool _dnsCookiesAlwaysEcho = true;
 
         Security.DnsCookieSecretManager _cookieSecrets;
         Security.DnsCookieValidator _cookieValidator;
@@ -598,7 +596,7 @@ namespace DnsServerCore.Dns
 
                 SaveConfigFileInternal();
 
-                InitDnsCookiesIfEnabled();
+                InitDnsCookies();
             }
             catch (Exception ex)
             {
@@ -1152,7 +1150,7 @@ namespace DnsServerCore.Dns
                 _cookieRotationTimer?.Dispose();
                 _cookieRotationTimer = null;
 
-                InitDnsCookiesIfEnabled();
+                InitDnsCookies();
             }
         }
 
@@ -1438,12 +1436,6 @@ namespace DnsServerCore.Dns
             bW.Write(_queryLog is not null); //log all queries
             bW.Write(_statsManager.EnableInMemoryStats);
             bW.Write(_statsManager.MaxStatFileDays);
-
-            // DNS cookies
-            bW.Write(_dnsCookiesEnabled);
-            bW.Write(_dnsCookiesSecretFile ?? "dns.cookies.state");
-            bW.Write(_dnsCookiesRotationPeriodHours);
-            bW.Write(_dnsCookiesAlwaysEcho);
         }
 
         #endregion
@@ -1611,11 +1603,8 @@ namespace DnsServerCore.Dns
             return Path.Combine(_configFolder, path);
         }
 
-        private void InitDnsCookiesIfEnabled()
+        private void InitDnsCookies()
         {
-            if (!_dnsCookiesEnabled)
-                return;
-
             string secretPath = Path.IsPathRooted(_dnsCookiesSecretFile)
                 ? _dnsCookiesSecretFile
                 : Path.Combine(_configFolder, _dnsCookiesSecretFile);
@@ -2819,8 +2808,7 @@ namespace DnsServerCore.Dns
             }
 
             // DNS Cookies (RFC 7873)
-            if (_dnsCookiesEnabled &&
-                request.EDNS != null &&
+            if (request.EDNS != null &&
                 _cookieValidator != null)
             {
                 EDnsCookieOptionData cookie =
@@ -2865,33 +2853,25 @@ namespace DnsServerCore.Dns
                 return null;
 
             // Attach cookie to response if needed
-            if (_dnsCookiesEnabled && _cookieValidator != null && request.EDNS != null)
+            if (_cookieValidator != null && request.EDNS != null)
             {
                 EDnsCookieOptionData requestCookie = TryGetCookieOption(request);
                 if (requestCookie != null)
                 {
-                    bool shouldSendServerCookie =
-                        _dnsCookiesAlwaysEcho ||
-                        requestCookie.ServerCookie.IsEmpty ||
-                        requestCookie.ServerCookie.Length == 0;
+                    EDnsCookieOptionData responseCookie =
+                        _cookieValidator.CreateResponseCookie(
+                            remoteEP.Address,
+                            requestCookie);
 
-                    if (shouldSendServerCookie)
-                    {
-                        EDnsCookieOptionData responseCookie =
-                            _cookieValidator.CreateResponseCookie(
-                                remoteEP.Address,
-                                requestCookie);
+                    IReadOnlyList<EDnsOption> mergedOptions =
+                        MergeCookieOption(response.EDNS?.Options, responseCookie);
 
-                        IReadOnlyList<EDnsOption> mergedOptions =
-                            MergeCookieOption(response.EDNS?.Options, responseCookie);
-
-                        response = response.Clone(
-                            additional: UpsertOptRecord(
-                                response.Additional,
-                                request,
-                                response,
-                                mergedOptions));
-                    }
+                    response = response.Clone(
+                        additional: UpsertOptRecord(
+                            response.Additional,
+                            request,
+                            response,
+                            mergedOptions));
                 }
             }
 
