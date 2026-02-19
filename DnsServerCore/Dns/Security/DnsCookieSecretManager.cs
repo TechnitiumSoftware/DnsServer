@@ -63,17 +63,22 @@ namespace DnsServerCore.Dns.Security
                         using (BinaryReader br = new BinaryReader(ms))
                         {
                             int version = br.ReadInt32();
-                            if (version == 1)
-                            {
-                                _currentSecretCreated = new DateTime(br.ReadInt64(), DateTimeKind.Utc);
-                                
-                                int currentLen = br.ReadInt32();
-                                _currentSecret = br.ReadBytes(currentLen);
+                            if (version != 1)
+                                throw new InvalidDataException("Unsupported secret file version.");
 
-                                int previousLen = br.ReadInt32();
-                                if (previousLen > 0)
-                                    _previousSecret = br.ReadBytes(previousLen);
-                            }
+                            _currentSecretCreated = new DateTime(br.ReadInt64(), DateTimeKind.Utc);
+
+                            int currentLen = br.ReadInt32();
+                            if (currentLen < 8 || currentLen > 256)
+                                throw new InvalidDataException("Invalid current secret length.");
+
+                            _currentSecret = br.ReadBytes(currentLen);
+
+                            int previousLen = br.ReadInt32();
+                            if (previousLen < 8 || previousLen > 256)
+                                throw new InvalidDataException("Invalid previous secret length.");
+
+                                _previousSecret = br.ReadBytes(previousLen);
                         }
                     }
                     catch
@@ -99,7 +104,7 @@ namespace DnsServerCore.Dns.Security
                     {
                         bw.Write(1); // version
                         bw.Write(_currentSecretCreated.Ticks);
-                        
+
                         bw.Write(_currentSecret.Length);
                         bw.Write(_currentSecret);
 
