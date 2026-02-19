@@ -2832,7 +2832,7 @@ namespace DnsServerCore.Dns
                 }
                 else
                 {
-                    if (cookie.ServerCookie != null && cookie.ServerCookie.Length > 0)
+                    if (!cookie.ServerCookie.IsEmpty && cookie.ServerCookie.Length > 0)
                     {
                         if (!_cookieValidator.Validate(
                             remoteEP.Address,
@@ -2872,7 +2872,7 @@ namespace DnsServerCore.Dns
                 {
                     bool shouldSendServerCookie =
                         _dnsCookiesAlwaysEcho ||
-                        requestCookie.ServerCookie == null ||
+                        requestCookie.ServerCookie.IsEmpty ||
                         requestCookie.ServerCookie.Length == 0;
 
                     if (shouldSendServerCookie)

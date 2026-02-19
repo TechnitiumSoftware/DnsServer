@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
@@ -145,19 +146,19 @@ namespace DnsServerCore.Dns.Security
             }
         }
 
-        public byte[] GetCurrentSecret()
+        public ReadOnlySpan<byte> GetCurrentSecret()
         {
             lock (_lock)
             {
-                return _currentSecret;
+                return new ReadOnlySpan<byte>(_currentSecret);
             }
         }
 
-        public byte[] GetPreviousSecret()
+        public ReadOnlySpan<byte> GetPreviousSecret()
         {
             lock (_lock)
             {
-                return _previousSecret;
+                return new ReadOnlySpan<byte>(_previousSecret);
             }
         }
 

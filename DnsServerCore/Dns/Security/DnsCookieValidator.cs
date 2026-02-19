@@ -79,16 +79,16 @@ namespace DnsServerCore.Dns.Security
             return clientAddress;
         }
 
-        private static void ValidateSecret(byte[] secret)
+        private static void ValidateSecret(ReadOnlySpan<byte> secret)
         {
-            if (secret is null)
+            if (secret.IsEmpty)
                 throw new ArgumentNullException(nameof(secret));
 
             if (secret.Length < MinSecretLen)
                 throw new ArgumentException($"Secret must be at least {MinSecretLen} bytes.", nameof(secret));
         }
 
-        private static byte[] ComputeServerCookie(IPAddress clientAddress, ReadOnlySpan<byte> clientCookie, byte[] secret)
+        private static byte[] ComputeServerCookie(IPAddress clientAddress, ReadOnlySpan<byte> clientCookie, ReadOnlySpan<byte> secret)
         {
             clientAddress = CanonicalizeClientAddress(clientAddress);
             ValidateSecret(secret);
@@ -126,9 +126,9 @@ namespace DnsServerCore.Dns.Security
             IPAddress clientAddress,
             ReadOnlySpan<byte> clientCookie,
             ReadOnlySpan<byte> serverCookie,
-            byte[] secret)
+            ReadOnlySpan<byte> secret)
         {
-            if (clientAddress is null || secret is null)
+            if (clientAddress is null || secret.IsEmpty)
                 return false;
 
             if (secret.Length < MinSecretLen)
@@ -199,13 +199,13 @@ namespace DnsServerCore.Dns.Security
             if (cookie.ClientCookie.Length != ClientCookieLen)
                 return false;
 
-            byte[] currentSecret = _secretManager.GetCurrentSecret();
-            if (currentSecret != null &&
+            ReadOnlySpan<byte> currentSecret = _secretManager.GetCurrentSecret();
+            if (!currentSecret.IsEmpty &&
                 ValidateServerCookieWithSecret(clientAddress, cookie.ClientCookie, cookie.ServerCookie, currentSecret))
                 return true;
 
-            byte[] previousSecret = _secretManager.GetPreviousSecret();
-            if (previousSecret != null &&
+            ReadOnlySpan<byte> previousSecret = _secretManager.GetPreviousSecret();
+            if (!previousSecret.IsEmpty &&
                 ValidateServerCookieWithSecret(clientAddress, cookie.ClientCookie, cookie.ServerCookie, previousSecret))
                 return true;
 
@@ -223,7 +223,7 @@ namespace DnsServerCore.Dns.Security
             if (requestCookie.ClientCookie.Length != ClientCookieLen)
                 throw new ArgumentException($"Client cookie must be {ClientCookieLen} bytes.", nameof(requestCookie));
 
-            byte[] currentSecret = _secretManager.GetCurrentSecret();
+            ReadOnlySpan<byte> currentSecret = _secretManager.GetCurrentSecret();
             ValidateSecret(currentSecret);
 
             byte[] serverCookie = ComputeServerCookie(clientAddress, requestCookie.ClientCookie, currentSecret);
