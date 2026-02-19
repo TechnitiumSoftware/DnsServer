@@ -19,7 +19,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
 using System.Buffers.Binary;
-using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -27,12 +26,29 @@ using TechnitiumLibrary.Net.Dns.EDnsOptions;
 
 namespace DnsServerCore.Dns.Security
 {
-    public class DnsCookieValidator
+    public sealed class DnsCookieValidator
     {
+        #region constants
+
+        // RFC 9018 v1 server cookie structure: Version(1) + Reserved(1) + Timestamp(4) + Hash(8) = 14 bytes
+        const int ClientCookieLen = 8;
+        const int ServerCookieLen = 14;
+        const int TimestampOffset = 2;
+        const int TimestampLen = 4;
+        const int MacOffset = 6;
+        const int MacLen = 8;
+
+        // RFC 9018 recommends a short lifetime; 5 minutes is commonly used.
+        const uint MaxSkewSeconds = 300;
+
+        // Operational minimum; adjust to your key-management policy.
+        const int MinSecretLen = 16;
+
+        #endregion
+
         #region variables
 
         readonly DnsCookieSecretManager _secretManager;
-        // RFC 9018 server cookie structure: Version(1) + Reserved(1) + Timestamp(4) + Hash(8) = 14 bytes
 
         #endregion
 
@@ -45,74 +61,65 @@ namespace DnsServerCore.Dns.Security
 
         #endregion
 
-        #region private
+        #region private helpers
 
-        private static byte[] ComputeServerCookie(IPAddress clientAddress, ReadOnlySpan<byte> clientCookie, byte[] secret)
+        private static IPAddress CanonicalizeClientAddress(IPAddress clientAddress)
         {
-            // RFC 9018 server cookie structure:
-            // Version (1 byte) | Reserved (1 byte) | Timestamp (4 bytes) | Hash (8 bytes)
-            const int CookieLen = 14;
-
             if (clientAddress is null)
                 throw new ArgumentNullException(nameof(clientAddress));
 
-            if (secret is null)
-                throw new ArgumentNullException(nameof(secret));
-
-            // Operationally sane minimum (adjust to your key management policy)
-            if (secret.Length < 16)
-                throw new ArgumentException("Secret must be at least 16 bytes.", nameof(secret));
-
-            // COOKIE option client cookie is commonly 8 bytes; RFC allows a range.
-            // Keep bounds strict enough to prevent abuse but aligned to what you support.
-            const int MinClientCookieLen = 8;
-            const int MaxClientCookieLen = 32; // adjust if your implementation supports a different maximum
-
-            if (clientCookie.Length < MinClientCookieLen || clientCookie.Length > MaxClientCookieLen)
-                throw new ArgumentOutOfRangeException(
-                    nameof(clientCookie),
-                    $"Client cookie length must be between {MinClientCookieLen} and {MaxClientCookieLen} bytes.");
-
-            // Only IPv4/IPv6 are meaningful here
             if (clientAddress.AddressFamily != AddressFamily.InterNetwork &&
                 clientAddress.AddressFamily != AddressFamily.InterNetworkV6)
                 throw new ArgumentException("Client address must be IPv4 or IPv6.", nameof(clientAddress));
 
-            // Canonicalize IPv4-mapped IPv6 to IPv4 to avoid representation-dependent MACs
+            // Avoid representation-dependent MACs.
             if (clientAddress.IsIPv4MappedToIPv6)
-                clientAddress = clientAddress.MapToIPv4();
+                return clientAddress.MapToIPv4();
 
-            Span<byte> cookie = stackalloc byte[CookieLen];
+            return clientAddress;
+        }
+
+        private static void ValidateSecret(byte[] secret)
+        {
+            if (secret is null)
+                throw new ArgumentNullException(nameof(secret));
+
+            if (secret.Length < MinSecretLen)
+                throw new ArgumentException($"Secret must be at least {MinSecretLen} bytes.", nameof(secret));
+        }
+
+        private static byte[] ComputeServerCookie(IPAddress clientAddress, ReadOnlySpan<byte> clientCookie, byte[] secret)
+        {
+            clientAddress = CanonicalizeClientAddress(clientAddress);
+            ValidateSecret(secret);
+
+            if (clientCookie.Length != ClientCookieLen)
+                throw new ArgumentException($"Client cookie must be {ClientCookieLen} bytes.", nameof(clientCookie));
+
+            // We must return a heap array anyway, so build directly into it.
+            byte[] cookie = new byte[ServerCookieLen];
             cookie[0] = 1; // Version
             cookie[1] = 0; // Reserved
 
             uint ts = unchecked((uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-            BinaryPrimitives.WriteUInt32BigEndian(cookie.Slice(2, 4), ts);
+            BinaryPrimitives.WriteUInt32BigEndian(cookie.AsSpan(TimestampOffset, TimestampLen), ts);
 
-            // Build HMAC input
+            // HMAC input: version | reserved | timestamp(4) | client_cookie(8) | client_ip(4/16)
             byte[] ipBytes = clientAddress.GetAddressBytes();
-            int inputLen = 1 + 1 + 4 + clientCookie.Length + ipBytes.Length;
-
-            // Defensive ceiling against pathological sizes (should never trigger with sane bounds)
-            const int MaxInputLen = 1 + 1 + 4 + MaxClientCookieLen + 16; // v6 worst case
-            if (inputLen > MaxInputLen)
-                throw new InvalidOperationException("Computed hash input length exceeds expected maximum.");
+            int inputLen = 1 + 1 + TimestampLen + ClientCookieLen + ipBytes.Length;
 
             byte[] input = GC.AllocateUninitializedArray<byte>(inputLen);
-            input[0] = 1;
-            input[1] = 0;
-            cookie.Slice(2, 4).CopyTo(input.AsSpan(2, 4));
-            clientCookie.CopyTo(input.AsSpan(6));
-            ipBytes.AsSpan().CopyTo(input.AsSpan(6 + clientCookie.Length));
+            input[0] = cookie[0];
+            input[1] = cookie[1];
+            cookie.AsSpan(TimestampOffset, TimestampLen).CopyTo(input.AsSpan(2, TimestampLen));
+            clientCookie.CopyTo(input.AsSpan(2 + TimestampLen));
+            ipBytes.AsSpan().CopyTo(input.AsSpan(2 + TimestampLen + ClientCookieLen));
 
-            // Compute MAC
             Span<byte> fullMac = stackalloc byte[32];
             HMACSHA256.HashData(secret, input, fullMac);
 
-            // First 8 bytes (64 bits)
-            fullMac.Slice(0, 8).CopyTo(cookie.Slice(6, 8));
-
-            return cookie.ToArray();
+            fullMac.Slice(0, MacLen).CopyTo(cookie.AsSpan(MacOffset, MacLen));
+            return cookie;
         }
 
         private static bool ValidateServerCookieWithSecret(
@@ -124,24 +131,16 @@ namespace DnsServerCore.Dns.Security
             if (clientAddress is null || secret is null)
                 return false;
 
-            // Server cookie v1 structure is fixed 14 bytes in this implementation.
-            if (serverCookie.Length != 14)
+            if (secret.Length < MinSecretLen)
                 return false;
 
-            // Client cookie is fixed 8 bytes by your public Validate() already,
-            // but keep it defensive here too.
-            if (clientCookie.Length != 8)
+            if (clientCookie.Length != ClientCookieLen)
                 return false;
 
-            // Version / reserved
-            if (serverCookie[0] != 1)
+            if (serverCookie.Length != ServerCookieLen)
                 return false;
 
-            // enforce reserved == 0 (you always emit 0)
-            if (serverCookie[1] != 0)
-                return false;
-
-            // Only IPv4/IPv6; canonicalize IPv4-mapped IPv6 to IPv4 (must match compute policy)
+            // Canonicalize must match ComputeServerCookie policy
             if (clientAddress.AddressFamily != AddressFamily.InterNetwork &&
                 clientAddress.AddressFamily != AddressFamily.InterNetworkV6)
                 return false;
@@ -149,31 +148,37 @@ namespace DnsServerCore.Dns.Security
             if (clientAddress.IsIPv4MappedToIPv6)
                 clientAddress = clientAddress.MapToIPv4();
 
-            // Timestamp validation (big-endian)
-            uint cookieTs = BinaryPrimitives.ReadUInt32BigEndian(serverCookie.Slice(2, 4));
+            // Version must match v1
+            if (serverCookie[0] != 1)
+                return false;
+
+            // Reserved; strict since we always emit 0 (change to "ignore" if you want forward-compat)
+            if (serverCookie[1] != 0)
+                return false;
+
+            uint cookieTs = BinaryPrimitives.ReadUInt32BigEndian(serverCookie.Slice(TimestampOffset, TimestampLen));
             uint nowTs = unchecked((uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds());
 
             uint diff = nowTs >= cookieTs ? (nowTs - cookieTs) : (cookieTs - nowTs);
-            if (diff > 300) // 5 minutes
+            if (diff > MaxSkewSeconds)
                 return false;
 
-            // Recompute MAC over exact bytes: version|reserved|timestampBytes|clientCookie|clientIP
+            // Recompute expected MAC over exact bytes: version|reserved|timestampBytes|clientCookie|clientIP
             byte[] ipBytes = clientAddress.GetAddressBytes();
-            int inputLen = 1 + 1 + 4 + clientCookie.Length + ipBytes.Length;
+            int inputLen = 1 + 1 + TimestampLen + ClientCookieLen + ipBytes.Length;
 
             byte[] input = GC.AllocateUninitializedArray<byte>(inputLen);
             input[0] = serverCookie[0];
             input[1] = serverCookie[1];
-            serverCookie.Slice(2, 4).CopyTo(input.AsSpan(2, 4));
-            clientCookie.CopyTo(input.AsSpan(6));
-            ipBytes.AsSpan().CopyTo(input.AsSpan(6 + clientCookie.Length));
+            serverCookie.Slice(TimestampOffset, TimestampLen).CopyTo(input.AsSpan(2, TimestampLen));
+            clientCookie.CopyTo(input.AsSpan(2 + TimestampLen));
+            ipBytes.AsSpan().CopyTo(input.AsSpan(2 + TimestampLen + ClientCookieLen));
 
             Span<byte> fullMac = stackalloc byte[32];
             HMACSHA256.HashData(secret, input, fullMac);
 
-            // Compare first 8 bytes in constant time
-            Span<byte> expected = fullMac.Slice(0, 8);
-            ReadOnlySpan<byte> provided = serverCookie.Slice(6, 8);
+            ReadOnlySpan<byte> provided = serverCookie.Slice(MacOffset, MacLen);
+            Span<byte> expected = fullMac.Slice(0, MacLen);
 
             return CryptographicOperations.FixedTimeEquals(expected, provided);
         }
@@ -184,20 +189,24 @@ namespace DnsServerCore.Dns.Security
 
         public bool Validate(IPAddress clientAddress, EDnsCookieOptionData cookie)
         {
-            if (cookie == null || cookie.ClientCookie.IsEmpty || cookie.ServerCookie.IsEmpty)
+            if (clientAddress is null || cookie is null)
                 return false;
 
-            if (cookie.ClientCookie.Length != 8)
+            // This validator is specifically for validating presence of BOTH CC and SC.
+            if (cookie.ClientCookie.IsEmpty || cookie.ServerCookie.IsEmpty)
                 return false;
 
-            // Try current secret first
+            if (cookie.ClientCookie.Length != ClientCookieLen)
+                return false;
+
             byte[] currentSecret = _secretManager.GetCurrentSecret();
-            if (currentSecret != null && ValidateServerCookieWithSecret(clientAddress, cookie.ClientCookie, cookie.ServerCookie, currentSecret))
+            if (currentSecret != null &&
+                ValidateServerCookieWithSecret(clientAddress, cookie.ClientCookie, cookie.ServerCookie, currentSecret))
                 return true;
 
-            // Try previous secret for rotation grace period
             byte[] previousSecret = _secretManager.GetPreviousSecret();
-            if (previousSecret != null && ValidateServerCookieWithSecret(clientAddress, cookie.ClientCookie, cookie.ServerCookie, previousSecret))
+            if (previousSecret != null &&
+                ValidateServerCookieWithSecret(clientAddress, cookie.ClientCookie, cookie.ServerCookie, previousSecret))
                 return true;
 
             return false;
@@ -205,17 +214,19 @@ namespace DnsServerCore.Dns.Security
 
         public EDnsCookieOptionData CreateResponseCookie(IPAddress clientAddress, EDnsCookieOptionData requestCookie)
         {
-            if (requestCookie == null || requestCookie.ClientCookie.IsEmpty)
-                throw new ArgumentException("Request cookie must have a client cookie");
+            if (clientAddress is null)
+                throw new ArgumentNullException(nameof(clientAddress));
 
-            if (requestCookie.ClientCookie.Length != 8)
-                throw new ArgumentException("Client cookie must be 8 bytes");
+            if (requestCookie is null || requestCookie.ClientCookie.IsEmpty)
+                throw new ArgumentException("Request cookie must include a client cookie.", nameof(requestCookie));
+
+            if (requestCookie.ClientCookie.Length != ClientCookieLen)
+                throw new ArgumentException($"Client cookie must be {ClientCookieLen} bytes.", nameof(requestCookie));
 
             byte[] currentSecret = _secretManager.GetCurrentSecret();
-            if (currentSecret is null || currentSecret.Length < 16)
-                throw new InvalidOperationException("Server cookie secret is not available or too short.");
-            byte[] serverCookie = ComputeServerCookie(clientAddress, requestCookie.ClientCookie, currentSecret);
+            ValidateSecret(currentSecret);
 
+            byte[] serverCookie = ComputeServerCookie(clientAddress, requestCookie.ClientCookie, currentSecret);
             return new EDnsCookieOptionData(requestCookie.ClientCookie.ToArray(), serverCookie);
         }
 
