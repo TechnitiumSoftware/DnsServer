@@ -180,19 +180,19 @@ namespace DnsServerCore.Dns.Security
         }
 
         // Returning spans here is unsafe once the lock is released; return a clone instead.
-        public byte[] GetCurrentSecret()
+        public ReadOnlySpan<byte> GetCurrentSecret()
         {
             lock (_lock)
             {
-                return _currentSecret is null ? null : (byte[])_currentSecret.Clone();
+                return _currentSecret is null ? null : new ReadOnlySpan<byte>(_currentSecret);
             }
         }
 
-        public byte[] GetPreviousSecret()
+        public ReadOnlySpan<byte> GetPreviousSecret()
         {
             lock (_lock)
             {
-                return _previousSecret is null ? null : (byte[])_previousSecret.Clone();
+                return _previousSecret is null ? null : new ReadOnlySpan<byte>(_previousSecret);
             }
         }
 
