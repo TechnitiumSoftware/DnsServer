@@ -2824,7 +2824,7 @@ namespace DnsServerCore.Dns
                 }
                 else
                 {
-                    if (!cookie.ServerCookie.IsEmpty && cookie.ServerCookie.Length > 0)
+                    if (!cookie.ServerCookie.IsEmpty && cookie.ServerCookie.Length > 8)
                     {
                         if (!_cookieValidator.Validate(
                             remoteEP.Address,
