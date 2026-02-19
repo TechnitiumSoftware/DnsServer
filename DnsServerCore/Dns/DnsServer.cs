@@ -1602,6 +1602,9 @@ namespace DnsServerCore.Dns
 
             return Path.Combine(_configFolder, path);
         }
+        #endregion
+
+        #region cookie
 
         private void InitDnsCookies()
         {
