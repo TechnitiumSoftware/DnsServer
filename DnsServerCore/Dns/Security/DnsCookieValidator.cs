@@ -30,16 +30,23 @@ namespace DnsServerCore.Dns.Security
     {
         #region constants
 
-        // RFC 9018 v1 server cookie structure: Version(1) + Reserved(1) + Timestamp(4) + Hash(8) = 14 bytes
+        // RFC 9018 v1 server cookie structure: Version(1) + Reserved(3) + Timestamp(4) + Hash(8) = 16 bytes
         const int ClientCookieLen = 8;
-        const int ServerCookieLen = 14;
-        const int TimestampOffset = 2;
+        const int ServerCookieLen = 16;
+
+        const int VersionOffset = 0;
+        const int ReservedOffset = 1;
+        const int ReservedLen = 3;
+
+        const int TimestampOffset = 4;
         const int TimestampLen = 4;
-        const int MacOffset = 6;
+
+        const int MacOffset = 8;
         const int MacLen = 8;
 
-        // RFC 9018 recommends a short lifetime; 5 minutes is commonly used.
-        const uint MaxSkewSeconds = 300;
+        // RFC 9018 recommended acceptance: <= 1 hour past, <= 5 minutes future
+        const uint MaxPastSeconds = 3600;
+        const uint MaxFutureSeconds = 300;
 
         // Operational minimum; adjust to your key-management policy.
         const int MinSecretLen = 16;
@@ -82,7 +89,7 @@ namespace DnsServerCore.Dns.Security
         private static void ValidateSecret(ReadOnlySpan<byte> secret)
         {
             if (secret.IsEmpty)
-                throw new ArgumentNullException(nameof(secret));
+                throw new ArgumentException("Secret must not be empty.", nameof(secret));
 
             if (secret.Length < MinSecretLen)
                 throw new ArgumentException($"Secret must be at least {MinSecretLen} bytes.", nameof(secret));
@@ -96,37 +103,42 @@ namespace DnsServerCore.Dns.Security
             if (clientCookie.Length != ClientCookieLen)
                 throw new ArgumentException($"Client cookie must be {ClientCookieLen} bytes.", nameof(clientCookie));
 
-            // We must return a heap array anyway, so build directly into it.
             byte[] cookie = new byte[ServerCookieLen];
-            cookie[0] = 1; // Version
-            cookie[1] = 0; // Reserved
+
+            cookie[VersionOffset] = 1;
+
+            // Reserved MUST be set to zero on construction (RFC 9018)
+            cookie.AsSpan(ReservedOffset, ReservedLen).Clear();
 
             uint ts = unchecked((uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds());
             BinaryPrimitives.WriteUInt32BigEndian(cookie.AsSpan(TimestampOffset, TimestampLen), ts);
 
-            // HMAC input: version | reserved | timestamp(4) | client_cookie(8) | client_ip(4/16)
+            // SipHash input: clientCookie(8) | version(1) | reserved(3) | timestamp(4) | clientIP(4/16)
             byte[] ipBytes = clientAddress.GetAddressBytes();
-            int inputLen = 1 + 1 + TimestampLen + ClientCookieLen + ipBytes.Length;
+            int inputLen = ClientCookieLen + 1 + ReservedLen + TimestampLen + ipBytes.Length;
 
-            byte[] input = GC.AllocateUninitializedArray<byte>(inputLen);
-            input[0] = cookie[0];
-            input[1] = cookie[1];
-            cookie.AsSpan(TimestampOffset, TimestampLen).CopyTo(input.AsSpan(2, TimestampLen));
-            clientCookie.CopyTo(input.AsSpan(2 + TimestampLen));
-            ipBytes.AsSpan().CopyTo(input.AsSpan(2 + TimestampLen + ClientCookieLen));
+            Span<byte> input = inputLen <= 64 ? stackalloc byte[inputLen] : new byte[inputLen];
+            int o = 0;
+            clientCookie.CopyTo(input.Slice(o, ClientCookieLen)); o += ClientCookieLen;
+            input[o++] = cookie[VersionOffset];
+            cookie.AsSpan(ReservedOffset, ReservedLen).CopyTo(input.Slice(o, ReservedLen)); o += ReservedLen;
+            cookie.AsSpan(TimestampOffset, TimestampLen).CopyTo(input.Slice(o, TimestampLen)); o += TimestampLen;
+            ipBytes.AsSpan().CopyTo(input.Slice(o, ipBytes.Length));
 
-            Span<byte> fullMac = stackalloc byte[32];
-            HMACSHA256.HashData(secret, input, fullMac);
+            ReadOnlySpan<byte> key16 = secret.Slice(0, 16); // acceptable if secret is uniformly random
+            ulong tag = SipHash24.Compute(key16, input);
 
-            fullMac.Slice(0, MacLen).CopyTo(cookie.AsSpan(MacOffset, MacLen));
+            // Store tag in network order for deterministic on-wire representation
+            BinaryPrimitives.WriteUInt64BigEndian(cookie.AsSpan(MacOffset, MacLen), tag);
+
             return cookie;
         }
 
         private static bool ValidateServerCookieWithSecret(
-            IPAddress clientAddress,
-            ReadOnlySpan<byte> clientCookie,
-            ReadOnlySpan<byte> serverCookie,
-            ReadOnlySpan<byte> secret)
+             IPAddress clientAddress,
+             ReadOnlySpan<byte> clientCookie,
+             ReadOnlySpan<byte> serverCookie,
+             ReadOnlySpan<byte> secret)
         {
             if (clientAddress is null || secret.IsEmpty)
                 return false;
@@ -148,39 +160,54 @@ namespace DnsServerCore.Dns.Security
             if (clientAddress.IsIPv4MappedToIPv6)
                 clientAddress = clientAddress.MapToIPv4();
 
-            // Version must match v1
-            if (serverCookie[0] != 1)
+            if (serverCookie[VersionOffset] != 1)
                 return false;
 
-            // Reserved; strict since we always emit 0 (change to "ignore" if you want forward-compat)
-            if (serverCookie[1] != 0)
-                return false;
+            // IMPORTANT (RFC 9018): do NOT enforce Reserved==0 on verification.
+            // Include received reserved bytes in the MAC input.
 
             uint cookieTs = BinaryPrimitives.ReadUInt32BigEndian(serverCookie.Slice(TimestampOffset, TimestampLen));
             uint nowTs = unchecked((uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds());
 
-            uint diff = nowTs >= cookieTs ? (nowTs - cookieTs) : (cookieTs - nowTs);
-            if (diff > MaxSkewSeconds)
-                return false;
+            // RFC 1982 serial arithmetic
+            static bool SerialLessThan(uint a, uint b) => a != b && (uint)(b - a) < 0x8000_0000u;
+            static uint SerialDistance(uint a, uint b) => (uint)(b - a);
 
-            // Recompute expected MAC over exact bytes: version|reserved|timestampBytes|clientCookie|clientIP
+            if (SerialLessThan(nowTs, cookieTs))
+            {
+                uint future = SerialDistance(nowTs, cookieTs);
+                if (future > MaxFutureSeconds)
+                    return false;
+            }
+            else
+            {
+                uint past = SerialDistance(cookieTs, nowTs);
+                if (past > MaxPastSeconds)
+                    return false;
+            }
+
+            // SipHash input: clientCookie(8) | version(1) | reserved(3) | timestamp(4) | clientIP(4/16)
             byte[] ipBytes = clientAddress.GetAddressBytes();
-            int inputLen = 1 + 1 + TimestampLen + ClientCookieLen + ipBytes.Length;
+            int inputLen = ClientCookieLen + 1 + ReservedLen + TimestampLen + ipBytes.Length;
 
-            byte[] input = GC.AllocateUninitializedArray<byte>(inputLen);
-            input[0] = serverCookie[0];
-            input[1] = serverCookie[1];
-            serverCookie.Slice(TimestampOffset, TimestampLen).CopyTo(input.AsSpan(2, TimestampLen));
-            clientCookie.CopyTo(input.AsSpan(2 + TimestampLen));
-            ipBytes.AsSpan().CopyTo(input.AsSpan(2 + TimestampLen + ClientCookieLen));
+            Span<byte> input = inputLen <= 64 ? stackalloc byte[inputLen] : new byte[inputLen];
+            int o = 0;
+            clientCookie.CopyTo(input.Slice(o, ClientCookieLen)); o += ClientCookieLen;
+            input[o++] = serverCookie[VersionOffset];
+            serverCookie.Slice(ReservedOffset, ReservedLen).CopyTo(input.Slice(o, ReservedLen)); o += ReservedLen;
+            serverCookie.Slice(TimestampOffset, TimestampLen).CopyTo(input.Slice(o, TimestampLen)); o += TimestampLen;
+            ipBytes.AsSpan().CopyTo(input.Slice(o, ipBytes.Length));
 
-            Span<byte> fullMac = stackalloc byte[32];
-            HMACSHA256.HashData(secret, input, fullMac);
+            ReadOnlySpan<byte> key16 = secret.Slice(0, 16);
+            ulong expectedTag = SipHash24.Compute(key16, input);
 
-            ReadOnlySpan<byte> provided = serverCookie.Slice(MacOffset, MacLen);
-            Span<byte> expected = fullMac.Slice(0, MacLen);
+            ulong providedTag = BinaryPrimitives.ReadUInt64BigEndian(serverCookie.Slice(MacOffset, MacLen));
 
-            return CryptographicOperations.FixedTimeEquals(expected, provided);
+            // Constant-time compare without allocating:
+            // compare tags by bytes, not by ulong equality (avoids timing artifacts)
+            Span<byte> expectedBytes = stackalloc byte[8];
+            BinaryPrimitives.WriteUInt64BigEndian(expectedBytes, expectedTag);
+            return CryptographicOperations.FixedTimeEquals(expectedBytes, serverCookie.Slice(MacOffset, MacLen));
         }
 
         #endregion
@@ -231,5 +258,81 @@ namespace DnsServerCore.Dns.Security
         }
 
         #endregion
+
+        internal static class SipHash24
+        {
+            // SipHash-2-4 with 128-bit key (16 bytes), returns 64-bit tag.
+            public static ulong Compute(ReadOnlySpan<byte> key16, ReadOnlySpan<byte> msg)
+            {
+                if (key16.Length != 16)
+                    throw new ArgumentException("SipHash key must be 16 bytes.", nameof(key16));
+
+                ulong k0 = ReadU64LE(key16.Slice(0, 8));
+                ulong k1 = ReadU64LE(key16.Slice(8, 8));
+
+                ulong v0 = 0x736f6d6570736575UL ^ k0;
+                ulong v1 = 0x646f72616e646f6dUL ^ k1;
+                ulong v2 = 0x6c7967656e657261UL ^ k0;
+                ulong v3 = 0x7465646279746573UL ^ k1;
+
+                int len = msg.Length;
+                int end = len & ~7;
+
+                for (int i = 0; i < end; i += 8)
+                {
+                    ulong m = ReadU64LE(msg.Slice(i, 8));
+                    v3 ^= m;
+                    SipRound(ref v0, ref v1, ref v2, ref v3);
+                    SipRound(ref v0, ref v1, ref v2, ref v3);
+                    v0 ^= m;
+                }
+
+                ulong b = (ulong)len << 56;
+                int rem = len - end;
+                if (rem != 0)
+                {
+                    ReadOnlySpan<byte> tail = msg.Slice(end, rem);
+                    for (int i = 0; i < rem; i++)
+                        b |= (ulong)tail[i] << (8 * i);
+                }
+
+                v3 ^= b;
+                SipRound(ref v0, ref v1, ref v2, ref v3);
+                SipRound(ref v0, ref v1, ref v2, ref v3);
+                v0 ^= b;
+
+                v2 ^= 0xff;
+                SipRound(ref v0, ref v1, ref v2, ref v3);
+                SipRound(ref v0, ref v1, ref v2, ref v3);
+                SipRound(ref v0, ref v1, ref v2, ref v3);
+                SipRound(ref v0, ref v1, ref v2, ref v3);
+
+                return v0 ^ v1 ^ v2 ^ v3;
+            }
+
+            private static void SipRound(ref ulong v0, ref ulong v1, ref ulong v2, ref ulong v3)
+            {
+                v0 += v1; v1 = RotL(v1, 13); v1 ^= v0; v0 = RotL(v0, 32);
+                v2 += v3; v3 = RotL(v3, 16); v3 ^= v2;
+                v0 += v3; v3 = RotL(v3, 21); v3 ^= v0;
+                v2 += v1; v1 = RotL(v1, 17); v1 ^= v2; v2 = RotL(v2, 32);
+            }
+
+            private static ulong RotL(ulong x, int b) => (x << b) | (x >> (64 - b));
+
+            private static ulong ReadU64LE(ReadOnlySpan<byte> s)
+            {
+                // SipHash spec uses little-endian loads for message words.
+                return
+                    ((ulong)s[0]) |
+                    ((ulong)s[1] << 8) |
+                    ((ulong)s[2] << 16) |
+                    ((ulong)s[3] << 24) |
+                    ((ulong)s[4] << 32) |
+                    ((ulong)s[5] << 40) |
+                    ((ulong)s[6] << 48) |
+                    ((ulong)s[7] << 56);
+            }
+        }
     }
 }
