@@ -2849,22 +2849,23 @@ namespace DnsServerCore.Dns
             }
 
             // DNS Cookies (RFC 7873 / RFC 9018 v1)
-            EDnsCookieOptionData cookie = null;
+            EDnsCookieOptionData requestCookie = null;
+            EDnsCookieOptionData responseCookie;
             if (protocol == DnsTransportProtocol.Udp &&
                 request.EDNS != null &&
                 _cookieValidator != null)
             {
-                cookie = TryGetCookieOption(request);
+                requestCookie = TryGetCookieOption(request);
 
-                if (cookie == null)
+                if (requestCookie == null)
                 {
                     Interlocked.Increment(ref _cookieMissing);
                 }
                 else
                 {
                     // RFC 7873: CC MUST be 8 bytes. Total length MUST be 8 OR 16..40.
-                    int ccLen = cookie.ClientCookie.Length;
-                    int scLen = cookie.ServerCookie.Length;
+                    int ccLen = requestCookie.ClientCookie.Length;
+                    int scLen = requestCookie.ServerCookie.Length;
                     bool lengthOk =
                         (ccLen == 8) &&
                         (
@@ -2907,18 +2908,18 @@ namespace DnsServerCore.Dns
                     else
                     {
                         // CC+SC present
-                        // v1 requires totalLen == 24 (CC 8 + SC 16). Anything else is “not a valid server cookie”.
-                        bool looksLikeV1 = cookie.ServerCookie[0] == 1;
+                        // v1 requires totalLen == 24 (CC 8 + SC 16). Anything else is “not a valid server requestCookie”.
+                        bool looksLikeV1 = requestCookie.ServerCookie[0] == 1;
                         if (looksLikeV1 && scLen != 16)
                         {
                             Interlocked.Increment(ref _cookieInvalid);
 
-                            EDnsCookieOptionData respCookie =
-                                _cookieValidator.CreateResponseCookie(remoteEP.Address, cookie);
+                            responseCookie =
+                                _cookieValidator.CreateResponseCookie(remoteEP.Address, requestCookie);
 
                             Interlocked.Increment(ref _cookieBadcookieSent);
 
-                            return BuildBadCookieResponse(request, remoteEP, isRecursionAllowed, respCookie);
+                            return BuildBadCookieResponse(request, remoteEP, isRecursionAllowed, responseCookie);
                         }
 
                         // If non-v1 versions are unsupported, you can also BADCOOKIE them:
@@ -2926,21 +2927,21 @@ namespace DnsServerCore.Dns
                         {
                             Interlocked.Increment(ref _cookieInvalid);
 
-                            EDnsCookieOptionData respCookie =
-                                _cookieValidator.CreateResponseCookie(remoteEP.Address, cookie);
+                            responseCookie =
+                                _cookieValidator.CreateResponseCookie(remoteEP.Address, requestCookie);
 
                             Interlocked.Increment(ref _cookieBadcookieSent);
 
-                            return BuildBadCookieResponse(request, remoteEP, isRecursionAllowed, respCookie);
+                            return BuildBadCookieResponse(request, remoteEP, isRecursionAllowed, responseCookie);
                         }
 
                         // v1: validate cryptographically
-                        if (!_cookieValidator.Validate(remoteEP.Address, cookie))
+                        if (!_cookieValidator.Validate(remoteEP.Address, requestCookie))
                         {
                             Interlocked.Increment(ref _cookieInvalid);
 
-                            EDnsCookieOptionData respCookie =
-                                _cookieValidator.CreateResponseCookie(remoteEP.Address, cookie);
+                            responseCookie =
+                                _cookieValidator.CreateResponseCookie(remoteEP.Address, requestCookie);
 
                             Interlocked.Increment(ref _cookieBadcookieSent);
 
@@ -2948,7 +2949,7 @@ namespace DnsServerCore.Dns
                                 request,
                                 remoteEP,
                                 isRecursionAllowed,
-                                respCookie);
+                                responseCookie);
                         }
 
                         Interlocked.Increment(ref _cookieValid);
@@ -2960,13 +2961,13 @@ namespace DnsServerCore.Dns
             if (response is null)
                 return null;
 
-            // Attach cookie to response if needed
+            // Attach requestCookie to response if needed
             if (protocol == DnsTransportProtocol.Udp && _cookieValidator != null && request.EDNS != null)
             {            
-                if (cookie != null && cookie.ClientCookie.Length == 8)
+                if (requestCookie != null && requestCookie.ClientCookie.Length == 8)
                 {
-                    EDnsCookieOptionData responseCookie =
-                        _cookieValidator.CreateResponseCookie(remoteEP.Address, cookie);
+                    responseCookie =
+                        _cookieValidator.CreateResponseCookie(remoteEP.Address, requestCookie);
 
                     IReadOnlyList<EDnsOption> mergedOptions =
                         MergeCookieOption(response.EDNS?.Options, responseCookie);
