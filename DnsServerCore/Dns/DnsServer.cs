@@ -2808,15 +2808,37 @@ namespace DnsServerCore.Dns
             if (request.EDNS is not null)
             {
                 if (request.EDNS.Version != 0)
-                    return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, DnsResponseCode.BADVERS, request.Question, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative };
+                {
+                    ushort udpPayload = request.EDNS?.UdpPayloadSize ?? _udpPayloadSize;
+                    EDnsHeaderFlags flags = request.EDNS?.Flags ?? EDnsHeaderFlags.None;
+                    return new DnsDatagram(
+                                    request.Identifier,
+                                    true,
+                                    request.OPCODE,
+                                    false,
+                                    false,
+                                    request.RecursionDesired,
+                                    isRecursionAllowed,
+                                    false,
+                                    request.CheckingDisabled,
+                                    DnsResponseCode.BADVERS,
+                                    request.Question,
+                                    null,
+                                    null,
+                                    null,
+                                    udpPayload,
+                                    flags)
+                    { Tag = DnsServerResponseType.Authoritative };
+                }
             }
 
             // DNS Cookies (RFC 7873 / RFC 9018 v1)
+            EDnsCookieOptionData cookie = null;
             if (protocol == DnsTransportProtocol.Udp &&
                 request.EDNS != null &&
                 _cookieValidator != null)
             {
-                EDnsCookieOptionData cookie = TryGetCookieOption(request);
+                cookie = TryGetCookieOption(request);
 
                 if (cookie == null)
                 {
@@ -2827,8 +2849,6 @@ namespace DnsServerCore.Dns
                     // RFC 7873: CC MUST be 8 bytes. Total length MUST be 8 OR 16..40.
                     int ccLen = cookie.ClientCookie.Length;
                     int scLen = cookie.ServerCookie.Length;
-                    int totalLen = ccLen + scLen;
-
                     bool lengthOk =
                         (ccLen == 8) &&
                         (
@@ -2840,109 +2860,82 @@ namespace DnsServerCore.Dns
                     {
                         // Malformed COOKIE option => FORMERR
                         Interlocked.Increment(ref _cookieInvalid);
+                        ushort udpPayload = request.EDNS?.UdpPayloadSize ?? _udpPayloadSize;
+                        EDnsHeaderFlags flags = request.EDNS?.Flags ?? EDnsHeaderFlags.None;
 
                         return new DnsDatagram(
                             request.Identifier,
                             true,
                             request.OPCODE,
                             false,
-                            truncation: false,
-                            recursionDesired: request.RecursionDesired,
-                            recursionAvailable: isRecursionAllowed,
-                            authenticData: false,
-                            checkingDisabled: request.CheckingDisabled,
+                            false,
+                            request.RecursionDesired,
+                            isRecursionAllowed,
+                            false,
+                            request.CheckingDisabled,
                             DnsResponseCode.FormatError,
                             request.Question,
                             null,
                             null,
                             null,
-                            request.EDNS?.UdpPayloadSize ?? _udpPayloadSize,
-                            request.EDNS?.Flags ?? EDnsHeaderFlags.None)
+                            request.EDNS is null ? ushort.MinValue : udpPayload,
+                            flags)
                         { Tag = DnsServerResponseType.Authoritative };
                     }
 
-                    // CC-only (totalLen == 8): valid request; we’ll attach SC to the normal response later (no extra RTT).
-                    if (totalLen == 8)
+                    // CC-only: valid request; we'll attach SC to the normal response later (no extra RTT).
+                    if (scLen == 0)
                     {
                         Interlocked.Increment(ref _cookieClientOnly);
                     }
                     else
                     {
-                        // CC+SC present. If RFC 9018 v1 is in use, enforce v1 structural expectations:
-                        // version==1 => SC MUST be 16 bytes (totalLen must be 24).
-                        // If you want to allow non-v1 cookies, relax this branch.
-                        if (scLen > 0 && cookie.ServerCookie[0] == 1 && scLen != 16)
+                        // CC+SC present
+                        // v1 requires totalLen == 24 (CC 8 + SC 16). Anything else is “not a valid server cookie”.
+                        bool looksLikeV1 = cookie.ServerCookie[0] == 1;
+                        if (looksLikeV1 && scLen != 16)
                         {
                             Interlocked.Increment(ref _cookieInvalid);
 
-                            return new DnsDatagram(
-                                request.Identifier,
-                                true,
-                                request.OPCODE,
-                                false,
-                                truncation: false,
-                                recursionDesired: request.RecursionDesired,
-                                recursionAvailable: isRecursionAllowed,
-                                authenticData: false,
-                                checkingDisabled: request.CheckingDisabled,
-                                DnsResponseCode.FormatError,
-                                request.Question,
-                                null,
-                                null,
-                                null,
-                                _udpPayloadSize,
-                                request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None)
-                            { Tag = DnsServerResponseType.Authoritative };
+                            EDnsCookieOptionData respCookie =
+                                _cookieValidator.CreateResponseCookie(remoteEP.Address, cookie);
+
+                            Interlocked.Increment(ref _cookieBadcookieSent);
+
+                            return BuildBadCookieResponse(request, remoteEP, isRecursionAllowed, respCookie);
                         }
-                        // CC+SC present
-                        if (scLen >= 8)
+
+                        // If non-v1 versions are unsupported, you can also BADCOOKIE them:
+                        if (!looksLikeV1)
                         {
-                            // v1 requires totalLen == 24 (CC 8 + SC 16). Anything else is “not a valid server cookie”.
-                            bool looksLikeV1 = (cookie.ServerCookie[0] == 1);
-                            if (looksLikeV1 && scLen != 16)
-                            {
-                                Interlocked.Increment(ref _cookieInvalid);
+                            Interlocked.Increment(ref _cookieInvalid);
 
-                                EDnsCookieOptionData respCookie =
-                                    _cookieValidator.CreateResponseCookie(remoteEP.Address, cookie);
+                            EDnsCookieOptionData respCookie =
+                                _cookieValidator.CreateResponseCookie(remoteEP.Address, cookie);
 
-                                Interlocked.Increment(ref _cookieBadcookieSent);
+                            Interlocked.Increment(ref _cookieBadcookieSent);
 
-                                return BuildBadCookieResponse(request, remoteEP, isRecursionAllowed, respCookie);
-                            }
-
-                            // If non-v1 versions are unsupported, you can also BADCOOKIE them:
-                            if (!looksLikeV1)
-                            {
-                                Interlocked.Increment(ref _cookieInvalid);
-
-                                EDnsCookieOptionData respCookie =
-                                    _cookieValidator.CreateResponseCookie(remoteEP.Address, cookie);
-
-                                Interlocked.Increment(ref _cookieBadcookieSent);
-
-                                return BuildBadCookieResponse(request, remoteEP, isRecursionAllowed, respCookie);
-                            }
-
-                            // v1: validate cryptographically
-                            if (!_cookieValidator.Validate(remoteEP.Address, cookie))
-                            {
-                                Interlocked.Increment(ref _cookieInvalid);
-
-                                EDnsCookieOptionData respCookie =
-                                    _cookieValidator.CreateResponseCookie(remoteEP.Address, cookie);
-
-                                Interlocked.Increment(ref _cookieBadcookieSent);
-
-                                return BuildBadCookieResponse(
-                                    request,
-                                    remoteEP,
-                                    isRecursionAllowed,
-                                    respCookie);
-                            }
-
-                            Interlocked.Increment(ref _cookieValid);
+                            return BuildBadCookieResponse(request, remoteEP, isRecursionAllowed, respCookie);
                         }
+
+                        // v1: validate cryptographically
+                        if (!_cookieValidator.Validate(remoteEP.Address, cookie))
+                        {
+                            Interlocked.Increment(ref _cookieInvalid);
+
+                            EDnsCookieOptionData respCookie =
+                                _cookieValidator.CreateResponseCookie(remoteEP.Address, cookie);
+
+                            Interlocked.Increment(ref _cookieBadcookieSent);
+
+                            return BuildBadCookieResponse(
+                                request,
+                                remoteEP,
+                                isRecursionAllowed,
+                                respCookie);
+                        }
+
+                        Interlocked.Increment(ref _cookieValid);
                     }
                 }
             }
@@ -2952,13 +2945,13 @@ namespace DnsServerCore.Dns
                 return null;
 
             // Attach cookie to response if needed
-            if (_cookieValidator != null && request.EDNS != null)
+            if (protocol == DnsTransportProtocol.Udp && _cookieValidator != null && request.EDNS != null)
             {
-                EDnsCookieOptionData requestCookie = TryGetCookieOption(request);
-                if (requestCookie != null && requestCookie.ClientCookie.Length == 8)
+                
+                if (cookie != null && cookie.ClientCookie.Length == 8)
                 {
                     EDnsCookieOptionData responseCookie =
-                        _cookieValidator.CreateResponseCookie(remoteEP.Address, requestCookie);
+                        _cookieValidator.CreateResponseCookie(remoteEP.Address, cookie);
 
                     IReadOnlyList<EDnsOption> mergedOptions =
                         MergeCookieOption(response.EDNS?.Options, responseCookie);
