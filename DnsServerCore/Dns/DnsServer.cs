@@ -2894,10 +2894,37 @@ namespace DnsServerCore.Dns
                                 request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None)
                             { Tag = DnsServerResponseType.Authoritative };
                         }
-
-                        // Only attempt validation when a server cookie is present (RFC 7873: 8..32)
+                        // CC+SC present
                         if (scLen >= 8)
                         {
+                            // v1 requires totalLen == 24 (CC 8 + SC 16). Anything else is “not a valid server cookie”.
+                            bool looksLikeV1 = (cookie.ServerCookie[0] == 1);
+                            if (looksLikeV1 && scLen != 16)
+                            {
+                                Interlocked.Increment(ref _cookieInvalid);
+
+                                EDnsCookieOptionData respCookie =
+                                    _cookieValidator.CreateResponseCookie(remoteEP.Address, cookie);
+
+                                Interlocked.Increment(ref _cookieBadcookieSent);
+
+                                return BuildBadCookieResponse(request, remoteEP, isRecursionAllowed, respCookie);
+                            }
+
+                            // If non-v1 versions are unsupported, you can also BADCOOKIE them:
+                            if (!looksLikeV1)
+                            {
+                                Interlocked.Increment(ref _cookieInvalid);
+
+                                EDnsCookieOptionData respCookie =
+                                    _cookieValidator.CreateResponseCookie(remoteEP.Address, cookie);
+
+                                Interlocked.Increment(ref _cookieBadcookieSent);
+
+                                return BuildBadCookieResponse(request, remoteEP, isRecursionAllowed, respCookie);
+                            }
+
+                            // v1: validate cryptographically
                             if (!_cookieValidator.Validate(remoteEP.Address, cookie))
                             {
                                 Interlocked.Increment(ref _cookieInvalid);
