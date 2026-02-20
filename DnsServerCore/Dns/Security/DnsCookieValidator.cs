@@ -157,9 +157,6 @@ namespace DnsServerCore.Dns.Security
                 clientAddress.AddressFamily != AddressFamily.InterNetworkV6)
                 return false;
 
-            if (clientAddress.IsIPv4MappedToIPv6)
-                clientAddress = clientAddress.MapToIPv4();
-
             if (serverCookie[VersionOffset] != 1)
                 return false;
 
@@ -187,21 +184,51 @@ namespace DnsServerCore.Dns.Security
             }
 
             // SipHash input: clientCookie(8) | version(1) | reserved(3) | timestamp(4) | clientIP(4/16)
-            byte[] ipBytes = clientAddress.GetAddressBytes();
-            int inputLen = ClientCookieLen + 1 + ReservedLen + TimestampLen + ipBytes.Length;
+            Span<byte> ip = stackalloc byte[16];
+            int ipLen = 0;
 
-            Span<byte> input = inputLen <= 64 ? stackalloc byte[inputLen] : new byte[inputLen];
+            // Avoid MapToIPv4() allocation: handle IPv4-mapped via bytes.
+            if (clientAddress.AddressFamily == AddressFamily.InterNetwork)
+            {
+                ipLen = 4;
+                clientAddress.TryWriteBytes(ip.Slice(0, 4), out _);
+            }
+            else
+            {
+                // IPv6
+                clientAddress.TryWriteBytes(ip, out int written);
+                if (written != 16)
+                    return false; // or throw in compute path
+
+                // If v4-mapped (::ffff:a.b.c.d), canonicalize to 4 bytes (last 4 bytes)
+                bool isV4Mapped =
+                    ip[0] == 0 && ip[1] == 0 && ip[2] == 0 && ip[3] == 0 &&
+                    ip[4] == 0 && ip[5] == 0 && ip[6] == 0 && ip[7] == 0 &&
+                    ip[8] == 0 && ip[9] == 0 &&
+                    ip[10] == 0xff && ip[11] == 0xff;
+
+                if (isV4Mapped)
+                {
+                    ipLen = 4;
+                    ip.Slice(12, 4).CopyTo(ip.Slice(0, 4));
+                }
+                else
+                {
+                    ipLen = 16;
+                }
+            }
+
+            int inputLen = ClientCookieLen + 1 + ReservedLen + TimestampLen + ipLen;
+            Span<byte> input = stackalloc byte[inputLen]; // always <= 32 here
             int o = 0;
             clientCookie.CopyTo(input.Slice(o, ClientCookieLen)); o += ClientCookieLen;
             input[o++] = serverCookie[VersionOffset];
             serverCookie.Slice(ReservedOffset, ReservedLen).CopyTo(input.Slice(o, ReservedLen)); o += ReservedLen;
             serverCookie.Slice(TimestampOffset, TimestampLen).CopyTo(input.Slice(o, TimestampLen)); o += TimestampLen;
-            ipBytes.AsSpan().CopyTo(input.Slice(o, ipBytes.Length));
+            ip.Slice(0, ipLen).CopyTo(input.Slice(o, ipLen));
 
             ReadOnlySpan<byte> key16 = secret.Slice(0, 16);
             ulong expectedTag = SipHash24.Compute(key16, input);
-
-            ulong providedTag = BinaryPrimitives.ReadUInt64BigEndian(serverCookie.Slice(MacOffset, MacLen));
 
             // Constant-time compare without allocating:
             // compare tags by bytes, not by ulong equality (avoids timing artifacts)
