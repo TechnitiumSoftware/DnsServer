@@ -2774,7 +2774,25 @@ namespace DnsServerCore.Dns
                     _log.Write(remoteEP, protocol, request.ParsingException);
 
                 //format error response
-                return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, DnsResponseCode.FormatError, request.Question, null, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative };
+                ushort udpPayload = request.EDNS?.UdpPayloadSize ?? _udpPayloadSize;
+                EDnsHeaderFlags flags = request.EDNS?.Flags ?? EDnsHeaderFlags.None;
+                return new DnsDatagram(request.Identifier,
+                                       true,
+                                       request.OPCODE,
+                                       false,
+                                       false,
+                                       request.RecursionDesired,
+                                       isRecursionAllowed,
+                                       false,
+                                       request.CheckingDisabled,
+                                       DnsResponseCode.FormatError,
+                                       request.Question,
+                                       null,
+                                       null,
+                                       null,
+                                       request.EDNS is null ? ushort.MinValue : udpPayload,
+                                       flags)
+                { Tag = DnsServerResponseType.Authoritative };
             }
 
             //check for invalid domain name
