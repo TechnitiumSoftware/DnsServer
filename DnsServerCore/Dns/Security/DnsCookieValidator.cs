@@ -253,13 +253,14 @@ namespace DnsServerCore.Dns.Security
             if (cookie.ClientCookie.Length != ClientCookieLen)
                 return false;
 
-            ReadOnlySpan<byte> currentSecret = _secretManager.GetCurrentSecret();
-            if (!currentSecret.IsEmpty &&
+            byte[] currentSecret = _secretManager.GetCurrentSecret();
+
+            if (currentSecret != null && currentSecret.Length > 0 &&
                 ValidateServerCookieWithSecret(clientAddress, cookie.ClientCookie, cookie.ServerCookie, currentSecret))
                 return true;
 
-            ReadOnlySpan<byte> previousSecret = _secretManager.GetPreviousSecret();
-            if (!previousSecret.IsEmpty &&
+            byte[] previousSecret = _secretManager.GetPreviousSecret();
+            if (previousSecret != null && previousSecret.Length > 0 &&
                 ValidateServerCookieWithSecret(clientAddress, cookie.ClientCookie, cookie.ServerCookie, previousSecret))
                 return true;
 
@@ -277,7 +278,7 @@ namespace DnsServerCore.Dns.Security
             if (requestCookie.ClientCookie.Length != ClientCookieLen)
                 throw new ArgumentException($"Client cookie must be {ClientCookieLen} bytes.", nameof(requestCookie));
 
-            ReadOnlySpan<byte> currentSecret = _secretManager.GetCurrentSecret();
+            byte[] currentSecret = _secretManager.GetCurrentSecret();
             ValidateSecret(currentSecret);
 
             byte[] serverCookie = ComputeServerCookie(clientAddress, requestCookie.ClientCookie, currentSecret);

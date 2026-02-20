@@ -183,7 +183,7 @@ namespace DnsServerCore.Dns.Security
             {
                 Snapshot currentSnapshot = Volatile.Read(ref _snapshot);
 
-                byte[] previous = currentSnapshot is null ? null : currentSnapshot.CurrentSecret;
+                byte[] previous = currentSnapshot?.CurrentSecret;
                 Snapshot nextSnapshot = GenerateNewSnapshot(previous);
 
                 SaveLocked(nextSnapshot);
@@ -195,13 +195,13 @@ namespace DnsServerCore.Dns.Security
         public byte[] GetCurrentSecret()
         {
             Snapshot snapshot = Volatile.Read(ref _snapshot);
-            return snapshot is null ? null : snapshot.CurrentSecret;
+            return snapshot?.CurrentSecret;
         }
 
         public byte[] GetPreviousSecret()
         {
             Snapshot snapshot = Volatile.Read(ref _snapshot);
-            return snapshot is null ? null : snapshot.PreviousSecret;
+            return snapshot?.PreviousSecret;
         }
 
         #endregion
