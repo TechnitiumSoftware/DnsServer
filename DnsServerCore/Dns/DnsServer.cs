@@ -1609,25 +1609,29 @@ namespace DnsServerCore.Dns
 
         private void InitDnsCookies()
         {
-            string secretPath = Path.IsPathRooted(_dnsCookiesSecretFile)
-                ? _dnsCookiesSecretFile
-                : Path.Combine(_configFolder, _dnsCookiesSecretFile);
-
-            _cookieSecrets = new Security.DnsCookieSecretManager(secretPath);
-            _cookieValidator = new Security.DnsCookieValidator(_cookieSecrets);
-
-            _cookieRotationTimer?.Dispose();
-            if (_dnsCookiesRotationPeriodHours > 0)
+            lock (_saveLock)
             {
-                _cookieRotationTimer = new Timer(
-                    _ =>
-                    {
-                        try { _cookieSecrets.Rotate(); }
-                        catch (Exception ex) { _log.Write(ex); }
-                    },
-                    null,
-                    dueTime: TimeSpan.FromMinutes(5),
-                    period: TimeSpan.FromHours(_dnsCookiesRotationPeriodHours));
+                string secretPath = Path.IsPathRooted(_dnsCookiesSecretFile)
+                    ? _dnsCookiesSecretFile
+                    : Path.Combine(_configFolder, _dnsCookiesSecretFile);
+
+                _cookieSecrets = new Security.DnsCookieSecretManager(secretPath);
+                _cookieValidator = new Security.DnsCookieValidator(_cookieSecrets);
+
+                _cookieRotationTimer?.Dispose();
+                if (_dnsCookiesRotationPeriodHours > 0)
+                {
+                    _cookieRotationTimer = new Timer(
+                        _ =>
+                        {
+                            try { _cookieSecrets.Rotate(); }
+                            catch (Exception ex) { _log.Write(ex); }
+                        },
+                        null,
+                        dueTime: TimeSpan.FromMinutes(5),
+                        period: TimeSpan.FromHours(_dnsCookiesRotationPeriodHours));
+                }
+
             }
         }
 
@@ -2964,8 +2968,7 @@ namespace DnsServerCore.Dns
 
             // Attach cookie to response if needed
             if (protocol == DnsTransportProtocol.Udp && _cookieValidator != null && request.EDNS != null)
-            {
-                
+            {            
                 if (cookie != null && cookie.ClientCookie.Length == 8)
                 {
                     EDnsCookieOptionData responseCookie =
