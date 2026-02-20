@@ -72,8 +72,7 @@ namespace DnsServerCore.Dns.Security
 
         private static IPAddress CanonicalizeClientAddress(IPAddress clientAddress)
         {
-            if (clientAddress is null)
-                throw new ArgumentNullException(nameof(clientAddress));
+            ArgumentNullException.ThrowIfNull(clientAddress);
 
             if (clientAddress.AddressFamily != AddressFamily.InterNetwork &&
                 clientAddress.AddressFamily != AddressFamily.InterNetworkV6)
@@ -269,8 +268,7 @@ namespace DnsServerCore.Dns.Security
 
         public EDnsCookieOptionData CreateResponseCookie(IPAddress clientAddress, EDnsCookieOptionData requestCookie)
         {
-            if (clientAddress is null)
-                throw new ArgumentNullException(nameof(clientAddress));
+            ArgumentNullException.ThrowIfNull(clientAddress);
 
             if (requestCookie is null || requestCookie.ClientCookie.IsEmpty)
                 throw new ArgumentException("Request cookie must include a client cookie.", nameof(requestCookie));
