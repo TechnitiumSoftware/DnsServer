@@ -1631,7 +1631,6 @@ namespace DnsServerCore.Dns
                         dueTime: TimeSpan.FromMinutes(5),
                         period: TimeSpan.FromHours(_dnsCookiesRotationPeriodHours));
                 }
-
             }
         }
 
@@ -2908,7 +2907,7 @@ namespace DnsServerCore.Dns
                     else
                     {
                         // CC+SC present
-                        // v1 requires totalLen == 24 (CC 8 + SC 16). Anything else is “not a valid server requestCookie”.
+                        // v1 requires totalLen == 24 (CC 8 + SC 16). Anything else is “not a valid server cookie”.
                         bool looksLikeV1 = requestCookie.ServerCookie[0] == 1;
                         if (looksLikeV1 && scLen != 16)
                         {
