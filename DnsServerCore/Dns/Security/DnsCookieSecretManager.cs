@@ -153,7 +153,14 @@ namespace DnsServerCore.Dns.Security
             if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
                 Directory.CreateDirectory(directory);
 
-            File.WriteAllBytes(_secretFilePath, ms.ToArray());
+            string tmpPath = _secretFilePath + ".tmp";
+            File.WriteAllBytes(tmpPath, ms.ToArray());
+
+            // Atomic replace where supported
+            if (File.Exists(_secretFilePath))
+                File.Replace(tmpPath, _secretFilePath, destinationBackupFileName: null);
+            else
+                File.Move(tmpPath, _secretFilePath);
         }
 
         private Snapshot GenerateNewSnapshot(byte[] previousSecret)
