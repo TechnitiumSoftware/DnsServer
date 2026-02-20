@@ -44,9 +44,8 @@ namespace DnsServerCore.Dns.Security
         readonly string _secretFilePath;
         readonly Lock _lock = new Lock();
 
-        byte[] _currentSecret;
-        byte[] _previousSecret;
-        DateTime _currentSecretCreated;
+        // Immutable snapshot published atomically for lock-free hot-path reads.
+        private Snapshot _snapshot;
 
         #endregion
 
@@ -61,7 +60,12 @@ namespace DnsServerCore.Dns.Security
 
             lock (_lock)
             {
-                LoadLocked();
+                Snapshot loaded = LoadLocked();
+                if (loaded is null)
+                    loaded = GenerateNewSnapshot(previousSecret: null);
+
+                SaveLocked(loaded);
+                Volatile.Write(ref _snapshot, loaded);
             }
         }
 
@@ -69,14 +73,11 @@ namespace DnsServerCore.Dns.Security
 
         #region private
 
-        private void LoadLocked()
+        private Snapshot LoadLocked()
         {
             // Caller must hold _lock
             if (!File.Exists(_secretFilePath))
-            {
-                GenerateNewSecretsLocked();
-                return;
-            }
+                return null;
 
             try
             {
@@ -88,7 +89,7 @@ namespace DnsServerCore.Dns.Security
                 if (version != FileVersion)
                     throw new InvalidDataException("Unsupported secret file version.");
 
-                _currentSecretCreated = new DateTime(br.ReadInt64(), DateTimeKind.Utc);
+                DateTime createdUtc = new DateTime(br.ReadInt64(), DateTimeKind.Utc);
 
                 int currentLen = br.ReadInt32();
                 if (currentLen < MinSecretLen || currentLen > MaxSecretLen)
@@ -111,34 +112,36 @@ namespace DnsServerCore.Dns.Security
                         throw new EndOfStreamException("Unexpected end of secret file (previous secret).");
                 }
 
-                _currentSecret = current;
-                _previousSecret = previous;
+                return new Snapshot(current, previous, createdUtc);
             }
             catch
             {
-                GenerateNewSecretsLocked();
+                return null;
             }
         }
 
-        private void SaveLocked()
+        private void SaveLocked(Snapshot snapshot)
         {
             // Caller must hold _lock
-            if (_currentSecret is null || _currentSecret.Length < MinSecretLen)
+            if (snapshot is null)
+                throw new ArgumentNullException(nameof(snapshot));
+
+            if (snapshot.CurrentSecret is null || snapshot.CurrentSecret.Length < MinSecretLen)
                 throw new InvalidOperationException("Current secret is missing or too short.");
 
             using MemoryStream ms = new MemoryStream();
             using (BinaryWriter bw = new BinaryWriter(ms))
             {
                 bw.Write(FileVersion);
-                bw.Write(_currentSecretCreated.Ticks);
+                bw.Write(snapshot.CurrentSecretCreatedUtc.Ticks);
 
-                bw.Write(_currentSecret.Length);
-                bw.Write(_currentSecret);
+                bw.Write(snapshot.CurrentSecret.Length);
+                bw.Write(snapshot.CurrentSecret);
 
-                if (_previousSecret is { Length: >= MinSecretLen and <= MaxSecretLen })
+                if (snapshot.PreviousSecret is { Length: >= MinSecretLen and <= MaxSecretLen })
                 {
-                    bw.Write(_previousSecret.Length);
-                    bw.Write(_previousSecret);
+                    bw.Write(snapshot.PreviousSecret.Length);
+                    bw.Write(snapshot.PreviousSecret);
                 }
                 else
                 {
@@ -153,14 +156,14 @@ namespace DnsServerCore.Dns.Security
             File.WriteAllBytes(_secretFilePath, ms.ToArray());
         }
 
-        private void GenerateNewSecretsLocked()
+        private Snapshot GenerateNewSnapshot(byte[] previousSecret)
         {
             // Caller must hold _lock
-            _currentSecret = RandomNumberGenerator.GetBytes(DefaultSecretLen);
-            _currentSecretCreated = DateTime.UtcNow;
-            _previousSecret = null;
+            byte[] currentSecret = RandomNumberGenerator.GetBytes(DefaultSecretLen);
+            DateTime createdUtc = DateTime.UtcNow;
 
-            SaveLocked();
+            // previousSecret is expected to be immutable once published; we pass it through as-is.
+            return new Snapshot(currentSecret, previousSecret, createdUtc);
         }
 
         #endregion
@@ -171,31 +174,42 @@ namespace DnsServerCore.Dns.Security
         {
             lock (_lock)
             {
-                _previousSecret = _currentSecret is null ? null : (byte[])_currentSecret.Clone();
-                _currentSecret = RandomNumberGenerator.GetBytes(DefaultSecretLen);
-                _currentSecretCreated = DateTime.UtcNow;
+                Snapshot currentSnapshot = Volatile.Read(ref _snapshot);
 
-                SaveLocked();
+                byte[] previous = currentSnapshot is null ? null : currentSnapshot.CurrentSecret;
+                Snapshot nextSnapshot = GenerateNewSnapshot(previous);
+
+                SaveLocked(nextSnapshot);
+                Volatile.Write(ref _snapshot, nextSnapshot);
             }
         }
 
-        // Returning spans here is unsafe once the lock is released; return a clone instead.
-        public ReadOnlySpan<byte> GetCurrentSecret()
+        // Hot path: lock-free, allocation-free. Returned arrays must be treated as read-only by callers.
+        public byte[] GetCurrentSecret()
         {
-            lock (_lock)
-            {
-                return _currentSecret is null ? null : new ReadOnlySpan<byte>(_currentSecret);
-            }
+            Snapshot snapshot = Volatile.Read(ref _snapshot);
+            return snapshot is null ? null : snapshot.CurrentSecret;
         }
 
-        public ReadOnlySpan<byte> GetPreviousSecret()
+        public byte[] GetPreviousSecret()
         {
-            lock (_lock)
-            {
-                return _previousSecret is null ? null : new ReadOnlySpan<byte>(_previousSecret);
-            }
+            Snapshot snapshot = Volatile.Read(ref _snapshot);
+            return snapshot is null ? null : snapshot.PreviousSecret;
         }
 
         #endregion
+        private sealed class Snapshot
+        {
+            internal readonly byte[] CurrentSecret;
+            internal readonly byte[] PreviousSecret; // may be null
+            internal readonly DateTime CurrentSecretCreatedUtc;
+
+            internal Snapshot(byte[] currentSecret, byte[] previousSecret, DateTime currentSecretCreatedUtc)
+            {
+                CurrentSecret = currentSecret;
+                PreviousSecret = previousSecret;
+                CurrentSecretCreatedUtc = currentSecretCreatedUtc;
+            }
+        }
     }
 }
