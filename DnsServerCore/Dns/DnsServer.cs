@@ -1699,7 +1699,7 @@ namespace DnsServerCore.Dns
             else
             {
                 list = new List<EDnsOption>(existing.Count + 1);
-                foreach (var opt in existing)
+                foreach (EDnsOption opt in existing)
                 {
                     if (opt.Code != EDnsOptionCode.COOKIE)
                         list.Add(opt);
@@ -1717,30 +1717,24 @@ namespace DnsServerCore.Dns
             DnsDatagram response,
             IReadOnlyList<EDnsOption> options)
         {
-            var baseEdns = response.EDNS ?? request.EDNS;
+            DnsDatagramEdns baseEdns = response.EDNS ?? request.EDNS;
 
             ushort udp = baseEdns?.UdpPayloadSize ?? 512;
-            var flags = baseEdns?.Flags ?? EDnsHeaderFlags.None;
+            EDnsHeaderFlags flags = baseEdns?.Flags ?? EDnsHeaderFlags.None;
 
-            var opt = DnsDatagramEdns.GetOPTFor(
+            DnsResourceRecord opt = DnsDatagramEdns.GetOPTFor(
                 udpPayloadSize: udp,
                 extendedRCODE: response.RCODE,
                 version: 0,
                 flags: flags,
                 options: options);
 
-            List<DnsResourceRecord> list =
-                existingAdditional == null
-                ? new List<DnsResourceRecord>(1)
-                : new List<DnsResourceRecord>(existingAdditional.Count + 1);
-
-            if (existingAdditional != null)
+            int capacity = (existingAdditional?.Count ?? 0) + 1;
+            List<DnsResourceRecord> list = new List<DnsResourceRecord>(capacity);
+            foreach (DnsResourceRecord rr in existingAdditional ?? Array.Empty<DnsResourceRecord>())
             {
-                foreach (var rr in existingAdditional)
-                {
-                    if (rr.Type != DnsResourceRecordType.OPT)
-                        list.Add(rr);
-                }
+                if (rr.Type != DnsResourceRecordType.OPT)
+                    list.Add(rr);
             }
 
             list.Add(opt);
