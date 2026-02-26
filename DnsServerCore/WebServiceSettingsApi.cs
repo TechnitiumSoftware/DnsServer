@@ -191,6 +191,9 @@ namespace DnsServerCore
 
                 jsonWriter.WriteEndArray();
 
+                jsonWriter.WriteString("webServiceHttpUnixSocket", _dnsWebService._webServiceHttpUnixSocket);
+                jsonWriter.WriteString("webServiceTlsUnixSocket", _dnsWebService._webServiceTlsUnixSocket);
+
                 jsonWriter.WriteNumber("webServiceHttpPort", _dnsWebService._webServiceHttpPort);
                 jsonWriter.WriteBoolean("webServiceEnableTls", _dnsWebService._webServiceEnableTls);
                 jsonWriter.WriteBoolean("webServiceEnableHttp3", _dnsWebService._webServiceEnableHttp3);
@@ -230,6 +233,9 @@ namespace DnsServerCore
                 jsonWriter.WriteNumber("dnsOverTlsPort", _dnsWebService._dnsServer.DnsOverTlsPort);
                 jsonWriter.WriteNumber("dnsOverHttpsPort", _dnsWebService._dnsServer.DnsOverHttpsPort);
                 jsonWriter.WriteNumber("dnsOverQuicPort", _dnsWebService._dnsServer.DnsOverQuicPort);
+
+                jsonWriter.WriteString("dnsOverHttpUnixSocket", _dnsWebService._dnsServer.DnsOverHttpUnixSocket);
+                jsonWriter.WriteString("dnsOverHttpsUnixSocket", _dnsWebService._dnsServer.DnsOverHttpsUnixSocket);
 
                 jsonWriter.WritePropertyName("dnsReverseProxyNetworkACL");
                 {
@@ -891,6 +897,24 @@ namespace DnsServerCore
                             _dnsWebService._webServiceLocalAddresses = WebUtilities.GetValidKestrelLocalAddresses(webServiceLocalAddresses);
                         }
 
+                        if (request.TryGetQueryOrForm("webServiceHttpUnixSocket", out string webServiceHttpUnixSocket))
+                        {
+                            if (_dnsWebService._webServiceHttpUnixSocket != webServiceHttpUnixSocket)
+                            {
+                                restartWebService = true;
+                            }
+                            _dnsWebService._webServiceHttpUnixSocket = webServiceHttpUnixSocket;
+                        }
+
+                        if (request.TryGetQueryOrForm("webServiceTlsUnixSocket", out string webServiceTlsUnixSocket))
+                        {
+                            if (_dnsWebService._webServiceTlsUnixSocket != webServiceTlsUnixSocket)
+                            {
+                                restartWebService = true;
+                            }
+                            _dnsWebService._webServiceTlsUnixSocket = webServiceTlsUnixSocket;
+                        }
+
                         if (request.TryGetQueryOrForm("webServiceHttpPort", int.Parse, out int webServiceHttpPort))
                         {
                             if (_dnsWebService._webServiceHttpPort != webServiceHttpPort)
@@ -1125,7 +1149,25 @@ namespace DnsServerCore
                         else if (request.TryQueryOrFormArray("reverseProxyNetworkACL", NetworkAccessControl.Parse, out dnsReverseProxyNetworkACL))
                             _dnsWebService._dnsServer.DnsReverseProxyNetworkACL = dnsReverseProxyNetworkACL;
 
-                        if (request.TryGetQueryOrForm("dnsOverHttpRealIpHeader", out string dnsOverHttpRealIpHeader))
+                        if (request.TryQueryOrForm("dnsOverHttpUnixSocket", out string dnsOverHttpUnixSocket))
+                        {
+                            if (_dnsWebService._dnsServer.DnsOverHttpUnixSocket != dnsOverHttpUnixSocket)
+                            {
+                                restartDnsService = true;
+                            }
+                            _dnsWebService._dnsServer.DnsOverHttpUnixSocket = dnsOverHttpUnixSocket;
+                        }
+
+                        if (request.TryQueryOrForm("dnsOverHttpsUnixSocket", out string dnsOverHttpsUnixSocket))
+                        {
+                            if (_dnsWebService._dnsServer.DnsOverHttpsUnixSocket != dnsOverHttpsUnixSocket)
+                            {
+                                restartDnsService = true;
+                            }
+                            _dnsWebService._dnsServer.DnsOverHttpsUnixSocket = dnsOverHttpsUnixSocket;
+                        }
+
+                        if (request.TryQueryOrForm("dnsOverHttpRealIpHeader", out string dnsOverHttpRealIpHeader))
                             _dnsWebService._dnsServer.DnsOverHttpRealIpHeader = dnsOverHttpRealIpHeader;
 
                         string dnsTlsCertificatePath = request.QueryOrForm("dnsTlsCertificatePath");

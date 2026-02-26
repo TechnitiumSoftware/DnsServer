@@ -1415,6 +1415,22 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local addresses are the network interface IP addresses you want the Web Service to listen for requests. ANY addresses (0.0.0.0 &amp; [::]) cannot be used together with unicast IP addresses. The web server uses dual-mode sockets by default so the IPv6 ANY address ([::]) works for IPv4 too. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the Web Service to listen on specific networks. Configured unicast IP addresses will be included as Subject Alternative Name (SAN) in the self signed TLS certificate.</div>
                                                         </div>
 
+                                                        <div class="form-group unix-socket-option">
+                                                            <label for="txtWebServiceHttpUnixSocket" class="col-sm-3 control-label">Web Service HTTP Unix Socket</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" id="txtWebServiceHttpUnixSocket" class="form-control" spellcheck="false" placeholder="/path/to/socket.sock">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Optional Unix domain socket path you want the web service to listen on for HTTP requests.</div>
+                                                        </div>
+
+                                                        <div class="form-group unix-socket-option">
+                                                            <label for="txtWebServiceTlsUnixSocket" class="col-sm-3 control-label">Web Service HTTPS Unix Socket</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" id="txtWebServiceTlsUnixSocket" class="form-control" spellcheck="false" placeholder="/path/to/socket.sock">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Optional Unix domain socket path you want the web service to listen on for HTTPS requests.</div>
+                                                        </div>
+
                                                         <div class="form-group">
                                                             <label for="txtWebServiceHttpPort" class="col-sm-3 control-label">Web Service HTTP Port</label>
                                                             <div class="col-sm-6">
@@ -1597,6 +1613,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the TCP port number for DNS-over-HTTP protocol.</div>
                                                         </div>
 
+                                                        <div class="form-group unix-socket-option">
+                                                            <label for="txtDnsOverHttpUnixSocket" class="col-sm-3 control-label">DNS-over-HTTP Unix Socket</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" id="txtDnsOverHttpUnixSocket" class="form-control" spellcheck="false" placeholder="/path/to/socket.sock">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Optional Unix domain socket path you want the DNS server to listen on for DNS-over-HTTP protocol requests.</div>
+                                                        </div>
+
                                                         <div class="form-group">
                                                             <label for="txtDnsOverTlsPort" class="col-sm-3 control-label">DNS-over-TLS Port</label>
                                                             <div class="col-sm-6">
@@ -1613,6 +1637,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                 <span>(default 443)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the TCP port number for DNS-over-HTTPS protocol.</div>
+                                                        </div>
+
+                                                        <div class="form-group unix-socket-option">
+                                                            <label for="txtDnsOverHttpsUnixSocket" class="col-sm-3 control-label">DNS-over-HTTPS Unix Socket</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" id="txtDnsOverHttpsUnixSocket" class="form-control" spellcheck="false" placeholder="/path/to/socket.sock">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Optional Unix domain socket path you want the DNS server to listen on for DNS-over-HTTPS protocol requests.</div>
                                                         </div>
 
                                                         <div class="form-group">
