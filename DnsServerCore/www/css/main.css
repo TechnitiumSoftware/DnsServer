@@ -77,7 +77,7 @@ th a {
 .container {
     margin-left: auto;
     margin-right: auto;
-    padding: 55px 15px 60px 15px;
+    padding: 38px 15px 60px 15px;
     word-wrap: break-word;
     min-width: 970px;
 }
@@ -155,10 +155,27 @@ th a {
     }
 }
 
-.form-inline .form-group {
-    margin-right: 10px;
-    margin-bottom: 10px;
+.form-inline {
+    display: flex;
+    flex-flow: row wrap;
+    align-items: center;
 }
+
+    .form-inline .mb-3 {
+        margin-right: 10px;
+        margin-bottom: 10px;
+    }
+
+    .form-inline .form-control {
+        display: inline-block;
+        width: auto;
+        vertical-align: middle;
+    }
+
+    .form-inline label {
+        margin-right: 6px;
+        margin-bottom: 0;
+    }
 
 .AlertPlaceholder {
     position: fixed;
@@ -182,6 +199,18 @@ th a {
     .zones .zone {
         padding: 4px;
     }
+
+#tableZones tbody tr {
+    cursor: pointer;
+}
+
+    #tableZones tbody tr:hover {
+        background-color: rgba(102, 153, 255, 0.1);
+    }
+
+.dark-mode #tableZones tbody tr:hover {
+    background-color: rgba(102, 153, 255, 0.2) !important;
+}
 
 .zone-viewer-pane {
     float: right;
@@ -365,6 +394,15 @@ th a {
 body.dark-mode {
     background-color: #1a1a1a !important;
     color: #dcdcdc !important;
+    --bs-body-bg: #1a1a1a;
+    --bs-body-color: #dcdcdc;
+    --bs-table-bg: transparent;
+    --bs-table-color: #dcdcdc;
+    --bs-border-color: #3a3a3c;
+    --bs-heading-color: #f0f0f0;
+    --bs-secondary-color: #aaa;
+    --bs-tertiary-color: #888;
+    color-scheme: dark;
 }
 
 .dark-mode th a,
@@ -400,24 +438,24 @@ body.dark-mode {
     color: #f0f0f0 !important;
 }
 
-.dark-mode .panel,
-.dark-mode .panel-default {
+.dark-mode .card {
     background-color: #2c2c2e !important;
     border-color: #3a3a3c !important;
 }
 
-.dark-mode .panel-heading {
+.dark-mode .card-header {
     background-color: #3a3a3c !important;
     border-color: #4a4a4c !important;
     color: #f5f5f7 !important;
 }
 
-.dark-mode .panel-body {
+.dark-mode .card-body {
     background-color: #252525 !important;
     color: #dcdcdc !important;
 }
 
-.dark-mode .navbar-default {
+.dark-mode .navbar-light,
+.dark-mode .navbar {
     background-color: #2c2c2e !important;
     border-color: #3a3a3c !important;
 }
@@ -428,31 +466,35 @@ body.dark-mode {
 }
 
     .dark-mode .dropdown-menu > li > a:hover,
-    .dark-mode .dropdown-menu > li > a:focus {
+    .dark-mode .dropdown-menu > li > a:focus,
+    .dark-mode .dropdown-item:hover,
+    .dark-mode .dropdown-item:focus {
         background-color: #3a3a3c !important;
-    }
-
-    .dark-mode .dropdown-menu li a {
         color: #ffffff !important;
     }
 
-.dark-mode .divider {
-    background-color: #3a3a3c !important;
+    .dark-mode .dropdown-menu li a,
+    .dark-mode .dropdown-item {
+        color: #ffffff !important;
+    }
+
+.dark-mode .dropdown-divider {
+    border-color: #3a3a3c !important;
 }
 
 .dark-mode .nav-tabs {
     border-bottom: 1px solid #007aff !important;
 }
 
-    .dark-mode .nav-tabs > li > a:hover {
+    .dark-mode .nav-tabs .nav-link:hover {
         border-color: #4a4a4c !important;
         border-bottom-color: #007aff !important;
         background-color: #3a3a3c;
     }
 
-    .dark-mode .nav-tabs > li.active > a,
-    .dark-mode .nav-tabs > li.active > a:hover,
-    .dark-mode .nav-tabs > li.active > a:focus {
+    .dark-mode .nav-tabs .nav-link.active,
+    .dark-mode .nav-tabs .nav-link.active:hover,
+    .dark-mode .nav-tabs .nav-link.active:focus {
         background-color: #252525;
         border-color: #007aff !important;
         color: #ffffff !important;
@@ -461,10 +503,14 @@ body.dark-mode {
 
 .dark-mode .table-hover > tbody > tr:hover {
     background-color: #33373a !important;
+    --bs-table-hover-bg: #33373a;
+    --bs-table-accent-bg: #33373a;
 }
 
 .dark-mode .table-striped > tbody > tr:nth-of-type(odd) {
     background-color: #28282a !important;
+    --bs-table-striped-bg: #28282a;
+    --bs-table-accent-bg: #28282a;
 }
 
 .dark-mode .table > thead > tr > th,
@@ -503,7 +549,7 @@ body.dark-mode {
     border-top-color: #3a3a3c !important;
 }
 
-.dark-mode .well {
+.dark-mode .card.card-body {
     background-color: #252525 !important;
     border-color: #3a3a3c !important;
 }
@@ -514,19 +560,19 @@ body.dark-mode {
     border: 1px solid #4a4a4c !important;
 }
 
-.dark-mode .btn-default {
+.dark-mode .btn-secondary {
     color: #f5f5f7 !important;
     background-color: #3a3a3c !important;
     border-color: #4a4a4c !important;
 }
 
-    .dark-mode .btn-default:hover,
-    .dark-mode .btn-default.active {
+    .dark-mode .btn-secondary:hover,
+    .dark-mode .btn-secondary.active {
         background-color: #4a4a4c !important;
         border-color: #5a5a5c !important;
     }
 
-.dark-mode .input-group-addon {
+.dark-mode .input-group-text {
     background-color: #3a3a3c !important;
     border-color: #4a4a4c !important;
 }
@@ -586,3 +632,72 @@ body.dark-mode {
     .dark-mode #txtQueryLogEnd::-webkit-calendar-picker-indicator {
         filter: invert(1);
     }
+
+.dark-mode select,
+.dark-mode select.form-control {
+    background-color: #3a3a3c !important;
+    border-color: #4a4a4c !important;
+    color: #f5f5f7 !important;
+    color-scheme: dark;
+}
+
+.dark-mode .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+.dark-mode .nav-tabs .nav-link {
+    color: #8ab4f8;
+}
+
+.dark-mode .nav-tabs .nav-link:hover {
+    color: #ffffff;
+}
+
+.dark-mode .form-label,
+.dark-mode label {
+    color: #dcdcdc !important;
+}
+
+.dark-mode .modal-title {
+    color: #f5f5f7 !important;
+}
+
+.dark-mode .form-control::placeholder {
+    color: #888 !important;
+}
+
+.dark-mode .table {
+    color: #dcdcdc !important;
+    --bs-table-color: #dcdcdc;
+}
+
+.dark-mode h1, .dark-mode h2, .dark-mode h3, .dark-mode h4, .dark-mode h5, .dark-mode h6 {
+    color: #f0f0f0;
+}
+
+.dark-mode .card-title {
+    color: #f0f0f0 !important;
+}
+
+.dark-mode .card-title a {
+    color: #8ab4f8 !important;
+}
+
+.dark-mode .form-inline label {
+    color: #dcdcdc !important;
+}
+
+.dark-mode b, .dark-mode strong {
+    color: #e0e0e0;
+}
+
+.dark-mode .pagination .page-link,
+.dark-mode .pager li > a {
+    color: #8ab4f8;
+}
+
+.dark-mode .accordion {
+    --bs-accordion-bg: #2c2c2e;
+    --bs-accordion-border-color: #3a3a3c;
+    --bs-accordion-color: #dcdcdc;
+}

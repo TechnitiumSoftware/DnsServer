@@ -78,14 +78,14 @@ function loadServerList() {
 function loadServerListFrom(responseJSON) {
     $("#txtDnsClientNameServer").val("This Server {this-server}");
 
-    var htmlList = "<li><a href=\"#\">This Server {this-server}</a></li>";
+    var htmlList = "<li><a class=\"dropdown-item\" href=\"#\">This Server {this-server}</a></li>";
 
     for (var i = 0; i < responseJSON.length; i++) {
         for (var j = 0; j < responseJSON[i].addresses.length; j++) {
             if ((responseJSON[i].name == null) || (responseJSON[i].name.length == 0))
-                htmlList += "<li><a href=\"#\">" + htmlEncode(responseJSON[i].addresses[j]) + "</a></li>";
+                htmlList += "<li><a class=\"dropdown-item\" href=\"#\">" + htmlEncode(responseJSON[i].addresses[j]) + "</a></li>";
             else
-                htmlList += "<li><a href=\"#\">" + htmlEncode(responseJSON[i].name) + " {" + htmlEncode(responseJSON[i].addresses[j]) + "}</a></li>";
+                htmlList += "<li><a class=\"dropdown-item\" href=\"#\">" + htmlEncode(responseJSON[i].name) + " {" + htmlEncode(responseJSON[i].addresses[j]) + "}</a></li>";
         }
     }
 
@@ -224,7 +224,7 @@ function resolveQuery(importRecords) {
     });
 
     if (!containsServer)
-        $("#optDnsClientNameServers").prepend("<li><a href=\"#\">" + htmlEncode(txtServerName) + "</a></li>");
+        $("#optDnsClientNameServers").prepend("<li><a class=\"dropdown-item\" href=\"#\">" + htmlEncode(txtServerName) + "</a></li>");
 }
 
 function queryDnsServer(domain, type, node) {
@@ -241,14 +241,14 @@ function queryDnsServer(domain, type, node) {
     if ((node != null) && (node != "cluster"))
         $("#optDnsClientClusterNode").val(node);
 
-    $("#mainPanelTabListDashboard").removeClass("active");
-    $("#mainPanelTabPaneDashboard").removeClass("active");
+    $("#mainPanelTabListDashboard > a").removeClass("active");
+    $("#mainPanelTabPaneDashboard").removeClass("active show");
 
-    $("#mainPanelTabListLogs").removeClass("active");
-    $("#mainPanelTabPaneLogs").removeClass("active");
+    $("#mainPanelTabListLogs > a").removeClass("active");
+    $("#mainPanelTabPaneLogs").removeClass("active show");
 
-    $("#mainPanelTabListDnsClient").addClass("active");
-    $("#mainPanelTabPaneDnsClient").addClass("active");
+    $("#mainPanelTabListDnsClient > a").addClass("active");
+    $("#mainPanelTabPaneDnsClient").addClass("active show");
 
     $("#modalTopStats").modal("hide");
 

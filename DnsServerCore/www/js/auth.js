@@ -673,15 +673,15 @@ function showMyProfileModal() {
 
                     switch (responseJSON.response.sessions[i].type) {
                         case "Standard":
-                            session += "<br /><span class=\"label label-default\">Standard</span>";
+                            session += "<br /><span class=\"badge bg-secondary\">Standard</span>";
                             break;
 
                         case "ApiToken":
-                            session += "<br /><span class=\"label label-info\">API Token</span>";
+                            session += "<br /><span class=\"badge bg-info\">API Token</span>";
                             break;
 
                         default:
-                            session += "<br /><span class=\"label label-warning\">Unknown</span>";
+                            session += "<br /><span class=\"badge text-bg-warning\">Unknown</span>";
                             break;
                     }
 
@@ -690,8 +690,8 @@ function showMyProfileModal() {
                         htmlEncode(responseJSON.response.sessions[i].lastSeenRemoteAddress) + "</td><td style=\"word-wrap: anywhere;\">" +
                         htmlEncode(responseJSON.response.sessions[i].lastSeenUserAgent);
 
-                    sessionHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnMyProfileActiveSessionRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-                    sessionHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-session-type=\"" + responseJSON.response.sessions[i].type + "\" data-partial-token=\"" + responseJSON.response.sessions[i].partialToken + "\" onclick=\"deleteMySession(this); return false;\">Delete Session</a></li>";
+                    sessionHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnMyProfileActiveSessionRowOption" + i + "\" class=\"dropdown-toggle\" data-bs-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"fa-solid fa-ellipsis-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-end\">";
+                    sessionHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" data-session-type=\"" + responseJSON.response.sessions[i].type + "\" data-partial-token=\"" + responseJSON.response.sessions[i].partialToken + "\" onclick=\"deleteMySession(this); return false;\">Delete Session</a></li>";
                     sessionHtmlRows += "</ul></div></td></tr>";
                 }
 
@@ -840,15 +840,15 @@ function refreshAdminSessions() {
 
                 switch (responseJSON.response.sessions[i].type) {
                     case "Standard":
-                        session += "<br /><span class=\"label label-default\">Standard</span>";
+                        session += "<br /><span class=\"badge bg-secondary\">Standard</span>";
                         break;
 
                     case "ApiToken":
-                        session += "<br /><span class=\"label label-info\">API Token</span>";
+                        session += "<br /><span class=\"badge bg-info\">API Token</span>";
                         break;
 
                     default:
-                        session += "<br /><span class=\"label label-warning\">Unknown</span>";
+                        session += "<br /><span class=\"badge text-bg-warning\">Unknown</span>";
                         break;
                 }
 
@@ -858,8 +858,8 @@ function refreshAdminSessions() {
                     htmlEncode(responseJSON.response.sessions[i].lastSeenRemoteAddress) + "</td><td style=\"word-wrap: anywhere;\">" +
                     htmlEncode(responseJSON.response.sessions[i].lastSeenUserAgent);
 
-                tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnAdminSessionRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-                tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-session-type=\"" + responseJSON.response.sessions[i].type + "\" data-partial-token=\"" + responseJSON.response.sessions[i].partialToken + "\" onclick=\"deleteAdminSession(this); return false;\">Delete Session</a></li>";
+                tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnAdminSessionRowOption" + i + "\" class=\"dropdown-toggle\" data-bs-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"fa-solid fa-ellipsis-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-end\">";
+                tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" data-session-type=\"" + responseJSON.response.sessions[i].type + "\" data-partial-token=\"" + responseJSON.response.sessions[i].partialToken + "\" onclick=\"deleteAdminSession(this); return false;\">Delete Session</a></li>";
                 tableHtmlRows += "</ul></div></td></tr>";
             }
 
@@ -1065,34 +1065,34 @@ function refreshAdminUsers() {
 function getAdminUsersRowHtml(id, user) {
     var totpStatus = "";
     if (user.totpEnabled)
-        totpStatus += "<span class=\"label label-success\">Enabled</span>";
+        totpStatus += "<span class=\"badge bg-success\">Enabled</span>";
     else
-        totpStatus += "<span class=\"label label-default\">Disabled</span>";
+        totpStatus += "<span class=\"badge bg-secondary\">Disabled</span>";
 
     var status = "";
     if (user.disabled)
-        status += "<span class=\"label label-warning\">Disabled</span>";
+        status += "<span class=\"badge text-bg-warning\">Disabled</span>";
     else
-        status += "<span class=\"label label-success\">Enabled</span>";
+        status += "<span class=\"badge bg-success\">Enabled</span>";
 
-    var tableHtmlRows = "<tr id=\"trAdminUsers" + id + "\"><td style=\"word-wrap: anywhere;\"><a href=\"#\" data-id=\"" + id + "\" data-username=\"" + htmlEncode(user.username) + "\" onclick=\"showUserDetailsModal(this); return false;\">" + htmlEncode(user.username) + "</a></td><td style=\"word-wrap: anywhere;\">" +
+    var tableHtmlRows = "<tr id=\"trAdminUsers" + id + "\"><td style=\"word-wrap: anywhere;\"><a class=\"dropdown-item\" href=\"#\" data-id=\"" + id + "\" data-username=\"" + htmlEncode(user.username) + "\" onclick=\"showUserDetailsModal(this); return false;\">" + htmlEncode(user.username) + "</a></td><td style=\"word-wrap: anywhere;\">" +
         htmlEncode(user.displayName) + "</td><td>" +
         totpStatus + "</td><td>" +
         status + "</td><td>" +
         htmlEncode(moment(user.recentSessionLoggedOn).local().format("YYYY-MM-DD HH:mm:ss")) + " from " + htmlEncode(user.recentSessionRemoteAddress) + "</td><td>" +
         htmlEncode(moment(user.previousSessionLoggedOn).local().format("YYYY-MM-DD HH:mm:ss")) + " from " + htmlEncode(user.previousSessionRemoteAddress);
 
-    tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnAdminUserRowOption" + id + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-    tableHtmlRows += "<li><a href=\"#\" data-id=\"" + id + "\" data-username=\"" + htmlEncode(user.username) + "\" onclick=\"showUserDetailsModal(this); return false;\">View Details</a></li>";
-    tableHtmlRows += "<li id=\"mnuAdminUserRowEnable" + id + "\"" + (user.disabled ? "" : " style=\"display: none;\"") + "><a href=\"#\" data-id=\"" + id + "\" data-username=\"" + htmlEncode(user.username) + "\" onclick=\"enableUser(this); return false;\">Enable</a></li>";
-    tableHtmlRows += "<li id=\"mnuAdminUserRowDisable" + id + "\"" + (!user.disabled ? "" : " style=\"display: none;\"") + "><a href=\"#\" data-id=\"" + id + "\" data-username=\"" + htmlEncode(user.username) + "\" onclick=\"disableUser(this); return false;\">Disable</a></li>";
-    tableHtmlRows += "<li><a href=\"#\" data-id=\"" + id + "\" data-username=\"" + htmlEncode(user.username) + "\" onclick=\"showResetUserPasswordModal(this); return false;\">Reset Password</a></li>";
+    tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnAdminUserRowOption" + id + "\" class=\"dropdown-toggle\" data-bs-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"fa-solid fa-ellipsis-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-end\">";
+    tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + id + "\" data-username=\"" + htmlEncode(user.username) + "\" onclick=\"showUserDetailsModal(this); return false;\">View Details</a></li>";
+    tableHtmlRows += "<li id=\"mnuAdminUserRowEnable" + id + "\"" + (user.disabled ? "" : " style=\"display: none;\"") + "><a class=\"dropdown-item\" href=\"#\" data-id=\"" + id + "\" data-username=\"" + htmlEncode(user.username) + "\" onclick=\"enableUser(this); return false;\">Enable</a></li>";
+    tableHtmlRows += "<li id=\"mnuAdminUserRowDisable" + id + "\"" + (!user.disabled ? "" : " style=\"display: none;\"") + "><a class=\"dropdown-item\" href=\"#\" data-id=\"" + id + "\" data-username=\"" + htmlEncode(user.username) + "\" onclick=\"disableUser(this); return false;\">Disable</a></li>";
+    tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + id + "\" data-username=\"" + htmlEncode(user.username) + "\" onclick=\"showResetUserPasswordModal(this); return false;\">Reset Password</a></li>";
 
     if (user.totpEnabled)
-        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + id + "\" data-username=\"" + htmlEncode(user.username) + "\" onclick=\"adminDisable2FA(this); return false;\">Disable 2FA</a></li>";
+        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + id + "\" data-username=\"" + htmlEncode(user.username) + "\" onclick=\"adminDisable2FA(this); return false;\">Disable 2FA</a></li>";
 
     tableHtmlRows += "<li role=\"separator\" class=\"divider\"></li>";
-    tableHtmlRows += "<li><a href=\"#\" data-id=\"" + id + "\" data-username=\"" + htmlEncode(user.username) + "\" onclick=\"deleteUser(this); return false;\">Delete User</a></li>";
+    tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + id + "\" data-username=\"" + htmlEncode(user.username) + "\" onclick=\"deleteUser(this); return false;\">Delete User</a></li>";
     tableHtmlRows += "</ul></div></td></tr>";
 
     return tableHtmlRows;
@@ -1234,15 +1234,15 @@ function showUserDetailsModal(objMenuItem) {
 
                 switch (responseJSON.response.sessions[i].type) {
                     case "Standard":
-                        session += "<br /><span class=\"label label-default\">Standard</span>";
+                        session += "<br /><span class=\"badge bg-secondary\">Standard</span>";
                         break;
 
                     case "ApiToken":
-                        session += "<br /><span class=\"label label-info\">API Token</span>";
+                        session += "<br /><span class=\"badge bg-info\">API Token</span>";
                         break;
 
                     default:
-                        session += "<br /><span class=\"label label-warning\">Unknown</span>";
+                        session += "<br /><span class=\"badge text-bg-warning\">Unknown</span>";
                         break;
                 }
 
@@ -1251,8 +1251,8 @@ function showUserDetailsModal(objMenuItem) {
                     htmlEncode(responseJSON.response.sessions[i].lastSeenRemoteAddress) + "</td><td style=\"word-wrap: anywhere;\">" +
                     htmlEncode(responseJSON.response.sessions[i].lastSeenUserAgent);
 
-                sessionHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnUserDetailsActiveSessionRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-                sessionHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-session-type=\"" + responseJSON.response.sessions[i].type + "\" data-partial-token=\"" + responseJSON.response.sessions[i].partialToken + "\" onclick=\"deleteUserSession(this); return false;\">Delete Session</a></li>";
+                sessionHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnUserDetailsActiveSessionRowOption" + i + "\" class=\"dropdown-toggle\" data-bs-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"fa-solid fa-ellipsis-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-end\">";
+                sessionHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" data-session-type=\"" + responseJSON.response.sessions[i].type + "\" data-partial-token=\"" + responseJSON.response.sessions[i].partialToken + "\" onclick=\"deleteUserSession(this); return false;\">Delete Session</a></li>";
                 sessionHtmlRows += "</ul></div></td></tr>";
             }
 
@@ -1618,13 +1618,13 @@ function refreshAdminGroups() {
 }
 
 function getAdminGroupsRowHtml(id, group) {
-    var tableHtmlRows = "<tr id=\"trAdminGroups" + id + "\"><td style=\"word-wrap: anywhere;\"><a href=\"#\" data-id=\"" + id + "\" data-group=\"" + htmlEncode(group.name) + "\" onclick=\"showGroupDetailsModal(this); return false;\">" + htmlEncode(group.name) + "</a></td><td style=\"word-wrap: anywhere;\">" +
+    var tableHtmlRows = "<tr id=\"trAdminGroups" + id + "\"><td style=\"word-wrap: anywhere;\"><a class=\"dropdown-item\" href=\"#\" data-id=\"" + id + "\" data-group=\"" + htmlEncode(group.name) + "\" onclick=\"showGroupDetailsModal(this); return false;\">" + htmlEncode(group.name) + "</a></td><td style=\"word-wrap: anywhere;\">" +
         htmlEncode(group.description).replace(/\n/g, "<br />");
 
-    tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnAdminGroupRowOption" + id + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-    tableHtmlRows += "<li><a href=\"#\" data-id=\"" + id + "\" data-group=\"" + htmlEncode(group.name) + "\" onclick=\"showGroupDetailsModal(this); return false;\">View Details</a></li>";
+    tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnAdminGroupRowOption" + id + "\" class=\"dropdown-toggle\" data-bs-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"fa-solid fa-ellipsis-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-end\">";
+    tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + id + "\" data-group=\"" + htmlEncode(group.name) + "\" onclick=\"showGroupDetailsModal(this); return false;\">View Details</a></li>";
     tableHtmlRows += "<li role=\"separator\" class=\"divider\"></li>";
-    tableHtmlRows += "<li><a href=\"#\" data-id=\"" + id + "\" data-group=\"" + htmlEncode(group.name) + "\" onclick=\"deleteGroup(this); return false;\">Delete Group</a></li>";
+    tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + id + "\" data-group=\"" + htmlEncode(group.name) + "\" onclick=\"deleteGroup(this); return false;\">Delete Group</a></li>";
     tableHtmlRows += "</ul></div></td></tr>";
 
     return tableHtmlRows;
@@ -1856,9 +1856,9 @@ function getAdminPermissionsRowHtml(id, permission) {
 
     for (var i = 0; i < permission.userPermissions.length; i++) {
         userPermissionsHtml += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(permission.userPermissions[i].username) + "</td><td>" +
-            (permission.userPermissions[i].canView ? "<span class=\"glyphicon glyphicon-ok\"></span>" : "") + "</td><td>" +
-            (permission.userPermissions[i].canModify ? "<span class=\"glyphicon glyphicon-ok\"></span>" : "") + "</td><td>" +
-            (permission.userPermissions[i].canDelete ? "<span class=\"glyphicon glyphicon-ok\"></span>" : "") + "</td></tr>";
+            (permission.userPermissions[i].canView ? "<span class=\"fa-solid fa-check\"></span>" : "") + "</td><td>" +
+            (permission.userPermissions[i].canModify ? "<span class=\"fa-solid fa-check\"></span>" : "") + "</td><td>" +
+            (permission.userPermissions[i].canDelete ? "<span class=\"fa-solid fa-check\"></span>" : "") + "</td></tr>";
     }
 
     userPermissionsHtml += "</tbody>";
@@ -1872,9 +1872,9 @@ function getAdminPermissionsRowHtml(id, permission) {
 
     for (var i = 0; i < permission.groupPermissions.length; i++) {
         groupPermissionsHtml += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(permission.groupPermissions[i].name) + "</td><td>" +
-            (permission.groupPermissions[i].canView ? "<span class=\"glyphicon glyphicon-ok\"></span>" : "") + "</td><td>" +
-            (permission.groupPermissions[i].canModify ? "<span class=\"glyphicon glyphicon-ok\"></span>" : "") + "</td><td>" +
-            (permission.groupPermissions[i].canDelete ? "<span class=\"glyphicon glyphicon-ok\"></span>" : "") + "</td></tr>";
+            (permission.groupPermissions[i].canView ? "<span class=\"fa-solid fa-check\"></span>" : "") + "</td><td>" +
+            (permission.groupPermissions[i].canModify ? "<span class=\"fa-solid fa-check\"></span>" : "") + "</td><td>" +
+            (permission.groupPermissions[i].canDelete ? "<span class=\"fa-solid fa-check\"></span>" : "") + "</td></tr>";
     }
 
     groupPermissionsHtml += "</tbody>";
@@ -1884,12 +1884,12 @@ function getAdminPermissionsRowHtml(id, permission) {
 
     groupPermissionsHtml += "</table>";
 
-    var tableHtmlRows = "<tr id=\"trAdminPermissions" + id + "\"><td><a href=\"#\" data-id=\"" + id + "\" data-section=\"" + htmlEncode(permission.section) + "\" onclick=\"showEditSectionPermissionsModal(this); return false;\">" + htmlEncode(permission.section) + "</a></td><td>" +
+    var tableHtmlRows = "<tr id=\"trAdminPermissions" + id + "\"><td><a class=\"dropdown-item\" href=\"#\" data-id=\"" + id + "\" data-section=\"" + htmlEncode(permission.section) + "\" onclick=\"showEditSectionPermissionsModal(this); return false;\">" + htmlEncode(permission.section) + "</a></td><td>" +
         userPermissionsHtml + "</td><td>" +
         groupPermissionsHtml;
 
-    tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnAdminPermissionRowOption" + id + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-    tableHtmlRows += "<li><a href=\"#\" data-id=\"" + id + "\" data-section=\"" + htmlEncode(permission.section) + "\" onclick=\"showEditSectionPermissionsModal(this); return false;\">Edit Permissions</a></li>";
+    tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnAdminPermissionRowOption" + id + "\" class=\"dropdown-toggle\" data-bs-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"fa-solid fa-ellipsis-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-end\">";
+    tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + id + "\" data-section=\"" + htmlEncode(permission.section) + "\" onclick=\"showEditSectionPermissionsModal(this); return false;\">Edit Permissions</a></li>";
     tableHtmlRows += "</ul></div></td></tr>";
 
     return tableHtmlRows;

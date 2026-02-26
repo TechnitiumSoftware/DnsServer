@@ -169,7 +169,7 @@ $(function () {
         editZoneFilteredRecords = null; //to evaluate filters again
     });
 
-    $("#txtEditZoneFilterType").on("input", function () {
+    $("#txtEditZoneFilterType").on("change", function () {
         editZoneFilteredRecords = null; //to evaluate filters again
     });
 
@@ -688,20 +688,20 @@ function refreshZones(checkDisplay, pageNumber) {
 
                 var type;
                 if (zones[i].internal) {
-                    type = "<span class=\"label label-default\">Internal</span>";
+                    type = "<span class=\"badge bg-secondary\">Internal</span>";
                 }
                 else {
                     switch (zones[i].type) {
                         case "SecondaryForwarder":
-                            type = "<span class=\"label label-primary\">Secondary Forwarder</span>";
+                            type = "<span class=\"badge bg-primary\">Secondary Forwarder</span>";
                             break;
 
                         case "SecondaryCatalog":
-                            type = "<span class=\"label label-primary\">Secondary Catalog</span>";
+                            type = "<span class=\"badge bg-primary\">Secondary Catalog</span>";
                             break;
 
                         default:
-                            type = "<span class=\"label label-primary\">" + zones[i].type + "</span>";
+                            type = "<span class=\"badge bg-primary\">" + zones[i].type + "</span>";
                             break;
                     }
                 }
@@ -716,9 +716,9 @@ function refreshZones(checkDisplay, pageNumber) {
                     case "SignedWithNSEC":
                     case "SignedWithNSEC3":
                         if (zones[i].hasDnssecPrivateKeys)
-                            dnssecStatus = "<span class=\"label label-primary\">DNSSEC</span>";
+                            dnssecStatus = "<span class=\"badge bg-primary\">DNSSEC</span>";
                         else
-                            dnssecStatus = "<span class=\"label label-default\">DNSSEC</span>";
+                            dnssecStatus = "<span class=\"badge bg-secondary\">DNSSEC</span>";
 
                         break;
                 }
@@ -726,17 +726,17 @@ function refreshZones(checkDisplay, pageNumber) {
                 var status = "";
 
                 if (zones[i].disabled)
-                    status = "<span id=\"tdZoneStatus" + id + "\" class=\"label label-default\">Disabled</span>";
+                    status = "<span id=\"tdZoneStatus" + id + "\" class=\"badge bg-secondary\">Disabled</span>";
                 else if (zones[i].isExpired)
-                    status = "<span id=\"tdZoneStatus" + id + "\" class=\"label label-danger\">Expired</span>";
+                    status = "<span id=\"tdZoneStatus" + id + "\" class=\"badge bg-danger\">Expired</span>";
                 else if (zones[i].validationFailed)
-                    status = "<span id=\"tdZoneStatus" + id + "\" class=\"label label-danger\">Validation Failed</span>";
+                    status = "<span id=\"tdZoneStatus" + id + "\" class=\"badge bg-danger\">Validation Failed</span>";
                 else if (zones[i].syncFailed)
-                    status = "<span id=\"tdZoneStatus" + id + "\" class=\"label label-warning\">Sync Failed</span>";
+                    status = "<span id=\"tdZoneStatus" + id + "\" class=\"badge text-bg-warning\">Sync Failed</span>";
                 else if (zones[i].notifyFailed)
-                    status = "<span id=\"tdZoneStatus" + id + "\" class=\"label label-warning\">Notify Failed</span>";
+                    status = "<span id=\"tdZoneStatus" + id + "\" class=\"badge text-bg-warning\">Notify Failed</span>";
                 else
-                    status = "<span id=\"tdZoneStatus" + id + "\" class=\"label label-success\">Enabled</span>";
+                    status = "<span id=\"tdZoneStatus" + id + "\" class=\"badge bg-success\">Enabled</span>";
 
                 var expiry = zones[i].expiry;
                 if (expiry == null)
@@ -791,27 +791,27 @@ function refreshZones(checkDisplay, pageNumber) {
                 var nameTags;
 
                 if (zones[i].catalog != null) {
-                    nameTags = "<div><span id=\"tagZoneCatalogName" + id + "\" class=\"label label-default\">" + htmlEncode(zones[i].catalog) + "</span></div>";
+                    nameTags = "<div><span id=\"tagZoneCatalogName" + id + "\" class=\"badge bg-secondary\">" + htmlEncode(zones[i].catalog) + "</span></div>";
                 }
                 else {
                     switch (zones[i].type) {
                         case "Catalog":
                         case "SecondaryCatalog":
-                            nameTags = "<div><span id=\"tagZoneCatalogName" + id + "\" class=\"label label-info\">" + htmlEncode(name) + "</span></div>";
+                            nameTags = "<div><span id=\"tagZoneCatalogName" + id + "\" class=\"badge bg-info\">" + htmlEncode(name) + "</span></div>";
                             break;
 
                         default:
-                            nameTags = "<div><span id=\"tagZoneCatalogName" + id + "\" class=\"label label-default\" style=\"display: none;\"></span></div>";
+                            nameTags = "<div><span id=\"tagZoneCatalogName" + id + "\" class=\"badge bg-secondary\" style=\"display: none;\"></span></div>";
                             break;
                     }
                 }
 
-                tableHtmlRows += "<tr id=\"trZone" + id + "\"><td>" + (firstRowNumber + i) + "</td>";
+                tableHtmlRows += "<tr id=\"trZone" + id + "\" style=\"cursor: pointer;\" onclick=\"showEditZone('" + name + "'); return false;\"><td>" + (firstRowNumber + i) + "</td>";
 
                 if (zones[i].nameIdn == null)
-                    tableHtmlRows += "<td style=\"word-break: break-word; max-width: 390px;\"><a href=\"#\" style=\"font-weight: bold;\" onclick=\"showEditZone('" + name + "'); return false;\">" + htmlEncode(name === "." ? "<root>" : name) + "</a>" + nameTags + "</td>";
+                    tableHtmlRows += "<td style=\"word-break: break-word; max-width: 390px; font-weight: bold;\">" + htmlEncode(name === "." ? "<root>" : name) + nameTags + "</td>";
                 else
-                    tableHtmlRows += "<td style=\"word-break: break-word; max-width: 390px;\"><a href=\"#\" style=\"font-weight: bold;\" onclick=\"showEditZone('" + name + "'); return false;\">" + htmlEncode(zones[i].nameIdn + " (" + name + ")") + "</a>" + nameTags + "</td>";
+                    tableHtmlRows += "<td style=\"word-break: break-word; max-width: 390px; font-weight: bold;\">" + htmlEncode(zones[i].nameIdn + " (" + name + ")") + nameTags + "</td>";
 
                 tableHtmlRows += "<td>" + type + "</td>";
                 tableHtmlRows += "<td>" + dnssecStatus + "</td>";
@@ -820,22 +820,22 @@ function refreshZones(checkDisplay, pageNumber) {
                 tableHtmlRows += "<td>" + expiry + "</td>";
                 tableHtmlRows += "<td>" + lastModified + "</td>";
 
-                tableHtmlRows += "<td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnZoneRowOption" + id + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-                tableHtmlRows += "<li><a href=\"#\" onclick=\"showEditZone('" + name + "'); return false;\">" + (isReadOnlyZone ? "View" : "Edit") + " Zone</a></li>";
+                tableHtmlRows += "<td align=\"right\" onclick=\"event.stopPropagation();\"><div class=\"dropdown\"><a href=\"#\" id=\"btnZoneRowOption" + id + "\" class=\"dropdown-toggle\" data-bs-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"fa-solid fa-ellipsis-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-end\">";
+                tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" onclick=\"showEditZone('" + name + "'); return false;\">" + (isReadOnlyZone ? "View" : "Edit") + " Zone</a></li>";
 
                 if (!zones[i].internal) {
-                    tableHtmlRows += "<li id=\"mnuEnableZone" + id + "\"" + (zones[i].disabled ? "" : " style=\"display: none;\"") + "><a href=\"#\" data-id=\"" + id + "\" data-zone=\"" + htmlEncode(name) + "\" onclick=\"enableZoneMenu(this); return false;\">Enable</a></li>";
-                    tableHtmlRows += "<li id=\"mnuDisableZone" + id + "\"" + (!zones[i].disabled ? "" : " style=\"display: none;\"") + "><a href=\"#\" data-id=\"" + id + "\" data-zone=\"" + htmlEncode(name) + "\" onclick=\"disableZoneMenu(this); return false;\">Disable</a></li>";
+                    tableHtmlRows += "<li id=\"mnuEnableZone" + id + "\"" + (zones[i].disabled ? "" : " style=\"display: none;\"") + "><a class=\"dropdown-item\" href=\"#\" data-id=\"" + id + "\" data-zone=\"" + htmlEncode(name) + "\" onclick=\"enableZoneMenu(this); return false;\">Enable</a></li>";
+                    tableHtmlRows += "<li id=\"mnuDisableZone" + id + "\"" + (!zones[i].disabled ? "" : " style=\"display: none;\"") + "><a class=\"dropdown-item\" href=\"#\" data-id=\"" + id + "\" data-zone=\"" + htmlEncode(name) + "\" onclick=\"disableZoneMenu(this); return false;\">Disable</a></li>";
                 }
 
                 if (showResyncMenu) {
-                    tableHtmlRows += "<li><a href=\"#\" data-id=\"" + id + "\" data-zone=\"" + htmlEncode(name) + "\" data-zone-type=\"" + zones[i].type + "\" onclick=\"resyncZoneMenu(this); return false;\">Resync</a></li>";
+                    tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + id + "\" data-zone=\"" + htmlEncode(name) + "\" data-zone-type=\"" + zones[i].type + "\" onclick=\"resyncZoneMenu(this); return false;\">Resync</a></li>";
                 }
 
                 switch (zones[i].type) {
                     case "Primary":
                     case "Forwarder":
-                        tableHtmlRows += "<li><a href=\"#\" onclick=\"showImportZoneModal('" + name + "'); return false;\">Import Zone</a></li>";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" onclick=\"showImportZoneModal('" + name + "'); return false;\">Import Zone</a></li>";
                         break;
                 }
 
@@ -846,7 +846,7 @@ function refreshZones(checkDisplay, pageNumber) {
                     case "SecondaryForwarder":
                     case "SecondaryCatalog":
                     case "Catalog":
-                        tableHtmlRows += "<li><a href=\"#\" onclick=\"exportZone('" + name + "'); return false;\">Export Zone</a></li>";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" onclick=\"exportZone('" + name + "'); return false;\">Export Zone</a></li>";
                         break;
                 }
 
@@ -856,28 +856,28 @@ function refreshZones(checkDisplay, pageNumber) {
                     case "SecondaryForwarder":
                     case "Forwarder":
                     case "SecondaryCatalog":
-                        tableHtmlRows += "<li><a href=\"#\" onclick=\"showConvertZoneModal('" + name + "', '" + zones[i].type + "'); return false;\">Convert Zone</a></li>";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" onclick=\"showConvertZoneModal('" + name + "', '" + zones[i].type + "'); return false;\">Convert Zone</a></li>";
                         break;
                 }
 
                 switch (zones[i].type) {
                     case "Primary":
                     case "Forwarder":
-                        tableHtmlRows += "<li><a href=\"#\" onclick=\"showCloneZoneModal('" + name + "'); return false;\">Clone Zone</a></li>";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" onclick=\"showCloneZoneModal('" + name + "'); return false;\">Clone Zone</a></li>";
                         break;
                 }
 
                 if (!zones[i].internal) {
-                    tableHtmlRows += "<li><a href=\"#\" onclick=\"showZonePermissionsModal('" + name + "'); return false;\">Permissions</a></li>";
+                    tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" onclick=\"showZonePermissionsModal('" + name + "'); return false;\">Permissions</a></li>";
                 }
 
                 if (!hideOptionsMenu) {
-                    tableHtmlRows += "<li><a href=\"#\" onclick=\"$('#btnSaveZoneOptions').attr('data-zones-row-id', " + id + "); showZoneOptionsModal('" + name + "'); return false;\">Zone Options</a></li>";
+                    tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" onclick=\"$('#btnSaveZoneOptions').attr('data-zones-row-id', " + id + "); showZoneOptionsModal('" + name + "'); return false;\">Zone Options</a></li>";
                 }
 
                 if (!zones[i].internal) {
                     tableHtmlRows += "<li role=\"separator\" class=\"divider\"></li>";
-                    tableHtmlRows += "<li><a href=\"#\" data-id=\"" + id + "\" data-zone=\"" + htmlEncode(name) + "\" onclick=\"deleteZoneMenu(this); return false;\">Delete Zone</a></li>";
+                    tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + id + "\" data-zone=\"" + htmlEncode(name) + "\" onclick=\"deleteZoneMenu(this); return false;\">Delete Zone</a></li>";
                 }
 
                 tableHtmlRows += "</ul></div></td></tr>";
@@ -886,8 +886,8 @@ function refreshZones(checkDisplay, pageNumber) {
             var paginationHtml = "";
 
             if (responseJSON.response.pageNumber > 1) {
-                paginationHtml += "<li><a href=\"#\" aria-label=\"First\" onClick=\"refreshZones(false, 1); return false;\"><span aria-hidden=\"true\">&laquo;</span></a></li>";
-                paginationHtml += "<li><a href=\"#\" aria-label=\"Previous\" onClick=\"refreshZones(false, " + (responseJSON.response.pageNumber - 1) + "); return false;\"><span aria-hidden=\"true\">&lsaquo;</span></a></li>";
+                paginationHtml += "<li><a class=\"dropdown-item\" href=\"#\" aria-label=\"First\" onClick=\"refreshZones(false, 1); return false;\"><span aria-hidden=\"true\">&laquo;</span></a></li>";
+                paginationHtml += "<li><a class=\"dropdown-item\" href=\"#\" aria-label=\"Previous\" onClick=\"refreshZones(false, " + (responseJSON.response.pageNumber - 1) + "); return false;\"><span aria-hidden=\"true\">&lsaquo;</span></a></li>";
             }
 
             var pageStart = responseJSON.response.pageNumber - 5;
@@ -908,12 +908,12 @@ function refreshZones(checkDisplay, pageNumber) {
                 if (i == responseJSON.response.pageNumber)
                     paginationHtml += "<li class=\"active\"><a href=\"#\" onClick=\"refreshZones(false, " + i + "); return false;\">" + i + "</a></li>";
                 else
-                    paginationHtml += "<li><a href=\"#\" onClick=\"refreshZones(false, " + i + "); return false;\">" + i + "</a></li>";
+                    paginationHtml += "<li><a class=\"dropdown-item\" href=\"#\" onClick=\"refreshZones(false, " + i + "); return false;\">" + i + "</a></li>";
             }
 
             if (responseJSON.response.pageNumber < responseJSON.response.totalPages) {
-                paginationHtml += "<li><a href=\"#\" aria-label=\"Next\" onClick=\"refreshZones(false, " + (responseJSON.response.pageNumber + 1) + "); return false;\"><span aria-hidden=\"true\">&rsaquo;</span></a></li>";
-                paginationHtml += "<li><a href=\"#\" aria-label=\"Last\" onClick=\"refreshZones(false, -1); return false;\"><span aria-hidden=\"true\">&raquo;</span></a></li>";
+                paginationHtml += "<li><a class=\"dropdown-item\" href=\"#\" aria-label=\"Next\" onClick=\"refreshZones(false, " + (responseJSON.response.pageNumber + 1) + "); return false;\"><span aria-hidden=\"true\">&rsaquo;</span></a></li>";
+                paginationHtml += "<li><a class=\"dropdown-item\" href=\"#\" aria-label=\"Last\" onClick=\"refreshZones(false, -1); return false;\"><span aria-hidden=\"true\">&raquo;</span></a></li>";
             }
 
             var statusHtml;
@@ -968,7 +968,7 @@ function enableZoneMenu(objMenuItem) {
 
             $("#mnuEnableZone" + id).hide();
             $("#mnuDisableZone" + id).show();
-            $("#tdZoneStatus" + id).attr("class", "label label-success");
+            $("#tdZoneStatus" + id).attr("class", "badge bg-success");
             $("#tdZoneStatus" + id).html("Enabled");
 
             showAlert("success", "Zone Enabled!", "Zone '" + zone + "' was enabled successfully.");
@@ -998,7 +998,7 @@ function enableZone(objBtn) {
 
             $("#btnEnableZoneEditZone").hide();
             $("#btnDisableZoneEditZone").show();
-            $("#titleEditZoneStatus").attr("class", "label label-success");
+            $("#titleEditZoneStatus").attr("class", "badge bg-success");
             $("#titleEditZoneStatus").html("Enabled");
 
             showAlert("success", "Zone Enabled!", "Zone '" + zone + "' was enabled successfully.");
@@ -1037,7 +1037,7 @@ function disableZoneMenu(objMenuItem) {
 
             $("#mnuEnableZone" + id).show();
             $("#mnuDisableZone" + id).hide();
-            $("#tdZoneStatus" + id).attr("class", "label label-default");
+            $("#tdZoneStatus" + id).attr("class", "badge bg-secondary");
             $("#tdZoneStatus" + id).html("Disabled");
 
             showAlert("success", "Zone Disabled!", "Zone '" + zone + "' was disabled successfully.");
@@ -1070,7 +1070,7 @@ function disableZone(objBtn) {
 
             $("#btnEnableZoneEditZone").show();
             $("#btnDisableZoneEditZone").hide();
-            $("#titleEditZoneStatus").attr("class", "label label-default");
+            $("#titleEditZoneStatus").attr("class", "badge bg-secondary");
             $("#titleEditZoneStatus").html("Disabled");
 
             showAlert("success", "Zone Disabled!", "Zone '" + zone + "' was disabled successfully.");
@@ -2406,7 +2406,7 @@ function saveZoneOptions() {
                             $("#titleEditZoneCatalog").text("");
                         }
                         else {
-                            $("#titleEditZoneCatalog").attr("class", "label label-default");
+                            $("#titleEditZoneCatalog").attr("class", "badge bg-secondary");
                             $("#titleEditZoneCatalog").text(catalog);
                             $("#titleEditZoneCatalog").show();
                         }
@@ -3024,9 +3024,9 @@ function showEditZone(zone, showPageNumber, zoneFilterName, zoneFilterType) {
                     $("#titleEditZoneDnssecStatus").removeClass();
 
                     if (responseJSON.response.zone.hasDnssecPrivateKeys)
-                        $("#titleEditZoneDnssecStatus").addClass("label label-primary");
+                        $("#titleEditZoneDnssecStatus").addClass("badge bg-primary");
                     else
-                        $("#titleEditZoneDnssecStatus").addClass("label label-default");
+                        $("#titleEditZoneDnssecStatus").addClass("badge bg-secondary");
 
                     $("#titleEditZoneDnssecStatus").show();
                     break;
@@ -3051,7 +3051,7 @@ function showEditZone(zone, showPageNumber, zoneFilterName, zoneFilterType) {
                 status = "Enabled";
 
             if (responseJSON.response.zone.catalog != null) {
-                $("#titleEditZoneCatalog").attr("class", "label label-default");
+                $("#titleEditZoneCatalog").attr("class", "badge bg-secondary");
                 $("#titleEditZoneCatalog").text(responseJSON.response.zone.catalog);
                 $("#titleEditZoneCatalog").show();
             }
@@ -3059,7 +3059,7 @@ function showEditZone(zone, showPageNumber, zoneFilterName, zoneFilterType) {
                 switch (zoneType) {
                     case "Catalog":
                     case "SecondaryCatalog":
-                        $("#titleEditZoneCatalog").attr("class", "label label-info");
+                        $("#titleEditZoneCatalog").attr("class", "badge bg-info");
                         $("#titleEditZoneCatalog").text(zone);
                         $("#titleEditZoneCatalog").show();
                         break;
@@ -3095,27 +3095,27 @@ function showEditZone(zone, showPageNumber, zoneFilterName, zoneFilterType) {
             $("#titleEditZoneExpiry").html(expiry);
 
             if (responseJSON.response.zone.internal)
-                $("#titleEditZoneType").attr("class", "label label-default");
+                $("#titleEditZoneType").attr("class", "badge bg-secondary");
             else
-                $("#titleEditZoneType").attr("class", "label label-primary");
+                $("#titleEditZoneType").attr("class", "badge bg-primary");
 
             switch (status) {
                 case "Disabled":
-                    $("#titleEditZoneStatus").attr("class", "label label-default");
+                    $("#titleEditZoneStatus").attr("class", "badge bg-secondary");
                     break;
 
                 case "Sync Failed":
                 case "Notify Failed":
-                    $("#titleEditZoneStatus").attr("class", "label label-warning");
+                    $("#titleEditZoneStatus").attr("class", "badge text-bg-warning");
                     break;
 
                 case "Expired":
                 case "Validation Failed":
-                    $("#titleEditZoneStatus").attr("class", "label label-danger");
+                    $("#titleEditZoneStatus").attr("class", "badge bg-danger");
                     break;
 
                 default:
-                    $("#titleEditZoneStatus").attr("class", "label label-success");
+                    $("#titleEditZoneStatus").attr("class", "badge bg-success");
                     break;
             }
 
@@ -3513,8 +3513,8 @@ function showEditZonePage(pageNumber) {
     var paginationHtml = "";
 
     if (pageNumber > 1) {
-        paginationHtml += "<li><a href=\"#\" aria-label=\"First\" onClick=\"showEditZonePage(1); return false;\"><span aria-hidden=\"true\">&laquo;</span></a></li>";
-        paginationHtml += "<li><a href=\"#\" aria-label=\"Previous\" onClick=\"showEditZonePage(" + (pageNumber - 1) + "); return false;\"><span aria-hidden=\"true\">&lsaquo;</span></a></li>";
+        paginationHtml += "<li><a class=\"dropdown-item\" href=\"#\" aria-label=\"First\" onClick=\"showEditZonePage(1); return false;\"><span aria-hidden=\"true\">&laquo;</span></a></li>";
+        paginationHtml += "<li><a class=\"dropdown-item\" href=\"#\" aria-label=\"Previous\" onClick=\"showEditZonePage(" + (pageNumber - 1) + "); return false;\"><span aria-hidden=\"true\">&lsaquo;</span></a></li>";
     }
 
     var pageStart = pageNumber - 5;
@@ -3535,12 +3535,12 @@ function showEditZonePage(pageNumber) {
         if (i == pageNumber)
             paginationHtml += "<li class=\"active\"><a href=\"#\" onClick=\"showEditZonePage(" + i + "); return false;\">" + i + "</a></li>";
         else
-            paginationHtml += "<li><a href=\"#\" onClick=\"showEditZonePage(" + i + "); return false;\">" + i + "</a></li>";
+            paginationHtml += "<li><a class=\"dropdown-item\" href=\"#\" onClick=\"showEditZonePage(" + i + "); return false;\">" + i + "</a></li>";
     }
 
     if (pageNumber < totalPages) {
-        paginationHtml += "<li><a href=\"#\" aria-label=\"Next\" onClick=\"showEditZonePage(" + (pageNumber + 1) + "); return false;\"><span aria-hidden=\"true\">&rsaquo;</span></a></li>";
-        paginationHtml += "<li><a href=\"#\" aria-label=\"Last\" onClick=\"showEditZonePage(-1); return false;\"><span aria-hidden=\"true\">&raquo;</span></a></li>";
+        paginationHtml += "<li><a class=\"dropdown-item\" href=\"#\" aria-label=\"Next\" onClick=\"showEditZonePage(" + (pageNumber + 1) + "); return false;\"><span aria-hidden=\"true\">&rsaquo;</span></a></li>";
+        paginationHtml += "<li><a class=\"dropdown-item\" href=\"#\" aria-label=\"Last\" onClick=\"showEditZonePage(-1); return false;\"><span aria-hidden=\"true\">&raquo;</span></a></li>";
     }
 
     var statusHtml;
@@ -3607,7 +3607,7 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
             tableHtmlRow += "<b>Name Server:</b> " + htmlEncode(record.rData.nameServer);
 
             if (notifyFailed)
-                tableHtmlRow += "<span class=\"label label-warning\" style=\"margin-left: 8px;\">Notify Failed</span>";
+                tableHtmlRow += "<span class=\"badge text-bg-warning\" style=\"margin-left: 8px;\">Notify Failed</span>";
 
             if (record.glueRecords != null) {
                 var glue = null;
@@ -4146,7 +4146,7 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
         tableHtmlRow += "<td align=\"right\" style=\"min-width: 220px;\">";
         tableHtmlRow += "<div id=\"data" + index + "\" data-record-index=\"" + (record.index == null ? index : record.index) + "\" data-record-name=\"" + htmlEncode(record.name) + "\" data-record-type=\"" + record.type + "\" data-record-ttl=\"" + record.ttl + "\" " + additionalDataAttributes + " data-record-disabled=\"" + record.disabled + "\" data-record-comments=\"" + htmlEncode(record.comments) + "\" data-record-expiry-ttl=\"" + record.expiryTtl + "\" style=\"display: none;\"></div>";
         tableHtmlRow += "<button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-id=\"" + index + "\" onclick=\"showEditRecordModal(this);\">Edit</button>";
-        tableHtmlRow += "<button type=\"button\" class=\"btn btn-default\" id=\"btnEnableRecord" + index + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;" + (record.disabled ? "" : " display: none;") + "\" data-id=\"" + index + "\" onclick=\"updateRecordState(this, false);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + " data-loading-text=\"Enabling...\">Enable</button>";
+        tableHtmlRow += "<button type=\"button\" class=\"btn btn-secondary\" id=\"btnEnableRecord" + index + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;" + (record.disabled ? "" : " display: none;") + "\" data-id=\"" + index + "\" onclick=\"updateRecordState(this, false);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + " data-loading-text=\"Enabling...\">Enable</button>";
         tableHtmlRow += "<button type=\"button\" class=\"btn btn-warning\" id=\"btnDisableRecord" + index + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;" + (!record.disabled ? "" : " display: none;") + "\" data-id=\"" + index + "\" onclick=\"updateRecordState(this, true);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + " data-loading-text=\"Disabling...\">Disable</button>";
         tableHtmlRow += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-loading-text=\"Deleting...\" data-id=\"" + index + "\" onclick=\"deleteRecord(this);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + ">Delete</button></td>";
     }
@@ -6537,7 +6537,7 @@ function signPrimaryZone() {
             var zoneHideDnssecRecords = (localStorage.getItem("zoneHideDnssecRecords") == "true");
             if (zoneHideDnssecRecords) {
                 $("#titleEditZoneDnssecStatus").removeClass();
-                $("#titleEditZoneDnssecStatus").addClass("label label-primary");
+                $("#titleEditZoneDnssecStatus").addClass("badge bg-primary");
                 $("#titleEditZoneDnssecStatus").show();
 
                 $("#lnkZoneDnssecSignZone").hide();
@@ -6781,7 +6781,7 @@ function refreshDnssecProperties(divDnssecPropertiesLoader) {
                             }
                             else {
                                 tableHtmlRows += "<input id=\"txtDnssecPropertiesPrivateKeyAutomaticRollover" + id + "\" type=\"text\" placeholder=\"days\" style=\"width: 40px;\" value=\"" + responseJSON.response.dnssecPrivateKeys[i].rolloverDays + "\" />" +
-                                    "<button type=\"button\" class=\"btn btn-default\" style=\"padding: 2px 6px; margin-top: -2px; margin-left: 4px; font-size: 12px; height: 26px; width: 46px;\" data-id=\"" + id + "\" data-loading-text=\"Save\" onclick=\"updateDnssecPrivateKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Save</button>";
+                                    "<button type=\"button\" class=\"btn btn-secondary\" style=\"padding: 2px 6px; margin-top: -2px; margin-left: 4px; font-size: 12px; height: 26px; width: 46px;\" data-id=\"" + id + "\" data-loading-text=\"Save\" onclick=\"updateDnssecPrivateKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Save</button>";
                             }
                             break;
 
@@ -6799,8 +6799,8 @@ function refreshDnssecProperties(divDnssecPropertiesLoader) {
 
                 switch (responseJSON.response.dnssecPrivateKeys[i].state) {
                     case "Generated":
-                        tableHtmlRows += "<div class=\"dropdown\"><a href=\"#\" id=\"btnDnssecPropertiesDnsKeyRowOption" + id + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-                        tableHtmlRows += "<li><a href=\"#\" onclick=\"deleteDnssecPrivateKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", '" + id + "'); return false;\">Delete</a></li>";
+                        tableHtmlRows += "<div class=\"dropdown\"><a href=\"#\" id=\"btnDnssecPropertiesDnsKeyRowOption" + id + "\" class=\"dropdown-toggle\" data-bs-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"fa-solid fa-ellipsis-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-end\">";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" onclick=\"deleteDnssecPrivateKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", '" + id + "'); return false;\">Delete</a></li>";
                         tableHtmlRows += "</ul></div>";
                         foundGeneratedKey = true;
                         break;
@@ -6808,9 +6808,9 @@ function refreshDnssecProperties(divDnssecPropertiesLoader) {
                     case "Ready":
                     case "Active":
                         if (!responseJSON.response.dnssecPrivateKeys[i].isRetiring) {
-                            tableHtmlRows += "<div class=\"dropdown\"><a href=\"#\" id=\"btnDnssecPropertiesDnsKeyRowOption" + id + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-                            tableHtmlRows += "<li><a href=\"#\" onclick=\"rolloverDnssecDnsKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", '" + id + "'); return false;\">Rollover</a></li>";
-                            tableHtmlRows += "<li><a href=\"#\" onclick=\"retireDnssecDnsKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", '" + id + "'); return false;\">Retire</a></li>";
+                            tableHtmlRows += "<div class=\"dropdown\"><a href=\"#\" id=\"btnDnssecPropertiesDnsKeyRowOption" + id + "\" class=\"dropdown-toggle\" data-bs-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"fa-solid fa-ellipsis-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-end\">";
+                            tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" onclick=\"rolloverDnssecDnsKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", '" + id + "'); return false;\">Rollover</a></li>";
+                            tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" onclick=\"retireDnssecDnsKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", '" + id + "'); return false;\">Retire</a></li>";
                             tableHtmlRows += "</ul></div>";
                         }
                         break;

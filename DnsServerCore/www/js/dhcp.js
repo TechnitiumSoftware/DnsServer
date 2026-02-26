@@ -52,16 +52,16 @@ function refreshDhcpLeases() {
             for (var i = 0; i < dhcpLeases.length; i++) {
                 tableHtmlRows += "<tr id=\"trDhcpLeaseRow" + i + "\"><td>" + htmlEncode(dhcpLeases[i].scope) + "</td><td>" +
                     dhcpLeases[i].hardwareAddress + "</td><td>" +
-                    dhcpLeases[i].address + "</td><td><span id=\"spanDhcpLeaseType" + i + "\" class=\"label label-" +
-                    (dhcpLeases[i].type === "Reserved" ? "default" : "primary") + "\">" + dhcpLeases[i].type + "</span></td><td>" +
+                    dhcpLeases[i].address + "</td><td><span id=\"spanDhcpLeaseType" + i + "\" class=\"badge bg-" +
+                    (dhcpLeases[i].type === "Reserved" ? "secondary" : "primary") + "\">" + dhcpLeases[i].type + "</span></td><td>" +
                     htmlEncode(dhcpLeases[i].hostName) + "</td><td>" +
                     moment(dhcpLeases[i].leaseObtained).local().format("YYYY-MM-DD HH:mm") + "</td><td>" +
                     moment(dhcpLeases[i].leaseExpires).local().format("YYYY-MM-DD HH:mm");
 
-                tableHtmlRows += "</td><td><div class=\"dropdown\"><a href=\"#\" id=\"btnDhcpLeaseRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-                tableHtmlRows += "<li id=\"btnDhcpLeaseReserve" + i + "\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "" : "display: none;") + "\"><a href=\"#\" onclick=\"convertToReservedLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].clientIdentifier + "'); return false;\">Convert To Reserved Lease</a></li>";
-                tableHtmlRows += "<li id=\"btnDhcpLeaseUnreserve" + i + "\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "display: none;" : "") + "\"><a href=\"#\" onclick=\"convertToDynamicLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].clientIdentifier + "'); return false;\">Convert To Dynamic Lease</a></li>";
-                tableHtmlRows += "<li><a href=\"#\" onclick=\"showRemoveLeaseModal(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].clientIdentifier + "'); return false;\">Remove Lease</a></li>";
+                tableHtmlRows += "</td><td><div class=\"dropdown\"><a href=\"#\" id=\"btnDhcpLeaseRowOption" + i + "\" class=\"dropdown-toggle\" data-bs-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"fa-solid fa-ellipsis-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-end\">";
+                tableHtmlRows += "<li id=\"btnDhcpLeaseReserve" + i + "\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "" : "display: none;") + "\"><a class=\"dropdown-item\" href=\"#\" onclick=\"convertToReservedLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].clientIdentifier + "'); return false;\">Convert To Reserved Lease</a></li>";
+                tableHtmlRows += "<li id=\"btnDhcpLeaseUnreserve" + i + "\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "display: none;" : "") + "\"><a class=\"dropdown-item\" href=\"#\" onclick=\"convertToDynamicLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].clientIdentifier + "'); return false;\">Convert To Dynamic Lease</a></li>";
+                tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" onclick=\"showRemoveLeaseModal(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].clientIdentifier + "'); return false;\">Remove Lease</a></li>";
                 tableHtmlRows += "</ul></div></td></tr>";
             }
 
@@ -104,7 +104,7 @@ function convertToReservedLease(id, scopeName, clientIdentifier) {
 
             var spanDhcpLeaseType = $("#spanDhcpLeaseType" + id);
             spanDhcpLeaseType.html("Reserved");
-            spanDhcpLeaseType.attr("class", "label label-default");
+            spanDhcpLeaseType.attr("class", "badge bg-secondary");
 
             showAlert("success", "Reserved!", "The dynamic lease was converted to reserved lease successfully.");
         },
@@ -140,7 +140,7 @@ function convertToDynamicLease(id, scopeName, clientIdentifier) {
 
             var spanDhcpLeaseType = $("#spanDhcpLeaseType" + id);
             spanDhcpLeaseType.html("Dynamic");
-            spanDhcpLeaseType.attr("class", "label label-primary");
+            spanDhcpLeaseType.attr("class", "badge bg-primary");
 
             showAlert("success", "Unreserved!", "The reserved lease was converted to dynamic lease successfully.");
         },
@@ -226,7 +226,7 @@ function refreshDhcpScopes(checkDisplay) {
                 if (dhcpScopes[i].enabled)
                     tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"disableDhcpScope('" + dhcpScopes[i].name + "');\">Disable</button>";
                 else
-                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-default\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"enableDhcpScope('" + dhcpScopes[i].name + "');\">Enable</button>";
+                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-secondary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"enableDhcpScope('" + dhcpScopes[i].name + "');\">Enable</button>";
 
                 tableHtmlRows += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"deleteDhcpScope(" + i + ", '" + dhcpScopes[i].name + "');\">Delete</button></td></tr>";
             }

@@ -440,19 +440,19 @@ function queryLogs(pageNumber) {
                     (responseJSON.response.entries[i].qtype == null ? "" : responseJSON.response.entries[i].qtype) + "</td><td>" +
                     (responseJSON.response.entries[i].qclass == null ? "" : responseJSON.response.entries[i].qclass) + "</td><td style=\"word-break: break-all;\">" +
                     htmlEncode(responseJSON.response.entries[i].answer) +
-                    "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnQueryLogsRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
+                    "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnQueryLogsRowOption" + i + "\" class=\"dropdown-toggle\" data-bs-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"fa-solid fa-ellipsis-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-end\">";
 
-                tableHtml += "<li><a href=\"#\" data-id=\"" + i + "\" onclick=\"queryDnsServer('" + responseJSON.response.entries[i].qname + "', '" + responseJSON.response.entries[i].qtype + "', '" + node + "'); return false;\">Query DNS Server</a></li>";
+                tableHtml += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" onclick=\"queryDnsServer('" + responseJSON.response.entries[i].qname + "', '" + responseJSON.response.entries[i].qtype + "', '" + node + "'); return false;\">Query DNS Server</a></li>";
 
                 switch (responseJSON.response.entries[i].responseType.toLowerCase()) {
                     case "blocked":
                     case "upstreamblocked":
                     case "upstreamblockedcached":
-                        tableHtml += "<li><a href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(responseJSON.response.entries[i].qname) + "\" onclick=\"allowDomain(this, 'btnQueryLogsRowOption'); return false;\">Allow Domain</a></li>";
+                        tableHtml += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(responseJSON.response.entries[i].qname) + "\" onclick=\"allowDomain(this, 'btnQueryLogsRowOption'); return false;\">Allow Domain</a></li>";
                         break;
 
                     default:
-                        tableHtml += "<li><a href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(responseJSON.response.entries[i].qname) + "\" onclick=\"blockDomain(this, 'btnQueryLogsRowOption'); return false;\">Block Domain</a></li>";
+                        tableHtml += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(responseJSON.response.entries[i].qname) + "\" onclick=\"blockDomain(this, 'btnQueryLogsRowOption'); return false;\">Block Domain</a></li>";
                         break;
                 }
 
@@ -462,8 +462,8 @@ function queryLogs(pageNumber) {
             var paginationHtml = "";
 
             if (responseJSON.response.pageNumber > 1) {
-                paginationHtml += "<li><a href=\"#\" aria-label=\"First\" onClick=\"queryLogs(1); return false;\"><span aria-hidden=\"true\">&laquo;</span></a></li>";
-                paginationHtml += "<li><a href=\"#\" aria-label=\"Previous\" onClick=\"queryLogs(" + (responseJSON.response.pageNumber - 1) + "); return false;\"><span aria-hidden=\"true\">&lsaquo;</span></a></li>";
+                paginationHtml += "<li><a class=\"dropdown-item\" href=\"#\" aria-label=\"First\" onClick=\"queryLogs(1); return false;\"><span aria-hidden=\"true\">&laquo;</span></a></li>";
+                paginationHtml += "<li><a class=\"dropdown-item\" href=\"#\" aria-label=\"Previous\" onClick=\"queryLogs(" + (responseJSON.response.pageNumber - 1) + "); return false;\"><span aria-hidden=\"true\">&lsaquo;</span></a></li>";
             }
 
             var pageStart = responseJSON.response.pageNumber - 5;
@@ -484,12 +484,12 @@ function queryLogs(pageNumber) {
                 if (i == responseJSON.response.pageNumber)
                     paginationHtml += "<li class=\"active\"><a href=\"#\" onClick=\"queryLogs(" + i + "); return false;\">" + i + "</a></li>";
                 else
-                    paginationHtml += "<li><a href=\"#\" onClick=\"queryLogs(" + i + "); return false;\">" + i + "</a></li>";
+                    paginationHtml += "<li><a class=\"dropdown-item\" href=\"#\" onClick=\"queryLogs(" + i + "); return false;\">" + i + "</a></li>";
             }
 
             if (responseJSON.response.pageNumber < responseJSON.response.totalPages) {
-                paginationHtml += "<li><a href=\"#\" aria-label=\"Next\" onClick=\"queryLogs(" + (responseJSON.response.pageNumber + 1) + "); return false;\"><span aria-hidden=\"true\">&rsaquo;</span></a></li>";
-                paginationHtml += "<li><a href=\"#\" aria-label=\"Last\" onClick=\"queryLogs(-1); return false;\"><span aria-hidden=\"true\">&raquo;</span></a></li>";
+                paginationHtml += "<li><a class=\"dropdown-item\" href=\"#\" aria-label=\"Next\" onClick=\"queryLogs(" + (responseJSON.response.pageNumber + 1) + "); return false;\"><span aria-hidden=\"true\">&rsaquo;</span></a></li>";
+                paginationHtml += "<li><a class=\"dropdown-item\" href=\"#\" aria-label=\"Last\" onClick=\"queryLogs(-1); return false;\"><span aria-hidden=\"true\">&raquo;</span></a></li>";
             }
 
             $("#tableQueryLogsBody").html(tableHtml);
@@ -534,17 +534,17 @@ function showQueryLogs(domain, clientIp, node) {
     if ((node != null) && (node != "cluster"))
         $("#optLogsClusterNode").val(node);
 
-    $("#mainPanelTabListDashboard").removeClass("active");
-    $("#mainPanelTabPaneDashboard").removeClass("active");
+    $("#mainPanelTabListDashboard > a").removeClass("active");
+    $("#mainPanelTabPaneDashboard").removeClass("active show");
 
-    $("#mainPanelTabListLogs").addClass("active");
-    $("#mainPanelTabPaneLogs").addClass("active");
+    $("#mainPanelTabListLogs > a").addClass("active");
+    $("#mainPanelTabPaneLogs").addClass("active show");
 
-    $("#logsTabListLogViewer").removeClass("active");
-    $("#logsTabPaneLogViewer").removeClass("active");
+    $("#logsTabListLogViewer > a").removeClass("active");
+    $("#logsTabPaneLogViewer").removeClass("active show");
 
-    $("#logsTabListQueryLogs").addClass("active");
-    $("#logsTabPaneQueryLogs").addClass("active");
+    $("#logsTabListQueryLogs > a").addClass("active");
+    $("#logsTabPaneQueryLogs").addClass("active show");
 
     $("#modalTopStats").modal("hide");
 

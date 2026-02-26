@@ -17,6 +17,27 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+// Bootstrap 5 polyfill for .button("loading") / .button("reset")
+$.fn.button = function (action) {
+    return this.each(function () {
+        var $el = $(this);
+        if (action === "loading") {
+            $el.data("btn-original-text", $el.html());
+            var loadingText = $el.attr("data-loading-text");
+            if (loadingText) {
+                $el.html(loadingText);
+            }
+            $el.prop("disabled", true);
+        } else if (action === "reset") {
+            var originalText = $el.data("btn-original-text");
+            if (originalText !== undefined) {
+                $el.html(originalText);
+            }
+            $el.prop("disabled", false);
+        }
+    });
+};
+
 function htmlEncode(value) {
     return $('<div/>').text(value).html().replace(/"/g, "&quot;");
 }
@@ -193,7 +214,7 @@ function HTTPRequest(url, method, data, isTextResponse, success, error, invalidT
 
 function showAlert(type, title, message, objAlertPlaceholder) {
     var alertHTML = "<div class=\"alert alert-" + type + "\">\
-    <button type=\"button\" class=\"close\" data-dismiss=\"alert\">&times;</button>\
+    <button type=\"button\" class=\"btn-close\" data-bs-dismiss=\"alert\" aria-label=\"Close\"></button>\
     <strong>" + title + "</strong>&nbsp;" + htmlEncode(message) + "\
     </div>";
 

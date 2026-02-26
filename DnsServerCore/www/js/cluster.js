@@ -144,15 +144,15 @@ function reloadAdminClusterView(responseJSON) {
 
             switch (responseJSON.response.clusterNodes[i].type) {
                 case "Primary":
-                    nodeType = "<span class=\"label label-primary\">Primary</span>";
+                    nodeType = "<span class=\"badge bg-primary\">Primary</span>";
                     break;
 
                 case "Secondary":
-                    nodeType = "<span class=\"label label-primary\">Secondary</span>";
+                    nodeType = "<span class=\"badge bg-primary\">Secondary</span>";
                     break;
 
                 default:
-                    nodeType = "<span class=\"label label-warning\">Unknown</span>";
+                    nodeType = "<span class=\"badge text-bg-warning\">Unknown</span>";
                     break;
             }
 
@@ -160,19 +160,19 @@ function reloadAdminClusterView(responseJSON) {
 
             switch (responseJSON.response.clusterNodes[i].state) {
                 case "Self":
-                    clusterNodestate = "<span class=\"label label-default\">Self</span>";
+                    clusterNodestate = "<span class=\"badge bg-secondary\">Self</span>";
                     break;
 
                 case "Connected":
-                    clusterNodestate = "<span class=\"label label-success\">Connected</span>";
+                    clusterNodestate = "<span class=\"badge bg-success\">Connected</span>";
                     break;
 
                 case "Unreachable":
-                    clusterNodestate = "<span class=\"label label-warning\">Unreachable</span>";
+                    clusterNodestate = "<span class=\"badge text-bg-warning\">Unreachable</span>";
                     break;
 
                 default:
-                    clusterNodestate = "<span class=\"label label-warning\">Unknown</span>";
+                    clusterNodestate = "<span class=\"badge text-bg-warning\">Unknown</span>";
                     break;
             }
 
@@ -214,30 +214,30 @@ function reloadAdminClusterView(responseJSON) {
 
             switch (selfNodeType) {
                 case "Primary":
-                    tableHtmlRows += "<div class=\"dropdown\"><a href=\"#\" id=\"btnAdminClusterNodeRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
+                    tableHtmlRows += "<div class=\"dropdown\"><a href=\"#\" id=\"btnAdminClusterNodeRowOption" + i + "\" class=\"dropdown-toggle\" data-bs-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"fa-solid fa-ellipsis-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-end\">";
 
                     if (responseJSON.response.clusterNodes[i].state == "Self")
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-node-name=\"" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "\" data-node-ip=\"" + ipAddressesCsv + "\" onclick=\"showEditSelfClusterNodeModal(this); return false;\">Edit Node</a></li>";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" data-node-name=\"" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "\" data-node-ip=\"" + ipAddressesCsv + "\" onclick=\"showEditSelfClusterNodeModal(this); return false;\">Edit Node</a></li>";
 
                     if (responseJSON.response.clusterNodes[i].type == "Secondary")
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-node-id=\"" + htmlEncode(responseJSON.response.clusterNodes[i].id) + "\" data-node-name=\"" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "\" onclick=\"showRemoveSecondaryClusterNodeModal(this); return false;\">Remove Node</a></li>";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" data-node-id=\"" + htmlEncode(responseJSON.response.clusterNodes[i].id) + "\" data-node-name=\"" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "\" onclick=\"showRemoveSecondaryClusterNodeModal(this); return false;\">Remove Node</a></li>";
 
                     tableHtmlRows += "</ul></div>";
                     break;
 
                 case "Secondary":
                     if (responseJSON.response.clusterNodes[i].state == "Self") {
-                        tableHtmlRows += "<div class=\"dropdown\"><a href=\"#\" id=\"btnAdminClusterNodeRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
+                        tableHtmlRows += "<div class=\"dropdown\"><a href=\"#\" id=\"btnAdminClusterNodeRowOption" + i + "\" class=\"dropdown-toggle\" data-bs-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"fa-solid fa-ellipsis-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-end\">";
 
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-node-name=\"" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "\" data-node-ip=\"" + ipAddressesCsv + "\" onclick=\"showEditSelfClusterNodeModal(this); return false;\">Edit Node</a></li>";
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-node-name=\"" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "\" onclick=\"showPromoteToPrimaryClusterNodeModal(this); return false;\">Promote To Primary</a></li>";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" data-node-name=\"" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "\" data-node-ip=\"" + ipAddressesCsv + "\" onclick=\"showEditSelfClusterNodeModal(this); return false;\">Edit Node</a></li>";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" data-node-name=\"" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "\" onclick=\"showPromoteToPrimaryClusterNodeModal(this); return false;\">Promote To Primary</a></li>";
 
                         tableHtmlRows += "</ul></div>";
                     }
                     else if (responseJSON.response.clusterNodes[i].type == "Primary") {
-                        tableHtmlRows += "<div class=\"dropdown\"><a href=\"#\" id=\"btnAdminClusterNodeRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
+                        tableHtmlRows += "<div class=\"dropdown\"><a href=\"#\" id=\"btnAdminClusterNodeRowOption" + i + "\" class=\"dropdown-toggle\" data-bs-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"fa-solid fa-ellipsis-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-end\">";
 
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-node-name=\"" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "\" data-node-url=\"" + htmlEncode(responseJSON.response.clusterNodes[i].url) + "\" data-node-ip=\"" + ipAddressesCsv + "\" onclick=\"showEditPrimaryClusterNodeModal(this); return false;\">Edit Node</a></li>";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" data-node-name=\"" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "\" data-node-url=\"" + htmlEncode(responseJSON.response.clusterNodes[i].url) + "\" data-node-ip=\"" + ipAddressesCsv + "\" onclick=\"showEditPrimaryClusterNodeModal(this); return false;\">Edit Node</a></li>";
 
                         tableHtmlRows += "</ul></div>";
                     }

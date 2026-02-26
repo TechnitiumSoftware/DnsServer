@@ -77,30 +77,30 @@ function getAppRowHtml(app) {
             var description = null;
 
             if (app.dnsApps[j].isAppRecordRequestHandler) {
-                labels += "<span class=\"label label-info\" style=\"margin-right: 4px;\">APP Record</span>";
+                labels += "<span class=\"badge bg-info\" style=\"margin-right: 4px;\">APP Record</span>";
                 description = "<p>" + htmlEncode(app.dnsApps[j].description).replace(/\n/g, "<br />") + "</p>" + (app.dnsApps[j].recordDataTemplate == null ? "" : "<div><b>Record Data Template</b><pre>" + htmlEncode(app.dnsApps[j].recordDataTemplate) + "</pre></div>");
             }
 
             if (app.dnsApps[j].isRequestController)
-                labels += "<span class=\"label label-info\" style=\"margin-right: 4px;\">Access Control</span>";
+                labels += "<span class=\"badge bg-info\" style=\"margin-right: 4px;\">Access Control</span>";
 
             if (app.dnsApps[j].isAuthoritativeRequestHandler)
-                labels += "<span class=\"label label-info\" style=\"margin-right: 4px;\">Authoritative</span>";
+                labels += "<span class=\"badge bg-info\" style=\"margin-right: 4px;\">Authoritative</span>";
 
             if (app.dnsApps[j].isRequestBlockingHandler)
-                labels += "<span class=\"label label-info\" style=\"margin-right: 4px;\">Blocking</span>";
+                labels += "<span class=\"badge bg-info\" style=\"margin-right: 4px;\">Blocking</span>";
 
             if (app.dnsApps[j].isQueryLogger)
-                labels += "<span class=\"label label-info\" style=\"margin-right: 4px;\">Query Logger</span>";
+                labels += "<span class=\"badge bg-info\" style=\"margin-right: 4px;\">Query Logger</span>";
 
             if (app.dnsApps[j].isQueryLogs)
-                labels += "<span class=\"label label-info\" style=\"margin-right: 4px;\">Query Logs</span>";
+                labels += "<span class=\"badge bg-info\" style=\"margin-right: 4px;\">Query Logs</span>";
 
             if (app.dnsApps[j].isPostProcessor)
-                labels += "<span class=\"label label-info\" style=\"margin-right: 4px;\">Post Processor</span>";
+                labels += "<span class=\"badge bg-info\" style=\"margin-right: 4px;\">Post Processor</span>";
 
             if (labels == "")
-                labels = "<span class=\"label label-info\" style=\"margin-right: 4px;\">Generic</span>";
+                labels = "<span class=\"badge bg-info\" style=\"margin-right: 4px;\">Generic</span>";
 
             if (description == null)
                 description = htmlEncode(app.dnsApps[j].description).replace(/\n/g, "<br />");
@@ -112,20 +112,20 @@ function getAppRowHtml(app) {
     }
 
     var id = getAppRowId(name);
-    var tableHtmlRow = "<tr id=\"trApp" + id + "\"><td><div><span style=\"font-weight: bold; font-size: 16px;\">" + htmlEncode(name) + "</span><br /><span id=\"trAppVersion" + id + "\" class=\"label label-primary\">Version " + htmlEncode(version) + "</span> <span id=\"trAppUpdateVersion" + id + "\" class=\"label label-warning\" style=\"" + (updateAvailable ? "" : "display: none;") + "\">Update " + htmlEncode(updateVersion) + "</span></div>";
+    var tableHtmlRow = "<tr id=\"trApp" + id + "\"><td><div><span style=\"font-weight: bold; font-size: 16px;\">" + htmlEncode(name) + "</span><br /><span id=\"trAppVersion" + id + "\" class=\"badge bg-primary\">Version " + htmlEncode(version) + "</span> <span id=\"trAppUpdateVersion" + id + "\" class=\"badge text-bg-warning\" style=\"" + (updateAvailable ? "" : "display: none;") + "\">Update " + htmlEncode(updateVersion) + "</span></div>";
 
     if (app.description != null)
         tableHtmlRow += "<div style=\"margin-top: 10px;\">" + htmlEncode(app.description).replace(/\n/g, "<br />") + "</div>";
 
     if (dnsAppsTable != null) {
-        tableHtmlRow += "<div style=\"margin-top: 10px;\"><a href=\"#" + id + "\" class=\"collapsed\" data-toggle=\"collapse\" aria-expanded=\"false\" aria-controls=\"" + id + "\">More Details <span class=\"glyphicon glyphicon-chevron-down\" style=\"font-size: 10px;\" aria-hidden=\"true\"></span></a>";
+        tableHtmlRow += "<div style=\"margin-top: 10px;\"><a href=\"#" + id + "\" class=\"collapsed\" data-bs-toggle=\"collapse\" aria-expanded=\"false\" aria-controls=\"" + id + "\">More Details <span class=\"fa-solid fa-chevron-down\" style=\"font-size: 10px;\" aria-hidden=\"true\"></span></a>";
         tableHtmlRow += "<div id=\"" + id + "\" class=\"collapse\" aria-expanded=\"false\">";
         tableHtmlRow += dnsAppsTable;
         tableHtmlRow += "</div></div>";
     }
 
     tableHtmlRow += "</td>";
-    tableHtmlRow += "<td><button type=\"button\" class=\"btn btn-default\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; display: block;\" onclick=\"showAppConfigModal(this, '" + name + "');\" data-loading-text=\"Loading...\">Config</button>";
+    tableHtmlRow += "<td><button type=\"button\" class=\"btn btn-secondary\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; display: block;\" onclick=\"showAppConfigModal(this, '" + name + "');\" data-loading-text=\"Loading...\">Config</button>";
     tableHtmlRow += "<button type=\"button\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; display: block;\" onclick=\"showUpdateAppModal('" + name + "');\">Update</button>";
     tableHtmlRow += "<button id=\"btnAppsStoreUpdate" + id + "\" type=\"button\" data-id=\"" + id + "\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; " + (updateAvailable ? "" : "display: none;") + "\" onclick=\"updateStoreApp(this, '" + name + "', '" + updateUrl + "', false);\" data-loading-text=\"Updating...\">Store Update</button>";
     tableHtmlRow += "<button type=\"button\" data-id=\"" + id + "\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; display: block;\" onclick=\"uninstallApp(this, '" + name + "');\" data-loading-text=\"Uninstalling...\">Uninstall</button></td></tr>";
@@ -162,7 +162,7 @@ function showStoreAppsModal() {
                 var displayVersion = installed ? installedVersion : version;
                 description = htmlEncode(description).replace(/\n/g, "<br />");
 
-                tableHtmlRows += "<tr id=\"trStoreApp" + id + "\"><td><div style=\"margin-bottom: 14px;\"><span style=\"font-weight: bold; font-size: 16px;\">" + htmlEncode(name) + "</span><br /><span id=\"spanStoreAppDisplayVersion" + id + "\" class=\"label label-primary\">Version " + htmlEncode(displayVersion) + "</span> <span id=\"spanStoreAppUpdateVersion" + id + "\" class=\"label label-warning\" style=\"" + (updateAvailable ? "" : "display: none;") + "\">Update " + htmlEncode(version) + "</span></div>";
+                tableHtmlRows += "<tr id=\"trStoreApp" + id + "\"><td><div style=\"margin-bottom: 14px;\"><span style=\"font-weight: bold; font-size: 16px;\">" + htmlEncode(name) + "</span><br /><span id=\"spanStoreAppDisplayVersion" + id + "\" class=\"badge bg-primary\">Version " + htmlEncode(displayVersion) + "</span> <span id=\"spanStoreAppUpdateVersion" + id + "\" class=\"badge text-bg-warning\" style=\"" + (updateAvailable ? "" : "display: none;") + "\">Update " + htmlEncode(version) + "</span></div>";
                 tableHtmlRows += "<div style=\"margin-bottom: 10px;\">" + description + "</div><div><b>App Zip File</b>: " + htmlEncode(url) + "<br /><b>Size</b>: " + htmlEncode(size) + "</div></td><td>";
                 tableHtmlRows += "<button id=\"btnStoreAppInstall" + id + "\" type=\"button\" data-id=\"" + id + "\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; " + (installed ? "display: none;" : "") + "\" onclick=\"installStoreApp(this, '" + name + "', '" + url + "');\" data-loading-text=\"Installing...\">Install</button>";
                 tableHtmlRows += "<button id=\"btnStoreAppUpdate" + id + "\" type=\"button\" data-id=\"" + id + "\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; " + (updateAvailable ? "" : "display: none;") + "\" onclick=\"updateStoreApp(this, '" + name + "', '" + url + "', true);\" data-loading-text=\"Updating...\">Update</button>";
@@ -303,7 +303,7 @@ function uninstallStoreApp(objBtn, appName) {
             var id = btn.attr("data-id");
             $("#btnStoreAppInstall" + id).show();
             $("#btnStoreAppUpdate" + id).hide();
-            $("#spanStoreAppVersion" + id).attr("class", "label label-primary");
+            $("#spanStoreAppVersion" + id).attr("class", "badge bg-primary");
 
             var id = getAppRowId(appName);
             $("#trApp" + id).remove();

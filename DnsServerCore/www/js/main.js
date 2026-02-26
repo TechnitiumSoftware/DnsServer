@@ -52,18 +52,18 @@ function showPageMain() {
     $("#pageLogin").hide();
     $("#mnuUser").show();
 
-    $(".nav-tabs li").removeClass("active");
-    $(".tab-pane").removeClass("active");
-    $("#mainPanelTabListDashboard").addClass("active");
-    $("#mainPanelTabPaneDashboard").addClass("active");
-    $("#settingsTabListGeneral").addClass("active");
-    $("#settingsTabPaneGeneral").addClass("active");
-    $("#dhcpTabListLeases").addClass("active");
-    $("#dhcpTabPaneLeases").addClass("active");
-    $("#adminTabListSessions").addClass("active");
-    $("#adminTabPaneSessions").addClass("active");
-    $("#logsTabListLogViewer").addClass("active");
-    $("#logsTabPaneLogViewer").addClass("active");
+    $(".nav-tabs .nav-link").removeClass("active");
+    $(".tab-pane").removeClass("active show");
+    $("#mainPanelTabListDashboard > a").addClass("active");
+    $("#mainPanelTabPaneDashboard").addClass("active show");
+    $("#settingsTabListGeneral > a").addClass("active");
+    $("#settingsTabPaneGeneral").addClass("active show");
+    $("#dhcpTabListLeases > a").addClass("active");
+    $("#dhcpTabPaneLeases").addClass("active show");
+    $("#adminTabListSessions > a").addClass("active");
+    $("#adminTabPaneSessions").addClass("active show");
+    $("#logsTabListLogViewer > a").addClass("active");
+    $("#logsTabPaneLogViewer").addClass("active show");
 
     $("#divViewZones").show();
     $("#divEditZone").hide();
@@ -93,58 +93,58 @@ function showPageMain() {
     else {
         $("#mainPanelTabListDashboard").hide();
 
-        $("#mainPanelTabListDashboard").removeClass("active");
-        $("#mainPanelTabPaneDashboard").removeClass("active");
+        $("#mainPanelTabListDashboard > a").removeClass("active");
+        $("#mainPanelTabPaneDashboard").removeClass("active show");
 
         if (sessionData.info.permissions.Zones.canView) {
-            $("#mainPanelTabListZones").addClass("active");
-            $("#mainPanelTabPaneZones").addClass("active");
+            $("#mainPanelTabListZones > a").addClass("active");
+            $("#mainPanelTabPaneZones").addClass("active show");
             refreshZones(true);
         }
         else if (sessionData.info.permissions.Cache.canView) {
-            $("#mainPanelTabListCachedZones").addClass("active");
-            $("#mainPanelTabPaneCachedZones").addClass("active");
+            $("#mainPanelTabListCachedZones > a").addClass("active");
+            $("#mainPanelTabPaneCachedZones").addClass("active show");
         }
         else if (sessionData.info.permissions.Allowed.canView) {
-            $("#mainPanelTabListAllowedZones").addClass("active");
-            $("#mainPanelTabPaneAllowedZones").addClass("active");
+            $("#mainPanelTabListAllowedZones > a").addClass("active");
+            $("#mainPanelTabPaneAllowedZones").addClass("active show");
         }
         else if (sessionData.info.permissions.Blocked.canView) {
-            $("#mainPanelTabListBlockedZones").addClass("active");
-            $("#mainPanelTabPaneBlockedZones").addClass("active");
+            $("#mainPanelTabListBlockedZones > a").addClass("active");
+            $("#mainPanelTabPaneBlockedZones").addClass("active show");
         }
         else if (sessionData.info.permissions.Apps.canView) {
-            $("#mainPanelTabListApps").addClass("active");
-            $("#mainPanelTabPaneApps").addClass("active");
+            $("#mainPanelTabListApps > a").addClass("active");
+            $("#mainPanelTabPaneApps").addClass("active show");
             refreshApps();
         }
         else if (sessionData.info.permissions.DnsClient.canView) {
-            $("#mainPanelTabListDnsClient").addClass("active");
-            $("#mainPanelTabPaneDnsClient").addClass("active");
+            $("#mainPanelTabListDnsClient > a").addClass("active");
+            $("#mainPanelTabPaneDnsClient").addClass("active show");
         }
         else if (sessionData.info.permissions.Settings.canView) {
-            $("#mainPanelTabListSettings").addClass("active");
-            $("#mainPanelTabPaneSettings").addClass("active");
+            $("#mainPanelTabListSettings > a").addClass("active");
+            $("#mainPanelTabPaneSettings").addClass("active show");
             refreshDnsSettings()
         }
         else if (sessionData.info.permissions.DhcpServer.canView) {
-            $("#mainPanelTabListDhcp").addClass("active");
-            $("#mainPanelTabPaneDhcp").addClass("active");
+            $("#mainPanelTabListDhcp > a").addClass("active");
+            $("#mainPanelTabPaneDhcp").addClass("active show");
             refreshDhcpTab();
         }
         else if (sessionData.info.permissions.Administration.canView) {
-            $("#mainPanelTabListAdmin").addClass("active");
-            $("#mainPanelTabPaneAdmin").addClass("active");
+            $("#mainPanelTabListAdmin > a").addClass("active");
+            $("#mainPanelTabPaneAdmin").addClass("active show");
             refreshAdminTab();
         }
         else if (sessionData.info.permissions.Logs.canView) {
-            $("#mainPanelTabListLogs").addClass("active");
-            $("#mainPanelTabPaneLogs").addClass("active");
+            $("#mainPanelTabListLogs > a").addClass("active");
+            $("#mainPanelTabPaneLogs").addClass("active show");
             refreshLogsTab();
         }
         else {
-            $("#mainPanelTabListAbout").addClass("active");
-            $("#mainPanelTabPaneAbout").addClass("active");
+            $("#mainPanelTabListAbout > a").addClass("active");
+            $("#mainPanelTabPaneAbout").addClass("active show");
         }
     }
 
@@ -238,7 +238,7 @@ $(function () {
     var headerHtml = $("#header").html();
 
     $("#header").html("<div class=\"title\"><a href=\".\"><img src=\"img/logo25x25.png\" alt=\"Technitium Logo\" /><span class=\"text\" style=\"color: #ffffff;\">Technitium</span></a>" + headerHtml + "</div>");
-    $("#footer").html("<div class=\"content\"><a href=\"https://technitium.com/\" target=\"_blank\">Technitium</a> | <a href=\"https://blog.technitium.com/\" target=\"_blank\">Blog</a> | <a href=\"https://go.technitium.com/?id=35\" target=\"_blank\">Donate</a> | <a href=\"https://dnsclient.net/\" target=\"_blank\">DNS Client</a> | <a href=\"https://github.com/TechnitiumSoftware/DnsServer\" target=\"_blank\"><i class=\"fa fa-github\"></i>&nbsp;GitHub</a> | <a href=\"#\" onclick=\"showAbout(); return false;\">About</a></div>");
+    $("#footer").html("<div class=\"content\"><a href=\"https://technitium.com/\" target=\"_blank\">Technitium</a> | <a href=\"https://blog.technitium.com/\" target=\"_blank\">Blog</a> | <a href=\"https://go.technitium.com/?id=35\" target=\"_blank\">Donate</a> | <a href=\"https://dnsclient.net/\" target=\"_blank\">DNS Client</a> | <a href=\"https://github.com/TechnitiumSoftware/DnsServer\" target=\"_blank\"><i class=\"fa-brands fa-github\"></i>&nbsp;GitHub</a> | <a href=\"#\" onclick=\"showAbout(); return false;\">About</a></div>");
 
     loadQuickBlockLists();
     loadQuickForwardersList();
@@ -559,41 +559,41 @@ function showAbout() {
         window.open("https://technitium.com/aboutus.html", "_blank");
     }
     else {
-        $("#mainPanelTabListDashboard").removeClass("active");
-        $("#mainPanelTabPaneDashboard").removeClass("active");
+        $("#mainPanelTabListDashboard > a").removeClass("active");
+        $("#mainPanelTabPaneDashboard").removeClass("active show");
 
-        $("#mainPanelTabListZones").removeClass("active");
-        $("#mainPanelTabPaneZones").removeClass("active");
+        $("#mainPanelTabListZones > a").removeClass("active");
+        $("#mainPanelTabPaneZones").removeClass("active show");
 
-        $("#mainPanelTabListCachedZones").removeClass("active");
-        $("#mainPanelTabPaneCachedZones").removeClass("active");
+        $("#mainPanelTabListCachedZones > a").removeClass("active");
+        $("#mainPanelTabPaneCachedZones").removeClass("active show");
 
-        $("#mainPanelTabListAllowedZones").removeClass("active");
-        $("#mainPanelTabPaneAllowedZones").removeClass("active");
+        $("#mainPanelTabListAllowedZones > a").removeClass("active");
+        $("#mainPanelTabPaneAllowedZones").removeClass("active show");
 
-        $("#mainPanelTabListBlockedZones").removeClass("active");
-        $("#mainPanelTabPaneBlockedZones").removeClass("active");
+        $("#mainPanelTabListBlockedZones > a").removeClass("active");
+        $("#mainPanelTabPaneBlockedZones").removeClass("active show");
 
-        $("#mainPanelTabListApps").removeClass("active");
-        $("#mainPanelTabPaneApps").removeClass("active");
+        $("#mainPanelTabListApps > a").removeClass("active");
+        $("#mainPanelTabPaneApps").removeClass("active show");
 
-        $("#mainPanelTabListDnsClient").removeClass("active");
-        $("#mainPanelTabPaneDnsClient").removeClass("active");
+        $("#mainPanelTabListDnsClient > a").removeClass("active");
+        $("#mainPanelTabPaneDnsClient").removeClass("active show");
 
-        $("#mainPanelTabListSettings").removeClass("active");
-        $("#mainPanelTabPaneSettings").removeClass("active");
+        $("#mainPanelTabListSettings > a").removeClass("active");
+        $("#mainPanelTabPaneSettings").removeClass("active show");
 
-        $("#mainPanelTabListDhcp").removeClass("active");
-        $("#mainPanelTabPaneDhcp").removeClass("active");
+        $("#mainPanelTabListDhcp > a").removeClass("active");
+        $("#mainPanelTabPaneDhcp").removeClass("active show");
 
-        $("#mainPanelTabListAdmin").removeClass("active");
-        $("#mainPanelTabPaneAdmin").removeClass("active");
+        $("#mainPanelTabListAdmin > a").removeClass("active");
+        $("#mainPanelTabPaneAdmin").removeClass("active show");
 
-        $("#mainPanelTabListLogs").removeClass("active");
-        $("#mainPanelTabPaneLogs").removeClass("active");
+        $("#mainPanelTabListLogs > a").removeClass("active");
+        $("#mainPanelTabPaneLogs").removeClass("active show");
 
-        $("#mainPanelTabListAbout").addClass("active");
-        $("#mainPanelTabPaneAbout").addClass("active");
+        $("#mainPanelTabListAbout > a").addClass("active");
+        $("#mainPanelTabPaneAbout").addClass("active show");
 
         setTimeout(function () {
             window.scroll({
@@ -784,22 +784,22 @@ function refreshDnsSettings() {
                 $("#settingsTabListWebService").hide();
 
                 if ($("#settingsTabListWebService").hasClass("active")) {
-                    $("#settingsTabListWebService").removeClass("active");
-                    $("#settingsTabPaneWebService").removeClass("active");
+                    $("#settingsTabListWebService > a").removeClass("active");
+                    $("#settingsTabPaneWebService").removeClass("active show");
 
-                    $("#settingsTabListGeneral").addClass("active");
-                    $("#settingsTabPaneGeneral").addClass("active");
+                    $("#settingsTabListGeneral > a").addClass("active");
+                    $("#settingsTabPaneGeneral").addClass("active show");
                 }
 
                 //optional protocols
                 $("#settingsTabListOptionalProtocols").hide();
 
                 if ($("#settingsTabListOptionalProtocols").hasClass("active")) {
-                    $("#settingsTabListOptionalProtocols").removeClass("active");
-                    $("#settingsTabPaneOptionalProtocols").removeClass("active");
+                    $("#settingsTabListOptionalProtocols > a").removeClass("active");
+                    $("#settingsTabPaneOptionalProtocols").removeClass("active show");
 
-                    $("#settingsTabListGeneral").addClass("active");
-                    $("#settingsTabPaneGeneral").addClass("active");
+                    $("#settingsTabListGeneral > a").addClass("active");
+                    $("#settingsTabPaneGeneral").addClass("active show");
                 }
 
                 //tsig
@@ -812,11 +812,11 @@ function refreshDnsSettings() {
                 $("#settingsTabListCache").hide();
 
                 if ($("#settingsTabListCache").hasClass("active")) {
-                    $("#settingsTabListCache").removeClass("active");
-                    $("#settingsTabPaneCache").removeClass("active");
+                    $("#settingsTabListCache > a").removeClass("active");
+                    $("#settingsTabPaneCache").removeClass("active show");
 
-                    $("#settingsTabListGeneral").addClass("active");
-                    $("#settingsTabPaneGeneral").addClass("active");
+                    $("#settingsTabListGeneral > a").addClass("active");
+                    $("#settingsTabPaneGeneral").addClass("active show");
                 }
 
                 //blocking
@@ -829,11 +829,11 @@ function refreshDnsSettings() {
                 $("#settingsTabListLogging").hide();
 
                 if ($("#settingsTabListLogging").hasClass("active")) {
-                    $("#settingsTabListLogging").removeClass("active");
-                    $("#settingsTabPaneLogging").removeClass("active");
+                    $("#settingsTabListLogging > a").removeClass("active");
+                    $("#settingsTabPaneLogging").removeClass("active show");
 
-                    $("#settingsTabListGeneral").addClass("active");
-                    $("#settingsTabPaneGeneral").addClass("active");
+                    $("#settingsTabListGeneral > a").addClass("active");
+                    $("#settingsTabPaneGeneral").addClass("active show");
                 }
 
                 //buttons
@@ -865,22 +865,22 @@ function refreshDnsSettings() {
                 $("#settingsTabListTsig").hide();
 
                 if ($("#settingsTabListTsig").hasClass("active")) {
-                    $("#settingsTabListTsig").removeClass("active");
-                    $("#settingsTabPaneTsig").removeClass("active");
+                    $("#settingsTabListTsig > a").removeClass("active");
+                    $("#settingsTabPaneTsig").removeClass("active show");
 
-                    $("#settingsTabListGeneral").addClass("active");
-                    $("#settingsTabPaneGeneral").addClass("active");
+                    $("#settingsTabListGeneral > a").addClass("active");
+                    $("#settingsTabPaneGeneral").addClass("active show");
                 }
 
                 //recursion
                 $("#settingsTabListRecursion").hide();
 
                 if ($("#settingsTabListRecursion").hasClass("active")) {
-                    $("#settingsTabListRecursion").removeClass("active");
-                    $("#settingsTabPaneRecursion").removeClass("active");
+                    $("#settingsTabListRecursion > a").removeClass("active");
+                    $("#settingsTabPaneRecursion").removeClass("active show");
 
-                    $("#settingsTabListGeneral").addClass("active");
-                    $("#settingsTabPaneGeneral").addClass("active");
+                    $("#settingsTabListGeneral > a").addClass("active");
+                    $("#settingsTabPaneGeneral").addClass("active show");
                 }
 
                 //cache
@@ -890,22 +890,22 @@ function refreshDnsSettings() {
                 $("#settingsTabListBlocking").hide();
 
                 if ($("#settingsTabListBlocking").hasClass("active")) {
-                    $("#settingsTabListBlocking").removeClass("active");
-                    $("#settingsTabPaneBlocking").removeClass("active");
+                    $("#settingsTabListBlocking > a").removeClass("active");
+                    $("#settingsTabPaneBlocking").removeClass("active show");
 
-                    $("#settingsTabListGeneral").addClass("active");
-                    $("#settingsTabPaneGeneral").addClass("active");
+                    $("#settingsTabListGeneral > a").addClass("active");
+                    $("#settingsTabPaneGeneral").addClass("active show");
                 }
 
                 //proxy & forwarders
                 $("#settingsTabListProxyForwarders").hide();
 
                 if ($("#settingsTabListProxyForwarders").hasClass("active")) {
-                    $("#settingsTabListProxyForwarders").removeClass("active");
-                    $("#settingsTabPaneProxyForwarders").removeClass("active");
+                    $("#settingsTabListProxyForwarders > a").removeClass("active");
+                    $("#settingsTabPaneProxyForwarders").removeClass("active show");
 
-                    $("#settingsTabListGeneral").addClass("active");
-                    $("#settingsTabPaneGeneral").addClass("active");
+                    $("#settingsTabListGeneral > a").addClass("active");
+                    $("#settingsTabPaneGeneral").addClass("active show");
                 }
 
                 //logging
@@ -2479,8 +2479,8 @@ function refreshDashboard(hideLoader) {
 
                     for (var i = 0; i < topClients.length; i++) {
                         tableHtmlRows += "<tr" + (topClients[i].rateLimited ? " style=\"color: orange;\"" : "") + "><td style=\"word-wrap: anywhere;\">" + htmlEncode(topClients[i].name) + (topClients[i].rateLimited ? " (rate limited)" : "") + "<br />" + htmlEncode(topClients[i].domain == "" ? "." : topClients[i].domain) + "</td><td>" + topClients[i].hits.toLocaleString();
-                        tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnDashboardTopClientsRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" onclick=\"showQueryLogs(null, '" + topClients[i].name + "', '" + node + "'); return false;\">Show Query Logs</a></li>";
+                        tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnDashboardTopClientsRowOption" + i + "\" class=\"dropdown-toggle\" data-bs-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"fa-solid fa-ellipsis-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-end\">";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" onclick=\"showQueryLogs(null, '" + topClients[i].name + "', '" + node + "'); return false;\">Show Query Logs</a></li>";
                         tableHtmlRows += "</ul></div></td></tr>";
                     }
                 }
@@ -2505,10 +2505,10 @@ function refreshDashboard(hideLoader) {
                         else
                             tableHtmlRows += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(topDomains[i].nameIdn) + "</td><td>" + topDomains[i].hits.toLocaleString();
 
-                        tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnDashboardTopDomainsRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" onclick=\"showQueryLogs('" + topDomains[i].name + "', null, '" + node + "'); return false;\">Show Query Logs</a></li>";
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" onclick=\"queryDnsServer('" + topDomains[i].name + "', null, '" + node + "'); return false;\">Query DNS Server</a></li>";
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(topDomains[i].name) + "\" onclick=\"blockDomain(this, 'btnDashboardTopDomainsRowOption'); return false;\">Block Domain</a></li>";
+                        tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnDashboardTopDomainsRowOption" + i + "\" class=\"dropdown-toggle\" data-bs-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"fa-solid fa-ellipsis-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-end\">";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" onclick=\"showQueryLogs('" + topDomains[i].name + "', null, '" + node + "'); return false;\">Show Query Logs</a></li>";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" onclick=\"queryDnsServer('" + topDomains[i].name + "', null, '" + node + "'); return false;\">Query DNS Server</a></li>";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(topDomains[i].name) + "\" onclick=\"blockDomain(this, 'btnDashboardTopDomainsRowOption'); return false;\">Block Domain</a></li>";
                         tableHtmlRows += "</ul></div></td></tr>";
                     }
                 }
@@ -2533,10 +2533,10 @@ function refreshDashboard(hideLoader) {
                         else
                             tableHtmlRows += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(topBlockedDomains[i].nameIdn) + "</td><td>" + topBlockedDomains[i].hits.toLocaleString();
 
-                        tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnDashboardTopBlockedDomainsRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" onclick=\"showQueryLogs('" + topBlockedDomains[i].name + "', null, '" + node + "'); return false;\">Show Query Logs</a></li>";
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" onclick=\"queryDnsServer('" + topBlockedDomains[i].name + "', null, '" + node + "'); return false;\">Query DNS Server</a></li>";
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(topBlockedDomains[i].name) + "\" onclick=\"allowDomain(this, 'btnDashboardTopBlockedDomainsRowOption'); return false;\">Allow Domain</a></li>";
+                        tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnDashboardTopBlockedDomainsRowOption" + i + "\" class=\"dropdown-toggle\" data-bs-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"fa-solid fa-ellipsis-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-end\">";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" onclick=\"showQueryLogs('" + topBlockedDomains[i].name + "', null, '" + node + "'); return false;\">Show Query Logs</a></li>";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" onclick=\"queryDnsServer('" + topBlockedDomains[i].name + "', null, '" + node + "'); return false;\">Query DNS Server</a></li>";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(topBlockedDomains[i].name) + "\" onclick=\"allowDomain(this, 'btnDashboardTopBlockedDomainsRowOption'); return false;\">Allow Domain</a></li>";
                         tableHtmlRows += "</ul></div></td></tr>";
                     }
                 }
@@ -2634,8 +2634,8 @@ function showTopStats(statsType, limit) {
 
                     for (var i = 0; i < topClients.length; i++) {
                         tableHtmlRows += "<tr" + (topClients[i].rateLimited ? " style=\"color: orange;\"" : "") + "><td style=\"word-wrap: anywhere;\">" + htmlEncode(topClients[i].name) + (topClients[i].rateLimited ? " (rate limited)" : "") + "<br />" + htmlEncode(topClients[i].domain == "" ? "." : topClients[i].domain) + "</td><td>" + topClients[i].hits.toLocaleString();
-                        tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnDashboardTopClientsRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" onclick=\"showQueryLogs(null, '" + topClients[i].name + "', '" + node + "'); return false;\">Show Query Logs</a></li>";
+                        tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnDashboardTopClientsRowOption" + i + "\" class=\"dropdown-toggle\" data-bs-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"fa-solid fa-ellipsis-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-end\">";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" onclick=\"showQueryLogs(null, '" + topClients[i].name + "', '" + node + "'); return false;\">Show Query Logs</a></li>";
                         tableHtmlRows += "</ul></div></td></tr>";
                     }
                 }
@@ -2665,10 +2665,10 @@ function showTopStats(statsType, limit) {
                         else
                             tableHtmlRows += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(topDomains[i].nameIdn) + "</td><td>" + topDomains[i].hits.toLocaleString();
 
-                        tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnDashboardTopStatsDomainsRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" onclick=\"showQueryLogs('" + topDomains[i].name + "', null, '" + node + "'); return false;\">Show Query Logs</a></li>";
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" onclick=\"queryDnsServer('" + topDomains[i].name + "', null, '" + node + "'); return false;\">Query DNS Server</a></li>";
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(topDomains[i].name) + "\" onclick=\"blockDomain(this, 'btnDashboardTopStatsDomainsRowOption', 'divTopStatsAlert'); return false;\">Block Domain</a></li>";
+                        tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnDashboardTopStatsDomainsRowOption" + i + "\" class=\"dropdown-toggle\" data-bs-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"fa-solid fa-ellipsis-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-end\">";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" onclick=\"showQueryLogs('" + topDomains[i].name + "', null, '" + node + "'); return false;\">Show Query Logs</a></li>";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" onclick=\"queryDnsServer('" + topDomains[i].name + "', null, '" + node + "'); return false;\">Query DNS Server</a></li>";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(topDomains[i].name) + "\" onclick=\"blockDomain(this, 'btnDashboardTopStatsDomainsRowOption', 'divTopStatsAlert'); return false;\">Block Domain</a></li>";
                         tableHtmlRows += "</ul></div></td></tr>";
                     }
                 }
@@ -2698,10 +2698,10 @@ function showTopStats(statsType, limit) {
                         else
                             tableHtmlRows += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(topBlockedDomains[i].nameIdn) + "</td><td>" + topBlockedDomains[i].hits.toLocaleString();
 
-                        tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnDashboardTopStatsBlockedDomainsRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" onclick=\"showQueryLogs('" + topBlockedDomains[i].name + "', null, '" + node + "'); return false;\">Show Query Logs</a></li>";
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" onclick=\"queryDnsServer('" + topBlockedDomains[i].name + "', null, '" + node + "'); return false;\">Query DNS Server</a></li>";
-                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(topBlockedDomains[i].name) + "\" onclick=\"allowDomain(this, 'btnDashboardTopStatsBlockedDomainsRowOption', 'divTopStatsAlert'); return false;\">Allow Domain</a></li>";
+                        tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnDashboardTopStatsBlockedDomainsRowOption" + i + "\" class=\"dropdown-toggle\" data-bs-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"fa-solid fa-ellipsis-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-end\">";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" onclick=\"showQueryLogs('" + topBlockedDomains[i].name + "', null, '" + node + "'); return false;\">Show Query Logs</a></li>";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" onclick=\"queryDnsServer('" + topBlockedDomains[i].name + "', null, '" + node + "'); return false;\">Query DNS Server</a></li>";
+                        tableHtmlRows += "<li><a class=\"dropdown-item\" href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(topBlockedDomains[i].name) + "\" onclick=\"allowDomain(this, 'btnDashboardTopStatsBlockedDomainsRowOption', 'divTopStatsAlert'); return false;\">Allow Domain</a></li>";
                         tableHtmlRows += "</ul></div></td></tr>";
                     }
                 }
@@ -2869,10 +2869,10 @@ function restoreSettings() {
 function applyTheme() {
     const currentTheme = localStorage.getItem("theme");
 
-    if (currentTheme === "dark")
-        document.body.classList.add("dark-mode");
-    else
+    if (currentTheme === "light")
         document.body.classList.remove("dark-mode");
+    else
+        document.body.classList.add("dark-mode");
 }
 
 function toggleTheme() {
@@ -2880,8 +2880,12 @@ function toggleTheme() {
 
     let theme = "light";
 
-    if (document.body.classList.contains("dark-mode"))
+    if (document.body.classList.contains("dark-mode")) {
         theme = "dark";
+        document.body.style.backgroundColor = "#1a1a1a";
+    } else {
+        document.body.style.backgroundColor = "#fafafa";
+    }
 
     localStorage.setItem("theme", theme);
 
