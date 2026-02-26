@@ -1665,6 +1665,60 @@ body.dark-mode {
         width: 100% !important;
     }
 
+    #tableApps {
+        display: block !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        width: 100% !important;
+    }
+
+    #settingsTabPaneTsig .table {
+        display: block !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        width: 100% !important;
+    }
+
+    .tsig-add-desktop-btn {
+        display: none !important;
+    }
+
+    #divTsigAddBtnMobile {
+        display: block !important;
+    }
+
+    #divDnsSettings .form-group[style*="margin-bottom: 0px"] {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+
+    #divDnsSettings .form-group[style*="margin-bottom: 0px"] .pull-left,
+    #divDnsSettings .form-group[style*="margin-bottom: 0px"] .pull-right {
+        float: none !important;
+        flex: 1 1 100% !important;
+        display: flex !important;
+        gap: 6px !important;
+    }
+
+    #divDnsSettings .form-group[style*="margin-bottom: 0px"] .btn {
+        flex: 1 1 calc(50% - 4px) !important;
+    }
+
+    #tableDhcpScopeReservedLeases,
+    #tableDhcpScopeReservedLeases th,
+    #tableDhcpScopeReservedLeases td {
+        min-width: 100px !important;
+    }
+
+    .col-sm-9 .table,
+    .col-sm-10 .table {
+        display: block !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        width: 100% !important;
+    }
+
     #divDhcpViewScopes>div[style*="float: right"] {
         float: none !important;
         display: flex !important;

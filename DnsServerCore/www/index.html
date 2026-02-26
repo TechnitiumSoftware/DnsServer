@@ -2591,7 +2591,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <div class="form-group">
                                                             <label for="tableTsigKeys"
                                                                 class="col-sm-2 control-label">TSIG Keys</label>
-                                                            <div class="col-sm-10">
+                                                            <div class="col-sm-10" id="divTsigKeysWrapper">
+                                                                <div id="divTsigAddBtnMobile"
+                                                                    class="tsig-add-mobile-btn"
+                                                                    style="display:none; text-align:right; margin-bottom:6px;">
+                                                                    <button type="button" class="btn btn-default"
+                                                                        style="padding: 0px 20px;"
+                                                                        onclick="addTsigKeyRow('', '', 'hmac-sha256');">Add</button>
+                                                                </div>
                                                                 <table class="table table-hover"
                                                                     style="margin-bottom: 0px;">
                                                                     <thead>
@@ -2599,7 +2606,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                             <th>Key Name</th>
                                                                             <th>Shared Secret</th>
                                                                             <th>Algorithm</th>
-                                                                            <th style="width: 84px;"><button
+                                                                            <th style="width: 84px;"
+                                                                                class="tsig-add-desktop-btn"><button
                                                                                     type="button"
                                                                                     class="btn btn-default"
                                                                                     style="padding: 0px 20px;"
