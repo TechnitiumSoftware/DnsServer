@@ -1687,6 +1687,36 @@ body.dark-mode {
         display: block !important;
     }
 
+    .dhcp-add-desktop-btn {
+        display: none !important;
+    }
+
+    .dhcp-add-mobile-btn {
+        display: block !important;
+    }
+
+    #tableDhcpScopeReservedLeases th:nth-child(1),
+    #tableDhcpScopeReservedLeases td:nth-child(1) {
+        min-width: 200px !important;
+    }
+
+    #tableDhcpScopeReservedLeases th:nth-child(2),
+    #tableDhcpScopeReservedLeases td:nth-child(2) {
+        min-width: 150px !important;
+        white-space: nowrap !important;
+    }
+
+    #tableDhcpScopeReservedLeases th:nth-child(3),
+    #tableDhcpScopeReservedLeases td:nth-child(3) {
+        min-width: 130px !important;
+        white-space: nowrap !important;
+    }
+
+    #tableDhcpScopeReservedLeases th:nth-child(4),
+    #tableDhcpScopeReservedLeases td:nth-child(4) {
+        min-width: 250px !important;
+    }
+
     #divDnsSettings .form-group[style*="margin-bottom: 0px"] {
         display: flex !important;
         flex-wrap: wrap !important;

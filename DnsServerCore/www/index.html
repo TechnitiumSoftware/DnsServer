@@ -4224,6 +4224,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <label for="tableDhcpScopeStaticRoutes"
                                                                 class="col-sm-3 control-label">Static Routes</label>
                                                             <div class="col-sm-7">
+                                                                <div class="dhcp-add-mobile-btn"
+                                                                    style="display:none; text-align:right; margin-bottom:6px;">
+                                                                    <button type="button" class="btn btn-default"
+                                                                        style="padding: 0px 20px;"
+                                                                        onclick="addDhcpScopeStaticRouteRow('', '', '');">Add</button>
+                                                                </div>
                                                                 <table class="table table-hover"
                                                                     style="margin-bottom: 0px;">
                                                                     <thead>
@@ -4231,7 +4237,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                             <th>Destination</th>
                                                                             <th>Subnet Mask</th>
                                                                             <th>Router</th>
-                                                                            <th style="width: 84px;"><button
+                                                                            <th style="width: 84px;"
+                                                                                class="dhcp-add-desktop-btn"><button
                                                                                     type="button"
                                                                                     class="btn btn-default"
                                                                                     style="padding: 0px 20px;"
@@ -4302,13 +4309,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                 class="col-sm-3 control-label">Vendor Specific
                                                                 Information</label>
                                                             <div class="col-sm-9">
+                                                                <div class="dhcp-add-mobile-btn"
+                                                                    style="display:none; text-align:right; margin-bottom:6px;">
+                                                                    <button type="button" class="btn btn-default"
+                                                                        style="padding: 0px 20px;"
+                                                                        onclick="addDhcpScopeVendorInfoRow('', '');">Add</button>
+                                                                </div>
                                                                 <table class="table table-hover"
                                                                     style="margin-bottom: 0px;">
                                                                     <thead>
                                                                         <tr>
                                                                             <th>Vendor Class Identifier</th>
                                                                             <th>Vendor Specific Information</th>
-                                                                            <th style="width: 84px;"><button
+                                                                            <th style="width: 84px;"
+                                                                                class="dhcp-add-desktop-btn"><button
                                                                                     type="button"
                                                                                     class="btn btn-default"
                                                                                     style="padding: 0px 20px;"
@@ -4378,13 +4392,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                 class="col-sm-3 control-label">Generic DHCP
                                                                 Options</label>
                                                             <div class="col-sm-9">
+                                                                <div class="dhcp-add-mobile-btn"
+                                                                    style="display:none; text-align:right; margin-bottom:6px;">
+                                                                    <button type="button" class="btn btn-default"
+                                                                        style="padding: 0px 20px;"
+                                                                        onclick="addDhcpScopeGenericOptionsRow('', '');">Add</button>
+                                                                </div>
                                                                 <table class="table table-hover"
                                                                     style="margin-bottom: 0px;">
                                                                     <thead>
                                                                         <tr>
                                                                             <th style="width: 90px;">Code</th>
                                                                             <th>Hex Value</th>
-                                                                            <th style="width: 84px;"><button
+                                                                            <th style="width: 84px;"
+                                                                                class="dhcp-add-desktop-btn"><button
                                                                                     type="button"
                                                                                     class="btn btn-default"
                                                                                     style="padding: 0px 20px;"
@@ -4411,13 +4432,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <label for="tableDhcpScopeExclusions"
                                                                 class="col-sm-3 control-label">Exclusions</label>
                                                             <div class="col-sm-6">
+                                                                <div class="dhcp-add-mobile-btn"
+                                                                    style="display:none; text-align:right; margin-bottom:6px;">
+                                                                    <button type="button" class="btn btn-default"
+                                                                        style="padding: 0px 20px;"
+                                                                        onclick="addDhcpScopeExclusionRow('', '');">Add</button>
+                                                                </div>
                                                                 <table class="table table-hover"
                                                                     style="margin-bottom: 0px;">
                                                                     <thead>
                                                                         <tr>
                                                                             <th>Starting Address</th>
                                                                             <th>Ending Address</th>
-                                                                            <th style="width: 84px;"><button
+                                                                            <th style="width: 84px;"
+                                                                                class="dhcp-add-desktop-btn"><button
                                                                                     type="button"
                                                                                     class="btn btn-default"
                                                                                     style="padding: 0px 20px;"
@@ -4511,6 +4539,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <label for="tableDhcpScopeReservedLeases"
                                                                 class="col-sm-3 control-label">Reserved Leases</label>
                                                             <div class="col-sm-9">
+                                                                <div class="dhcp-add-mobile-btn"
+                                                                    style="display:none; text-align:right; margin-bottom:6px;">
+                                                                    <button type="button" class="btn btn-default"
+                                                                        style="padding: 0px 20px;"
+                                                                        onclick="addDhcpScopeReservedLeaseRow('', '', '', '');">Add</button>
+                                                                </div>
                                                                 <table class="table table-hover"
                                                                     style="margin-bottom: 0px;">
                                                                     <thead>
@@ -4519,7 +4553,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                             <th>MAC Address</th>
                                                                             <th>IP Address</th>
                                                                             <th>Comments</th>
-                                                                            <th style="width: 84px;"><button
+                                                                            <th style="width: 84px;"
+                                                                                class="dhcp-add-desktop-btn"><button
                                                                                     type="button"
                                                                                     class="btn btn-default"
                                                                                     style="padding: 0px 20px;"
