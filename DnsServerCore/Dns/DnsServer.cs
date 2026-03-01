@@ -2030,7 +2030,8 @@ namespace DnsServerCore.Dns
                         if (ex.InnerException is OperationCanceledException)
                             continue;
 
-                        throw;
+                        _log.Write(quicListener.LocalEndPoint, DnsTransportProtocol.Quic, ex); //log errors occuring here instead when throwed out of loop where catch logs it.
+                        continue; //dont throw, continue the loop for the threat to keep listening!
                     }
                 }
             }
