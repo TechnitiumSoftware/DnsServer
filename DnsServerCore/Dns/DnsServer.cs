@@ -1,4 +1,4 @@
-﻿/*
+/*
 Technitium DNS Server
 Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
 
@@ -2025,12 +2025,26 @@ namespace DnsServerCore.Dns
                     {
                         //ignore failed connection handshake
                     }
+                    catch (OperationCanceledException)
+                    {
+                        //ignore hard timeouts and save the loop from crashing
+                        continue;
+                    }
                     catch (QuicException ex)
                     {
                         if (ex.InnerException is OperationCanceledException)
                             continue;
 
-                        throw;
+                        switch (ex.QuicError)
+                        {
+                            case QuicError.ConnectionIdle:
+                            case QuicError.ConnectionAborted:
+                            case QuicError.ConnectionTimeout:
+                                continue;
+                        }
+                
+                        _log.Write(quicListener.LocalEndPoint, DnsTransportProtocol.Quic, ex);
+                        continue;
                     }
                 }
             }
@@ -2085,6 +2099,10 @@ namespace DnsServerCore.Dns
                         break;
                 }
             }
+            catch (OperationCanceledException)
+            {
+                //ignore timeouts
+            }
             catch (Exception ex)
             {
                 _log.Write(quicConnection.RemoteEndPoint, DnsTransportProtocol.Quic, ex);
@@ -2137,6 +2155,10 @@ namespace DnsServerCore.Dns
             catch (IOException)
             {
                 //ignore QuicException / IOException
+            }
+            catch (OperationCanceledException)
+            {
+                //ignore hard errors if client disappears
             }
             catch (Exception ex)
             {
