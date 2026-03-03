@@ -36,6 +36,7 @@ namespace DnsServerCore.Dns
         readonly DnsServer _dnsServer;
         readonly bool _skipDnsAppAuthoritativeRequestHandlers;
         readonly bool _skipConditionalForwardingResolution;
+        static readonly IPEndPoint _anyLocalEP = new IPEndPoint(IPAddress.Any, 0);
 
         #endregion
 
@@ -82,19 +83,18 @@ namespace DnsServerCore.Dns
             if (_skipDnsAppAuthoritativeRequestHandlers || (_dnsServer.DnsApplicationManager.DnsAuthoritativeRequestHandlers.Count < 1) || (request.Question.Count != 1))
                 return null;
 
-            IPEndPoint localEP = new IPEndPoint(IPAddress.Any, 0);
             DnsQuestionRecord question = request.Question[0];
             string currentDomain = question.Name;
 
             while (true)
             {
-                DnsDatagram nsRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(currentDomain, DnsResourceRecordType.NS, DnsClass.IN) });
+                DnsDatagram nsRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, [new DnsQuestionRecord(currentDomain, DnsResourceRecordType.NS, DnsClass.IN)]);
 
                 foreach (IDnsAuthoritativeRequestHandler requestHandler in _dnsServer.DnsApplicationManager.DnsAuthoritativeRequestHandlers)
                 {
                     try
                     {
-                        DnsDatagram nsResponse = await requestHandler.ProcessRequestAsync(nsRequest, localEP, DnsTransportProtocol.Tcp, false);
+                        DnsDatagram nsResponse = await requestHandler.ProcessRequestAsync(nsRequest, _anyLocalEP, DnsTransportProtocol.Tcp, false);
                         if (nsResponse is not null)
                         {
                             if ((nsResponse.Answer.Count > 0) && (nsResponse.Answer[0].Type == DnsResourceRecordType.NS))
@@ -159,9 +159,11 @@ namespace DnsServerCore.Dns
 
         protected async Task<DnsDatagram> QueryClosestDelegationAsync(DnsDatagram request)
         {
-            DnsDatagram authResponse = await AuthoritativeQueryClosestDelegation(request);
+            Task<DnsDatagram> authTask = AuthoritativeQueryClosestDelegation(request);
+            Task<DnsDatagram> cacheTask = _dnsServer.CacheZoneManager.QueryClosestDelegationAsync(request);
 
-            DnsDatagram cacheResponse = await _dnsServer.CacheZoneManager.QueryClosestDelegationAsync(request);
+            DnsDatagram authResponse = await authTask;
+            DnsDatagram cacheResponse = await cacheTask;
 
             if ((authResponse is not null) && (authResponse.Authority.Count > 0))
             {
