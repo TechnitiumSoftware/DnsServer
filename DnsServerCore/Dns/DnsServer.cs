@@ -2044,6 +2044,8 @@ namespace DnsServerCore.Dns
                             case QuicError.ConnectionIdle:
                             case QuicError.ConnectionAborted:
                             case QuicError.ConnectionTimeout:
+                            case QuicError.InternalError: //ignore invalid handshakes
+                                await Task.Delay(10); //emergency brake! (10ms delay) On DDoS or other attacks, this prevents 100% CPU Spikes!
                                 continue;
                         }
                 
