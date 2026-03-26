@@ -356,8 +356,7 @@ namespace LogExporter
             _sinkDispatcher.Remove(typeof(HttpSink));
             if (sinks.HttpSinkConfig?.Enabled is true)
             {
-                _sinkDispatcher.Add(
-                    new HttpSink(sinks.HttpSinkConfig.Endpoint, sinks.HttpSinkConfig.Headers));
+                _sinkDispatcher.Add(new HttpSink(sinks.HttpSinkConfig));
             }
 
             _sinkDispatcher.Remove(typeof(SyslogSink));

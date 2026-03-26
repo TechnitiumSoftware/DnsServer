@@ -136,6 +136,9 @@ namespace LogExporter
 
             [JsonPropertyName("headers")]
             public Dictionary<string, string?>? Headers { get; set; }
+
+            [JsonPropertyName("ndjson")]
+            public bool NdJson { get; set; } = true;
         }
     }
 
