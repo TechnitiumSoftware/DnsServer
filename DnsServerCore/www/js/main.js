@@ -2869,21 +2869,20 @@ function restoreSettings() {
 function applyTheme() {
     const currentTheme = localStorage.getItem("theme");
 
-    if (currentTheme === "dark")
+    //remove all theme classes
+    document.body.classList.remove("dark-mode");
+    document.body.classList.remove("rust-theme");
+
+    if (currentTheme === "dark") {
         document.body.classList.add("dark-mode");
-    else
-        document.body.classList.remove("dark-mode");
+    } else if (currentTheme === "rust") {
+        document.body.classList.add("rust-theme");
+    }
 }
 
-function toggleTheme() {
-    document.body.classList.toggle("dark-mode");
-
-    let theme = "light";
-
-    if (document.body.classList.contains("dark-mode"))
-        theme = "dark";
-
+function setTheme(theme) {
     localStorage.setItem("theme", theme);
+    applyTheme();
 
     if (window.chartDashboardMain) {
         window.chartDashboardMain.update();
