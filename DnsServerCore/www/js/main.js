@@ -2866,6 +2866,7 @@ function restoreSettings() {
     });
 }
 
+// Dae Euhwa <daedaevibin@ik.me>
 function applyTheme() {
     const currentTheme = localStorage.getItem("theme");
 
