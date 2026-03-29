@@ -1,6 +1,7 @@
 # Technitium DNS Server Change Log
 
 ## Version 14.3
+
 Release Date: 20 December 2025
 
 - Added support for Dark Mode. Thanks to @skidoodle for the PR.
@@ -13,9 +14,10 @@ Release Date: 20 December 2025
 - Multiple other minor bug fixes and improvements.
 
 ## Version 14.2
+
 Release Date: 22 November 2025
 
-- Fixed bug in Clustering implementation which prevented using IPv4 and IPv6 addresses together. Thanks to @ruifung for the PR. 
+- Fixed bug in Clustering implementation which prevented using IPv4 and IPv6 addresses together. Thanks to @ruifung for the PR.
 - There is also a breaking change in clustering and thus all cluster nodes must be upgraded to this release to avoid issues.
 - Updated the "Allow / Block List URLs" option implementation to support comment entries.
 - Advanced Blocking App: Updated app to implement `blockingAnswerTtl` option to allow specifying the TTL value used in blocked response.
@@ -24,6 +26,7 @@ Release Date: 22 November 2025
 - Multiple other minor bug fixes and improvements.
 
 ## Version 14.1
+
 Release Date: 16 November 2025
 
 - Updated Clustering implementation to allow configuring multiple custom IP addresses. This introduces a breaking change in the API and thus all cluster nodes must be upgraded to this release for them to work together.
@@ -34,6 +37,7 @@ Release Date: 16 November 2025
 - Other minor changes and improvements.
 
 ## Version 14.0.1
+
 Release Date: 9 November 2025
 
 - Fixed bugs in the Force Update Block List and Temporary Disable Blocking API calls.
@@ -44,6 +48,7 @@ Release Date: 9 November 2025
 - Other minor changes and improvements.
 
 ## Version 14.0
+
 Release Date: 8 November 2025
 
 - Upgraded codebase to use .NET 9 runtime. If you had manually installed the DNS Server or .NET 8 Runtime earlier then you must install .NET 9 Runtime manually before upgrading the DNS server.
@@ -63,8 +68,9 @@ Release Date: 8 November 2025
 - Query Logs (SQL Server) App: Updated app to use Channels for better performance.
 - NX Domain App: Updated app to support Extended DNS Error messages.
 - Multiple other minor bug fixes and improvements.
- 
+
 ## Version 13.6
+
 Release Date: 26 April 2025
 
 - Added option to import a zone file when adding a Primary or Forwarder zone. This allows using a template zone file when creating new zones.
@@ -76,6 +82,7 @@ Release Date: 26 April 2025
 - Multiple other minor bug fixes and improvements.
 
 ## Version 13.5
+
 Release Date: 6 April 2025
 
 - Implemented [RFC 8080](https://datatracker.ietf.org/doc/rfc8080/) to add support for Ed25519 (15) and Ed448 (16) DNSSEC algorithms for both signing and validation.
@@ -94,6 +101,7 @@ Release Date: 6 April 2025
 - Multiple other minor bug fixes and improvements.
 
 ## Version 13.4.3
+
 Release Date: 23 February 2025
 
 - Fixed issue of high memory usage when "Last Year" option is used on Dashboard.
@@ -101,6 +109,7 @@ Release Date: 23 February 2025
 - Multiple other minor bug fixes and improvements.
 
 ## Version 13.4.2
+
 Release Date: 15 February 2025
 
 - Fixed issue of unhandled CD flag condition when DO flag is unset in requests for a specific case.
@@ -110,6 +119,7 @@ Release Date: 15 February 2025
 - Multiple other minor bug fixes and improvements.
 
 ## Version 13.4.1
+
 Release Date: 2 February 2025
 
 - Fixed issue of unhandled CD flag condition when DO flag is unset in requests.
@@ -119,6 +129,7 @@ Release Date: 2 February 2025
 - Multiple other minor bug fixes and improvements.
 
 ## Version 13.4
+
 Release Date: 26 January 2025
 
 - Added implementation to detect spoofed DNS responses over UDP transport and switch to TCP transport to mitigate cache poisoning attempts. This is a mitigation for RebirthDay Attack [CVE-2024-56089] reported by Xiang Li, AOSP Lab of Nankai University.
@@ -131,6 +142,7 @@ Release Date: 26 January 2025
 - Multiple other minor bug fixes and improvements.
 
 ## Version 13.3
+
 Release Date: 21 December 2024
 
 - Implemented resolver queue mechanism to avoid request timeout error issues caused when too many outbound resolutions were being processed concurrently for large deployments. A new Max Concurrent Resolutions option is now available in Settings > General section to configure the maximum number of concurrent async resolutions per CPU core.
@@ -144,11 +156,13 @@ Release Date: 21 December 2024
 - Multiple other minor bug fixes and improvements.
 
 ## Version 13.2.2
+
 Release Date: 2 December 2024
 
 - Fixed bug that caused DNS response to include bogus records even when Checking Disabled (CD) is set to false in request.
 
 ## Version 13.2.1
+
 Release Date: 30 November 2024
 
 - Updated server to allow DNS-over-HTTPS service to read X-Real-IP header from reverse proxy that are allowed by the ACL.
@@ -160,12 +174,14 @@ Release Date: 30 November 2024
 - Multiple other minor bug fixes and improvements.
 
 ## Version 13.2
+
 Release Date: 16 November 2024
 
 - Added new option in Settings to allow configuring reverse proxy network ACL to use with DNS-over-UDP-PROXY, DNS-over-TCP-PROXY, AND DNS-over-HTTP optional protocols.
 - Fixed issue in DNS-over-QUIC protocol client which caused the forwarding to fail to work with timeout error after a while in some cases.
 
 ## Version 13.1.1
+
 Release Date: 9 November 2024
 
 - Fixed issue with HTTP/3 protocol not working for both admin web service and DNS-over-HTTPS/3 service caused due to changes in how Kestrel web server uses application protocol option.
@@ -177,6 +193,7 @@ Release Date: 9 November 2024
 - Multiple other minor bug fixes and improvements.
 
 ## Version 13.1
+
 Release Date: 19 October 2024
 
 - Added new option to add Secondary Root Zone directly.
@@ -187,17 +204,20 @@ Release Date: 19 October 2024
 - Filter AAAA App: updated app to support option to explicitly specify filter domain names.
 
 ## Version 13.0.2
+
 Release Date: 28 September 2024
 
 - Fixed issue with DNS-over-TLS and DNS-over-TCP protocols that would cause the underlying connection to close if original request gets canceled.
 - Multiple other minor bug fixes and improvements.
 
 ## Version 13.0.1
+
 Release Date: 23 September 2024
 
 - Fixed issue in using proxy with forwarders that caused failure to use DNS-over-TOR with Cloudflare's hidden service.
 
 ## Version 13.0
+
 Release Date: 22 September 2024
 
 - Implemented Catalog Zones [RFC 9432](https://datatracker.ietf.org/doc/rfc9432/) support to allow automatic DNS zone provisioning to one or more secondary name servers. The implementation supports Primary, Stub, and Conditional Forwarder zones for automatic provisioning of their respective secondary zones.
@@ -218,12 +238,14 @@ Release Date: 22 September 2024
 - Multiple other minor bug fixes and improvements.
 
 ## Version 12.2.1
+
 Release Date: 15 June 2024
 
 - Fixed issue in DHCP server that caused failure to allocate lease due to hash code mismatch.
 - Fixed issue that may create empty zone files after the zone was deleted.
 
 ## Version 12.2
+
 Release Date: 15 June 2024
 
 - Added support for NAPTR record type.
@@ -240,11 +262,12 @@ Release Date: 15 June 2024
 - Multiple other minor bug fixes and improvements.
 
 ## Version 12.1
+
 Release Date: 16 March 2024
 
 - Fixed [Key Trap](https://www.athene-center.de/en/keytrap) [vulnerability](https://www.athene-center.de/fileadmin/content/PDF/Technical_Report_KeyTrap.pdf) [CVE-2023-50387] that affected DNSSEC validation which can cause DoS affecting the DNS server's ability to resolve domain names. The mitigations will allow the DNS server to work even with high CPU usage.
   - The mitigation now allows max 4 DNSKEY records with key tag collision.
-  - Limits cryptographic failures to max 16. 
+  - Limits cryptographic failures to max 16.
   - More that 8 RRSIG validation attempts per response will cause suspension of the task with max 16 suspensions allowed before the validation stops for the response.
 - Fixed vulnerability in NSEC3 closest encloser proof [CVE-2023-50868] that affected DNSSEC validation which can cause DoS affecting the DNS server's ability to resolve domain names. The mitigations will allow the DNS server to work even with high CPU usage.
   - More than 8 NSEC3 hash calculation per response will cause suspension of the task.
@@ -267,12 +290,14 @@ Release Date: 16 March 2024
 - Multiple other minor bug fixes and improvements.
 
 ## Version 12.0.1
+
 Release Date: 8 February 2024
 
 - Fixed bug in authoritative zone wildcard matching for empty non-terminal (ENT) records.
 - Fixed other minor issues.
 
 ## Version 12.0
+
 Release Date: 4 February 2024
 
 - Upgraded codebase to use .NET 8 runtime. If you had manually installed the DNS Server or .NET 7 Runtime earlier then you must install .NET 8 Runtime manually before upgrading the DNS server.
@@ -292,22 +317,26 @@ Release Date: 4 February 2024
 - Multiple other minor bug fixes and improvements.
 
 ## Version 11.5.3
+
 Release Date: 7 November 2023
 
 - Fixed bug in authoritative zone wildcard matching which caused NXDOMAIN response for some subdomain name requests.
 
 ## Version 11.5.2
+
 Release Date: 31 October 2023
 
 - Fixed bug in zone Dynamic Updates allowed IP/network addresses that caused failure to match with request IP address.
 
 ## Version 11.5.1
+
 Release Date: 30 October 2023
 
 - Fixed bug in validation code for DNS-over-TLS library that caused failure when trying to use the protocol.
 - Advanced Blocking App: Fixed minor issue in initializing the app.
 
 ## Version 11.5
+
 Release Date: 29 October 2023
 
 - Added support to import and export zones in standard RFC 1035 text file format.
@@ -329,12 +358,14 @@ Release Date: 29 October 2023
 - Multiple other minor bug fixes and improvements.
 
 ## Version 11.4.1
+
 Release Date: 13 August 2023
 
 - Fixed issue that caused backup operations to fail.
 - Fixed minor issue with incremental zone transfer which caused empty nodes to not get removed from secondary zones.
 
 ## Version 11.4
+
 Release Date: 12 August 2023
 
 - Added support for DNS over [PROXY protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) version 1 and 2 for both UDP and TCP transports. This feature allows using a load balancer or reverse proxy in front of the DNS server such that the client's IP address information is passed to the DNS server. This can also be used to provide DNS-over-TLS service with a TLS terminating reverse proxy that forwards request to TCP-PROXY protocol port.
@@ -344,6 +375,7 @@ Release Date: 12 August 2023
 - Multiple other minor bug fixes and improvements.
 
 ## Version 11.3
+
 Release Date: 2 July 2023
 
 - Added support for URI record type ([RFC 7553](https://www.rfc-editor.org/rfc/rfc7553.html)).
@@ -355,6 +387,7 @@ Release Date: 2 July 2023
 - Multiple other minor bug fixes and improvements.
 
 ## Version 11.2
+
 Release Date: 27 May 2023
 
 - Added support for SVCB and HTTPS record types ([draft-ietf-dnsop-svcb-https](https://datatracker.ietf.org/doc/draft-ietf-dnsop-svcb-https/)).
@@ -364,11 +397,13 @@ Release Date: 27 May 2023
 - Multiple other minor bug fixes and improvements.
 
 ## Version 11.1.1
+
 Release Date: 1 May 2023
 
 - Fixed issue of UDP socket pool exhaustion on Windows platform causing all outbound UDP requests to fail.
 
 ## Version 11.1
+
 Release Date: 29 April 2023
 
 - Added support for Internationalized Domain Names (IDN).
@@ -381,6 +416,7 @@ Release Date: 29 April 2023
 - Multiple other minor bug fixes and improvements.
 
 ## Version 11.0.3
+
 Release Date: 11 March 2023
 
 - Fixed DoS vulnerability reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) that an attacker can use to send bad-formatted UDP packet to cause the outbound requests to fail to resolve due to insufficient validation.
@@ -392,12 +428,14 @@ Release Date: 11 March 2023
 - Multiple other minor bug fixes and improvements.
 
 ## Version 11.0.2
+
 Release Date: 26 February 2023
 
 - Fixed issue with DNS-over-HTTP private IP check that was causing 403 response when using with reverse proxy.
 - Fixed issue with zone record pagination caused when zone has no records.
 
 ## Version 11.0.1
+
 Release Date: 25 February 2023
 
 - Changed allow list implementation to handle them separately and show allow list count on Dashboard.
@@ -412,6 +450,7 @@ Release Date: 25 February 2023
 - Multiple other minor bug fixes and improvements.
 
 ## Version 11.0
+
 Release Date: 18 February 2023
 
 - Added support for DNS-over-QUIC (DoQ) [RFC 9250](https://www.ietf.org/rfc/rfc9250.html). This allows you to run DoQ service as well as use it with Forwarders. DoQ implementation supports running over SOCKS5 proxy server that provides UDP transport.
@@ -433,6 +472,7 @@ Release Date: 18 February 2023
 - Multiple other minor bug fixes and improvements.
 
 ## Version 10.0.1
+
 Release Date: 4 December 2022
 
 - Fixed multiple issues in EDNS Client Subnet (ECS) implementation.
@@ -442,6 +482,7 @@ Release Date: 4 December 2022
 - Multiple other minor bug fixes and improvements.
 
 ## Version 10.0
+
 Release Date: 26 November 2022
 
 - Added Dynamic Updates [RFC 2136](https://www.rfc-editor.org/rfc/rfc2136) security policy support to allow updates only for specified domain names and record types. This adds breaking changes to the zone options HTTP API calls. Any implementation that uses the zone options API must test with new update before deploying to production.
@@ -464,6 +505,7 @@ Release Date: 26 November 2022
 - Multiple other minor bug fixes and improvements.
 
 ## Version 9.1
+
 Release Date: 9 October 2022
 
 - Added Dynamic Updates [RFC 2136](https://www.rfc-editor.org/rfc/rfc2136) support. This allows using tools like `nsupdate`, allow 3rd party DHCP servers to update DNS records, and use certbot [certbot-dns-rfc2136](https://certbot-dns-rfc2136.readthedocs.io/en/stable/) plugin for automatic TLS certificate renewal using DNS challenge.
@@ -472,6 +514,7 @@ Release Date: 9 October 2022
 - Multiple other minor bug fixes and improvements.
 
 ## Version 9.0
+
 Release Date: 24 September 2022
 
 - Added multi-user role based access support. This allows creating multiple users and multiple role based groups with permission based access controls.
@@ -491,18 +534,24 @@ Release Date: 24 September 2022
 - Multiple other minor bug fixes and improvements.
 
 ## Version 8.1.4
+
 Release Date: 3 July 2022
+
 - Fixed issue in recursive resolution that caused DNSSEC validation to fail in cases when the name server responds with out-of-bailiwick records.
 - Updated recursive resolver to update addresses async for all NS records to improve performance.
 - Multiple other minor bug fixes and improvements.
 
 ## Version 8.1.3
+
 Release Date: 11 June 2022
+
 - Added OpenDNS DoH end points to DNS Client and Forwarder quick select list.
 - Fixed issue of missing digest type support check that could cause exception to be thrown causing failure to resolve the DNSSEC signed domain name.
 
 ## Version 8.1.2
+
 Release Date: 28 May 2022
+
 - Fixed issue in Primary zone add and update record IXFR history when RRSet TTL was updated.
 - Fixed issue in DNSSEC validation for MX and SRV records caused due to incorrect comparison of record data.
 - Fixed issue in SOA record responsible person parameter parsing.
@@ -510,7 +559,9 @@ Release Date: 28 May 2022
 - Multiple other minor bug fixes and improvements.
 
 ## Version 8.1.1
+
 Release Date: 21 May 2022
+
 - Added Sync Failed and Notify Failed zone status to indicate issues between primary and secondary zones synchronization.
 - Added more options in zone options to configure zone transfer and notify settings.
 - Fixed DNSSEC signed primary zone key rollover timing issues as per [RFC 7583](https://datatracker.ietf.org/doc/html/rfc7583).
@@ -518,7 +569,9 @@ Release Date: 21 May 2022
 - Multiple other minor bug fixes and improvements.
 
 ## Version 8.1
+
 Release Date: 8 May 2022
+
 - Fixed two ghost domain issues, CVE-2022-30257 (V1) and CVE-2022-30258 (V2), reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/). Issue V1 was fixed with some implementation changes in the NS Revalidation feature and thus having this option enabled in Settings will mitigate the issue. Issue V2 was fixed by implementing additional validation checks when caching NS records.
 - Added maximum cache entires option to limit memory usage by removing least recently used data from cache.
 - Implemented NS revalidation to revalidate parent side NS records when their TTL expires.
@@ -529,14 +582,18 @@ Release Date: 8 May 2022
 - Multiple other minor bug fixes and improvements.
 
 ## Version 8.0.2
+
 Release Date: 3 April 2022
+
 - Fixed bug in Conditional Forwarder zones that would cause ServerFailure responses for some queries.
 - Fixed issue of setting minimum TTL value to NSEC & NSEC3 records in Primary signed zones when SOA value is changed.
 - Fixed issue in parsing DNS-over-HTTPS JSON response for NSEC and NSEC3 records.
 - Multiple other minor bug fixes and improvements.
 
 ## Version 8.0.1
+
 Release Date: 29 March 2022
+
 - Fixed bug in Conditional Forwarder zones due to zone cut validation causing negative cache entry for CNAME responses which resulted in partial responses.
 - Fixed issue with handling FormatError response that were missing question section for EDNS requests.
 - Fixed minor issue with DNSSEC validation for unsigned zone when forwarder returns empty NXDOMAIN responses.
@@ -545,7 +602,9 @@ Release Date: 29 March 2022
 - Multiple other minor bug fixes and improvements.
 
 ## Version 8.0
+
 Release Date: 26 March 2022
+
 - Added EDNS support [RFC 6891](https://datatracker.ietf.org/doc/html/rfc6891).
 - Added Extended DNS Errors [RFC 8914](https://datatracker.ietf.org/doc/html/rfc8914).
 - Added DNSSEC validation support with RSA & ECDSA algorithms for recursive resolver, forwarders, and conditional forwarders.
@@ -561,7 +620,9 @@ Release Date: 26 March 2022
 - Multiple other minor bug fixes and improvements.
 
 ## Version 7.1
+
 Release Date: 23 October 2021
+
 - Added option in settings to automatically configure a self signed certificate for DNS web service.
 - Fixed cache poisoning vulnerability [CVE-2021-43105] reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) and Qifan Zhang, [Data-driven Security and Privacy (DSP) Lab, University of California, Irvine](https://faculty.sites.uci.edu/zhouli/research/) when a conditional forwarder zone uses a forwarder controlled by an attacker or uses UDP/TCP forwarder protocol that the attacker can perform MiTM.
 - Block Page App: Added support for automatic self signed certificate to allow showing block page for HTTPS websites.
@@ -573,7 +634,9 @@ Release Date: 23 October 2021
 - Multiple other minor bug fixes and improvements.
 
 ## Version 7.0
+
 Release Date: 2 October 2021
+
 - DNS Apps design updated to allow apps to act as authoritative zones, drop requests, and log queries in addition to the existing APP records in authoritative zones.
 - This release is a major update for DNS Apps design and thus any previously installed apps will fail to load after the update. A manual update is required to install the latest app update from the DNS App Store for these apps to work with this new release.
 - Advanced Blocking App: This new app allows blocking domain names based on IP address or subnet of the clients by creating groups. It also supports blocking using regex and also supports loading blocked domains from Adblock format lists.
@@ -588,7 +651,9 @@ Release Date: 2 October 2021
 - Multiple other minor bug fixes and improvements.
 
 ## Version 6.4.1
+
 Release Date: 21 August 2021
+
 - Implemented Delegation Revalidation [draft-ietf-dnsop-ns-revalidation-01](https://datatracker.ietf.org/doc/draft-ietf-dnsop-ns-revalidation/) in recursive resolver.
 - Fixed issues with DNS-over-TLS due to "dot" ALPN causing SSL handshake to fail when using NextDNS as forwarder.
 - Fixed issues in counting total unique clients in dashboard stats. The future data for total clients will be displayed correctly however the bad data since last release can be fixed by deleting '/etc/dns/config/stats/202108*.dstat' files manually.
@@ -597,7 +662,9 @@ Release Date: 21 August 2021
 - Multiple other minor bug fixes and improvements.
 
 ## Version 6.4
+
 Release Date: 14 August 2021
+
 - Added DNAME record [RFC 6672](https://datatracker.ietf.org/doc/html/rfc6672) support.
 - Implemented incremental zone transfer (IXFR) [RFC 1995](https://datatracker.ietf.org/doc/html/rfc1995) support.
 - Implemented secret key transaction authentication (TSIG) [RFC 8945](https://datatracker.ietf.org/doc/html/rfc8945) support for zone transfers.
@@ -612,6 +679,7 @@ Release Date: 14 August 2021
 - Updated few API calls which may cause issues in 3rd party clients if they are not updated before deploying this new version.
 
 ## Version 6.3
+
 Release Date: 6 June 2021
 
 - Added Failover App in DNS App Store.
@@ -628,6 +696,7 @@ Release Date: 6 June 2021
 - Updated few API calls which may cause issues in 3rd party clients if they are not updated before deploying this new version.
 
 ## Version 6.2.3
+
 Release Date: 2 May 2021
 
 - Improved DNS Apps interface to show if updates are available in the installed apps list.
@@ -637,6 +706,7 @@ Release Date: 2 May 2021
 - Updated DNS Apps to shuffle addresses in response to allow load balancing.
 
 ## Version 6.2.2
+
 Release Date: 24 April 2021
 
 - Fixed issues with recursive resolution.
@@ -646,6 +716,7 @@ Release Date: 24 April 2021
 - Multiple other minor bug fixes and improvements.
 
 ## Version 6.2.1
+
 Release Date: 17 April 2021
 
 - Updated DNS Cache serve stale implementation for better performance.
@@ -654,6 +725,7 @@ Release Date: 17 April 2021
 - Fixed issue in DNS client caused when response greater than the buffer size is received.
 
 ## Version 6.2
+
 Release Date: 11 April 2021
 
 - Fixed critical bug in block list condition check causing server to respond with `RCODE=Refused` when only using Blocked zone.
@@ -661,6 +733,7 @@ Release Date: 11 April 2021
 - Renamed `NameError` to `NxDomain` to make the terminology clear that the domain does not exists. Dashboard API returns JSON with new terminology so its advised to test your code before updating the server.
 
 ## Version 6.1
+
 Release Date: 10 April 2021
 
 - Added DNS App Store feature that list all available apps for quick and easy installation and update.
@@ -675,6 +748,7 @@ Release Date: 10 April 2021
 - Multiple other minor bug fixes and improvements.
 
 ## Version 6.0
+
 Release Date: 13 March 2021
 
 - Updated entire DNS code base to .NET 5 with new Windows installer. This upgrade will improve overall performance on Windows installations.
@@ -695,6 +769,7 @@ Release Date: 13 March 2021
 - Multiple other minor bug fixes and improvements.
 
 ## Version 5.6
+
 Release Date: 2 January 2021
 
 - Updated standalone console app to work on .NET 5 and removing standalone .NET Framework app support. .NET 5 update will boost performance of the DNS server on all platforms.
@@ -719,6 +794,7 @@ Release Date: 2 January 2021
 - Multiple other minor bug fixes and improvements.
 
 ## Version 5.5
+
 Release Date: 14 November 2020
 
 - Added option to specify bootfile name for PXE booting.
@@ -729,6 +805,7 @@ Release Date: 14 November 2020
 - Multiple other minor bug fixes and improvements.
 
 ## Version 5.4
+
 Release Date: 18 October 2020
 
 - Implemented QNAME randomization feature [draft-vixie-dnsext-dns0x20](https://datatracker.ietf.org/doc/html/draft-vixie-dnsext-dns0x20-00).
@@ -741,6 +818,7 @@ Release Date: 18 October 2020
 - Multiple other minor bug fixes and improvements.
 
 ## Version 5.3
+
 Release Date: 26 September 2020
 
 - Fixed issues with DHCP server that caused it to not work correctly with relay agents.
@@ -748,6 +826,7 @@ Release Date: 26 September 2020
 - Multiple other minor bug fixes and improvements.
 
 ## Version 5.2
+
 Release Date: 6 September 2020
 
 - Added feature to allow using `certbot` to renew TLS certificates automatically when using DNS-over-HTTPS and DNS-over-TLS.
@@ -757,6 +836,7 @@ Release Date: 6 September 2020
 - Multiple other minor bug fixes and improvements.
 
 ## Version 5.1
+
 Release Date: 29 August 2020
 
 - Implemented async IO to allow the DNS server handle much higher concurrent loads.
@@ -766,6 +846,7 @@ Release Date: 29 August 2020
 - Multiple other minor bug fixes and improvements.
 
 ## Version 5.0.2
+
 Release Date: 18 July 2020
 
 - Fixed issue of missing port for "This Server" in DNS Client.
@@ -775,6 +856,7 @@ Release Date: 18 July 2020
 - Multiple other minor bug fixes and improvements.
 
 ## Version 5.0.1
+
 Release Date: 6 July 2020
 
 - Fixed serialization bug for TXT records.
@@ -783,6 +865,7 @@ Release Date: 6 July 2020
 - Fixed bug in RTT calculation for DoH json Connection.
 
 ## Version 5.0
+
 Release Date: 4 July 2020
 
 - DNS Server local end points support to allow specifying alternate ports for UDP and TCP protocols.
