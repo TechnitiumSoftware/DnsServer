@@ -3016,6 +3016,7 @@ function initTheme() {
             switch (currentTheme) {
                 case "light":
                 case "dark":
+                case "amber":
                     //do nothing
                     break;
 
@@ -3044,6 +3045,10 @@ function changeTheme(newTheme) {
             applyDarkMode();
             break;
 
+        case "amber":
+            applyAmberMode();
+            break;
+
         default:
             if (window.matchMedia) {
                 if (window.matchMedia("(prefers-color-scheme: dark)").matches)
@@ -3067,12 +3072,17 @@ function changeTheme(newTheme) {
 
 function applyDarkMode() {
     document.body.classList.add("dark-mode");
-    document.body.classList.remove("light-mode");
+    document.body.classList.remove("light-mode", "amber-mode");
 }
 
 function applyLightMode() {
     document.body.classList.add("light-mode");
-    document.body.classList.remove("dark-mode");
+    document.body.classList.remove("dark-mode", "amber-mode");
+}
+
+function applyAmberMode() {
+    document.body.classList.add("amber-mode");
+    document.body.classList.remove("light-mode", "dark-mode");
 }
 
 function showChangeThemeModal() {
@@ -3084,6 +3094,10 @@ function showChangeThemeModal() {
 
         case "dark":
             $("#rdChangeThemeDark").prop("checked", true);
+            break;
+
+        case "amber":
+            $("#rdChangeThemeAmber").prop("checked", true);
             break;
 
         default:
