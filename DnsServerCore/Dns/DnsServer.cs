@@ -6131,64 +6131,99 @@ namespace DnsServerCore.Dns
 
             _state = ServiceState.Starting;
 
+            //check for systemd socket activation
+            bool useSystemdSockets = false;
+
+            if (Environment.OSVersion.Platform == PlatformID.Unix)
+            {
+                IReadOnlyList<Socket> systemdSockets = SystemdSocketActivation.GetSockets();
+
+                if (systemdSockets.Count > 0)
+                {
+                    useSystemdSockets = true;
+
+                    foreach (Socket socket in systemdSockets)
+                    {
+                        if (socket.SocketType == SocketType.Dgram)
+                        {
+                            socket.ReceiveBufferSize = 512 * 1024;
+                            socket.SendBufferSize = 512 * 1024;
+
+                            _udpListeners.Add(socket);
+
+                            _log.Write((IPEndPoint)socket.LocalEndPoint, DnsTransportProtocol.Udp, "DNS Server was bound successfully (systemd socket activation).");
+                        }
+                        else if (socket.SocketType == SocketType.Stream)
+                        {
+                            _tcpListeners.Add(socket);
+
+                            _log.Write((IPEndPoint)socket.LocalEndPoint, DnsTransportProtocol.Tcp, "DNS Server was bound successfully (systemd socket activation).");
+                        }
+                    }
+                }
+            }
+
             //bind on all local end points
             foreach (IPEndPoint localEP in _localEndPoints)
             {
-                Socket udpListener = null;
-
-                try
+                if (!useSystemdSockets)
                 {
-                    udpListener = new Socket(localEP.AddressFamily, SocketType.Dgram, ProtocolType.Udp);
-
-                    #region this code ignores ICMP port unreachable responses which creates SocketException in ReceiveFrom()
-
-                    if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-                    {
-                        const uint IOC_IN = 0x80000000;
-                        const uint IOC_VENDOR = 0x18000000;
-                        const uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
-
-                        udpListener.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
-                    }
-
-                    #endregion
-
-                    if (Environment.OSVersion.Platform == PlatformID.Unix)
-                        udpListener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1); //to allow binding to same port with different addresses
-
-                    udpListener.ReceiveBufferSize = 512 * 1024;
-                    udpListener.SendBufferSize = 512 * 1024;
+                    Socket udpListener = null;
 
                     try
                     {
-                        udpListener.Bind(localEP);
-                    }
-                    catch (SocketException ex1)
-                    {
-                        switch (ex1.ErrorCode)
+                        udpListener = new Socket(localEP.AddressFamily, SocketType.Dgram, ProtocolType.Udp);
+
+                        #region this code ignores ICMP port unreachable responses which creates SocketException in ReceiveFrom()
+
+                        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
                         {
-                            case 99: //SocketException (99): Cannot assign requested address
-                                await Task.Delay(5000); //wait for address to be available before retrying
-                                udpListener.Bind(localEP);
-                                break;
+                            const uint IOC_IN = 0x80000000;
+                            const uint IOC_VENDOR = 0x18000000;
+                            const uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
 
-                            default:
-                                throw;
+                            udpListener.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
                         }
+
+                        #endregion
+
+                        if (Environment.OSVersion.Platform == PlatformID.Unix)
+                            udpListener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1); //to allow binding to same port with different addresses
+
+                        udpListener.ReceiveBufferSize = 512 * 1024;
+                        udpListener.SendBufferSize = 512 * 1024;
+
+                        try
+                        {
+                            udpListener.Bind(localEP);
+                        }
+                        catch (SocketException ex1)
+                        {
+                            switch (ex1.ErrorCode)
+                            {
+                                case 99: //SocketException (99): Cannot assign requested address
+                                    await Task.Delay(5000); //wait for address to be available before retrying
+                                    udpListener.Bind(localEP);
+                                    break;
+
+                                default:
+                                    throw;
+                            }
+                        }
+
+                        _udpListeners.Add(udpListener);
+
+                        _log.Write(localEP, DnsTransportProtocol.Udp, "DNS Server was bound successfully.");
                     }
+                    catch (Exception ex)
+                    {
+                        _log.Write(localEP, DnsTransportProtocol.Udp, "DNS Server failed to bind.\r\n" + ex.ToString());
 
-                    _udpListeners.Add(udpListener);
+                        udpListener?.Dispose();
 
-                    _log.Write(localEP, DnsTransportProtocol.Udp, "DNS Server was bound successfully.");
-                }
-                catch (Exception ex)
-                {
-                    _log.Write(localEP, DnsTransportProtocol.Udp, "DNS Server failed to bind.\r\n" + ex.ToString());
-
-                    udpListener?.Dispose();
-
-                    if (throwIfBindFails)
-                        throw;
+                        if (throwIfBindFails)
+                            throw;
+                    }
                 }
 
                 if (_enableDnsOverUdpProxy)
@@ -6236,30 +6271,33 @@ namespace DnsServerCore.Dns
                     }
                 }
 
-                Socket tcpListener = null;
-
-                try
+                if (!useSystemdSockets)
                 {
-                    tcpListener = new Socket(localEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                    Socket tcpListener = null;
 
-                    if (Environment.OSVersion.Platform == PlatformID.Unix)
-                        tcpListener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1); //to allow binding to same port with different addresses
+                    try
+                    {
+                        tcpListener = new Socket(localEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
-                    tcpListener.Bind(localEP);
-                    tcpListener.Listen(_listenBacklog);
+                        if (Environment.OSVersion.Platform == PlatformID.Unix)
+                            tcpListener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1); //to allow binding to same port with different addresses
 
-                    _tcpListeners.Add(tcpListener);
+                        tcpListener.Bind(localEP);
+                        tcpListener.Listen(_listenBacklog);
 
-                    _log.Write(localEP, DnsTransportProtocol.Tcp, "DNS Server was bound successfully.");
-                }
-                catch (Exception ex)
-                {
-                    _log.Write(localEP, DnsTransportProtocol.Tcp, "DNS Server failed to bind.\r\n" + ex.ToString());
+                        _tcpListeners.Add(tcpListener);
 
-                    tcpListener?.Dispose();
+                        _log.Write(localEP, DnsTransportProtocol.Tcp, "DNS Server was bound successfully.");
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Write(localEP, DnsTransportProtocol.Tcp, "DNS Server failed to bind.\r\n" + ex.ToString());
 
-                    if (throwIfBindFails)
-                        throw;
+                        tcpListener?.Dispose();
+
+                        if (throwIfBindFails)
+                            throw;
+                    }
                 }
 
                 if (_enableDnsOverTcpProxy)

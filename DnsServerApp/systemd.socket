@@ -1,0 +1,11 @@
+[Unit]
+Description=Technitium DNS Server Socket
+
+[Socket]
+ListenDatagram=53
+ListenStream=53
+ReceiveBuffer=524288
+SendBuffer=524288
+
+[Install]
+WantedBy=sockets.target
