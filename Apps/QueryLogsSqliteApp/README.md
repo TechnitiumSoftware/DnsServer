@@ -22,12 +22,14 @@ A DNS App for Technitium DNS Server that logs DNS queries to a SQLite database.
 | --- | --- | --- | --- |
 | `enableLogging` | boolean | `true` | Enables or disables logging. |
 | `maxQueueSize` | number | `200000` | Size of the bounded log queue. |
-| `maxLogDays` | number | `7` | Maximum age of retained logs (days). |
-| `maxLogRecords` | number | `10000` | Maximum number of retained log records. |
+| `maxLogDays` | number | `0` | Maximum age of retained logs (days). `0` disables age-based cleanup. |
+| `maxLogRecords` | number | `0` | Maximum number of retained log records. `0` disables count-based cleanup. |
 | `enableVacuum` | boolean | `false` | Runs `VACUUM` after cleanup when records were deleted. |
 | `useInMemoryDb` | boolean | `false` | Uses an in-memory SQLite database. |
 | `sqliteDbPath` | string | `querylogs.db` | Path to the SQLite database file. |
 | `connectionString` | string | `Data Source='{sqliteDbPath}'; Cache=Shared;` | SQLite connection string template. |
+
+The example below matches the shipped `dnsApp.config` values, which enable 7-day and 10,000-record cleanup by default in the distributed package.
 
 ### Example
 
