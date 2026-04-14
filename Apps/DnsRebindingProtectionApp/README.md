@@ -1,8 +1,13 @@
 # DNS Rebinding Protection App
 
+## Summary
+
 A DNS App for Technitium DNS Server that protects against DNS rebinding attacks by filtering private IP addresses from DNS responses for non-local domain names.
 
-This app implements post-processing inspection of DNS responses to detect and block DNS rebinding attempts, where an attacker manipulates DNS responses to resolve public domain names to private IP addresses, potentially bypassing same-origin policies and firewall restrictions.
+## Integration / extension points
+
+- Implements: `IDnsApplication`, `IDnsPostProcessor`
+- Runs as: a post-processor (operates on DNS responses after core resolution).
 
 ## Overview
 
