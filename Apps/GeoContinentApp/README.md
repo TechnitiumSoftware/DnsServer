@@ -23,11 +23,22 @@ This app relies on the DNS server's geolocation database for continent lookup. E
 
 If your deployment uses optional ISP/ASN geolocation data, keep that database updated as well.
 
+The app will throw if the country database is missing. The required files are expected in the app folder as either:
+
+- `GeoIP2-Country.mmdb`, or
+- `GeoLite2-Country.mmdb`
+
+Optional files:
+
+- `GeoIP2-ISP.mmdb`
+- `GeoLite2-ASN.mmdb`
+
 ## Installation
 
 1. Open the Technitium DNS Server web console.
 2. Install or update the app.
-3. Make sure the geolocation database files are present and current.
+3. Place the required MaxMind `.mmdb` files in the app folder.
+4. Reload the app or restart the DNS server after updating database files.
 
 ### APP record JSON
 
