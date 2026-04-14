@@ -188,10 +188,12 @@ Example: Query for `2001:db8::1` would be formatted as reversed nibbles under th
 Standard domain name format:
 
 ```xml
-<domain-label>.<app-record-name>
+ <domain-name>.<app-record-name>
 ```
 
-Example: `example.com.dnsbl.example.com` queries for domain `com.example`
+Example: `example.com.dnsbl.example.com` queries for domain `example.com`
+
+The domain portion is read as-is from left to right before the APP record name; it is not reversed like IP-based DNSBL queries.
 
 ## RFC 5782 Compliance
 
