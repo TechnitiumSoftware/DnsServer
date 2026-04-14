@@ -19,26 +19,32 @@ A DNS App for Technitium DNS Server that returns country-specific answers based 
 
 ## Requirements
 
-This app relies on the DNS server's geolocation database for country lookup. Ensure the MaxMind GeoIP2/GeoLite2 Country database is installed and kept up to date.
+This app depends on the DNS server's geolocation support to determine the client's country.
 
-If your deployment uses optional ISP/ASN geolocation data, keep that database updated as well.
+A **MaxMind GeoIP2/GeoLite2 Country** database in `.mmdb` format must be installed and configured for the server.
 
-The app will throw if the country database is missing. The required files are expected in the app folder as either:
+- Required: a **GeoIP2/GeoLite2 Country** database file (`*.mmdb`)
+- Optional: **GeoIP2/GeoLite2 ISP** and/or **GeoIP2/GeoLite2 ASN** database files (`*.mmdb`) if you also use those lookups elsewhere
 
-- `GeoIP2-Country.mmdb`, or
-- `GeoLite2-Country.mmdb`
+If the Country database is missing, this app cannot resolve the client country and the app will throw instead of answering requests successfully.
 
-Optional files:
+### Installation / update procedure
 
-- `GeoIP2-ISP.mmdb`
-- `GeoLite2-ASN.mmdb`
+1. Obtain a MaxMind **GeoIP2 Country** or **GeoLite2 Country** `.mmdb` database from MaxMind.
+2. Install the `.mmdb` file in the location used by Technitium DNS Server for GeoIP databases, or configure the server to use that file according to the server's GeoIP/geolocation settings.
+3. Restart the DNS service or reload GeoIP/geolocation settings if required by your deployment so the updated database is picked up.
+4. Verify geolocation is working before relying on this app in production.
 
-## Installation
+Keep the database updated on a regular schedule by downloading the latest MaxMind release and replacing the existing `.mmdb` file using the same location/configuration.
 
-1. Open the Technitium DNS Server web console.
-2. Install or update the app.
-3. Place the required MaxMind `.mmdb` files in the app folder.
-4. Reload the app or restart the DNS server after updating database files.
+### Optional ISP / ASN databases
+
+The GeoCountry app only requires the **Country** database to map clients to countries. However, you may also install and maintain:
+
+- **GeoIP2/GeoLite2 ISP**
+- **GeoIP2/GeoLite2 ASN**
+
+These optional databases are not required for country-based responses in this app, but they may be useful for other DNS server features or apps that use ISP/ASN metadata.
 
 ### APP record JSON
 
