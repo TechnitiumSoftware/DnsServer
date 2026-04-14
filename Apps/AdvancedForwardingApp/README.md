@@ -54,7 +54,7 @@ A DNS App for Technitium DNS Server that performs conditional forwarding to conf
   ],
   "networkGroupMap": {
     "0.0.0.0/0": "everyone",
-    "[::]/0": "everyone"
+    "::/0": "everyone"
   },
   "groups": [
     {
