@@ -127,8 +127,10 @@ This feature operates as both a **post-processor** (modifies responses before de
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
+| `appPreference` | Integer | `40` | App execution order when multiple apps implement `IDnsApplicationPreference` |
 | `networks` | Object | `{}` | Map of custom network names to arrays of CIDR addresses |
 | `enableAddressTranslation` | Boolean | `false` | Master switch to enable/disable address translation globally |
+| `domainGroupMap` | Object | `{}` | Maps queried domains to named translation groups; longest matching domain takes precedence |
 | `networkGroupMap` | Object | `{}` | Maps client networks (CIDR) to named translation groups |
 | `groups` | Array | `[]` | Array of translation group configurations |
 
@@ -163,6 +165,8 @@ The `networks` object defines named network collections that can be referenced i
 ### Network Group Map Configuration
 
 Maps client source networks to translation groups using most-specific subnet matching.
+
+When both `domainGroupMap` and `networkGroupMap` are configured, domain-based matching takes precedence for forward A/AAAA translation. The app first looks for the longest matching domain in `domainGroupMap`; if no domain match is found, it falls back to `networkGroupMap` and then uses the most-specific network match.
 
 **Example:**
 
