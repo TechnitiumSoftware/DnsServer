@@ -1,47 +1,50 @@
 # No Data App
 
-## Summary
+A DNS App for Technitium DNS Server that returns **NOERROR / NODATA** for selected query types using APP record data.
 
-A DNS App for Technitium DNS Server that returns a **NOERROR / NODATA** response for selected query types.
+## Overview
+
+- **APP-record driven** – no root-level `dnsApp.config` keys
+- **Blocked query types** – driven by `blockedTypes` in APP record JSON
+- **NODATA responses** – returns NOERROR with an empty answer section
 
 ## Integration / extension points
 
 - Implements: `IDnsApplication`, `IDnsAppRecordRequestHandler`
-- Runs as: an APP-record request handler (answers are provided from the APP record context).
+- Runs as an APP-record request handler.
 
 ## Configuration
 
-This app is **APP-record driven**.
-
-- `dnsApp.config` is not used by this app.
-- Configuration is provided via the **APP record data** (JSON) in a zone.
+`dnsApp.config` is not used by this app.
 
 ### APP record JSON
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `blockedTypes` | string[] | Yes | DNS RR types to return NODATA for. Values are parsed as `DnsResourceRecordType` (e.g. `A`, `AAAA`, `MX`, `TXT`, `ANY`). |
+| `blockedTypes` | string[] | yes | DNS record types to return NODATA for (for example `A`, `AAAA`, `ANY`). |
 
 ### Example
 
 ```json
 {
-  "blockedTypes": [
-    "A",
-    "AAAA",
-    "ANY"
-  ]
+  "blockedTypes": ["A", "AAAA", "ANY"]
 }
 ```
 
 ## Runtime behavior
 
-- The request name must match the APP record name **exactly** (or match wildcard APP record name patterns as supported by the DNS app runtime).
-- If the request type is in `blockedTypes` (or `ANY` is present), the app returns NOERROR with an empty answer section.
-- Other query types pass through unmatched and receive no response from this app.
+1. The query name must match the APP record name, unless the APP record name is a wildcard.
+2. The app parses `appRecordData` as JSON.
+3. If the question type is in `blockedTypes`, or `ANY` is present, the app returns NOERROR with no answers.
+4. Otherwise, it returns no response and the query continues through normal resolution.
 
 ## Risks / operational notes
 
-- NODATA responses are cached with negative cache TTL; ensure this is intentional.
-- Clients expecting certain record types will appear to receive no data (not NXDOMAIN).
-- Can mask configuration errors; verify intent is correct.
+- NODATA can be cached negatively by clients and recursive resolvers.
+- This app suppresses responses for selected types; use carefully if clients expect those records.
+
+## Troubleshooting
+
+- Confirm the APP record data contains valid JSON.
+- Confirm `blockedTypes` includes the requested type.
+- Confirm the query name matches the APP record name or wildcard rule.

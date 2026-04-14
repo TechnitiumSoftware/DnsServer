@@ -1,32 +1,37 @@
 # Weighted Round Robin App
 
-## Summary
+A DNS App for Technitium DNS Server that performs weighted selection of answers from APP record data.
 
-A DNS App for Technitium DNS Server that performs weighted selection when returning multiple answers.
+## Overview
+
+- **APP-record driven** – no root-level `dnsApp.config`
+- **Weighted selection** – answers are chosen according to weights in the APP record payload
+- **Per-zone flexibility** – different zones can define different weighted sets
 
 ## Integration / extension points
 
 - Implements: `IDnsApplication`, `IDnsAppRecordRequestHandler`
-- Runs as: an APP-record request handler (answers are provided from the APP record context).
+- Runs as an APP-record request handler.
 
 ## Configuration
 
-This app is **APP-record driven**.
+`dnsApp.config` is not used by this app.
 
-- `dnsApp.config` is not used by this app.
-- Configuration is provided via **APP record data** (JSON) in a zone.
-
-### APP record JSON
-
-Refer to the APP record editor/template in the Technitium DNS Server UI for the exact JSON schema expected by this app.
+The app reads weighted answer data from the APP record JSON for the target name.
 
 ## Runtime behavior
 
-- The app uses weighted selection to choose which answer to return from multiple options.
-- Higher-weighted entries are selected more frequently than lower-weighted entries.
+1. The app reads weighted entries from the APP record payload.
+2. It selects an answer based on the configured weights.
+3. It returns the chosen A/AAAA/CNAME-style record data as an authoritative response.
 
 ## Risks / operational notes
 
-- Uneven distribution can result if weights or data are misconfigured.
-- DNS caching can cause answers to "stick" depending on client TTL handling.
-- Debugging weighted distribution is difficult; test distribution patterns before production deployment.
+- Misconfigured weights can skew traffic distribution.
+- DNS caching affects perceived distribution; TTL matters.
+- Keep weighted sets small and intentional.
+
+## Troubleshooting
+
+- Confirm the APP record contains valid JSON.
+- Confirm the weighted entries contain the expected addresses/targets.

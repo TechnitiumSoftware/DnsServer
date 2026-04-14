@@ -639,9 +639,3 @@ Use different health checks for different service layers (ping for network, TCP 
 - Fix JSON syntax errors
 - Reinstall app via web console
 - Check file permissions on app directory
-
-## License
-
-This app is part of Technitium DNS Server. This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**. For more information, see the [LICENSE](https://github.com/TechnitiumSoftware/DnsServer/blob/master/LICENSE) file in the Technitium DNS Server repository.
-
-Copyright (C) 2024 Shreyas Zare (<shreyas@technitium.com>)

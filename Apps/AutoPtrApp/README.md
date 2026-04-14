@@ -173,9 +173,3 @@ The app processes reverse DNS queries through the following execution pipeline:
 1. Verify the APP record is in the correct ip6.arpa zone (e.g., `8.b.d.0.1.0.0.2.ip6.arpa`).
 2. Confirm the query is formatted as a valid IPv6 reverse DNS name.
 3. Check logs for reverse domain parsing errors.
-
-## License
-
-This app is part of Technitium DNS Server. This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**. For more information, see the [LICENSE](https://github.com/TechnitiumSoftware/DnsServer/blob/master/LICENSE) file in the Technitium DNS Server repository.
-
-Copyright (C) 2024 Shreyas Zare (<shreyas@technitium.com>)

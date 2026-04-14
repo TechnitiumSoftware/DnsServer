@@ -1,32 +1,38 @@
 # GeoDistance App
 
-## Summary
+A DNS App for Technitium DNS Server that serves answers based on geographic distance.
 
-A DNS App for Technitium DNS Server that returns answers based on **distance/proximity**.
+## Overview
+
+- **APP-record driven** – no root-level `dnsApp.config`
+- **Distance-based selection** – chooses responses using location data in the APP record payload
+- **Per-zone flexibility** – different zones can define different distance mappings
 
 ## Integration / extension points
 
 - Implements: `IDnsApplication`, `IDnsAppRecordRequestHandler`
-- Runs as: an APP-record request handler (answers are provided from the APP record context).
+- Runs as an APP-record request handler.
 
 ## Configuration
 
-This app is **APP-record driven**.
+`dnsApp.config` is not used by this app.
 
-- `dnsApp.config` is not used by this app.
-- Configuration is provided via **APP record data** (JSON) in a zone.
+### APP record data
 
-### APP record JSON
-
-Refer to the APP record editor/template in the Technitium DNS Server UI for the exact JSON schema expected by this app.
+The app consumes APP record JSON that defines targets/coordinates/addresses. The exact schema is interpreted by the app/runtime; the key point is that the configuration is stored in the APP record payload, not in root app settings.
 
 ## Runtime behavior
 
-- The app calculates distance from the client (based on geolocation) to each target/endpoint in the APP record data.
-- It selects the closest endpoint(s) according to the decision logic encoded in the APP record.
+1. The app determines the client location from geolocation.
+2. It compares the client location to the target locations in the APP record data.
+3. It returns the closest/best-matching response according to the APP record payload.
 
 ## Risks / operational notes
 
-- Accuracy depends on geolocation precision and target coordinate accuracy.
-- Ties and edge cases should be handled by the APP record data logic.
-- Different zones/records can have different distance maps and selection rules.
+- Geolocation is approximate; distance-based decisions are only as good as the underlying location data.
+- If APP record data is incomplete, the app may return no useful answer.
+
+## Troubleshooting
+
+- Verify the APP record contains valid JSON.
+- Confirm the target locations and addresses are present in the APP payload.

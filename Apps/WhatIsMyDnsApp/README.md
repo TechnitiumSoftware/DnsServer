@@ -1,33 +1,38 @@
 # WhatIsMyDns App
 
-## Summary
+A DNS App for Technitium DNS Server that returns the client's IP address for A, AAAA, and TXT queries.
 
-A DNS App for Technitium DNS Server that returns the client's IP address for **A**, **AAAA**, and **TXT** queries.
+## Overview
+
+- **APP-record driven** – no root-level `dnsApp.config`
+- **Client reflection** – answers with the client's source IP
+- **Protocol-aware** – returns A for IPv4 clients and AAAA for IPv6 clients
 
 ## Integration / extension points
 
 - Implements: `IDnsApplication`, `IDnsAppRecordRequestHandler`
-- Runs as: an APP-record request handler (answers are provided from the APP record context).
+- Runs as an APP-record request handler.
 
 ## Configuration
 
-This app is **APP-record driven**.
+`dnsApp.config` is not used by this app.
 
-- `dnsApp.config` is not used by this app.
-- Create an **APP record** in a zone for the name you want to answer (for example, `whoami.example.com`).
-- The APP record data is not used; configuration is implicit.
+The app is configured by creating an APP record at the desired name. The APP record data itself is not used.
 
 ## Runtime behavior
 
-For requests that match the APP record name (or wildcard APP record names as supported by the DNS app runtime):
-
-- Query type `A`: returns an A record containing the client's IPv4 address (only when the client connects over IPv4).
-- Query type `AAAA`: returns an AAAA record containing the client's IPv6 address (only when the client connects over IPv6).
-- Query type `TXT`: returns a TXT record containing the client's IP address as text.
-- Other query types: no response from this app.
+- `A` queries return the client's IPv4 address when the client connects over IPv4.
+- `AAAA` queries return the client's IPv6 address when the client connects over IPv6.
+- `TXT` queries return the client's IP address as text.
+- Other query types are not answered by this app.
 
 ## Risks / operational notes
 
-- **Privacy**: reveals client IP address to the domain being queried.
-- **Asymmetric behavior**: different responses based on transport (IPv4 vs IPv6); may confuse clients with both transports.
-- **Internal IP disclosure**: can leak internal IP addresses if used on internal domains accessed by internal clients.
+- Reveals client IP information to the queried name.
+- IPv4 and IPv6 clients receive different record types.
+- Use carefully on internal or privacy-sensitive networks.
+
+## Troubleshooting
+
+- Confirm the APP record exists at the intended name.
+- Confirm the query type is A, AAAA, or TXT.

@@ -331,7 +331,7 @@ Verify all DNS64 prefix values in `dns64PrefixMap` use only permitted prefix len
 
 ```json
 "dns64PrefixMap": {
-  "0.0.0.0/0": "2001:db8::/64"  // Invalid - /64 network should be /96 for DNS64
+  "0.0.0.0/0": "2001:db8::/80"  // Invalid - /80 is not one of the supported prefix lengths
 }
 ```
 
@@ -342,9 +342,3 @@ Verify all DNS64 prefix values in `dns64PrefixMap` use only permitted prefix len
   "0.0.0.0/0": "2001:db8:64::/96"
 }
 ```
-
-## License
-
-This app is part of Technitium DNS Server. This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**. For more information, see the [LICENSE](https://github.com/TechnitiumSoftware/DnsServer/blob/master/LICENSE) file in the Technitium DNS Server repository.
-
-Copyright (C) 2024 Shreyas Zare (<shreyas@technitium.com>)

@@ -1,19 +1,21 @@
 # Query Logs SQL Server App
 
-## Summary
+A DNS App for Technitium DNS Server that logs DNS queries to a Microsoft SQL Server database.
 
-A DNS App for Technitium DNS Server that logs DNS queries to a Microsoft SQL Server database with configurable retention.
+## Overview
+
+- **Async logging** – writes log entries through a bounded queue
+- **Cleanup support** – prunes old records by age/count
+- **Retained schema** – uses a database name and SQL Server connection string for storage
 
 ## Integration / extension points
 
 - Implements: `IDnsApplication`, `IDnsQueryLogger`, `IDnsQueryLogs`
-- Runs as: a query logger (buffers and persists log entries asynchronously).
+- Runs as a DNS query logger with asynchronous persistence.
 
 ## Configuration
 
-The app is configured using `dnsApp.config` (JSON).
-
-### Root configuration options
+`dnsApp.config` contains these keys:
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -35,3 +37,22 @@ The app is configured using `dnsApp.config` (JSON).
   "databaseName": "DnsQueryLogs",
   "connectionString": "Data Source=tcp:192.168.10.101,1433; User ID=username; Password=password; TrustServerCertificate=true;"
 }
+```
+
+## Runtime behavior
+
+1. Queries are buffered in a bounded channel.
+2. A background consumer thread bulk inserts records into SQL Server storage.
+3. A periodic cleanup timer removes old records.
+
+## Risks / operational notes
+
+- Queue overflow drops writes (`DropWrite` behavior).
+- Database connectivity issues can stop logging.
+- High traffic deployments should monitor write latency.
+
+## Troubleshooting
+
+- Confirm the database is reachable and credentials are valid.
+- Check the connection string and `databaseName`.
+- Review server logs for SQL client errors.

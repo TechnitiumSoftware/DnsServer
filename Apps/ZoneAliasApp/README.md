@@ -189,9 +189,3 @@ This issue may indicate a malfunction in record transformation logic or app load
 **Resolution:**
 
 Remove either the native zone or the alias configuration. Operating both simultaneously for the same domain violates DNS consistency requirements.
-
-## License
-
-This app is part of Technitium DNS Server. This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**. For more information, see the [LICENSE](https://github.com/TechnitiumSoftware/DnsServer/blob/master/LICENSE) file in the Technitium DNS Server repository.
-
-Copyright (C) 2024 Shreyas Zare (<shreyas@technitium.com>)

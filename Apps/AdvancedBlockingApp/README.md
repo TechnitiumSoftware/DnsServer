@@ -70,7 +70,7 @@ Maps client IP addresses or subnets to groups. More specific matches take preced
   "192.168.10.20": "kids",
   "192.168.10.0/24": "standard",
   "0.0.0.0/0": "everyone",
-  "[::]/0": "everyone"
+  "::/0": "everyone"
 }
 ```
 
@@ -133,7 +133,7 @@ Block list URLs can be specified as simple strings or as objects with additional
   "networkGroupMap":  {
     "192.168.10.0/24": "kids",
     "0.0.0.0/0": "everyone",
-    "[::]/0": "everyone"
+    "::/0": "everyone"
   },
   "groups": [
     {
@@ -279,9 +279,3 @@ Query a TXT record for a blocked domain to see the blocking report:
 ```bash
 dig TXT blocked-domain.com @your-dns-server
 ```
-
-## License
-
-This app is part of Technitium DNS Server. This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**. For more information, see the [LICENSE](https://github.com/TechnitiumSoftware/DnsServer/blob/master/LICENSE) file in the Technitium DNS Server repository.
-
-Copyright (C) 2024 Shreyas Zare (<shreyas@technitium.com>)
