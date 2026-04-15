@@ -7134,7 +7134,7 @@ RESPONSE:
 Allows to update the current Cluster node's IP address. This call can be made at both the Primary and Secondary nodes.
 
 URL:\
-`http://localhost:5380/api/admin/cluster/updateIpAddresses?token=x`
+`http://localhost:5380/api/admin/cluster/updateIpAddress?token=x`
 
 PERMISSIONS:\
 Administration: Modify
