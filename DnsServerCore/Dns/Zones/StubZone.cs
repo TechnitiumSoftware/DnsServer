@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ namespace DnsServerCore.Dns.Zones
     {
         #region variables
 
-        readonly object _refreshTimerLock = new object();
+        readonly Lock _refreshTimerLock = new Lock();
         Timer _refreshTimer;
         bool _refreshTimerTriggered;
         const int REFRESH_TIMER_INTERVAL = 5000;
@@ -68,7 +68,7 @@ namespace DnsServerCore.Dns.Zones
             PrimaryNameServerAddresses = primaryNameServerAddresses?.Convert(delegate (NameServerAddress nameServer)
             {
                 if (nameServer.Protocol != DnsTransportProtocol.Udp)
-                    nameServer = nameServer.ChangeProtocol(DnsTransportProtocol.Udp);
+                    nameServer = nameServer.Clone(DnsTransportProtocol.Udp);
 
                 return nameServer;
             });
@@ -104,13 +104,13 @@ namespace DnsServerCore.Dns.Zones
                     foreach (NameServerAddress nameServerAddress in dnsClient.Servers)
                     {
                         if (nameServerAddress.IsIPEndPointStale)
-                            tasks.Add(nameServerAddress.ResolveIPAddressAsync(stubZone._dnsServer, stubZone._dnsServer.PreferIPv6));
+                            tasks.Add(nameServerAddress.ResolveIPAddressAsync(stubZone._dnsServer, stubZone._dnsServer.IPv6Mode));
                     }
 
                     await Task.WhenAll(tasks);
 
                     dnsClient.Proxy = stubZone._dnsServer.Proxy;
-                    dnsClient.PreferIPv6 = stubZone._dnsServer.PreferIPv6;
+                    dnsClient.IPv6Mode = stubZone._dnsServer.IPv6Mode;
 
                     DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, [soaQuestion], null, null, null, dnsServer.UdpPayloadSize);
 
@@ -240,7 +240,10 @@ namespace DnsServerCore.Dns.Zones
             )
             {
                 //failed to queue refresh zone task; try again in some time
-                _refreshTimer?.Change(REFRESH_TIMER_INTERVAL, Timeout.Infinite);
+                lock (_refreshTimerLock)
+                {
+                    _refreshTimer?.Change(REFRESH_TIMER_INTERVAL, Timeout.Infinite);
+                }
             }
         }
 
@@ -261,7 +264,7 @@ namespace DnsServerCore.Dns.Zones
                 DnsClient client = new DnsClient(nameServers);
 
                 client.Proxy = _dnsServer.Proxy;
-                client.PreferIPv6 = _dnsServer.PreferIPv6;
+                client.IPv6Mode = _dnsServer.IPv6Mode;
                 client.Timeout = REFRESH_TIMEOUT;
                 client.Retries = REFRESH_RETRIES;
                 client.Concurrency = 1;
@@ -301,12 +304,12 @@ namespace DnsServerCore.Dns.Zones
                 List<NameServerAddress> tcpNameServers = new List<NameServerAddress>();
 
                 foreach (NameServerAddress nameServer in nameServers)
-                    tcpNameServers.Add(nameServer.ChangeProtocol(DnsTransportProtocol.Tcp));
+                    tcpNameServers.Add(nameServer.Clone(DnsTransportProtocol.Tcp));
 
                 client = new DnsClient(tcpNameServers);
 
                 client.Proxy = _dnsServer.Proxy;
-                client.PreferIPv6 = _dnsServer.PreferIPv6;
+                client.IPv6Mode = _dnsServer.IPv6Mode;
                 client.Timeout = REFRESH_TIMEOUT;
                 client.Retries = REFRESH_RETRIES;
                 client.Concurrency = 1;
@@ -524,7 +527,8 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 //update catalog zone property
-                CatalogZone?.SetPrimaryAddressesProperty(_primaryNameServerAddresses, _name);
+                if (!Disabled)
+                    CatalogZone?.SetPrimaryAddressesProperty(_primaryNameServerAddresses, _name);
             }
         }
 

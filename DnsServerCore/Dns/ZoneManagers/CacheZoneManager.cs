@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.EDnsOptions;
@@ -57,7 +58,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         long _totalEntries;
 
         Timer _cacheMaintenanceTimer;
-        readonly object _cacheMaintenanceTimerLock = new object();
+        readonly Lock _cacheMaintenanceTimerLock = new Lock();
         const int CACHE_MAINTENANCE_TIMER_INITIAL_INTEVAL = 5 * 60 * 1000;
         const int CACHE_MAINTENANCE_TIMER_PERIODIC_INTERVAL = 5 * 60 * 1000;
 
@@ -111,10 +112,10 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             using (FileStream fS = new FileStream(cacheZoneFile, FileMode.Open, FileAccess.Read))
             {
-                BinaryReader bR = new BinaryReader(fS);
-
-                if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "CZ")
+                if (Encoding.ASCII.GetString(fS.ReadExactly(2)) != "CZ")
                     throw new InvalidDataException("CacheZoneManager format is invalid.");
+
+                BinaryReader bR = new BinaryReader(fS);
 
                 int version = bR.ReadByte();
                 switch (version)
@@ -405,7 +406,24 @@ namespace DnsServerCore.Dns.ZoneManagers
                 if (!_root.TryGet(cnameDomain, out CacheZone cacheZone))
                     break;
 
-                IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(question.Type == DnsResourceRecordType.NS ? DnsResourceRecordType.CHILD_NS : question.Type, serveStale, true, eDnsClientSubnet, advancedForwardingClientSubnet);
+                DnsResourceRecordType qtype;
+
+                switch (question.Type)
+                {
+                    case DnsResourceRecordType.NS:
+                        qtype = DnsResourceRecordType.CHILD_NS;
+                        break;
+
+                    case DnsResourceRecordType.PARENT_NS:
+                        qtype = DnsResourceRecordType.NS;
+                        break;
+
+                    default:
+                        qtype = question.Type;
+                        break;
+                }
+
+                IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(qtype, serveStale, true, eDnsClientSubnet, advancedForwardingClientSubnet);
                 if (records.Count < 1)
                     break;
 
@@ -779,7 +797,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 zone.ListAllRecords(records);
         }
 
-        public Task<DnsDatagram> QueryClosestDelegationAsync(DnsDatagram request)
+        public DnsDatagram QueryClosestDelegation(DnsDatagram request)
         {
             DnsQuestionRecord question = request.Question[0];
             string domain = question.Name;
@@ -800,14 +818,14 @@ namespace DnsServerCore.Dns.ZoneManagers
                 //find parent delegation
                 domain = AuthZoneManager.GetParentZone(question.Name);
                 if (domain is null)
-                    return Task.FromResult<DnsDatagram>(null); //dont find NS for root
+                    return null; //dont find NS for root
             }
 
             do
             {
                 _ = _root.FindZone(domain, out _, out CacheZone delegation);
                 if (delegation is null)
-                    return Task.FromResult<DnsDatagram>(null);
+                    return null;
 
                 //return closest name servers in delegation
                 IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS, false, true, eDnsClientSubnet, advancedForwardingClientSubnet);
@@ -824,14 +842,14 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                             IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, false, true, eDnsClientSubnet, advancedForwardingClientSubnet);
 
-                            return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional));
+                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional);
                         }
                     }
                     else
                     {
                         IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, false, false, eDnsClientSubnet, advancedForwardingClientSubnet);
 
-                        return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional));
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional);
                     }
                 }
 
@@ -840,10 +858,15 @@ namespace DnsServerCore.Dns.ZoneManagers
             while (domain is not null);
 
             //no cached delegation found
-            return Task.FromResult<DnsDatagram>(null);
+            return null;
         }
 
         public override Task<DnsDatagram> QueryAsync(DnsDatagram request, bool serveStale = false, bool findClosestNameServers = false, bool resetExpiry = false)
+        {
+            return Task.FromResult(Query(request, serveStale, findClosestNameServers, resetExpiry));
+        }
+
+        public DnsDatagram Query(DnsDatagram request, bool serveStale = false, bool findClosestNameServers = false, bool resetExpiry = false)
         {
             DnsQuestionRecord question = request.Question[0];
 
@@ -877,7 +900,24 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (zone is not null)
             {
                 //zone found
-                IReadOnlyList<DnsResourceRecord> answer = zone.QueryRecords(question.Type == DnsResourceRecordType.NS ? DnsResourceRecordType.CHILD_NS : question.Type, serveStale, false, eDnsClientSubnet, advancedForwardingClientSubnet);
+                DnsResourceRecordType qtype;
+
+                switch (question.Type)
+                {
+                    case DnsResourceRecordType.NS:
+                        qtype = DnsResourceRecordType.CHILD_NS;
+                        break;
+
+                    case DnsResourceRecordType.PARENT_NS:
+                        qtype = DnsResourceRecordType.NS;
+                        break;
+
+                    default:
+                        qtype = question.Type;
+                        break;
+                }
+
+                IReadOnlyList<DnsResourceRecord> answer = zone.QueryRecords(qtype, serveStale, false, eDnsClientSubnet, advancedForwardingClientSubnet);
                 if (answer.Count > 0)
                 {
                     //answer found in cache
@@ -972,16 +1012,16 @@ namespace DnsServerCore.Dns.ZoneManagers
                             }
 
                             if (request.CheckingDisabled)
-                                return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, authenticData, true, dnsSpecialCacheRecord.OriginalRCODE, request.Question, dnsSpecialCacheRecord.OriginalAnswer, dnsSpecialCacheRecord.OriginalAuthority, dnsSpecialCacheRecord.OriginalAdditional, _dnsServer.UdpPayloadSize, EDnsHeaderFlags.DNSSEC_OK, specialOptions));
+                                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, authenticData, true, dnsSpecialCacheRecord.OriginalRCODE, request.Question, dnsSpecialCacheRecord.OriginalAnswer, dnsSpecialCacheRecord.OriginalAuthority, dnsSpecialCacheRecord.OriginalAdditional, _dnsServer.UdpPayloadSize, EDnsHeaderFlags.DNSSEC_OK, specialOptions);
                             else
-                                return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, authenticData, false, dnsSpecialCacheRecord.RCODE, request.Question, dnsSpecialCacheRecord.Answer, dnsSpecialCacheRecord.Authority, null, _dnsServer.UdpPayloadSize, EDnsHeaderFlags.DNSSEC_OK, specialOptions));
+                                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, authenticData, false, dnsSpecialCacheRecord.RCODE, request.Question, dnsSpecialCacheRecord.Answer, dnsSpecialCacheRecord.Authority, null, _dnsServer.UdpPayloadSize, EDnsHeaderFlags.DNSSEC_OK, specialOptions);
                         }
                         else
                         {
                             if (request.CheckingDisabled)
-                                return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, true, dnsSpecialCacheRecord.OriginalRCODE, request.Question, dnsSpecialCacheRecord.OriginalNoDnssecAnswer, dnsSpecialCacheRecord.OriginalNoDnssecAuthority, dnsSpecialCacheRecord.OriginalAdditional, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, specialOptions));
+                                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, true, dnsSpecialCacheRecord.OriginalRCODE, request.Question, dnsSpecialCacheRecord.OriginalNoDnssecAnswer, dnsSpecialCacheRecord.OriginalNoDnssecAuthority, dnsSpecialCacheRecord.OriginalAdditional, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, specialOptions);
                             else
-                                return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, dnsSpecialCacheRecord.RCODE, request.Question, dnsSpecialCacheRecord.NoDnssecAnswer, dnsSpecialCacheRecord.NoDnssecAuthority, null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, specialOptions));
+                                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, dnsSpecialCacheRecord.RCODE, request.Question, dnsSpecialCacheRecord.NoDnssecAnswer, dnsSpecialCacheRecord.NoDnssecAuthority, null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, specialOptions);
                         }
                     }
 
@@ -1091,7 +1131,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         }
                     }
 
-                    return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, dnssecOk && (answer.Count > 0) && (answer[0].DnssecStatus == DnssecStatus.Secure), request.CheckingDisabled, DnsResponseCode.NoError, request.Question, answer, authority, additional, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, ednsFlags, options));
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, dnssecOk && (answer.Count > 0) && (answer[0].DnssecStatus == DnssecStatus.Secure), request.CheckingDisabled, DnsResponseCode.NoError, request.Question, answer, authority, additional, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, ednsFlags, options);
                 }
             }
             else
@@ -1145,12 +1185,12 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 options = [new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.StaleAnswer, record.Name.ToLowerInvariant() + " " + record.Type.ToString() + " " + record.Class.ToString()))];
                         }
 
-                        return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, dnssecOk && (answer.Count > 0) && (answer[0].DnssecStatus == DnssecStatus.Secure), request.CheckingDisabled, rCode, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, ednsFlags, options));
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, dnssecOk && (answer.Count > 0) && (answer[0].DnssecStatus == DnssecStatus.Secure), request.CheckingDisabled, rCode, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, ednsFlags, options);
                     }
                 }
             }
 
-        //no answer in cache
+            //no answer in cache
         beforeFindClosestNameServers:
 
             //check for closest delegation if any
@@ -1162,11 +1202,11 @@ namespace DnsServerCore.Dns.ZoneManagers
                     //find parent delegation
                     string domain = AuthZoneManager.GetParentZone(question.Name);
                     if (domain is null)
-                        return Task.FromResult<DnsDatagram>(null); //dont find NS for root
+                        return null; //dont find NS for root
 
                     _ = _root.FindZone(domain, out _, out delegation);
                     if (delegation is null)
-                        return Task.FromResult<DnsDatagram>(null); //no cached delegation found
+                        return null; //no cached delegation found
                 }
 
                 while (true)
@@ -1185,29 +1225,29 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                                 IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, serveStale, true, eDnsClientSubnet, advancedForwardingClientSubnet);
 
-                                return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, closestAuthority[0].DnssecStatus == DnssecStatus.Secure, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional));
+                                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, closestAuthority[0].DnssecStatus == DnssecStatus.Secure, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional);
                             }
                         }
                         else
                         {
                             IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, serveStale, false, eDnsClientSubnet, advancedForwardingClientSubnet);
 
-                            return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional));
+                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional);
                         }
                     }
 
                     string domain = AuthZoneManager.GetParentZone(delegation.Name);
                     if (domain is null)
-                        return Task.FromResult<DnsDatagram>(null); //dont find NS for root
+                        return null; //dont find NS for root
 
                     _ = _root.FindZone(domain, out _, out delegation);
                     if (delegation is null)
-                        return Task.FromResult<DnsDatagram>(null); //no cached delegation found
+                        return null; //no cached delegation found
                 }
             }
 
             //no cached delegation found
-            return Task.FromResult<DnsDatagram>(null);
+            return null;
         }
 
         #endregion

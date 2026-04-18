@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -85,7 +85,7 @@ namespace DnsServerCore.Dhcp
                     _clientIdentifier = DhcpOption.Parse(bR.BaseStream) as ClientIdentifierOption;
                     _clientIdentifier.ParseOptionValue();
 
-                    _hostName = bR.ReadShortString();
+                    _hostName = bR.BaseStream.ReadShortString();
                     if (string.IsNullOrWhiteSpace(_hostName))
                         _hostName = null;
 
@@ -94,13 +94,13 @@ namespace DnsServerCore.Dhcp
 
                     if (version >= 2)
                     {
-                        _comments = bR.ReadShortString();
+                        _comments = bR.BaseStream.ReadShortString();
                         if (string.IsNullOrWhiteSpace(_comments))
                             _comments = null;
                     }
 
-                    _leaseObtained = bR.ReadDateTime();
-                    _leaseExpires = bR.ReadDateTime();
+                    _leaseObtained = bR.BaseStream.ReadDateTime();
+                    _leaseExpires = bR.BaseStream.ReadDateTime();
                     break;
 
                 default:
@@ -157,7 +157,7 @@ namespace DnsServerCore.Dhcp
             if (string.IsNullOrWhiteSpace(_hostName))
                 bW.Write((byte)0);
             else
-                bW.WriteShortString(_hostName);
+                bW.BaseStream.WriteShortString(_hostName);
 
             bW.WriteBuffer(_hardwareAddress);
             _address.WriteTo(bW);
@@ -165,10 +165,10 @@ namespace DnsServerCore.Dhcp
             if (string.IsNullOrWhiteSpace(_comments))
                 bW.Write((byte)0);
             else
-                bW.WriteShortString(_comments);
+                bW.BaseStream.WriteShortString(_comments);
 
-            bW.Write(_leaseObtained);
-            bW.Write(_leaseExpires);
+            bW.BaseStream.WriteDateTime(_leaseObtained);
+            bW.BaseStream.WriteDateTime(_leaseExpires);
         }
 
         public string GetClientInfo()

@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@ using DnsServerCore;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 
 namespace DnsServerApp
 {
@@ -29,6 +30,7 @@ namespace DnsServerApp
         static async Task Main(string[] args)
         {
             bool throwIfBindFails = false;
+            bool isPortableApp = false; //true if logs folder should be inside the config folder else will use OS specific log folder path
             string? configFolder = null;
 
             foreach (string arg in args)
@@ -43,6 +45,10 @@ namespace DnsServerApp
                         throwIfBindFails = true;
                         break;
 
+                    case "--portable-app":
+                        isPortableApp = true;
+                        break;
+
                     default:
                         configFolder = arg;
                         break;
@@ -52,9 +58,13 @@ namespace DnsServerApp
             ManualResetEvent waitHandle = new ManualResetEvent(false);
             ManualResetEvent exitHandle = new ManualResetEvent(false);
             DnsWebService? service = null;
+            PosixSignalRegistration? psr = null;
 
             try
             {
+                if (!isPortableApp)
+                    isPortableApp = configFolder is null; //no config folder specified so run as portable app
+
                 Uri updateCheckUri;
 
                 switch (Environment.OSVersion.Platform)
@@ -68,7 +78,7 @@ namespace DnsServerApp
                         break;
                 }
 
-                service = new DnsWebService(configFolder, updateCheckUri);
+                service = new DnsWebService(isPortableApp, configFolder, updateCheckUri);
                 await service.StartAsync(throwIfBindFails);
 
                 Console.CancelKeyPress += delegate (object? sender, ConsoleCancelEventArgs e)
@@ -83,6 +93,15 @@ namespace DnsServerApp
                     exitHandle.WaitOne();
                 };
 
+                if (Environment.OSVersion.Platform == PlatformID.Unix)
+                {
+                    psr = PosixSignalRegistration.Create(PosixSignal.SIGTERM, delegate (PosixSignalContext context)
+                    {
+                        waitHandle.Set();
+                        exitHandle.WaitOne();
+                    });
+                }
+
                 Console.WriteLine("Technitium DNS Server was started successfully.\r\nUsing config folder: " + service.ConfigFolder + "\r\n\r\nNote: Open http://" + Environment.MachineName.ToLowerInvariant() + ":" + service.WebServiceHttpPort + "/ in web browser to access web console.\r\n\r\nPress [CTRL + C] to stop...");
 
                 waitHandle.WaitOne();
@@ -96,6 +115,7 @@ namespace DnsServerApp
                 Console.WriteLine("\r\nTechnitium DNS Server is stopping...");
 
                 service?.Dispose();
+                psr?.Dispose();
 
                 Console.WriteLine("Technitium DNS Server was stopped successfully.");
                 exitHandle.Set();

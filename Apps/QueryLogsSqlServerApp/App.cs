@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -37,6 +37,8 @@ namespace QueryLogsSqlServer
     public sealed class App : IDnsApplication, IDnsQueryLogger, IDnsQueryLogs
     {
         #region variables
+
+        readonly static JsonDocumentOptions _jsonParseOptions = new JsonDocumentOptions() { CommentHandling = JsonCommentHandling.Skip };
 
         IDnsServer? _dnsServer;
 
@@ -282,7 +284,10 @@ namespace QueryLogsSqlServer
 
                             if (log.Response.Answer.Count == 0)
                             {
-                                paramAnswer.Value = DBNull.Value;
+                                if (log.Response.Truncation)
+                                    paramAnswer.Value = "[TRUNCATED]";
+                                else
+                                    paramAnswer.Value = DBNull.Value;
                             }
                             else if ((log.Response.Answer.Count > 2) && log.Response.IsZoneTransfer)
                             {
@@ -323,13 +328,16 @@ namespace QueryLogsSqlServer
 
         #region public
 
-        public async Task InitializeAsync(IDnsServer dnsServer, string config)
+        public async Task InitializeAsync(IDnsServer dnsServer, string? config)
         {
             try
             {
                 _dnsServer = dnsServer;
 
-                using JsonDocument jsonDocument = JsonDocument.Parse(config);
+                if (config is null)
+                    throw new InvalidOperationException();
+
+                using JsonDocument jsonDocument = JsonDocument.Parse(config, _jsonParseOptions);
                 JsonElement jsonConfig = jsonDocument.RootElement;
 
                 bool enableLogging = jsonConfig.GetPropertyValue("enableLogging", false);
@@ -569,7 +577,7 @@ END
             return Task.CompletedTask;
         }
 
-        public async Task<DnsLogPage> QueryLogsAsync(long pageNumber, int entriesPerPage, bool descendingOrder, DateTime? start, DateTime? end, IPAddress clientIpAddress, DnsTransportProtocol? protocol, DnsServerResponseType? responseType, DnsResponseCode? rcode, string qname, DnsResourceRecordType? qtype, DnsClass? qclass)
+        public async Task<DnsLogPage> QueryLogsAsync(long pageNumber, int entriesPerPage, bool descendingOrder, DateTime? start, DateTime? end, IPAddress? clientIpAddress, DnsTransportProtocol? protocol, DnsServerResponseType? responseType, DnsResponseCode? rcode, string? qname, DnsResourceRecordType? qtype, DnsClass? qclass)
         {
             if (pageNumber == 0)
                 pageNumber = 1;
@@ -655,9 +663,9 @@ END
                         command.Parameters.AddWithValue("@qtype", (short)qtype);
 
                     if (qclass is not null)
-                        command.Parameters.AddWithValue("@qclass", (ushort)qclass);
+                        command.Parameters.AddWithValue("@qclass", (short)qclass);
 
-                    totalEntries = Convert.ToInt64(await command.ExecuteScalarAsync() ?? 0L);
+                    totalEntries = Convert.ToInt64(await command.ExecuteScalarAsync());
                 }
 
                 long totalPages = (totalEntries / entriesPerPage) + (totalEntries % entriesPerPage > 0 ? 1 : 0);
@@ -665,50 +673,34 @@ END
                 if ((pageNumber > totalPages) || (pageNumber < 0))
                     pageNumber = totalPages;
 
-                long endRowNum;
-                long startRowNum;
-
-                if (descendingOrder)
-                {
-                    endRowNum = totalEntries - ((pageNumber - 1) * entriesPerPage);
-                    startRowNum = endRowNum - entriesPerPage;
-                }
-                else
-                {
-                    endRowNum = pageNumber * entriesPerPage;
-                    startRowNum = endRowNum - entriesPerPage;
-                }
+                long offset = (pageNumber - 1) * entriesPerPage;
 
                 List<DnsLogEntry> entries = new List<DnsLogEntry>(entriesPerPage);
 
                 await using (SqlCommand command = connection.CreateCommand())
                 {
                     command.CommandText = @"
-SELECT * FROM (
-    SELECT
-        ROW_NUMBER() OVER ( 
-            ORDER BY dlid
-        ) row_num,
-        timestamp,
-        client_ip,
-        protocol,
-        response_type,
-        response_rtt,
-        rcode,
-        qname,
-        qtype,
-        qclass,
-        answer
-    FROM
-        dns_logs
-" + (string.IsNullOrEmpty(whereClause) ? "" : "WHERE " + whereClause) + @"
-) t
-WHERE 
-    row_num > @start_row_num AND row_num <= @end_row_num
-ORDER BY row_num" + (descendingOrder ? " DESC" : "");
+SELECT
+    dlid,
+    timestamp,
+    client_ip,
+    protocol,
+    response_type,
+    response_rtt,
+    rcode,
+    qname,
+    qtype,
+    qclass,
+    answer
+FROM
+    dns_logs
+" + (string.IsNullOrEmpty(whereClause) ? "" : "WHERE " + whereClause + " ") + @"
+ORDER BY dlid" + (descendingOrder ? " DESC" : "") + @"
+OFFSET @offset ROWS
+FETCH NEXT @limit ROWS ONLY";
 
-                    command.Parameters.AddWithValue("@start_row_num", startRowNum);
-                    command.Parameters.AddWithValue("@end_row_num", endRowNum);
+                    command.Parameters.AddWithValue("@limit", entriesPerPage);
+                    command.Parameters.AddWithValue("@offset", offset);
 
                     if (start is not null)
                         command.Parameters.AddWithValue("@start", start);
@@ -735,7 +727,9 @@ ORDER BY row_num" + (descendingOrder ? " DESC" : "");
                         command.Parameters.AddWithValue("@qtype", (short)qtype);
 
                     if (qclass is not null)
-                        command.Parameters.AddWithValue("@qclass", (ushort)qclass);
+                        command.Parameters.AddWithValue("@qclass", (short)qclass);
+
+                    long rowNumber = descendingOrder ? totalEntries - offset : offset + 1;
 
                     await using (SqlDataReader reader = await command.ExecuteReaderAsync())
                     {
@@ -762,7 +756,12 @@ ORDER BY row_num" + (descendingOrder ? " DESC" : "");
                             else
                                 answer = reader.GetString(10);
 
-                            entries.Add(new DnsLogEntry(reader.GetInt64(0), reader.GetDateTime(1), IPAddress.Parse(reader.GetString(2)), (DnsTransportProtocol)reader.GetByte(3), (DnsServerResponseType)reader.GetByte(4), responseRtt, (DnsResponseCode)reader.GetByte(6), question, answer));
+                            entries.Add(new DnsLogEntry(rowNumber, reader.GetDateTime(1), IPAddress.Parse(reader.GetString(2)), (DnsTransportProtocol)reader.GetByte(3), (DnsServerResponseType)reader.GetByte(4), responseRtt, (DnsResponseCode)reader.GetByte(6), question, answer));
+
+                            if (descendingOrder)
+                                rowNumber--;
+                            else
+                                rowNumber++;
                         }
                     }
                 }

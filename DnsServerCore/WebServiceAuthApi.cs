@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,12 +18,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.Auth;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.Tasks;
+using TechnitiumLibrary;
 using TechnitiumLibrary.Security.OTP;
 
 namespace DnsServerCore
@@ -51,18 +54,30 @@ namespace DnsServerCore
 
             private void WriteCurrentSessionDetails(Utf8JsonWriter jsonWriter, UserSession currentSession, bool includeInfo)
             {
-                if (currentSession.Type == UserSessionType.ApiToken)
+                switch (currentSession.Type)
                 {
-                    jsonWriter.WriteString("username", currentSession.User.Username);
-                    jsonWriter.WriteString("tokenName", currentSession.TokenName);
-                    jsonWriter.WriteString("token", currentSession.Token);
-                }
-                else
-                {
-                    jsonWriter.WriteString("displayName", currentSession.User.DisplayName);
-                    jsonWriter.WriteString("username", currentSession.User.Username);
-                    jsonWriter.WriteBoolean("totpEnabled", currentSession.User.TOTPEnabled);
-                    jsonWriter.WriteString("token", currentSession.Token);
+                    case UserSessionType.ApiToken:
+                    case UserSessionType.ClusterApiToken:
+                        jsonWriter.WriteString("username", currentSession.User.Username);
+                        jsonWriter.WriteString("tokenName", currentSession.TokenName);
+                        jsonWriter.WriteString("token", currentSession.Token);
+                        break;
+
+                    case UserSessionType.SingleUse:
+                        jsonWriter.WriteString("username", currentSession.User.Username);
+                        jsonWriter.WriteString("token", currentSession.Token);
+                        break;
+
+                    default:
+                        jsonWriter.WriteString("displayName", currentSession.User.DisplayName);
+                        jsonWriter.WriteString("username", currentSession.User.Username);
+                        jsonWriter.WriteBoolean("isSsoUser", currentSession.User.IsSsoUser);
+
+                        if (!currentSession.User.IsSsoUser)
+                            jsonWriter.WriteBoolean("totpEnabled", currentSession.User.TOTPEnabled);
+
+                        jsonWriter.WriteString("token", currentSession.Token);
+                        break;
                 }
 
                 if (includeInfo)
@@ -73,6 +88,8 @@ namespace DnsServerCore
                     jsonWriter.WriteString("uptimestamp", _dnsWebService._uptimestamp);
                     jsonWriter.WriteString("dnsServerDomain", _dnsWebService._dnsServer.ServerDomain);
                     jsonWriter.WriteNumber("defaultRecordTtl", _dnsWebService._dnsServer.AuthZoneManager.DefaultRecordTtl);
+                    jsonWriter.WriteNumber("defaultNsRecordTtl", _dnsWebService._dnsServer.AuthZoneManager.DefaultNsRecordTtl);
+                    jsonWriter.WriteNumber("defaultSoaRecordTtl", _dnsWebService._dnsServer.AuthZoneManager.DefaultSoaRecordTtl);
                     jsonWriter.WriteBoolean("useSoaSerialDateScheme", _dnsWebService._dnsServer.AuthZoneManager.UseSoaSerialDateScheme);
                     jsonWriter.WriteBoolean("dnssecValidation", _dnsWebService._dnsServer.DnssecValidation);
 
@@ -111,7 +128,11 @@ namespace DnsServerCore
             {
                 jsonWriter.WriteString("displayName", user.DisplayName);
                 jsonWriter.WriteString("username", user.Username);
-                jsonWriter.WriteBoolean("totpEnabled", user.TOTPEnabled);
+                jsonWriter.WriteBoolean("isSsoUser", user.IsSsoUser);
+
+                if (!user.IsSsoUser)
+                    jsonWriter.WriteBoolean("totpEnabled", user.TOTPEnabled);
+
                 jsonWriter.WriteBoolean("disabled", user.Disabled);
                 jsonWriter.WriteString("previousSessionLoggedOn", user.PreviousSessionLoggedOn);
                 jsonWriter.WriteString("previousSessionRemoteAddress", user.PreviousSessionRemoteAddress.ToString());
@@ -121,6 +142,7 @@ namespace DnsServerCore
                 if (includeMoreDetails)
                 {
                     jsonWriter.WriteNumber("sessionTimeoutSeconds", user.SessionTimeoutSeconds);
+                    jsonWriter.WriteBoolean("ssoManagedGroups", _dnsWebService._authManager.SsoManagedGroups);
 
                     jsonWriter.WritePropertyName("memberOfGroups");
                     jsonWriter.WriteStartArray();
@@ -210,11 +232,18 @@ namespace DnsServerCore
                     List<User> users = new List<User>(_dnsWebService._authManager.Users);
                     users.Sort();
 
+                    bool ssoManagedGroups = _dnsWebService._authManager.SsoManagedGroups;
+
                     jsonWriter.WritePropertyName("users");
                     jsonWriter.WriteStartArray();
 
                     foreach (User user in users)
+                    {
+                        if (ssoManagedGroups & user.IsSsoUser)
+                            continue; //skip sso users if groups are sso managed
+
                         jsonWriter.WriteStringValue(user.Username);
+                    }
 
                     jsonWriter.WriteEndArray();
                 }
@@ -301,9 +330,329 @@ namespace DnsServerCore
                 }
             }
 
+            private void WriteSsoConfig(Utf8JsonWriter jsonWriter, bool includeGroups)
+            {
+                jsonWriter.WriteBoolean("ssoEnabled", _dnsWebService._authManager.SsoEnabled);
+                jsonWriter.WriteString("ssoAuthority", _dnsWebService._authManager.SsoAuthority?.OriginalString);
+                jsonWriter.WriteString("ssoClientId", _dnsWebService._authManager.SsoClientId);
+                jsonWriter.WriteString("ssoClientSecret", "************");
+                jsonWriter.WriteString("ssoMetadataAddress", _dnsWebService._authManager.SsoMetadataAddress?.OriginalString);
+                jsonWriter.WriteBoolean("ssoAllowSignup", _dnsWebService._authManager.SsoAllowSignup);
+                jsonWriter.WriteBoolean("ssoAllowSignupOnlyForMappedUsers", _dnsWebService._authManager.SsoAllowSignupOnlyForMappedUsers);
+
+                jsonWriter.WriteStartArray("ssoGroupMap");
+
+                IReadOnlyDictionary<string, string> ssoGroupMap = _dnsWebService._authManager.SsoGroupMap;
+                if (ssoGroupMap is not null)
+                {
+                    foreach (KeyValuePair<string, string> entry in ssoGroupMap)
+                    {
+                        jsonWriter.WriteStartObject();
+
+                        jsonWriter.WriteString("remoteGroup", entry.Key);
+                        jsonWriter.WriteString("localGroup", entry.Value);
+
+                        jsonWriter.WriteEndObject();
+                    }
+                }
+
+                jsonWriter.WriteEndArray();
+
+                if (includeGroups)
+                {
+                    List<Group> groups = new List<Group>(_dnsWebService._authManager.Groups);
+                    groups.Sort();
+
+                    jsonWriter.WriteStartArray("localGroups");
+
+                    foreach (Group group in groups)
+                    {
+                        if (group.Name.Equals("Everyone", StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        jsonWriter.WriteStringValue(group.Name);
+                    }
+
+                    jsonWriter.WriteEndArray();
+                }
+            }
+
+            private static string GetUniqueClaimsList(IEnumerable<Claim> claims)
+            {
+                List<string> claimsList = new List<string>(10);
+
+                foreach (Claim claim in claims)
+                {
+                    if (!claimsList.Contains(claim.Type))
+                        claimsList.Add(claim.Type);
+                }
+
+                claimsList.Sort();
+
+                return claimsList.Join();
+            }
+
+            private static string GetUserInfoString(string displayName, string username, string email)
+            {
+                string userInfo = "";
+
+                if (displayName is not null)
+                    userInfo = "displayName: " + displayName + "; ";
+
+                if (username is not null)
+                    userInfo += "username: " + username + "; ";
+
+                if (email is not null)
+                    userInfo += "email: " + email + "; ";
+
+                return userInfo.TrimEnd();
+            }
+
             #endregion
 
             #region public
+
+            public async Task SsoLoginAsync(HttpContext context)
+            {
+                try
+                {
+                    await context.ChallengeAsync();
+                }
+                catch (Exception ex)
+                {
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), ex);
+                    context.Response.Redirect("/#error=" + Uri.EscapeDataString("Failed to reach SSO provider. Please contact your administrator."));
+                }
+            }
+
+            public async Task SsoStatusAsync(HttpContext context)
+            {
+                Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+
+                jsonWriter.WriteBoolean("ssoEnabled", _dnsWebService._ssoEnabled);
+            }
+
+            public async Task SsoLoginFinalizeAsync(HttpContext context, ClaimsPrincipal principal)
+            {
+                try
+                {
+                    IPEndPoint remoteEP = context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader);
+
+                    string ssoIdentifier = principal.FindFirst("sub")?.Value
+                        ?? principal.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                        ?? principal.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value;
+
+                    if (string.IsNullOrEmpty(ssoIdentifier))
+                    {
+                        _dnsWebService._log.Write(remoteEP, "SSO provider did not return name identifier (received claims: " + GetUniqueClaimsList(principal.Claims) + ").");
+
+                        context.Response.Redirect("/#error=" + Uri.EscapeDataString("SSO provider did not return name identifier information. Please contact your administrator."));
+                        return;
+                    }
+
+                    string email = principal.FindFirst("email")?.Value
+                       ?? principal.FindFirst(ClaimTypes.Email)?.Value;
+
+                    string username = principal.FindFirst("preferred_username")?.Value
+                        ?? principal.FindFirst("upn")?.Value
+                        ?? principal.FindFirst(ClaimTypes.Upn)?.Value
+                        ?? principal.FindFirst("nickname")?.Value;
+
+                    string displayName = principal.FindFirst("name")?.Value
+                        ?? principal.FindFirst(ClaimTypes.Name)?.Value
+                        ?? principal.FindFirst(ClaimTypes.GivenName)?.Value;
+
+                    List<string> remoteGroups = new List<string>();
+
+                    foreach (Claim claim in principal.Claims)
+                    {
+                        switch (claim.Type)
+                        {
+                            case "groups":
+                            case "roles":
+                            case ClaimTypes.Role:
+                                remoteGroups.Add(claim.Value);
+                                break;
+                        }
+                    }
+
+                    bool newSsoUserCreated = false;
+                    string currentUsername = null;
+                    string newUsername = null;
+                    IReadOnlyCollection<string> memberOfGroups = null;
+
+                    User user = _dnsWebService._authManager.GetSsoUser(ssoIdentifier);
+                    if (user is null)
+                    {
+                        if (!_dnsWebService._authManager.SsoAllowSignup)
+                        {
+                            string userInfo = GetUserInfoString(displayName, username, email);
+                            _dnsWebService._log.Write(remoteEP, "SSO authentication succeeded but new user sign up is disabled" + (userInfo.Length == 0 ? "." : " (" + userInfo + ")."));
+
+                            context.Response.Redirect("/#error=" + Uri.EscapeDataString("SSO authentication succeeded but new user sign up is disabled. Please contact your administrator."));
+                            return;
+                        }
+
+                        if (_dnsWebService._authManager.SsoAllowSignupOnlyForMappedUsers)
+                        {
+                            bool foundMappedLocalGroup = false;
+
+                            IReadOnlyDictionary<string, string> ssoGroupMap = _dnsWebService._authManager.SsoGroupMap;
+                            if (ssoGroupMap is not null)
+                            {
+                                foreach (string remoteGroup in remoteGroups)
+                                {
+                                    if (ssoGroupMap.TryGetValue(remoteGroup, out string localGroup))
+                                    {
+                                        Group group = _dnsWebService._authManager.GetGroup(localGroup);
+                                        if (group is not null)
+                                        {
+                                            foundMappedLocalGroup = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (!foundMappedLocalGroup)
+                            {
+                                string userInfo = GetUserInfoString(displayName, username, email);
+                                _dnsWebService._log.Write(remoteEP, "SSO authentication succeeded but new user sign up is restricted only to members of mapped groups" + (userInfo.Length == 0 ? "." : " (" + userInfo + ")."));
+
+                                context.Response.Redirect("/#error=" + Uri.EscapeDataString("SSO authentication succeeded but new user sign up is restricted only to members of mapped groups. Please contact your administrator."));
+                                return;
+                            }
+                        }
+
+                        //find available local username
+                        string localUsername = null;
+
+                        if (User.IsUsernameValid(email) && (_dnsWebService._authManager.GetUser(email) is null))
+                            localUsername = email;
+                        else if (User.IsUsernameValid(username) && (_dnsWebService._authManager.GetUser(username) is null))
+                            localUsername = username;
+
+                        if (localUsername is null)
+                        {
+                            string userInfo = GetUserInfoString(displayName, username, email);
+                            _dnsWebService._log.Write(remoteEP, "SSO authentication succeeded but new user sign up failed due to unavailable username" + (userInfo.Length == 0 ? "." : " (" + userInfo + ")."));
+
+                            context.Response.Redirect("/#error=" + Uri.EscapeDataString("SSO authentication succeeded but new user sign up failed due to unavailable username. Please contact your administrator."));
+                            return;
+                        }
+
+                        //create new user
+                        user = _dnsWebService._authManager.CreateSsoUser(displayName, localUsername, ssoIdentifier);
+                        newSsoUserCreated = true;
+
+                        _dnsWebService._log.Write(remoteEP, "SSO user account was created successfully with username: " + user.Username);
+                    }
+                    else
+                    {
+                        if (user.Disabled)
+                        {
+                            _dnsWebService._log.Write(remoteEP, "[" + user.Username + "] SSO user failed to log in due to disabled local account.");
+
+                            context.Response.Redirect("/#error=" + Uri.EscapeDataString("User account is disabled. Please contact your administrator."));
+                            return;
+                        }
+
+                        currentUsername = user.Username;
+
+                        //sync username
+                        if (!user.Username.Equals(email, StringComparison.OrdinalIgnoreCase) && !user.Username.Equals(username, StringComparison.OrdinalIgnoreCase))
+                        {
+                            //find available local username
+                            if (User.IsUsernameValid(email) && (_dnsWebService._authManager.GetUser(email) is null))
+                                newUsername = email;
+                            else if (User.IsUsernameValid(username) && (_dnsWebService._authManager.GetUser(username) is null))
+                                newUsername = username;
+
+                            if (newUsername is not null)
+                            {
+                                _dnsWebService._authManager.ChangeUsername(user, newUsername);
+
+                                _dnsWebService._log.Write(remoteEP, $"SSO user account's username was changed from '{currentUsername}' to '{user.Username}'.");
+                            }
+                        }
+
+                        //sync display name
+                        if (!user.DisplayName.Equals(displayName, StringComparison.Ordinal))
+                            user.DisplayName = displayName;
+                    }
+
+                    //sync group membership
+                    {
+                        IReadOnlyDictionary<string, string> ssoGroupMap = _dnsWebService._authManager.SsoGroupMap;
+                        if (ssoGroupMap is not null)
+                        {
+                            Dictionary<string, Group> groups = new Dictionary<string, Group>(remoteGroups.Count + 1);
+
+                            foreach (string remoteGroup in remoteGroups)
+                            {
+                                if (ssoGroupMap.TryGetValue(remoteGroup, out string localGroup))
+                                {
+                                    Group group = _dnsWebService._authManager.GetGroup(localGroup);
+                                    if (group is not null)
+                                        groups.TryAdd(group.Name.ToLowerInvariant(), group);
+                                }
+                            }
+
+                            Group everyone = _dnsWebService._authManager.GetGroup(Group.EVERYONE);
+                            groups[everyone.Name.ToLowerInvariant()] = everyone;
+
+                            user.SyncGroups(groups);
+                            memberOfGroups = groups.Keys;
+                        }
+                    }
+
+                    //create session
+                    UserSession session = _dnsWebService._authManager.CreateSession(UserSessionType.Standard, null, user, remoteEP.Address, context.Request.Headers.UserAgent);
+
+                    _dnsWebService._log.Write(remoteEP, "[" + session.User.Username + "] SSO user logged in.");
+
+                    _dnsWebService._authManager.SaveConfigFile();
+
+                    //trigger cluster update
+                    if (_dnsWebService._clusterManager.ClusterInitialized)
+                    {
+                        if (_dnsWebService._clusterManager.GetSelfNode().Type == Cluster.ClusterNodeType.Primary)
+                        {
+                            //trigger notify
+                            _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodes();
+                        }
+                        else
+                        {
+                            //async update primary node
+                            async Task UpdatePrimaryNodeAsync()
+                            {
+                                try
+                                {
+                                    if (newSsoUserCreated)
+                                        await _dnsWebService._clusterManager.GetPrimaryNode().CreateSsoUserAsync(user.SsoIdentifier, user.Username, user.DisplayName, memberOfGroups);
+                                    else
+                                        await _dnsWebService._clusterManager.GetPrimaryNode().SetSsoUserAsync(currentUsername, newUsername, user.DisplayName, memberOfGroups);
+                                }
+                                catch (Exception ex)
+                                {
+                                    _dnsWebService._log.Write(remoteEP, ex);
+                                }
+                            }
+
+                            _ = UpdatePrimaryNodeAsync();
+                        }
+                    }
+
+                    context.Response.Cookies.Append("token", session.Token, new CookieOptions() { MaxAge = TimeSpan.FromMinutes(2) });
+                    context.Response.Redirect("/");
+                }
+                catch (Exception ex)
+                {
+                    _dnsWebService._log.Write(ex);
+
+                    context.Response.Redirect("/#error=" + Uri.EscapeDataString("An error occurred while logging in with SSO user. Please contact your administrator."));
+                }
+            }
 
             public async Task LoginAsync(HttpContext context, UserSessionType sessionType)
             {
@@ -313,7 +662,7 @@ namespace DnsServerCore
                 string password = request.GetQueryOrForm("pass");
                 string totp = request.GetQueryOrForm("totp", null);
                 string tokenName = (sessionType == UserSessionType.ApiToken) ? request.GetQueryOrForm("tokenName") : null;
-                bool includeInfo = request.GetQueryOrForm("includeInfo", bool.Parse, false);
+                bool includeInfo = (sessionType == UserSessionType.Standard) && request.GetQueryOrForm("includeInfo", bool.Parse, false);
                 IPEndPoint remoteEP = context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader);
 
                 UserSession session = await _dnsWebService._authManager.CreateSessionAsync(sessionType, tokenName, username, password, totp, remoteEP.Address, request.Headers.UserAgent);
@@ -333,11 +682,43 @@ namespace DnsServerCore
                 WriteCurrentSessionDetails(jsonWriter, session, includeInfo);
             }
 
+            public Task CreateToken(HttpContext context)
+            {
+                if (_dnsWebService.TryValidateSession(context, out UserSession _))
+                {
+                    User sessionUser = _dnsWebService.GetSessionUser(context, true);
+                    HttpRequest request = context.Request;
+
+                    string tokenName = request.GetQueryOrForm("tokenName");
+                    IPEndPoint remoteEP = context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader);
+
+                    UserSession createdSession = _dnsWebService._authManager.CreateSession(UserSessionType.ApiToken, tokenName, sessionUser, remoteEP.Address, context.Request.Headers.UserAgent);
+
+                    Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+                    WriteCurrentSessionDetails(jsonWriter, createdSession, false);
+
+                    return Task.CompletedTask;
+                }
+                else
+                {
+                    return LoginAsync(context, UserSessionType.ApiToken);
+                }
+            }
+
+            public void CreateSingleUseToken(HttpContext context)
+            {
+                User sessionUser = _dnsWebService.GetSessionUser(context, true);
+                IPEndPoint remoteEP = context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader);
+
+                UserSession createdSession = _dnsWebService._authManager.CreateSession(UserSessionType.SingleUse, null, sessionUser, remoteEP.Address, context.Request.Headers.UserAgent);
+
+                Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+                WriteCurrentSessionDetails(jsonWriter, createdSession, false);
+            }
+
             public void Logout(HttpContext context)
             {
-                string token = context.Request.GetQueryOrForm("token");
-
-                UserSession session = _dnsWebService._authManager.DeleteSession(token);
+                UserSession session = _dnsWebService._authManager.DeleteSession(GetAuthorizationToken(context.Request));
                 if (session is not null)
                 {
                     _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + session.User.Username + "] User logged out.");
@@ -446,8 +827,13 @@ namespace DnsServerCore
                 User sessionUser = _dnsWebService.GetSessionUser(context, true);
                 HttpRequest request = context.Request;
 
-                if (request.TryGetQueryOrForm("displayName", out string displayName))
+                if (request.TryQueryOrForm("displayName", out string displayName))
+                {
+                    if (sessionUser.IsSsoUser)
+                        throw new DnsWebServiceException("Cannot update user profile: SSO user's display name is managed by SSO provider.");
+
                     sessionUser.DisplayName = displayName;
+                }
 
                 if (request.TryGetQueryOrForm("sessionTimeoutSeconds", int.Parse, out int sessionTimeoutSeconds))
                     sessionUser.SessionTimeoutSeconds = sessionTimeoutSeconds;
@@ -506,7 +892,7 @@ namespace DnsServerCore
 
                 IPEndPoint remoteEP = context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader);
 
-                UserSession createdSession = _dnsWebService._authManager.CreateApiToken(tokenName, username, remoteEP.Address, request.Headers.UserAgent);
+                UserSession createdSession = _dnsWebService._authManager.CreateSession(UserSessionType.ApiToken, tokenName, username, remoteEP.Address, request.Headers.UserAgent);
 
                 _dnsWebService._log.Write(remoteEP, "[" + sessionUser.Username + "] API token [" + tokenName + "] was created successfully for user: " + username);
 
@@ -535,7 +921,7 @@ namespace DnsServerCore
 
                 string strPartialToken = context.Request.GetQueryOrForm("partialToken");
                 if (session.Token.StartsWith(strPartialToken))
-                    throw new InvalidOperationException("Invalid operation: cannot delete current session.");
+                    throw new DnsWebServiceException("Invalid operation: cannot delete current session.");
 
                 UserSession sessionToDelete = null;
 
@@ -559,13 +945,16 @@ namespace DnsServerCore
 
                 if (_dnsWebService._clusterManager.ClusterInitialized)
                 {
-                    if (sessionToDelete.Type == UserSessionType.ApiToken)
+                    switch (sessionToDelete.Type)
                     {
-                        if (sessionToDelete.TokenName.Equals(_dnsWebService._clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
-                            throw new DnsWebServiceException("Invalid operation: cannot delete the Cluster API token.");
+                        case UserSessionType.ApiToken:
+                            if (_dnsWebService._clusterManager.GetSelfNode().Type != Cluster.ClusterNodeType.Primary)
+                                throw new DnsWebServiceException("API tokens can be deleted only on the Primary node.");
 
-                        if (_dnsWebService._clusterManager.GetSelfNode().Type != Cluster.ClusterNodeType.Primary)
-                            throw new DnsWebServiceException("API tokens can be deleted only on the Primary node.");
+                            break;
+
+                        case UserSessionType.ClusterApiToken:
+                            throw new DnsWebServiceException("Invalid operation: cannot delete the Cluster API token.");
                     }
                 }
 
@@ -673,39 +1062,31 @@ namespace DnsServerCore
 
                 try
                 {
-                    if (request.TryGetQueryOrForm("displayName", out string displayName))
-                        user.DisplayName = displayName;
-
                     if (request.TryGetQueryOrForm("newUser", out string newUsername))
+                    {
+                        if (user.IsSsoUser)
+                            throw new DnsWebServiceException("Cannot update user profile: SSO user's username is managed by SSO provider.");
+
                         _dnsWebService._authManager.ChangeUsername(user, newUsername);
+
+                        _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), $"User account's username was changed from '{username}' to '{user.Username}'.");
+                    }
+
+                    if (request.TryQueryOrForm("displayName", out string displayName))
+                    {
+                        if (user.IsSsoUser)
+                            throw new DnsWebServiceException("Cannot update user profile: SSO user's display name is managed by SSO provider.");
+
+                        user.DisplayName = displayName;
+                    }
 
                     if (request.TryGetQueryOrForm("totpEnabled", bool.Parse, out bool totpEnabled))
                     {
                         if (totpEnabled)
-                            throw new InvalidOperationException("Time-based one-time password (TOTP) can be enabled only by the user themself.");
+                            throw new DnsWebServiceException("Time-based one-time password (TOTP) can be enabled only by the user themselves.");
 
                         user.DisableTOTP();
                     }
-
-                    if (request.TryGetQueryOrForm("disabled", bool.Parse, out bool disabled) && (sessionUser != user)) //to avoid self lockout
-                    {
-                        user.Disabled = disabled;
-
-                        if (user.Disabled)
-                        {
-                            foreach (UserSession userSession in _dnsWebService._authManager.Sessions)
-                            {
-                                if (userSession.Type == UserSessionType.ApiToken)
-                                    continue;
-
-                                if (userSession.User == user)
-                                    _dnsWebService._authManager.DeleteSession(userSession.Token);
-                            }
-                        }
-                    }
-
-                    if (request.TryGetQueryOrForm("sessionTimeoutSeconds", int.Parse, out int sessionTimeoutSeconds))
-                        user.SessionTimeoutSeconds = sessionTimeoutSeconds;
 
                     string newPassword = request.QueryOrForm("newPass");
                     if (!string.IsNullOrWhiteSpace(newPassword))
@@ -715,17 +1096,16 @@ namespace DnsServerCore
                         user.ChangePassword(newPassword, iterations);
                     }
 
-                    string memberOfGroups = request.QueryOrForm("memberOfGroups");
-                    if (memberOfGroups is not null)
+                    if (request.TryQueryOrForm("memberOfGroups", out string memberOfGroups))
                     {
-                        string[] parts = memberOfGroups.Split(',');
+                        if (user.IsSsoUser && _dnsWebService._authManager.SsoManagedGroups)
+                            throw new DnsWebServiceException("Cannot update user profile: SSO user's group membership is managed by SSO provider.");
+
+                        string[] parts = memberOfGroups.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                         Dictionary<string, Group> groups = new Dictionary<string, Group>(parts.Length);
 
                         foreach (string part in parts)
                         {
-                            if (part.Length == 0)
-                                continue;
-
                             Group group = _dnsWebService._authManager.GetGroup(part);
                             if (group is null)
                                 throw new DnsWebServiceException("No such group exists: " + part);
@@ -737,8 +1117,28 @@ namespace DnsServerCore
                         Group everyone = _dnsWebService._authManager.GetGroup(Group.EVERYONE);
                         groups[everyone.Name.ToLowerInvariant()] = everyone;
 
-                        if (sessionUser == user)
+                        bool isClusterUser = false;
+
+                        if (!user.IsSsoUser)
                         {
+                            List<UserSession> userSessions = _dnsWebService._authManager.GetSessions(user);
+
+                            if (_dnsWebService._clusterManager.ClusterInitialized)
+                            {
+                                foreach (UserSession userSession in userSessions)
+                                {
+                                    if (userSession.Type == UserSessionType.ClusterApiToken)
+                                    {
+                                        isClusterUser = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (isClusterUser || (sessionUser == user))
+                        {
+                            //ensure cluster user is always a member of administrators group
                             //ensure current admin user is member of administrators group to avoid self lockout
                             Group admins = _dnsWebService._authManager.GetGroup(Group.ADMINISTRATORS);
                             groups[admins.Name.ToLowerInvariant()] = admins;
@@ -746,6 +1146,58 @@ namespace DnsServerCore
 
                         user.SyncGroups(groups);
                     }
+
+                    if (request.TryGetQueryOrForm("disabled", bool.Parse, out bool disabled))
+                    {
+                        if (disabled && (sessionUser == user)) //to avoid self lockout
+                            throw new DnsWebServiceException("Cannot update user profile: cannot disable current user's account.");
+
+                        bool isClusterUser = false;
+                        List<UserSession> userSessions = null;
+
+                        if (!user.IsSsoUser)
+                        {
+                            if (_dnsWebService._clusterManager.ClusterInitialized)
+                            {
+                                userSessions = _dnsWebService._authManager.GetSessions(user);
+
+                                foreach (UserSession userSession in userSessions)
+                                {
+                                    if (userSession.Type == UserSessionType.ClusterApiToken)
+                                    {
+                                        isClusterUser = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (!isClusterUser)
+                        {
+                            user.Disabled = disabled;
+
+                            if (user.Disabled)
+                            {
+                                if (userSessions is null)
+                                    userSessions = _dnsWebService._authManager.GetSessions(user);
+
+                                foreach (UserSession userSession in userSessions)
+                                {
+                                    switch (userSession.Type)
+                                    {
+                                        case UserSessionType.Standard:
+                                        case UserSessionType.SingleUse:
+                                            //logout user session
+                                            _dnsWebService._authManager.DeleteSession(userSession.Token);
+                                            break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (request.TryGetQueryOrForm("sessionTimeoutSeconds", int.Parse, out int sessionTimeoutSeconds))
+                        user.SessionTimeoutSeconds = sessionTimeoutSeconds;
                 }
                 finally
                 {
@@ -774,7 +1226,29 @@ namespace DnsServerCore
                 string username = context.Request.GetQueryOrForm("user");
 
                 if (sessionUser.Username.Equals(username, StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidOperationException("Invalid operation: cannot delete current user.");
+                    throw new DnsWebServiceException("Invalid operation: cannot delete current user.");
+
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                {
+                    User userToDelete = _dnsWebService._authManager.GetUser(username);
+                    if (userToDelete is null)
+                        throw new DnsWebServiceException("No such user exists: " + username);
+
+                    List<UserSession> userSessions = _dnsWebService.AuthManager.GetSessions(userToDelete);
+                    bool isClusterUser = false;
+
+                    foreach (UserSession existingSession in userSessions)
+                    {
+                        if (existingSession.Type == UserSessionType.ClusterApiToken)
+                        {
+                            isClusterUser = true;
+                            break;
+                        }
+                    }
+
+                    if (isClusterUser)
+                        throw new DnsWebServiceException("Invalid operation: cannot delete a user who initialized the Cluster and owns the Cluster API token.");
+                }
 
                 if (!_dnsWebService._authManager.DeleteUser(username))
                     throw new DnsWebServiceException("Failed to delete user: " + username);
@@ -879,43 +1353,56 @@ namespace DnsServerCore
                 if (group is null)
                     throw new DnsWebServiceException("No such group exists: " + groupName);
 
-                if (request.TryGetQueryOrForm("newGroup", out string newGroup))
-                    _dnsWebService._authManager.RenameGroup(group, newGroup);
-
-                if (request.TryGetQueryOrForm("description", out string description))
-                    group.Description = description;
-
-                string members = request.QueryOrForm("members");
-                if (members is not null)
+                try
                 {
-                    string[] parts = members.Split(',');
-                    Dictionary<string, User> users = new Dictionary<string, User>();
-
-                    foreach (string part in parts)
+                    if (request.TryGetQueryOrForm("newGroup", out string newGroup))
                     {
-                        if (part.Length == 0)
-                            continue;
+                        _dnsWebService._authManager.RenameGroup(group, newGroup);
 
-                        User user = _dnsWebService._authManager.GetUser(part);
-                        if (user is null)
-                            throw new DnsWebServiceException("No such user exists: " + part);
-
-                        users.Add(user.Username, user);
+                        _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), $"Group name was changed from '{groupName}' to '{group.Name}'.");
                     }
 
-                    if (group.Name.Equals("administrators", StringComparison.OrdinalIgnoreCase))
-                        users[sessionUser.Username] = sessionUser; //ensure current admin user is member of administrators group to avoid self lockout
+                    if (request.TryGetQueryOrForm("description", out string description))
+                        group.Description = description;
 
-                    _dnsWebService._authManager.SyncGroupMembers(group, users);
+                    string members = request.QueryOrForm("members");
+                    if (members is not null)
+                    {
+                        string[] parts = members.Split(',');
+                        bool ssoManagedGroups = _dnsWebService._authManager.SsoManagedGroups;
+                        Dictionary<string, User> users = new Dictionary<string, User>();
+
+                        foreach (string part in parts)
+                        {
+                            if (part.Length == 0)
+                                continue;
+
+                            User user = _dnsWebService._authManager.GetUser(part);
+                            if (user is null)
+                                throw new DnsWebServiceException("No such user exists: " + part);
+
+                            if (ssoManagedGroups && user.IsSsoUser && !user.IsMemberOfGroup(group))
+                                throw new DnsWebServiceException("Cannot add user '" + user.Username + "' since group memberships for SSO users are managed by the SSO provider.");
+
+                            users.Add(user.Username, user);
+                        }
+
+                        if (group.Name.Equals("administrators", StringComparison.OrdinalIgnoreCase))
+                            users[sessionUser.Username] = sessionUser; //ensure current admin user is member of administrators group to avoid self lockout
+
+                        _dnsWebService._authManager.SyncGroupMembers(group, users);
+                    }
                 }
+                finally
+                {
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Group details were updated successfully for group: " + groupName);
 
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] Group details were updated successfully for group: " + groupName);
+                    _dnsWebService._authManager.SaveConfigFile();
 
-                _dnsWebService._authManager.SaveConfigFile();
-
-                //trigger cluster update
-                if (_dnsWebService._clusterManager.ClusterInitialized)
-                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
+                    //trigger cluster update
+                    if (_dnsWebService._clusterManager.ClusterInitialized)
+                        _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
+                }
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteGroupDetails(jsonWriter, group, true, false);
@@ -1166,6 +1653,246 @@ namespace DnsServerCore
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WritePermissionDetails(jsonWriter, permission, strSubItem, false);
+            }
+
+            public void GetSsoConfig(HttpContext context)
+            {
+                User sessionUser = _dnsWebService.GetSessionUser(context);
+
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.View))
+                    throw new DnsWebServiceException("Access was denied.");
+
+                bool includeGroups = context.Request.GetQueryOrForm("includeGroups", bool.Parse, false);
+
+                Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+                WriteSsoConfig(jsonWriter, includeGroups);
+            }
+
+            public void SetSsoConfig(HttpContext context)
+            {
+                User sessionUser = _dnsWebService.GetSessionUser(context);
+
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Delete))
+                    throw new DnsWebServiceException("Access was denied.");
+
+                static Uri ParseUri(string strUri)
+                {
+                    if (string.IsNullOrEmpty(strUri))
+                        return null;
+
+                    return new Uri(strUri);
+                }
+
+                HttpRequest request = context.Request;
+                bool ssoIsStillDisabled = false;
+                bool restartWebService = false;
+
+                if (request.TryGetQueryOrForm("ssoEnabled", bool.Parse, out bool ssoEnabled))
+                {
+                    if (_dnsWebService._authManager.SsoEnabled == ssoEnabled)
+                    {
+                        ssoIsStillDisabled = !ssoEnabled;
+                    }
+                    else
+                    {
+                        _dnsWebService._authManager.SsoEnabled = ssoEnabled;
+                        restartWebService = true;
+                    }
+                }
+
+                if (request.TryQueryOrForm("ssoAuthority", ParseUri, out Uri ssoAuthority))
+                {
+                    if (_dnsWebService._authManager.SsoAuthority != ssoAuthority)
+                    {
+                        _dnsWebService._authManager.SsoAuthority = ssoAuthority;
+                        restartWebService = true;
+                    }
+                }
+
+                if (request.TryQueryOrForm("ssoClientId", out string ssoClientId))
+                {
+                    if (_dnsWebService._authManager.SsoClientId != ssoClientId)
+                    {
+                        _dnsWebService._authManager.SsoClientId = ssoClientId;
+                        restartWebService = true;
+                    }
+                }
+
+                if (request.TryQueryOrForm("ssoClientSecret", out string ssoClientSecret))
+                {
+                    if ((ssoClientSecret != "************") && (_dnsWebService._authManager.SsoClientSecret != ssoClientSecret))
+                    {
+                        _dnsWebService._authManager.SsoClientSecret = ssoClientSecret;
+                        restartWebService = true;
+                    }
+                }
+
+                if (request.TryQueryOrForm("ssoMetadataAddress", ParseUri, out Uri ssoMetadataAddress))
+                {
+                    if (_dnsWebService._authManager.SsoMetadataAddress != ssoMetadataAddress)
+                    {
+                        _dnsWebService._authManager.SsoMetadataAddress = ssoMetadataAddress;
+                        restartWebService = true;
+                    }
+                }
+
+                if (request.TryGetQueryOrForm("ssoAllowSignup", bool.Parse, out bool ssoAllowSignup))
+                    _dnsWebService._authManager.SsoAllowSignup = ssoAllowSignup;
+
+                if (request.TryGetQueryOrForm("ssoAllowSignupOnlyForMappedUsers", bool.Parse, out bool ssoAllowSignupOnlyForMappedUsers))
+                    _dnsWebService._authManager.SsoAllowSignupOnlyForMappedUsers = ssoAllowSignupOnlyForMappedUsers;
+
+                if (request.TryQueryOrFormArray("ssoGroupMap", delegate (ArraySegment<string> tableRow)
+                    {
+                        return new KeyValuePair<string, string>(tableRow[0], tableRow[1]);
+                    }, 2, out KeyValuePair<string, string>[] ssoGroupMapEntries, '|'))
+                {
+                    _dnsWebService._authManager.SsoGroupMap = new Dictionary<string, string>(ssoGroupMapEntries);
+                }
+
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] SSO config was updated successfully.");
+
+                _dnsWebService._authManager.SaveConfigFile();
+
+                //trigger cluster update
+                if (_dnsWebService._clusterManager.ClusterInitialized)
+                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
+
+                Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+                WriteSsoConfig(jsonWriter, false);
+
+                if (!ssoIsStillDisabled && restartWebService)
+                    _dnsWebService.RestartService(false, true);
+            }
+
+            public void CreateSsoUser(HttpContext context)
+            {
+                //this API call can be called only using Cluster API token
+                if (!_dnsWebService._clusterManager.ClusterInitialized)
+                    throw new DnsWebServiceException("Cluster is not initialized.");
+
+                UserSession session = context.GetCurrentSession();
+
+                if (session.Type != UserSessionType.ClusterApiToken)
+                    throw new DnsWebServiceException("Access was denied.");
+
+                User sessionUser = session.User;
+
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Modify))
+                    throw new DnsWebServiceException("Access was denied.");
+
+                HttpRequest request = context.Request;
+
+                string username = request.GetQueryOrForm("user");
+                string displayName = request.GetQueryOrForm("displayName", username);
+                string ssoIdentifier = request.GetQueryOrForm("ssoIdentifier");
+
+                User user = _dnsWebService._authManager.CreateSsoUser(displayName, username, ssoIdentifier);
+
+                if (request.TryQueryOrForm("memberOfGroups", out string memberOfGroups))
+                {
+                    string[] parts = memberOfGroups.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    Dictionary<string, Group> groups = new Dictionary<string, Group>(parts.Length);
+
+                    foreach (string part in parts)
+                    {
+                        Group group = _dnsWebService._authManager.GetGroup(part);
+                        if (group is null)
+                            throw new DnsWebServiceException("No such group exists: " + part);
+
+                        groups.Add(group.Name.ToLowerInvariant(), group);
+                    }
+
+                    //ensure user is member of everyone group
+                    Group everyone = _dnsWebService._authManager.GetGroup(Group.EVERYONE);
+                    groups[everyone.Name.ToLowerInvariant()] = everyone;
+
+                    user.SyncGroups(groups);
+                }
+
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "SSO user account was created successfully with username: " + user.Username);
+
+                _dnsWebService._authManager.SaveConfigFile();
+
+                //trigger cluster update
+                _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodes();
+
+                Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+                WriteUserDetails(jsonWriter, user, null, false, false);
+            }
+
+            public void SetSsoUser(HttpContext context)
+            {
+                //this API call can be called only using Cluster API token
+                if (!_dnsWebService._clusterManager.ClusterInitialized)
+                    throw new DnsWebServiceException("Cluster is not initialized.");
+
+                UserSession session = context.GetCurrentSession();
+
+                if (session.Type != UserSessionType.ClusterApiToken)
+                    throw new DnsWebServiceException("Access was denied.");
+
+                User sessionUser = session.User;
+
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Modify))
+                    throw new DnsWebServiceException("Access was denied.");
+
+                HttpRequest request = context.Request;
+
+                string username = request.GetQueryOrForm("user");
+
+                User user = _dnsWebService._authManager.GetUser(username);
+                if (user is null)
+                    throw new DnsWebServiceException("No such user exists: " + username);
+
+                if (!user.IsSsoUser)
+                    throw new DnsWebServiceException("User is not a SSO user: " + username);
+
+                try
+                {
+                    if (request.TryGetQueryOrForm("newUser", out string newUsername))
+                    {
+                        _dnsWebService._authManager.ChangeUsername(user, newUsername);
+
+                        _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), $"SSO user account's username was changed from '{username}' to '{user.Username}'.");
+                    }
+
+                    if (request.TryQueryOrForm("displayName", out string displayName))
+                        user.DisplayName = displayName;
+
+                    if (request.TryQueryOrForm("memberOfGroups", out string memberOfGroups))
+                    {
+                        string[] parts = memberOfGroups.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                        Dictionary<string, Group> groups = new Dictionary<string, Group>(parts.Length);
+
+                        foreach (string part in parts)
+                        {
+                            Group group = _dnsWebService._authManager.GetGroup(part);
+                            if (group is null)
+                                throw new DnsWebServiceException("No such group exists: " + part);
+
+                            groups.Add(group.Name.ToLowerInvariant(), group);
+                        }
+
+                        //ensure user is member of everyone group
+                        Group everyone = _dnsWebService._authManager.GetGroup(Group.EVERYONE);
+                        groups[everyone.Name.ToLowerInvariant()] = everyone;
+
+                        user.SyncGroups(groups);
+                    }
+                }
+                finally
+                {
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "SSO user account was updated successfully with username: " + user.Username);
+
+                    _dnsWebService._authManager.SaveConfigFile();
+
+                    //trigger cluster update
+                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodes();
+                }
+
+                Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+                WriteUserDetails(jsonWriter, user, null, false, false);
             }
 
             #endregion

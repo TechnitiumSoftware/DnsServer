@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -194,6 +194,7 @@ namespace DnsServerCore
                 }
 
                 jsonWriter.WriteBoolean("dnsUpdates", scope.DnsUpdates);
+                jsonWriter.WriteBoolean("dnsOverwriteForDynamicLease", scope.DnsOverwriteForDynamicLease);
                 jsonWriter.WriteNumber("dnsTtl", scope.DnsTtl);
 
                 if (scope.ServerAddress is not null)
@@ -463,6 +464,9 @@ namespace DnsServerCore
                 if (request.TryGetQueryOrForm("dnsUpdates", bool.Parse, out bool dnsUpdates))
                     scope.DnsUpdates = dnsUpdates;
 
+                if (request.TryGetQueryOrForm("dnsOverwriteForDynamicLease", bool.Parse, out bool dnsOverwriteForDynamicLease))
+                    scope.DnsOverwriteForDynamicLease = dnsOverwriteForDynamicLease;
+
                 if (request.TryGetQueryOrForm("dnsTtl", ZoneFile.ParseTtl, out uint dnsTtl))
                     scope.DnsTtl = dnsTtl;
 
@@ -689,8 +693,8 @@ namespace DnsServerCore
 
                 Lease reservedLease = new Lease(LeaseType.Reserved, hostName, DhcpMessageHardwareAddressType.Ethernet, hardwareAddress, IPAddress.Parse(strIpAddress), comments);
 
-                if (!scope.AddReservedLease(reservedLease))
-                    throw new DnsWebServiceException("Failed to add reserved lease for scope: " + scopeName);
+                if (!scope.TryAddReservedLease(reservedLease))
+                    throw new DnsWebServiceException("A reserved lease with same hardware address already exists in scope: " + scopeName);
 
                 _dnsWebService._dhcpServer.SaveScope(scopeName);
 
@@ -714,8 +718,8 @@ namespace DnsServerCore
 
                 string hardwareAddress = request.GetQueryOrForm("hardwareAddress");
 
-                if (!scope.RemoveReservedLease(hardwareAddress))
-                    throw new DnsWebServiceException("Failed to remove reserved lease for scope: " + scopeName);
+                if (!scope.TryRemoveReservedLease(hardwareAddress))
+                    throw new DnsWebServiceException("No such reserved lease was found in scope: " + scopeName);
 
                 _dnsWebService._dhcpServer.SaveScope(scopeName);
 

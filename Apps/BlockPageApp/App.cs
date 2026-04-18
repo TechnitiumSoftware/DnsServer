@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -21,11 +21,13 @@ using DnsServerCore.ApplicationCommon;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -48,7 +50,9 @@ namespace BlockPage
     {
         #region variables
 
-        IReadOnlyDictionary<string, WebServer> _webServers;
+        readonly static JsonDocumentOptions _jsonParseOptions = new JsonDocumentOptions() { CommentHandling = JsonCommentHandling.Skip };
+
+        IReadOnlyDictionary<string, WebServer>? _webServers;
 
         #endregion
 
@@ -85,9 +89,12 @@ namespace BlockPage
 
         #region public
 
-        public async Task InitializeAsync(IDnsServer dnsServer, string config)
+        public async Task InitializeAsync(IDnsServer dnsServer, string? config)
         {
-            using JsonDocument jsonDocument = JsonDocument.Parse(config);
+            if (config is null)
+                throw new InvalidOperationException();
+
+            using JsonDocument jsonDocument = JsonDocument.Parse(config, _jsonParseOptions);
             JsonElement jsonConfig = jsonDocument.RootElement;
 
             await StopAllWebServersAsync();
@@ -97,11 +104,13 @@ namespace BlockPage
 
             if (jsonConfig.ValueKind == JsonValueKind.Array)
             {
+                bool foundWebServerEnableOnlineCertificateSigning = false;
+
                 foreach (JsonElement jsonWebServerConfig in jsonConfig.EnumerateArray())
                 {
                     string name = jsonWebServerConfig.GetPropertyValue("name", "default");
 
-                    if (!webServers.TryGetValue(name, out WebServer webServer))
+                    if (!webServers.TryGetValue(name, out WebServer? webServer))
                     {
                         webServer = new WebServer(dnsServer, name);
 
@@ -110,6 +119,14 @@ namespace BlockPage
                     }
 
                     await webServer.InitializeAsync(jsonWebServerConfig);
+
+                    foundWebServerEnableOnlineCertificateSigning = jsonWebServerConfig.TryGetProperty("webServerEnableOnlineCertificateSigning", out _);
+                }
+
+                if (!foundWebServerEnableOnlineCertificateSigning)
+                {
+                    config = config.Replace("\"webServerRootPath\"", "\"webServerEnableOnlineCertificateSigning\": false,\r\n    \"webServerRootPath\"");
+                    await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
                 }
             }
             else
@@ -118,6 +135,9 @@ namespace BlockPage
                 webServers.Add(webServer.Name, webServer);
 
                 await webServer.InitializeAsync(jsonConfig);
+
+                if (!jsonConfig.TryGetProperty("webServerEnableOnlineCertificateSigning", out _))
+                    config = config.Replace("\"webServerRootPath\"", "\"webServerEnableOnlineCertificateSigning\": false,\r\n    \"webServerRootPath\"");
 
                 if (!jsonConfig.TryGetProperty("webServerUseSelfSignedTlsCertificate", out _))
                     config = config.Replace("\"webServerTlsCertificateFilePath\"", "\"webServerUseSelfSignedTlsCertificate\": true,\r\n  \"webServerTlsCertificateFilePath\"");
@@ -149,22 +169,25 @@ namespace BlockPage
             readonly IDnsServer _dnsServer;
             readonly string _name;
 
-            IReadOnlyList<IPAddress> _webServerLocalAddresses = Array.Empty<IPAddress>();
+            IReadOnlyList<IPAddress> _webServerLocalAddresses = [];
             bool _webServerUseSelfSignedTlsCertificate;
-            string _webServerTlsCertificateFilePath;
-            string _webServerTlsCertificatePassword;
-            string _webServerRootPath;
+            string? _webServerTlsCertificateFilePath;
+            string? _webServerTlsCertificatePassword;
+            bool _webServerEnableOnlineCertificateSigning;
+            string? _webServerRootPath;
             bool _serveBlockPageFromWebServerRoot;
             bool _includeBlockingInfo;
 
-            string _blockPageContent;
+            string? _blockPageContent;
 
-            WebApplication _webServer;
+            WebApplication? _webServer;
 
-            SslServerAuthenticationOptions _sslServerAuthenticationOptions;
+            SslServerAuthenticationOptions? _sslServerAuthenticationOptions;
             DateTime _webServerTlsCertificateLastModifiedOn;
 
-            Timer _tlsCertificateUpdateTimer;
+            readonly ConcurrentDictionary<string, SslServerAuthenticationOptions> _certCache = new ConcurrentDictionary<string, SslServerAuthenticationOptions>();
+
+            Timer? _tlsCertificateUpdateTimer;
             const int TLS_CERTIFICATE_UPDATE_TIMER_INITIAL_INTERVAL = 60000;
             const int TLS_CERTIFICATE_UPDATE_TIMER_INTERVAL = 60000;
 
@@ -211,12 +234,17 @@ namespace BlockPage
                         UsePollingFileWatcher = true
                     };
 
-                    builder.Environment.WebRootFileProvider = new PhysicalFileProvider(_webServerRootPath)
+                    builder.Environment.WebRootFileProvider = new PhysicalFileProvider(_webServerRootPath!)
                     {
                         UseActivePolling = true,
                         UsePollingFileWatcher = true
                     };
                 }
+
+                builder.Services.AddResponseCompression(delegate (ResponseCompressionOptions options)
+                {
+                    options.EnableForHttps = true;
+                });
 
                 builder.WebHost.ConfigureKestrel(delegate (WebHostBuilderContext context, KestrelServerOptions serverOptions)
                 {
@@ -232,10 +260,55 @@ namespace BlockPage
                             serverOptions.Listen(webServiceLocalAddress, 443, delegate (ListenOptions listenOptions)
                             {
                                 listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
-                                listenOptions.UseHttps(delegate (SslStream stream, SslClientHelloInfo clientHelloInfo, object state, CancellationToken cancellationToken)
+                                listenOptions.UseHttps(delegate (SslStream stream, SslClientHelloInfo clientHelloInfo, object? state, CancellationToken cancellationToken)
                                 {
+                                    if (_webServerEnableOnlineCertificateSigning)
+                                    {
+                                        try
+                                        {
+                                            string sniDomain = clientHelloInfo.ServerName.ToLowerInvariant();
+                                            if (sniDomain is not null)
+                                            {
+                                                if (!_certCache.TryGetValue(sniDomain, out SslServerAuthenticationOptions? sslServerAuthenticationOptions))
+                                                {
+                                                    RSA rsa = RSA.Create(2048);
+                                                    CertificateRequest req = new CertificateRequest("cn=" + sniDomain, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+
+                                                    req.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
+                                                    req.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, true));
+                                                    req.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(req.PublicKey, false));
+
+                                                    SubjectAlternativeNameBuilder san = new SubjectAlternativeNameBuilder();
+                                                    san.AddDnsName(sniDomain);
+
+                                                    req.CertificateExtensions.Add(san.Build());
+
+                                                    Span<byte> serial = stackalloc byte[16];
+                                                    RandomNumberGenerator.Fill(serial);
+
+                                                    X509Certificate2 newCert = req.Create(_sslServerAuthenticationOptions!.ServerCertificateContext!.TargetCertificate, DateTime.UtcNow.AddMinutes(-30), DateTime.UtcNow.AddDays(7), serial);
+                                                    newCert = newCert.CopyWithPrivateKey(rsa);
+                                                    newCert = X509CertificateLoader.LoadPkcs12(newCert.Export(X509ContentType.Pfx), null, X509KeyStorageFlags.PersistKeySet);
+
+                                                    sslServerAuthenticationOptions = new SslServerAuthenticationOptions()
+                                                    {
+                                                        ServerCertificateContext = SslStreamCertificateContext.Create(newCert, null, false)
+                                                    };
+
+                                                    _certCache[sniDomain] = sslServerAuthenticationOptions;
+                                                }
+
+                                                return ValueTask.FromResult(sslServerAuthenticationOptions);
+                                            }
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            _dnsServer.WriteLog(ex);
+                                        }
+                                    }
+
                                     return ValueTask.FromResult(_sslServerAuthenticationOptions);
-                                }, null);
+                                }, null!);
                             });
                         }
                     }
@@ -247,6 +320,8 @@ namespace BlockPage
                 builder.Logging.ClearProviders();
 
                 _webServer = builder.Build();
+
+                _webServer.UseResponseCompression();
 
                 _webServer.UseDefaultFiles();
                 _webServer.UseStaticFiles(new StaticFileOptions()
@@ -301,7 +376,7 @@ namespace BlockPage
                 }
             }
 
-            private void LoadWebServiceTlsCertificate(string webServerTlsCertificateFilePath, string webServerTlsCertificatePassword)
+            private void LoadWebServiceTlsCertificate(string webServerTlsCertificateFilePath, string? webServerTlsCertificatePassword)
             {
                 FileInfo fileInfo = new FileInfo(webServerTlsCertificateFilePath);
 
@@ -319,7 +394,7 @@ namespace BlockPage
                 }
 
                 X509Certificate2Collection webServerTlsCertificateCollection = X509CertificateLoader.LoadPkcs12CollectionFromFile(webServerTlsCertificateFilePath, webServerTlsCertificatePassword, X509KeyStorageFlags.PersistKeySet);
-                X509Certificate2 serverCertificate = null;
+                X509Certificate2? serverCertificate = null;
 
                 foreach (X509Certificate2 certificate in webServerTlsCertificateCollection)
                 {
@@ -347,7 +422,7 @@ namespace BlockPage
             {
                 if (_tlsCertificateUpdateTimer is null)
                 {
-                    _tlsCertificateUpdateTimer = new Timer(delegate (object state)
+                    _tlsCertificateUpdateTimer = new Timer(delegate (object? state)
                     {
                         if (!string.IsNullOrEmpty(_webServerTlsCertificateFilePath))
                         {
@@ -386,11 +461,11 @@ namespace BlockPage
 
             private async Task ServeDefaultPageAsync(HttpContext context, RequestDelegate next)
             {
-                string blockPageContent = _blockPageContent;
+                string blockPageContent = _blockPageContent!;
 
                 if (_includeBlockingInfo)
                 {
-                    string blockingInfoHtmlContent = null;
+                    string? blockingInfoHtmlContent = null;
 
                     try
                     {
@@ -408,8 +483,8 @@ namespace BlockPage
                                 {
                                     if (option.Code == EDnsOptionCode.EXTENDED_DNS_ERROR)
                                     {
-                                        EDnsExtendedDnsErrorOptionData ede = option.Data as EDnsExtendedDnsErrorOptionData;
-                                        options.Add(ede);
+                                        EDnsExtendedDnsErrorOptionData? ede = option.Data as EDnsExtendedDnsErrorOptionData;
+                                        options.Add(ede!);
                                     }
                                 }
                             }
@@ -467,25 +542,21 @@ namespace BlockPage
                 }
 
                 _webServerLocalAddresses = WebUtilities.GetValidKestrelLocalAddresses(jsonWebServerConfig.ReadArray("webServerLocalAddresses", IPAddress.Parse));
-
-                if (jsonWebServerConfig.TryGetProperty("webServerUseSelfSignedTlsCertificate", out JsonElement jsonWebServerUseSelfSignedTlsCertificate))
-                    _webServerUseSelfSignedTlsCertificate = jsonWebServerUseSelfSignedTlsCertificate.GetBoolean();
-                else
-                    _webServerUseSelfSignedTlsCertificate = true;
-
+                _webServerUseSelfSignedTlsCertificate = jsonWebServerConfig.GetPropertyValue("webServerUseSelfSignedTlsCertificate", true);
                 _webServerTlsCertificateFilePath = jsonWebServerConfig.GetProperty("webServerTlsCertificateFilePath").GetString();
                 _webServerTlsCertificatePassword = jsonWebServerConfig.GetProperty("webServerTlsCertificatePassword").GetString();
+                _webServerEnableOnlineCertificateSigning = jsonWebServerConfig.GetPropertyValue("webServerEnableOnlineCertificateSigning", false);
 
                 _webServerRootPath = jsonWebServerConfig.GetProperty("webServerRootPath").GetString();
 
                 if (!Path.IsPathRooted(_webServerRootPath))
-                    _webServerRootPath = Path.Combine(_dnsServer.ApplicationFolder, _webServerRootPath);
+                    _webServerRootPath = Path.Combine(_dnsServer.ApplicationFolder, _webServerRootPath!);
 
                 _serveBlockPageFromWebServerRoot = jsonWebServerConfig.GetProperty("serveBlockPageFromWebServerRoot").GetBoolean();
 
-                string blockPageTitle = jsonWebServerConfig.GetProperty("blockPageTitle").GetString();
-                string blockPageHeading = jsonWebServerConfig.GetProperty("blockPageHeading").GetString();
-                string blockPageMessage = jsonWebServerConfig.GetProperty("blockPageMessage").GetString();
+                string blockPageTitle = jsonWebServerConfig.GetProperty("blockPageTitle").GetString()!;
+                string blockPageHeading = jsonWebServerConfig.GetProperty("blockPageHeading").GetString()!;
+                string blockPageMessage = jsonWebServerConfig.GetProperty("blockPageMessage").GetString()!;
 
                 _includeBlockingInfo = jsonWebServerConfig.GetPropertyValue("includeBlockingInfo", true);
 
@@ -517,7 +588,12 @@ namespace BlockPage
                         {
                             RSA rsa = RSA.Create(2048);
                             CertificateRequest req = new CertificateRequest("cn=" + _dnsServer.ServerDomain, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-                            X509Certificate2 cert = req.CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddYears(5));
+
+                            req.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
+                            req.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign, true));
+                            req.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(req.PublicKey, false));
+
+                            X509Certificate2 cert = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(10));
 
                             await File.WriteAllBytesAsync(selfSignedCertificateFilePath, cert.Export(X509ContentType.Pkcs12, null as string));
                         }

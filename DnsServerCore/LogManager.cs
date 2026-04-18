@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using TechnitiumLibrary;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.EDnsOptions;
@@ -44,12 +45,13 @@ namespace DnsServerCore
         FileAndConsole = 3
     }
 
-    public sealed class LogManager : IDisposable
+    public sealed class LogManager : IAsyncDisposable
     {
         #region variables
 
         static readonly char[] commaSeparator = new char[] { ',' };
 
+        readonly bool _isPortableApp;
         readonly string _configFolder;
 
         LoggingType _loggingType;
@@ -64,7 +66,7 @@ namespace DnsServerCore
         string _logFile;
         StreamWriter _logWriter;
         DateTime _logDate;
-        readonly object _logFileLock = new object();
+        readonly Lock _logFileLock = new Lock();
 
         Channel<LogQueueItem> _channel;
         ChannelWriter<LogQueueItem> _channelWriter;
@@ -74,7 +76,7 @@ namespace DnsServerCore
         const int LOG_CLEANUP_TIMER_INITIAL_INTERVAL = 60 * 1000;
         const int LOG_CLEANUP_TIMER_PERIODIC_INTERVAL = 60 * 60 * 1000;
 
-        readonly object _saveLock = new object();
+        readonly Lock _saveLock = new Lock();
         bool _pendingSave;
         readonly Timer _saveTimer;
         const int SAVE_TIMER_INITIAL_INTERVAL = 5000;
@@ -83,8 +85,9 @@ namespace DnsServerCore
 
         #region constructor
 
-        public LogManager(string configFolder)
+        public LogManager(bool isPortableApp, string configFolder)
         {
+            _isPortableApp = isPortableApp;
             _configFolder = configFolder;
 
             AppDomain.CurrentDomain.UnhandledException += delegate (object sender, UnhandledExceptionEventArgs e)
@@ -175,14 +178,14 @@ namespace DnsServerCore
 
         bool _disposed;
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
             if (_disposed)
                 return;
 
             _logCleanupTimer?.Dispose();
 
-            StopLogging();
+            await StopLoggingAsync();
 
             lock (_saveLock)
             {
@@ -227,9 +230,46 @@ namespace DnsServerCore
             catch (FileNotFoundException)
             {
                 _loggingType = LoggingType.File;
-                _logFolder = "logs";
-                _maxLogFileDays = 365;
-                _useLocalTime = false;
+
+                string strLogFolder = Environment.GetEnvironmentVariable("DNS_SERVER_LOG_FOLDER_PATH");
+                if (!string.IsNullOrEmpty(strLogFolder))
+                {
+                    LogFolder = strLogFolder;
+                }
+                else
+                {
+                    if (_isPortableApp)
+                    {
+                        _logFolder = "logs";
+                    }
+                    else
+                    {
+                        switch (Environment.OSVersion.Platform)
+                        {
+                            case PlatformID.Win32NT:
+                                _logFolder = Path.Combine(Environment.GetEnvironmentVariable("ProgramData"), "Technitium DNS Server", "logs");
+                                break;
+
+                            case PlatformID.Unix:
+                                _logFolder = "/var/log/technitium/dns";
+                                break;
+
+                            default:
+                                _logFolder = "logs";
+                                break;
+                        }
+                    }
+                }
+
+                string strMaxLogFileDays = Environment.GetEnvironmentVariable("DNS_SERVER_LOG_MAX_LOG_FILE_DAYS");
+                if (!string.IsNullOrEmpty(strMaxLogFileDays))
+                    MaxLogFileDays = int.Parse(strMaxLogFileDays);
+                else
+                    _maxLogFileDays = 365;
+
+                string strUseLocalTime = Environment.GetEnvironmentVariable("DNS_SERVER_LOG_USING_LOCAL_TIME");
+                if (!string.IsNullOrEmpty(strUseLocalTime))
+                    _useLocalTime = bool.Parse(strUseLocalTime);
 
                 SaveConfigFileInternal();
             }
@@ -276,6 +316,7 @@ namespace DnsServerCore
 
         private void SaveConfigFileInternal()
         {
+            string tmpLogConfigFile = Path.Combine(_configFolder, "log.tmp");
             string logConfigFile = Path.Combine(_configFolder, "log.config");
 
             using (MemoryStream mS = new MemoryStream())
@@ -286,11 +327,13 @@ namespace DnsServerCore
                 //write config
                 mS.Position = 0;
 
-                using (FileStream fS = new FileStream(logConfigFile, FileMode.Create, FileAccess.Write))
+                using (FileStream fS = new FileStream(tmpLogConfigFile, FileMode.Create, FileAccess.Write))
                 {
                     mS.CopyTo(fS);
                 }
             }
+
+            File.Move(tmpLogConfigFile, logConfigFile, true);
 
             Write("DNS Server log config file was saved: " + logConfigFile);
         }
@@ -309,17 +352,17 @@ namespace DnsServerCore
 
         private void ReadConfigFrom(Stream s)
         {
-            BinaryReader bR = new BinaryReader(s);
-
-            if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "LS") //format
+            if (Encoding.ASCII.GetString(s.ReadExactly(2)) != "LS") //format
                 throw new InvalidDataException("DnsServer log config file format is invalid.");
+
+            BinaryReader bR = new BinaryReader(s);
 
             byte version = bR.ReadByte();
             switch (version)
             {
                 case 1:
                     _loggingType = (LoggingType)bR.ReadByte();
-                    _logFolder = bR.ReadShortString();
+                    _logFolder = s.ReadShortString();
                     _maxLogFileDays = bR.ReadInt32();
                     _useLocalTime = bR.ReadBoolean();
                     break;
@@ -337,7 +380,7 @@ namespace DnsServerCore
             bW.Write((byte)1); //version
 
             bW.Write((byte)_loggingType);
-            bW.WriteShortString(_logFolder);
+            s.WriteShortString(_logFolder);
             bW.Write(_maxLogFileDays);
             bW.Write(_useLocalTime);
         }
@@ -406,12 +449,14 @@ namespace DnsServerCore
             _consumerThread.Start();
         }
 
-        private void StopLogging()
+        private async Task StopLoggingAsync()
         {
             if (!_isRunning)
                 return;
 
             _channelWriter?.TryComplete();
+
+            await _channel.Reader.Completion;
 
             lock (_logFileLock)
             {
@@ -447,7 +492,7 @@ namespace DnsServerCore
                 if (_loggingType == LoggingType.None)
                 {
                     //no logging enabled
-                    StopLogging();
+                    StopLoggingAsync().Sync();
                 }
                 else if (_loggingType.HasFlag(LoggingType.File))
                 {
@@ -529,7 +574,7 @@ namespace DnsServerCore
 
             DateTime logStartDateTime = _useLocalTime ? DateTime.Now : DateTime.UtcNow;
 
-            _logFile = Path.Combine(logFolder, logStartDateTime.ToString(LOG_FILE_DATE_TIME_FORMAT) + ".log");
+            _logFile = Path.Combine(logFolder, logStartDateTime.ToString(LOG_FILE_DATE_TIME_FORMAT, CultureInfo.InvariantCulture) + ".log");
             _logWriter = new StreamWriter(new FileStream(_logFile, FileMode.Append, FileAccess.Write, FileShare.Read));
             _logDate = logStartDateTime.Date;
 
@@ -554,16 +599,16 @@ namespace DnsServerCore
             if (_useLocalTime)
             {
                 if (dateTime.Kind == DateTimeKind.Local)
-                    logEntry = "[" + dateTime.ToString(LOG_ENTRY_DATE_TIME_FORMAT) + " Local] " + message;
+                    logEntry = "[" + dateTime.ToString(LOG_ENTRY_DATE_TIME_FORMAT, CultureInfo.InvariantCulture) + " Local] " + message;
                 else
-                    logEntry = "[" + dateTime.ToLocalTime().ToString(LOG_ENTRY_DATE_TIME_FORMAT) + " Local] " + message;
+                    logEntry = "[" + dateTime.ToLocalTime().ToString(LOG_ENTRY_DATE_TIME_FORMAT, CultureInfo.InvariantCulture) + " Local] " + message;
             }
             else
             {
                 if (dateTime.Kind == DateTimeKind.Utc)
-                    logEntry = "[" + dateTime.ToString(LOG_ENTRY_DATE_TIME_FORMAT) + " UTC] " + message;
+                    logEntry = "[" + dateTime.ToString(LOG_ENTRY_DATE_TIME_FORMAT, CultureInfo.InvariantCulture) + " UTC] " + message;
                 else
-                    logEntry = "[" + dateTime.ToUniversalTime().ToString(LOG_ENTRY_DATE_TIME_FORMAT) + " UTC] " + message;
+                    logEntry = "[" + dateTime.ToUniversalTime().ToString(LOG_ENTRY_DATE_TIME_FORMAT, CultureInfo.InvariantCulture) + " UTC] " + message;
             }
 
             return logEntry;

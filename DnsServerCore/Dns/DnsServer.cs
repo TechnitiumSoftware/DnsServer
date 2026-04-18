@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@ using System;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Mail;
@@ -60,7 +61,6 @@ using TechnitiumLibrary.Net.ProxyProtocol;
 
 namespace DnsServerCore.Dns
 {
-#pragma warning disable CA2252 // This API requires opting into preview features
 #pragma warning disable CA1416 // Validate platform compatibility
 
     public enum DnsServerRecursion : byte
@@ -112,8 +112,8 @@ namespace DnsServerCore.Dns
         IReadOnlyList<IPEndPoint> _localEndPoints;
         readonly LogManager _log;
 
-        MailAddress _responsiblePerson;
         MailAddress _defaultResponsiblePerson;
+        MailAddress _fallbackResponsiblePerson;
 
         NameServerAddress _thisServer;
 
@@ -139,7 +139,7 @@ namespace DnsServerCore.Dns
 
         IReadOnlyCollection<NetworkAddress> _zoneTransferAllowedNetworks;
         IReadOnlyCollection<NetworkAddress> _notifyAllowedNetworks;
-        bool _preferIPv6;
+        IPv6Mode _ipv6Mode;
         bool _enableUdpSocketPool;
         ushort _udpPayloadSize = DnsDatagram.EDNS_DEFAULT_UDP_PAYLOAD_SIZE;
         bool _dnssecValidation = true;
@@ -175,7 +175,10 @@ namespace DnsServerCore.Dns
         int _quicIdleTimeout = 60000;
         int _quicMaxInboundStreams = 100;
         int _listenBacklog = 100;
+        int _udpSendBufferSizeKB = 2048;
+        int _udpReceiveBufferSizeKB = 2048;
 
+        bool _enableEDnsClientSubnetSourceAddress;
         bool _enableDnsOverUdpProxy;
         bool _enableDnsOverTcpProxy;
         bool _enableDnsOverHttp;
@@ -243,16 +246,16 @@ namespace DnsServerCore.Dns
         LogManager _queryLog;
 
         Timer _cachePrefetchSamplingTimer;
-        readonly object _cachePrefetchSamplingTimerLock = new object();
+        readonly Lock _cachePrefetchSamplingTimerLock = new Lock();
         const int CACHE_PREFETCH_SAMPLING_TIMER_INITIAL_INTEVAL = 5000;
 
         Timer _cachePrefetchRefreshTimer;
-        readonly object _cachePrefetchRefreshTimerLock = new object();
+        readonly Lock _cachePrefetchRefreshTimerLock = new Lock();
         const int CACHE_PREFETCH_REFRESH_TIMER_INTEVAL = 10000;
-        IList<CacheRefreshSample> _cacheRefreshSampleList;
+        IList<DnsQuestionRecord> _cacheRefreshSampleList;
 
         Timer _qpmLimitSamplingTimer;
-        readonly object _qpmLimitSamplingTimerLock = new object();
+        readonly Lock _qpmLimitSamplingTimerLock = new Lock();
         const int QPM_LIMIT_SAMPLING_TIMER_INTERVAL = 10000;
         IReadOnlyDictionary<NetworkAddress, ValueTuple<long, long>> _qpmLimitClientSubnetStats;
 
@@ -264,7 +267,7 @@ namespace DnsServerCore.Dns
 
         volatile ServiceState _state = ServiceState.Stopped;
 
-        readonly object _saveLock = new object();
+        readonly Lock _saveLock = new Lock();
         bool _pendingSave;
         readonly Timer _saveTimer;
         const int SAVE_TIMER_INITIAL_INTERVAL = 5000;
@@ -468,13 +471,19 @@ namespace DnsServerCore.Dns
 
                 string strPreferIPv6 = Environment.GetEnvironmentVariable("DNS_SERVER_PREFER_IPV6");
                 if (!string.IsNullOrEmpty(strPreferIPv6))
-                    PreferIPv6 = bool.Parse(strPreferIPv6);
+                    IPv6Mode = bool.Parse(strPreferIPv6) ? IPv6Mode.Preferred : IPv6Mode.Disabled;
+
+                string strIPv6Mode = Environment.GetEnvironmentVariable("DNS_SERVER_IPV6_MODE");
+                if (!string.IsNullOrEmpty(strIPv6Mode))
+                    IPv6Mode = Enum.Parse<IPv6Mode>(strIPv6Mode);
 
                 DnssecValidation = true;
 
                 EnableUdpSocketPool = Environment.OSVersion.Platform == PlatformID.Win32NT;
 
                 //optional protocols
+                _enableEDnsClientSubnetSourceAddress = false;
+
                 string strDnsOverHttp = Environment.GetEnvironmentVariable("DNS_SERVER_OPTIONAL_PROTOCOL_DNS_OVER_HTTP");
                 if (!string.IsNullOrEmpty(strDnsOverHttp))
                     EnableDnsOverHttp = bool.Parse(strDnsOverHttp);
@@ -549,7 +558,7 @@ namespace DnsServerCore.Dns
                         NameServerAddress forwarder = NameServerAddress.Parse(value);
 
                         if (forwarder.Protocol != forwarderProtocol)
-                            forwarder = forwarder.ChangeProtocol(forwarderProtocol);
+                            forwarder = forwarder.Clone(forwarderProtocol);
 
                         return forwarder;
                     }, ',');
@@ -558,12 +567,15 @@ namespace DnsServerCore.Dns
                 //logging
                 ResolverLogManager = _log;
 
-                string strUseLocalTime = Environment.GetEnvironmentVariable("DNS_SERVER_LOG_USING_LOCAL_TIME");
-                if (!string.IsNullOrEmpty(strUseLocalTime))
-                    _log.UseLocalTime = bool.Parse(strUseLocalTime);
+                string strEnableInMemoryStats = Environment.GetEnvironmentVariable("DNS_SERVER_STATS_ENABLE_IN_MEMORY_STATS");
+                if (!string.IsNullOrEmpty(strEnableInMemoryStats))
+                    _statsManager.EnableInMemoryStats = bool.Parse(strEnableInMemoryStats);
 
-                _statsManager.EnableInMemoryStats = false;
-                _statsManager.MaxStatFileDays = 365;
+                string strMaxStatFileDays = Environment.GetEnvironmentVariable("DNS_SERVER_STATS_MAX_STAT_FILE_DAYS");
+                if (!string.IsNullOrEmpty(strMaxStatFileDays))
+                    _statsManager.MaxStatFileDays = int.Parse(strMaxStatFileDays);
+                else
+                    _statsManager.MaxStatFileDays = 365;
 
                 SaveConfigFileInternal();
             }
@@ -593,6 +605,7 @@ namespace DnsServerCore.Dns
 
         internal void SaveConfigFileInternal()
         {
+            string tmpConfigFile = Path.Combine(_configFolder, "dns.tmp");
             string configFile = Path.Combine(_configFolder, "dns.config");
 
             using (MemoryStream mS = new MemoryStream())
@@ -603,11 +616,13 @@ namespace DnsServerCore.Dns
                 //write config
                 mS.Position = 0;
 
-                using (FileStream fS = new FileStream(configFile, FileMode.Create, FileAccess.Write))
+                using (FileStream fS = new FileStream(tmpConfigFile, FileMode.Create, FileAccess.Write))
                 {
                     mS.CopyTo(fS);
                 }
             }
+
+            File.Move(tmpConfigFile, configFile, true);
 
             _log.Write("DNS Server config file was saved: " + configFile);
         }
@@ -626,17 +641,17 @@ namespace DnsServerCore.Dns
 
         private void ReadConfigFrom(Stream s, bool isConfigTransfer)
         {
-            BinaryReader bR = new BinaryReader(s);
-
-            if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "DC") //format
+            if (Encoding.ASCII.GetString(s.ReadExactly(2)) != "DC") //format
                 throw new InvalidDataException("DNS Server config file format is invalid.");
 
+            BinaryReader bR = new BinaryReader(s);
+
             int version = bR.ReadByte();
-            if (version < 1)
+            if ((version < 1) || (version > 3))
                 throw new InvalidDataException("DNS Server config version not supported.");
 
             //general
-            string serverDomain = bR.ReadShortString();
+            string serverDomain = s.ReadShortString();
             if (!isConfigTransfer)
             {
                 try
@@ -682,11 +697,22 @@ namespace DnsServerCore.Dns
 
             _authZoneManager.DefaultRecordTtl = bR.ReadUInt32();
 
+            if (version >= 2)
+            {
+                _authZoneManager.DefaultNsRecordTtl = bR.ReadUInt32();
+                _authZoneManager.DefaultSoaRecordTtl = bR.ReadUInt32();
+            }
+            else
+            {
+                _authZoneManager.DefaultNsRecordTtl = 14400;
+                _authZoneManager.DefaultSoaRecordTtl = 900;
+            }
+
             string rp = bR.ReadString();
             if (rp.Length == 0)
-                _responsiblePerson = null;
+                _defaultResponsiblePerson = null;
             else
-                _responsiblePerson = new MailAddress(rp);
+                _defaultResponsiblePerson = new MailAddress(rp);
 
             _authZoneManager.UseSoaSerialDateScheme = bR.ReadBoolean();
             _authZoneManager.MinSoaRefresh = bR.ReadUInt32();
@@ -697,9 +723,18 @@ namespace DnsServerCore.Dns
 
             _dnsApplicationManager.EnableAutomaticUpdate = bR.ReadBoolean();
 
-            bool preferIPv6 = bR.ReadBoolean();
-            if (!isConfigTransfer)
-                _preferIPv6 = preferIPv6;
+            if (version >= 3)
+            {
+                IPv6Mode ipv6Mode = (IPv6Mode)bR.ReadByte();
+                if (!isConfigTransfer)
+                    _ipv6Mode = ipv6Mode;
+            }
+            else
+            {
+                bool preferIPv6 = bR.ReadBoolean();
+                if (!isConfigTransfer)
+                    _ipv6Mode = preferIPv6 ? IPv6Mode.Preferred : IPv6Mode.Disabled;
+            }
 
             {
                 bool enableUdpSocketPool = bR.ReadBoolean();
@@ -764,9 +799,32 @@ namespace DnsServerCore.Dns
             _quicIdleTimeout = bR.ReadInt32();
             _quicMaxInboundStreams = bR.ReadInt32();
             _listenBacklog = bR.ReadInt32();
+
+            if (version >= 3)
+            {
+                _udpSendBufferSizeKB = bR.ReadInt32();
+                _udpReceiveBufferSizeKB = bR.ReadInt32();
+            }
+            else
+            {
+                _udpSendBufferSizeKB = 2048;
+                _udpReceiveBufferSizeKB = 2048;
+            }
+
             MaxConcurrentResolutionsPerCore = bR.ReadUInt16();
 
             //optional protocols
+            if (version >= 3)
+            {
+                bool enableEDnsClientSubnetSourceAddress = bR.ReadBoolean();
+                if (!isConfigTransfer)
+                    _enableEDnsClientSubnetSourceAddress = enableEDnsClientSubnetSourceAddress;
+            }
+            else
+            {
+                _enableEDnsClientSubnetSourceAddress = false;
+            }
+
             bool enableDnsOverUdpProxy = bR.ReadBoolean();
             if (!isConfigTransfer)
                 _enableDnsOverUdpProxy = enableDnsOverUdpProxy;
@@ -823,8 +881,8 @@ namespace DnsServerCore.Dns
             if (!isConfigTransfer)
                 _reverseProxyNetworkACL = reverseProxyNetworkACL;
 
-            string dnsTlsCertificatePath = bR.ReadShortString();
-            string dnsTlsCertificatePassword = bR.ReadShortString();
+            string dnsTlsCertificatePath = s.ReadShortString();
+            string dnsTlsCertificatePassword = s.ReadShortString();
 
             if (!isConfigTransfer)
             {
@@ -855,7 +913,7 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            string dnsOverHttpRealIpHeader = bR.ReadShortString();
+            string dnsOverHttpRealIpHeader = s.ReadShortString();
             if (!isConfigTransfer)
                 _dnsOverHttpRealIpHeader = dnsOverHttpRealIpHeader;
 
@@ -866,8 +924,8 @@ namespace DnsServerCore.Dns
 
                 for (int i = 0; i < count; i++)
                 {
-                    string keyName = bR.ReadShortString();
-                    string sharedSecret = bR.ReadShortString();
+                    string keyName = s.ReadShortString();
+                    string sharedSecret = s.ReadShortString();
                     TsigAlgorithm algorithm = (TsigAlgorithm)bR.ReadByte();
 
                     tsigKeys.Add(keyName, new TsigKey(keyName, sharedSecret, algorithm));
@@ -992,12 +1050,12 @@ namespace DnsServerCore.Dns
             NetProxyType proxyType = (NetProxyType)bR.ReadByte();
             if (proxyType != NetProxyType.None)
             {
-                string address = bR.ReadShortString();
+                string address = s.ReadShortString();
                 int port = bR.ReadInt32();
                 NetworkCredential credential = null;
 
                 if (bR.ReadBoolean()) //credential set
-                    credential = new NetworkCredential(bR.ReadShortString(), bR.ReadShortString());
+                    credential = new NetworkCredential(s.ReadShortString(), s.ReadShortString());
 
                 _proxy = NetProxy.CreateProxy(proxyType, address, port, credential);
 
@@ -1005,7 +1063,7 @@ namespace DnsServerCore.Dns
                 List<NetProxyBypassItem> bypassList = new List<NetProxyBypassItem>(count);
 
                 for (int i = 0; i < count; i++)
-                    bypassList.Add(new NetProxyBypassItem(bR.ReadShortString()));
+                    bypassList.Add(new NetProxyBypassItem(s.ReadShortString()));
 
                 _proxy.BypassList = bypassList;
             }
@@ -1025,7 +1083,7 @@ namespace DnsServerCore.Dns
                         forwarders[i] = new NameServerAddress(bR);
 
                         if (forwarders[i].Protocol == DnsTransportProtocol.HttpsJson)
-                            forwarders[i] = forwarders[i].ChangeProtocol(DnsTransportProtocol.Https);
+                            forwarders[i] = forwarders[i].Clone(DnsTransportProtocol.Https);
                     }
 
                     _forwarders = forwarders;
@@ -1074,10 +1132,10 @@ namespace DnsServerCore.Dns
             BinaryWriter bW = new BinaryWriter(s);
 
             bW.Write(Encoding.ASCII.GetBytes("DC")); //format
-            bW.Write((byte)1); //version
+            bW.Write((byte)3); //version
 
             //general
-            bW.WriteShortString(_serverDomain);
+            s.WriteShortString(_serverDomain);
 
             {
                 bW.Write(Convert.ToByte(_localEndPoints.Count));
@@ -1090,11 +1148,13 @@ namespace DnsServerCore.Dns
             AuthZoneInfo.WriteNetworkAddressesTo(DnsClientConnection.IPv6SourceAddresses, bW);
 
             bW.Write(_authZoneManager.DefaultRecordTtl);
+            bW.Write(_authZoneManager.DefaultNsRecordTtl);
+            bW.Write(_authZoneManager.DefaultSoaRecordTtl);
 
-            if (_responsiblePerson is null)
-                bW.WriteShortString("");
+            if (_defaultResponsiblePerson is null)
+                s.WriteShortString("");
             else
-                bW.WriteShortString(_responsiblePerson.Address);
+                s.WriteShortString(_defaultResponsiblePerson.Address);
 
             bW.Write(_authZoneManager.UseSoaSerialDateScheme);
             bW.Write(_authZoneManager.MinSoaRefresh);
@@ -1105,7 +1165,7 @@ namespace DnsServerCore.Dns
 
             bW.Write(_dnsApplicationManager.EnableAutomaticUpdate);
 
-            bW.Write(_preferIPv6);
+            bW.Write((byte)_ipv6Mode);
             bW.Write(_enableUdpSocketPool);
 
             ushort[] socketPoolExcludedPorts = UdpClientConnection.SocketPoolExcludedPorts;
@@ -1191,9 +1251,12 @@ namespace DnsServerCore.Dns
             bW.Write(_quicIdleTimeout);
             bW.Write(_quicMaxInboundStreams);
             bW.Write(_listenBacklog);
+            bW.Write(_udpSendBufferSizeKB);
+            bW.Write(_udpReceiveBufferSizeKB);
             bW.Write(MaxConcurrentResolutionsPerCore);
 
             //optional protocols
+            bW.Write(_enableEDnsClientSubnetSourceAddress);
             bW.Write(_enableDnsOverUdpProxy);
             bW.Write(_enableDnsOverTcpProxy);
             bW.Write(_enableDnsOverHttp);
@@ -1212,16 +1275,16 @@ namespace DnsServerCore.Dns
             AuthZoneInfo.WriteNetworkACLTo(_reverseProxyNetworkACL, bW);
 
             if (_dnsTlsCertificatePath == null)
-                bW.WriteShortString(string.Empty);
+                s.WriteShortString(string.Empty);
             else
-                bW.WriteShortString(_dnsTlsCertificatePath);
+                s.WriteShortString(_dnsTlsCertificatePath);
 
             if (_dnsTlsCertificatePassword == null)
-                bW.WriteShortString(string.Empty);
+                s.WriteShortString(string.Empty);
             else
-                bW.WriteShortString(_dnsTlsCertificatePassword);
+                s.WriteShortString(_dnsTlsCertificatePassword);
 
-            bW.WriteShortString(_dnsOverHttpRealIpHeader);
+            s.WriteShortString(_dnsOverHttpRealIpHeader);
 
             //tsig
             if (_tsigKeys is null)
@@ -1234,8 +1297,8 @@ namespace DnsServerCore.Dns
 
                 foreach (KeyValuePair<string, TsigKey> tsigKey in _tsigKeys)
                 {
-                    bW.WriteShortString(tsigKey.Key);
-                    bW.WriteShortString(tsigKey.Value.SharedSecret);
+                    s.WriteShortString(tsigKey.Key);
+                    s.WriteShortString(tsigKey.Value.SharedSecret);
                     bW.Write((byte)tsigKey.Value.Algorithm);
                 }
             }
@@ -1299,7 +1362,7 @@ namespace DnsServerCore.Dns
             else
             {
                 bW.Write((byte)_proxy.Type);
-                bW.WriteShortString(_proxy.Address);
+                s.WriteShortString(_proxy.Address);
                 bW.Write(_proxy.Port);
 
                 NetworkCredential credential = _proxy.Credential;
@@ -1311,8 +1374,8 @@ namespace DnsServerCore.Dns
                 else
                 {
                     bW.Write(true);
-                    bW.WriteShortString(credential.UserName);
-                    bW.WriteShortString(credential.Password);
+                    s.WriteShortString(credential.UserName);
+                    s.WriteShortString(credential.Password);
                 }
 
                 //bypass list
@@ -1320,7 +1383,7 @@ namespace DnsServerCore.Dns
                     bW.Write(Convert.ToByte(_proxy.BypassList.Count));
 
                     foreach (NetProxyBypassItem item in _proxy.BypassList)
-                        bW.WriteShortString(item.Value);
+                        s.WriteShortString(item.Value);
                 }
             }
 
@@ -1517,6 +1580,32 @@ namespace DnsServerCore.Dns
 
         #region private
 
+        private Socket GetUdpListnerSocket(AddressFamily addressFamily)
+        {
+            Socket udpListener = new Socket(addressFamily, SocketType.Dgram, ProtocolType.Udp);
+
+            #region this code ignores ICMP port unreachable responses which creates SocketException in ReceiveFrom()
+
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+            {
+                const uint IOC_IN = 0x80000000;
+                const uint IOC_VENDOR = 0x18000000;
+                const uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
+
+                udpListener.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
+            }
+
+            #endregion
+
+            if (Environment.OSVersion.Platform == PlatformID.Unix)
+                udpListener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1); //to allow binding to same port with different addresses
+
+            udpListener.SendBufferSize = _udpSendBufferSizeKB * 1024;
+            udpListener.ReceiveBufferSize = _udpReceiveBufferSizeKB * 1024;
+
+            return udpListener;
+        }
+
         private async Task ReadUdpRequestAsync(Socket udpListener, DnsTransportProtocol protocol)
         {
             bool sendTruncationResponse;
@@ -1531,17 +1620,21 @@ namespace DnsServerCore.Dns
 
             try
             {
-                int localPort = (udpListener.LocalEndPoint as IPEndPoint).Port;
+                IPEndPoint localEP = udpListener.LocalEndPoint as IPEndPoint;
+                int localPort = localEP.Port;
                 EndPoint epAny;
+                bool enableSocketBindingToSourceEP;
 
                 switch (udpListener.AddressFamily)
                 {
                     case AddressFamily.InterNetwork:
                         epAny = new IPEndPoint(IPAddress.Any, 0);
+                        enableSocketBindingToSourceEP = localEP.Address.Equals(IPAddress.Any);
                         break;
 
                     case AddressFamily.InterNetworkV6:
                         epAny = new IPEndPoint(IPAddress.IPv6Any, 0);
+                        enableSocketBindingToSourceEP = localEP.Address.Equals(IPAddress.IPv6Any);
                         break;
 
                     default:
@@ -1602,6 +1695,38 @@ namespace DnsServerCore.Dns
                                 recvBufferStream.Position = proxyStream.DataOffset;
                             }
 
+                            DnsDatagram request = DnsDatagram.ReadFrom(recvBufferStream);
+
+                            IPEndPoint sourceEP = new IPEndPoint(result.PacketInformation.Address, localPort);
+
+                            request.SetMetadata(new NameServerAddress(sourceEP, protocol));
+
+                            if ((protocol == DnsTransportProtocol.Udp) && _enableEDnsClientSubnetSourceAddress)
+                            {
+                                if (NetworkAccessControl.IsAddressAllowed(remoteEP.Address, _reverseProxyNetworkACL))
+                                {
+                                    //this feature is intended to be used with a reverse proxy or load balancer on private network
+                                    EDnsClientSubnetOptionData ecs = request.GetEDnsClientSubnetOption(true);
+                                    if (ecs is not null)
+                                    {
+                                        switch (ecs.SourcePrefixLength)
+                                        {
+                                            case 32:
+                                                if (ecs.Family == EDnsClientSubnetAddressFamily.IPv4)
+                                                    remoteEP = new IPEndPoint(ecs.Address, 0);
+
+                                                break;
+
+                                            case 128:
+                                                if (ecs.Family == EDnsClientSubnetAddressFamily.IPv6)
+                                                    remoteEP = new IPEndPoint(ecs.Address, 0);
+
+                                                break;
+                                        }
+                                    }
+                                }
+                            }
+
                             if (HasQpmLimitExceeded(remoteEP.Address, DnsTransportProtocol.Udp))
                             {
                                 if (SendQpmLimitExceededTruncationResponse())
@@ -1619,8 +1744,80 @@ namespace DnsServerCore.Dns
                                 sendTruncationResponse = false;
                             }
 
-                            DnsDatagram request = DnsDatagram.ReadFrom(recvBufferStream);
-                            request.SetMetadata(new NameServerAddress(new IPEndPoint(result.PacketInformation.Address, localPort), DnsTransportProtocol.Udp));
+                            if (enableSocketBindingToSourceEP)
+                            {
+                                Socket newUdpListener = null;
+
+                                try
+                                {
+                                    List<Socket> listeners;
+
+                                    switch (protocol)
+                                    {
+                                        case DnsTransportProtocol.Udp:
+                                            listeners = _udpListeners;
+                                            break;
+
+                                        case DnsTransportProtocol.UdpProxy:
+                                            listeners = _udpProxyListeners;
+                                            break;
+
+                                        default:
+                                            throw new InvalidOperationException();
+                                    }
+
+                                    lock (listeners)
+                                    {
+                                        //check if socket already exists for source EP
+                                        foreach (Socket socket in listeners)
+                                        {
+                                            if (socket.LocalEndPoint.Equals(sourceEP))
+                                            {
+                                                //use existing socket
+                                                newUdpListener = socket;
+                                                break;
+                                            }
+                                        }
+
+                                        if (newUdpListener is null)
+                                        {
+                                            //create new socket and bind socket to source EP
+                                            newUdpListener = GetUdpListnerSocket(sourceEP.AddressFamily);
+                                            newUdpListener.Bind(sourceEP);
+
+                                            listeners.Add(newUdpListener);
+
+                                            _log.Write(sourceEP, protocol, "DNS Server was bound successfully.");
+
+                                            //start reading query packets
+                                            int listenerTaskCount = Environment.ProcessorCount;
+
+                                            for (int i = 0; i < listenerTaskCount; i++)
+                                            {
+                                                _ = Task.Factory.StartNew(delegate ()
+                                                {
+                                                    return ReadUdpRequestAsync(newUdpListener, protocol);
+                                                }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _queryTaskScheduler);
+                                            }
+                                        }
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    enableSocketBindingToSourceEP = false; //stop this feature to prevent recurring exceptions
+
+                                    _log.Write(sourceEP, protocol, "DNS Server failed to bind.\r\n" + ex.ToString());
+                                }
+
+                                if (newUdpListener is not null)
+                                {
+                                    //respond via new socket
+                                    _ = ProcessUdpRequestAsync(newUdpListener, remoteEP, returnEP, protocol, request, sendTruncationResponse);
+
+                                    //continue reading next request
+                                    continue;
+                                }
+                            }
 
                             _ = ProcessUdpRequestAsync(udpListener, remoteEP, returnEP, protocol, request, sendTruncationResponse);
                         }
@@ -1862,7 +2059,8 @@ namespace DnsServerCore.Dns
                             return ProxyProtocolStream.CreateAsServerAsync(new NetworkStream(socket), cancellationToken1);
                         }, _tcpReceiveTimeout);
 
-                        remoteEP = new IPEndPoint(proxyStream.SourceAddress, proxyStream.SourcePort);
+                        if (!proxyStream.IsLocal)
+                            remoteEP = new IPEndPoint(proxyStream.SourceAddress, proxyStream.SourcePort);
 
                         await ReadStreamRequestAsync(proxyStream, remoteEP, new NameServerAddress(socket.LocalEndPoint, DnsTransportProtocol.Tcp), protocol);
                         break;
@@ -1903,12 +2101,6 @@ namespace DnsServerCore.Dns
 
                 while (true)
                 {
-                    if (HasQpmLimitExceeded(remoteEP.Address, DnsTransportProtocol.Tcp))
-                    {
-                        _statsManager.QueueUpdate(null, remoteEP, protocol, null, true);
-                        break;
-                    }
-
                     DnsDatagram request;
 
                     //read dns datagram with timeout
@@ -1916,7 +2108,7 @@ namespace DnsServerCore.Dns
                     {
                         Task<DnsDatagram> task = DnsDatagram.ReadFromTcpAsync(stream, readBuffer, cancellationTokenSource.Token);
 
-                        if (await Task.WhenAny(task, Task.Delay(_tcpReceiveTimeout, cancellationTokenSource.Token)) != task)
+                        if ((await Task.WhenAny(task, Task.Delay(_tcpReceiveTimeout, cancellationTokenSource.Token)) != task) && (task.Status != TaskStatus.RanToCompletion))
                         {
                             //read timed out
                             await stream.DisposeAsync();
@@ -1927,6 +2119,38 @@ namespace DnsServerCore.Dns
 
                         request = await task;
                         request.SetMetadata(dnsEP);
+                    }
+
+                    if ((protocol == DnsTransportProtocol.Tcp) && _enableEDnsClientSubnetSourceAddress)
+                    {
+                        if (NetworkAccessControl.IsAddressAllowed(remoteEP.Address, _reverseProxyNetworkACL))
+                        {
+                            //this feature is intended to be used with a reverse proxy or load balancer on private network
+                            EDnsClientSubnetOptionData ecs = request.GetEDnsClientSubnetOption(true);
+                            if (ecs is not null)
+                            {
+                                switch (ecs.SourcePrefixLength)
+                                {
+                                    case 32:
+                                        if (ecs.Family == EDnsClientSubnetAddressFamily.IPv4)
+                                            remoteEP = new IPEndPoint(ecs.Address, 0);
+
+                                        break;
+
+                                    case 128:
+                                        if (ecs.Family == EDnsClientSubnetAddressFamily.IPv6)
+                                            remoteEP = new IPEndPoint(ecs.Address, 0);
+
+                                        break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (HasQpmLimitExceeded(remoteEP.Address, DnsTransportProtocol.Tcp))
+                    {
+                        _statsManager.QueueUpdate(null, remoteEP, protocol, null, true);
+                        break;
                     }
 
                     //process request async
@@ -2010,20 +2234,28 @@ namespace DnsServerCore.Dns
                     }
                     catch (AuthenticationException)
                     {
-                        //ignore failed connection handshake
+                        //Happens when the client and server fail to negotiate a connection, e.g. server has an invalid certificate and the client rejects it. https://github.com/dotnet/runtime/issues/75115
+                        //ignore and continue to accept new connection
                     }
-                    catch (QuicException ex)
+                    catch (QuicException)
                     {
-                        if (ex.InnerException is OperationCanceledException)
-                            continue;
-
-                        throw;
+                        //all QuicExceptions are retryable https://github.com/dotnet/runtime/issues/87259
+                        //ignore and continue to accept new connection
+                    }
+                    catch (ArgumentException)
+                    {
+                        //happens when the options returned from the callback are invalid. e.g. a server certificate isn't configured in the callback. https://github.com/dotnet/runtime/issues/75115
+                        //ignore and continue to accept new connection
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        //ignore and continue to accept new connection
                     }
                 }
             }
             catch (ObjectDisposedException)
             {
-                //server stopped
+                //server stopped https://github.com/dotnet/runtime/issues/75115
             }
             catch (Exception ex)
             {
@@ -2072,6 +2304,10 @@ namespace DnsServerCore.Dns
                         break;
                 }
             }
+            catch (OperationCanceledException)
+            {
+                //ignore exception
+            }
             catch (Exception ex)
             {
                 _log.Write(quicConnection.RemoteEndPoint, DnsTransportProtocol.Quic, ex);
@@ -2094,7 +2330,7 @@ namespace DnsServerCore.Dns
                 {
                     Task<DnsDatagram> task = DnsDatagram.ReadFromTcpAsync(quicStream, sharedBuffer, cancellationTokenSource.Token);
 
-                    if (await Task.WhenAny(task, Task.Delay(_tcpReceiveTimeout, cancellationTokenSource.Token)) != task)
+                    if ((await Task.WhenAny(task, Task.Delay(_tcpReceiveTimeout, cancellationTokenSource.Token)) != task) && (task.Status != TaskStatus.RanToCompletion))
                     {
                         //read timed out
                         quicStream.Abort(QuicAbortDirection.Both, (long)DnsOverQuicErrorCodes.DOQ_UNSPECIFIED_ERROR);
@@ -2124,6 +2360,10 @@ namespace DnsServerCore.Dns
             catch (IOException)
             {
                 //ignore QuicException / IOException
+            }
+            catch (OperationCanceledException)
+            {
+                //ignore exception
             }
             catch (Exception ex)
             {
@@ -2417,6 +2657,9 @@ namespace DnsServerCore.Dns
             if (response.EDNS is not null)
                 return response;
 
+            if (response.NextDatagram is not null)
+                return response; //zone transfer response
+
             IReadOnlyList<EDnsOption> options = null;
 
             EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption(true);
@@ -2425,9 +2668,6 @@ namespace DnsServerCore.Dns
 
             if (response.Additional.Count == 0)
                 return response.Clone(null, null, new DnsResourceRecord[] { DnsDatagramEdns.GetOPTFor(_udpPayloadSize, response.RCODE, 0, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options) });
-
-            if (response.IsSigned)
-                return response;
 
             DnsResourceRecord[] newAdditional = new DnsResourceRecord[response.Additional.Count + 1];
 
@@ -3122,7 +3362,7 @@ namespace DnsServerCore.Dns
                                         if (primaryNameServer.Protocol == primaryZoneTransferProtocol)
                                             updatedNameServers.Add(primaryNameServer);
                                         else
-                                            updatedNameServers.Add(primaryNameServer.ChangeProtocol(primaryZoneTransferProtocol));
+                                            updatedNameServers.Add(primaryNameServer.Clone(primaryZoneTransferProtocol));
                                     }
 
                                     primaryNameServerAddresses = updatedNameServers;
@@ -3140,7 +3380,7 @@ namespace DnsServerCore.Dns
                                         if (primaryNameServer.Protocol == DnsTransportProtocol.Tcp)
                                             updatedNameServers.Add(primaryNameServer);
                                         else
-                                            updatedNameServers.Add(primaryNameServer.ChangeProtocol(DnsTransportProtocol.Tcp));
+                                            updatedNameServers.Add(primaryNameServer.Clone(DnsTransportProtocol.Tcp));
                                     }
 
                                     primaryNameServerAddresses = updatedNameServers;
@@ -3156,7 +3396,7 @@ namespace DnsServerCore.Dns
                         DnsClient dnsClient = new DnsClient(primaryNameServerAddresses);
 
                         dnsClient.Proxy = _proxy;
-                        dnsClient.PreferIPv6 = _preferIPv6;
+                        dnsClient.IPv6Mode = _ipv6Mode;
                         dnsClient.Retries = _forwarderRetries;
                         dnsClient.Timeout = _forwarderTimeout;
                         dnsClient.Concurrency = 1;
@@ -3313,7 +3553,43 @@ namespace DnsServerCore.Dns
                 xfrRecords = _authZoneManager.QueryZoneTransferRecords(request.Question[0].Name);
             }
 
-            DnsDatagram xfrResponse = new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, xfrRecords) { Tag = DnsServerResponseType.Authoritative };
+            IReadOnlyList<EDnsOption> eDnsOptions = null;
+
+            if (request.EDNS is not null)
+            {
+                //RFC 7314 EDNS EXPIRE option support
+                if ((zoneInfo.ApexZone is PrimaryZone) || (zoneInfo.ApexZone is SecondaryZone) || (zoneInfo.ApexZone is ForwarderZone))
+                {
+                    foreach (EDnsOption option in request.EDNS.Options)
+                    {
+                        if ((option.Code == EDnsOptionCode.EDNS_EXPIRE) && (option.Data is EDnsExpireOptionData expireOptionData) && (expireOptionData.Expire is null))
+                        {
+                            if (zoneInfo.ApexZone is PrimaryZone primaryZone)
+                            {
+                                DnsResourceRecord soaRecord = primaryZone.GetRecords(DnsResourceRecordType.SOA)[0];
+                                DnsSOARecordData soa = soaRecord.RDATA as DnsSOARecordData;
+
+                                eDnsOptions = [new EDnsOption(EDnsOptionCode.EDNS_EXPIRE, new EDnsExpireOptionData(soa.Expire))];
+                            }
+                            else if (zoneInfo.ApexZone is ForwarderZone forwarderZone)
+                            {
+                                DnsResourceRecord soaRecord = forwarderZone.GetRecords(DnsResourceRecordType.SOA)[0];
+                                DnsSOARecordData soa = soaRecord.RDATA as DnsSOARecordData;
+
+                                eDnsOptions = [new EDnsOption(EDnsOptionCode.EDNS_EXPIRE, new EDnsExpireOptionData(soa.Expire))];
+                            }
+                            else if (zoneInfo.ApexZone is SecondaryZone secondaryZone)
+                            {
+                                eDnsOptions = [new EDnsOption(EDnsOptionCode.EDNS_EXPIRE, new EDnsExpireOptionData(secondaryZone.CurrentExpireValue))];
+                            }
+
+                            break;
+                        }
+                    }
+                }
+            }
+
+            DnsDatagram xfrResponse = new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, xfrRecords, udpPayloadSize: _udpPayloadSize, options: eDnsOptions) { Tag = DnsServerResponseType.Authoritative };
             xfrResponse = xfrResponse.Split();
 
             //update notify failed list
@@ -3419,14 +3695,14 @@ namespace DnsServerCore.Dns
 
             if (authResponse is not null)
             {
-                if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || authResponse.IsFirstAuthoritySOA())
+                if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || authResponse.IsFirstAuthoritySOAOrAPP())
                 {
                     authResponse.Tag = DnsServerResponseType.Authoritative;
                     return authResponse;
                 }
             }
 
-            DnsDatagram appResponse = null;
+            DnsDatagram lastAppResponse = null;
 
             if (!skipDnsAppAuthoritativeRequestHandlers)
             {
@@ -3437,7 +3713,7 @@ namespace DnsServerCore.Dns
                 {
                     try
                     {
-                        appResponse = await requestHandler.ProcessRequestAsync(request, remoteEP, protocol, isRecursionAllowed);
+                        DnsDatagram appResponse = await requestHandler.ProcessRequestAsync(request, remoteEP, protocol, isRecursionAllowed);
                         if (appResponse is not null)
                         {
                             if ((appResponse.RCODE != DnsResponseCode.NoError) || (appResponse.Answer.Count > 0) || (appResponse.Authority.Count == 0) || appResponse.IsFirstAuthoritySOA())
@@ -3446,6 +3722,21 @@ namespace DnsServerCore.Dns
                                     appResponse.Tag = DnsServerResponseType.Authoritative;
 
                                 return appResponse;
+                            }
+
+                            if (lastAppResponse is null)
+                            {
+                                //keep last non-null app response to return later
+                                lastAppResponse = appResponse;
+                            }
+                            else
+                            {
+                                //compare last app response and current app response and select more specific response
+                                DnsResourceRecord appResponseFirstAuthority = appResponse.FindFirstAuthorityRecord();
+                                DnsResourceRecord lastAppResponseFirstAuthority = lastAppResponse.FindFirstAuthorityRecord();
+
+                                if (appResponseFirstAuthority.Name.Length > lastAppResponseFirstAuthority.Name.Length)
+                                    lastAppResponse = appResponse;
                             }
                         }
                     }
@@ -3458,20 +3749,20 @@ namespace DnsServerCore.Dns
 
             if ((authResponse is not null) && (authResponse.Authority.Count > 0))
             {
-                if ((appResponse is not null) && (appResponse.Authority.Count > 0))
+                if ((lastAppResponse is not null) && (lastAppResponse.Authority.Count > 0))
                 {
                     DnsResourceRecord authResponseFirstAuthority = authResponse.FindFirstAuthorityRecord();
-                    DnsResourceRecord appResponseFirstAuthority = appResponse.FindFirstAuthorityRecord();
+                    DnsResourceRecord appResponseFirstAuthority = lastAppResponse.FindFirstAuthorityRecord();
 
                     if (appResponseFirstAuthority.Name.Length > authResponseFirstAuthority.Name.Length)
-                        return appResponse;
+                        return lastAppResponse;
                 }
 
                 return authResponse;
             }
             else
             {
-                return appResponse;
+                return lastAppResponse;
             }
         }
 
@@ -3584,6 +3875,7 @@ namespace DnsServerCore.Dns
             DnsResourceRecord lastRR = response.GetLastAnswerRecord();
             EDnsOption[] eDnsClientSubnetOption = null;
             DnsDatagram newResponse = null;
+            string cnameLoopDetectedDomain = null;
             double responseRtt = 0.0;
 
             if (response.Metadata is not null)
@@ -3601,7 +3893,10 @@ namespace DnsServerCore.Dns
             {
                 string cnameDomain = (lastRR.RDATA as DnsCNAMERecordData).Domain;
                 if (lastRR.Name.Equals(cnameDomain, StringComparison.OrdinalIgnoreCase))
+                {
+                    cnameLoopDetectedDomain = cnameDomain;
                     break; //loop detected
+                }
 
                 DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, request.CheckingDisabled, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(cnameDomain, request.Question[0].Type, request.Question[0].Class) }, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, eDnsClientSubnetOption);
 
@@ -3682,8 +3977,6 @@ namespace DnsServerCore.Dns
                     break; //cname was resolved
                 }
 
-                bool foundRepeat = false;
-
                 foreach (DnsResourceRecord newResponseAnswerRecord in newResponse.Answer)
                 {
                     if ((newResponseAnswerRecord.Type == DnsResourceRecordType.CNAME) || (newResponseAnswerRecord.Type == DnsResourceRecordType.DNAME))
@@ -3692,19 +3985,19 @@ namespace DnsServerCore.Dns
                         {
                             if (newResponseAnswerRecord.Equals(answerRecord))
                             {
-                                foundRepeat = true;
+                                cnameLoopDetectedDomain = (newResponseAnswerRecord.RDATA as DnsCNAMERecordData).Domain;
                                 break;
                             }
                         }
 
-                        if (foundRepeat)
+                        if (cnameLoopDetectedDomain is not null)
                             break;
                     }
 
                     newAnswer.Add(newResponseAnswerRecord);
                 }
 
-                if (foundRepeat)
+                if (cnameLoopDetectedDomain is not null)
                     break; //loop detected
 
                 lastResponse = newResponse;
@@ -3714,6 +4007,7 @@ namespace DnsServerCore.Dns
             DnsResponseCode rcode;
             IReadOnlyList<DnsResourceRecord> authority;
             IReadOnlyList<DnsResourceRecord> additional;
+            List<EDnsOption> options = null;
 
             if (newResponse is null)
             {
@@ -3734,7 +4028,22 @@ namespace DnsServerCore.Dns
             }
             else
             {
-                rcode = newResponse.RCODE;
+                if (cnameLoopDetectedDomain is not null)
+                {
+                    rcode = DnsResponseCode.ServerFailure;
+
+                    options = new List<EDnsOption>(4)
+                    {
+                        new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Other, "CNAME loop detected at " + cnameLoopDetectedDomain + "."))
+                    };
+                }
+                else
+                {
+                    if (queryCount >= MAX_CNAME_HOPS)
+                        rcode = DnsResponseCode.ServerFailure;
+                    else
+                        rcode = newResponse.RCODE;
+                }
 
                 if (newAuthority.Count == 0)
                 {
@@ -3746,10 +4055,35 @@ namespace DnsServerCore.Dns
                     authority = newAuthority;
                 }
 
-                additional = newResponse.Additional;
+                if ((newResponse.Additional.Count == 0) || (options is null))
+                {
+                    additional = newResponse.Additional;
+                }
+                else if ((newResponse.Additional.Count == 1) && (newResponse.Additional[0].RDATA is DnsOPTRecordData opt))
+                {
+                    options.AddRange(opt.Options);
+                    additional = [];
+                }
+                else
+                {
+                    List<DnsResourceRecord> newAdditional = new List<DnsResourceRecord>();
+
+                    foreach (DnsResourceRecord additionalRecord in newResponse.Additional)
+                    {
+                        if (additionalRecord.Type == DnsResourceRecordType.OPT)
+                        {
+                            options.AddRange((additionalRecord.RDATA as DnsOPTRecordData).Options);
+                            continue;
+                        }
+
+                        newAdditional.Add(additionalRecord);
+                    }
+
+                    additional = newAdditional;
+                }
             }
 
-            DnsDatagram finalResponse = new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, isAuthoritativeAnswer, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, rcode, request.Question, newAnswer, authority, additional) { Tag = response.Tag };
+            DnsDatagram finalResponse = new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, isAuthoritativeAnswer, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, rcode, request.Question, newAnswer, authority, additional, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options) { Tag = response.Tag };
             finalResponse.SetMetadata(null, responseRtt);
 
             return finalResponse;
@@ -4187,7 +4521,7 @@ namespace DnsServerCore.Dns
                         if (record.Type != DnsResourceRecordType.CNAME)
                             break; //no further CNAME records exists
 
-                        DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord((record.RDATA as DnsCNAMERecordData).Domain, request.Question[0].Type, request.Question[0].Class) }, null, null, null, _udpPayloadSize);
+                        DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, [new DnsQuestionRecord((record.RDATA as DnsCNAMERecordData).Domain, request.Question[0].Type, request.Question[0].Class)], null, null, null, _udpPayloadSize);
 
                         if (request.Metadata is not null)
                             newRequest.SetMetadata(request.Metadata.NameServer);
@@ -4202,7 +4536,7 @@ namespace DnsServerCore.Dns
                         if (blockedResponse is not null)
                         {
                             //found cname cloaking
-                            List<DnsResourceRecord> answer = new List<DnsResourceRecord>();
+                            List<DnsResourceRecord> answer = new List<DnsResourceRecord>(i + 1 + blockedResponse.Answer.Count);
 
                             //copy current and previous CNAME records
                             for (int j = 0; j <= i; j++)
@@ -4337,7 +4671,7 @@ namespace DnsServerCore.Dns
             if (!cachePrefetchOperation && !cacheRefreshOperation)
             {
                 //query cache zone to see if answer available
-                DnsDatagram cacheResponse = await QueryCacheAsync(request, false, false);
+                DnsDatagram cacheResponse = QueryCache(request, false, false);
                 if (cacheResponse is not null)
                 {
                     if (_cachePrefetchTrigger > 0)
@@ -4348,7 +4682,7 @@ namespace DnsServerCore.Dns
                             if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && ((answer.TTL <= _cachePrefetchTrigger) || answer.IsStale))
                             {
                                 //trigger prefetch async for this specific answer record
-                                _ = PrefetchCacheAsync(new DnsQuestionRecord(answer.Name, question.Type, question.Class), remoteEP, conditionalForwarders);
+                                _ = PrefetchCacheAsync(new DnsQuestionRecord(answer.Name, question.Type, question.Class), remoteEP, conditionalForwarders, eDnsClientSubnet, advancedForwardingClientSubnet);
                                 break;
                             }
                         }
@@ -4390,7 +4724,7 @@ namespace DnsServerCore.Dns
                 using CancellationTokenSource timeoutCancellationTokenSource = new CancellationTokenSource();
 
                 //wait till short timeout for response
-                if ((waitTimeout > 0) && (await Task.WhenAny(resolverTask, Task.Delay(waitTimeout, timeoutCancellationTokenSource.Token)) == resolverTask))
+                if ((waitTimeout > 0) && ((await Task.WhenAny(resolverTask, Task.Delay(waitTimeout, timeoutCancellationTokenSource.Token)) == resolverTask) || (resolverTask.Status == TaskStatus.RanToCompletion)))
                 {
                     //resolver signaled
                     timeoutCancellationTokenSource.Cancel(); //to stop delay task
@@ -4407,7 +4741,7 @@ namespace DnsServerCore.Dns
                     //wait timed out
 
                     //query cache zone to return stale answer (if available) as per RFC 8767
-                    DnsDatagram staleResponse = await QueryCacheAsync(request, true, false);
+                    DnsDatagram staleResponse = QueryCache(request, true, false);
                     if (staleResponse is not null)
                         return staleResponse;
 
@@ -4415,7 +4749,7 @@ namespace DnsServerCore.Dns
                     //wait till full timeout before responding as ServerFailure
                     int timeout = clientTimeout - waitTimeout;
 
-                    if (await Task.WhenAny(resolverTask, Task.Delay(timeout, timeoutCancellationTokenSource.Token)) == resolverTask)
+                    if ((await Task.WhenAny(resolverTask, Task.Delay(timeout, timeoutCancellationTokenSource.Token)) == resolverTask) || (resolverTask.Status == TaskStatus.RanToCompletion))
                     {
                         //resolver signaled
                         timeoutCancellationTokenSource.Cancel(); //to stop delay task
@@ -4434,7 +4768,7 @@ namespace DnsServerCore.Dns
                 using CancellationTokenSource timeoutCancellationTokenSource = new CancellationTokenSource();
 
                 //wait till full client timeout for response
-                if (await Task.WhenAny(resolverTask, Task.Delay(clientTimeout, timeoutCancellationTokenSource.Token)) == resolverTask)
+                if ((await Task.WhenAny(resolverTask, Task.Delay(clientTimeout, timeoutCancellationTokenSource.Token)) == resolverTask) || (resolverTask.Status == TaskStatus.RanToCompletion))
                 {
                     //resolver signaled
                     timeoutCancellationTokenSource.Cancel(); //to stop delay task
@@ -4479,9 +4813,16 @@ namespace DnsServerCore.Dns
                     else
                     {
                         //do force recursive resolution
-                        response = await TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
+                        response = await TechnitiumLibrary.TaskExtensions.TimeoutAsync(async delegate (CancellationToken cancellationToken1)
                         {
-                            return DnsClient.RecursiveResolveAsync(question, dnsCache, _proxy, _preferIPv6, _udpPayloadSize, _randomizeName, _qnameMinimization, dnssecValidation, eDnsClientSubnet, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, true, true, cancellationToken: cancellationToken1);
+                            Stopwatch stopwatch = Stopwatch.StartNew();
+
+                            DnsDatagram response = await DnsClient.RecursiveResolveAsync(question, dnsCache, _proxy, _ipv6Mode, _udpPayloadSize, _randomizeName, _qnameMinimization, dnssecValidation, eDnsClientSubnet, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, true, true, cancellationToken: cancellationToken1);
+
+                            stopwatch.Stop();
+                            response = response.CloneWithMetadata(response.Metadata?.NameServer, stopwatch.Elapsed.TotalMilliseconds);
+
+                            return response;
                         }, RECURSIVE_RESOLUTION_TIMEOUT);
                     }
                 }
@@ -4500,7 +4841,7 @@ namespace DnsServerCore.Dns
                         break;
 
                     default:
-                        throw new DnsServerException("All name servers failed to answer the request '" + question.ToString() + "'. Received last response with RCODE=" + response.RCODE.ToString() + " from: " + (response.Metadata is null ? "unknown" : response.Metadata.NameServer));
+                        throw new DnsServerException("All name servers failed to answer the request '" + question.ToString() + "'. Received last response with RCODE=" + response.RCODE.ToString() + (response.Metadata is null ? "." : " from: " + response.Metadata.NameServer));
                 }
             }
             catch (Exception ex)
@@ -4541,7 +4882,7 @@ namespace DnsServerCore.Dns
 
                 //fetch failure/stale response to signal; reset stale records
                 DnsDatagram cacheRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, dnssecValidation, DnsResponseCode.NoError, [question], null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(eDnsClientSubnet));
-                DnsDatagram cacheResponse = await QueryCacheAsync(cacheRequest, _serveStale, _serveStale);
+                DnsDatagram cacheResponse = QueryCache(cacheRequest, _serveStale, _serveStale);
                 if (cacheResponse is not null)
                 {
                     //signal failure/stale response
@@ -4659,7 +5000,7 @@ namespace DnsServerCore.Dns
                                 //refresh forwarder IPEndPoint if stale
                                 resolveTasks.Add(TechnitiumLibrary.TaskExtensions.TimeoutAsync(async delegate (CancellationToken cancellationToken1)
                                 {
-                                    await forwarder.RecursiveResolveIPAddressAsync(dnsCache, null, _preferIPv6, _udpPayloadSize, _randomizeName, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, cancellationToken1);
+                                    await forwarder.RecursiveResolveIPAddressAsync(dnsCache, null, _ipv6Mode, _udpPayloadSize, _randomizeName, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, cancellationToken1);
                                     return forwarder;
                                 }, RECURSIVE_RESOLUTION_TIMEOUT, cancellationToken));
                             }
@@ -4695,7 +5036,7 @@ namespace DnsServerCore.Dns
 
                     dnsClient.Cache = dnsCache;
                     dnsClient.Proxy = _proxy;
-                    dnsClient.PreferIPv6 = _preferIPv6;
+                    dnsClient.IPv6Mode = _ipv6Mode;
                     dnsClient.RandomizeName = _randomizeName;
                     dnsClient.Retries = _forwarderRetries;
                     dnsClient.Timeout = _forwarderTimeout;
@@ -4710,6 +5051,7 @@ namespace DnsServerCore.Dns
                 else
                 {
                     //do sequentially ordered forwarding
+                    DnsDatagram lastResponse = null;
                     Exception lastException = null;
 
                     foreach (NameServerAddress forwarder in forwarders)
@@ -4724,7 +5066,7 @@ namespace DnsServerCore.Dns
                                     //refresh forwarder IPEndPoint if stale
                                     await TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
                                     {
-                                        return forwarder.RecursiveResolveIPAddressAsync(dnsCache, null, _preferIPv6, _udpPayloadSize, _randomizeName, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, cancellationToken1);
+                                        return forwarder.RecursiveResolveIPAddressAsync(dnsCache, null, _ipv6Mode, _udpPayloadSize, _randomizeName, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, cancellationToken1);
                                     }, RECURSIVE_RESOLUTION_TIMEOUT, cancellationToken);
                                 }
                                 catch (Exception ex)
@@ -4742,7 +5084,7 @@ namespace DnsServerCore.Dns
 
                         dnsClient.Cache = dnsCache;
                         dnsClient.Proxy = _proxy;
-                        dnsClient.PreferIPv6 = _preferIPv6;
+                        dnsClient.IPv6Mode = _ipv6Mode;
                         dnsClient.RandomizeName = _randomizeName;
                         dnsClient.Retries = _forwarderRetries;
                         dnsClient.Timeout = _forwarderTimeout;
@@ -4754,7 +5096,28 @@ namespace DnsServerCore.Dns
 
                         try
                         {
-                            return await dnsClient.ResolveAsync(question, cancellationToken);
+                            DnsDatagram response = await dnsClient.ResolveAsync(question, cancellationToken);
+
+                            switch (response.RCODE)
+                            {
+                                case DnsResponseCode.NoError:
+                                case DnsResponseCode.NxDomain:
+                                case DnsResponseCode.YXDomain:
+                                    return response;
+
+                                default:
+                                    //copy EDE from last response
+                                    if (lastResponse is not null)
+                                        response = response.CloneAndAddDnsClientExtendedErrorsFrom(lastResponse);
+
+                                    //keep response
+                                    lastResponse = response;
+                                    break;
+                            }
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
                         }
                         catch (Exception ex)
                         {
@@ -4765,16 +5128,28 @@ namespace DnsServerCore.Dns
                             dnsCache = new ResolverPrefetchDnsCache(this, skipDnsAppAuthoritativeRequestHandlers, question); //to prevent low priority tasks to read failure response from cache
                     }
 
-                    ExceptionDispatchInfo.Capture(lastException).Throw();
-                    throw lastException;
+                    if (lastResponse is not null)
+                        return lastResponse; //return last response
+
+                    if (lastException is not null)
+                        ExceptionDispatchInfo.Capture(lastException).Throw();
+
+                    throw new InvalidOperationException();
                 }
             }
             else
             {
                 //do recursive resolution
-                return await TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
+                return await TechnitiumLibrary.TaskExtensions.TimeoutAsync(async delegate (CancellationToken cancellationToken1)
                 {
-                    return DnsClient.RecursiveResolveAsync(question, dnsCache, _proxy, _preferIPv6, _udpPayloadSize, _randomizeName, _qnameMinimization, dnssecValidation, eDnsClientSubnet, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, true, true, null, cancellationToken1);
+                    Stopwatch stopwatch = Stopwatch.StartNew();
+
+                    DnsDatagram response = await DnsClient.RecursiveResolveAsync(question, dnsCache, _proxy, _ipv6Mode, _udpPayloadSize, _randomizeName, _qnameMinimization, dnssecValidation, eDnsClientSubnet, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, true, true, null, cancellationToken1);
+
+                    stopwatch.Stop();
+                    response = response.CloneWithMetadata(response.Metadata?.NameServer, stopwatch.Elapsed.TotalMilliseconds);
+
+                    return response;
                 }, RECURSIVE_RESOLUTION_TIMEOUT, cancellationToken);
             }
         }
@@ -4809,7 +5184,7 @@ namespace DnsServerCore.Dns
                         //refresh forwarder IPEndPoint if stale
                         resolveTasks.Add(TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
                         {
-                            return forwarder.NameServer.RecursiveResolveIPAddressAsync(dnsCache, null, _preferIPv6, _udpPayloadSize, _randomizeName, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, cancellationToken1);
+                            return forwarder.NameServer.RecursiveResolveIPAddressAsync(dnsCache, null, _ipv6Mode, _udpPayloadSize, _randomizeName, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, cancellationToken1);
                         }, RECURSIVE_RESOLUTION_TIMEOUT));
                     }
                 }
@@ -4840,7 +5215,7 @@ namespace DnsServerCore.Dns
 
                     DnsForwarderRecordData forwarder = conditionalForwarder.RDATA as DnsForwarderRecordData;
 
-                    if (forwarder.NameServer.IsIPEndPointStale)
+                    if (forwarder.NameServer.IsIPEndPointStale && !forwarder.Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                         continue; //skip stale forwarders since they failed to resolve
 
                     if (conditionalForwarderGroups.TryGetValue(forwarder.Priority, out List<DnsResourceRecord> conditionalForwardersEntry))
@@ -4991,6 +5366,10 @@ namespace DnsServerCore.Dns
                                 return taskResponse;
 
                             default:
+                                //copy EDE from last response
+                                if (lastResponse is not null)
+                                    taskResponse = taskResponse.CloneAndAddDnsClientExtendedErrorsFrom(lastResponse);
+
                                 //keep response
                                 lastResponse = taskResponse;
                                 break;
@@ -5035,7 +5414,7 @@ namespace DnsServerCore.Dns
 
                 dnsClient.Cache = dnsCache;
                 dnsClient.Proxy = forwarder.GetProxy(_proxy);
-                dnsClient.PreferIPv6 = _preferIPv6;
+                dnsClient.IPv6Mode = _ipv6Mode;
                 dnsClient.RandomizeName = _randomizeName;
                 dnsClient.Retries = _forwarderRetries;
                 dnsClient.Timeout = _forwarderTimeout;
@@ -5419,9 +5798,9 @@ namespace DnsServerCore.Dns
             return question.ToString() + " " + eDnsClientSubnet.ToString();
         }
 
-        private async Task<DnsDatagram> QueryCacheAsync(DnsDatagram request, bool serveStale, bool resetExpiry)
+        private DnsDatagram QueryCache(DnsDatagram request, bool serveStale, bool resetExpiry)
         {
-            DnsDatagram cacheResponse = await _cacheZoneManager.QueryAsync(request, serveStale, false, resetExpiry);
+            DnsDatagram cacheResponse = _cacheZoneManager.Query(request, serveStale, false, resetExpiry);
             if (cacheResponse is not null)
             {
                 if ((cacheResponse.RCODE != DnsResponseCode.NoError) || (cacheResponse.Answer.Count > 0) || (cacheResponse.Authority.Count == 0) || cacheResponse.IsFirstAuthoritySOA())
@@ -5435,11 +5814,15 @@ namespace DnsServerCore.Dns
             return null;
         }
 
-        private async Task PrefetchCacheAsync(DnsQuestionRecord question, IPEndPoint remoteEP, IReadOnlyList<DnsResourceRecord> conditionalForwarders)
+        private async Task PrefetchCacheAsync(DnsQuestionRecord question, IPEndPoint remoteEP, IReadOnlyList<DnsResourceRecord> conditionalForwarders, NetworkAddress eDnsClientSubnet, bool advancedForwardingClientSubnet)
         {
             try
             {
                 DnsDatagram request = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, [question]);
+
+                if (eDnsClientSubnet is not null)
+                    request.SetShadowEDnsClientSubnetOption(eDnsClientSubnet, advancedForwardingClientSubnet);
+
                 _ = await RecursiveResolveAsync(request, remoteEP, conditionalForwarders, _dnssecValidation, true, false, false, _clientTimeout);
             }
             catch (Exception ex)
@@ -5448,13 +5831,13 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task RefreshCacheAsync(DnsQuestionRecord neededQuestion, IList<CacheRefreshSample> cacheRefreshSampleList, CacheRefreshSample sample, int sampleQuestionIndex)
+        private async Task RefreshCacheAsync(DnsQuestionRecord question, IReadOnlyList<DnsResourceRecord> conditionalForwarders, IList<DnsQuestionRecord> cacheRefreshSampleList, int sampleQuestionIndex)
         {
             try
             {
                 //refresh cache
-                DnsDatagram request = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, [neededQuestion]);
-                _ = await ProcessRecursiveQueryAsync(request, IPENDPOINT_ANY_0, DnsTransportProtocol.Udp, sample.ConditionalForwarders, _dnssecValidation, true, false, _clientTimeout);
+                DnsDatagram request = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, [question]);
+                _ = await ProcessRecursiveQueryAsync(request, IPENDPOINT_ANY_0, DnsTransportProtocol.Udp, conditionalForwarders, _dnssecValidation, true, false, _clientTimeout);
             }
             catch (Exception ex)
             {
@@ -5462,31 +5845,118 @@ namespace DnsServerCore.Dns
             }
             finally
             {
-                cacheRefreshSampleList[sampleQuestionIndex] = sample; //put back into sample list to allow refreshing it again
+                cacheRefreshSampleList[sampleQuestionIndex] = question; //put back into sample list to allow refreshing it again
             }
         }
 
-        private async Task<DnsQuestionRecord> GetCacheRefreshNeededQueryAsync(DnsQuestionRecord question, int trigger)
+        private async Task<CacheRefreshNeeded> GetCacheRefreshNeededQueryAsync(DnsQuestionRecord question, int trigger)
         {
-            DnsDatagram cacheResponse = await QueryCacheAsync(new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }), false, false);
-            if (cacheResponse is null)
-                return question; //cache expired so refresh question
+            string conditionalForwarderZoneCut = null;
+            IReadOnlyList<DnsResourceRecord> conditionalForwarders = null;
 
-            if (cacheResponse.Answer.Count == 0)
-                return null; //dont refresh empty responses
-
-            //inspect response TTL values to decide if refresh is needed
-            foreach (DnsResourceRecord answer in cacheResponse.Answer)
+            int queryCount = 0;
+            do
             {
-                if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && ((answer.TTL <= trigger) || answer.IsStale))
-                    return new DnsQuestionRecord(answer.Name, question.Type, question.Class); //TTL eligible and less than trigger so refresh for current answer record
-            }
+                DnsDatagram authRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, [question]);
+                DnsDatagram authResponse = await AuthoritativeQueryAsync(authRequest, DnsTransportProtocol.Tcp, true, false, IPENDPOINT_ANY_0);
+                if (authResponse is not null)
+                {
+                    //zone is hosted
+                    if (authResponse.Answer.Count > 0)
+                    {
+                        DnsResourceRecord lastRR = authResponse.GetLastAnswerRecord();
+                        if ((lastRR.Type == DnsResourceRecordType.CNAME) && (question.Type != DnsResourceRecordType.CNAME))
+                        {
+                            //found CNAME; restart for the CNAME target
+                            string cnameDomain = (lastRR.RDATA as DnsCNAMERecordData).Domain;
 
-            DnsResourceRecord lastRR = cacheResponse.Answer[cacheResponse.Answer.Count - 1];
-            if (lastRR.Type == DnsResourceRecordType.CNAME)
-                return new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecordData).Domain, question.Type, question.Class); //found incomplete response; refresh the last CNAME domain name
+                            if ((conditionalForwarderZoneCut is not null) && !cnameDomain.Equals(conditionalForwarderZoneCut, StringComparison.OrdinalIgnoreCase) && !cnameDomain.EndsWith("." + conditionalForwarderZoneCut, StringComparison.OrdinalIgnoreCase))
+                            {
+                                //cname domain is in different bailiwick; reset conditional forwarders
+                                conditionalForwarderZoneCut = null;
+                                conditionalForwarders = null;
+                            }
 
-            return null; //refresh not needed
+                            question = new DnsQuestionRecord(cnameDomain, question.Type, question.Class);
+                            continue;
+                        }
+
+                        //zone is hosted and answers query; no need to refresh
+                        return null;
+                    }
+                    else if (authResponse.Authority.Count > 0)
+                    {
+                        DnsResourceRecord firstAuthority = authResponse.FindFirstAuthorityRecord();
+                        switch (firstAuthority.Type)
+                        {
+                            case DnsResourceRecordType.NS: //zone is delegated
+                                conditionalForwarderZoneCut = firstAuthority.Name;
+                                conditionalForwarders = []; //do forced recursive resolution using empty conditional forwarders
+                                break;
+
+                            case DnsResourceRecordType.FWD: //zone is conditional forwarder
+                                conditionalForwarderZoneCut = firstAuthority.Name;
+                                conditionalForwarders = authResponse.Authority; //do conditional forwarding
+                                break;
+
+                            default:
+                                //zone is hosted and answers query; no need to refresh
+                                return null;
+                        }
+                    }
+                    else
+                    {
+                        //zone is hosted and answers query; no need to refresh
+                        return null;
+                    }
+                }
+
+                DnsDatagram cacheRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, [question]);
+                DnsDatagram cacheResponse = QueryCache(cacheRequest, false, false);
+                if (cacheResponse is null)
+                {
+                    cacheResponse = QueryCache(cacheRequest, true, false);
+                    if (cacheResponse is null)
+                        return null; //no entry at all in cache; don't refresh question; probably ECS/Advanced Forwarding app in use
+
+                    return new CacheRefreshNeeded(question, conditionalForwarders); //cache expired so refresh question
+                }
+
+                if (cacheResponse.Answer.Count == 0)
+                    return null; //dont refresh empty responses
+
+                //inspect response TTL values to decide if refresh is needed
+                bool foundCNAME = false;
+
+                foreach (DnsResourceRecord answer in cacheResponse.Answer)
+                {
+                    if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && ((answer.TTL <= trigger) || answer.IsStale))
+                        return new CacheRefreshNeeded(new DnsQuestionRecord(answer.Name, question.Type, question.Class), conditionalForwarders); //TTL eligible and less than trigger so refresh for current answer record
+
+                    if (answer.Type == DnsResourceRecordType.CNAME)
+                    {
+                        //found CNAME; restart for the CNAME target
+                        string cnameDomain = (answer.RDATA as DnsCNAMERecordData).Domain;
+
+                        if ((conditionalForwarderZoneCut is not null) && !cnameDomain.Equals(conditionalForwarderZoneCut, StringComparison.OrdinalIgnoreCase) && !cnameDomain.EndsWith("." + conditionalForwarderZoneCut, StringComparison.OrdinalIgnoreCase))
+                        {
+                            //cname domain is in different bailiwick; reset conditional forwarders
+                            conditionalForwarderZoneCut = null;
+                            conditionalForwarders = null;
+                        }
+
+                        question = new DnsQuestionRecord(cnameDomain, question.Type, question.Class);
+                        foundCNAME = true;
+                        break;
+                    }
+                }
+
+                if (!foundCNAME)
+                    return null; //refresh not needed
+
+            } while (++queryCount < MAX_CNAME_HOPS);
+
+            return null; //don't refresh; too many CNAME hops
         }
 
         private async void CachePrefetchSamplingTimerCallback(object state)
@@ -5494,81 +5964,24 @@ namespace DnsServerCore.Dns
             try
             {
                 List<KeyValuePair<DnsQuestionRecord, long>> eligibleQueries = _statsManager.GetLastHourEligibleQueries(_cachePrefetchSampleEligibilityHitsPerHour);
-                List<CacheRefreshSample> cacheRefreshSampleList = new List<CacheRefreshSample>(eligibleQueries.Count);
+                List<DnsQuestionRecord> cacheRefreshSampleList = new List<DnsQuestionRecord>(eligibleQueries.Count);
                 int cacheRefreshTrigger = (_cachePrefetchSampleIntervalMinutes + 1) * 60; //extra 1 min to account for any delays in next sampling
 
                 foreach (KeyValuePair<DnsQuestionRecord, long> eligibleQuery in eligibleQueries)
                 {
                     DnsQuestionRecord eligibleQuerySample = eligibleQuery.Key;
 
-                    if (eligibleQuerySample.Type == DnsResourceRecordType.ANY)
-                        continue; //dont refresh type ANY queries
-
-                    DnsQuestionRecord refreshQuery = null;
-                    IReadOnlyList<DnsResourceRecord> conditionalForwarders = null;
-
-                    //query auth zone for refresh query
-                    int queryCount = 0;
-                    bool reQueryAuthZone;
-                    do
+                    switch (eligibleQuerySample.Type)
                     {
-                        reQueryAuthZone = false;
-
-                        DnsDatagram request = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { eligibleQuerySample });
-                        DnsDatagram response = await AuthoritativeQueryAsync(request, DnsTransportProtocol.Tcp, true, false, IPENDPOINT_ANY_0);
-                        if (response is null)
-                        {
-                            //zone not hosted; do refresh
-                            refreshQuery = await GetCacheRefreshNeededQueryAsync(eligibleQuerySample, cacheRefreshTrigger);
-                        }
-                        else
-                        {
-                            //zone is hosted; check further
-                            if (response.Answer.Count > 0)
-                            {
-                                DnsResourceRecord lastRR = response.GetLastAnswerRecord();
-                                if ((lastRR.Type == DnsResourceRecordType.CNAME) && (eligibleQuerySample.Type != DnsResourceRecordType.CNAME))
-                                {
-                                    eligibleQuerySample = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecordData).Domain, eligibleQuerySample.Type, eligibleQuerySample.Class);
-                                    reQueryAuthZone = true;
-                                }
-                            }
-                            else if (response.Authority.Count > 0)
-                            {
-                                DnsResourceRecord firstAuthority = response.FindFirstAuthorityRecord();
-                                switch (firstAuthority.Type)
-                                {
-                                    case DnsResourceRecordType.NS: //zone is delegated
-                                        refreshQuery = await GetCacheRefreshNeededQueryAsync(eligibleQuerySample, cacheRefreshTrigger);
-                                        conditionalForwarders = Array.Empty<DnsResourceRecord>(); //do forced recursive resolution using empty conditional forwarders
-                                        break;
-
-                                    case DnsResourceRecordType.FWD: //zone is conditional forwarder
-                                        refreshQuery = await GetCacheRefreshNeededQueryAsync(eligibleQuerySample, cacheRefreshTrigger);
-                                        conditionalForwarders = response.Authority; //do conditional forwarding
-                                        break;
-                                }
-                            }
-                        }
+                        case DnsResourceRecordType.IXFR:
+                        case DnsResourceRecordType.AXFR:
+                        case DnsResourceRecordType.ANY:
+                            continue; //dont refresh these queries
                     }
-                    while (reQueryAuthZone && (++queryCount < MAX_CNAME_HOPS));
 
-                    if (refreshQuery is not null)
-                    {
-                        bool alreadyExists = false;
-
-                        foreach (CacheRefreshSample cacheRefreshSample in cacheRefreshSampleList)
-                        {
-                            if (cacheRefreshSample.SampleQuestion.Equals(refreshQuery))
-                            {
-                                alreadyExists = true;
-                                break; //already exists in sample list
-                            }
-                        }
-
-                        if (!alreadyExists)
-                            cacheRefreshSampleList.Add(new CacheRefreshSample(refreshQuery, conditionalForwarders));
-                    }
+                    CacheRefreshNeeded refreshNeededSample = await GetCacheRefreshNeededQueryAsync(eligibleQuerySample, cacheRefreshTrigger);
+                    if (refreshNeededSample is not null)
+                        cacheRefreshSampleList.Add(refreshNeededSample.Question);
                 }
 
                 _cacheRefreshSampleList = cacheRefreshSampleList;
@@ -5590,7 +6003,7 @@ namespace DnsServerCore.Dns
         {
             try
             {
-                IList<CacheRefreshSample> cacheRefreshSampleList = _cacheRefreshSampleList;
+                IList<DnsQuestionRecord> cacheRefreshSampleList = _cacheRefreshSampleList;
                 if (cacheRefreshSampleList is not null)
                 {
                     const int MIN_TRIGGER = 10 + 4; //minimum trigger is 10 (timer interval) + 4 (additional margin for resolution delays to avoid record expiry)
@@ -5598,18 +6011,18 @@ namespace DnsServerCore.Dns
 
                     for (int i = 0; i < cacheRefreshSampleList.Count; i++)
                     {
-                        CacheRefreshSample sample = cacheRefreshSampleList[i];
-                        if (sample is null)
+                        DnsQuestionRecord sampleQuestion = cacheRefreshSampleList[i];
+                        if (sampleQuestion is null)
                             continue; //currently being refreshed
 
-                        DnsQuestionRecord neededQuestion = await GetCacheRefreshNeededQueryAsync(sample.SampleQuestion, cacheRefreshTrigger);
-                        if (neededQuestion is null)
+                        CacheRefreshNeeded refreshNeeded = await GetCacheRefreshNeededQueryAsync(sampleQuestion, cacheRefreshTrigger);
+                        if (refreshNeeded is null)
                             continue; //no need to refresh for this query
 
                         //run in resolver thread pool
                         if (_resolverTaskPool.TryQueueTask(delegate (object state)
                             {
-                                return RefreshCacheAsync(neededQuestion, cacheRefreshSampleList, sample, (int)state);
+                                return RefreshCacheAsync(refreshNeeded.Question, refreshNeeded.ConditionalForwarders, cacheRefreshSampleList, (int)state);
                             }, i)
                         )
                         {
@@ -6105,26 +6518,7 @@ namespace DnsServerCore.Dns
 
                 try
                 {
-                    udpListener = new Socket(localEP.AddressFamily, SocketType.Dgram, ProtocolType.Udp);
-
-                    #region this code ignores ICMP port unreachable responses which creates SocketException in ReceiveFrom()
-
-                    if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-                    {
-                        const uint IOC_IN = 0x80000000;
-                        const uint IOC_VENDOR = 0x18000000;
-                        const uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
-
-                        udpListener.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
-                    }
-
-                    #endregion
-
-                    if (Environment.OSVersion.Platform == PlatformID.Unix)
-                        udpListener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1); //to allow binding to same port with different addresses
-
-                    udpListener.ReceiveBufferSize = 512 * 1024;
-                    udpListener.SendBufferSize = 512 * 1024;
+                    udpListener = GetUdpListnerSocket(localEP.AddressFamily);
 
                     try
                     {
@@ -6165,26 +6559,7 @@ namespace DnsServerCore.Dns
 
                     try
                     {
-                        udpProxyListener = new Socket(udpProxyEP.AddressFamily, SocketType.Dgram, ProtocolType.Udp);
-
-                        #region this code ignores ICMP port unreachable responses which creates SocketException in ReceiveFrom()
-
-                        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-                        {
-                            const uint IOC_IN = 0x80000000;
-                            const uint IOC_VENDOR = 0x18000000;
-                            const uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
-
-                            udpProxyListener.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
-                        }
-
-                        #endregion
-
-                        if (Environment.OSVersion.Platform == PlatformID.Unix)
-                            udpProxyListener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1); //to allow binding to same port with different addresses
-
-                        udpProxyListener.ReceiveBufferSize = 512 * 1024;
-                        udpProxyListener.SendBufferSize = 512 * 1024;
+                        udpProxyListener = GetUdpListnerSocket(udpProxyEP.AddressFamily);
 
                         udpProxyListener.Bind(udpProxyEP);
 
@@ -6575,7 +6950,7 @@ namespace DnsServerCore.Dns
                         throw new DnsServerException("Invalid domain name [" + value + "]: IP address cannot be used for DNS server domain name.");
 
                     _serverDomain = value.ToLowerInvariant();
-                    _defaultResponsiblePerson = new MailAddress("hostadmin@" + _serverDomain);
+                    _fallbackResponsiblePerson = new MailAddress("hostadmin@" + _serverDomain);
 
                     _authZoneManager.TriggerUpdateServerDomain();
                     _allowedZoneManager.UpdateServerDomain();
@@ -6615,23 +6990,23 @@ namespace DnsServerCore.Dns
         public LogManager LogManager
         { get { return _log; } }
 
-        internal MailAddress ResponsiblePersonInternal
+        internal MailAddress DefaultResponsiblePerson
         {
-            get { return _responsiblePerson; }
-            set { _responsiblePerson = value; }
+            get { return _defaultResponsiblePerson; }
+            set { _defaultResponsiblePerson = value; }
         }
 
         public MailAddress ResponsiblePerson
         {
             get
             {
-                if (_responsiblePerson is not null)
-                    return _responsiblePerson;
+                if (_defaultResponsiblePerson is not null)
+                    return _defaultResponsiblePerson;
 
-                if (_defaultResponsiblePerson is null)
-                    _defaultResponsiblePerson = new MailAddress("hostadmin@" + _serverDomain);
+                if (_fallbackResponsiblePerson is null)
+                    _fallbackResponsiblePerson = new MailAddress("hostadmin@" + _serverDomain);
 
-                return _defaultResponsiblePerson;
+                return _fallbackResponsiblePerson;
             }
         }
 
@@ -6690,14 +7065,14 @@ namespace DnsServerCore.Dns
             }
         }
 
-        public bool PreferIPv6
+        public IPv6Mode IPv6Mode
         {
-            get { return _preferIPv6; }
+            get { return _ipv6Mode; }
             set
             {
-                if (_preferIPv6 != value)
+                if (_ipv6Mode != value)
                 {
-                    _preferIPv6 = value;
+                    _ipv6Mode = value;
 
                     //init udp socket pool async for port randomization
                     ThreadPool.QueueUserWorkItem(delegate (object state)
@@ -6705,7 +7080,7 @@ namespace DnsServerCore.Dns
                         try
                         {
                             if (_enableUdpSocketPool)
-                                UdpClientConnection.CreateSocketPool(_preferIPv6);
+                                UdpClientConnection.CreateSocketPool(_ipv6Mode != IPv6Mode.Disabled);
                         }
                         catch (Exception ex)
                         {
@@ -6731,7 +7106,7 @@ namespace DnsServerCore.Dns
                         try
                         {
                             if (_enableUdpSocketPool)
-                                UdpClientConnection.CreateSocketPool(_preferIPv6);
+                                UdpClientConnection.CreateSocketPool(_ipv6Mode != IPv6Mode.Disabled);
                             else
                                 UdpClientConnection.DisposeSocketPool();
                         }
@@ -7020,6 +7395,30 @@ namespace DnsServerCore.Dns
             set { _listenBacklog = value; }
         }
 
+        public int UdpSendBufferSizeKB
+        {
+            get { return _udpSendBufferSizeKB; }
+            set
+            {
+                if ((value < 8) || (value > 65536))
+                    throw new ArgumentOutOfRangeException(nameof(UdpSendBufferSizeKB), "Valid range is from 8 KB to 65536 KB.");
+
+                _udpSendBufferSizeKB = value;
+            }
+        }
+
+        public int UdpReceiveBufferSizeKB
+        {
+            get { return _udpReceiveBufferSizeKB; }
+            set
+            {
+                if ((value < 8) || (value > 65536))
+                    throw new ArgumentOutOfRangeException(nameof(UdpReceiveBufferSizeKB), "Valid range is from 8 KB to 65536 KB.");
+
+                _udpReceiveBufferSizeKB = value;
+            }
+        }
+
         public ushort MaxConcurrentResolutionsPerCore
         {
             get { return Convert.ToUInt16(_resolverTaskPool.MaximumConcurrencyLevel / Environment.ProcessorCount); }
@@ -7031,6 +7430,12 @@ namespace DnsServerCore.Dns
                 if (MaxConcurrentResolutionsPerCore != value)
                     ReconfigureResolverTaskPool(value);
             }
+        }
+
+        public bool EnableEDnsClientSubnetSourceAddress
+        {
+            get { return _enableEDnsClientSubnetSourceAddress; }
+            set { _enableEDnsClientSubnetSourceAddress = value; }
         }
 
         public bool EnableDnsOverUdpProxy
@@ -7391,7 +7796,11 @@ namespace DnsServerCore.Dns
                 if ((value < 1) || (value > 60))
                     throw new ArgumentOutOfRangeException(nameof(CachePrefetchSampleIntervalMinutes), "Valid range is between 1 and 60 minutes.");
 
-                _cachePrefetchSampleIntervalMinutes = value;
+                if (_cachePrefetchSampleIntervalMinutes != value)
+                {
+                    _cachePrefetchSampleIntervalMinutes = value;
+                    ResetPrefetchTimers();
+                }
             }
         }
 
@@ -7553,15 +7962,15 @@ namespace DnsServerCore.Dns
 
         #endregion
 
-        class CacheRefreshSample
+        class CacheRefreshNeeded
         {
-            public CacheRefreshSample(DnsQuestionRecord sampleQuestion, IReadOnlyList<DnsResourceRecord> conditionalForwarders)
+            public CacheRefreshNeeded(DnsQuestionRecord question, IReadOnlyList<DnsResourceRecord> conditionalForwarders)
             {
-                SampleQuestion = sampleQuestion;
+                Question = question;
                 ConditionalForwarders = conditionalForwarders;
             }
 
-            public DnsQuestionRecord SampleQuestion { get; }
+            public DnsQuestionRecord Question { get; }
 
             public IReadOnlyList<DnsResourceRecord> ConditionalForwarders { get; }
         }
@@ -7580,6 +7989,5 @@ namespace DnsServerCore.Dns
         }
     }
 
-#pragma warning restore CA2252 // This API requires opting into preview features
 #pragma warning restore CA1416 // Validate platform compatibility
 }

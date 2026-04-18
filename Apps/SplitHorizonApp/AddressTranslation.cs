@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -39,6 +39,7 @@ namespace SplitHorizon
         byte _appPreference;
 
         bool _enableAddressTranslation;
+        Dictionary<string, string> _domainGroupMap;
         Dictionary<NetworkAddress, string> _networkGroupMap;
         Dictionary<string, Group> _groups;
 
@@ -70,6 +71,9 @@ namespace SplitHorizon
         ]
     },
     "enableAddressTranslation": false,
+    "domainGroupMap": {
+	    "example.com": "local1"
+	},
     "networkGroupMap": {
         "10.0.0.0/8": "local1",
         "172.16.0.0/12": "local2",
@@ -112,7 +116,7 @@ namespace SplitHorizon
 
             do
             {
-                using JsonDocument jsonDocument = JsonDocument.Parse(config);
+                using JsonDocument jsonDocument = JsonDocument.Parse(config, SimpleAddress._jsonParseOptions);
                 JsonElement jsonConfig = jsonDocument.RootElement;
 
                 _appPreference = Convert.ToByte(jsonConfig.GetPropertyValue("appPreference", 40));
@@ -126,6 +130,9 @@ namespace SplitHorizon
                     config += """
 ,
     "enableAddressTranslation": false,
+    "domainGroupMap": {
+	    "example.com": "local1"
+	},
     "networkGroupMap": {
         "10.0.0.0/8": "local1",
         "172.16.0.0/12": "local2",
@@ -170,6 +177,20 @@ namespace SplitHorizon
 
                 _enableAddressTranslation = jsonConfig.GetProperty("enableAddressTranslation").GetBoolean();
 
+                if (!jsonConfig.TryReadObjectAsMap("domainGroupMap", delegate (string domain, JsonElement jsonGroupName)
+                    {
+                        return new Tuple<string, string>(domain, jsonGroupName.GetString());
+                    }, out _domainGroupMap))
+                {
+                    _domainGroupMap = new Dictionary<string, string>(1)
+                    {
+                        { "example.com", "local1" }
+                    };
+
+                    config = config.Replace("\"networkGroupMap\": ", "\"domainGroupMap\": {\r\n        \"example.com\": \"local1\"\r\n    },\r\n    \"networkGroupMap\": ");
+                    await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
+                }
+
                 _networkGroupMap = jsonConfig.ReadObjectAsMap("networkGroupMap", delegate (string strNetworkAddress, JsonElement jsonGroupName)
                 {
                     if (!NetworkAddress.TryParse(strNetworkAddress, out NetworkAddress networkAddress))
@@ -212,16 +233,32 @@ namespace SplitHorizon
             if (response.Answer.Count == 0)
                 return Task.FromResult(response);
 
-            IPAddress remoteIP = remoteEP.Address;
-            NetworkAddress network = null;
             string groupName = null;
+            string qname = question.Name;
+            string domain = null;
 
-            foreach (KeyValuePair<NetworkAddress, string> entry in _networkGroupMap)
+            foreach (KeyValuePair<string, string> entry in _domainGroupMap)
             {
-                if (entry.Key.Contains(remoteIP) && ((network is null) || (entry.Key.PrefixLength > network.PrefixLength)))
+                if ((qname.Equals(entry.Key, StringComparison.OrdinalIgnoreCase) || qname.EndsWith("." + entry.Key, StringComparison.OrdinalIgnoreCase))
+                    && ((domain is null) || (entry.Key.Length > domain.Length)))
                 {
-                    network = entry.Key;
+                    domain = entry.Key;
                     groupName = entry.Value;
+                }
+            }
+
+            if (groupName is null)
+            {
+                IPAddress remoteIP = remoteEP.Address;
+                NetworkAddress network = null;
+
+                foreach (KeyValuePair<NetworkAddress, string> entry in _networkGroupMap)
+                {
+                    if (entry.Key.Contains(remoteIP) && ((network is null) || (entry.Key.PrefixLength > network.PrefixLength)))
+                    {
+                        network = entry.Key;
+                        groupName = entry.Value;
+                    }
                 }
             }
 
@@ -290,9 +327,7 @@ namespace SplitHorizon
             if ((groupName is null) || !_groups.TryGetValue(groupName, out Group group) || !group.Enabled || !group.TranslateReverseLookups)
                 return Task.FromResult<DnsDatagram>(null);
 
-            IPAddress ptrIpAddress = IPAddressExtensions.ParseReverseDomain(question.Name);
-
-            if (!group.TryInternalToExternalTranslation(ptrIpAddress, out IPAddress externalIp))
+            if (!IPAddressExtensions.TryParseReverseDomain(question.Name, out IPAddress ptrIpAddress) || !group.TryInternalToExternalTranslation(ptrIpAddress, out IPAddress externalIp))
                 return Task.FromResult<DnsDatagram>(null);
 
             IReadOnlyList<DnsResourceRecord> answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, question.Class, 600, new DnsCNAMERecordData(externalIp.GetReverseDomain())) };
@@ -305,7 +340,7 @@ namespace SplitHorizon
         #region properties
 
         public string Description
-        { get { return "Translates IP addresses in DNS response for A & AAAA type request based on the client's network address and the configured 1:1 translation. Also supports reverse (PTR) queries for translated addresses."; } }
+        { get { return "Translates IP addresses in DNS response for A & AAAA type request based on the client's network address or configured domain names, and the configured 1:1 translation. Also supports reverse (PTR) queries for translated addresses."; } }
 
         public byte Preference
         { get { return _appPreference; } }

@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -43,6 +43,8 @@ namespace AdvancedBlocking
     {
         #region variables
 
+        readonly static JsonDocumentOptions _jsonParseOptions = new JsonDocumentOptions() { CommentHandling = JsonCommentHandling.Skip };
+
         IDnsServer? _dnsServer;
 
         DnsSOARecordData? _soaRecord;
@@ -51,6 +53,7 @@ namespace AdvancedBlocking
         bool _enableBlocking;
         uint _blockingAnswerTtl;
         int _blockListUrlUpdateIntervalHours;
+        int _blockListUrlUpdateIntervalMinutes;
 
         Dictionary<EndPoint, string>? _localEndPointGroupMap;
         Dictionary<NetworkAddress, string>? _networkGroupMap;
@@ -66,7 +69,7 @@ namespace AdvancedBlocking
 
         Timer? _blockListUrlUpdateTimer;
         DateTime _blockListUrlLastUpdatedOn;
-        const int BLOCK_LIST_UPDATE_TIMER_INTERVAL = 900000;
+        const int BLOCK_LIST_UPDATE_TIMER_INTERVAL = 60000;
 
         #endregion
 
@@ -89,7 +92,7 @@ namespace AdvancedBlocking
         {
             try
             {
-                if (DateTime.UtcNow > _blockListUrlLastUpdatedOn.AddHours(_blockListUrlUpdateIntervalHours))
+                if (DateTime.UtcNow > _blockListUrlLastUpdatedOn.AddHours(_blockListUrlUpdateIntervalHours).AddMinutes(_blockListUrlUpdateIntervalMinutes))
                 {
                     if (await UpdateAllListsAsync())
                     {
@@ -340,17 +343,21 @@ namespace AdvancedBlocking
 
         #region public
 
-        public async Task InitializeAsync(IDnsServer dnsServer, string config)
+        public async Task InitializeAsync(IDnsServer dnsServer, string? config)
         {
             _dnsServer = dnsServer;
 
+            if (config is null)
+                throw new InvalidOperationException();
+
             Directory.CreateDirectory(Path.Combine(_dnsServer.ApplicationFolder, "blocklists"));
-            using JsonDocument jsonDocument = JsonDocument.Parse(config);
+            using JsonDocument jsonDocument = JsonDocument.Parse(config, _jsonParseOptions);
             JsonElement jsonConfig = jsonDocument.RootElement;
 
-            _enableBlocking = jsonConfig.GetProperty("enableBlocking").GetBoolean();
+            _enableBlocking = jsonConfig.GetPropertyValue("enableBlocking", true);
             _blockingAnswerTtl = jsonConfig.GetPropertyValue("blockingAnswerTtl", 30u);
-            _blockListUrlUpdateIntervalHours = jsonConfig.GetProperty("blockListUrlUpdateIntervalHours").GetInt32();
+            _blockListUrlUpdateIntervalHours = jsonConfig.GetPropertyValue("blockListUrlUpdateIntervalHours", 24);
+            _blockListUrlUpdateIntervalMinutes = jsonConfig.GetPropertyValue("blockListUrlUpdateIntervalMinutes", 0);
 
             _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, _dnsServer.ResponsiblePerson.Address, 1, 14400, 3600, 604800, _blockingAnswerTtl);
             _nsRecord = new DnsNSRecordData(_dnsServer.ServerDomain);
@@ -541,6 +548,13 @@ namespace AdvancedBlocking
             if (!jsonConfig.TryGetProperty("blockingAnswerTtl", out _))
             {
                 config = config.Replace("\"blockListUrlUpdateIntervalHours\"", "\"blockingAnswerTtl\": 30,\r\n  \"blockListUrlUpdateIntervalHours\"");
+
+                await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
+            }
+
+            if (!jsonConfig.TryGetProperty("blockListUrlUpdateIntervalMinutes", out _))
+            {
+                config = config.Replace("\"localEndPointGroupMap\"", "\"blockListUrlUpdateIntervalMinutes\": 0,\r\n  \"localEndPointGroupMap\"");
 
                 await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
             }
@@ -875,8 +889,8 @@ namespace AdvancedBlocking
                 _app = app;
 
                 _name = jsonGroup.GetProperty("name").GetString()!;
-                _enableBlocking = jsonGroup.GetProperty("enableBlocking").GetBoolean();
-                _allowTxtBlockingReport = jsonGroup.GetProperty("allowTxtBlockingReport").GetBoolean();
+                _enableBlocking = jsonGroup.GetPropertyValue("enableBlocking", true);
+                _allowTxtBlockingReport = jsonGroup.GetPropertyValue("allowTxtBlockingReport", true);
                 _blockAsNxDomain = jsonGroup.GetPropertyValue("blockAsNxDomain", false);
 
                 if (jsonGroup.TryGetProperty("blockingAddresses", out JsonElement jsonBlockingAddresses))
@@ -1181,7 +1195,7 @@ namespace AdvancedBlocking
                     {
                         HttpClientNetworkHandler handler = new HttpClientNetworkHandler();
                         handler.Proxy = _dnsServer.Proxy;
-                        handler.NetworkType = _dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default;
+                        handler.NetworkType = HttpClientNetworkHandler.GetNetworkType(_dnsServer.IPv6Mode);
                         handler.DnsClient = _dnsServer;
 
                         using (HttpClient http = new HttpClient(handler))

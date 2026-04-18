@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ namespace DnsServerCore.ApplicationCommon
         /// <summary>
         /// Allows DNS Server HTTP API to query the logs recorded by the DNS App.
         /// </summary>
-        /// <param name="pageNumber">The page number to be displayed to the user.</param>
+        /// <param name="pageNumber">The page number to be displayed to the user. Use page number <code>-1</code> to refer to the last page.</param>
         /// <param name="entriesPerPage">Total entries per page.</param>
         /// <param name="descendingOrder">Lists log entries in descending order.</param>
         /// <param name="start">Optional parameter to filter records by start date time.</param>
@@ -47,7 +47,7 @@ namespace DnsServerCore.ApplicationCommon
         /// <param name="qtype">Optional parameter to filter records by the request QTYPE.</param>
         /// <param name="qclass">Optional parameter to filter records by the request QCLASS.</param>
         /// <returns>The <code>DnsLogPage</code> object that contains all the entries in the requested page number.</returns>
-        Task<DnsLogPage> QueryLogsAsync(long pageNumber, int entriesPerPage, bool descendingOrder, DateTime? start, DateTime? end, IPAddress clientIpAddress, DnsTransportProtocol? protocol, DnsServerResponseType? responseType, DnsResponseCode? rcode, string qname, DnsResourceRecordType? qtype, DnsClass? qclass);
+        Task<DnsLogPage> QueryLogsAsync(long pageNumber, int entriesPerPage, bool descendingOrder, DateTime? start, DateTime? end, IPAddress? clientIpAddress, DnsTransportProtocol? protocol, DnsServerResponseType? responseType, DnsResponseCode? rcode, string? qname, DnsResourceRecordType? qtype, DnsClass? qclass);
     }
 
     public class DnsLogPage
@@ -120,8 +120,8 @@ namespace DnsServerCore.ApplicationCommon
         readonly DnsServerResponseType _responseType;
         readonly double? _responseRtt;
         readonly DnsResponseCode _rcode;
-        readonly DnsQuestionRecord _question;
-        readonly string _answer;
+        readonly DnsQuestionRecord? _question;
+        readonly string? _answer;
 
         #endregion
 
@@ -139,7 +139,7 @@ namespace DnsServerCore.ApplicationCommon
         /// <param name="rcode">The response code sent by the DNS server.</param>
         /// <param name="question">The question section in the request.</param>
         /// <param name="answer">The answer in text format sent by the DNS server.</param>
-        public DnsLogEntry(long rowNumber, DateTime timestamp, IPAddress clientIpAddress, DnsTransportProtocol protocol, DnsServerResponseType responseType, double? responseRtt, DnsResponseCode rcode, DnsQuestionRecord question, string answer)
+        public DnsLogEntry(long rowNumber, DateTime timestamp, IPAddress clientIpAddress, DnsTransportProtocol protocol, DnsServerResponseType responseType, double? responseRtt, DnsResponseCode rcode, DnsQuestionRecord? question, string? answer)
         {
             _rowNumber = rowNumber;
             _timestamp = timestamp;
@@ -246,13 +246,13 @@ namespace DnsServerCore.ApplicationCommon
         /// <summary>
         /// The question section in the request.
         /// </summary>
-        public DnsQuestionRecord Question
+        public DnsQuestionRecord? Question
         { get { return _question; } }
 
         /// <summary>
         /// The answer in text format sent by the DNS server.
         /// </summary>
-        public string Answer
+        public string? Answer
         { get { return _answer; } }
 
         #endregion

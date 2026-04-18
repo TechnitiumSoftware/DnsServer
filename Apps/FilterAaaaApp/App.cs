@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -35,6 +35,8 @@ namespace FilterAaaa
     {
         #region variables
 
+        readonly static JsonDocumentOptions _jsonParseOptions = new JsonDocumentOptions() { CommentHandling = JsonCommentHandling.Skip };
+
         IDnsServer _dnsServer;
 
         bool _enableFilterAaaa;
@@ -61,7 +63,7 @@ namespace FilterAaaa
         {
             _dnsServer = dnsServer;
 
-            using JsonDocument jsonDocument = JsonDocument.Parse(config);
+            using JsonDocument jsonDocument = JsonDocument.Parse(config, _jsonParseOptions);
             JsonElement jsonConfig = jsonDocument.RootElement;
 
             _enableFilterAaaa = jsonConfig.GetPropertyValue("enableFilterAaaa", false);

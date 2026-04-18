@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -130,7 +130,7 @@ namespace Failover
             if (!question.Name.Equals(appRecordName, StringComparison.OrdinalIgnoreCase) && !appRecordName.StartsWith('*'))
                 return Task.FromResult<DnsDatagram>(null);
 
-            using JsonDocument jsonDocument = JsonDocument.Parse(appRecordData);
+            using JsonDocument jsonDocument = JsonDocument.Parse(appRecordData, Address._jsonParseOptions);
             JsonElement jsonAppRecordData = jsonDocument.RootElement;
 
             string healthCheck = jsonAppRecordData.GetPropertyValue("healthCheck", null);

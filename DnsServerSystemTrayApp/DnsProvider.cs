@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@ namespace DnsServerSystemTrayApp
 
         public DnsProvider(BinaryReader bR)
         {
-            this.Name = bR.ReadShortString();
+            this.Name = bR.BaseStream.ReadShortString();
             this.Addresses = new List<IPAddress>();
 
             int count = bR.ReadInt32();
@@ -74,9 +74,9 @@ namespace DnsServerSystemTrayApp
 
         #region public
 
-        public string GetIpv4Addresses()
+        public string? GetIpv4Addresses()
         {
-            string ipv4Addresses = null;
+            string? ipv4Addresses = null;
 
             foreach (IPAddress address in Addresses)
             {
@@ -92,9 +92,9 @@ namespace DnsServerSystemTrayApp
             return ipv4Addresses;
         }
 
-        public string GetIpv6Addresses()
+        public string? GetIpv6Addresses()
         {
-            string ipv6Addresses = null;
+            string? ipv6Addresses = null;
 
             foreach (IPAddress address in Addresses)
             {
@@ -115,14 +115,14 @@ namespace DnsServerSystemTrayApp
             return Name;
         }
 
-        public int CompareTo(DnsProvider other)
+        public int CompareTo(DnsProvider? other)
         {
-            return this.Name.CompareTo(other.Name);
+            return this.Name.CompareTo(other?.Name);
         }
 
         public void WriteTo(BinaryWriter bW)
         {
-            bW.WriteShortString(Name);
+            bW.BaseStream.WriteShortString(Name);
 
             bW.Write(Addresses.Count);
 

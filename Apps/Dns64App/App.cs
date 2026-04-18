@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -38,6 +38,8 @@ namespace Dns64
     {
         #region variables
 
+        readonly static JsonDocumentOptions _jsonParseOptions = new JsonDocumentOptions() { CommentHandling = JsonCommentHandling.Skip };
+
         IDnsServer _dnsServer;
 
         byte _appPreference;
@@ -63,7 +65,7 @@ namespace Dns64
         {
             _dnsServer = dnsServer;
 
-            using JsonDocument jsonDocument = JsonDocument.Parse(config);
+            using JsonDocument jsonDocument = JsonDocument.Parse(config, _jsonParseOptions);
             JsonElement jsonConfig = jsonDocument.RootElement;
 
             _appPreference = Convert.ToByte(jsonConfig.GetPropertyValue("appPreference", 30));
@@ -233,8 +235,7 @@ namespace Dns64
             if ((groupName is null) || !_groups.TryGetValue(groupName, out Group group) || !group.EnableDns64)
                 return Task.FromResult<DnsDatagram>(null);
 
-            IPAddress ipv6Address = IPAddressExtensions.ParseReverseDomain(question.Name);
-            if (ipv6Address.AddressFamily != AddressFamily.InterNetworkV6)
+            if (!IPAddressExtensions.TryParseReverseDomain(question.Name, out IPAddress ipv6Address) || (ipv6Address.AddressFamily != AddressFamily.InterNetworkV6))
                 return Task.FromResult<DnsDatagram>(null);
 
             NetworkAddress dns64Prefix = null;

@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -50,8 +50,8 @@ namespace DnsServerCore.Auth
             switch (bR.ReadByte())
             {
                 case 1:
-                    _name = bR.ReadShortString();
-                    _description = bR.ReadShortString();
+                    _name = bR.BaseStream.ReadShortString();
+                    _description = bR.BaseStream.ReadShortString();
                     break;
 
                 default:
@@ -66,8 +66,8 @@ namespace DnsServerCore.Auth
         public void WriteTo(BinaryWriter bW)
         {
             bW.Write((byte)1);
-            bW.WriteShortString(_name);
-            bW.WriteShortString(_description);
+            bW.BaseStream.WriteShortString(_name);
+            bW.BaseStream.WriteShortString(_description);
         }
 
         public override bool Equals(object obj)

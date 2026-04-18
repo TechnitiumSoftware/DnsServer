@@ -2,7 +2,7 @@ services:
   dns-server:
     container_name: dns-server
     hostname: dns-server
-    image: technitium/dns-server:latest
+    image: docker.io/technitium/dns-server:latest
     # For DHCP deployments, use "host" network mode and remove all the port mappings, including the ports array by commenting them
     # network_mode: "host"
     ports:
@@ -41,11 +41,17 @@ services:
       # - DNS_SERVER_FORWARDERS=1.1.1.1, 8.8.8.8 #Comma separated list of forwarder addresses.
       # - DNS_SERVER_FORWARDER_PROTOCOL=Tcp #Forwarder protocol options: Udp, Tcp, Tls, Https, HttpsJson.
       # - DNS_SERVER_LOG_USING_LOCAL_TIME=true #Enable this option to use local time instead of UTC for logging.
+      - DNS_SERVER_LOG_FOLDER_PATH=/var/log/technitium/dns #The folder path on the server where the log files should be saved.
+      # - DNS_SERVER_LOG_MAX_LOG_FILE_DAYS=365 #Max number of days to keep the log files. Log files older than the specified number of days will be deleted automatically. Set 0 to disable auto delete.
+      # - DNS_SERVER_STATS_ENABLE_IN_MEMORY_STATS=false #This option will enable in-memory stats and only Last Hour data will be available on Dashboard. No stats data will be stored on disk.
+      # - DNS_SERVER_STATS_MAX_STAT_FILE_DAYS=365 #Max number of days to keep the dashboard stats. Stat files older than the specified number of days will be deleted automatically. Set 0 to disable auto delete.
     volumes:
       - config:/etc/dns
+      - logs:/var/log/technitium/dns
     restart: unless-stopped
     sysctls:
-      - net.ipv4.ip_local_port_range=1024 65535
+      - net.ipv4.ip_local_port_range=1024 65535 #remove when using "host" network mode
 
 volumes:
     config:
+    logs:

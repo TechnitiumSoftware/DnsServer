@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -48,6 +48,22 @@ namespace DnsServerCore.Dns
         readonly DnsServer _dnsServer;
         readonly string _statsFolder;
 
+        //lifetime counters
+        long _totalQueries;
+        long _totalNoError;
+        long _totalServerFailure;
+        long _totalNxDomain;
+        long _totalRefused;
+
+        long _totalAuthoritative;
+        long _totalRecursive;
+        long _totalCached;
+        long _totalBlocked;
+        long _totalDropped;
+
+        readonly HashSet<IPAddress> _uniqueClients = new HashSet<IPAddress>(1000);
+
+        //dashboard stats
         readonly StatCounter[] _lastHourStatCounters = new StatCounter[60];
         readonly StatCounter[] _lastHourStatCountersCopy = new StatCounter[60];
         readonly ConcurrentDictionary<DateTime, HourlyStats> _hourlyStatsCache = new ConcurrentDictionary<DateTime, HourlyStats>();
@@ -127,6 +143,19 @@ namespace DnsServerCore.Dns
                         if (_disposed)
                             break;
 
+                        DnsResponseCode responseCode = item._response is null ? DnsResponseCode.NoError : item._response.RCODE;
+
+                        DnsServerResponseType responseType;
+
+                        if (item._response is null)
+                            responseType = DnsServerResponseType.Dropped;
+                        else if (item._response.Tag is null)
+                            responseType = DnsServerResponseType.Recursive;
+                        else
+                            responseType = (DnsServerResponseType)item._response.Tag;
+
+                        UpdateLifetimeCounters(responseCode, responseType, item._remoteEP.Address);
+
                         StatCounter statCounter = _lastHourStatCounters[item._timestamp.Minute];
                         if (statCounter is not null)
                         {
@@ -137,16 +166,7 @@ namespace DnsServerCore.Dns
                             else
                                 query = null;
 
-                            DnsServerResponseType responseType;
-
-                            if (item._response is null)
-                                responseType = DnsServerResponseType.Dropped;
-                            else if (item._response.Tag is null)
-                                responseType = DnsServerResponseType.Recursive;
-                            else
-                                responseType = (DnsServerResponseType)item._response.Tag;
-
-                            statCounter.Update(query, item._response is null ? DnsResponseCode.NoError : item._response.RCODE, responseType, item._remoteEP.Address, item._protocol, item._rateLimited);
+                            statCounter.Update(query, responseCode, responseType, item._remoteEP.Address, item._protocol, item._rateLimited);
                         }
 
                         if ((item._request is null) || (item._response is null))
@@ -186,7 +206,7 @@ namespace DnsServerCore.Dns
 
                     //delete hourly logs
                     {
-                        string[] hourlyStatsFiles = Directory.GetFiles(Path.Combine(_dnsServer.ConfigFolder, "stats"), "*.stat");
+                        string[] hourlyStatsFiles = Directory.GetFiles(Path.Combine(_dnsServer.ConfigFolder, "stats"), "*.stat", SearchOption.TopDirectoryOnly);
 
                         foreach (string hourlyStatsFile in hourlyStatsFiles)
                         {
@@ -212,7 +232,7 @@ namespace DnsServerCore.Dns
 
                     //delete daily logs
                     {
-                        string[] dailyStatsFiles = Directory.GetFiles(Path.Combine(_dnsServer.ConfigFolder, "stats"), "*.dstat");
+                        string[] dailyStatsFiles = Directory.GetFiles(Path.Combine(_dnsServer.ConfigFolder, "stats"), "*.dstat", SearchOption.TopDirectoryOnly);
 
                         foreach (string dailyStatsFile in dailyStatsFiles)
                         {
@@ -270,6 +290,72 @@ namespace DnsServerCore.Dns
         #endregion
 
         #region private
+
+        public void UpdateLifetimeCounters(DnsResponseCode responseCode, DnsServerResponseType responseType, IPAddress clientIpAddress)
+        {
+            _totalQueries++;
+
+            if (responseType == DnsServerResponseType.Dropped)
+            {
+                _totalDropped++;
+            }
+            else
+            {
+                switch (responseCode)
+                {
+                    case DnsResponseCode.NoError:
+                        _totalNoError++;
+                        break;
+
+                    case DnsResponseCode.ServerFailure:
+                        _totalServerFailure++;
+                        break;
+
+                    case DnsResponseCode.NxDomain:
+                        _totalNxDomain++;
+                        break;
+
+                    case DnsResponseCode.Refused:
+                        _totalRefused++;
+                        break;
+                }
+
+                switch (responseType)
+                {
+                    case DnsServerResponseType.Authoritative:
+                        _totalAuthoritative++;
+                        break;
+
+                    case DnsServerResponseType.Recursive:
+                        _totalRecursive++;
+                        break;
+
+                    case DnsServerResponseType.Cached:
+                        _totalCached++;
+                        break;
+
+                    case DnsServerResponseType.Blocked:
+                        _totalBlocked++;
+                        break;
+
+                    case DnsServerResponseType.UpstreamBlocked:
+                        _totalRecursive++;
+                        _totalBlocked++;
+                        break;
+
+                    case DnsServerResponseType.UpstreamBlockedCached:
+                        _totalCached++;
+                        _totalBlocked++;
+                        break;
+                }
+
+                if (clientIpAddress.IsIPv4MappedToIPv6)
+                    clientIpAddress = clientIpAddress.MapToIPv4();
+
+                _uniqueClients.Add(clientIpAddress);
+            }
+        }
+
 
         private void LoadLastHourStats()
         {
@@ -403,7 +489,7 @@ namespace DnsServerCore.Dns
 
             if (forceReload || !_hourlyStatsCache.TryGetValue(hourlyDateTime, out HourlyStats hourlyStats))
             {
-                string hourlyStatsFile = Path.Combine(_statsFolder, dateTime.ToString("yyyyMMddHH") + ".stat");
+                string hourlyStatsFile = Path.Combine(_statsFolder, dateTime.ToString("yyyyMMddHH", CultureInfo.InvariantCulture) + ".stat");
 
                 if (File.Exists(hourlyStatsFile))
                 {
@@ -447,7 +533,7 @@ namespace DnsServerCore.Dns
 
             if (!_dailyStatsCache.TryGetValue(dailyDateTime, out StatCounter dailyStats))
             {
-                string dailyStatsFile = Path.Combine(_statsFolder, dateTime.ToString("yyyyMMdd") + ".dstat");
+                string dailyStatsFile = Path.Combine(_statsFolder, dateTime.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + ".dstat");
 
                 if (File.Exists(dailyStatsFile))
                 {
@@ -502,7 +588,7 @@ namespace DnsServerCore.Dns
 
         private void SaveHourlyStats(DateTime dateTime, HourlyStats hourlyStats)
         {
-            string hourlyStatsFile = Path.Combine(_statsFolder, dateTime.ToString("yyyyMMddHH") + ".stat");
+            string hourlyStatsFile = Path.Combine(_statsFolder, dateTime.ToString("yyyyMMddHH", CultureInfo.InvariantCulture) + ".stat");
 
             try
             {
@@ -519,7 +605,7 @@ namespace DnsServerCore.Dns
 
         private void SaveDailyStats(DateTime dateTime, StatCounter dailyStats)
         {
-            string dailyStatsFile = Path.Combine(_statsFolder, dateTime.ToString("yyyyMMdd") + ".dstat");
+            string dailyStatsFile = Path.Combine(_statsFolder, dateTime.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + ".dstat");
 
             try
             {
@@ -604,9 +690,9 @@ namespace DnsServerCore.Dns
                 string label;
 
                 if (utcFormat)
-                    label = lastDateTime.AddMinutes(1).ToString("O");
+                    label = lastDateTime.AddMinutes(1).ToString("O", CultureInfo.InvariantCulture);
                 else
-                    label = lastDateTime.AddMinutes(1).ToLocalTime().ToString("HH:mm");
+                    label = lastDateTime.AddMinutes(1).ToLocalTime().ToString("HH:mm", CultureInfo.InvariantCulture);
 
                 labels[minute] = label;
 
@@ -756,9 +842,9 @@ namespace DnsServerCore.Dns
                 string label;
 
                 if (utcFormat)
-                    label = lastMonthDateTime.ToString("O");
+                    label = lastMonthDateTime.ToString("O", CultureInfo.InvariantCulture);
                 else
-                    label = lastMonthDateTime.ToLocalTime().ToString("MM/yyyy");
+                    label = lastMonthDateTime.ToLocalTime().ToString("MM/yyyy", CultureInfo.InvariantCulture);
 
                 labels[month] = label;
 
@@ -905,9 +991,9 @@ namespace DnsServerCore.Dns
                 string label;
 
                 if (utcFormat)
-                    label = lastDateTime.AddMinutes(1).ToString("O");
+                    label = lastDateTime.AddMinutes(1).ToString("O", CultureInfo.InvariantCulture);
                 else
-                    label = lastDateTime.AddMinutes(1).ToLocalTime().ToString("MM/dd HH:mm");
+                    label = lastDateTime.AddMinutes(1).ToLocalTime().ToString("MM/dd HH:mm", CultureInfo.InvariantCulture);
 
                 labels[minute] = label;
 
@@ -1039,9 +1125,9 @@ namespace DnsServerCore.Dns
                 string label;
 
                 if (utcFormat)
-                    label = lastDateTime.AddHours(1).ToString("O");
+                    label = lastDateTime.AddHours(1).ToString("O", CultureInfo.InvariantCulture);
                 else
-                    label = lastDateTime.AddHours(1).ToLocalTime().ToString("MM/dd HH") + ":00";
+                    label = lastDateTime.AddHours(1).ToLocalTime().ToString("MM/dd HH", CultureInfo.InvariantCulture) + ":00";
 
                 labels[hour] = label;
 
@@ -1174,9 +1260,9 @@ namespace DnsServerCore.Dns
                 string label;
 
                 if (utcFormat)
-                    label = lastDayDateTime.ToString("O");
+                    label = lastDayDateTime.ToString("O", CultureInfo.InvariantCulture);
                 else
-                    label = lastDayDateTime.ToLocalTime().ToString("MM/dd");
+                    label = lastDayDateTime.ToLocalTime().ToString("MM/dd", CultureInfo.InvariantCulture);
 
                 labels[day] = label;
 
@@ -1567,6 +1653,39 @@ namespace DnsServerCore.Dns
 
         #region properties
 
+        public long TotalQueries
+        { get { return _totalQueries; } }
+
+        public long TotalNoError
+        { get { return _totalNoError; } }
+
+        public long TotalServerFailure
+        { get { return _totalServerFailure; } }
+
+        public long TotalNxDomain
+        { get { return _totalNxDomain; } }
+
+        public long TotalRefused
+        { get { return _totalRefused; } }
+
+        public long TotalAuthoritative
+        { get { return _totalAuthoritative; } }
+
+        public long TotalRecursive
+        { get { return _totalRecursive; } }
+
+        public long TotalCached
+        { get { return _totalCached; } }
+
+        public long TotalBlocked
+        { get { return _totalBlocked; } }
+
+        public long TotalDropped
+        { get { return _totalDropped; } }
+
+        public long TotalClients
+        { get { return _uniqueClients.Count; } }
+
         public bool EnableInMemoryStats
         {
             get { return _enableInMemoryStats; }
@@ -1629,7 +1748,7 @@ namespace DnsServerCore.Dns
 
             public HourlyStats(BinaryReader bR)
             {
-                if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "HS") //format
+                if (Encoding.ASCII.GetString(bR.BaseStream.ReadExactly(2)) != "HS") //format
                     throw new InvalidDataException("HourlyStats format is invalid.");
 
                 byte version = bR.ReadByte();
@@ -1746,7 +1865,7 @@ namespace DnsServerCore.Dns
 
             public StatCounter(BinaryReader bR)
             {
-                if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "SC") //format
+                if (Encoding.ASCII.GetString(bR.BaseStream.ReadExactly(2)) != "SC") //format
                     throw new InvalidDataException("StatCounter format is invalid.");
 
                 byte version = bR.ReadByte();
@@ -1787,7 +1906,7 @@ namespace DnsServerCore.Dns
                             _queryDomains = new ConcurrentDictionary<string, Counter>(1, count);
 
                             for (int i = 0; i < count; i++)
-                                _queryDomains.TryAdd(bR.ReadShortString(), new Counter(bR.ReadInt32()));
+                                _queryDomains.TryAdd(bR.BaseStream.ReadShortString(), new Counter(bR.ReadInt32()));
                         }
 
                         {
@@ -1795,7 +1914,7 @@ namespace DnsServerCore.Dns
                             _queryBlockedDomains = new ConcurrentDictionary<string, Counter>(1, count);
 
                             for (int i = 0; i < count; i++)
-                                _queryBlockedDomains.TryAdd(bR.ReadShortString(), new Counter(bR.ReadInt32()));
+                                _queryBlockedDomains.TryAdd(bR.BaseStream.ReadShortString(), new Counter(bR.ReadInt32()));
                         }
 
                         {
@@ -1867,7 +1986,7 @@ namespace DnsServerCore.Dns
                             _queryDomains = new ConcurrentDictionary<string, Counter>(1, count);
 
                             for (int i = 0; i < count; i++)
-                                _queryDomains.TryAdd(bR.ReadShortString(), new Counter(bR.ReadInt64()));
+                                _queryDomains.TryAdd(bR.BaseStream.ReadShortString(), new Counter(bR.ReadInt64()));
                         }
 
                         {
@@ -1875,7 +1994,7 @@ namespace DnsServerCore.Dns
                             _queryBlockedDomains = new ConcurrentDictionary<string, Counter>(1, count);
 
                             for (int i = 0; i < count; i++)
-                                _queryBlockedDomains.TryAdd(bR.ReadShortString(), new Counter(bR.ReadInt64()));
+                                _queryBlockedDomains.TryAdd(bR.BaseStream.ReadShortString(), new Counter(bR.ReadInt64()));
                         }
 
                         {
@@ -2037,9 +2156,6 @@ namespace DnsServerCore.Dns
 
                         case DnsResponseCode.Refused:
                             _totalRefused++;
-                            break;
-
-                        case DnsResponseCode.FormatError:
                             break;
                     }
 
@@ -2275,7 +2391,7 @@ namespace DnsServerCore.Dns
                     bW.Write(_queryDomains.Count);
                     foreach (KeyValuePair<string, Counter> queryDomain in _queryDomains)
                     {
-                        bW.WriteShortString(queryDomain.Key);
+                        bW.BaseStream.WriteShortString(queryDomain.Key);
                         bW.Write(queryDomain.Value.Count);
                     }
                 }
@@ -2284,7 +2400,7 @@ namespace DnsServerCore.Dns
                     bW.Write(_queryBlockedDomains.Count);
                     foreach (KeyValuePair<string, Counter> queryBlockedDomain in _queryBlockedDomains)
                     {
-                        bW.WriteShortString(queryBlockedDomain.Key);
+                        bW.BaseStream.WriteShortString(queryBlockedDomain.Key);
                         bW.Write(queryBlockedDomain.Value.Count);
                     }
                 }

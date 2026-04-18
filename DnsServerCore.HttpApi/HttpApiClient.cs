@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@ using System;
 using System.Buffers.Text;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Security;
@@ -33,7 +32,6 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Http.Client;
@@ -48,7 +46,6 @@ namespace DnsServerCore.HttpApi
         readonly static JsonSerializerOptions _serializerOptions;
 
         readonly Uri _serverUrl;
-        string? _token;
 
         readonly HttpClient _httpClient;
         bool _loggedIn;
@@ -63,17 +60,17 @@ namespace DnsServerCore.HttpApi
             _serializerOptions.PropertyNameCaseInsensitive = true;
         }
 
-        public HttpApiClient(string serverUrl, NetProxy? proxy = null, bool preferIPv6 = false, bool ignoreCertificateErrors = false, IDnsClient? dnsClient = null)
-            : this(new Uri(serverUrl), proxy, preferIPv6, ignoreCertificateErrors, dnsClient)
+        public HttpApiClient(Uri serverUrl, NetProxy? proxy = null, IPv6Mode ipv6Mode = IPv6Mode.Disabled, bool ignoreCertificateErrors = false, IDnsClient? dnsClient = null, TimeSpan? timeout = null)
+            : this(serverUrl, proxy, HttpClientNetworkHandler.GetNetworkType(ipv6Mode), ignoreCertificateErrors, dnsClient, timeout)
         { }
 
-        public HttpApiClient(Uri serverUrl, NetProxy? proxy = null, bool preferIPv6 = false, bool ignoreCertificateErrors = false, IDnsClient? dnsClient = null)
+        public HttpApiClient(Uri serverUrl, NetProxy? proxy = null, HttpClientNetworkType networkType = HttpClientNetworkType.Default, bool ignoreCertificateErrors = false, IDnsClient? dnsClient = null, TimeSpan? timeout = null)
         {
             _serverUrl = serverUrl;
 
             HttpClientNetworkHandler handler = new HttpClientNetworkHandler();
             handler.Proxy = proxy;
-            handler.NetworkType = preferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default;
+            handler.NetworkType = networkType;
             handler.DnsClient = dnsClient;
 
             if (ignoreCertificateErrors)
@@ -91,7 +88,7 @@ namespace DnsServerCore.HttpApi
             _httpClient = new HttpClient(handler);
             _httpClient.BaseAddress = _serverUrl;
             _httpClient.DefaultRequestHeaders.Add("user-agent", "Technitium DNS Server HTTP API Client");
-            _httpClient.Timeout = TimeSpan.FromSeconds(30);
+            _httpClient.Timeout = timeout ?? TimeSpan.FromSeconds(30);
         }
 
         #endregion
@@ -174,9 +171,23 @@ namespace DnsServerCore.HttpApi
             if (_loggedIn)
                 throw new HttpApiClientException("Already logged in.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/user/login?user={HttpUtility.UrlEncode(username)}&pass={HttpUtility.UrlEncode(password)}&totp={(totp is null ? "" : HttpUtility.UrlEncode(totp))}&includeInfo={includeInfo}", cancellationToken);
+            HttpRequestMessage httpRequest = new HttpRequestMessage(HttpMethod.Post, new Uri(_serverUrl, $"api/user/login"));
 
-            using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+            Dictionary<string, string> parameters = new Dictionary<string, string>
+            {
+                { "user", username },
+                { "pass", password },
+                { "includeInfo", includeInfo.ToString() }
+            };
+
+            if (totp is not null)
+                parameters.Add("totp", totp);
+
+            httpRequest.Content = new FormUrlEncodedContent(parameters);
+
+            HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest, cancellationToken);
+
+            using JsonDocument jsonDoc = await JsonDocument.ParseAsync(httpResponse.Content.ReadAsStream(cancellationToken), cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
 
             CheckResponseStatus(rootElement);
@@ -185,7 +196,7 @@ namespace DnsServerCore.HttpApi
             if (sessionInfo is null)
                 throw new HttpApiClientException("Invalid JSON response was received.");
 
-            _token = sessionInfo.Token;
+            _httpClient.DefaultRequestHeaders.Add("Authorization", "Bearer " + sessionInfo.Token);
             _loggedIn = true;
 
             return sessionInfo;
@@ -196,14 +207,14 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exist to logout.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/user/logout?token={_token}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/user/logout", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
 
             CheckResponseStatus(rootElement);
 
-            _token = null;
+            _httpClient.DefaultRequestHeaders.Remove("Authorization");
             _loggedIn = false;
         }
 
@@ -212,7 +223,7 @@ namespace DnsServerCore.HttpApi
             if (_loggedIn)
                 throw new HttpApiClientException("Already logged in. Please logout before using a different API token.");
 
-            _token = token;
+            _httpClient.DefaultRequestHeaders.Add("Authorization", "Bearer " + token);
             _loggedIn = true;
         }
 
@@ -221,7 +232,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            string path = $"api/dashboard/stats/get?token={_token}&actingUser={HttpUtility.UrlEncode(actingUsername)}&type={type}&utc={utcFormat}&dontTrimQueryTypeData={dontTrimQueryTypeData}";
+            string path = $"api/dashboard/stats/get?actingUser={Uri.EscapeDataString(actingUsername)}&type={type}&utc={utcFormat}&dontTrimQueryTypeData={dontTrimQueryTypeData}";
 
             if (type == DashboardStatsType.Custom)
                 path += $"&start={startDate:O}&end={endDate:O}";
@@ -248,7 +259,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            string path = $"api/dashboard/stats/getTop?token={_token}&actingUser={HttpUtility.UrlEncode(actingUsername)}&type={type}&statsType={statsType}&limit={limit}";
+            string path = $"api/dashboard/stats/getTop?actingUser={Uri.EscapeDataString(actingUsername)}&type={type}&statsType={statsType}&limit={limit}";
 
             if (type == DashboardStatsType.Custom)
                 path += $"&start={startDate:O}&end={endDate:O}";
@@ -287,7 +298,7 @@ namespace DnsServerCore.HttpApi
                 }
             }
 
-            HttpRequestMessage httpRequest = new HttpRequestMessage(HttpMethod.Post, new Uri(_serverUrl, $"api/settings/set?token={_token}&actingUser={HttpUtility.UrlEncode(actingUsername)}"));
+            HttpRequestMessage httpRequest = new HttpRequestMessage(HttpMethod.Post, new Uri(_serverUrl, $"api/settings/set?actingUser={Uri.EscapeDataString(actingUsername)}"));
 
             httpRequest.Content = new FormUrlEncodedContent(clusterParameters);
 
@@ -304,7 +315,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/settings/forceUpdateBlockLists?token={_token}&actingUser={HttpUtility.UrlEncode(actingUsername)}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/settings/forceUpdateBlockLists?actingUser={Uri.EscapeDataString(actingUsername)}", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -317,7 +328,52 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/settings/temporaryDisableBlocking?token={_token}&actingUser={HttpUtility.UrlEncode(actingUsername)}&minutes={minutes}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/settings/temporaryDisableBlocking?actingUser={Uri.EscapeDataString(actingUsername)}&minutes={minutes}", cancellationToken);
+
+            using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+            JsonElement rootElement = jsonDoc.RootElement;
+
+            CheckResponseStatus(rootElement);
+        }
+
+        public async Task CreateSsoUserAsync(string ssoIdentifier, string username, string? displayName, IReadOnlyCollection<string>? memberOfGroups, CancellationToken cancellationToken = default)
+        {
+            if (!_loggedIn)
+                throw new HttpApiClientException("No active session exists. Please login and try again.");
+
+            string path = $"api/admin/sso/users/create?ssoIdentifier={ssoIdentifier}&user={username}";
+
+            if (displayName is not null)
+                path += $"&displayName={displayName}";
+
+            if (memberOfGroups is not null)
+                path += $"&memberOfGroups={memberOfGroups.Join()}";
+
+            Stream stream = await _httpClient.GetStreamAsync(path, cancellationToken);
+
+            using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+            JsonElement rootElement = jsonDoc.RootElement;
+
+            CheckResponseStatus(rootElement);
+        }
+
+        public async Task SetSsoUserAsync(string username, string? newUsername, string? displayName, IReadOnlyCollection<string>? memberOfGroups, CancellationToken cancellationToken = default)
+        {
+            if (!_loggedIn)
+                throw new HttpApiClientException("No active session exists. Please login and try again.");
+
+            string path = $"api/admin/sso/users/set?user={username}";
+
+            if (newUsername is not null)
+                path += $"&newUser={newUsername}";
+
+            if (displayName is not null)
+                path += $"&displayName={displayName}";
+
+            if (memberOfGroups is not null)
+                path += $"&memberOfGroups={memberOfGroups.Join()}";
+
+            Stream stream = await _httpClient.GetStreamAsync(path, cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -330,7 +386,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/state?token={_token}&includeServerIpAddresses={includeServerIpAddresses}&includeNodeCertificates={includeNodeCertificates}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/state?includeServerIpAddresses={includeServerIpAddresses}&includeNodeCertificates={includeNodeCertificates}", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -349,7 +405,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/primary/delete?token={_token}&forceDelete={forceDelete}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/primary/delete?forceDelete={forceDelete}", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -368,7 +424,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/primary/join?token={_token}&secondaryNodeId={secondaryNodeId}&secondaryNodeUrl={HttpUtility.UrlEncode(secondaryNodeUrl.OriginalString)}&secondaryNodeIpAddresses={HttpUtility.UrlEncode(secondaryNodeIpAddresses.Join())}&secondaryNodeCertificate={Base64Url.EncodeToString(secondaryNodeCertificate.Export(X509ContentType.Cert))}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/primary/join?secondaryNodeId={secondaryNodeId}&secondaryNodeUrl={Uri.EscapeDataString(secondaryNodeUrl.OriginalString)}&secondaryNodeIpAddresses={Uri.EscapeDataString(secondaryNodeIpAddresses.Join())}&secondaryNodeCertificate={Base64Url.EncodeToString(secondaryNodeCertificate.Export(X509ContentType.Cert))}", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -387,7 +443,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/primary/deleteSecondary?token={_token}&secondaryNodeId={secondaryNodeId}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/primary/deleteSecondary?secondaryNodeId={secondaryNodeId}", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -406,7 +462,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/primary/updateSecondary?token={_token}&secondaryNodeId={secondaryNodeId}&secondaryNodeUrl={HttpUtility.UrlEncode(secondaryNodeUrl.OriginalString)}&secondaryNodeIpAddresses={HttpUtility.UrlEncode(secondaryNodeIpAddresses.Join())}&secondaryNodeCertificate={Base64Url.EncodeToString(secondaryNodeCertificate.Export(X509ContentType.Cert))}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/primary/updateSecondary?secondaryNodeId={secondaryNodeId}&secondaryNodeUrl={Uri.EscapeDataString(secondaryNodeUrl.OriginalString)}&secondaryNodeIpAddresses={Uri.EscapeDataString(secondaryNodeIpAddresses.Join())}&secondaryNodeCertificate={Base64Url.EncodeToString(secondaryNodeCertificate.Export(X509ContentType.Cert))}", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -425,7 +481,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            HttpRequestMessage httpRequest = new HttpRequestMessage(HttpMethod.Get, $"api/admin/cluster/primary/transferConfig?token={_token}&includeZones={(includeZones is null ? "" : includeZones.Join(','))}");
+            HttpRequestMessage httpRequest = new HttpRequestMessage(HttpMethod.Get, $"api/admin/cluster/primary/transferConfig?includeZones={(includeZones is null ? "" : includeZones.Join(','))}");
             httpRequest.Headers.IfModifiedSince = ifModifiedSince;
 
             HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest, cancellationToken);
@@ -438,7 +494,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/secondary/leave?token={_token}&forceLeave={forceLeave}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/secondary/leave?forceLeave={forceLeave}", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -457,7 +513,7 @@ namespace DnsServerCore.HttpApi
             if (!_loggedIn)
                 throw new HttpApiClientException("No active session exists. Please login and try again.");
 
-            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/secondary/notify?token={_token}&primaryNodeId={primaryNodeId}&primaryNodeUrl={HttpUtility.UrlEncode(primaryNodeUrl.OriginalString)}&primaryNodeIpAddresses={HttpUtility.UrlEncode(primaryNodeIpAddresses.Join())}", cancellationToken);
+            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/secondary/notify?primaryNodeId={primaryNodeId}&primaryNodeUrl={Uri.EscapeDataString(primaryNodeUrl.OriginalString)}&primaryNodeIpAddresses={Uri.EscapeDataString(primaryNodeIpAddresses.Join())}", cancellationToken);
 
             using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
             JsonElement rootElement = jsonDoc.RootElement;
@@ -475,7 +531,7 @@ namespace DnsServerCore.HttpApi
 
             StringBuilder queryString = new StringBuilder();
 
-            queryString.Append("?actingUser=").Append(HttpUtility.UrlEncode(actingUsername));
+            queryString.Append("?actingUser=").Append(Uri.EscapeDataString(actingUsername));
 
             foreach (KeyValuePair<string, StringValues> query in inHttpRequest.Query)
             {
@@ -485,16 +541,12 @@ namespace DnsServerCore.HttpApi
                 switch (key)
                 {
                     case "token":
-                        //use http client token
-                        value = _token!;
-                        break;
-
                     case "node":
-                        //skip node name
+                        //skip params
                         continue;
                 }
 
-                queryString.Append('&').Append(key).Append('=').Append(HttpUtility.UrlEncode(value));
+                queryString.Append('&').Append(key).Append('=').Append(Uri.EscapeDataString(value));
             }
 
             HttpRequestMessage httpRequest = new HttpRequestMessage(new HttpMethod(inHttpRequest.Method), new Uri(_serverUrl, inHttpRequest.Path + queryString.ToString()));
@@ -513,12 +565,8 @@ namespace DnsServerCore.HttpApi
                         switch (key)
                         {
                             case "token":
-                                //use http client token
-                                value = _token!;
-                                break;
-
                             case "node":
-                                //skip node name
+                                //skip params
                                 continue;
                         }
 
@@ -548,6 +596,9 @@ namespace DnsServerCore.HttpApi
 
             foreach (KeyValuePair<string, StringValues> inHeader in inHttpRequest.Headers)
             {
+                if (inHeader.Key.Equals("Authorization", StringComparison.OrdinalIgnoreCase))
+                    continue; //skip client header
+
                 if (!httpRequest.Headers.TryAddWithoutValidation(inHeader.Key, inHeader.Value.ToString()))
                 {
                     if (!inHttpRequest.HasFormContentType)

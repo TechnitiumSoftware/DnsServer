@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -339,7 +339,7 @@ namespace DnsServerCore
                             {
                                 await WriteCsvFieldAsync(sW, entry.RowNumber.ToString());
                                 await sW.WriteAsync(',');
-                                await WriteCsvFieldAsync(sW, entry.Timestamp.ToString("O"));
+                                await WriteCsvFieldAsync(sW, entry.Timestamp.ToString("O", CultureInfo.InvariantCulture));
                                 await sW.WriteAsync(',');
                                 await WriteCsvFieldAsync(sW, entry.ClientIpAddress.ToString());
                                 await sW.WriteAsync(',');
@@ -376,7 +376,7 @@ namespace DnsServerCore
 
                         response.ContentType = "text/csv";
                         response.ContentLength = csvFileStream.Length;
-                        response.Headers.ContentDisposition = "attachment;filename=" + _dnsWebService._dnsServer.ServerDomain + DateTime.UtcNow.ToString("_yyyy-MM-dd_HH-mm-ss") + "_query_logs.csv";
+                        response.Headers.ContentDisposition = "attachment;filename=" + _dnsWebService._dnsServer.ServerDomain + DateTime.UtcNow.ToString("_yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture) + "_query_logs.csv";
 
                         using (Stream output = response.Body)
                         {

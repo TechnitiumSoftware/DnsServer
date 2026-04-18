@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ namespace DnsServerCore.Dns
 
         #region private
 
-        private async Task<DnsDatagram> AuthoritativeQueryClosestDelegation(DnsDatagram request)
+        private async Task<DnsDatagram> AuthoritativeQueryClosestDelegationAsync(DnsDatagram request)
         {
             DnsDatagram authResponse = _dnsServer.AuthZoneManager.QueryClosestDelegation(request);
 
@@ -159,9 +159,9 @@ namespace DnsServerCore.Dns
 
         protected async Task<DnsDatagram> QueryClosestDelegationAsync(DnsDatagram request)
         {
-            DnsDatagram authResponse = await AuthoritativeQueryClosestDelegation(request);
+            DnsDatagram authResponse = await AuthoritativeQueryClosestDelegationAsync(request);
 
-            DnsDatagram cacheResponse = await _dnsServer.CacheZoneManager.QueryClosestDelegationAsync(request);
+            DnsDatagram cacheResponse = _dnsServer.CacheZoneManager.QueryClosestDelegation(request);
 
             if ((authResponse is not null) && (authResponse.Authority.Count > 0))
             {
@@ -195,7 +195,7 @@ namespace DnsServerCore.Dns
                     return authResponse;
             }
 
-            DnsDatagram cacheResponse = await _dnsServer.CacheZoneManager.QueryAsync(request, serveStale, findClosestNameServers, resetExpiry);
+            DnsDatagram cacheResponse = _dnsServer.CacheZoneManager.Query(request, serveStale, findClosestNameServers, resetExpiry);
             if (cacheResponse is not null)
             {
                 if ((cacheResponse.RCODE != DnsResponseCode.NoError) || (cacheResponse.Answer.Count > 0) || (cacheResponse.Authority.Count == 0) || cacheResponse.IsFirstAuthoritySOA())

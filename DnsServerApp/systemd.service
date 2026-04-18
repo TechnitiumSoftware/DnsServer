@@ -1,14 +1,50 @@
 [Unit]
 Description=Technitium DNS Server
+After=network.target
+Wants=network-online.target
 
 [Service]
-WorkingDirectory=/opt/technitium/dns
-ExecStart=/usr/bin/dotnet /opt/technitium/dns/DnsServerApp.dll /etc/dns
-Restart=always
-# Restart service after 10 seconds if the dotnet service crashes:
-RestartSec=10
-KillSignal=SIGINT
+Type=simple
+User=dns-server
+Group=dns-server
 SyslogIdentifier=dns-server
+
+WorkingDirectory=/opt/technitium/dns
+ReadWritePaths=/etc/dns /var/log/technitium/dns
+
+# If certificate (pfx) file is outside of /etc/dns directory, make sure 
+# that the file has permissions set for 'dns-server' user. Also ensure 
+# that the path is configured below to be accessible in read-only mode.
+# ReadOnlyPaths=/opt/dns-cert.pfx
+
+Environment="OPENSSL_ENABLE_SHA1_SIGNATURES=1"
+
+ExecStart=/usr/bin/dotnet /opt/technitium/dns/DnsServerApp.dll /etc/dns
+
+# Restart service after 10 seconds if the dns service crashes:
+Restart=always
+RestartSec=10
+
+LockPersonality=true
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+RemoveIPC=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+UMask=0077
 
 [Install]
 WantedBy=multi-user.target

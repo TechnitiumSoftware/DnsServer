@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 Copyright (C) 2025  Zafer Balkan (zafer@zaferbalkan.com)
 
 This program is free software: you can redistribute it and/or modify
@@ -24,6 +24,7 @@ using Serilog.Parsing;
 using Serilog.Sinks.Syslog;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -103,7 +104,7 @@ namespace LogExporter.Strategy
             // Initialize properties with base log details
             List<LogEventProperty> properties = new List<LogEventProperty>
             {
-                new LogEventProperty("timestamp", new ScalarValue(log.Timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"))),
+                new LogEventProperty("timestamp", new ScalarValue(log.Timestamp.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture))),
                 new LogEventProperty("clientIp", new ScalarValue(log.ClientIp)),
                 new LogEventProperty("protocol", new ScalarValue(log.Protocol.ToString())),
                 new LogEventProperty("responseType", new ScalarValue(log.ResponseType.ToString())),

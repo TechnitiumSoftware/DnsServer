@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -31,7 +31,9 @@ namespace DnsServerCore.Auth
     {
         Unknown = 0,
         Standard = 1,
-        ApiToken = 2
+        ApiToken = 2,
+        ClusterApiToken = 3,
+        SingleUse = 4
     }
 
     class UserSession : IComparable<UserSession>
@@ -39,7 +41,7 @@ namespace DnsServerCore.Auth
         #region variables
 
         readonly string _token;
-        readonly UserSessionType _type;
+        UserSessionType _type;
         readonly string _tokenName;
         User _user;
         DateTime _lastSeen;
@@ -78,19 +80,19 @@ namespace DnsServerCore.Auth
             switch (bR.ReadByte())
             {
                 case 1:
-                    _token = bR.ReadShortString();
+                    _token = bR.BaseStream.ReadShortString();
                     _type = (UserSessionType)bR.ReadByte();
 
-                    _tokenName = bR.ReadShortString();
+                    _tokenName = bR.BaseStream.ReadShortString();
                     if (_tokenName.Length == 0)
                         _tokenName = null;
 
-                    users.TryGetValue(bR.ReadShortString().ToLowerInvariant(), out _user);
+                    users.TryGetValue(bR.BaseStream.ReadShortString().ToLowerInvariant(), out _user);
 
-                    _lastSeen = bR.ReadDateTime();
+                    _lastSeen = bR.BaseStream.ReadDateTime();
                     _lastSeenRemoteAddress = IPAddressExtensions.ReadFrom(bR);
 
-                    _lastSeenUserAgent = bR.ReadShortString();
+                    _lastSeenUserAgent = bR.BaseStream.ReadShortString();
                     if (_lastSeenUserAgent.Length == 0)
                         _lastSeenUserAgent = null;
 
@@ -124,36 +126,53 @@ namespace DnsServerCore.Auth
                 _lastSeenUserAgent = _lastSeenUserAgent.Substring(0, 255);
         }
 
-        public bool HasExpired()
+        public void UpgradeToClusterApiToken()
         {
             if (_type == UserSessionType.ApiToken)
-                return false;
+                _type = UserSessionType.ClusterApiToken;
+        }
 
-            if (_user.SessionTimeoutSeconds == 0)
-                return false;
+        public bool HasExpired()
+        {
+            if (_user is null)
+                return true;
 
-            return _lastSeen.AddSeconds(_user.SessionTimeoutSeconds) < DateTime.UtcNow;
+            switch (_type)
+            {
+                case UserSessionType.Standard:
+                    if (_user.SessionTimeoutSeconds == 0)
+                        return false;
+
+                    return _lastSeen.AddSeconds(_user.SessionTimeoutSeconds) < DateTime.UtcNow;
+
+                case UserSessionType.ApiToken:
+                case UserSessionType.ClusterApiToken:
+                    return false;
+
+                default:
+                    return true;
+            }
         }
 
         public void WriteTo(BinaryWriter bW)
         {
             bW.Write((byte)1);
-            bW.WriteShortString(_token);
+            bW.BaseStream.WriteShortString(_token);
             bW.Write((byte)_type);
 
             if (_tokenName is null)
                 bW.Write((byte)0);
             else
-                bW.WriteShortString(_tokenName);
+                bW.BaseStream.WriteShortString(_tokenName);
 
-            bW.WriteShortString(_user.Username);
-            bW.Write(_lastSeen);
+            bW.BaseStream.WriteShortString(_user.Username);
+            bW.BaseStream.WriteDateTime(_lastSeen);
             _lastSeenRemoteAddress.WriteTo(bW);
 
             if (_lastSeenUserAgent is null)
                 bW.Write((byte)0);
             else
-                bW.WriteShortString(_lastSeenUserAgent);
+                bW.BaseStream.WriteShortString(_lastSeenUserAgent);
         }
 
         public int CompareTo(UserSession other)

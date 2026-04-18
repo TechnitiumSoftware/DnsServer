@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -236,9 +236,17 @@ namespace DnsServerCore.Dns.Applications
                 await app.Value.InitializeAsync(_dnsServer, config);
 
             if (string.IsNullOrEmpty(config))
+            {
                 File.Delete(configFile);
+            }
             else
-                await File.WriteAllTextAsync(configFile, config);
+            {
+                string tmpConfigFile = Path.Combine(_dnsServer.ApplicationFolder, "dnsApp.tmp");
+
+                await File.WriteAllTextAsync(tmpConfigFile, config);
+
+                File.Move(tmpConfigFile, configFile, true);
+            }
 
             ConfigUpdated?.Invoke(this, EventArgs.Empty);
         }

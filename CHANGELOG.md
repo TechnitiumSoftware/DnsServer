@@ -1,5 +1,17 @@
 # Technitium DNS Server Change Log
 
+## Version 14.3
+Release Date: 20 December 2025
+
+- Added support for Dark Mode. Thanks to @skidoodle for the PR.
+- Updated Catalog zones implementation to allow adding Secondary zones as members.
+- Updated Restore Settings option to allow importing backup zip files from older DNS server versions.
+- Added new options in Settings to configure default TTL values for NS and SOA records.
+- Added DNS record overwrite option in DHCP Scopes to allow dynamic leases to overwrite any existing DNS A record for the client domain name.
+- Advanced Blocking App: Added new option to allow configuring block list update interval in minutes.
+- Split Horizon App: Updated app to support mapping domain names to group for address translation feature.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 14.2
 Release Date: 22 November 2025
 

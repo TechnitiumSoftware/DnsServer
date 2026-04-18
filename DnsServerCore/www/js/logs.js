@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -44,10 +44,42 @@ $(function () {
         localStorage.setItem("optQueryLogsEntriesPerPage", $("#optQueryLogsEntriesPerPage").val());
     });
 
+    resetQueryLogsForm();
+
+    $("#chkQueryLogsLiveUpdate").on("click", function () {
+        if ($(this).prop("checked")) {
+            $("#txtQueryLogPageNumber").prop("disabled", true);
+            $("#optQueryLogsDescendingOrder").prop("disabled", true);
+            $("#txtQueryLogStart").prop("disabled", true);
+            $("#txtQueryLogEnd").prop("disabled", true);
+            $("#btnQueryLogs").prop("disabled", true);
+
+            $("#txtQueryLogPageNumber").val("1");
+            $("#optQueryLogsDescendingOrder").val("true");
+            $("#txtQueryLogStart").val("");
+            $("#txtQueryLogEnd").val("");
+
+            queryLogs(1, true);
+        }
+        else {
+            resetQueryLogsForm();
+        }
+    });
+
+    $("#chkQueryLogsLiveUpdate").prop("checked", false);
+});
+
+function resetQueryLogsForm() {
+    $("#txtQueryLogPageNumber").prop("disabled", false);
+    $("#optQueryLogsDescendingOrder").prop("disabled", false);
+    $("#txtQueryLogStart").prop("disabled", false);
+    $("#txtQueryLogEnd").prop("disabled", false);
+    $("#btnQueryLogs").prop("disabled", false);
+
     var optQueryLogsEntriesPerPage = localStorage.getItem("optQueryLogsEntriesPerPage");
     if (optQueryLogsEntriesPerPage != null)
         $("#optQueryLogsEntriesPerPage").val(optQueryLogsEntriesPerPage);
-});
+}
 
 function refreshLogsTab() {
     if ($("#logsTabListLogViewer").hasClass("active"))
@@ -77,7 +109,8 @@ function refreshLogFilesList(selectedFileName) {
     var node = $("#optLogsClusterNode").val();
 
     HTTPRequest({
-        url: "api/logs/list?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
+        url: "api/logs/list?node=" + encodeURIComponent(node),
+        token: sessionData.token,
         success: function (responseJSON) {
             var logFiles = responseJSON.response.logFiles;
 
@@ -132,7 +165,8 @@ function viewLog(logFile) {
     divLogViewer.show();
 
     HTTPRequest({
-        url: "api/logs/download?token=" + sessionData.token + "&fileName=" + encodeURIComponent(logFile) + "&limit=2" + "&node=" + encodeURIComponent(node),
+        url: "api/logs/download?fileName=" + encodeURIComponent(logFile) + "&limit=2" + "&node=" + encodeURIComponent(node),
+        token: sessionData.token,
         isTextResponse: true,
         success: function (response) {
             divLogViewerLoader.hide();
@@ -147,11 +181,29 @@ function viewLog(logFile) {
     });
 }
 
-function downloadLog() {
+function downloadLog(objBtn) {
     var logFile = $("#txtLogViewerTitle").text();
     var node = $("#optLogsClusterNode").val();
 
-    window.open("api/logs/download?token=" + sessionData.token + "&fileName=" + encodeURIComponent(logFile) + "&node=" + encodeURIComponent(node) + "&ts=" + (new Date().getTime()), "_blank");
+    var btn = $(objBtn);
+    btn.button("loading");
+
+    HTTPRequest({
+        url: "api/user/createSingleUseToken",
+        token: sessionData.token,
+        success: function (responseJSON) {
+            btn.button("reset");
+
+            window.open("api/logs/download?token=" + responseJSON.response.token + "&fileName=" + encodeURIComponent(logFile) + "&node=" + encodeURIComponent(node) + "&ts=" + (new Date().getTime()), "_blank");
+        },
+        error: function () {
+            btn.button("reset");
+        },
+        invalidToken: function () {
+            btn.button("reset");
+            showPageLogin();
+        }
+    });
 }
 
 function deleteLog() {
@@ -166,7 +218,8 @@ function deleteLog() {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/logs/delete?token=" + sessionData.token + "&log=" + encodeURIComponent(logFile) + "&node=" + encodeURIComponent(node),
+        url: "api/logs/delete?log=" + encodeURIComponent(logFile) + "&node=" + encodeURIComponent(node),
+        token: sessionData.token,
         success: function (responseJSON) {
             refreshLogFilesList();
 
@@ -192,7 +245,8 @@ function deleteAllLogs() {
     var node = $("#optLogsClusterNode").val();
 
     HTTPRequest({
-        url: "api/logs/deleteAll?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
+        url: "api/logs/deleteAll?node=" + encodeURIComponent(node),
+        token: sessionData.token,
         success: function (responseJSON) {
             refreshLogFilesList();
 
@@ -213,7 +267,8 @@ function deleteAllStats() {
     var node = $("#optLogsClusterNode").val();
 
     HTTPRequest({
-        url: "api/dashboard/stats/deleteAll?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
+        url: "api/dashboard/stats/deleteAll?node=" + encodeURIComponent(node),
+        token: sessionData.token,
         success: function (responseJSON) {
             showAlert("success", "Stats Deleted!", "All stats files were deleted successfully.");
         },
@@ -246,7 +301,8 @@ function refreshQueryLogsTab(doQueryLogs) {
     }
 
     HTTPRequest({
-        url: "api/apps/list?token=" + sessionData.token,
+        url: "api/apps/list",
+        token: sessionData.token,
         success: function (responseJSON) {
             var apps = responseJSON.response.apps;
 
@@ -316,8 +372,12 @@ function refreshQueryLogsTab(doQueryLogs) {
     });
 }
 
-function queryLogs(pageNumber) {
+function queryLogs(pageNumber, liveUpdate) {
+    if (!liveUpdate && $("#chkQueryLogsLiveUpdate").prop("checked"))
+        return;
+
     var btn = $("#btnQueryLogs");
+
     var divQueryLogsLoader = $("#divQueryLogsLoader");
     var divQueryLogsTable = $("#divQueryLogsTable");
 
@@ -344,9 +404,21 @@ function queryLogs(pageNumber) {
 
     var descendingOrder = $("#optQueryLogsDescendingOrder").val();
 
+    if (document.getElementById("txtQueryLogStart").validity.badInput) {
+        showAlert("warning", "Missing!", "Please enter correct date and time for 'From' field.");
+        $("#txtQueryLogStart").trigger("focus");
+        return false;
+    }
+
     var start = $("#txtQueryLogStart").val();
     if (start != "")
         start = moment(start).toISOString();
+
+    if (document.getElementById("txtQueryLogEnd").validity.badInput) {
+        showAlert("warning", "Missing!", "Please enter correct date and time for 'To' field.");
+        $("#txtQueryLogEnd").trigger("focus");
+        return false;
+    }
 
     var end = $("#txtQueryLogEnd").val();
     if (end != "")
@@ -362,16 +434,19 @@ function queryLogs(pageNumber) {
 
     var node = $("#optLogsClusterNode").val();
 
-    divQueryLogsTable.hide();
-    divQueryLogsLoader.show();
+    if (!liveUpdate) {
+        divQueryLogsTable.hide();
+        divQueryLogsLoader.show();
 
-    btn.button("loading");
+        btn.button("loading");
+    }
 
     HTTPRequest({
-        url: "api/logs/query?token=" + sessionData.token + "&name=" + encodeURIComponent(name) + "&classPath=" + encodeURIComponent(classPath) + "&pageNumber=" + pageNumber + "&entriesPerPage=" + entriesPerPage + "&descendingOrder=" + descendingOrder +
+        url: "api/logs/query?name=" + encodeURIComponent(name) + "&classPath=" + encodeURIComponent(classPath) + "&pageNumber=" + pageNumber + "&entriesPerPage=" + entriesPerPage + "&descendingOrder=" + descendingOrder +
             "&start=" + encodeURIComponent(start) + "&end=" + encodeURIComponent(end) + "&clientIpAddress=" + encodeURIComponent(clientIpAddress) + "&protocol=" + protocol + "&responseType=" + responseType + "&rcode=" + rcode +
             "&qname=" + encodeURIComponent(qname) + "&qtype=" + qtype + "&qclass=" + qclass +
             "&node=" + encodeURIComponent(node),
+        token: sessionData.token,
         success: function (responseJSON) {
             var tableHtml = "";
 
@@ -507,12 +582,31 @@ function queryLogs(pageNumber) {
             $("#tableQueryLogsFooterStatus").html(statusHtml);
             $("#tableQueryLogsFooterPagination").html(paginationHtml);
 
-            btn.button("reset");
+            if (liveUpdate) {
+                setTimeout(function () {
+                    if ($("#chkQueryLogsLiveUpdate").prop("checked")) {
+                        queryLogs(1, true);
+                    }
+                }, 2000);
+            }
+            else {
+                btn.button("reset");
+            }
+
             divQueryLogsLoader.hide();
             divQueryLogsTable.show();
         },
         error: function () {
-            btn.button("reset");
+            if (liveUpdate) {
+                setTimeout(function () {
+                    if ($("#chkQueryLogsLiveUpdate").prop("checked")) {
+                        queryLogs(1, true);
+                    }
+                }, 2000);
+            }
+            else {
+                btn.button("reset");
+            }
         },
         invalidToken: function () {
             btn.button("reset");
@@ -524,6 +618,7 @@ function queryLogs(pageNumber) {
 
 function showQueryLogs(domain, clientIp, node) {
     $("#frmQueryLogs").trigger("reset");
+    resetQueryLogsForm();
 
     if (domain != null)
         $("#txtQueryLogQName").val(domain);
@@ -551,7 +646,7 @@ function showQueryLogs(domain, clientIp, node) {
     refreshQueryLogsTab(true);
 }
 
-function exportQueryLogsCsv() {
+function exportQueryLogsCsv(objBtn) {
     var name = $("#optQueryLogsAppName").val();
     if (name == null) {
         showAlert("warning", "Missing!", "Please install the 'Query Logs (Sqlite)' DNS App or any other DNS app that supports query logging feature.");
@@ -584,9 +679,27 @@ function exportQueryLogsCsv() {
 
     var node = $("#optLogsClusterNode").val();
 
-    window.open("api/logs/export?token=" + sessionData.token + "&name=" + encodeURIComponent(name) + "&classPath=" + encodeURIComponent(classPath) +
-        "&start=" + encodeURIComponent(start) + "&end=" + encodeURIComponent(end) + "&clientIpAddress=" + encodeURIComponent(clientIpAddress) +
-        "&protocol=" + protocol + "&responseType=" + responseType + "&rcode=" + rcode + "&qname=" + encodeURIComponent(qname) + "&qtype=" + qtype + "&qclass=" + qclass +
-        "&node=" + encodeURIComponent(node)
-        , "_blank");
+    var btn = $(objBtn);
+    btn.button("loading");
+
+    HTTPRequest({
+        url: "api/user/createSingleUseToken",
+        token: sessionData.token,
+        success: function (responseJSON) {
+            btn.button("reset");
+
+            window.open("api/logs/export?token=" + responseJSON.response.token + "&name=" + encodeURIComponent(name) + "&classPath=" + encodeURIComponent(classPath) +
+                "&start=" + encodeURIComponent(start) + "&end=" + encodeURIComponent(end) + "&clientIpAddress=" + encodeURIComponent(clientIpAddress) +
+                "&protocol=" + protocol + "&responseType=" + responseType + "&rcode=" + rcode + "&qname=" + encodeURIComponent(qname) + "&qtype=" + qtype + "&qclass=" + qclass +
+                "&node=" + encodeURIComponent(node)
+                , "_blank");
+        },
+        error: function () {
+            btn.button("reset");
+        },
+        invalidToken: function () {
+            btn.button("reset");
+            showPageLogin();
+        }
+    });
 }

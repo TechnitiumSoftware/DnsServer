@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -33,6 +33,8 @@ namespace DnsRebindingProtection
     public sealed class App : IDnsApplication, IDnsPostProcessor
     {
         #region variables
+
+        readonly static JsonDocumentOptions _jsonParseOptions = new JsonDocumentOptions() { CommentHandling = JsonCommentHandling.Skip };
 
         bool _enableProtection;
         NetworkAddress[] _bypassNetworks;
@@ -148,7 +150,7 @@ namespace DnsRebindingProtection
 
         public async Task InitializeAsync(IDnsServer dnsServer, string config)
         {
-            using JsonDocument jsonDocument = JsonDocument.Parse(config);
+            using JsonDocument jsonDocument = JsonDocument.Parse(config, _jsonParseOptions);
             JsonElement jsonConfig = jsonDocument.RootElement;
 
             _enableProtection = jsonConfig.GetPropertyValue("enableProtection", true);
@@ -174,6 +176,9 @@ namespace DnsRebindingProtection
             // Do not filter authoritative responses. Because in this case any rebinding is intentional.
             if (!_enableProtection || response.AuthoritativeAnswer)
                 return Task.FromResult(response);
+
+            if ((response.Tag is not null) && (response.Tag is DnsServerResponseType responseType) && (responseType == DnsServerResponseType.Blocked))
+                return Task.FromResult(response); //allow blocked responses
 
             IPAddress remoteIP = remoteEP.Address;
 

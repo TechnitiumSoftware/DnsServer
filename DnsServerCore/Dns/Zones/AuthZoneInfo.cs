@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -132,7 +132,7 @@ namespace DnsServerCore.Dns.Zones
                 case 10:
                 case 11:
                     {
-                        _name = bR.ReadShortString();
+                        _name = bR.BaseStream.ReadShortString();
                         _type = (AuthZoneType)bR.ReadByte();
                         _disabled = bR.ReadBoolean();
 
@@ -253,7 +253,7 @@ namespace DnsServerCore.Dns.Zones
                         }
 
                         if (version >= 8)
-                            _lastModified = bR.ReadDateTime();
+                            _lastModified = bR.BaseStream.ReadDateTime();
                         else
                             _lastModified = lastModified;
 
@@ -294,7 +294,7 @@ namespace DnsServerCore.Dns.Zones
                                         HashSet<string> tsigKeyNames = new HashSet<string>(count);
 
                                         for (int i = 0; i < count; i++)
-                                            tsigKeyNames.Add(bR.ReadShortString());
+                                            tsigKeyNames.Add(bR.BaseStream.ReadShortString());
 
                                         _zoneTransferTsigKeyNames = tsigKeyNames;
                                     }
@@ -306,7 +306,7 @@ namespace DnsServerCore.Dns.Zones
 
                                         for (int i = 0; i < count; i++)
                                         {
-                                            string tsigKeyName = bR.ReadShortString().ToLowerInvariant();
+                                            string tsigKeyName = bR.BaseStream.ReadShortString().ToLowerInvariant();
 
                                             if (!updateSecurityPolicies.TryGetValue(tsigKeyName, out IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>> policyMap))
                                             {
@@ -318,7 +318,7 @@ namespace DnsServerCore.Dns.Zones
 
                                             for (int j = 0; j < policyCount; j++)
                                             {
-                                                string domain = bR.ReadShortString().ToLowerInvariant();
+                                                string domain = bR.BaseStream.ReadShortString().ToLowerInvariant();
 
                                                 if (!policyMap.TryGetValue(domain, out IReadOnlyList<DnsResourceRecordType> types))
                                                 {
@@ -345,7 +345,7 @@ namespace DnsServerCore.Dns.Zones
                                         defaultAllowPolicy.Add("*." + _name, new List<DnsResourceRecordType>() { DnsResourceRecordType.ANY });
 
                                         for (int i = 0; i < count; i++)
-                                            updateSecurityPolicies.Add(bR.ReadShortString().ToLowerInvariant(), defaultAllowPolicy);
+                                            updateSecurityPolicies.Add(bR.BaseStream.ReadShortString().ToLowerInvariant(), defaultAllowPolicy);
 
                                         _updateSecurityPolicies = updateSecurityPolicies;
                                     }
@@ -368,7 +368,7 @@ namespace DnsServerCore.Dns.Zones
 
                             case AuthZoneType.Secondary:
                                 {
-                                    _expiry = bR.ReadDateTime();
+                                    _expiry = bR.BaseStream.ReadDateTime();
 
                                     if (version >= 4)
                                     {
@@ -403,7 +403,7 @@ namespace DnsServerCore.Dns.Zones
                                         HashSet<string> tsigKeyNames = new HashSet<string>(count);
 
                                         for (int i = 0; i < count; i++)
-                                            tsigKeyNames.Add(bR.ReadShortString());
+                                            tsigKeyNames.Add(bR.BaseStream.ReadShortString());
 
                                         _zoneTransferTsigKeyNames = tsigKeyNames;
                                     }
@@ -415,14 +415,14 @@ namespace DnsServerCore.Dns.Zones
                                         Dictionary<string, object> tsigKeyNames = new Dictionary<string, object>(count);
 
                                         for (int i = 0; i < count; i++)
-                                            tsigKeyNames.Add(bR.ReadShortString(), null);
+                                            tsigKeyNames.Add(bR.BaseStream.ReadShortString(), null);
                                     }
                                 }
                                 break;
 
                             case AuthZoneType.Stub:
                                 {
-                                    _expiry = bR.ReadDateTime();
+                                    _expiry = bR.BaseStream.ReadDateTime();
                                 }
                                 break;
 
@@ -435,7 +435,7 @@ namespace DnsServerCore.Dns.Zones
 
                                         for (int i = 0; i < count; i++)
                                         {
-                                            string tsigKeyName = bR.ReadShortString().ToLowerInvariant();
+                                            string tsigKeyName = bR.BaseStream.ReadShortString().ToLowerInvariant();
 
                                             if (!updateSecurityPolicies.TryGetValue(tsigKeyName, out IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>> policyMap))
                                             {
@@ -447,7 +447,7 @@ namespace DnsServerCore.Dns.Zones
 
                                             for (int j = 0; j < policyCount; j++)
                                             {
-                                                string domain = bR.ReadShortString().ToLowerInvariant();
+                                                string domain = bR.BaseStream.ReadShortString().ToLowerInvariant();
 
                                                 if (!policyMap.TryGetValue(domain, out IReadOnlyList<DnsResourceRecordType> types))
                                                 {
@@ -474,15 +474,15 @@ namespace DnsServerCore.Dns.Zones
                 case 13:
                 case 14:
                     {
-                        _name = bR.ReadShortString();
+                        _name = bR.BaseStream.ReadShortString();
                         _type = (AuthZoneType)bR.ReadByte();
-                        _lastModified = bR.ReadDateTime();
+                        _lastModified = bR.BaseStream.ReadDateTime();
                         _disabled = bR.ReadBoolean();
 
                         switch (_type)
                         {
                             case AuthZoneType.Primary:
-                                _catalogZoneName = bR.ReadShortString();
+                                _catalogZoneName = bR.BaseStream.ReadShortString();
                                 if (_catalogZoneName.Length == 0)
                                     _catalogZoneName = null;
 
@@ -509,7 +509,7 @@ namespace DnsServerCore.Dns.Zones
                                 break;
 
                             case AuthZoneType.Secondary:
-                                _catalogZoneName = bR.ReadShortString();
+                                _catalogZoneName = bR.BaseStream.ReadShortString();
                                 if (_catalogZoneName.Length == 0)
                                     _catalogZoneName = null;
 
@@ -536,17 +536,17 @@ namespace DnsServerCore.Dns.Zones
 
                                 _primaryNameServerAddresses = ReadNameServerAddressesFrom(bR);
                                 _primaryZoneTransferProtocol = (DnsTransportProtocol)bR.ReadByte();
-                                _primaryZoneTransferTsigKeyName = bR.ReadShortString();
+                                _primaryZoneTransferTsigKeyName = bR.BaseStream.ReadShortString();
                                 if (_primaryZoneTransferTsigKeyName.Length == 0)
                                     _primaryZoneTransferTsigKeyName = null;
 
-                                _expiry = bR.ReadDateTime();
+                                _expiry = bR.BaseStream.ReadDateTime();
                                 _validateZone = bR.ReadBoolean();
                                 _validationFailed = bR.ReadBoolean();
                                 break;
 
                             case AuthZoneType.Stub:
-                                _catalogZoneName = bR.ReadShortString();
+                                _catalogZoneName = bR.BaseStream.ReadShortString();
                                 if (_catalogZoneName.Length == 0)
                                     _catalogZoneName = null;
 
@@ -557,11 +557,11 @@ namespace DnsServerCore.Dns.Zones
 
                                 _primaryNameServerAddresses = ReadNameServerAddressesFrom(bR);
 
-                                _expiry = bR.ReadDateTime();
+                                _expiry = bR.BaseStream.ReadDateTime();
                                 break;
 
                             case AuthZoneType.Forwarder:
-                                _catalogZoneName = bR.ReadShortString();
+                                _catalogZoneName = bR.BaseStream.ReadShortString();
                                 if (_catalogZoneName.Length == 0)
                                     _catalogZoneName = null;
 
@@ -586,7 +586,7 @@ namespace DnsServerCore.Dns.Zones
                                 break;
 
                             case AuthZoneType.SecondaryForwarder:
-                                _catalogZoneName = bR.ReadShortString();
+                                _catalogZoneName = bR.BaseStream.ReadShortString();
                                 if (_catalogZoneName.Length == 0)
                                     _catalogZoneName = null;
 
@@ -600,11 +600,11 @@ namespace DnsServerCore.Dns.Zones
 
                                 _primaryNameServerAddresses = ReadNameServerAddressesFrom(bR);
                                 _primaryZoneTransferProtocol = (DnsTransportProtocol)bR.ReadByte();
-                                _primaryZoneTransferTsigKeyName = bR.ReadShortString();
+                                _primaryZoneTransferTsigKeyName = bR.BaseStream.ReadShortString();
                                 if (_primaryZoneTransferTsigKeyName.Length == 0)
                                     _primaryZoneTransferTsigKeyName = null;
 
-                                _expiry = bR.ReadDateTime();
+                                _expiry = bR.BaseStream.ReadDateTime();
                                 break;
 
                             case AuthZoneType.Catalog:
@@ -634,11 +634,11 @@ namespace DnsServerCore.Dns.Zones
 
                                 _primaryNameServerAddresses = ReadNameServerAddressesFrom(bR);
                                 _primaryZoneTransferProtocol = (DnsTransportProtocol)bR.ReadByte();
-                                _primaryZoneTransferTsigKeyName = bR.ReadShortString();
+                                _primaryZoneTransferTsigKeyName = bR.BaseStream.ReadShortString();
                                 if (_primaryZoneTransferTsigKeyName.Length == 0)
                                     _primaryZoneTransferTsigKeyName = null;
 
-                                _expiry = bR.ReadDateTime();
+                                _expiry = bR.BaseStream.ReadDateTime();
                                 break;
                         }
                     }
@@ -982,7 +982,7 @@ namespace DnsServerCore.Dns.Zones
             HashSet<string> zoneTransferTsigKeyNames = new HashSet<string>(count);
 
             for (int i = 0; i < count; i++)
-                zoneTransferTsigKeyNames.Add(bR.ReadShortString());
+                zoneTransferTsigKeyNames.Add(bR.BaseStream.ReadShortString());
 
             return zoneTransferTsigKeyNames;
         }
@@ -998,7 +998,7 @@ namespace DnsServerCore.Dns.Zones
                 bW.Write(Convert.ToByte(zoneTransferTsigKeyNames.Count));
 
                 foreach (string tsigKeyName in zoneTransferTsigKeyNames)
-                    bW.WriteShortString(tsigKeyName);
+                    bW.BaseStream.WriteShortString(tsigKeyName);
             }
         }
 
@@ -1052,7 +1052,7 @@ namespace DnsServerCore.Dns.Zones
 
             for (int i = 0; i < count; i++)
             {
-                string tsigKeyName = bR.ReadShortString().ToLowerInvariant();
+                string tsigKeyName = bR.BaseStream.ReadShortString().ToLowerInvariant();
 
                 if (!updateSecurityPolicies.TryGetValue(tsigKeyName, out IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>> policyMap))
                 {
@@ -1064,7 +1064,7 @@ namespace DnsServerCore.Dns.Zones
 
                 for (int j = 0; j < policyCount; j++)
                 {
-                    string domain = bR.ReadShortString().ToLowerInvariant();
+                    string domain = bR.BaseStream.ReadShortString().ToLowerInvariant();
 
                     if (!policyMap.TryGetValue(domain, out IReadOnlyList<DnsResourceRecordType> types))
                     {
@@ -1094,12 +1094,12 @@ namespace DnsServerCore.Dns.Zones
 
                 foreach (KeyValuePair<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> updateSecurityPolicy in updateSecurityPolicies)
                 {
-                    bW.WriteShortString(updateSecurityPolicy.Key);
+                    bW.BaseStream.WriteShortString(updateSecurityPolicy.Key);
                     bW.Write(Convert.ToByte(updateSecurityPolicy.Value.Count));
 
                     foreach (KeyValuePair<string, IReadOnlyList<DnsResourceRecordType>> policyMap in updateSecurityPolicy.Value)
                     {
-                        bW.WriteShortString(policyMap.Key);
+                        bW.BaseStream.WriteShortString(policyMap.Key);
                         bW.Write(Convert.ToByte(policyMap.Value.Count));
 
                         foreach (DnsResourceRecordType type in policyMap.Value)
@@ -1193,9 +1193,9 @@ namespace DnsServerCore.Dns.Zones
 
             bW.Write((byte)14); //version
 
-            bW.WriteShortString(_name);
+            bW.BaseStream.WriteShortString(_name);
             bW.Write((byte)_type);
-            bW.Write(_lastModified);
+            bW.BaseStream.WriteDateTime(_lastModified);
             bW.Write(_disabled);
 
             switch (_type)
@@ -1250,7 +1250,7 @@ namespace DnsServerCore.Dns.Zones
                     bW.Write((byte)_primaryZoneTransferProtocol);
                     bW.Write(_primaryZoneTransferTsigKeyName ?? "");
 
-                    bW.Write(_expiry);
+                    bW.BaseStream.WriteDateTime(_expiry);
                     bW.Write(_validateZone);
                     bW.Write(_validationFailed);
                     break;
@@ -1264,7 +1264,7 @@ namespace DnsServerCore.Dns.Zones
 
                     WriteNameServerAddressesTo(_primaryNameServerAddresses, bW);
 
-                    bW.Write(_expiry);
+                    bW.BaseStream.WriteDateTime(_expiry);
                     break;
 
                 case AuthZoneType.Forwarder:
@@ -1303,7 +1303,7 @@ namespace DnsServerCore.Dns.Zones
                     bW.Write((byte)_primaryZoneTransferProtocol);
                     bW.Write(_primaryZoneTransferTsigKeyName ?? "");
 
-                    bW.Write(_expiry);
+                    bW.BaseStream.WriteDateTime(_expiry);
                     break;
 
                 case AuthZoneType.Catalog:
@@ -1332,7 +1332,7 @@ namespace DnsServerCore.Dns.Zones
                     bW.Write((byte)_primaryZoneTransferProtocol);
                     bW.Write(_primaryZoneTransferTsigKeyName ?? "");
 
-                    bW.Write(_expiry);
+                    bW.BaseStream.WriteDateTime(_expiry);
                     break;
             }
         }

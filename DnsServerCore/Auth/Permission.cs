@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -94,7 +94,7 @@ namespace DnsServerCore.Auth
 
                         for (int i = 0; i < count; i++)
                         {
-                            string username = bR.ReadShortString().ToLowerInvariant();
+                            string username = bR.BaseStream.ReadShortString().ToLowerInvariant();
                             PermissionFlag flag = (PermissionFlag)bR.ReadByte();
 
                             if (users.TryGetValue(username, out User user))
@@ -108,7 +108,7 @@ namespace DnsServerCore.Auth
 
                         for (int i = 0; i < count; i++)
                         {
-                            string groupName = bR.ReadShortString().ToLowerInvariant();
+                            string groupName = bR.BaseStream.ReadShortString().ToLowerInvariant();
                             PermissionFlag flag = (PermissionFlag)bR.ReadByte();
 
                             if (groups.TryGetValue(groupName, out Group group))
@@ -128,7 +128,7 @@ namespace DnsServerCore.Auth
 
                         for (int i = 0; i < count; i++)
                         {
-                            string subItemName = bR.ReadShortString();
+                            string subItemName = bR.BaseStream.ReadShortString();
                             Permission subItemPermission = new Permission(bR, users, groups);
 
                             _subItemPermissions.TryAdd(subItemName.ToLowerInvariant(), subItemPermission);
@@ -292,7 +292,7 @@ namespace DnsServerCore.Auth
 
                 foreach (KeyValuePair<User, PermissionFlag> userPermission in _userPermissions)
                 {
-                    bW.WriteShortString(userPermission.Key.Username);
+                    bW.BaseStream.WriteShortString(userPermission.Key.Username);
                     bW.Write((byte)userPermission.Value);
                 }
             }
@@ -302,7 +302,7 @@ namespace DnsServerCore.Auth
 
                 foreach (KeyValuePair<Group, PermissionFlag> groupPermission in _groupPermissions)
                 {
-                    bW.WriteShortString(groupPermission.Key.Name);
+                    bW.BaseStream.WriteShortString(groupPermission.Key.Name);
                     bW.Write((byte)groupPermission.Value);
                 }
             }
@@ -312,7 +312,7 @@ namespace DnsServerCore.Auth
 
                 foreach (KeyValuePair<string, Permission> subItemPermission in _subItemPermissions)
                 {
-                    bW.WriteShortString(subItemPermission.Key);
+                    bW.BaseStream.WriteShortString(subItemPermission.Key);
                     subItemPermission.Value.WriteTo(bW);
                 }
             }

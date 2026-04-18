@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -148,7 +148,7 @@ namespace DnsServerCore.Dns.ResourceRecords
 
                         if (version >= 3)
                         {
-                            string comments = bR.ReadShortString();
+                            string comments = bR.BaseStream.ReadShortString();
 
                             if (this is GenericRecordInfo info)
                                 info.Comments = comments;
@@ -156,7 +156,7 @@ namespace DnsServerCore.Dns.ResourceRecords
 
                         if (version >= 4)
                         {
-                            DateTime deletedOn = bR.ReadDateTime();
+                            DateTime deletedOn = bR.BaseStream.ReadDateTime();
 
                             if (this is HistoryRecordInfo info)
                                 info.DeletedOn = deletedOn;
@@ -180,7 +180,7 @@ namespace DnsServerCore.Dns.ResourceRecords
                         if (version >= 7)
                         {
                             DnsTransportProtocol zoneTransferProtocol = (DnsTransportProtocol)bR.ReadByte();
-                            string tsigKeyName = bR.ReadShortString();
+                            string tsigKeyName = bR.BaseStream.ReadShortString();
 
                             if (this is SOARecordInfo info)
                             {
@@ -195,9 +195,9 @@ namespace DnsServerCore.Dns.ResourceRecords
                         {
                             DnsTransportProtocol zoneTransferProtocol = (DnsTransportProtocol)bR.ReadByte();
 
-                            string tsigKeyName = bR.ReadShortString();
-                            _ = bR.ReadShortString(); //_tsigSharedSecret (obsolete)
-                            _ = bR.ReadShortString(); //_tsigAlgorithm (obsolete)
+                            string tsigKeyName = bR.BaseStream.ReadShortString();
+                            _ = bR.BaseStream.ReadShortString(); //_tsigSharedSecret (obsolete)
+                            _ = bR.BaseStream.ReadShortString(); //_tsigAlgorithm (obsolete)
 
                             if (this is SOARecordInfo info)
                             {

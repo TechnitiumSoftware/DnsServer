@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns.Dnssec;
 using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
@@ -281,7 +282,7 @@ namespace DnsServerCore.Dns.Dnssec
 
         public static DnssecPrivateKey ReadFrom(BinaryReader bR)
         {
-            if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "DK")
+            if (Encoding.ASCII.GetString(bR.BaseStream.ReadExactly(2)) != "DK")
                 throw new InvalidDataException("DNSSEC private key format is invalid.");
 
             int version = bR.ReadByte();
