@@ -1184,6 +1184,7 @@ function loadDnsSettings(responseJSON) {
     $("#chkEnableDnsOverHttp3").prop("disabled", !responseJSON.response.enableDnsOverHttps);
     $("#chkEnableDnsOverHttp3").prop("checked", responseJSON.response.enableDnsOverHttp3);
     $("#chkEnableDnsOverQuic").prop("checked", responseJSON.response.enableDnsOverQuic);
+    $("#chkUseDnsCookies").prop("checked", responseJSON.response.useDnsCookies);
 
     $("#txtDnsOverUdpProxyPort").prop("disabled", !responseJSON.response.enableDnsOverUdpProxy);
     $("#txtDnsOverTcpProxyPort").prop("disabled", !responseJSON.response.enableDnsOverTcpProxy);
@@ -1731,6 +1732,7 @@ function saveDnsSettings(objBtn) {
         var enableDnsOverHttps = $("#chkEnableDnsOverHttps").prop("checked");
         var enableDnsOverHttp3 = $("#chkEnableDnsOverHttp3").prop("checked");
         var enableDnsOverQuic = $("#chkEnableDnsOverQuic").prop("checked");
+        var useDnsCookies = $("#chkUseDnsCookies").prop("checked");
 
         var dnsOverUdpProxyPort = $("#txtDnsOverUdpProxyPort").val();
         if ((dnsOverUdpProxyPort == null) || (dnsOverUdpProxyPort === "")) {
@@ -1786,8 +1788,25 @@ function saveDnsSettings(objBtn) {
         var dnsTlsCertificatePath = $("#txtDnsTlsCertificatePath").val();
         var dnsTlsCertificatePassword = $("#txtDnsTlsCertificatePassword").val();
 
-        formData += "&enableEDnsClientSubnetSourceAddress=" + enableEDnsClientSubnetSourceAddress + "&enableDnsOverUdpProxy=" + enableDnsOverUdpProxy + "&enableDnsOverTcpProxy=" + enableDnsOverTcpProxy + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&enableDnsOverHttp3=" + enableDnsOverHttp3 + "&enableDnsOverQuic=" + enableDnsOverQuic + "&dnsOverUdpProxyPort=" + dnsOverUdpProxyPort + "&dnsOverTcpProxyPort=" + dnsOverTcpProxyPort + "&dnsOverHttpPort=" + dnsOverHttpPort + "&dnsOverTlsPort=" + dnsOverTlsPort + "&dnsOverHttpsPort=" + dnsOverHttpsPort + "&dnsOverQuicPort=" + dnsOverQuicPort + "&dnsReverseProxyNetworkACL=" + encodeURIComponent(dnsReverseProxyNetworkACL) + "&dnsOverHttpRealIpHeader=" + encodeURIComponent(dnsOverHttpRealIpHeader) + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword);
-    }
+        formData += "&enableEDnsClientSubnetSourceAddress=" + enableEDnsClientSubnetSourceAddress +
+            "&enableDnsOverUdpProxy=" + enableDnsOverUdpProxy +
+            "&enableDnsOverTcpProxy=" + enableDnsOverTcpProxy +
+            "&enableDnsOverHttp=" + enableDnsOverHttp +
+            "&enableDnsOverTls=" + enableDnsOverTls +
+            "&enableDnsOverHttps=" + enableDnsOverHttps +
+            "&enableDnsOverHttp3=" + enableDnsOverHttp3 +
+            "&enableDnsOverQuic=" + enableDnsOverQuic +
+            "&useDnsCookies=" + useDnsCookies + // Added from feat branch
+            "&dnsOverUdpProxyPort=" + dnsOverUdpProxyPort +
+            "&dnsOverTcpProxyPort=" + dnsOverTcpProxyPort +
+            "&dnsOverHttpPort=" + dnsOverHttpPort +
+            "&dnsOverTlsPort=" + dnsOverTlsPort +
+            "&dnsOverHttpsPort=" + dnsOverHttpsPort +
+            "&dnsOverQuicPort=" + dnsOverQuicPort +
+            "&dnsReverseProxyNetworkACL=" + encodeURIComponent(dnsReverseProxyNetworkACL) + // Kept master naming
+            "&dnsOverHttpRealIpHeader=" + encodeURIComponent(dnsOverHttpRealIpHeader) +
+            "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) +
+            "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword);    }
 
     //tsig
     if (includeClusterParameters) {

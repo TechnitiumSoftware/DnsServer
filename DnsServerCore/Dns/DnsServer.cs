@@ -186,6 +186,8 @@ namespace DnsServerCore.Dns
         bool _enableDnsOverHttps;
         bool _enableDnsOverHttp3;
         bool _enableDnsOverQuic;
+        bool _useDnsCookies = true;
+        IReadOnlyCollection<NetworkAccessControl> _reverseProxyNetworkACL;
         int _dnsOverUdpProxyPort = 538;
         int _dnsOverTcpProxyPort = 538;
         int _dnsOverHttpPort = 80;
@@ -286,6 +288,17 @@ namespace DnsServerCore.Dns
         long _cookieMissing;
         long _cookieBadcookieSent;
         long _cookieClientOnly;
+        long _cookieInvalidDropped;
+
+        // Hard-coded initial policy for invalid DNS cookie abuse handling.
+        // Iteration 2 can make these values configurable.
+        const int COOKIE_FAILURE_WINDOW_SECONDS = 60;
+        const int COOKIE_FAILURE_SOFT_THRESHOLD = 20;
+        const int COOKIE_FAILURE_HARD_THRESHOLD = 100;
+        const int COOKIE_FAILURE_RETENTION_SECONDS = 300;
+
+        readonly Dictionary<IPAddress, (long WindowStart, int Count)> _cookieFailureByClient = new();
+        readonly object _cookieFailureLock = new();
 
         #endregion
 
@@ -1146,6 +1159,18 @@ namespace DnsServerCore.Dns
             if (!isConfigTransfer)
                 _statsManager.MaxStatFileDays = maxStatFileDays;
 
+            if (s.Position < s.Length)
+            {
+                // Backward-compatible read: older config files won't have this trailing flag.
+                bool useDnsCookies = bR.ReadBoolean();
+                if (!isConfigTransfer)
+                    _useDnsCookies = useDnsCookies;
+            }
+            else if (!isConfigTransfer)
+            {
+                _useDnsCookies = true;
+            }
+
             if (!isConfigTransfer)
             {
                 _cookieRotationTimer?.Dispose();
@@ -1437,6 +1462,7 @@ namespace DnsServerCore.Dns
             bW.Write(_queryLog is not null); //log all queries
             bW.Write(_statsManager.EnableInMemoryStats);
             bW.Write(_statsManager.MaxStatFileDays);
+            bW.Write(_useDnsCookies);
         }
 
         #endregion
@@ -1611,6 +1637,20 @@ namespace DnsServerCore.Dns
         {
             lock (_saveLock)
             {
+                if (!_useDnsCookies)
+                {
+                    // Operational compatibility switch: when disabled, RFC 7873/9018 cookie handling is bypassed.
+                    _cookieRotationTimer?.Dispose();
+                    _cookieRotationTimer = null;
+                    _cookieSecrets = null;
+                    _cookieValidator = null;
+
+                    lock (_cookieFailureLock)
+                        _cookieFailureByClient.Clear();
+
+                    return;
+                }
+
                 string secretPath = Path.IsPathRooted(_dnsCookiesSecretFile)
                     ? _dnsCookiesSecretFile
                     : Path.Combine(_configFolder, _dnsCookiesSecretFile);
@@ -1634,7 +1674,199 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private static EDnsCookieOptionData TryGetCookieOption(DnsDatagram request)
+        private sealed class CookieOptionData
+        {
+            public byte[] ClientCookie { get; }
+            public byte[] ServerCookie { get; }
+            public Type RawOptionDataType { get; }
+
+            public CookieOptionData(byte[] clientCookie, byte[] serverCookie, Type rawOptionDataType)
+            {
+                ClientCookie = clientCookie ?? Array.Empty<byte>();
+                ServerCookie = serverCookie ?? Array.Empty<byte>();
+                RawOptionDataType = rawOptionDataType;
+            }
+        }
+
+        private static bool TryReadCookiePart(object value, out byte[] bytes)
+        {
+            switch (value)
+            {
+                case byte[] b:
+                    bytes = b;
+                    return true;
+
+                case ReadOnlyMemory<byte> rom:
+                    bytes = rom.ToArray();
+                    return true;
+
+                case Memory<byte> mem:
+                    bytes = mem.ToArray();
+                    return true;
+
+                case ArraySegment<byte> seg:
+                    bytes = seg.Array is null ? Array.Empty<byte>() : seg.AsSpan().ToArray();
+                    return true;
+
+                case IEnumerable<byte> enumerable:
+                    bytes = enumerable is byte[] arr ? arr : new List<byte>(enumerable).ToArray();
+                    return true;
+
+                case null:
+                    bytes = null;
+                    return false;
+
+                default:
+                    Type valueType = value.GetType();
+
+                    System.Reflection.MethodInfo toArrayMethod = valueType.GetMethod("ToArray", Type.EmptyTypes);
+                    if (toArrayMethod?.ReturnType == typeof(byte[]))
+                    {
+                        bytes = (byte[])toArrayMethod.Invoke(value, null);
+                        return true;
+                    }
+
+                    foreach (string methodName in new[] { "GetBytes", "AsBytes" })
+                    {
+                        System.Reflection.MethodInfo m = valueType.GetMethod(methodName, Type.EmptyTypes);
+                        if (m?.ReturnType == typeof(byte[]))
+                        {
+                            bytes = (byte[])m.Invoke(value, null);
+                            return true;
+                        }
+                    }
+
+                    foreach (string propertyName in new[] { "Bytes", "Byte", "Buffer", "Data", "Value" })
+                    {
+                        System.Reflection.PropertyInfo p = valueType.GetProperty(propertyName);
+                        if ((p is null) || !p.CanRead)
+                            continue;
+
+                        if (TryReadCookiePart(p.GetValue(value), out bytes))
+                            return true;
+                    }
+
+                    System.Reflection.PropertyInfo lengthProp = valueType.GetProperty("Length") ?? valueType.GetProperty("Count");
+                    System.Reflection.PropertyInfo indexer = valueType.GetProperty("Item", [typeof(int)]);
+                    if ((lengthProp is not null) && (indexer is not null))
+                    {
+                        object lenObj = lengthProp.GetValue(value);
+                        if ((lenObj is int len) && (len >= 0) && (len <= 4096))
+                        {
+                            byte[] tmp = new byte[len];
+                            for (int i = 0; i < len; i++)
+                            {
+                                object item = indexer.GetValue(value, [i]);
+                                if (item is byte b)
+                                {
+                                    tmp[i] = b;
+                                }
+                                else
+                                {
+                                    bytes = null;
+                                    return false;
+                                }
+                            }
+
+                            bytes = tmp;
+                            return true;
+                        }
+                    }
+
+                    bytes = null;
+                    return false;
+            }
+        }
+
+        private static bool HasCookieOption(DnsDatagram request)
+        {
+            if (request.EDNS is null)
+                return false;
+
+            foreach (EDnsOption opt in request.EDNS.Options)
+            {
+                if (opt.Code == EDnsOptionCode.COOKIE)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static object TryCreateCookieOptionDataInstance(Type dataType, params object[] args)
+        {
+            try
+            {
+                return Activator.CreateInstance(
+                    dataType,
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic,
+                    binder: null,
+                    args: args,
+                    culture: null) as EDnsOptionData;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static object CreateCookieOptionData(Type dataType, byte[] clientCookie, byte[] serverCookie)
+        {
+            if (dataType is null)
+                return null;
+
+            byte[] rawCookieData = new byte[clientCookie.Length + serverCookie.Length];
+            Buffer.BlockCopy(clientCookie, 0, rawCookieData, 0, clientCookie.Length);
+            Buffer.BlockCopy(serverCookie, 0, rawCookieData, clientCookie.Length, serverCookie.Length);
+
+            // Keep this path intentionally small and deterministic; only try the commonly used constructor shapes.
+            return
+                TryCreateCookieOptionDataInstance(dataType, clientCookie, serverCookie) ??
+                TryCreateCookieOptionDataInstance(dataType, new ReadOnlyMemory<byte>(clientCookie), new ReadOnlyMemory<byte>(serverCookie)) ??
+                TryCreateCookieOptionDataInstance(dataType, rawCookieData) ??
+                TryCreateCookieOptionDataInstance(dataType, new ReadOnlyMemory<byte>(rawCookieData));
+        }
+
+        private static EDnsOption TryCreateCookieOption(object cookieData, byte[] rawCookieData)
+        {
+            if (cookieData is EDnsOptionData typedCookie)
+                return new EDnsOption(EDnsOptionCode.COOKIE, typedCookie);
+
+            foreach (object payload in new object[] { cookieData, rawCookieData, rawCookieData is null ? null : new ReadOnlyMemory<byte>(rawCookieData) })
+            {
+                if (payload is null)
+                    continue;
+
+                try
+                {
+                    EDnsOption option = Activator.CreateInstance(
+                        typeof(EDnsOption),
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic,
+                        binder: null,
+                        args: new object[] { EDnsOptionCode.COOKIE, payload },
+                        culture: null) as EDnsOption;
+                    if (option is not null)
+                        return option;
+                }
+                catch { }
+
+                try
+                {
+                    EDnsOption option = Activator.CreateInstance(
+                        typeof(EDnsOption),
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic,
+                        binder: null,
+                        args: new object[] { (ushort)EDnsOptionCode.COOKIE, payload },
+                        culture: null) as EDnsOption;
+                    if (option is not null)
+                        return option;
+                }
+                catch { }
+            }
+
+            return null;
+        }
+
+        private static CookieOptionData TryGetCookieOption(DnsDatagram request)
         {
             DnsDatagramEdns edns = request.EDNS;
             if (edns is null)
@@ -1642,8 +1874,36 @@ namespace DnsServerCore.Dns
 
             foreach (EDnsOption opt in edns.Options)
             {
-                if (opt.Code == EDnsOptionCode.COOKIE && opt.Data is EDnsCookieOptionData c)
-                    return c;
+                if (opt.Code != EDnsOptionCode.COOKIE || opt.Data is null)
+                    continue;
+
+                if (TryReadCookiePart(opt.Data, out byte[] rawCookieData))
+                {
+                    if (rawCookieData.Length < 8)
+                    {
+                        // Return short raw cookie as-is so downstream RFC length checks can emit FORMERR.
+                        return new CookieOptionData(rawCookieData, Array.Empty<byte>(), opt.Data.GetType());
+                    }
+
+                    byte[] parsedClientCookie = rawCookieData.AsSpan(0, 8).ToArray();
+                    byte[] parsedServerCookie = rawCookieData.AsSpan(8).ToArray();
+                    return new CookieOptionData(parsedClientCookie, parsedServerCookie, opt.Data.GetType());
+                }
+
+                Type dataType = opt.Data.GetType();
+                System.Reflection.PropertyInfo clientProp = dataType.GetProperty("ClientCookie");
+                System.Reflection.PropertyInfo serverProp = dataType.GetProperty("ServerCookie");
+
+                if ((clientProp is null) || (serverProp is null))
+                    continue;
+
+                if (!TryReadCookiePart(clientProp.GetValue(opt.Data), out byte[] clientCookie))
+                    continue;
+
+                if (!TryReadCookiePart(serverProp.GetValue(opt.Data), out byte[] serverCookie))
+                    continue;
+
+                return new CookieOptionData(clientCookie, serverCookie, opt.Data.GetType());
             }
 
             return null;
@@ -1653,10 +1913,11 @@ namespace DnsServerCore.Dns
             DnsDatagram request,
             IPEndPoint remoteEP,
             bool isRecursionAllowed,
-            EDnsCookieOptionData responseCookie)
+            object responseCookie,
+            byte[] responseCookieRawData)
         {
             IReadOnlyList<EDnsOption> options =
-                MergeCookieOption(request.EDNS?.Options, responseCookie);
+                MergeCookieOption(request.EDNS?.Options, responseCookie, responseCookieRawData);
 
             ushort udpPayload = request.EDNS?.UdpPayloadSize ?? 512;
             EDnsHeaderFlags flags = request.EDNS?.Flags ?? EDnsHeaderFlags.None;
@@ -1687,13 +1948,14 @@ namespace DnsServerCore.Dns
 
         private static IReadOnlyList<EDnsOption> MergeCookieOption(
             IReadOnlyList<EDnsOption> existing,
-            EDnsCookieOptionData cookie)
+            object cookieData,
+            byte[] cookieRawData)
         {
             List<EDnsOption> list;
 
             if (existing == null)
             {
-                list = new List<EDnsOption>(1);
+                list = new List<EDnsOption>(cookieData is null && cookieRawData is null ? 0 : 1);
             }
             else
             {
@@ -1705,7 +1967,9 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            list.Add(new EDnsOption(EDnsOptionCode.COOKIE, cookie));
+            EDnsOption newCookie = TryCreateCookieOption(cookieData, cookieRawData);
+            if (newCookie is not null)
+                list.Add(newCookie);
 
             return list;
         }
@@ -1716,7 +1980,9 @@ namespace DnsServerCore.Dns
             DnsDatagram response,
             IReadOnlyList<EDnsOption> options)
         {
-            DnsDatagramEdns baseEdns = response.EDNS ?? request.EDNS;
+            // Build downstream OPT from request EDNS first so advertised UDP payload reflects
+            // what the client can receive (do not up-advertise from upstream recursive response EDNS).
+            DnsDatagramEdns baseEdns = request.EDNS ?? response.EDNS;
 
             ushort udp = baseEdns?.UdpPayloadSize ?? 512;
             EDnsHeaderFlags flags = baseEdns?.Flags ?? EDnsHeaderFlags.None;
@@ -1739,6 +2005,85 @@ namespace DnsServerCore.Dns
             list.Add(opt);
 
             return list;
+        }
+
+        private bool ShouldDropInvalidCookie(IPAddress clientAddress, out int failureCount)
+        {
+            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+            lock (_cookieFailureLock)
+            {
+                if (!_cookieFailureByClient.TryGetValue(clientAddress, out (long WindowStart, int Count) state) || ((now - state.WindowStart) >= COOKIE_FAILURE_WINDOW_SECONDS))
+                {
+                    state = (now, 0);
+                }
+
+                failureCount = state.Count + 1;
+                _cookieFailureByClient[clientAddress] = (state.WindowStart, failureCount);
+
+                if ((_cookieFailureByClient.Count > 4096) || ((now % 31) == 0))
+                {
+                    // Keep bounded in-memory state so abusive source churn cannot grow memory unbounded.
+                    long staleBefore = now - COOKIE_FAILURE_RETENTION_SECONDS;
+                    List<IPAddress> staleKeys = new List<IPAddress>();
+                    foreach (KeyValuePair<IPAddress, (long WindowStart, int Count)> item in _cookieFailureByClient)
+                    {
+                        if (item.Value.WindowStart < staleBefore)
+                            staleKeys.Add(item.Key);
+                    }
+
+                    foreach (IPAddress staleKey in staleKeys)
+                    {
+                        _cookieFailureByClient.Remove(staleKey);
+                    }
+                }
+            }
+
+            return failureCount > COOKIE_FAILURE_HARD_THRESHOLD;
+        }
+
+        private DnsDatagram HandleInvalidCookieRequest(
+            DnsDatagram request,
+            IPEndPoint remoteEP,
+            bool isRecursionAllowed,
+            CookieOptionData requestCookie,
+            string reason)
+        {
+            Interlocked.Increment(ref _cookieInvalid);
+
+            bool drop = ShouldDropInvalidCookie(remoteEP.Address, out int failuresInWindow);
+
+            if (failuresInWindow == COOKIE_FAILURE_SOFT_THRESHOLD)
+            {
+                _log.Write($"Client '{remoteEP.Address}' hit DNS cookie invalid soft threshold ({COOKIE_FAILURE_SOFT_THRESHOLD}/{COOKIE_FAILURE_WINDOW_SECONDS}s).");
+            }
+
+            if (drop)
+            {
+                Interlocked.Increment(ref _cookieInvalidDropped);
+
+                if (failuresInWindow == (COOKIE_FAILURE_HARD_THRESHOLD + 1))
+                {
+                    _log.Write($"Client '{remoteEP.Address}' exceeded DNS cookie invalid hard threshold ({COOKIE_FAILURE_HARD_THRESHOLD}/{COOKIE_FAILURE_WINDOW_SECONDS}s); dropping invalid-cookie requests.");
+                }
+
+                return null; // drop abusive invalid-cookie traffic; caller treats null as "no response"
+            }
+
+            byte[] serverCookie = _cookieValidator.CreateResponseCookie(remoteEP.Address, requestCookie.ClientCookie);
+            object responseCookie = CreateCookieOptionData(requestCookie.RawOptionDataType, requestCookie.ClientCookie, serverCookie);
+            byte[] responseCookieRawData = new byte[requestCookie.ClientCookie.Length + serverCookie.Length];
+            Buffer.BlockCopy(requestCookie.ClientCookie, 0, responseCookieRawData, 0, requestCookie.ClientCookie.Length);
+            Buffer.BlockCopy(serverCookie, 0, responseCookieRawData, requestCookie.ClientCookie.Length, serverCookie.Length);
+
+            Interlocked.Increment(ref _cookieBadcookieSent);
+
+            if (failuresInWindow == COOKIE_FAILURE_SOFT_THRESHOLD)
+            {
+                _log.Write($"Returning BADCOOKIE to '{remoteEP.Address}' for reason='{reason}'.");
+            }
+
+            return BuildBadCookieResponse(request, remoteEP, isRecursionAllowed, responseCookie, responseCookieRawData);
         }
 
         #endregion
@@ -2848,8 +3193,8 @@ namespace DnsServerCore.Dns
             }
 
             // DNS Cookies (RFC 7873 / RFC 9018 v1)
-            EDnsCookieOptionData requestCookie = null;
-            EDnsCookieOptionData responseCookie;
+            CookieOptionData requestCookie = null;
+            object responseCookie;
             if (protocol == DnsTransportProtocol.Udp &&
                 request.EDNS != null &&
                 _cookieValidator != null)
@@ -2911,44 +3256,34 @@ namespace DnsServerCore.Dns
                         bool looksLikeV1 = requestCookie.ServerCookie[0] == 1;
                         if (looksLikeV1 && scLen != 16)
                         {
-                            Interlocked.Increment(ref _cookieInvalid);
-
-                            responseCookie =
-                                _cookieValidator.CreateResponseCookie(remoteEP.Address, requestCookie);
-
-                            Interlocked.Increment(ref _cookieBadcookieSent);
-
-                            return BuildBadCookieResponse(request, remoteEP, isRecursionAllowed, responseCookie);
+                            return HandleInvalidCookieRequest(
+                                request,
+                                remoteEP,
+                                isRecursionAllowed,
+                                requestCookie,
+                                "v1-length");
                         }
 
                         // If non-v1 versions are unsupported, you can also BADCOOKIE them:
                         if (!looksLikeV1)
                         {
-                            Interlocked.Increment(ref _cookieInvalid);
-
-                            responseCookie =
-                                _cookieValidator.CreateResponseCookie(remoteEP.Address, requestCookie);
-
-                            Interlocked.Increment(ref _cookieBadcookieSent);
-
-                            return BuildBadCookieResponse(request, remoteEP, isRecursionAllowed, responseCookie);
-                        }
-
-                        // v1: validate cryptographically
-                        if (!_cookieValidator.Validate(remoteEP.Address, requestCookie))
-                        {
-                            Interlocked.Increment(ref _cookieInvalid);
-
-                            responseCookie =
-                                _cookieValidator.CreateResponseCookie(remoteEP.Address, requestCookie);
-
-                            Interlocked.Increment(ref _cookieBadcookieSent);
-
-                            return BuildBadCookieResponse(
+                            return HandleInvalidCookieRequest(
                                 request,
                                 remoteEP,
                                 isRecursionAllowed,
-                                responseCookie);
+                                requestCookie,
+                                "unsupported-version");
+                        }
+
+                        // v1: validate cryptographically
+                        if (!_cookieValidator.Validate(remoteEP.Address, requestCookie.ClientCookie, requestCookie.ServerCookie))
+                        {
+                            return HandleInvalidCookieRequest(
+                                request,
+                                remoteEP,
+                                isRecursionAllowed,
+                                requestCookie,
+                                "crypto-validate");
                         }
 
                         Interlocked.Increment(ref _cookieValid);
@@ -2965,11 +3300,26 @@ namespace DnsServerCore.Dns
             {            
                 if (requestCookie != null && requestCookie.ClientCookie.Length == 8)
                 {
-                    responseCookie =
-                        _cookieValidator.CreateResponseCookie(remoteEP.Address, requestCookie);
+                    byte[] serverCookie = _cookieValidator.CreateResponseCookie(remoteEP.Address, requestCookie.ClientCookie);
+                    responseCookie = CreateCookieOptionData(requestCookie.RawOptionDataType, requestCookie.ClientCookie, serverCookie);
+                    byte[] responseCookieRawData = new byte[requestCookie.ClientCookie.Length + serverCookie.Length];
+                    Buffer.BlockCopy(requestCookie.ClientCookie, 0, responseCookieRawData, 0, requestCookie.ClientCookie.Length);
+                    Buffer.BlockCopy(serverCookie, 0, responseCookieRawData, requestCookie.ClientCookie.Length, serverCookie.Length);
 
                     IReadOnlyList<EDnsOption> mergedOptions =
-                        MergeCookieOption(response.EDNS?.Options, responseCookie);
+                        MergeCookieOption(response.EDNS?.Options ?? request.EDNS?.Options, responseCookie, responseCookieRawData);
+
+                    response = response.Clone(
+                        additional: UpsertOptRecord(
+                            response.Additional,
+                            request,
+                            response,
+                            mergedOptions));
+                }
+                else if (requestCookie is null && HasCookieOption(request))
+                {
+                    IReadOnlyList<EDnsOption> mergedOptions =
+                        MergeCookieOption(response.EDNS?.Options ?? request.EDNS?.Options, null, null);
 
                     response = response.Clone(
                         additional: UpsertOptRecord(
@@ -7864,6 +8214,33 @@ namespace DnsServerCore.Dns
         {
             get { return _enableDnsOverQuic; }
             set { _enableDnsOverQuic = value; }
+        }
+
+        public bool UseDnsCookies
+        {
+            get { return _useDnsCookies; }
+            set
+            {
+                if (_useDnsCookies == value)
+                    return;
+
+                _useDnsCookies = value;
+                InitDnsCookies();
+            }
+        }
+
+        public IReadOnlyCollection<NetworkAccessControl> ReverseProxyNetworkACL
+        {
+            get { return _reverseProxyNetworkACL; }
+            set
+            {
+                if ((value is null) || (value.Count == 0))
+                    _reverseProxyNetworkACL = null;
+                else if (value.Count > byte.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(ReverseProxyNetworkACL), "Network Access Control List cannot have more than 255 entries.");
+                else
+                    _reverseProxyNetworkACL = value;
+            }
         }
 
         public int DnsOverUdpProxyPort

@@ -22,8 +22,6 @@ using System.Buffers.Binary;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
-using TechnitiumLibrary.Net.Dns.EDnsOptions;
-
 namespace DnsServerCore.Dns.Security
 {
     public sealed class DnsCookieValidator
@@ -240,47 +238,46 @@ namespace DnsServerCore.Dns.Security
 
         #region public
 
-        public bool Validate(IPAddress clientAddress, EDnsCookieOptionData cookie)
+        public bool Validate(IPAddress clientAddress, ReadOnlySpan<byte> clientCookie, ReadOnlySpan<byte> serverCookie)
         {
-            if (clientAddress is null || cookie is null)
+            if (clientAddress is null)
                 return false;
 
             // This validator is specifically for validating presence of BOTH CC and SC.
-            if (cookie.ClientCookie.IsEmpty || cookie.ServerCookie.IsEmpty)
+            if (clientCookie.IsEmpty || serverCookie.IsEmpty)
                 return false;
 
-            if (cookie.ClientCookie.Length != ClientCookieLen)
+            if (clientCookie.Length != ClientCookieLen)
                 return false;
 
             byte[] currentSecret = _secretManager.GetCurrentSecret();
 
             if (currentSecret != null && currentSecret.Length > 0 &&
-                ValidateServerCookieWithSecret(clientAddress, cookie.ClientCookie, cookie.ServerCookie, currentSecret))
+                ValidateServerCookieWithSecret(clientAddress, clientCookie, serverCookie, currentSecret))
                 return true;
 
             byte[] previousSecret = _secretManager.GetPreviousSecret();
             if (previousSecret != null && previousSecret.Length > 0 &&
-                ValidateServerCookieWithSecret(clientAddress, cookie.ClientCookie, cookie.ServerCookie, previousSecret))
+                ValidateServerCookieWithSecret(clientAddress, clientCookie, serverCookie, previousSecret))
                 return true;
 
             return false;
         }
 
-        public EDnsCookieOptionData CreateResponseCookie(IPAddress clientAddress, EDnsCookieOptionData requestCookie)
+        public byte[] CreateResponseCookie(IPAddress clientAddress, ReadOnlySpan<byte> clientCookie)
         {
             ArgumentNullException.ThrowIfNull(clientAddress);
 
-            if (requestCookie is null || requestCookie.ClientCookie.IsEmpty)
-                throw new ArgumentException("Request cookie must include a client cookie.", nameof(requestCookie));
+            if (clientCookie.IsEmpty)
+                throw new ArgumentException("Request cookie must include a client cookie.", nameof(clientCookie));
 
-            if (requestCookie.ClientCookie.Length != ClientCookieLen)
-                throw new ArgumentException($"Client cookie must be {ClientCookieLen} bytes.", nameof(requestCookie));
+            if (clientCookie.Length != ClientCookieLen)
+                throw new ArgumentException($"Client cookie must be {ClientCookieLen} bytes.", nameof(clientCookie));
 
             byte[] currentSecret = _secretManager.GetCurrentSecret();
             ValidateSecret(currentSecret);
 
-            byte[] serverCookie = ComputeServerCookie(clientAddress, requestCookie.ClientCookie, currentSecret);
-            return new EDnsCookieOptionData(requestCookie.ClientCookie.ToArray(), serverCookie);
+            return ComputeServerCookie(clientAddress, clientCookie, currentSecret);
         }
 
         #endregion
