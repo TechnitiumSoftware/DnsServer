@@ -184,7 +184,7 @@ namespace DnsServerCore
                 sb.Append($"uptime_seconds {Convert.ToUInt64((DateTime.UtcNow - _dnsWebService._uptimestamp).TotalSeconds)}\n");
 
                 sb.Append("# HELP start_time Start time of the DNS Server since epoch (milliseconds)\n");
-                sb.Append("# TYPE start_time guage\n");
+                sb.Append("# TYPE start_time gauge\n");
                 sb.Append($"start_time {Convert.ToUInt64((_dnsWebService._uptimestamp - DateTime.UnixEpoch).TotalMilliseconds)}\n");
 
                 sb.Append("# TYPE total_queries counter\n");

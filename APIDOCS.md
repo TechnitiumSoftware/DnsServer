@@ -707,7 +707,7 @@ Response data is in Prometheus text format with `Content-Type: text/plain; versi
 # TYPE uptime_seconds gauge
 uptime_seconds 264
 # HELP start_time Start time of the DNS Server since epoch (milliseconds)
-# TYPE start_time guage
+# TYPE start_time gauge
 start_time 1776773647619
 # TYPE total_queries counter
 total_queries 0
