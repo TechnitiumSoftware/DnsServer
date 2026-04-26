@@ -538,6 +538,7 @@ namespace DnsServerCore.Auth
                 {
                     switch (existingSession.Value.Type)
                     {
+                        case UserSessionType.ClusterApiToken:
                         case UserSessionType.ApiToken:
                             if (!sessions.ContainsKey(existingSession.Key))
                                 _sessions.TryRemove(existingSession);
@@ -550,6 +551,7 @@ namespace DnsServerCore.Auth
                 {
                     switch (session.Value.Type)
                     {
+                        case UserSessionType.ClusterApiToken:
                         case UserSessionType.ApiToken:
                             _sessions[session.Key] = session.Value;
                             break;
