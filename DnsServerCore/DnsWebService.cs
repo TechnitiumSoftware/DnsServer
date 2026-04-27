@@ -1624,11 +1624,9 @@ namespace DnsServerCore
                     options.ResponseMode = OpenIdConnectResponseMode.FormPost;
 
                     options.Scope.Clear();
-                    options.Scope.Add("openid");
-                    options.Scope.Add("profile");
-                    options.Scope.Add("email");
-                    options.Scope.Add("groups");
-                    options.Scope.Add("roles");
+                    string scopesEnv = Environment.GetEnvironmentVariable("DNS_SERVER_SSO_SCOPES") ?? "openid,profile,email,groups,roles";
+                    foreach (string scope in scopesEnv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                        options.Scope.Add(scope);
 
                     options.CallbackPath = new PathString("/sso/callback");
 
