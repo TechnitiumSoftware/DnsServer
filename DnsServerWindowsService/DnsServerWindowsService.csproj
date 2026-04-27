@@ -1,14 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Worker">
 
 	<PropertyGroup>
-		<TargetFramework>net9.0</TargetFramework>
+		<TargetFramework>net10.0</TargetFramework>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<GenerateAssemblyInfo>true</GenerateAssemblyInfo>
 		<RootNamespace>DnsServerWindowsService</RootNamespace>
 		<AssemblyName>DnsService</AssemblyName>
 		<ApplicationIcon>logo2.ico</ApplicationIcon>
-		<Version>14.3</Version>
+		<Version>15.0.1</Version>
 		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 		<Authors>Shreyas Zare</Authors>
 		<Company>Technitium</Company>
@@ -17,6 +17,7 @@
 		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
 		<PackageId>DnsServerWindowsService</PackageId>
+		<Nullable>enable</Nullable>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -26,8 +27,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.10" />
-		<PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.10" />
+		<PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.7" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -35,7 +35,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Folder Include="Properties\PublishProfiles\" />
+		<Folder Include="Properties\PublishProfiles\" />
 	</ItemGroup>
 
 </Project>

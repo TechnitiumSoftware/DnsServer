@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -32,6 +32,8 @@ namespace AutoPtr
     {
         #region variables
 
+        readonly static JsonDocumentOptions _jsonParseOptions = new JsonDocumentOptions() { CommentHandling = JsonCommentHandling.Skip };
+
         IDnsServer _dnsServer;
 
         #endregion
@@ -62,9 +64,6 @@ namespace AutoPtr
             if (qname.Length == appRecordName.Length)
                 return null;
 
-            if (!IPAddressExtensions.TryParseReverseDomain(qname.ToLowerInvariant(), out IPAddress address))
-                return null;
-
             if (question.Type != DnsResourceRecordType.PTR)
             {
                 //NODATA reponse
@@ -73,9 +72,12 @@ namespace AutoPtr
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, null, soaResponse.Answer);
             }
 
+            if (!IPAddressExtensions.TryParseReverseDomain(qname.ToLowerInvariant(), out IPAddress address))
+                return null;
+
             string domain = null;
 
-            using (JsonDocument jsonDocument = JsonDocument.Parse(appRecordData))
+            using (JsonDocument jsonDocument = JsonDocument.Parse(appRecordData, _jsonParseOptions))
             {
                 JsonElement jsonAppRecordData = jsonDocument.RootElement;
 

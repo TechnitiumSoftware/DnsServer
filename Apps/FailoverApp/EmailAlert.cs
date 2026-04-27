@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore.ApplicationCommon;
 using System;
+using System.Globalization;
 using System.Net;
 using System.Net.Mail;
 using System.Text;
@@ -196,7 +197,7 @@ The DNS Failover App was successfully able to perform a health check [" + health
 Address: " + address.ToString() + @"
 Health Check: " + healthCheck + @"
 Status: " + healthCheckResponse.Status.ToString().ToUpper() + @"
-Alert Time: " + healthCheckResponse.DateTime.ToString("R") + @"
+Alert Time: " + healthCheckResponse.DateTime.ToString("R", CultureInfo.InvariantCulture) + @"
 Failure Reason: " + healthCheckResponse.FailureReason + @"
 
 Regards,
@@ -212,7 +213,7 @@ The DNS Failover App was successfully able to perform a health check [" + health
 Address: " + address.ToString() + @"
 Health Check: " + healthCheck + @"
 Status: " + healthCheckResponse.Status.ToString().ToUpper() + @"
-Alert Time: " + healthCheckResponse.DateTime.ToString("R") + @"
+Alert Time: " + healthCheckResponse.DateTime.ToString("R", CultureInfo.InvariantCulture) + @"
 
 Regards,
 DNS Failover App
@@ -243,7 +244,7 @@ The DNS Failover App has failed to perform a health check [" + healthCheck + "] 
 Address: " + address.ToString() + @"
 Health Check: " + healthCheck + @"
 Status: ERROR
-Alert Time: " + DateTime.UtcNow.ToString("R") + @"
+Alert Time: " + DateTime.UtcNow.ToString("R", CultureInfo.InvariantCulture) + @"
 Failure Reason: " + ex.ToString() + @"
 
 Regards,
@@ -278,7 +279,7 @@ Domain: " + domain + @"
 Record Type: " + type.ToString() + @"
 Health Check: " + healthCheck + @"
 Status: " + healthCheckResponse.Status.ToString().ToUpper() + @"
-Alert Time: " + healthCheckResponse.DateTime.ToString("R") + @"
+Alert Time: " + healthCheckResponse.DateTime.ToString("R", CultureInfo.InvariantCulture) + @"
 Failure Reason: " + healthCheckResponse.FailureReason + @"
 
 Regards,
@@ -295,7 +296,7 @@ Domain: " + domain + @"
 Record Type: " + type.ToString() + @"
 Health Check: " + healthCheck + @"
 Status: " + healthCheckResponse.Status.ToString().ToUpper() + @"
-Alert Time: " + healthCheckResponse.DateTime.ToString("R") + @"
+Alert Time: " + healthCheckResponse.DateTime.ToString("R", CultureInfo.InvariantCulture) + @"
 
 Regards,
 DNS Failover App
@@ -327,7 +328,7 @@ Domain: " + domain + @"
 Record Type: " + type.ToString() + @"
 Health Check: " + healthCheck + @"
 Status: ERROR
-Alert Time: " + DateTime.UtcNow.ToString("R") + @"
+Alert Time: " + DateTime.UtcNow.ToString("R", CultureInfo.InvariantCulture) + @"
 Failure Reason: " + ex.ToString() + @"
 
 Regards,

@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -106,7 +106,7 @@ namespace Failover
             {
                 HttpClientNetworkHandler httpHandler = new HttpClientNetworkHandler();
                 httpHandler.Proxy = proxy;
-                httpHandler.NetworkType = _service.DnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default;
+                httpHandler.NetworkType = HttpClientNetworkHandler.GetNetworkType(_service.DnsServer.IPv6Mode);
                 httpHandler.DnsClient = _service.DnsServer;
 
                 httpHandler.InnerHandler.AllowAutoRedirect = true;
@@ -121,7 +121,7 @@ namespace Failover
                 {
                     HttpClientNetworkHandler httpHandler = new HttpClientNetworkHandler();
                     httpHandler.Proxy = proxy;
-                    httpHandler.NetworkType = _service.DnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default;
+                    httpHandler.NetworkType = HttpClientNetworkHandler.GetNetworkType(_service.DnsServer.IPv6Mode);
                     httpHandler.DnsClient = _service.DnsServer;
 
                     httpHandler.InnerHandler.AllowAutoRedirect = true;

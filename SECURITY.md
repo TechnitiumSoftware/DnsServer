@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Only the latest available version of Technitium DNS Server is supported for security updates.
+Only the latest available version of Technitium DNS Server (i.e. `master` branch) is supported for security updates.
 
 ## Reporting a Vulnerability
 

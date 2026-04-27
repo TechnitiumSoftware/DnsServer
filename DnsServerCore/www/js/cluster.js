@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -83,7 +83,8 @@ function refreshAdminCluster() {
     divAdminClusterView.hide();
 
     HTTPRequest({
-        url: "api/admin/cluster/state?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
+        url: "api/admin/cluster/state?node=" + encodeURIComponent(node),
+        token: sessionData.token,
         success: function (responseJSON) {
             reloadAdminClusterView(responseJSON);
 
@@ -310,7 +311,8 @@ function showEditSelfClusterNodeModal(objMenuItem) {
     $("#modalEditClusterNode").modal("show");
 
     HTTPRequest({
-        url: "api/admin/cluster/state?token=" + sessionData.token + "&includeServerIpAddresses=true" + "&node=" + encodeURIComponent(node),
+        url: "api/admin/cluster/state?includeServerIpAddresses=true" + "&node=" + encodeURIComponent(node),
+        token: sessionData.token,
         success: function (responseJSON) {
             var optionsHtml = "<option></option>";
 
@@ -354,7 +356,8 @@ function updateSelfClusterNode(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/admin/cluster/updateIpAddress?token=" + sessionData.token + "&ipAddresses=" + encodeURIComponent(ipAddresses) + "&node=" + encodeURIComponent(node),
+        url: "api/admin/cluster/updateIpAddress?ipAddresses=" + encodeURIComponent(ipAddresses) + "&node=" + encodeURIComponent(node),
+        token: sessionData.token,
         success: function (responseJSON) {
             btn.button("reset");
             $("#modalEditClusterNode").modal("hide");
@@ -421,7 +424,8 @@ function updatePrimaryClusterNode(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/admin/cluster/secondary/updatePrimary?token=" + sessionData.token + "&primaryNodeUrl=" + encodeURIComponent(primaryNodeUrl) + "&primaryNodeIpAddresses=" + encodeURIComponent(primaryNodeIpAddresses) + "&node=" + encodeURIComponent(node),
+        url: "api/admin/cluster/secondary/updatePrimary?primaryNodeUrl=" + encodeURIComponent(primaryNodeUrl) + "&primaryNodeIpAddresses=" + encodeURIComponent(primaryNodeIpAddresses) + "&node=" + encodeURIComponent(node),
+        token: sessionData.token,
         success: function (responseJSON) {
             btn.button("reset");
             $("#modalEditClusterNode").modal("hide");
@@ -475,7 +479,8 @@ function removeSecondaryClusterNode(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: apiUrl + "?token=" + sessionData.token + "&secondaryNodeId=" + secondaryNodeId + "&node=" + encodeURIComponent(node),
+        url: apiUrl + "?secondaryNodeId=" + secondaryNodeId + "&node=" + encodeURIComponent(node),
+        token: sessionData.token,
         success: function (responseJSON) {
             btn.button("reset");
             $("#modalRemoveClusterNode").modal("hide");
@@ -518,7 +523,8 @@ function promoteToPrimaryClusterNode(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/admin/cluster/secondary/promote?token=" + sessionData.token + "&forceDeletePrimary=" + forceDeletePrimary + "&node=" + encodeURIComponent(node),
+        url: "api/admin/cluster/secondary/promote?forceDeletePrimary=" + forceDeletePrimary + "&node=" + encodeURIComponent(node),
+        token: sessionData.token,
         success: function (responseJSON) {
             $("#modalPromoteToPrimaryClusterNode").modal("hide");
             btn.button("reset");
@@ -550,7 +556,8 @@ function showInitializeClusterModal() {
     $("#modalInitializeNewCluster").modal("show");
 
     HTTPRequest({
-        url: "api/admin/cluster/state?token=" + sessionData.token + "&includeServerIpAddresses=true",
+        url: "api/admin/cluster/state?includeServerIpAddresses=true",
+        token: sessionData.token,
         success: function (responseJSON) {
             if (responseJSON.response.clusterInitialized) {
                 showAlert("danger", "Error!", "Cluster is already initialized.", divInitializeNewClusterAlert);
@@ -604,7 +611,8 @@ function initializeNewCluster(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/admin/cluster/init?token=" + sessionData.token + "&clusterDomain=" + encodeURIComponent(clusterDomain) + "&primaryNodeIpAddresses=" + encodeURIComponent(primaryNodeIpAddresses),
+        url: "api/admin/cluster/init?clusterDomain=" + encodeURIComponent(clusterDomain) + "&primaryNodeIpAddresses=" + encodeURIComponent(primaryNodeIpAddresses),
+        token: sessionData.token,
         success: function (responseJSON) {
             $("#modalInitializeNewCluster").modal("hide");
             btn.button("reset");
@@ -638,7 +646,8 @@ function showInitializeJoinClusterModal() {
     $("#modalInitializeJoinCluster").modal("show");
 
     HTTPRequest({
-        url: "api/admin/cluster/state?token=" + sessionData.token + "&includeServerIpAddresses=true",
+        url: "api/admin/cluster/state?includeServerIpAddresses=true",
+        token: sessionData.token,
         success: function (responseJSON) {
             if (responseJSON.response.clusterInitialized) {
                 showAlert("danger", "Error!", "Cluster is already initialized.", divInitializeJoinClusterAlert);
@@ -727,8 +736,9 @@ function initializeJoinCluster(objBtn) {
 
     HTTPRequest({
         url: "api/admin/cluster/initJoin",
+        token: sessionData.token,
         method: "POST",
-        data: "token=" + sessionData.token + "&secondaryNodeIpAddresses=" + encodeURIComponent(secondaryNodeIpAddresses)
+        data: "secondaryNodeIpAddresses=" + encodeURIComponent(secondaryNodeIpAddresses)
             + "&primaryNodeUrl=" + encodeURIComponent(primaryNodeUrl) + "&primaryNodeIpAddress=" + encodeURIComponent(primaryNodeIpAddress) + "&ignoreCertificateErrors=" + ignoreCertificateErrors
             + "&primaryNodeUsername=" + encodeURIComponent(primaryNodeUsername) + "&primaryNodePassword=" + encodeURIComponent(primaryNodePassword) + "&primaryNodeTotp=" + encodeURIComponent(primaryNodeTotp),
         processData: false,
@@ -770,7 +780,8 @@ function resyncCluster(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/admin/cluster/secondary/resync?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
+        url: "api/admin/cluster/secondary/resync?node=" + encodeURIComponent(node),
+        token: sessionData.token,
         success: function (responseJSON) {
             btn.button("reset");
             showAlert("success", "Resync Triggered!", "A full config resync was triggered successfully. Please check the Logs for confirmation.");
@@ -798,7 +809,8 @@ function showClusterOptionsModal() {
     $("#modalClusterOptions").modal("show");
 
     HTTPRequest({
-        url: "api/admin/cluster/state?token=" + sessionData.token + "&node=" + encodeURIComponent(node),
+        url: "api/admin/cluster/state?node=" + encodeURIComponent(node),
+        token: sessionData.token,
         success: function (responseJSON) {
             var selfNodeType;
 
@@ -880,10 +892,10 @@ function saveClusterOptions(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/admin/cluster/primary/setOptions?token=" + sessionData.token
-            + "&heartbeatRefreshIntervalSeconds=" + heartbeatRefreshIntervalSeconds + "&heartbeatRetryIntervalSeconds=" + heartbeatRetryIntervalSeconds
+        url: "api/admin/cluster/primary/setOptions?heartbeatRefreshIntervalSeconds=" + heartbeatRefreshIntervalSeconds + "&heartbeatRetryIntervalSeconds=" + heartbeatRetryIntervalSeconds
             + "&configRefreshIntervalSeconds=" + configRefreshIntervalSeconds + "&configRetryIntervalSeconds=" + configRetryIntervalSeconds
             + "&node=" + encodeURIComponent(node),
+        token: sessionData.token,
         success: function (responseJSON) {
             $("#modalClusterOptions").modal("hide");
             btn.button("reset");
@@ -919,7 +931,8 @@ function leaveCluster(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/admin/cluster/secondary/leave?token=" + sessionData.token + "&forceLeave=" + forceLeave + "&node=" + encodeURIComponent(node),
+        url: "api/admin/cluster/secondary/leave?forceLeave=" + forceLeave + "&node=" + encodeURIComponent(node),
+        token: sessionData.token,
         success: function (responseJSON) {
             $("#modalLeaveCluster").modal("hide");
             btn.button("reset");
@@ -958,7 +971,8 @@ function deleteCluster(objBtn) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/admin/cluster/primary/delete?token=" + sessionData.token + "&forceDelete=" + forceDelete + "&node=" + encodeURIComponent(node),
+        url: "api/admin/cluster/primary/delete?forceDelete=" + forceDelete + "&node=" + encodeURIComponent(node),
+        token: sessionData.token,
         success: function (responseJSON) {
             $("#modalDeleteCluster").modal("hide");
             btn.button("reset");
@@ -992,12 +1006,12 @@ function getPrimaryClusterNodeName() {
 }
 
 function updateAllClusterNodeDropDowns() {
-    updateClusterNodeDropDown($("#optDashboardClusterNode"), true);
+    updateClusterNodeDropDown($("#optDashboardClusterNode"), true, localStorage.getItem("dashboardClusterNode"));
     updateClusterNodeDropDown($("#optZonesClusterNode"));
     updateClusterNodeDropDown($("#optEditZoneClusterNode"));
     updateClusterNodeDropDown($("#optCachedZonesClusterNode"));
     updateClusterNodeDropDown($("#optDnsClientClusterNode"));
-    updateClusterNodeDropDown($("#optSettingsClusterNode"), true);
+    updateClusterNodeDropDown($("#optSettingsClusterNode"), true, localStorage.getItem("settingsClusterNode"));
     updateClusterNodeDropDown($("#optDhcpClusterNode"));
     updateClusterNodeDropDown($("#optAdminSessionsClusterNode"));
     updateClusterNodeDropDown($("#optAdminClusterNode"));

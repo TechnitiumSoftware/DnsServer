@@ -1,9 +1,9 @@
 # syntax=docker.io/docker/dockerfile:1
 
-FROM mcr.microsoft.com/dotnet/aspnet:9.0
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
 
 # Add the MS repo to install `libmsquic` to support DNS-over-QUIC:
-ADD --link https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb /
+ADD --link https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb /
 RUN <<HEREDOC
   dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb
   # `dnsutils` added to include the `dig` command for troubleshooting:

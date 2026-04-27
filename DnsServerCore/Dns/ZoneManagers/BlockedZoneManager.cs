@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         readonly DnsSOARecordDataExtended _soaRecord;
         readonly DnsNSRecordDataExtended _nsRecord;
 
-        readonly object _saveLock = new object();
+        readonly Lock _saveLock = new Lock();
         bool _pendingSave;
         readonly Timer _saveTimer;
         const int SAVE_TIMER_INITIAL_INTERVAL = 5000;
@@ -178,12 +178,15 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         private void SaveZoneFileInternal()
         {
+            string tmpBlockedZoneFile = Path.Combine(_dnsServer.ConfigFolder, "blocked.tmp");
             string blockedZoneFile = Path.Combine(_dnsServer.ConfigFolder, "blocked.config");
 
-            using (FileStream fS = new FileStream(blockedZoneFile, FileMode.Create, FileAccess.Write))
+            using (FileStream fS = new FileStream(tmpBlockedZoneFile, FileMode.Create, FileAccess.Write))
             {
                 WriteConfigTo(fS);
             }
+
+            File.Move(tmpBlockedZoneFile, blockedZoneFile, true);
 
             _dnsServer.LogManager.Write("DNS Server blocked zone file was saved: " + blockedZoneFile);
         }
@@ -202,10 +205,10 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         private void ReadConfigFrom(Stream s)
         {
-            BinaryReader bR = new BinaryReader(s);
-
-            if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "BZ") //format
+            if (Encoding.ASCII.GetString(s.ReadExactly(2)) != "BZ") //format
                 throw new InvalidDataException("DnsServer blocked zone file format is invalid.");
+
+            BinaryReader bR = new BinaryReader(s);
 
             byte version = bR.ReadByte();
             switch (version)
@@ -219,7 +222,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     zoneManager.LoadSpecialPrimaryZones(delegate ()
                     {
                         if (i++ < length)
-                            return bR.ReadShortString();
+                            return s.ReadShortString();
 
                         return null;
                     }, _soaRecord, _nsRecord);
@@ -243,7 +246,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             bW.Write(blockedZones.Count);
 
             foreach (AuthZoneInfo zone in blockedZones)
-                bW.WriteShortString(zone.Name);
+                s.WriteShortString(zone.Name);
         }
 
         #endregion

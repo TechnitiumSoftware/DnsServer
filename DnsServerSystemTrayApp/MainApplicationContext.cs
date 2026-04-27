@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -44,20 +44,20 @@ namespace DnsServerSystemTrayApp
         readonly string _configFile;
         readonly List<DnsProvider> _dnsProviders = new List<DnsProvider>();
 
-        private NotifyIcon TrayIcon;
-        private ContextMenuStrip TrayIconContextMenu;
-        private ToolStripMenuItem DashboardMenuItem;
-        private ToolStripMenuItem NetworkDnsMenuItem;
-        private ToolStripMenuItem DefaultNetworkDnsMenuItem;
-        private ToolStripMenuItem ManageNetworkDnsMenuItem;
-        private ToolStripMenuItem ServiceMenuItem;
-        private ToolStripMenuItem StartServiceMenuItem;
-        private ToolStripMenuItem RestartServiceMenuItem;
-        private ToolStripMenuItem StopServiceMenuItem;
-        private ToolStripMenuItem FirewallMenuItem;
-        private ToolStripMenuItem AboutMenuItem;
-        private ToolStripMenuItem AutoStartMenuItem;
-        private ToolStripMenuItem ExitMenuItem;
+        private NotifyIcon TrayIcon = null!;
+        private ContextMenuStrip TrayIconContextMenu = null!;
+        private ToolStripMenuItem DashboardMenuItem = null!;
+        private ToolStripMenuItem NetworkDnsMenuItem = null!;
+        private ToolStripMenuItem DefaultNetworkDnsMenuItem = null!;
+        private ToolStripMenuItem ManageNetworkDnsMenuItem = null!;
+        private ToolStripMenuItem ServiceMenuItem = null!;
+        private ToolStripMenuItem StartServiceMenuItem = null!;
+        private ToolStripMenuItem RestartServiceMenuItem = null!;
+        private ToolStripMenuItem StopServiceMenuItem = null!;
+        private ToolStripMenuItem FirewallMenuItem = null!;
+        private ToolStripMenuItem AboutMenuItem = null!;
+        private ToolStripMenuItem AutoStartMenuItem = null!;
+        private ToolStripMenuItem ExitMenuItem = null!;
 
         #endregion
 
@@ -436,7 +436,7 @@ namespace DnsServerSystemTrayApp
         {
             //HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters\Interfaces\{}
 
-            string nameServer = null;
+            string? nameServer = null;
 
             foreach (IPAddress dnsAddress in dnsAddresses)
             {
@@ -452,7 +452,7 @@ namespace DnsServerSystemTrayApp
             if (nameServer == null)
                 nameServer = "";
 
-            using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters\Interfaces\" + nic.Id, true))
+            using (RegistryKey? key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters\Interfaces\" + nic.Id, true))
             {
                 if (key is not null)
                     key.SetValue("NameServer", nameServer, RegistryValueKind.String);
@@ -489,7 +489,7 @@ namespace DnsServerSystemTrayApp
             return false;
         }
 
-        private void TrayIcon_MouseUp(object sender, MouseEventArgs e)
+        private void TrayIcon_MouseUp(object? sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Right)
             {
@@ -597,7 +597,7 @@ namespace DnsServerSystemTrayApp
 
                 try
                 {
-                    using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Technitium\DNS Server", false))
+                    using (RegistryKey? key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Technitium\DNS Server", false))
                     {
                         if (key is not null)
                             autoFirewallEntry = Convert.ToInt32(key.GetValue("AutoFirewallEntry", 1)) == 1;
@@ -614,11 +614,11 @@ namespace DnsServerSystemTrayApp
 
                 try
                 {
-                    using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", false))
+                    using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", false))
                     {
                         if (key is not null)
                         {
-                            string autoStartPath = key.GetValue("Technitium DNS System Tray") as string;
+                            string? autoStartPath = key.GetValue("Technitium DNS System Tray") as string;
 
                             AutoStartMenuItem.Checked = (autoStartPath != null) && autoStartPath.Equals("\"" + Program.APP_PATH + "\"");
                         }
@@ -633,7 +633,7 @@ namespace DnsServerSystemTrayApp
             }
         }
 
-        private void DashboardMenuItem_Click(object sender, EventArgs e)
+        private void DashboardMenuItem_Click(object? sender, EventArgs e)
         {
             int port = 5380;
             string host = "localhost";
@@ -641,7 +641,7 @@ namespace DnsServerSystemTrayApp
             //try finding port number from web service config file
             try
             {
-                string webServiceConfigFile = Path.Combine(Path.GetDirectoryName(Program.APP_PATH), "config", "webservice.config");
+                string webServiceConfigFile = Path.Combine(Path.GetDirectoryName(Program.APP_PATH)!, "config", "webservice.config");
 
                 using (FileStream fS = new FileStream(webServiceConfigFile, FileMode.Open, FileAccess.Read))
                 {
@@ -680,7 +680,7 @@ namespace DnsServerSystemTrayApp
             Process.Start(processInfo);
         }
 
-        private void DefaultNetworkDnsMenuItem_Click(object sender, EventArgs e)
+        private void DefaultNetworkDnsMenuItem_Click(object? sender, EventArgs e)
         {
             SetNetworkDnsToDefault();
         }
@@ -735,7 +735,7 @@ namespace DnsServerSystemTrayApp
             }
         }
 
-        private void ManageNetworkDnsMenuItem_Click(object sender, EventArgs e)
+        private void ManageNetworkDnsMenuItem_Click(object? sender, EventArgs e)
         {
             if (!Program.IsAdmin)
             {
@@ -756,15 +756,15 @@ namespace DnsServerSystemTrayApp
             }
         }
 
-        private void NetworkDnsMenuSubItem_Click(object sender, EventArgs e)
+        private void NetworkDnsMenuSubItem_Click(object? sender, EventArgs e)
         {
-            ToolStripMenuItem item = sender as ToolStripMenuItem;
-            DnsProvider dnsProvider = item.Tag as DnsProvider;
+            ToolStripMenuItem? item = sender as ToolStripMenuItem;
+            DnsProvider? dnsProvider = item!.Tag as DnsProvider;
 
-            SetNetworkDns(dnsProvider);
+            SetNetworkDns(dnsProvider!);
         }
 
-        private void StartServiceMenuItem_Click(object sender, EventArgs e)
+        private void StartServiceMenuItem_Click(object? sender, EventArgs e)
         {
             if (!Program.IsAdmin)
             {
@@ -789,7 +789,7 @@ namespace DnsServerSystemTrayApp
             }
         }
 
-        private void RestartServiceMenuItem_Click(object sender, EventArgs e)
+        private void RestartServiceMenuItem_Click(object? sender, EventArgs e)
         {
             if (!Program.IsAdmin)
             {
@@ -816,7 +816,7 @@ namespace DnsServerSystemTrayApp
             }
         }
 
-        private void StopServiceMenuItem_Click(object sender, EventArgs e)
+        private void StopServiceMenuItem_Click(object? sender, EventArgs e)
         {
             if (!Program.IsAdmin)
             {
@@ -841,7 +841,7 @@ namespace DnsServerSystemTrayApp
             }
         }
 
-        private void FirewallMenuItem_Click(object sender, EventArgs e)
+        private void FirewallMenuItem_Click(object? sender, EventArgs e)
         {
             if (!Program.IsAdmin)
             {
@@ -852,7 +852,7 @@ namespace DnsServerSystemTrayApp
             SetAutoFirewallEntry(!FirewallMenuItem.Checked);
         }
 
-        private void AboutMenuItem_Click(object sender, EventArgs e)
+        private void AboutMenuItem_Click(object? sender, EventArgs e)
         {
             using (frmAbout frm = new frmAbout())
             {
@@ -860,14 +860,14 @@ namespace DnsServerSystemTrayApp
             }
         }
 
-        private void AutoStartMenuItem_Click(object sender, EventArgs e)
+        private void AutoStartMenuItem_Click(object? sender, EventArgs e)
         {
             if (AutoStartMenuItem.Checked)
             {
                 //remove
                 try
                 {
-                    using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
+                    using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
                     {
                         if (key is not null)
                             key.DeleteValue("Technitium DNS System Tray", false);
@@ -883,7 +883,7 @@ namespace DnsServerSystemTrayApp
                 //add
                 try
                 {
-                    using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
+                    using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
                     {
                         if (key is not null)
                             key.SetValue("Technitium DNS System Tray", "\"" + Program.APP_PATH + "\"", RegistryValueKind.String);
@@ -896,7 +896,7 @@ namespace DnsServerSystemTrayApp
             }
         }
 
-        private void ExitMenuItem_Click(object sender, EventArgs e)
+        private void ExitMenuItem_Click(object? sender, EventArgs e)
         {
             if (MessageBox.Show(Resources.AreYouSureYouWantToQuit, Resources.Quit + " - " + Resources.ServiceName, MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) == DialogResult.Yes)
                 Application.Exit();

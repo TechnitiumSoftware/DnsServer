@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -66,7 +66,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         Timer _temporaryDisableBlockingTimer;
         DateTime _temporaryDisableBlockingTill;
 
-        readonly object _saveLock = new object();
+        readonly Lock _saveLock = new Lock();
         bool _pendingSave;
         readonly Timer _saveTimer;
         const int SAVE_TIMER_INITIAL_INTERVAL = 5000;
@@ -192,6 +192,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         private void SaveConfigFileInternal()
         {
+            string tmpBlockListConfigFile = Path.Combine(_dnsServer.ConfigFolder, "blocklist.tmp");
             string blockListConfigFile = Path.Combine(_dnsServer.ConfigFolder, "blocklist.config");
 
             using (MemoryStream mS = new MemoryStream())
@@ -202,11 +203,13 @@ namespace DnsServerCore.Dns.ZoneManagers
                 //write config
                 mS.Position = 0;
 
-                using (FileStream fS = new FileStream(blockListConfigFile, FileMode.Create, FileAccess.Write))
+                using (FileStream fS = new FileStream(tmpBlockListConfigFile, FileMode.Create, FileAccess.Write))
                 {
                     mS.CopyTo(fS);
                 }
             }
+
+            File.Move(tmpBlockListConfigFile, blockListConfigFile, true);
 
             _dnsServer.LogManager.Write("DNS Server block list config file was saved: " + blockListConfigFile);
         }
@@ -225,10 +228,10 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         private void ReadConfigFrom(Stream s, bool isConfigTransfer)
         {
-            BinaryReader bR = new BinaryReader(s);
-
-            if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "BL") //format
+            if (Encoding.ASCII.GetString(s.ReadExactly(2)) != "BL") //format
                 throw new InvalidDataException("DnsServer block list zone file format is invalid.");
+
+            BinaryReader bR = new BinaryReader(s);
 
             byte version = bR.ReadByte();
             switch (version)
@@ -238,11 +241,11 @@ namespace DnsServerCore.Dns.ZoneManagers
                     string[] blockListUrls = new string[count];
 
                     for (int i = 0; i < count; i++)
-                        blockListUrls[i] = bR.ReadShortString();
+                        blockListUrls[i] = s.ReadShortString();
 
                     _blockListUpdateIntervalHours = bR.ReadInt32();
 
-                    DateTime blockListLastUpdatedOn = bR.ReadDateTime();
+                    DateTime blockListLastUpdatedOn = s.ReadDateTime();
                     if (!isConfigTransfer)
                         _blockListLastUpdatedOn = blockListLastUpdatedOn;
 
@@ -281,10 +284,10 @@ namespace DnsServerCore.Dns.ZoneManagers
             bW.Write(Convert.ToByte(_blockListUrls.Count));
 
             foreach (string blockListUrl in _blockListUrls)
-                bW.WriteShortString(blockListUrl);
+                s.WriteShortString(blockListUrl);
 
             bW.Write(_blockListUpdateIntervalHours);
-            bW.Write(_blockListLastUpdatedOn);
+            s.WriteDateTime(_blockListLastUpdatedOn);
         }
 
         #endregion
@@ -585,7 +588,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     {
                         HttpClientNetworkHandler handler = new HttpClientNetworkHandler();
                         handler.Proxy = _dnsServer.Proxy;
-                        handler.NetworkType = _dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default;
+                        handler.NetworkType = HttpClientNetworkHandler.GetNetworkType(_dnsServer.IPv6Mode);
                         handler.DnsClient = _dnsServer;
 
                         using (HttpClient http = new HttpClient(handler))
@@ -1041,6 +1044,19 @@ namespace DnsServerCore.Dns.ZoneManagers
                             uniqueList.Add(url);
                             commentCount++;
                             continue;
+                        }
+
+                        //do URL validation
+                        try
+                        {
+                            if (url.StartsWith('!'))
+                                _ = new Uri(url.Substring(1));
+                            else
+                                _ = new Uri(url);
+                        }
+                        catch (Exception ex)
+                        {
+                            throw new ArgumentException(ex.Message, nameof(BlockListUrls));
                         }
 
                         if (!uniqueList.Contains(url))

@@ -116,7 +116,7 @@ begin
 	end
 end;
 
-function InstallService(FileName, ServiceName, DisplayName, Description: string; ServiceType, StartType: cardinal): boolean;
+function InstallService(FileName, ServiceName, DisplayName, Description, LogOnAs: string; ServiceType, StartType: cardinal): boolean;
 var
 	hSCM	: HANDLE;
 	hService: HANDLE;
@@ -124,7 +124,7 @@ begin
 	hSCM := OpenServiceManager();
 	Result := false;
 	if hSCM <> 0 then begin
-		hService := CreateService(hSCM, ServiceName, DisplayName, SERVICE_ALL_ACCESS, ServiceType, StartType, 0, FileName,'', 0, '', '', '');
+		hService := CreateService(hSCM, ServiceName, DisplayName, SERVICE_ALL_ACCESS, ServiceType, StartType, 0, FileName,'', 0, '', LogOnAs, '');
 		if hService <> 0 then begin
 			Result := true;
 			// Win2K & WinXP supports aditional description text for services

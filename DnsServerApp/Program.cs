@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@ namespace DnsServerApp
         static async Task Main(string[] args)
         {
             bool throwIfBindFails = false;
+            bool isPortableApp = false; //true if logs folder should be inside the config folder else will use OS specific log folder path
             string? configFolder = null;
 
             foreach (string arg in args)
@@ -42,6 +43,10 @@ namespace DnsServerApp
 
                     case "--stop-if-bind-fails":
                         throwIfBindFails = true;
+                        break;
+
+                    case "--portable-app":
+                        isPortableApp = true;
                         break;
 
                     default:
@@ -57,6 +62,9 @@ namespace DnsServerApp
 
             try
             {
+                if (!isPortableApp)
+                    isPortableApp = configFolder is null; //no config folder specified so run as portable app
+
                 Uri updateCheckUri;
 
                 switch (Environment.OSVersion.Platform)
@@ -70,7 +78,7 @@ namespace DnsServerApp
                         break;
                 }
 
-                service = new DnsWebService(configFolder, updateCheckUri);
+                service = new DnsWebService(isPortableApp, configFolder, updateCheckUri);
                 await service.StartAsync(throwIfBindFails);
 
                 Console.CancelKeyPress += delegate (object? sender, ConsoleCancelEventArgs e)

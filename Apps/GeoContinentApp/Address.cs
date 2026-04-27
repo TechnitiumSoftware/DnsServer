@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -35,6 +35,8 @@ namespace GeoContinent
     public sealed class Address : IDnsApplication, IDnsAppRecordRequestHandler
     {
         #region variables
+
+        internal readonly static JsonDocumentOptions _jsonParseOptions = new JsonDocumentOptions() { CommentHandling = JsonCommentHandling.Skip };
 
         IDnsServer _dnsServer;
         MaxMind _maxMind;
@@ -87,7 +89,7 @@ namespace GeoContinent
             {
                 case DnsResourceRecordType.A:
                 case DnsResourceRecordType.AAAA:
-                    using (JsonDocument jsonDocument = JsonDocument.Parse(appRecordData))
+                    using (JsonDocument jsonDocument = JsonDocument.Parse(appRecordData, _jsonParseOptions))
                     {
                         JsonElement jsonAppRecordData = jsonDocument.RootElement;
                         JsonElement jsonContinent = default;
@@ -96,34 +98,50 @@ namespace GeoContinent
                         EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
                         if (requestECS is not null)
                         {
-                            if ((_maxMind.IspReader is not null) && _maxMind.IspReader.TryIsp(requestECS.Address, out IspResponse csIsp) && (csIsp.Network is not null))
-                                scopePrefixLength = (byte)csIsp.Network.PrefixLength;
-                            else if ((_maxMind.AsnReader is not null) && _maxMind.AsnReader.TryAsn(requestECS.Address, out AsnResponse csAsn) && (csAsn.Network is not null))
-                                scopePrefixLength = (byte)csAsn.Network.PrefixLength;
-                            else
-                                scopePrefixLength = requestECS.SourcePrefixLength;
+                            long? asn = null;
 
-                            if (_maxMind.CountryReader.TryCountry(requestECS.Address, out CountryResponse csResponse))
+                            if ((_maxMind.IspReader is not null) && _maxMind.IspReader.TryIsp(requestECS.Address, out IspResponse csIsp) && (csIsp.Network is not null))
                             {
-                                if (!jsonAppRecordData.TryGetProperty(csResponse.Continent.Code, out jsonContinent))
-                                    jsonAppRecordData.TryGetProperty("default", out jsonContinent);
+                                scopePrefixLength = (byte)csIsp.Network.PrefixLength;
+                                asn = csIsp.AutonomousSystemNumber;
+                            }
+                            else if ((_maxMind.AsnReader is not null) && _maxMind.AsnReader.TryAsn(requestECS.Address, out AsnResponse csAsn) && (csAsn.Network is not null))
+                            {
+                                scopePrefixLength = (byte)csAsn.Network.PrefixLength;
+                                asn = csAsn.AutonomousSystemNumber;
+                            }
+                            else
+                            {
+                                scopePrefixLength = requestECS.SourcePrefixLength;
+                            }
+
+                            if ((asn is null) || !jsonAppRecordData.TryGetProperty("AS" + asn, out jsonContinent))
+                            {
+                                if (_maxMind.CountryReader.TryCountry(requestECS.Address, out CountryResponse csResponse))
+                                {
+                                    if (!jsonAppRecordData.TryGetProperty(csResponse.Continent.Code, out jsonContinent))
+                                        jsonAppRecordData.TryGetProperty("default", out jsonContinent);
+                                }
                             }
                         }
 
                         if (jsonContinent.ValueKind == JsonValueKind.Undefined)
                         {
-                            if (_maxMind.CountryReader.TryCountry(remoteEP.Address, out CountryResponse response))
-                            {
-                                if (!jsonAppRecordData.TryGetProperty(response.Continent.Code, out jsonContinent))
-                                    jsonAppRecordData.TryGetProperty("default", out jsonContinent);
-                            }
-                            else
-                            {
-                                jsonAppRecordData.TryGetProperty("default", out jsonContinent);
-                            }
+                            long? asn = null;
 
-                            if (jsonContinent.ValueKind == JsonValueKind.Undefined)
-                                return Task.FromResult<DnsDatagram>(null);
+                            if ((_maxMind.IspReader is not null) && _maxMind.IspReader.TryIsp(remoteEP.Address, out IspResponse csIsp) && (csIsp.Network is not null))
+                                asn = csIsp.AutonomousSystemNumber;
+                            else if ((_maxMind.AsnReader is not null) && _maxMind.AsnReader.TryAsn(remoteEP.Address, out AsnResponse csAsn) && (csAsn.Network is not null))
+                                asn = csAsn.AutonomousSystemNumber;
+
+                            if ((asn is null) || !jsonAppRecordData.TryGetProperty("AS" + asn, out jsonContinent))
+                            {
+                                if (!_maxMind.CountryReader.TryCountry(remoteEP.Address, out CountryResponse response) || !jsonAppRecordData.TryGetProperty(response.Continent.Code, out jsonContinent))
+                                {
+                                    if (!jsonAppRecordData.TryGetProperty("default", out jsonContinent))
+                                        return Task.FromResult<DnsDatagram>(null);
+                                }
+                            }
                         }
 
                         List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
@@ -175,7 +193,7 @@ namespace GeoContinent
         #region properties
 
         public string Description
-        { get { return "Returns A or AAAA records based on the continent the client queries from using MaxMind GeoIP2 Country database. Use the two character continent code like \"NA\" (North America) or \"OC\" (Oceania)."; } }
+        { get { return "Returns A or AAAA records based on the continent or Autonomous System Number (ASN) the client queries from using MaxMind GeoIP2 Country database. Use the two character continent code like \"NA\" (North America) or \"OC\" (Oceania) or ASN like 'AS1234'. Note that ASN will be matched before the continent code."; } }
 
         public string ApplicationRecordDataTemplate
         {
@@ -186,8 +204,11 @@ namespace GeoContinent
     ""1.1.1.1"", 
     ""2.2.2.2""
   ],
-  ""default"": [
+  ""AS1234"": [
     ""3.3.3.3""
+  ],
+  ""default"": [
+    ""4.4.4.4""
   ]
 }";
             }

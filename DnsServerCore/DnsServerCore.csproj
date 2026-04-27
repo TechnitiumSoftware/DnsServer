@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net9.0</TargetFramework>
+		<TargetFramework>net10.0</TargetFramework>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<Authors>Shreyas Zare</Authors>
@@ -12,7 +12,7 @@
 		<RepositoryType></RepositoryType>
 		<Description></Description>
 		<PackageId>DnsServer</PackageId>
-		<Version>14.3</Version>
+		<Version>15.0.1</Version>
 		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 	</PropertyGroup>
 
@@ -45,7 +45,8 @@
 
 	<ItemGroup>
 		<PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
-		<PackageReference Include="QRCoder" Version="1.7.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.7" />
+		<PackageReference Include="QRCoder" Version="1.8.0" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -61,10 +62,12 @@
 		<None Remove="dohwww\robots.txt" />
 		<None Remove="named.root" />
 		<None Remove="root-anchors.xml" />
+		<None Remove="www\css\amber-mode.css" />
 		<None Remove="www\css\bootstrap-theme.min.css" />
 		<None Remove="www\css\bootstrap-theme.min.css.map" />
 		<None Remove="www\css\bootstrap.min.css" />
 		<None Remove="www\css\bootstrap.min.css.map" />
+		<None Remove="www\css\dark-mode.css" />
 		<None Remove="www\css\font-awesome.min.css" />
 		<None Remove="www\css\main.css" />
 		<None Remove="www\favicon.ico" />
@@ -83,6 +86,7 @@
 		<None Remove="www\img\loader.gif" />
 		<None Remove="www\img\logo.png" />
 		<None Remove="www\img\logo25x25.png" />
+		<None Remove="www\img\oidc.png" />
 		<None Remove="www\index.html" />
 		<None Remove="www\json\quick-block-lists-builtin.json" />
 		<None Remove="www\json\quick-forwarders-list-builtin.json" />
@@ -140,6 +144,12 @@
 		</Content>
 		<Content Include="root-anchors.xml">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\css\amber-mode.css">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\css\dark-mode.css">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\favicon.ico">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -200,6 +210,9 @@
 		</Content>
 		<Content Include="www\img\logo25x25.png">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\img\oidc.png">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\index.html">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

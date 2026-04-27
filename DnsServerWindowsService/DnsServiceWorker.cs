@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -34,13 +34,13 @@ namespace DnsServerWindowsService
 
         public DnsServiceWorker()
         {
-            string configFolder = null;
+            string? configFolder = null;
 
             string[] args = Environment.GetCommandLineArgs();
             if (args.Length == 2)
                 configFolder = args[1];
 
-            _service = new DnsWebService(configFolder, new Uri("https://go.technitium.com/?id=43"));
+            _service = new DnsWebService(false, configFolder, new Uri("https://go.technitium.com/?id=43"));
         }
 
         public override async Task StartAsync(CancellationToken cancellationToken)
@@ -74,7 +74,7 @@ namespace DnsServerWindowsService
             {
 #pragma warning disable CA1416 // Validate platform compatibility
 
-                using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Technitium\DNS Server", false))
+                using (RegistryKey? key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Technitium\DNS Server", false))
                 {
                     if (key is not null)
                         autoFirewallEntry = Convert.ToInt32(key.GetValue("AutoFirewallEntry", 1)) == 1;
@@ -87,7 +87,7 @@ namespace DnsServerWindowsService
 
             if (autoFirewallEntry)
             {
-                string appPath = Assembly.GetEntryAssembly().Location;
+                string appPath = Assembly.GetEntryAssembly()!.Location;
 
                 if (appPath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
                     appPath = appPath.Substring(0, appPath.Length - 4) + ".exe";

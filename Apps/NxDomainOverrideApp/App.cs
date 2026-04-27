@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -33,6 +33,8 @@ namespace NxDomainOverride
     public sealed class App : IDnsApplication, IDnsPostProcessor
     {
         #region variables
+
+        readonly static JsonDocumentOptions _jsonParseOptions = new JsonDocumentOptions() { CommentHandling = JsonCommentHandling.Skip };
 
         bool _enableOverride;
         uint _defaultTtl;
@@ -100,7 +102,7 @@ namespace NxDomainOverride
 
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
-            using JsonDocument jsonDocument = JsonDocument.Parse(config);
+            using JsonDocument jsonDocument = JsonDocument.Parse(config, _jsonParseOptions);
             JsonElement jsonConfig = jsonDocument.RootElement;
 
             _enableOverride = jsonConfig.GetPropertyValue("enableOverride", true);

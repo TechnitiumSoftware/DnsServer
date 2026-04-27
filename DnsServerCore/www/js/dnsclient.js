@@ -1,6 +1,6 @@
 /*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -163,7 +163,8 @@ function resolveQuery(importRecords) {
     divDnsClientLoader.show();
 
     HTTPRequest({
-        url: "api/dnsClient/resolve?token=" + sessionData.token + "&server=" + encodeURIComponent(server) + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&protocol=" + protocol + "&dnssec=" + dnssecValidation + "&eDnsClientSubnet=" + encodeURIComponent(eDnsClientSubnet) + (importRecords ? "&import=true" : "") + "&node=" + encodeURIComponent(node),
+        url: "api/dnsClient/resolve?server=" + encodeURIComponent(server) + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&protocol=" + protocol + "&dnssec=" + dnssecValidation + "&eDnsClientSubnet=" + encodeURIComponent(eDnsClientSubnet) + (importRecords ? "&import=true" : "") + "&node=" + encodeURIComponent(node),
+        token: sessionData.token,
         success: function (responseJSON) {
             divDnsClientLoader.hide();
             btn.button("reset");

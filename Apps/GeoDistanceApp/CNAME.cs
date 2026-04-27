@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -118,7 +118,7 @@ namespace GeoDistance
             if ((location is null) && _maxMind.CityReader.TryCity(remoteEP.Address, out CityResponse response) && response.Location.HasCoordinates)
                 location = response.Location;
 
-            using JsonDocument jsonDocument = JsonDocument.Parse(appRecordData);
+            using JsonDocument jsonDocument = JsonDocument.Parse(appRecordData, Address._jsonParseOptions);
             JsonElement jsonAppRecordData = jsonDocument.RootElement;
             JsonElement jsonClosestServer = default;
 

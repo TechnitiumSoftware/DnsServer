@@ -1,11 +1,60 @@
 # Technitium DNS Server Change Log
 
+## Version 15.0.1
+Release Date: 26 April 2026
+
+- Fixed issue that caused cluster API token to fail to sync when a secondary node joins a cluster.
+- Fixed issue of incorrect sync state for SSO group map on secondary nodes.
+- Added SSO scopes required by some SSO providers.
+- Fixed typo in Prometheus metrics API text output.
+
+## Version 15.0
+Release Date: 25 April 2026
+
+- Upgraded codebase to use .NET 10 runtime. If you had manually installed the DNS Server or .NET Runtime earlier then you must install .NET 10 Runtime manually before upgrading the DNS Server.
+- Updated the DNS Server's install script for Linux to install the DNS Server to run as a non-root systemd service. However, existing installations would work the same after the upgrade. It is recommended to use the uninstall script before running the install script to take advantage of the new non-root systemd service installation. Note! It is recommended to export a backup zip file of the DNS Server's config from the Settings section on the panel before the upgrade.
+- Updated the DNS Server's Installer for Windows to install the DNS Server to run as a non-system service. However, existing installations would work the same after the upgrade. It is recommended to uninstall the DNS Server and delete the "config" folder from the installation folder, before using the new installer to take advantage of the new non-system service installation. Warning! You must export a backup zip file of the DNS Server config from the Settings section on the panel before uninstalling the old version and deleting the existing "config" folder, and use the said backup zip file to restore config after the new installation.
+- The HTTP API now supports passing session token via the `Authorization: Bearer <token>` HTTP header. The older `token` parameter in query string and form data is supported for backward compatibility.
+- If you have DNS Server Cluster setup, make sure to upgrade all nodes for the Cluster to work due to a few breaking changes.
+- Added support for Single Sign-On (SSO) with OpenID Connect (OIDC). Thanks to Zach Stinnett (@zstinnett) for the PR #1678.
+- Added new EDNS Client Subnet (ECS) Source Address feature to read client's source IP address from the EDNS Client Subnet (ECS) option in the DNS requests coming via DNS-over-UDP or DNS-over-TCP protocols. This option allows a DNS proxy to pass the client's source IP address via ECS option to the DNS Server.
+- Added new option in Import Zone feature to allow overwriting entire zone such that only the records being imported will exist (along with zone's SOA record) after the import process.
+- Added option to manually activate primary zone's Key Signing Key (KSK) status to prevent the DNS Server from regularly looking up for DS records in parent zone.
+- Added new option in Setting > General section to allow configuring UDP listener socket send and receive buffer size.
+- Added support for Prometheus with new metrics API call that returns lifetime counters.
+- Updated DNS Server to dynamically bind UDP listeners to local interface IP address on first request to ANY address. This allows sending response to the correct interface the request was received on.
+- Updated DHCP Server's DNS entry management implementation to allow having persistent DNS records for reserved leases with hostname configured even when reserved lease was not allocated.
+- Implemented new IPv6 Mode option in DNS Server for better performance on dual-stack networks.
+- Implemented support for EDNS EXPIRE option (RFC 7314).
+- Fixed bug in DNS-over-QUIC (DoQ) optional protocol that caused the DoQ service to fail to accept new connections.
+- Fixed DNS amplification vulnerability reported by Shuhan Zhang, Dan Li, and Baojun Liu from Tsinghua University, caused by Self-Pointed Glue Records.
+- Fixed DNS amplification vulnerability reported by Shuhan Zhang, Dan Li, and Baojun Liu from Tsinghua University, caused by Aggressive Fetching of DNSSEC Records.
+- Fixed a DNS amplification vulnerability reported by Qifan Zhang, Palo Alto Networks, caused by Cyclic Name Server Delegation.
+- Implemented new Change Theme menu feature with support for automatic dark/light mode based on host system's theme. 
+- Added a new Amber theme for improved visual ergonomics and accessibility. Thanks to DaeDae (@daedaevibin) for the PR #1810.
+- The Logs > Query Logs section now support Live Update feature for automatically refreshing query logs in results.
+- The Dashboard now includes a convenient option at Top Blocked Domains to enable/disable blocking.
+- Query Logs (PostgreSQL) App: Added new app to support PostgreSQL as the backend database for query logs. Thanks to Chloe Surett (@scj643) for the PR #1600.
+- Query Logs (Sqlite) App: Updated the app's pagination logic to significantly improve query performance. Thanks to Jim Strang (@jimstrang) for the PR #1702.
+- Query Logs (MySQL) App: Updated the app's pagination logic to significantly improve query performance. Thanks to Jim Strang (@jimstrang) for the PR #1702.
+- Query Logs (SQL Server) App: Updated the app's pagination logic to significantly improve query performance. Thanks to Jim Strang (@jimstrang) for the PR #1702.
+- Block Page App: Updated the app to implement online SSL certificate signing feature to allow it to do SSL MiTM when app's self-signed root certificate is installed on client systems.
+- Wild IP App: Added new `allowedNetworks` option in the APP record data config for configuring allowed networks to prevent misuse/abuse.
+- Drop Requests App: Added new `allowedLocalEndPoints` option to allow requests coming only from the listed DNS Server Local End Points while dropping requests coming from any other DNS Server Local End Point.
+- Geo Continent App: Updated app to support Autonomous System Number (ASN) entries in APP record data.
+- Geo Country App: Updated app to support Autonomous System Number (ASN) entries in APP record data.
+- MISP Connector App: Removed the app since it is not feasible to be supported.
+- All DNS Apps now support comments in its JSON config. The APP record data JSON too now supports comments.
+- All DNS Apps now include a Read Me file in MD format. Thanks to Zafer Balkan (@zbalkan) for the PR #1704.
+- Fresh installation of DNS Server now uses platform specific log folder path.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 14.3
 Release Date: 20 December 2025
 
 - Added support for Dark Mode. Thanks to @skidoodle for the PR.
 - Updated Catalog zones implementation to allow adding Secondary zones as members.
-- Updated Restore Settings option to allow importing backup zip files from older DNS server versions.
+- Updated Restore Settings option to allow importing backup zip files from older DNS Server versions.
 - Added new options in Settings to configure default TTL values for NS and SOA records.
 - Added DNS record overwrite option in DHCP Scopes to allow dynamic leases to overwrite any existing DNS A record for the client domain name.
 - Advanced Blocking App: Added new option to allow configuring block list update interval in minutes.
@@ -46,12 +95,12 @@ Release Date: 9 November 2025
 ## Version 14.0
 Release Date: 8 November 2025
 
-- Upgraded codebase to use .NET 9 runtime. If you had manually installed the DNS Server or .NET 8 Runtime earlier then you must install .NET 9 Runtime manually before upgrading the DNS server.
+- Upgraded codebase to use .NET 9 runtime. If you had manually installed the DNS Server or .NET 8 Runtime earlier then you must install .NET 9 Runtime manually before upgrading the DNS Server.
 - This major release has a breaking changes in the Change Password HTTP API so its advised to test your API client once before deploying to production.
-- Fixed Denial of Service (DoS) vulnerability in the DNS server's rate limiting implementation reported by Shiming Liu from the Network and Information Security Lab, Tsinghua University. The DNS Server now has a redesigned rate limiting implementation with different Queries Per Minute (QPM) options in Settings that help mitigate this issue.
-- Fixed Cache Poisoning vulnerability achieved using a IP fragmentation attack reported by Yuxiao Wu from the NISL Lab Security, Tsinghua University. The DNS server fixes this issue by adding missing bailiwick validations for NS record in referral responses.
-- Fixed [DNSSEC Downgrade](https://dnssec-downgrade.net/) vulnerability that made it possible to bypass validation when one of domain name's DNSSEC algorithm was not supported by the DNS server.
-- Implemented Clustering feature where you can now create a cluster of two or more DNS server instances and manage all of them from a single DNS admin web console by logging into anyone of the Cluster nodes. It also features showing aggregate Dashboard data for the entire cluster.
+- Fixed Denial of Service (DoS) vulnerability in the DNS Server's rate limiting implementation reported by Shiming Liu from the Network and Information Security Lab, Tsinghua University. The DNS Server now has a redesigned rate limiting implementation with different Queries Per Minute (QPM) options in Settings that help mitigate this issue.
+- Fixed Cache Poisoning vulnerability achieved using a IP fragmentation attack reported by Yuxiao Wu from the NISL Lab Security, Tsinghua University. The DNS Server fixes this issue by adding missing bailiwick validations for NS record in referral responses.
+- Fixed [DNSSEC Downgrade](https://dnssec-downgrade.net/) vulnerability that made it possible to bypass validation when one of domain name's DNSSEC algorithm was not supported by the DNS Server.
+- Implemented Clustering feature where you can now create a cluster of two or more DNS Server instances and manage all of them from a single DNS admin web console by logging into anyone of the Cluster nodes. It also features showing aggregate Dashboard data for the entire cluster.
 - Added TOTP based Two-factor authentication (2FA) support.
 - Added options to configure UDP Socket pooling feature in Settings.
 - Fixed bug in zone file parsing that failed to parse records when their names were not FDQN and matched with name of a record type.
@@ -202,8 +251,8 @@ Release Date: 22 September 2024
 
 - Implemented Catalog Zones [RFC 9432](https://datatracker.ietf.org/doc/rfc9432/) support to allow automatic DNS zone provisioning to one or more secondary name servers. The implementation supports Primary, Stub, and Conditional Forwarder zones for automatic provisioning of their respective secondary zones.
 - Added new Secondary Forwarder zone support to allow configuring secondaries for Conditional Forwarder zones. Conditional Forwarder zones now support zone transfer and notify features to support secondaries and will now contain a dummy SOA record.
-- Added Query Access feature to allow configuring access to each individual zone. This allows limiting query access to only clients on configured networks even when the DNS server is publicly accessible.
-- Added support for specifying Expiry TTL for records in zones that will cause the DNS server to automatically delete the records when Expiry TTL elapses.
+- Added Query Access feature to allow configuring access to each individual zone. This allows limiting query access to only clients on configured networks even when the DNS Server is publicly accessible.
+- Added support for specifying Expiry TTL for records in zones that will cause the DNS Server to automatically delete the records when Expiry TTL elapses.
 - Added support for concurrency in recursive resolver to allow querying more than one name server at a time to improve resolution performance.
 - Added support for latency based name server selection algorithm that works with concurrency feature for both recursive resolution and forwarders to significantly improve resolution performance.
 - Implemented priority support for Conditional Forwarder FWD records which can be used to prioritize some forwarders and have a low priority "This Server" FWD record to perform recursive resolution if needed.
@@ -214,7 +263,7 @@ Release Date: 22 September 2024
 - Changed the Unsupported NSEC3 Iteration Value implementation due to bug in previous implementation that caused failure to validate in some cases.
 - Improved brute force protection implementation for admin web service for IPv6 networks.
 - Added feature to write client subnet query rate limiting events to log file to allow tracking.
-- This major update has some breaking changes with SOA record and Zone Options related HTTP API calls. Some options in SOA record have been moved to Zone Options in both HTTP API and GUI. There are few breaking changes with the DNS Client library code too so any custom DNS App should be tested before upgrading the DNS server.
+- This major update has some breaking changes with SOA record and Zone Options related HTTP API calls. Some options in SOA record have been moved to Zone Options in both HTTP API and GUI. There are few breaking changes with the DNS Client library code too so any custom DNS App should be tested before upgrading the DNS Server.
 - Multiple other minor bug fixes and improvements.
 
 ## Version 12.2.1
@@ -242,17 +291,17 @@ Release Date: 15 June 2024
 ## Version 12.1
 Release Date: 16 March 2024
 
-- Fixed [Key Trap](https://www.athene-center.de/en/keytrap) [vulnerability](https://www.athene-center.de/fileadmin/content/PDF/Technical_Report_KeyTrap.pdf) [CVE-2023-50387] that affected DNSSEC validation which can cause DoS affecting the DNS server's ability to resolve domain names. The mitigations will allow the DNS server to work even with high CPU usage.
+- Fixed [Key Trap](https://www.athene-center.de/en/keytrap) [vulnerability](https://www.athene-center.de/fileadmin/content/PDF/Technical_Report_KeyTrap.pdf) [CVE-2023-50387] that affected DNSSEC validation which can cause DoS affecting the DNS Server's ability to resolve domain names. The mitigations will allow the DNS Server to work even with high CPU usage.
   - The mitigation now allows max 4 DNSKEY records with key tag collision.
   - Limits cryptographic failures to max 16. 
   - More that 8 RRSIG validation attempts per response will cause suspension of the task with max 16 suspensions allowed before the validation stops for the response.
-- Fixed vulnerability in NSEC3 closest encloser proof [CVE-2023-50868] that affected DNSSEC validation which can cause DoS affecting the DNS server's ability to resolve domain names. The mitigations will allow the DNS server to work even with high CPU usage.
+- Fixed vulnerability in NSEC3 closest encloser proof [CVE-2023-50868] that affected DNSSEC validation which can cause DoS affecting the DNS Server's ability to resolve domain names. The mitigations will allow the DNS Server to work even with high CPU usage.
   - More than 8 NSEC3 hash calculation per response will cause suspension of the task.
   - After 16 suspensions the the validation will stop for the response.
 - Fixed [Non-Responsive Delegation Attack](https://www.usenix.org/system/files/sec23fall-prepub-309-afek.pdf) (NRDelegation Attack) vulnerability [CVE-2022-3204].
 - Fixed [NXNSAttack](https://arxiv.org/abs/2005.09107) vulnerability [CVE-2020-12662].
 - Implemented NSEC3 iteration limit of 100. NSEC3 with iterations of more than 100 will be treated as No Proof.
-- Added EDNS Client Subnet (ECS) override feature to allow the DNS server to use the provided network subnet with ECS for all outbound requests.
+- Added EDNS Client Subnet (ECS) override feature to allow the DNS Server to use the provided network subnet with ECS for all outbound requests.
 - Secondary zones now allow configuring Dynamic Updates permissions in Zone Options.
 - Import zone feature now supports option to overwrite SOA serial from SOA record being imported.
 - DNS Client now supports EDNS Client Subnet (ECS) option to allow testing ECS related issues with ease.
@@ -275,16 +324,16 @@ Release Date: 8 February 2024
 ## Version 12.0
 Release Date: 4 February 2024
 
-- Upgraded codebase to use .NET 8 runtime. If you had manually installed the DNS Server or .NET 7 Runtime earlier then you must install .NET 8 Runtime manually before upgrading the DNS server.
-- Fixed pulsing DoS vulnerability [CVE-2024-33655] reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) by updating the default configured values for the DNS server which mitigates the impact.
-- Added "Dropped" request stats on the Dashboard and main chart which shows the number of request that were dropped by the DNS server due to rate limiting or by the Drop Requests app.
-- Added transport protocol types chart on Dashboard which shows the protocol stats for the requests received by the DNS server.
+- Upgraded codebase to use .NET 8 runtime. If you had manually installed the DNS Server or .NET 7 Runtime earlier then you must install .NET 8 Runtime manually before upgrading the DNS Server.
+- Fixed pulsing DoS vulnerability [CVE-2024-33655] reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) by updating the default configured values for the DNS Server which mitigates the impact.
+- Added "Dropped" request stats on the Dashboard and main chart which shows the number of request that were dropped by the DNS Server due to rate limiting or by the Drop Requests app.
+- Added transport protocol types chart on Dashboard which shows the protocol stats for the requests received by the DNS Server.
 - Added feature to specify one or more source addresses for outbound DNS requests when the server is connected to two or more networks.
 - Added option to allow IP address or networks to allow accepting Notify requests from to avoid having to configure the same individually for each zone.
 - Added option to specify QPM bypass list to allow IP addresses or networks to bypass rate limiting restrictions.
 - Added feature to enable In-Memory stats such that only Last Hour data to be available on Dashboard and no stats data will be stored on disk.
 - Updated DNS-over-HTTPS implementation to work over SOCKS5 proxy when using HTTP/3 protocol (URL with `h3` scheme).
-- Added support for automatic initializing of DNS server root servers list with priming queries [RFC 8109](https://datatracker.ietf.org/doc/rfc8109/).
+- Added support for automatic initializing of DNS Server root servers list with priming queries [RFC 8109](https://datatracker.ietf.org/doc/rfc8109/).
 - Conditional Forwarder Zones now support Dynamic Updates [RFC 2136](https://datatracker.ietf.org/doc/rfc2136/).
 - DNS Rebinding Protection App: A new app available that protects from DNS rebinding attacks using configured private domains and networks.
 - NX Domain Override App: New app to allow overriding NX Domain response to with custom A/AAAA record response for configured domain names.
@@ -322,8 +371,8 @@ Release Date: 29 October 2023
 - Updated DNS web service to revert to old local end point if new end point fails to bind.
 - Zone Options for zone transfer name servers and dynamic updates IP addresses can now accept network addresses too.
 - Updated conditional forwarder zones to allow bypassing default proxy configured in the DNS Server Settings.
-- Added new `IDnsRequestBlockingHandler` interface for DNS apps to allow the same level of blocking support as that of the DNS server's built-in blocking feature.
-- Advanced Blocking App: Updated app to implement the new `IDnsRequestBlockingHandler` interface. Added support to allow selecting group based on the DNS server local end point on which the request was received.
+- Added new `IDnsRequestBlockingHandler` interface for DNS apps to allow the same level of blocking support as that of the DNS Server's built-in blocking feature.
+- Advanced Blocking App: Updated app to implement the new `IDnsRequestBlockingHandler` interface. Added support to allow selecting group based on the DNS Server local end point on which the request was received.
 - Split Horizon App: Address translation now supports using network addresses too for external to internal translation.
 - Default Records App: New app added that allows setting one or more default records for configured local zones.
 - Multiple other minor bug fixes and improvements.
@@ -337,10 +386,10 @@ Release Date: 13 August 2023
 ## Version 11.4
 Release Date: 12 August 2023
 
-- Added support for DNS over [PROXY protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) version 1 and 2 for both UDP and TCP transports. This feature allows using a load balancer or reverse proxy in front of the DNS server such that the client's IP address information is passed to the DNS server. This can also be used to provide DNS-over-TLS service with a TLS terminating reverse proxy that forwards request to TCP-PROXY protocol port.
+- Added support for DNS over [PROXY protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) version 1 and 2 for both UDP and TCP transports. This feature allows using a load balancer or reverse proxy in front of the DNS Server such that the client's IP address information is passed to the DNS Server. This can also be used to provide DNS-over-TLS service with a TLS terminating reverse proxy that forwards request to TCP-PROXY protocol port.
 - Updated TLS certificate implementation to allow the TLS handshake to always send the certificate chain.
-- Updated Backup and Restore feature to include Web Service and Optional Protocols certificate files when they exist within the DNS server's config folder.
-- Added DNS server uptime info in the About section.
+- Updated Backup and Restore feature to include Web Service and Optional Protocols certificate files when they exist within the DNS Server's config folder.
+- Added DNS Server uptime info in the About section.
 - Multiple other minor bug fixes and improvements.
 
 ## Version 11.3
@@ -373,7 +422,7 @@ Release Date: 29 April 2023
 
 - Added support for Internationalized Domain Names (IDN).
 - Added support for primary zone's SOA record to have serial number date scheme.
-- Fixed issue reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) that made the DNS server vulnerable to cache poisoning on Windows platform due to non-random UDP ports for outbound requests.
+- Fixed issue reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) that made the DNS Server vulnerable to cache poisoning on Windows platform due to non-random UDP ports for outbound requests.
 - Fixed bug in validation check during refreshing RRSIG records when primary zone is signed with NSEC3.
 - Fixed bug in NSEC3 record's types field which caused missing of RRSIG type entry.
 - Fixed issue to allow Kestrel web server to serve unknown file types to allow certbot webroot HTTP challenge to work as expected.
@@ -387,7 +436,7 @@ Release Date: 11 March 2023
 - Fixed issue reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) that caused conditional forwarder to not honoring RD flag in requests.
 - Fixed issue reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) that made amplification attacks more effective due to max 4096 bytes limit for responses.
 - Fixed issue in loading of Allowed and Blocked zones that resulted in loading to take too much time caused due to indexing feature added in last update for authoritative zones.
-- Updated DNS server UDP response processing to remove glue records for MX responses and try again to send it instead of sending a truncated response that was causing issue with some old mail servers that did not perform follow up request over TCP.
+- Updated DNS Server UDP response processing to remove glue records for MX responses and try again to send it instead of sending a truncated response that was causing issue with some old mail servers that did not perform follow up request over TCP.
 - Block Page App: Updated the app to support option to disable the web server without requiring to uninstall the app to stop the web server.
 - Multiple other minor bug fixes and improvements.
 
@@ -401,13 +450,13 @@ Release Date: 26 February 2023
 Release Date: 25 February 2023
 
 - Changed allow list implementation to handle them separately and show allow list count on Dashboard.
-- Fixed bug in conditional forwarder zone for root zone that caused the DNS server to return RCODE=ServerFailure.
-- Fixed issues with DNS server's App request query handling sequence to fix issues with Advanced Forwarding app.
+- Fixed bug in conditional forwarder zone for root zone that caused the DNS Server to return RCODE=ServerFailure.
+- Fixed issues with DNS Server's App request query handling sequence to fix issues with Advanced Forwarding app.
 - Fixed issues with block list parser to detect in-line comments.
 - Fixed issue of "URI too long" in save DHCP scope action.
 - Updated Linux install script to use new install path in `/opt` and new config path `/etc/dns` for new installations.
 - Updated Docker container to use new volume path `/etc/dns` for config.
-- Updated Docker container to correctly handle container stop event to gracefully shutdown the DNS server.
+- Updated Docker container to correctly handle container stop event to gracefully shutdown the DNS Server.
 - Updated Docker container to include `libmsquic` to allow QUIC support.
 - Multiple other minor bug fixes and improvements.
 
@@ -417,11 +466,11 @@ Release Date: 18 February 2023
 - Added support for DNS-over-QUIC (DoQ) [RFC 9250](https://www.ietf.org/rfc/rfc9250.html). This allows you to run DoQ service as well as use it with Forwarders. DoQ implementation supports running over SOCKS5 proxy server that provides UDP transport.
 - Added support for Zone Transfer over QUIC (XFR-over-QUIC) [RFC 9250](https://www.ietf.org/rfc/rfc9250.html).
 - Updated DNS-over-HTTPS protocol implementation to support HTTP/2 and HTTP/3. DNS-over-HTTP/3 can be forced by using `h3` instead of `https` scheme for the URL.
-- Updated DNS server's web service backend to use Kestrel web server and thus the DNS server now requires ASP.NET Core Runtime to be installed. With this change, the web service now supports both HTTP/2 and HTTP/3 protocols. If you are using HTTP API, it is recommended to test your code/script with the new release.
+- Updated DNS Server's web service backend to use Kestrel web server and thus the DNS Server now requires ASP.NET Core Runtime to be installed. With this change, the web service now supports both HTTP/2 and HTTP/3 protocols. If you are using HTTP API, it is recommended to test your code/script with the new release.
 - Added support to save DNS cache data to disk on server shutdown and to reload it at startup.
-- Updated DNS server domain name blocking feature to support Extended DNS Errors to show report on the blocked domain name. With this support added, the DNS Client tab on the web panel will show blocking report for any blocked domain name.
-- Updated DNS server domain name blocking feature to support wildcard block lists file format and Adblock Plus file format.
-- Updated DNS server to detect when an upstream server blocks a domain name to reflect it in dashboard stats and query logs. It will now detect blocking signal from Quad9 and show Extended DNS Error for it.
+- Updated DNS Server domain name blocking feature to support Extended DNS Errors to show report on the blocked domain name. With this support added, the DNS Client tab on the web panel will show blocking report for any blocked domain name.
+- Updated DNS Server domain name blocking feature to support wildcard block lists file format and Adblock Plus file format.
+- Updated DNS Server to detect when an upstream server blocks a domain name to reflect it in dashboard stats and query logs. It will now detect blocking signal from Quad9 and show Extended DNS Error for it.
 - Updated web panel Zones GUI to support pagination.
 - Advanced Blocking App: Updated DNS app to support wildcard block lists file format. Updated the app to disable CNAME cloaking when a domain name is allowed in config. Implemented Extended DNS Errors support to show blocked domain report.
 - Advanced Forwarding App: Added new DNS app to support bulk conditional forwarder.
@@ -429,7 +478,7 @@ Release Date: 18 February 2023
 - Added support for TFTP Server Address DHCP option (150).
 - Added support for Generic DHCP option to allow configuring option currently not supported by the DHCP server.
 - Removed support for non-standard DNS-over-HTTPS (JSON) protocol.
-- Removed Newtonsoft.Json dependency from the DNS server and all DNS apps.
+- Removed Newtonsoft.Json dependency from the DNS Server and all DNS apps.
 - Multiple other minor bug fixes and improvements.
 
 ## Version 10.0.1
@@ -449,8 +498,8 @@ Release Date: 26 November 2022
 - Added support for SSHFP [RFC 4255](https://www.rfc-editor.org/rfc/rfc4255.html) record type.
 - Implemented EDNS Client Subnet (ECS) [RFC 7871](https://datatracker.ietf.org/doc/html/rfc7871) support for recursive resolution and forwarding.
 - Updated HTTP API to accept date time in ISO 8601 format for dashboard and query logs API calls. Any implementation that uses these API must test with new update before deploying to production.
-- Upgraded codebase to .NET 7 runtime. If you had manually installed the DNS Server or .NET 6 Runtime earlier then you must install .NET 7 Runtime manually before upgrading the DNS server.
-- Fixed self-CNAME vulnerability [CVE-2022-48256] reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) which caused the DNS server to follow CNAME in loop causing the answer to contain couple of hundred records before the loop limit was hit.
+- Upgraded codebase to .NET 7 runtime. If you had manually installed the DNS Server or .NET 6 Runtime earlier then you must install .NET 7 Runtime manually before upgrading the DNS Server.
+- Fixed self-CNAME vulnerability [CVE-2022-48256] reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) which caused the DNS Server to follow CNAME in loop causing the answer to contain couple of hundred records before the loop limit was hit.
 - Updated DNS Apps framework with `IDnsPostProcessor` interface to allow manipulating outbound responses by DNS apps.
 - NO DATA App: Added new app to allow returning NO DATA response in Conditional Forwarder zones to allow overriding existing records from the forwarder for specified record types.
 - DNS64 App: Added new app to support DNS64 function [RFC 6147](https://www.rfc-editor.org/rfc/rfc6147) for use by IPv6 only clients.
@@ -482,7 +531,7 @@ Release Date: 24 September 2022
 - Updated Conditional Forwarder zones to support APP records to allow using DNS Apps in these zones.
 - Option added in Settings to stop block list URL automatic update.
 - DNS Apps: There is a breaking change in the IDnsAppRecordRequestHandler.ProcessRequestAsync() method. If you have any custom DNS app deployed, you need to recompile it with the latest DnsServerCore.ApplicationCommon.dll before updating to this new release.
-- DNS Apps now support automatic updates. The DNS server will check for updates and install them automatically every 24 hours.
+- DNS Apps now support automatic updates. The DNS Server will check for updates and install them automatically every 24 hours.
 - Split Horizon App: Added feature to configure collection of networks to use with APP record data.
 - Wild IP App: Added new DNS App that returns a response A or AAAA queries with the IP address that is embedded in the subdomain name of the query. This app works similar to [sslip.io](https://sslip.io/).
 - Fixed minor issues in DNSSEC validation for DNAME responses and for wildcard NO DATA responses.
@@ -568,8 +617,8 @@ Release Date: 23 October 2021
 - Drop Requests App: Added option to drop malformed DNS requests.
 - Query Logs App: Fixed minor issue which caused the query logs request to fail when a domain with invalid character was logged in the database.
 - Advanced Blocking App: Fixed bug in loading regex block list which caused the app to not block the domain names as expected.
-- Added logging in DNS server to know why a zone transfer request was refused by the server.
-- Added more environment variables for use with Docker to initialize the DNS server config. Read the [environment variable documentation](https://github.com/TechnitiumSoftware/DnsServer/blob/master/DockerEnvironmentVariables.md) for complete details.
+- Added logging in DNS Server to know why a zone transfer request was refused by the server.
+- Added more environment variables for use with Docker to initialize the DNS Server config. Read the [environment variable documentation](https://github.com/TechnitiumSoftware/DnsServer/blob/master/DockerEnvironmentVariables.md) for complete details.
 - Multiple other minor bug fixes and improvements.
 
 ## Version 7.0
@@ -580,7 +629,7 @@ Release Date: 2 October 2021
 - Block Page App: This new app runs a built-in web server to allow serving a block page to clients when a domain name is blocked.
 - Drop Requests App: This new app allows dropping requests that match the blocked questions in the config allowing to block DNS amplification attacks that use specific domain name and query types.
 - NX Domain App: This new app allows blocking domain names with a NXDOMAIN response.
-- Query Logs (Sqlite): This new app allows logging all queries that the DNS server receives into a Sqlite database. The DNS server web panel adds an Query Logs option to allow querying the app for logged data.
+- Query Logs (Sqlite): This new app allows logging all queries that the DNS Server receives into a Sqlite database. The DNS Server web panel adds an Query Logs option to allow querying the app for logged data.
 - Failover App: Implemented under maintenance feature to indicate if an address is taken down for maintenance.
 - Added Ping check option in DHCP scopes to allow detecting if an IP address is already in use before leasing it.
 - Added option to allow removing an allocated DHCP lease.
@@ -678,14 +727,14 @@ Release Date: 10 April 2021
 Release Date: 13 March 2021
 
 - Updated entire DNS code base to .NET 5 with new Windows installer. This upgrade will improve overall performance on Windows installations.
-- Added support for DNS Application (APP) propriety record with DNS Apps feature support. DNS Apps allows creating custom apps by 3rd party using .NET that run on the DNS server allowing the apps to process DNS requests and provide custom DNS response based on any bussiness logic.
+- Added support for DNS Application (APP) propriety record with DNS Apps feature support. DNS Apps allows creating custom apps by 3rd party using .NET that run on the DNS Server allowing the apps to process DNS requests and provide custom DNS response based on any bussiness logic.
 - A default DNS app (available to download separately) supports APP records capable of Split Horizon and Geolocation based responses using MaxMind's GeoIP2 City & Country databases.
 - Updated dashboard charts to save legend selection state.
 - Updated dashboard with Custom date selection option to display stats.
 - Added option to configure max stats days in settings.
 - Added option to enable/disable QNAME minimization.
 - Added delete existing files option in Restore settings.
-- Added support to store query stats data to allow DNS cache auto prefetch to refresh cache when DNS server restarts.
+- Added support to store query stats data to allow DNS cache auto prefetch to refresh cache when DNS Server restarts.
 - Updated TLS certificate implementation to allow using self signed certificates for web console, DoH, and DoT.
 - Added DHCP lease Reserve/Unreserve options to allow quickly reserving lease for clients.
 - Updated DHCP reserved lease option to allow overriding client's host name.
@@ -697,11 +746,11 @@ Release Date: 13 March 2021
 ## Version 5.6
 Release Date: 2 January 2021
 
-- Updated standalone console app to work on .NET 5 and removing standalone .NET Framework app support. .NET 5 update will boost performance of the DNS server on all platforms.
+- Updated standalone console app to work on .NET 5 and removing standalone .NET Framework app support. .NET 5 update will boost performance of the DNS Server on all platforms.
 - Updated DNS and DHCP listener code to use async IO to improve performance.
 - Added HTTPS support for web service that provides the web console access.
 - Added support to change the web service local addresses.
-- Updated the server to allow changing DNS server end points, the web service end points, or enabling DoH or DoT services instantly without need to manually restart the main service. Basically, you do not need to restart the DNS server app at all for applying any kind of settings as all the changes are applied dynamically.
+- Updated the server to allow changing DNS Server end points, the web service end points, or enabling DoH or DoT services instantly without need to manually restart the main service. Basically, you do not need to restart the DNS Server app at all for applying any kind of settings as all the changes are applied dynamically.
 - Added HTTP compression support in the main web service.
 - Added HTTP compression for downloading block lists.
 - Added option to clear and delete all dashboard stats and auto clean up old stats files from disk
@@ -710,12 +759,12 @@ Release Date: 2 January 2021
 - Added option in settings to define the refresh interval for block lists with a manual option to force refresh all block lists.
 - Added support for exporting backup zip file containing selected items like config files, logs, stats, etc. and allow restoring the backup zip file without restarting the main service.
 - Fixed multiple issues in DHCP server's DNS record management.
-- Fixed bug in DNS server cache prefetching for stub and conditional forwarder zones causing the cached data to be overwritten by the prefetched output from recursive resolution.
+- Fixed bug in DNS Server cache prefetching for stub and conditional forwarder zones causing the cached data to be overwritten by the prefetched output from recursive resolution.
 - Fixed html encoding issue in web app.
 - Added option in web app to list top 1000 clients, top domains and top blocked domains.
 - DNS cache serve stale feature made configurable with default serve stale TTL set to 3 days instead of 7 days.
 - Fixed issue in recursive resolver to avoid querying root servers when one of the parent zone's name servers exists in DNS cache.
-- Breaking changes in the `getDnsSettings` and `setDnsSettings` API calls will require API clients to update the code before updating the DNS server.
+- Breaking changes in the `getDnsSettings` and `setDnsSettings` API calls will require API clients to update the code before updating the DNS Server.
 - Multiple other minor bug fixes and improvements.
 
 ## Version 5.5
@@ -759,7 +808,7 @@ Release Date: 6 September 2020
 ## Version 5.1
 Release Date: 29 August 2020
 
-- Implemented async IO to allow the DNS server handle much higher concurrent loads.
+- Implemented async IO to allow the DNS Server handle much higher concurrent loads.
 - Implemented independent thread pools for DNS web service and recursive resolver.
 - Fixed bug in block list downloader that caused 0 byte file downloads.
 - Fixed bug in DHCP server in creating reverse zone.

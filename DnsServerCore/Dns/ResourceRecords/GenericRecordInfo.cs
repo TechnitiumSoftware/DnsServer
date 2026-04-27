@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -56,16 +56,16 @@ namespace DnsServerCore.Dns.ResourceRecords
             {
                 case 1:
                     _disabled = bR.ReadBoolean();
-                    _comments = bR.ReadShortString();
+                    _comments = bR.BaseStream.ReadShortString();
 
                     ReadExtendedRecordInfoFrom(bR);
                     break;
 
                 case 2:
                     _disabled = bR.ReadBoolean();
-                    _comments = bR.ReadShortString();
+                    _comments = bR.BaseStream.ReadShortString();
 
-                    _lastModified = bR.ReadDateTime();
+                    _lastModified = bR.BaseStream.ReadDateTime();
                     _expiryTtl = bR.ReadUInt32();
 
                     ReadExtendedRecordInfoFrom(bR);
@@ -85,9 +85,9 @@ namespace DnsServerCore.Dns.ResourceRecords
             if (string.IsNullOrEmpty(_comments))
                 bW.Write((byte)0);
             else
-                bW.WriteShortString(_comments);
+                bW.BaseStream.WriteShortString(_comments);
 
-            bW.Write(_lastModified);
+            bW.BaseStream.WriteDateTime(_lastModified);
             bW.Write(_expiryTtl);
 
             WriteExtendedRecordInfoTo(bW);

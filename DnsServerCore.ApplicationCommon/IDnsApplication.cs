@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -32,11 +32,11 @@ namespace DnsServerCore.ApplicationCommon
         /// </summary>
         /// <param name="dnsServer">The DNS server interface object that allows access to DNS server properties.</param>
         /// <param name="config">The DNS application config stored in the <c>dnsApp.config</c> file.</param>
-        Task InitializeAsync(IDnsServer dnsServer, string config);
+        Task InitializeAsync(IDnsServer dnsServer, string? config);
 
         /// <summary>
         /// The description about this app to be shown in the Apps section of the DNS web console.
         /// </summary>
-        string Description { get; }
+        string? Description { get; }
     }
 }

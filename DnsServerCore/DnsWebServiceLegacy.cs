@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -69,10 +69,10 @@ namespace DnsServerCore
 
         private bool TryLoadOldConfigFrom(Stream s)
         {
-            BinaryReader bR = new BinaryReader(s);
-
-            if (Encoding.ASCII.GetString(bR.ReadBytes(2)) == "DS")
+            if (Encoding.ASCII.GetString(s.ReadExactly(2)) == "DS")
             {
+                BinaryReader bR = new BinaryReader(s);
+
                 int version = bR.ReadByte();
 
                 ReadOldConfigFrom(bR, version);
@@ -185,8 +185,8 @@ namespace DnsServerCore
                 _webServiceHttpToTlsRedirect = bR.ReadBoolean();
                 _webServiceUseSelfSignedTlsCertificate = bR.ReadBoolean();
 
-                _webServiceTlsCertificatePath = bR.ReadShortString();
-                _webServiceTlsCertificatePassword = bR.ReadShortString();
+                _webServiceTlsCertificatePath = bR.BaseStream.ReadShortString();
+                _webServiceTlsCertificatePassword = bR.BaseStream.ReadShortString();
 
                 if (_webServiceTlsCertificatePath.Length == 0)
                     _webServiceTlsCertificatePath = null;
@@ -214,7 +214,7 @@ namespace DnsServerCore
                 CheckAndLoadSelfSignedCertificate(false, false);
 
                 if (version >= 38)
-                    _webServiceRealIpHeader = bR.ReadShortString();
+                    _webServiceRealIpHeader = bR.BaseStream.ReadShortString();
                 else
                     _webServiceRealIpHeader = "X-Real-IP";
             }
@@ -222,7 +222,7 @@ namespace DnsServerCore
             //dns
             {
                 //general
-                _dnsServer.ServerDomain = bR.ReadShortString();
+                _dnsServer.ServerDomain = bR.BaseStream.ReadShortString();
 
                 {
                     int count = bR.ReadByte();
@@ -301,7 +301,7 @@ namespace DnsServerCore
 
                 _dnsServer.DnsApplicationManager.EnableAutomaticUpdate = bR.ReadBoolean();
 
-                _dnsServer.PreferIPv6 = bR.ReadBoolean();
+                _dnsServer.IPv6Mode = bR.ReadBoolean() ? IPv6Mode.Preferred : IPv6Mode.Disabled;
 
                 if (version >= 42)
                 {
@@ -534,8 +534,8 @@ namespace DnsServerCore
                     }
                 }
 
-                string dnsTlsCertificatePath = bR.ReadShortString();
-                string dnsTlsCertificatePassword = bR.ReadShortString();
+                string dnsTlsCertificatePath = bR.BaseStream.ReadShortString();
+                string dnsTlsCertificatePassword = bR.BaseStream.ReadShortString();
 
                 if (dnsTlsCertificatePath.Length == 0)
                     dnsTlsCertificatePath = null;
@@ -546,7 +546,7 @@ namespace DnsServerCore
                     _dnsServer.SetDnsTlsCertificate(dnsTlsCertificatePath, dnsTlsCertificatePassword);
 
                 if (version >= 38)
-                    _dnsServer.DnsOverHttpRealIpHeader = bR.ReadShortString();
+                    _dnsServer.DnsOverHttpRealIpHeader = bR.BaseStream.ReadShortString();
                 else
                     _dnsServer.DnsOverHttpRealIpHeader = "X-Real-IP";
 
@@ -557,8 +557,8 @@ namespace DnsServerCore
 
                     for (int i = 0; i < count; i++)
                     {
-                        string keyName = bR.ReadShortString();
-                        string sharedSecret = bR.ReadShortString();
+                        string keyName = bR.BaseStream.ReadShortString();
+                        string sharedSecret = bR.BaseStream.ReadShortString();
                         TsigAlgorithm algorithm = (TsigAlgorithm)bR.ReadByte();
 
                         tsigKeys.Add(keyName, new TsigKey(keyName, sharedSecret, algorithm));
@@ -686,24 +686,24 @@ namespace DnsServerCore
                     string[] blockListUrls = new string[count];
 
                     for (int i = 0; i < count; i++)
-                        blockListUrls[i] = bR.ReadShortString();
+                        blockListUrls[i] = bR.BaseStream.ReadShortString();
 
                     _dnsServer.BlockListZoneManager.BlockListUrls = blockListUrls;
 
                     _dnsServer.BlockListZoneManager.BlockListUpdateIntervalHours = bR.ReadInt32();
-                    _dnsServer.BlockListZoneManager.BlockListLastUpdatedOn = bR.ReadDateTime();
+                    _dnsServer.BlockListZoneManager.BlockListLastUpdatedOn = bR.BaseStream.ReadDateTime();
                 }
 
                 //proxy & forwarders
                 NetProxyType proxyType = (NetProxyType)bR.ReadByte();
                 if (proxyType != NetProxyType.None)
                 {
-                    string address = bR.ReadShortString();
+                    string address = bR.BaseStream.ReadShortString();
                     int port = bR.ReadInt32();
                     NetworkCredential credential = null;
 
                     if (bR.ReadBoolean()) //credential set
-                        credential = new NetworkCredential(bR.ReadShortString(), bR.ReadShortString());
+                        credential = new NetworkCredential(bR.BaseStream.ReadShortString(), bR.BaseStream.ReadShortString());
 
                     _dnsServer.Proxy = NetProxy.CreateProxy(proxyType, address, port, credential);
 
@@ -711,7 +711,7 @@ namespace DnsServerCore
                     List<NetProxyBypassItem> bypassList = new List<NetProxyBypassItem>(count);
 
                     for (int i = 0; i < count; i++)
-                        bypassList.Add(new NetProxyBypassItem(bR.ReadShortString()));
+                        bypassList.Add(new NetProxyBypassItem(bR.BaseStream.ReadShortString()));
 
                     _dnsServer.Proxy.BypassList = bypassList;
                 }
@@ -786,7 +786,7 @@ namespace DnsServerCore
 
         private void ReadConfigFromV27(BinaryReader bR, int version)
         {
-            _dnsServer.ServerDomain = bR.ReadShortString();
+            _dnsServer.ServerDomain = bR.BaseStream.ReadShortString();
             _webServiceHttpPort = bR.ReadInt32();
 
             if (version >= 13)
@@ -811,8 +811,8 @@ namespace DnsServerCore
                 _webServiceTlsPort = bR.ReadInt32();
                 _webServiceEnableTls = bR.ReadBoolean();
                 _webServiceHttpToTlsRedirect = bR.ReadBoolean();
-                _webServiceTlsCertificatePath = bR.ReadShortString();
-                _webServiceTlsCertificatePassword = bR.ReadShortString();
+                _webServiceTlsCertificatePath = bR.BaseStream.ReadShortString();
+                _webServiceTlsCertificatePassword = bR.BaseStream.ReadShortString();
 
                 if (_webServiceTlsCertificatePath.Length == 0)
                     _webServiceTlsCertificatePath = null;
@@ -848,7 +848,7 @@ namespace DnsServerCore
                 _webServiceTlsCertificatePassword = string.Empty;
             }
 
-            _dnsServer.PreferIPv6 = bR.ReadBoolean();
+            _dnsServer.IPv6Mode = bR.ReadBoolean() ? IPv6Mode.Preferred : IPv6Mode.Disabled;
 
             if (bR.ReadBoolean()) //logQueries
                 _dnsServer.QueryLogManager = _log;
@@ -1029,12 +1029,12 @@ namespace DnsServerCore
             NetProxyType proxyType = (NetProxyType)bR.ReadByte();
             if (proxyType != NetProxyType.None)
             {
-                string address = bR.ReadShortString();
+                string address = bR.BaseStream.ReadShortString();
                 int port = bR.ReadInt32();
                 NetworkCredential credential = null;
 
                 if (bR.ReadBoolean()) //credential set
-                    credential = new NetworkCredential(bR.ReadShortString(), bR.ReadShortString());
+                    credential = new NetworkCredential(bR.BaseStream.ReadShortString(), bR.BaseStream.ReadShortString());
 
                 _dnsServer.Proxy = NetProxy.CreateProxy(proxyType, address, port, credential);
 
@@ -1044,7 +1044,7 @@ namespace DnsServerCore
                     List<NetProxyBypassItem> bypassList = new List<NetProxyBypassItem>(count);
 
                     for (int i = 0; i < count; i++)
-                        bypassList.Add(new NetProxyBypassItem(bR.ReadShortString()));
+                        bypassList.Add(new NetProxyBypassItem(bR.BaseStream.ReadShortString()));
 
                     _dnsServer.Proxy.BypassList = bypassList;
                 }
@@ -1109,8 +1109,8 @@ namespace DnsServerCore
                     {
                         for (int i = 0; i < count; i++)
                         {
-                            string username = bR.ReadShortString();
-                            string passwordHash = bR.ReadShortString();
+                            string username = bR.BaseStream.ReadShortString();
+                            string passwordHash = bR.BaseStream.ReadShortString();
 
                             if (username.Equals("admin", StringComparison.OrdinalIgnoreCase))
                             {
@@ -1123,8 +1123,8 @@ namespace DnsServerCore
                     {
                         for (int i = 0; i < count; i++)
                         {
-                            string username = bR.ReadShortString();
-                            string password = bR.ReadShortString();
+                            string username = bR.BaseStream.ReadShortString();
+                            string password = bR.BaseStream.ReadShortString();
 
                             if (username.Equals("admin", StringComparison.OrdinalIgnoreCase))
                             {
@@ -1143,7 +1143,7 @@ namespace DnsServerCore
 
                 for (int i = 0; i < count; i++)
                 {
-                    string domain = bR.ReadShortString();
+                    string domain = bR.BaseStream.ReadShortString();
                     _configDisabledZones.Add(domain);
                 }
             }
@@ -1207,11 +1207,11 @@ namespace DnsServerCore
                 string[] blockListUrls = new string[count];
 
                 for (int i = 0; i < count; i++)
-                    blockListUrls[i] = bR.ReadShortString();
+                    blockListUrls[i] = bR.BaseStream.ReadShortString();
 
                 _dnsServer.BlockListZoneManager.BlockListUrls = blockListUrls;
 
-                _dnsServer.BlockListZoneManager.BlockListLastUpdatedOn = bR.ReadDateTime();
+                _dnsServer.BlockListZoneManager.BlockListLastUpdatedOn = bR.BaseStream.ReadDateTime();
 
                 if (version >= 13)
                     _dnsServer.BlockListZoneManager.BlockListUpdateIntervalHours = bR.ReadInt32();
@@ -1279,8 +1279,8 @@ namespace DnsServerCore
                 _dnsServer.EnableDnsOverHttp = bR.ReadBoolean();
                 _dnsServer.EnableDnsOverTls = bR.ReadBoolean();
                 _dnsServer.EnableDnsOverHttps = bR.ReadBoolean();
-                string dnsTlsCertificatePath = bR.ReadShortString();
-                string dnsTlsCertificatePassword = bR.ReadShortString();
+                string dnsTlsCertificatePath = bR.BaseStream.ReadShortString();
+                string dnsTlsCertificatePassword = bR.BaseStream.ReadShortString();
 
                 if (dnsTlsCertificatePath.Length == 0)
                     dnsTlsCertificatePath = null;
@@ -1321,8 +1321,8 @@ namespace DnsServerCore
 
                 for (int i = 0; i < count; i++)
                 {
-                    string keyName = bR.ReadShortString();
-                    string sharedSecret = bR.ReadShortString();
+                    string keyName = bR.BaseStream.ReadShortString();
+                    string sharedSecret = bR.BaseStream.ReadShortString();
                     TsigAlgorithm algorithm = (TsigAlgorithm)bR.ReadByte();
 
                     tsigKeys.Add(keyName, new TsigKey(keyName, sharedSecret, algorithm));
@@ -1337,8 +1337,8 @@ namespace DnsServerCore
 
                 for (int i = 0; i < count; i++)
                 {
-                    string keyName = bR.ReadShortString();
-                    string sharedSecret = bR.ReadShortString();
+                    string keyName = bR.BaseStream.ReadShortString();
+                    string sharedSecret = bR.BaseStream.ReadShortString();
 
                     tsigKeys.Add(keyName, new TsigKey(keyName, sharedSecret, TsigAlgorithm.HMAC_SHA256));
                 }

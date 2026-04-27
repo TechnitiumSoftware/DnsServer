@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -188,7 +188,7 @@ namespace Failover
 
         public void Initialize(string config)
         {
-            using JsonDocument jsonDocument = JsonDocument.Parse(config);
+            using JsonDocument jsonDocument = JsonDocument.Parse(config, Address._jsonParseOptions);
             JsonElement jsonConfig = jsonDocument.RootElement;
 
             //email alerts

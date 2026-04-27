@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -42,6 +42,8 @@ namespace AdvancedBlocking
     public sealed class App : IDnsApplication, IDnsRequestBlockingHandler
     {
         #region variables
+
+        readonly static JsonDocumentOptions _jsonParseOptions = new JsonDocumentOptions() { CommentHandling = JsonCommentHandling.Skip };
 
         IDnsServer? _dnsServer;
 
@@ -341,12 +343,15 @@ namespace AdvancedBlocking
 
         #region public
 
-        public async Task InitializeAsync(IDnsServer dnsServer, string config)
+        public async Task InitializeAsync(IDnsServer dnsServer, string? config)
         {
             _dnsServer = dnsServer;
 
+            if (config is null)
+                throw new InvalidOperationException();
+
             Directory.CreateDirectory(Path.Combine(_dnsServer.ApplicationFolder, "blocklists"));
-            using JsonDocument jsonDocument = JsonDocument.Parse(config);
+            using JsonDocument jsonDocument = JsonDocument.Parse(config, _jsonParseOptions);
             JsonElement jsonConfig = jsonDocument.RootElement;
 
             _enableBlocking = jsonConfig.GetPropertyValue("enableBlocking", true);
@@ -1190,7 +1195,7 @@ namespace AdvancedBlocking
                     {
                         HttpClientNetworkHandler handler = new HttpClientNetworkHandler();
                         handler.Proxy = _dnsServer.Proxy;
-                        handler.NetworkType = _dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default;
+                        handler.NetworkType = HttpClientNetworkHandler.GetNetworkType(_dnsServer.IPv6Mode);
                         handler.DnsClient = _dnsServer;
 
                         using (HttpClient http = new HttpClient(handler))

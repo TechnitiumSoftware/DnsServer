@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -33,6 +33,8 @@ namespace NxDomain
     public sealed class App : IDnsApplication, IDnsAuthoritativeRequestHandler, IDnsApplicationPreference
     {
         #region variables
+
+        readonly static JsonDocumentOptions _jsonParseOptions = new JsonDocumentOptions() { CommentHandling = JsonCommentHandling.Skip };
 
         byte _appPreference;
 
@@ -97,7 +99,7 @@ namespace NxDomain
             _dnsServer = dnsServer;
             _soaRecord = new DnsSOARecordData(dnsServer.ServerDomain, dnsServer.ResponsiblePerson.Address, 1, 14400, 3600, 604800, 60);
 
-            using JsonDocument jsonDocument = JsonDocument.Parse(config);
+            using JsonDocument jsonDocument = JsonDocument.Parse(config, _jsonParseOptions);
             JsonElement jsonConfig = jsonDocument.RootElement;
 
             _appPreference = Convert.ToByte(jsonConfig.GetPropertyValue("appPreference", 20));

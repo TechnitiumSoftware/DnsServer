@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 Copyright (C) 2025  Zafer Balkan (zafer@zaferbalkan.com)
 
 This program is free software: you can redistribute it and/or modify
@@ -91,7 +91,8 @@ namespace LogExporter
             NumberHandling = JsonNumberHandling.Strict,
             AllowTrailingCommas = true, // Allow trailing commas in JSON
             DictionaryKeyPolicy = JsonNamingPolicy.CamelCase, // Convert dictionary keys to camelCase
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull // Ignore null values
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, // Ignore null values
+            ReadCommentHandling = JsonCommentHandling.Skip
         };
     }
 }

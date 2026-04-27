@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -34,10 +34,13 @@ namespace DropRequests
     {
         #region variables
 
+        readonly static JsonDocumentOptions _jsonParseOptions = new JsonDocumentOptions() { CommentHandling = JsonCommentHandling.Skip };
+
         bool _enableBlocking;
         bool _dropMalformedRequests;
         NetworkAddress[] _allowedNetworks;
         NetworkAddress[] _blockedNetworks;
+        EndPoint[] _allowedLocalEndPoints;
         BlockedQuestion[] _blockedQuestions;
 
         #endregion
@@ -55,7 +58,7 @@ namespace DropRequests
 
         public async Task InitializeAsync(IDnsServer dnsServer, string config)
         {
-            using JsonDocument jsonDocument = JsonDocument.Parse(config);
+            using JsonDocument jsonDocument = JsonDocument.Parse(config, _jsonParseOptions);
             JsonElement jsonConfig = jsonDocument.RootElement;
 
             _enableBlocking = jsonConfig.GetProperty("enableBlocking").GetBoolean();
@@ -68,21 +71,33 @@ namespace DropRequests
             if (jsonConfig.TryReadArray("allowedNetworks", NetworkAddress.Parse, out NetworkAddress[] allowedNetworks))
                 _allowedNetworks = allowedNetworks;
             else
-                _allowedNetworks = Array.Empty<NetworkAddress>();
+                _allowedNetworks = [];
 
             if (jsonConfig.TryReadArray("blockedNetworks", NetworkAddress.Parse, out NetworkAddress[] blockedNetworks))
                 _blockedNetworks = blockedNetworks;
             else
-                _blockedNetworks = Array.Empty<NetworkAddress>();
+                _blockedNetworks = [];
+
+            if (jsonConfig.TryReadArray("allowedLocalEndPoints", EndPointExtensions.Parse, out EndPoint[] allowedLocalEndPoints))
+                _allowedLocalEndPoints = allowedLocalEndPoints;
+            else
+                _allowedLocalEndPoints = [];
 
             if (jsonConfig.TryReadArray("blockedQuestions", delegate (JsonElement blockedQuestion) { return new BlockedQuestion(blockedQuestion); }, out BlockedQuestion[] blockedQuestions))
                 _blockedQuestions = blockedQuestions;
             else
-                _blockedQuestions = Array.Empty<BlockedQuestion>();
+                _blockedQuestions = [];
 
             if (!jsonConfig.TryGetProperty("dropMalformedRequests", out _))
             {
                 config = config.Replace("\"allowedNetworks\"", "\"dropMalformedRequests\": false,\r\n  \"allowedNetworks\"");
+
+                await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
+            }
+
+            if (!jsonConfig.TryGetProperty("allowedLocalEndPoints", out _))
+            {
+                config = config.Replace("\"blockedQuestions\"", "\"allowedLocalEndPoints\": [\r\n    //when configured, will allow only requests coming via listed DNS server local end points and drop from any other DNS server local end point.\r\n    //intended to be used with services like DoT/DoH/DoQ\r\n  ],\r\n  \"blockedQuestions\"");
 
                 await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
             }
@@ -93,8 +108,14 @@ namespace DropRequests
             if (!_enableBlocking)
                 return Task.FromResult(DnsRequestControllerAction.Allow);
 
-            if (_dropMalformedRequests && (request.ParsingException is not null))
-                return Task.FromResult(DnsRequestControllerAction.DropSilently);
+            if (_dropMalformedRequests)
+            {
+                if (request.ParsingException is not null)
+                    return Task.FromResult(DnsRequestControllerAction.DropSilently);
+
+                if (request.Question.Count != 1)
+                    return Task.FromResult(DnsRequestControllerAction.DropSilently);
+            }
 
             IPAddress remoteIp = remoteEP.Address;
 
@@ -110,8 +131,52 @@ namespace DropRequests
                     return Task.FromResult(DnsRequestControllerAction.DropSilently);
             }
 
-            if (request.Question.Count != 1)
+            if (_allowedLocalEndPoints.Length > 0)
+            {
+                if ((request.Metadata is not null) && (request.Metadata.NameServer is not null))
+                {
+                    Uri requestLocalUriEP = request.Metadata.NameServer.DoHEndPoint;
+                    if (requestLocalUriEP is not null)
+                    {
+                        foreach (EndPoint localEP in _allowedLocalEndPoints)
+                        {
+                            if (localEP is DomainEndPoint ep)
+                            {
+                                if (((ep.Port == 0) || (ep.Port == requestLocalUriEP.Port)) && ep.Address.Equals(requestLocalUriEP.Host, StringComparison.OrdinalIgnoreCase))
+                                    return Task.FromResult(DnsRequestControllerAction.Allow);
+                            }
+                        }
+                    }
+
+                    DomainEndPoint requestLocalDomainEP = request.Metadata.NameServer.DomainEndPoint;
+                    if (requestLocalDomainEP is not null)
+                    {
+                        foreach (EndPoint localEP in _allowedLocalEndPoints)
+                        {
+                            if (localEP is DomainEndPoint ep)
+                            {
+                                if (((ep.Port == 0) || (ep.Port == requestLocalDomainEP.Port)) && ep.Address.Equals(requestLocalDomainEP.Address, StringComparison.OrdinalIgnoreCase))
+                                    return Task.FromResult(DnsRequestControllerAction.Allow);
+                            }
+                        }
+                    }
+
+                    IPEndPoint requestLocalEP = request.Metadata.NameServer.IPEndPoint;
+                    if (requestLocalEP is not null)
+                    {
+                        foreach (EndPoint localEP in _allowedLocalEndPoints)
+                        {
+                            if (localEP is IPEndPoint ep)
+                            {
+                                if (((ep.Port == 0) || (ep.Port == requestLocalEP.Port)) && ep.Address.Equals(requestLocalEP.Address))
+                                    return Task.FromResult(DnsRequestControllerAction.Allow);
+                            }
+                        }
+                    }
+                }
+
                 return Task.FromResult(DnsRequestControllerAction.DropSilently);
+            }
 
             DnsQuestionRecord requestQuestion = request.Question[0];
 

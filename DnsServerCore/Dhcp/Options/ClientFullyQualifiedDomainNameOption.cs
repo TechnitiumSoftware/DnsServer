@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -91,9 +91,26 @@ namespace DnsServerCore.Dhcp.Options
             _rcode2 = (byte)rcode;
 
             if (_flags.HasFlag(ClientFullyQualifiedDomainNameFlags.EncodeUsingCanonicalWireFormat))
-                _domainName = DnsDatagram.DeserializeDomainName(s, 0, true);
+            {
+                try
+                {
+                    _domainName = DnsDatagram.DeserializeDomainName(s, 0, true);
+                }
+                catch
+                {
+                    //client probably sent domain name in ASCII format due to buggy implementation (e.g. Honeywell RP4D printers)
+                    s.Position = 3;
+                    _domainName = Encoding.ASCII.GetString(s.ReadExactly((int)s.Length - 3));
+
+                    //ensure the domain name is valid
+                    if (!DnsClient.IsDomainNameValid(_domainName))
+                        _domainName = null;
+                }
+            }
             else
+            {
                 _domainName = Encoding.ASCII.GetString(s.ReadExactly((int)s.Length - 3));
+            }
         }
 
         protected override void WriteOptionValue(Stream s)

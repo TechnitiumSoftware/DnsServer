@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -233,7 +233,7 @@ namespace DnsServerCore
 
                 string clusterDomain = request.GetQueryOrForm("clusterDomain").TrimEnd('.');
 
-                if (!request.TryGetQueryOrFormArray("primaryNodeIpAddresses", IPAddress.Parse, out IPAddress[] primaryNodeIpAddresses))
+                if (!request.TryQueryOrFormArray("primaryNodeIpAddresses", IPAddress.Parse, out IPAddress[] primaryNodeIpAddresses))
                     throw new DnsWebServiceException("Parameter 'primaryNodeIpAddresses' missing.");
 
                 bool restartWebService = false;
@@ -294,7 +294,7 @@ namespace DnsServerCore
                 int secondaryNodeId = request.GetQueryOrForm("secondaryNodeId", int.Parse);
                 Uri secondaryNodeUrl = new Uri(request.GetQueryOrForm("secondaryNodeUrl"));
 
-                if (!request.TryGetQueryOrFormArray("secondaryNodeIpAddresses", IPAddress.Parse, out IPAddress[] secondaryNodeIpAddresses))
+                if (!request.TryQueryOrFormArray("secondaryNodeIpAddresses", IPAddress.Parse, out IPAddress[] secondaryNodeIpAddresses))
                     throw new DnsWebServiceException("Parameter 'secondaryNodeIpAddresses' missing.");
 
                 X509Certificate2 secondaryNodeCertificate = X509CertificateLoader.LoadCertificate(Base64Url.DecodeFromChars(request.GetQueryOrForm("secondaryNodeCertificate")));
@@ -357,7 +357,7 @@ namespace DnsServerCore
                 int secondaryNodeId = request.GetQueryOrForm("secondaryNodeId", int.Parse);
                 Uri secondaryNodeUrl = new Uri(request.GetQueryOrForm("secondaryNodeUrl"));
 
-                if (!request.TryGetQueryOrFormArray("secondaryNodeIpAddresses", IPAddress.Parse, out IPAddress[] secondaryNodeIpAddresses))
+                if (!request.TryQueryOrFormArray("secondaryNodeIpAddresses", IPAddress.Parse, out IPAddress[] secondaryNodeIpAddresses))
                     throw new DnsWebServiceException("Parameter 'secondaryNodeIpAddresses' missing.");
 
                 X509Certificate2 secondaryNodeCertificate = X509CertificateLoader.LoadCertificate(Base64Url.DecodeFromChars(request.GetQueryOrForm("secondaryNodeCertificate")));
@@ -400,7 +400,7 @@ namespace DnsServerCore
 
                         response.ContentType = "application/zip";
                         response.ContentLength = configZipStream.Length;
-                        response.Headers.LastModified = DateTime.UtcNow.ToString("R");
+                        response.Headers.LastModified = DateTime.UtcNow.ToString("R", CultureInfo.InvariantCulture);
                         response.Headers.Append("Content-Disposition", "attachment; filename=\"config.zip\"");
 
                         await using (Stream output = response.Body)
@@ -455,7 +455,7 @@ namespace DnsServerCore
 
                 HttpRequest request = context.Request;
 
-                if (!request.TryGetQueryOrFormArray("secondaryNodeIpAddresses", IPAddress.Parse, out IPAddress[] secondaryNodeIpAddresses))
+                if (!request.TryQueryOrFormArray("secondaryNodeIpAddresses", IPAddress.Parse, out IPAddress[] secondaryNodeIpAddresses))
                     throw new DnsWebServiceException("Parameter 'secondaryNodeIpAddresses' missing.");
 
                 Uri primaryNodeUrl = new Uri(request.GetQueryOrForm("primaryNodeUrl"));
@@ -523,7 +523,7 @@ namespace DnsServerCore
                 int primaryNodeId = request.GetQueryOrForm("primaryNodeId", int.Parse);
                 Uri primaryNodeUrl = new Uri(request.GetQueryOrForm("primaryNodeUrl"));
 
-                if (!request.TryGetQueryOrFormArray("primaryNodeIpAddresses", IPAddress.Parse, out IPAddress[] primaryNodeIpAddresses))
+                if (!request.TryQueryOrFormArray("primaryNodeIpAddresses", IPAddress.Parse, out IPAddress[] primaryNodeIpAddresses))
                     throw new DnsWebServiceException("Parameter 'primaryNodeIpAddresses' missing.");
 
                 //update primary node
@@ -555,7 +555,7 @@ namespace DnsServerCore
 
                 Uri primaryNodeUrl = new Uri(request.GetQueryOrForm("primaryNodeUrl"));
 
-                if (!request.TryGetQueryOrFormArray("primaryNodeIpAddresses", IPAddress.Parse, out IPAddress[] primaryNodeIpAddresses))
+                if (!request.TryQueryOrFormArray("primaryNodeIpAddresses", IPAddress.Parse, out IPAddress[] primaryNodeIpAddresses))
                     primaryNodeIpAddresses = null;
 
                 //update primary node
@@ -596,7 +596,7 @@ namespace DnsServerCore
 
                 HttpRequest request = context.Request;
 
-                if (!request.TryGetQueryOrFormArray("ipAddresses", IPAddress.Parse, out IPAddress[] ipAddresses))
+                if (!request.TryQueryOrFormArray("ipAddresses", IPAddress.Parse, out IPAddress[] ipAddresses))
                     throw new DnsWebServiceException("Parameter 'ipAddresses' missing.");
 
                 //update self node IP address

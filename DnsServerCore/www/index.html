@@ -2,7 +2,7 @@
 
 <!--
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
     <link href="css/bootstrap.min.css" rel="stylesheet">
     <script src="js/bootstrap.min.js"></script>
+
     <script src="js/Chart.min.js"></script>
 
     <link href="css/font-awesome.min.css" rel="stylesheet" />
@@ -37,6 +38,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="js/moment.min.js"></script>
 
     <link href="css/main.css" rel="stylesheet" />
+    <link href="css/dark-mode.css" rel="stylesheet" />
+    <link href="css/amber-mode.css" rel="stylesheet" />
+
     <script src="js/common.js"></script>
     <script src="js/main.js"></script>
     <script src="js/auth.js"></script>
@@ -48,7 +52,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="js/dhcp.js"></script>
     <script src="js/logs.js"></script>
 </head>
-<body style="background-color: #fafafa;">
+<body>
     <div id="header">
         <div id="mnuUser" class="menu dropdown" style="display: none;">
             <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false" style="text-decoration: none;">
@@ -61,9 +65,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <ul class="dropdown-menu">
                 <li><a href="#" onclick="showMyProfileModal(); return false;">My Profile</a></li>
                 <li><a href="#" onclick="showCreateMyApiTokenModal(); return false;">Create API Token</a></li>
-                <li><a href="#" onclick="showChangePasswordModal(); return false;">Change Password</a></li>
-                <li><a href="#" onclick="showConfigure2FAModal(); return false;">Configure 2FA</a></li>
-                <li><a href="#" onclick="toggleTheme(); return false;">Toggle Dark Mode</a></li>
+                <li><a id="mnuUserChangePassword" href="#" onclick="showChangePasswordModal(); return false;">Change Password</a></li>
+                <li><a id="mnuUserConfigure2FA" href="#" onclick="showConfigure2FAModal(); return false;">Configure 2FA</a></li>
+                <li><a href="#" onclick="showChangeThemeModal(); return false;">Change Theme</a></li>
                 <li role="separator" class="divider"></li>
                 <li><a href="#" onclick="logout(); return false;">Logout</a></li>
             </ul>
@@ -98,17 +102,24 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             <div class="form-group" id="div2FAOTP">
                                 <label for="txt2FATOTP" class="col-sm-3 control-label">Enter OTP</label>
                                 <div class="col-sm-8">
-                                    <input id="txt2FATOTP" type="text" class="form-control" style="width: 100px;" placeholder="OTP" maxlength="6">
+                                    <input id="txt2FATOTP" type="text" class="form-control" style="width: 100px;" placeholder="OTP" maxlength="6" autocomplete="off">
                                     <div style="padding-top: 5px;">Enter the 6-digit code you see in your authenticator app.</div>
                                 </div>
                             </div>
 
                             <div class="form-group" style="margin-bottom: 0px;">
                                 <div class="col-sm-offset-3 col-sm-4">
-                                    <button id="btnLogin" type="submit" class="btn btn-primary" data-loading-text="Working..." onclick="login(); return false;">Login</button>
+                                    <button id="btnLogin" type="submit" class="btn btn-primary" style="width: 100px;" data-loading-text="Working..." onclick="login(); return false;">Login</button>
                                 </div>
                                 <div class="col-sm-4" style="padding: 6px; text-align: right;">
                                     <a href="#" data-toggle="modal" data-target="#modalForgotPassword">Forgot Password?</a>
+                                </div>
+                            </div>
+
+                            <div id="divLoginSso" class="form-group" style="margin-bottom: 0px; display:none;">
+                                <div class="col-sm-offset-3 col-sm-4">
+                                    <div style="margin-top: 10px; margin-bottom: 6px;">or login with</div>
+                                    <button type="button" class="btn btn-default" onclick="window.location='sso/login';"><img width="16" height="16" src="img/oidc.png" /> OpenID Connect</button>
                                 </div>
                             </div>
                         </form>
@@ -368,6 +379,24 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                     <div class="panel-heading" style="height: 41px; padding: 4px 6px;">
                                                         <div class="pull-left" style="padding: 6px 8px;">Top Blocked Domains</div>
                                                         <div class="pull-right">
+                                                            <div class="btn-group">
+                                                                <button id="btnDashboardBlockingOptions" onclick="dashboardBlockingOptionsOnClick();" data-loading-text="Blocking" type="button" class="btn btn-default dropdown-toggle" style="font-size: 12px; padding: 4px 14px; margin: 2px 0px;" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                                    Blocking <span class="caret"></span>
+                                                                </button>
+                                                                <ul class="dropdown-menu">
+                                                                    <li id="mnuDashboardBlockingOptionsEnableBlocking" style="display: none;"><a href="#" onclick="enableBlocking(); return false;">Enable Blocking</a></li>
+                                                                    <li id="mnuDashboardBlockingOptionsDisableBlocking" style="display: none;"><a href="#" onclick="disableBlocking(); return false;">Disable Blocking</a></li>
+                                                                    <li><a href="#" onclick="temporaryDisableBlockingForMenu(1); return false;">Disable Blocking For 1 Minute</a></li>
+                                                                    <li><a href="#" onclick="temporaryDisableBlockingForMenu(2); return false;">Disable Blocking For 2 Minutes</a></li>
+                                                                    <li><a href="#" onclick="temporaryDisableBlockingForMenu(5); return false;">Disable Blocking For 5 Minutes</a></li>
+                                                                    <li><a href="#" onclick="temporaryDisableBlockingForMenu(10); return false;">Disable Blocking For 10 Minutes</a></li>
+                                                                    <li><a href="#" onclick="temporaryDisableBlockingForMenu(15); return false;">Disable Blocking For 15 Minutes</a></li>
+                                                                    <li><a href="#" onclick="temporaryDisableBlockingForMenu(30); return false;">Disable Blocking For 30 Minutes</a></li>
+                                                                    <li><a href="#" onclick="temporaryDisableBlockingForMenu(60); return false;">Disable Blocking For 1 Hour</a></li>
+                                                                    <li><a href="#" onclick="temporaryDisableBlockingForMenu(180); return false;">Disable Blocking For 3 Hours</a></li>
+                                                                </ul>
+                                                            </div>
+
                                                             <button type="button" class="btn btn-default" data-loading-text="More" onclick="showTopStats('TopBlockedDomains', 1000);" style="font-size: 12px; padding: 4px 14px; margin: 2px 0px;">More</button>
                                                         </div>
                                                         <div class="clearfix"></div>
@@ -699,7 +728,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                 <div id="txtAllowedZoneViewerTitle" class="pull-left" style="padding: 4px;">technitium.com</div>
                                                 <div class="form-inline pull-right">
                                                     <button type="button" class="btn btn-default" data-loading-text="Import" onclick="resetImportAllowedZonesModal();" data-toggle="modal" data-target="#modalImportAllowedZones" style="font-size: 12px; padding: 4px 6px; width: 50px;">Import</button>
-                                                    <button type="button" class="btn btn-default" data-loading-text="Export" onclick="exportAllowedZones();" style="font-size: 12px; padding: 4px 6px; width: 50px;">Export</button>
+                                                    <button type="button" class="btn btn-default" data-loading-text="Export" onclick="exportAllowedZones(this);" style="font-size: 12px; padding: 4px 6px; width: 50px;">Export</button>
                                                     <button id="btnDeleteAllowedZone" type="button" class="btn btn-warning" data-loading-text="Delete" onclick="deleteAllowedZone();" style="font-size: 12px; padding: 4px 6px; width: 50px;">Delete</button>
                                                     <button id="btnFlushAllowedZone" type="button" class="btn btn-danger" data-loading-text="Flush" onclick="flushAllowedZone();" style="font-size: 12px; padding: 4px 6px; width: 50px;">Flush</button>
                                                 </div>
@@ -739,7 +768,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                 <div id="txtBlockedZoneViewerTitle" class="pull-left" style="padding: 4px;">technitium.com</div>
                                                 <div class="form-inline pull-right">
                                                     <button id="btnImportBlockedZone" type="button" class="btn btn-default" data-loading-text="Import" onclick="resetImportBlockedZonesModal();" data-toggle="modal" data-target="#modalImportBlockedZones" style="font-size: 12px; padding: 4px 6px; width: 50px;">Import</button>
-                                                    <button id="btnExportBlockedZone" type="button" class="btn btn-default" data-loading-text="Export" onclick="exportBlockedZones();" style="font-size: 12px; padding: 4px 6px; width: 50px;">Export</button>
+                                                    <button id="btnExportBlockedZone" type="button" class="btn btn-default" data-loading-text="Export" onclick="exportBlockedZones(this);" style="font-size: 12px; padding: 4px 6px; width: 50px;">Export</button>
                                                     <button id="btnDeleteBlockedZone" type="button" class="btn btn-warning" data-loading-text="Delete" onclick="deleteBlockedZone();" style="font-size: 12px; padding: 4px 6px; width: 50px;">Delete</button>
                                                     <button id="btnFlushBlockedZone" type="button" class="btn btn-danger" data-loading-text="Flush" onclick="flushBlockedZone();" style="font-size: 12px; padding: 4px 6px; width: 50px;">Flush</button>
                                                 </div>
@@ -943,7 +972,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtDnsServerLocalEndPoints" class="form-control" rows="3" spellcheck="false"></textarea>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local end points are the network interface IP addresses and ports you want the DNS Server to listen for requests. The default values work for Windows but on Linux when you have multiple network adapters, you must explicitly specify the network adapter IP addresses here as the local end points.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local End Points are the network interface IP addresses and ports you want the DNS Server to listen for requests.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -951,7 +980,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtDnsServerIPv4SourceAddresses" class="form-control" rows="3" spellcheck="false"></textarea>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv4 source addresses that the DNS server must use for making all outbound DNS requests when the server is connected to two or more networks. Network addresses are also accepted.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv4 source addresses that the DNS Server must use for making all outbound DNS requests when the server is connected to two or more networks. Network addresses are also accepted.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -959,12 +988,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtDnsServerIPv6SourceAddresses" class="form-control" rows="3" spellcheck="false"></textarea>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv6 source addresses that the DNS server must use for making all outbound DNS requests when the server is connected to two or more networks. Network addresses are also accepted. Note that this option will be used only when <code>Prefer IPv6</code> option is enabled.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv6 source addresses that the DNS Server must use for making all outbound DNS requests when the server is connected to two or more networks. Network addresses are also accepted. Note that this option will be used only when <code>Prefer IPv6</code> option is enabled.</div>
                                                         </div>
 
                                                         <div>
-                                                            <p>Note! The DNS Server local end point changes will be automatically applied and so you do not need to manually restart the main service.</p>
-                                                            <p>Note! The source adddresses configured above must be the IP addresses that are configured on the local system's network interface. When using source addresses option, its also necessary to ensure that the system has a default route or a specific route for the source address to be able to reach the destination network. When source addresses are not configured, the IP address of the interface with a default route will be used as the source address.</p>
+                                                            <p><b>Note!</b> The DNS Server local end point changes will be automatically applied and so you do not need to manually restart the main service.</p>
+                                                            <p><b>Note!</b> The source adddresses configured above must be the IP addresses that are configured on the local system's network interface. When using source addresses option, its also necessary to ensure that the system has a default route or a specific route for the source address to be able to reach the destination network. When source addresses are not configured, the IP address of the interface with a default route will be used as the source address.</p>
                                                         </div>
                                                     </div>
 
@@ -1060,7 +1089,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                         <input id="chkDnsAppsEnableAutomaticUpdate" type="checkbox"> Enable Automatic Update
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">DNS server will check for DNS Apps update every day and will automatically download and install the updates.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">The DNS Server will check for DNS Apps update every day and will automatically download and install the updates.</div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1069,16 +1098,31 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <div class="form-group">
                                                             <label class="col-sm-3 control-label">IPv6 Support</label>
                                                             <div class="col-sm-8">
-                                                                <div class="checkbox">
+                                                                <div class="radio">
                                                                     <label>
-                                                                        <input id="chkPreferIPv6" type="checkbox"> Prefer IPv6
+                                                                        <input type="radio" name="rdIPv6Mode" id="rdIPv6ModeDisabled" value="Disabled">
+                                                                        Disable IPv6
                                                                     </label>
+                                                                    <div style="padding-top: 5px; padding-left: 20px;">Disables IPv6 support such that the DNS Server uses only IPv4 for all outbound DNS and HTTP(s) requests.</div>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">The DNS Server will use IPv6 for querying whenever possible with this option enabled.</div>
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdIPv6Mode" id="rdIPv6ModeEnabled" value="Enabled">
+                                                                        Enable IPv6
+                                                                    </label>
+                                                                    <div style="padding-top: 5px; padding-left: 20px;">Enables IPv6 support such that the DNS Server uses both IPv6 (whenever possible) and IPv4 with equal weightage for all outbound DNS and HTTP(s) requests.</div>
+                                                                </div>
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdIPv6Mode" id="rdIPv6ModePreferred" value="Preferred">
+                                                                        Prefer IPv6
+                                                                    </label>
+                                                                    <div style="padding-top: 5px; padding-left: 20px;">Enables IPv6 support such that the DNS Server prefers using IPv6 (whenever possible) for all outbound DNS and HTTP(s) requests and will use IPv4 only after exhausting all IPv6 attempts.</div>
+                                                                </div>
                                                             </div>
                                                         </div>
 
-                                                        <div>Warning! Use this option only if this DNS server has native IPv6 Internet access otherwise it will affect performance. There are many name servers on the Internet that do not respond over IPv6 and thus enabling this option when you are running DNS server in recursive resolver mode (i.e. without any forwarders) may cause frequent operational issues with resolution that may result increase in Server Failure responses.</div>
+                                                        <div><b>Warning!</b> Enable IPv6 support only if this DNS Server has native IPv6 Internet access otherwise it will affect performance. There are many name servers on the Internet that do not respond over IPv6 and thus using Prefer IPv6 option when you are running DNS Server in recursive resolver mode (i.e. without any forwarders) may cause frequent operational issues with resolution that may result increase in Server Failure responses.</div>
                                                     </div>
 
                                                     <div id="divSettingsGeneralUdpSocketPool" class="well well-sm form-horizontal">
@@ -1102,7 +1146,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             </div>
                                                         </div>
 
-                                                        <div>Note! Enabling UDP socket pool provides port randomization for all outbound DNS-over-UDP requests to mitigate spoofing attacks. It is recommended to enable UDP socket pool on Windows platform. On Linux, ports are fairly random and thus socket pool may be enabled if more randomization is desired. The DNS server can detect DNS spoofing attack attempts based on ID mismatch and switch to TCP protocol automatically.</div>
+                                                        <div><b>Note!</b> Enabling UDP socket pool provides port randomization for all outbound DNS-over-UDP requests to mitigate spoofing attacks. It is recommended to enable UDP socket pool on Windows platform. On Linux, ports are fairly random and thus socket pool may be enabled if more randomization is desired. The DNS Server can detect DNS spoofing attack attempts based on ID mismatch and switch to TCP protocol automatically.</div>
                                                     </div>
 
                                                     <div id="divSettingsGeneralEDns" class="well well-sm form-horizontal">
@@ -1130,9 +1174,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
 
                                                         <div>
-                                                            <p>Warning! Devices that do not have a real-time clock and rely on NTP when booting (e.g. Raspberry Pi), enabling DNSSEC validation will cause failure to resolve the NTP server domain name thus causing the DNS server to fail to validate all other domain names too due to invalid system date/time. To fix this issue, just create a Conditional Forwarder zone for the NTP server domain name (e.g. ntp.org) with forwarder set to <code>this-server</code> and Enable DNSSEC Validation option unchecked. This conditional forwarder zone will disable DNSSEC validation for the NTP server domain name and allow the device to update its system data/time on boot.</p>
-                                                            <p>Warning! When forwarders are configured, DNSSEC validation will work only if the forwarders are security aware i.e. can respond to DNSSEC requests correctly.</p>
-                                                            <p>Note! Enabling DNSSEC may increase delays in resolving domain names when the cache is initially empty. As the cache fills up, the performance will be normal as expected.</p>
+                                                            <p><b>Warning!</b> Devices that do not have a real-time clock and rely on NTP when booting (e.g. Raspberry Pi), enabling DNSSEC validation will cause failure to resolve the NTP server domain name thus causing the DNS Server to fail to validate all other domain names too due to invalid system date/time. To fix this issue, just create a Conditional Forwarder zone for the NTP server domain name (e.g. ntp.org) with forwarder set to <code>this-server</code> and Enable DNSSEC Validation option unchecked. This conditional forwarder zone will disable DNSSEC validation for the NTP server domain name and allow the device to update its system data/time on boot.</p>
+                                                            <p><b>Warning!</b> When forwarders are configured, DNSSEC validation will work only if the forwarders are security aware i.e. can respond to DNSSEC requests correctly.</p>
+                                                            <p><b>Note!</b> Enabling DNSSEC may increase delays in resolving domain names when the cache is initially empty. As the cache fills up, the performance will be normal as expected.</p>
                                                         </div>
                                                     </div>
 
@@ -1184,9 +1228,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
 
                                                         <div>
-                                                            <p>Warning! EDNS Client Subnet (ECS) option when enabled will compromises user's privacy since the DNS server will send the user's public IP network subnet to name servers or forwarders when resolving requests. When not using encrypted DNS protocols, this information can also be read passively by anyone on the network.</p>
-                                                            <p>Note! EDNS Client Subnet (ECS) option allows passing the user's client subnet information to name servers or forwarders so that the response may contain IP addresses of servers closer to the user's geographic region. EDNS Client Subnet (ECS) option thus is only useful when the DNS server is hosted in a geographically different region compared to the users that are configured to use it.</p>
-                                                            <p>Note! Enabling EDNS Client Subnet (ECS) option will significantly increase the DNS server's memory usage since the server will have to cache data for each client subnet separately. It will also increase cache misses since DNS server will have to resolve requests and cache them for each client subnet separately.</p>
+                                                            <p><b>Warning!</b> EDNS Client Subnet (ECS) option when enabled will compromises user's privacy since the DNS Server will send the user's public IP network subnet to name servers or forwarders when resolving requests. When not using encrypted DNS protocols, this information can also be read passively by anyone on the network.</p>
+                                                            <p><b>Note!</b> EDNS Client Subnet (ECS) option allows passing the user's client subnet information to name servers or forwarders so that the response may contain IP addresses of servers closer to the user's geographic region. EDNS Client Subnet (ECS) option thus is only useful when the DNS Server is hosted in a geographically different region compared to the users that are configured to use it.</p>
+                                                            <p><b>Note!</b> Enabling EDNS Client Subnet (ECS) option will significantly increase the DNS Server's memory usage since the server will have to cache data for each client subnet separately. It will also increase cache misses since DNS Server will have to resolve requests and cache them for each client subnet separately.</p>
                                                         </div>
                                                     </div>
 
@@ -1206,7 +1250,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                     <tbody id="tableQpmPrefixLimitsIPv4"></tbody>
                                                                 </table>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum queries an IPv4 client subnet can make to DNS-over-UDP and DNS-over-TCP protocol services per minute on average based on the sample size. Set limit value to <code>0</code> to allow unlimited queries.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum queries an IPv4 client subnet can make to DNS-over-UDP and DNS-over-TCP protocol services per minute on average based on the sample size. Set limit value to <code>0</code> to allow unlimited queries for a specific protocol in an entry or delete the entry altogether to remove rate limiting for the prefix.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1224,7 +1268,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                     <tbody id="tableQpmPrefixLimitsIPv6"></tbody>
                                                                 </table>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum queries an IPv6 client subnet can make to DNS-over-UDP and DNS-over-TCP protocol services per minute on average based on the sample size. Set limit value to <code>0</code> to allow unlimited queries.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum queries an IPv6 client subnet can make to DNS-over-UDP and DNS-over-TCP protocol services per minute on average based on the sample size. Set limit value to <code>0</code> to allow unlimited queries for a specific protocol in an entry or delete the entry altogether to remove rate limiting for the prefix.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1233,7 +1277,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                 <input type="number" class="form-control" id="txtQpmLimitSampleMinutes" placeholder="sample" style="width: 100px; display: inline;">
                                                                 <span>minutes (valid range 1-60; default 5)</span>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The sample size in minutes to be used for limiting queries per client.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The sample size in minutes to sample latest data from Last Hour stats for limiting queries per client.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1254,8 +1298,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
 
                                                         <div>
-                                                            <p>Note! Queries Per Minute (QPM) feature will limit requests from a client subnet based on its IP address and the specified subnet prefix lengths except for loopback IP addresses. The QPM limit configured will be compared with the average count from the sample size which means a client may exceed the QPM limit for a given minute but won't exceed for the given sample size in minutes. Rate limited clients will be listed in orange color on the dashboard top clients table.</p>
-                                                            <p>Note! The configured TCP limits apply to the DNS-over-TCP protocol service as well as to the DNS-over-TLS, DNS-over-HTTPS and DNS-over-QUIC optional protocol services.</p>
+                                                            <p><b>Note!</b> Queries Per Minute (QPM) feature will limit requests from a client subnet based on its IP address and the specified subnet prefix lengths except for loopback IP addresses. The QPM limit configured will be compared with the average count from the sample size which means a client may exceed the QPM limit for a given minute but won't exceed for the given sample size in minutes. Rate limited clients will be listed in orange color on the dashboard top clients table.</p>
+                                                            <p><b>Note!</b> The configured TCP limits apply to the DNS-over-TCP protocol service as well as to the DNS-over-TLS, DNS-over-HTTPS and DNS-over-QUIC optional protocol services.</p>
                                                         </div>
                                                     </div>
 
@@ -1266,7 +1310,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                 <input type="number" class="form-control" id="txtClientTimeout" placeholder="timeout" style="width: 100px; display: inline;">
                                                                 <span>milliseconds (valid range 1000-10000; default 2000)</span>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The amount of time the DNS server must wait before responding with a <code>ServerFailure</code> response to a client request when no answer is available.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The amount of time the DNS Server must wait before responding with a <code>ServerFailure</code> response to a client request when no answer is available.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1315,6 +1359,24 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
 
                                                         <div class="form-group">
+                                                            <label for="txtUdpSendBufferSizeKB" class="col-sm-3 control-label">UDP Send Buffer Size</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtUdpSendBufferSizeKB" placeholder="2048" style="width: 100px; display: inline;">
+                                                                <span>KB (valid range 8-65536; default 2048)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The UDP listener socket send buffer size. This option applies to UDP and UdpProxy transport protocols.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtUdpReceiveBufferSizeKB" class="col-sm-3 control-label">UDP Receive Buffer Size</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtUdpReceiveBufferSizeKB" placeholder="2048" style="width: 100px; display: inline;">
+                                                                <span>KB (valid range 8-65536; default 2048)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The UDP listener socket receive buffer size. This option applies to UDP and UdpProxy transport protocols.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
                                                             <label for="txtMaxConcurrentResolutionsPerCore" class="col-sm-3 control-label">Max Concurrent Resolutions</label>
                                                             <div class="col-sm-6">
                                                                 <input type="number" class="form-control" id="txtMaxConcurrentResolutionsPerCore" placeholder="100" style="width: 100px; display: inline;">
@@ -1332,7 +1394,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtWebServiceLocalAddresses" class="form-control" rows="3" spellcheck="false"></textarea>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local addresses are the network interface IP addresses you want the web service to listen for requests. ANY addresses (0.0.0.0 &amp; [::]) cannot be used together with unicast IP addresses. The web server uses dual-mode sockets by default so the IPv6 ANY address ([::]) works for IPv4 too. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the web service to listen on specific networks. Configured unicast IP addresses will be included as Subject Alternative Name (SAN) in the self signed TLS certificate.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local addresses are the network interface IP addresses you want the Web Service to listen for requests. ANY addresses (0.0.0.0 &amp; [::]) cannot be used together with unicast IP addresses. The web server uses dual-mode sockets by default so the IPv6 ANY address ([::]) works for IPv4 too. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the Web Service to listen on specific networks. Configured unicast IP addresses will be included as Subject Alternative Name (SAN) in the self signed TLS certificate.</div>
                                                         </div>
 
                                                         <div class="form-group unix-socket-option">
@@ -1403,7 +1465,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-6">
                                                                 <input type="text" class="form-control" id="txtWebServiceTlsCertificatePath" placeholder="Web Service TLS Certificate File Path On Server" maxlength="255">
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx or .p12) file path on the server. The path can be relative to the DNS server's config folder. The certificate must contain private key.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx or .p12) file path on the server. The path can be relative to the DNS Server's config folder. The certificate must contain private key.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1423,10 +1485,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
 
                                                         <div>
-                                                            <p>Note! The web service port changes will be automatically applied and so you do not need to manually restart the main service. The TLS certificate too will be automatically reloaded when the certificate file's date modified property on disk changes. This web page will be automatically redirected to the new web console URL after saving settings. The HTTPS protocol will be enabled only when a TLS certificate is configured.</p>
-                                                            <p>When using a reverse proxy with the Web Service, you need to add <code id="lblWebServiceRealIpHeader">X-Real-IP</code> header to the proxy request with the IP address of the client to allow the Web server to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code id="lblWebServiceRealIpNginx">proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
-                                                            <p>The web service uses Kestrel web server which supports both HTTP/2 and HTTP/3 protocols when TLS certificate is configured. HTTP/3 protocol support is not available on all platforms. On Windows, it is available only on Windows 11 (build 22000 or later) and Windows Server 2022. On Linux, it requires <code>libmsquic</code> to be installed.</p>
-                                                            <p>Note! The web service will always bind to <code>[::]</code> local address for HTTP/3 protocol since this is how the <code>libmsquic</code> library is designed to work.</p>
+                                                            <p><b>Note!</b> The Web Service port changes will be automatically applied and so you do not need to manually restart the main service. The TLS certificate too will be automatically reloaded when the certificate file's date modified property on disk changes. This web page will be automatically redirected to the new web console URL after saving settings. The HTTPS protocol will be enabled only when a TLS certificate is configured.</p>
+                                                            <p><b>Note!</b> When using a reverse proxy with the Web Service, you need to add <code id="lblWebServiceRealIpHeader">X-Real-IP</code> header to the proxy request with the IP address of the client to allow the Web Service to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code id="lblWebServiceRealIpNginx">proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
+                                                            <p><b>Note!</b> The Web Service uses Kestrel web server which supports both HTTP/2 and HTTP/3 protocols when TLS certificate is configured. HTTP/3 protocol support is not available on all platforms. On Windows, it is available only on Windows 11 (build 22000 and later) and Windows Server 2022 (and later). On Linux, it requires <code>libmsquic</code> to be installed. It also requires IPv6 support on the system to work.</p>
+                                                            <p><b>Note!</b> The Web Service will always bind to <code>[::]</code> local address for HTTP/3 protocol since this is how the <code>libmsquic</code> library is designed to work.</p>
                                                             <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
                                                             <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "privkey.pem" -in "cert.pem" -certfile "chain.pem"</pre>
                                                         </div>
@@ -1440,6 +1502,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <div class="form-group">
                                                             <label class="col-sm-3 control-label">Optional DNS Server Protocols</label>
                                                             <div class="col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkEnableEDnsClientSubnetSourceAddress" type="checkbox"> Enable EDNS Client Subnet (ECS) Source Address
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to read the client's source IP address from the EDNS Client Subnet (ECS) option in the DNS requests coming via DNS-over-UDP or DNS-over-TCP protocols. This option allows a DNS proxy to pass the client's source IP address via ECS option to the DNS Server. It is mandatory to configure <b>Reverse Proxy Network ACL</b> below to allow requests coming from your DNS proxy server to work with this option.</div>
+
                                                                 <div class="checkbox">
                                                                     <label>
                                                                         <input id="chkEnableDnsOverUdpProxy" type="checkbox"> Enable DNS-over-UDP-PROXY
@@ -1574,7 +1643,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-6">
                                                                 <input type="text" class="form-control" id="txtDnsTlsCertificatePath" placeholder="DNS Service TLS Certificate File Path On Server" maxlength="255">
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx or .p12) file path on the server. The path can be relative to the DNS server's config folder. The certificate must contain private key.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx or .p12) file path on the server. The path can be relative to the DNS Server's config folder. The certificate must contain private key.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1594,12 +1663,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
 
                                                         <div>
-                                                            <p>Note! These optional DNS server protocol changes will be automatically applied and so you do not need to manually restart the main service. The TLS certificate too will be automatically reloaded when the certificate file's date modified property on disk changes. The DNS-over-TLS, DNS-over-QUIC, and DNS-over-HTTPS protocols will be enabled only when a TLS certificate is configured.</p>
-                                                            <p>These optional DNS server protocols are used to host these as a service. You do not need to enable these optional protocols to use them with Forwarders or Conditional Forwarder Zones.</p>
+                                                            <p><b>Note!</b> These optional DNS Server protocol changes will be automatically applied and so you do not need to manually restart the main service. The TLS certificate too will be automatically reloaded when the certificate file's date modified property on disk changes. The DNS-over-TLS, DNS-over-QUIC, and DNS-over-HTTPS protocols will be enabled only when a TLS certificate is configured.</p>
+                                                            <p>These optional DNS Server protocols are used to host these as a service. You do not need to enable these optional protocols to use them with Forwarders or Conditional Forwarder Zones.</p>
                                                             <p>For DNS-over-HTTP, use <code>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</code> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <code id="lblDoTHost">tls-certificate-domain:853</code>, for DNS-over-QUIC, use <code id="lblDoQHost">tls-certificate-domain:853</code>, and for DNS-over-HTTPS use <code>https://<span id="lblDoHsHost">tls-certificate-domain</span>/dns-query</code> to configure supported DNS clients.</p>
-                                                            <p>When using a reverse proxy with the DNS-over-HTTP service, you need to add <code id="lblDnsOverHttpRealIpHeader">X-Real-IP</code> header to the proxy request with the IP address of the client to allow the DNS server to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code id="lblDnsOverHttpRealIpNginx">proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
-                                                            <p>DNS-over-QUIC protocol support is not available on all platforms. On Windows, it is available only on Windows 11 (build 22000 or later) and Windows Server 2022. On Linux, it requires <code>libmsquic</code> to be installed.</p>
-                                                            <p>Note! The DNS-over-HTTP/3 protocol will always bind to <code>[::]</code> local address since this is how the <code>libmsquic</code> library is designed to work.</p>
+                                                            <p>When using a reverse proxy with the DNS-over-HTTP service, you need to add <code id="lblDnsOverHttpRealIpHeader">X-Real-IP</code> header to the proxy request with the IP address of the client to allow the DNS Server to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code id="lblDnsOverHttpRealIpNginx">proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
+                                                            <p>DNS-over-QUIC protocol support is not available on all platforms. On Windows, it is available only on Windows 11 (build 22000 and later) and Windows Server 2022 (and later). On Linux, it requires <code>libmsquic</code> to be installed. It also requires IPv6 support on the system to work.</p>
+                                                            <p><b>Note!</b> The DNS-over-HTTP/3 protocol will always bind to <code>[::]</code> local address since this is how the <code>libmsquic</code> library is designed to work.</p>
                                                             <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
                                                             <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "privkey.pem" -in "cert.pem" -certfile "chain.pem"</pre>
                                                         </div>
@@ -1629,7 +1698,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-offset-2 col-sm-10" style="padding-top: 5px;">The shared secret can be a base64 string or a literal string. Keep the shared secret empty if you want to auto generate a strong key.</div>
                                                         </div>
 
-                                                        <div>Note! You will need to configure these TSIG keys names for zone transfer in the zone options and in the secondary zone SOA record options separately.</div>
+                                                        <div><b>Note!</b> You will need to configure these TSIG keys names for zone transfer in the zone options and in the secondary zone SOA record options separately.</div>
                                                     </div>
                                                 </div>
 
@@ -1674,7 +1743,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             </div>
                                                         </div>
 
-                                                        <div>Note! Disable recursion if you wish this server to act only as authoritative name server for the configured zones.</div>
+                                                        <div><b>Note!</b> Disable recursion if you wish this server to act only as authoritative name server for the configured zones.</div>
+                                                        <div style="margin-top: 10px;"><b>Note!</b> You need recursion enabled even when you have configured Forwarders in Settings and do not want the DNS Server to do recursive resolution.</div>
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
@@ -1697,7 +1767,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             </div>
                                                         </div>
 
-                                                        <div>Warning! Enabling the <b>Randomize Name</b> option may cause some domain names to fail to resolve due to their name servers dropping the requests or sending the QNAME in response with a different case causing mismatch. The DNS server can already detect DNS spoofing attack attempts and switch to TCP protocol automatically so its safe to not use this feature.</div>
+                                                        <div><b>Warning!</b> Enabling the <b>Randomize Name</b> option may cause some domain names to fail to resolve due to their name servers dropping the requests or sending the QNAME in response with a different case causing mismatch. The DNS Server can already detect DNS spoofing attack attempts and switch to TCP protocol automatically so its safe to not use this feature.</div>
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
@@ -1737,8 +1807,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum stack count the recursive resolver must use for resolving a domain name.</div>
                                                         </div>
 
-                                                        <div style="margin-top: 10px;">Note! The DNS Server supports EDNS and thus all outbound recursive resolution requests will have an OPT record for it in the additional section. If a name server does not respond to a request containing OPT record, the recursive resolver will retry again without the OPT record when possible. This means that the number of retries attempted per name server can be Resolver Retries value multiplied by two for certain cases.</div>
-                                                        <div style="margin-top: 10px;">Note! The DNS server uses Epsilon-Greedy machine learning algorithm and will automatically learn which of the name servers are answering faster without errors and will use those name servers most of the time. Since each domain name has a different set of name servers, it may take a while before the algorithm learns about them.</div>
+                                                        <div style="margin-top: 10px;"><b>Note!</b> The DNS Server supports EDNS and thus all outbound recursive resolution requests will have an OPT record for it in the additional section. If a name server does not respond to a request containing OPT record, the recursive resolver will retry again without the OPT record when possible. This means that the number of retries attempted per name server can be Resolver Retries value multiplied by two for certain cases.</div>
+                                                        <div style="margin-top: 10px;"><b>Note!</b> The DNS Server uses Epsilon-Greedy machine learning algorithm and will automatically learn which of the name servers are answering faster without errors and will use those name servers most of the time. Since each domain name has a different set of name servers, it may take a while before the algorithm learns about them.</div>
                                                     </div>
                                                 </div>
 
@@ -1752,11 +1822,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                         <input id="chkSaveCache" type="checkbox"> Save Cache To Disk
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to save DNS cache on disk when the DNS server stops. The saved cache will be loaded next time the DNS server starts.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to save DNS cache on disk when the DNS Server stops. The saved cache will be loaded next time the DNS Server starts.</div>
                                                             </div>
                                                         </div>
 
-                                                        <div>Note! The DNS server will attempt to save cache to disk when it stops which may take time depending on the cache size. If the DNS server takes a lot of time to stop then it may lead to the OS killing the DNS server process causing an incomplete cache to be stored on disk.</div>
+                                                        <div><b>Note!</b> The DNS Server will attempt to save cache to disk when it stops which may take time depending on the cache size. If the DNS Server takes a lot of time to stop then it may lead to the OS killing the DNS Server process causing an incomplete cache to be stored on disk.</div>
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
@@ -1768,7 +1838,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                         <input id="chkServeStale" type="checkbox"> Enable Serve Stale
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable the <a href="https://datatracker.ietf.org/doc/rfc8767/" target="_blank">Serve Stale</a> feature to improve resiliency by using expired or stale records in cache to respond when the DNS server is unable to reach the upstream or authoritative name servers to refresh the expired records before the Max Wait Time configured below.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable the <a href="https://datatracker.ietf.org/doc/rfc8767/" target="_blank">Serve Stale</a> feature to improve resiliency by using expired or stale records in cache to respond when the DNS Server is unable to reach the upstream or authoritative name servers to refresh the expired records before the Max Wait Time configured below.</div>
                                                             </div>
                                                         </div>
 
@@ -1805,7 +1875,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                 <input type="number" class="form-control" id="txtServeStaleMaxWaitTime" placeholder="milliseconds" style="width: 100px; display: inline;">
                                                                 <span>milliseconds (valid range 0-1800; default 1800)</span>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The time in milliseconds that the DNS server must wait for the resolver before serving stale records from the cache. Lower value will ensure faster response at the expense of not getting updated data from the upstream. Setting value to 0 will instantly return stale answer without waiting for the resolver to fetch updates from the upstream.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The time in milliseconds that the DNS Server must wait for the resolver before serving stale records from the cache. Lower value will ensure faster response at the expense of not getting updated data from the upstream. Setting value to 0 will instantly return stale answer without waiting for the resolver to fetch updates from the upstream.</div>
                                                         </div>
                                                     </div>
 
@@ -1816,7 +1886,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                 <input type="number" class="form-control" id="txtCacheMaximumEntries" placeholder="entries" style="width: 125px; display: inline;">
                                                                 <span>(default 10000; set 0 for unlimited entries)</span>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum number of entries that the cache can store. A relevant value should be configured by monitoring the Cache entries value on Dashboard and the server's memory usage to limit the amount of RAM used by the DNS server. A cache entry is a complete Resource Record Set (RR Set) which is a group of records with the same type for a given domain name. When a value is configured, the DNS server will trigger a clean up operation every few minutes and remove least recently used entries to maintain the maximum allowed entries in cache.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum number of entries that the cache can store. A relevant value should be configured by monitoring the Cache entries value on Dashboard and the server's memory usage to limit the amount of RAM used by the DNS Server. A cache entry is a complete Resource Record Set (RR Set) which is a group of records with the same type for a given domain name. When a value is configured, the DNS Server will trigger a clean up operation every few minutes and remove least recently used entries to maintain the maximum allowed entries in cache.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1907,7 +1977,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                         <input id="chkEnableBlocking" type="checkbox"> Enable Blocking
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Sets the DNS server to block domain names using Blocked Zone and Block List Zone.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Sets the DNS Server to block domain names using Blocked Zone and Block List Zone.</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
@@ -1983,7 +2053,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
                                                         <div class="form-group">
                                                             <label for="txtBlockListUrls" class="col-sm-3 control-label">Allow / Block List URLs</label>
-                                                            <div class="col-sm-6">
+                                                            <div class="col-sm-8">
                                                                 <textarea id="txtBlockListUrls" class="form-control" rows="7" spellcheck="false"></textarea>
 
                                                                 <label for="optQuickBlockList" class="control-label">Quick Add</label>
@@ -2016,8 +2086,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Click the 'Update Now' button to reset the next update schedule and force download and update of the block lists.</div>
                                                         </div>
 
-                                                        <div style="margin-top: 10px;">Note! DNS Server will use the data returned by the block list URLs to update the block list zone automatically. The expected file format is standard <code>hosts</code> file format, plain text file containing list of domains to block, wildcard block list file format, or <code>Adblock Plus</code> file format.</div>
-                                                        <div style="margin-top: 10px;">Note! To customize the Quick Add drop down list, read the instructions given in the <code>www/json/readme.txt</code> file found in the installation folder.</div>
+                                                        <div style="margin-top: 10px;"><b>Note!</b> The DNS Server will use the data returned by the block list URLs to update the block list zone automatically. The expected file format is standard <code>hosts</code> file format, plain text file containing list of domains to block, wildcard block list file format, or <code>Adblock Plus</code> file format.</div>
+                                                        <div style="margin-top: 10px;"><b>Warning!</b> The DNS Server loads all block lists in memory and thus it is expected that the server is provisioned with sufficient amount of memory to avoid out of memory issues. On average, 1 million domain names in block list take about 300 MB of memory. The block list update process requires additional memory to load the newly downloaded block lists before it replaces the previously loaded block lists in memory.</div>
+                                                        <div style="margin-top: 10px;"><b>Note!</b> To customize the Quick Add drop down list, read the instructions given in the <code>www/json/readme.txt</code> file found in the installation folder.</div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/10/blocking-internet-ads-using-dns-sinkhole.html" target="_blank">Help: Blocking Internet Ads Using DNS Sinkhole</a></div>
                                                     </div>
                                                 </div>
@@ -2084,7 +2155,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enter IP addresses, network addresses or domain names to never proxy.</div>
                                                         </div>
 
-                                                        <div style="margin-top: 10px;">Note! When proxy server is configured, DNS Server will use it for all outbound network requests.</div>
+                                                        <div style="margin-top: 10px;"><b>Note!</b> When proxy server is configured, DNS Server will use it for all outbound network requests.</div>
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
@@ -2135,7 +2206,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                     </label>
                                                                 </div>
 
-                                                                <div style="padding-top: 5px;">Select a protocol that this DNS server must use to query the forwarders specified above.</div>
+                                                                <div style="padding-top: 5px;">Select a protocol that this DNS Server must use to query the forwarders specified above.</div>
                                                             </div>
                                                         </div>
 
@@ -2147,7 +2218,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                         <input id="chkEnableConcurrentForwarding" type="checkbox"> Enable Concurrent Forwarding
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to allow querying two or more forwarders concurrently instead of sequentially querying them in their given order. The DNS server will automatically select forwarders (based on their average latency) to query and use the fastest response it receives from any of them. If none of the selected forwarders respond in time, the DNS server will similarly select forwarders from the remaining ones and queries them till all are tried before giving up.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to allow querying two or more forwarders concurrently instead of sequentially querying them in their given order. The DNS Server will automatically select forwarders (based on their average latency) to query and use the fastest response it receives from any of them. If none of the selected forwarders respond in time, the DNS Server will similarly select forwarders from the remaining ones and queries them till all are tried before giving up.</div>
                                                             </div>
                                                         </div>
 
@@ -2160,10 +2231,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The number of concurrent requests that must be sent when Concurrent Forwarding is enabled for resolving a domain name.</div>
                                                         </div>
 
-                                                        <div style="margin-top: 10px;">Note! Forwarders are upstream DNS servers which this DNS Server must use to resolve domain names. If no forwarders are configured then the DNS server will use preconfigured ROOT HINTS to perform recursive resolution to resolve domain names.</div>
-                                                        <div style="margin-top: 10px;">Note! The <code>https</code> URL scheme supports only DNS-over-HTTPS/2 and DNS-over-HTTPS/1.1 protocols. For DNS-over-HTTPS/3, use <code>h3</code> URL scheme instead of <code>https</code> but note that there wont be any protocol fallback if the connection attempt fails.</div>
-                                                        <div style="margin-top: 10px;">Note! The DNS server uses Epsilon-Greedy machine learning algorithm and will automatically learn which of the forwarders are answering faster without errors and will use those forwarders most of the time.</div>
-                                                        <div style="margin-top: 10px;">Note! To customize the Quick Select drop down list, read the instructions given in the <code>www/json/readme.txt</code> file found in the installation folder.</div>
+                                                        <div style="margin-top: 10px;"><b>Note!</b> Forwarders are upstream DNS servers which this DNS Server must use to resolve domain names. If no forwarders are configured then the DNS Server will use preconfigured ROOT HINTS to perform recursive resolution to resolve domain names.</div>
+                                                        <div style="margin-top: 10px;"><b>Note!</b> The <code>https</code> URL scheme supports only DNS-over-HTTPS/2 and DNS-over-HTTPS/1.1 protocols. For DNS-over-HTTPS/3, use <code>h3</code> URL scheme instead of <code>https</code> but note that there wont be any protocol fallback if the connection attempt fails.</div>
+                                                        <div style="margin-top: 10px;"><b>Note!</b> The DNS Server uses Epsilon-Greedy machine learning algorithm and will automatically learn which of the forwarders are answering faster without errors and will use those forwarders most of the time.</div>
+                                                        <div style="margin-top: 10px;"><b>Note!</b> To customize the Quick Select drop down list, read the instructions given in the <code>www/json/readme.txt</code> file found in the installation folder.</div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/06/configuring-dns-server-for-privacy.html" target="_blank">Help: Configuring DNS Server For Privacy & Security</a></div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2023/02/configuring-dns-over-quic-and-https3.html" target="_blank">Help: Configuring DNS-over-QUIC and HTTPS/3 For Technitium DNS Server</a></div>
                                                     </div>
@@ -2175,7 +2246,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                 <input type="number" class="form-control" id="txtForwarderRetries" placeholder="retries" style="width: 100px; display: inline;">
                                                                 <span>(valid range 1-10; default 3)</span>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The total number of retries the forwarder or conditional forwarder resolver must do per upstream DNS server.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The total number of retries the forwarder or conditional forwarder resolver must do per upstream DNS Server.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -2257,7 +2328,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                 <input type="text" class="form-control" id="txtLogFolderPath" placeholder="Log Folder Path On Server" maxlength="255">
                                                             </div>
 
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The folder path on the server where the log files should be saved. The path can be relative to the DNS server's config folder.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The folder path on the server where the log files should be saved. The path can be relative to the DNS Server's config folder.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -2270,7 +2341,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Max number of days to keep the log files. Log files older than the specified number of days will be deleted automatically.</div>
                                                         </div>
 
-                                                        <div>Warning! Enabling query logging will significantly increase the log file size and use up disk space.</div>
+                                                        <div><b>Warning!</b> Enabling query logging will significantly increase the log file size and use up disk space.</div>
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
@@ -2473,7 +2544,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum number of ping requests to try.</div>
                                                         </div>
 
-                                                        <div style="padding-top: 5px;">Warning! Ping check would work as expected only when you make sure that all the client devices with manually configured IP addresses on the network respond to a ping request. Devices running Microsoft Windows by default drop ping requests at host firewall and will cause this ping check to fail to detect in use IP addresses. It is recommended to not rely on this option and instead make sure that you exclude a range of addresses using Exclusions and manually assign IP addresses to your devices only in the excluded range.</div>
+                                                        <div style="padding-top: 5px;"><b>Warning!</b> Ping check would work as expected only when you make sure that all the client devices with manually configured IP addresses on the network respond to a ping request. Devices running Microsoft Windows by default drop ping requests at host firewall and will cause this ping check to fail to detect in use IP addresses. It is recommended to not rely on this option and instead make sure that you exclude a range of addresses using Exclusions and manually assign IP addresses to your devices only in the excluded range.</div>
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
@@ -2544,7 +2615,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-offset-3 col-sm-3">
                                                                 <textarea id="txtDhcpScopeDnsServers" class="form-control" rows="2" spellcheck="false"></textarea>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The DNS server IP addresses to be used by the clients. (Option 6)</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The DNS Server IP addresses to be used by the clients. (Option 6)</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -2693,7 +2764,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IP address range that must be excluded or not assigned dynamically to any client by the DHCP server.</div>
                                                         </div>
-                                                        <div style="padding-top: 5px;">Note! Make sure to exclude address ranges if you plan to manually assign IP addresses to some of the devices or to assign reserved leases so that these IP addresses are not dynamically allocated in the first place.</div>
+                                                        <div style="padding-top: 5px;"><b>Note!</b> Make sure to exclude address ranges if you plan to manually assign IP addresses to some of the devices or to assign reserved leases so that these IP addresses are not dynamically allocated in the first place.</div>
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
@@ -2767,6 +2838,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                             <li id="adminTabListUsers" role="presentation"><a href="#adminTabPaneUsers" aria-controls="adminTabPaneUsers" role="tab" data-toggle="tab" onclick="refreshAdminUsers();">Users</a></li>
                                             <li id="adminTabListGroups" role="presentation"><a href="#adminTabPaneGroups" aria-controls="adminTabPaneGroups" role="tab" data-toggle="tab" onclick="refreshAdminGroups();">Groups</a></li>
                                             <li id="adminTabListPermissions" role="presentation"><a href="#adminTabPanePermissions" aria-controls="adminTabPanePermissions" role="tab" data-toggle="tab" onclick="refreshAdminPermissions();">Permissions</a></li>
+                                            <li id="adminTabListSso" role="presentation"><a href="#adminTabPaneSso" aria-controls="adminTabPaneSso" role="tab" data-toggle="tab" onclick="refreshAdminSsoConfig();">Single Sign-On (SSO)</a></li>
                                             <li id="adminTabListCluster" role="presentation"><a href="#adminTabPaneCluster" aria-controls="adminTabPaneCluster" role="tab" data-toggle="tab" onclick="refreshAdminCluster();">Cluster</a></li>
                                         </ul>
 
@@ -2821,17 +2893,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <tr>
                                                             <th><a href="#" onclick="sortTable('tbodyAdminUsers', 0); return false;">Username</a></th>
                                                             <th><a href="#" onclick="sortTable('tbodyAdminUsers', 1); return false;">Display Name</a></th>
-                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 2); return false;">2FA Status</a></th>
-                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 3); return false;">Status</a></th>
-                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 4); return false;">Recent Login</a></th>
-                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 5); return false;">Previous Login</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 2); return false;">Type</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 3); return false;">2FA Status</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 4); return false;">Status</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 5); return false;">Recent Login</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 6); return false;">Previous Login</a></th>
                                                             <th style="width: 36px;"></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="tbodyAdminUsers">
                                                     </tbody>
                                                     <tfoot>
-                                                        <tr><th colspan="7" id="tfootAdminUsers"></th></tr>
+                                                        <tr><th colspan="8" id="tfootAdminUsers"></th></tr>
                                                     </tfoot>
                                                 </table>
                                             </div>
@@ -2883,6 +2956,112 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <tr><th colspan="4" id="tfootAdminPermissions"></th></tr>
                                                     </tfoot>
                                                 </table>
+                                            </div>
+                                        </div>
+
+                                        <div id="adminTabPaneSso" class="tab-pane">
+                                            <div id="divAdminSsoLoader" style="margin-top: 10px; height: 350px;"></div>
+
+                                            <div id="divAdminSsoView" style="margin-top: 10px">
+                                                <div class="well well-sm form-horizontal">
+                                                    <div class="form-group">
+                                                        <label class="col-sm-3 control-label">Single Sign-On (SSO)</label>
+                                                        <div class="col-sm-7">
+                                                            <div class="checkbox">
+                                                                <label>
+                                                                    <input id="chkAdminSsoEnabled" type="checkbox"> Enable Single Sign-On (SSO)
+                                                                </label>
+                                                            </div>
+                                                            <div style="padding-top: 5px; padding-left: 20px;">Enable to allow Single Sign-On (SSO) with OpenID Connect (OIDC).</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtAdminSsoAuthority" class="col-sm-3 control-label">Authority (Issuer)</label>
+                                                        <div class="col-sm-7">
+                                                            <input type="text" class="form-control" id="txtAdminSsoAuthority" maxlength="255" placeholder="https://auth.example.com">
+                                                            <div style="padding-top: 5px;">The OpenID Connect (OIDC) Authority URL.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtAdminSsoClientId" class="col-sm-3 control-label">Client ID</label>
+                                                        <div class="col-sm-7">
+                                                            <input type="text" class="form-control" id="txtAdminSsoClientId" maxlength="255" placeholder="client id">
+                                                            <div style="padding-top: 5px;">The OpenID Connect (OIDC) Client ID.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtAdminSsoClientSecret" class="col-sm-3 control-label">Client Secret</label>
+                                                        <div class="col-sm-7">
+                                                            <input type="password" class="form-control" id="txtAdminSsoClientSecret" maxlength="255" placeholder="client secret">
+                                                            <div style="padding-top: 5px;">The OpenID Connect (OIDC) Client Secret.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtAdminSsoMetadataAddress" class="col-sm-3 control-label">Metadata Address (Optional)</label>
+                                                        <div class="col-sm-7">
+                                                            <input type="text" class="form-control" id="txtAdminSsoMetadataAddress" maxlength="255" placeholder="https://auth.example.com/.well-known/openid-configuration">
+                                                            <div style="padding-top: 5px;">The OpenID Connect (OIDC) metadata discovery URL to be used instead of the default one. Configure this option only if the Single Sign-On (SSO) provider uses a different discovery URL.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label class="col-sm-3 control-label">SSO User Sign Up</label>
+                                                        <div class="col-sm-7">
+                                                            <div class="checkbox">
+                                                                <label>
+                                                                    <input id="chkAdminSsoAllowSignup" type="checkbox"> Allow New User Sign Up
+                                                                </label>
+                                                            </div>
+                                                            <div style="padding-top: 5px; padding-left: 20px;">Enable to allow automatically provisioning of user accounts for new users signing in via Single Sign-On (SSO). Keep this option disabled if you do not expect new SSO users to sign up.</div>
+
+                                                            <div class="checkbox">
+                                                                <label>
+                                                                    <input id="chkAdminSsoAllowSignupOnlyForMappedUsers" type="checkbox"> Allow Sign Up Only For Mapped Users
+                                                                </label>
+                                                            </div>
+                                                            <div style="padding-top: 5px; padding-left: 20px;">Enable to allow a new user to sign up via Single Sign-On (SSO) only when the user is a member of at least one Remote Group that is mapped to a Local Group in the <b>Group Map</b> option below. This option allows SSO administrators to restrict SSO users to control who can sign up and get access based on their group memberships.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label class="col-sm-3 control-label">Group Map (Optional)</label>
+                                                        <div class="col-sm-7">
+                                                            <table class="table" style="margin-bottom: 0px;">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>Remote Group</th>
+                                                                        <th>Local Group</th>
+                                                                        <th style="width: 84px;">
+                                                                            <button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addAdminSsoGroupMapRow('', '');">Add</button>
+                                                                        </th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody id="tableAdminSsoGroupMap"></tbody>
+                                                            </table>
+                                                            <div style="padding-top: 5px;">Map Remote Groups at Single Sign-On (SSO) provider to Local Groups for both new and existing users signed up via Single Sign-On (SSO). A SSO user's group membership will be automatically synced to the mapped Local Groups each time they log in.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div>
+                                                        <p><b>Note!</b> The Single Sign-On (SSO) uses <code>/sso/callback</code> as the callback path. Thus, your SSO Redirect URI for this DNS Server should be <code id="lblAdminSsoRedirectUri">http://localhost:5380/sso/callback</code> which needs to be configure with the SSO provider.</p>
+                                                        <p><b>Note!</b> Single Sign-On (SSO) will be enabled only when all of the required parameters are configured correctly. If SSO does not work for any reason, check the Logs section on the panel and search for related error logs.</p>
+                                                        <p><b>Note!</b> When a Single Sign-On (SSO) user sign up with the DNS Server, an account for the user is created which uses the email address as the username. If email address is not available, the preferred username is used instead. If you do not wish to use email address as the username, you can remove the 'email' scope from the SSO provider options.</p>
+                                                        <p><b>Note!</b> The Single Sign-On (SSO) user's Display Name and Username are managed via the SSO provider and they are automatically synced each time a user logs in.</p>
+                                                        <p><b>Note!</b> When Group Map is configured, the Single Sign-On (SSO) user's group membership cannot be managed locally and any group membership changes must be configured at the SSO provider itself. SSO users need to relogin so that any group membership changes made at SSO provider are applied to their user accounts. The Group Map thus allows managing user access centrally via the SSO provider. Keep the Group Map empty if group membership management for SSO users is required to be managed via the DNS Server itself.</p>
+                                                        <p><b>Note!</b> The Web Service will be automatically restarted to apply these changes thus there is no need to restart the DNS Server manually.</p>
+                                                        <p><b>Note!</b> When using a reverse proxy with the Web Service, you need to add <code>X-Forwarded-Proto</code> and <code>X-Forwarded-Host</code> headers to proxy request to allow the Web Service to correctly form the SSO Redirect URI. If the reverse proxy is setup to use a path prefix then make sure to add the <code>X-Forwarded-Prefix</code> header to proxy request too. For example, if you are using nginx as the reverse proxy with a path prefix of <code>/dns</code>, then you should add the following headers: <code>proxy_set_header X-Forwarded-Proto $scheme;</code>, <code>proxy_set_header X-Forwarded-Host $host;</code>, <code>proxy_set_header X-Forwarded-Prefix /dns;</code>, and <code>proxy_redirect / /dns/;</code></p>
+                                                        <p><b>Warning!</b> All URLs configured above must use <code>https</code> URL scheme for production environments. Using <code>http</code> URL scheme is not secure and should be used only for testing purposes.</p>
+                                                        <p><b>Warning!</b> Any DNS related failure may cause Single Sign-On (SSO) to fail to work making it impossible for SSO users to log in to fix the DNS issue due to circular dependency. Thus, it is recommended to maintain a local administrator user account for such scenarios.</p>
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-group" style="margin-bottom: 0px;">
+                                                    <button type="button" class="btn btn-primary" data-loading-text="Saving..." onclick="saveAdminSsoConfig(this);">Save Config</button>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -2960,7 +3139,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                     <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
                                                         <div id="txtLogViewerTitle" style="float: left; padding: 4px;">20171012</div>
                                                         <div style="float: right;">
-                                                            <button type="button" class="btn btn-default" data-loading-text="Download" onclick="downloadLog();" style="font-size: 12px; padding: 4px 6px;">Download</button>
+                                                            <button type="button" class="btn btn-default" data-loading-text="Download" onclick="downloadLog(this);" style="font-size: 12px; padding: 4px 6px;">Download</button>
                                                             <button id="btnDeleteLog" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="deleteLog();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
                                                         </div>
                                                     </div>
@@ -3099,8 +3278,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
                                                 <div class="form-group" style="display: block;">
                                                     <button type="submit" class="btn btn-primary" id="btnQueryLogs" data-loading-text="Querying..." onclick="queryLogs(); return false;" style="margin-right: 6px;">Query</button>
-                                                    <button type="button" class="btn btn-default" onclick="exportQueryLogsCsv(); return false;" style="margin-right: 6px;">Export</button>
-                                                    <button type="reset" class="btn btn-default">Reset</button>
+                                                    <button type="button" class="btn btn-default" data-loading-text="Export" onclick="exportQueryLogsCsv(this);" style="margin-right: 6px;">Export</button>
+                                                    <button type="button" class="btn btn-default" onclick="resetQueryLogsForm();" style="margin-right: 12px;">Reset</button>
+
+                                                    <div class="checkbox">
+                                                        <label>
+                                                            <input type="checkbox" id="chkQueryLogsLiveUpdate"> Live Update
+                                                        </label>
+                                                    </div>
                                                 </div>
                                             </form>
 
@@ -3187,7 +3372,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                         <p>Read the <a href="https://go.technitium.com/?id=23" target="_blank">change log</a> to know what's new in this release.</p>
 
                                         <h3 style="margin-top: 40px;"><a href="https://github.com/TechnitiumSoftware/DnsServer/blob/master/APIDOCS.md" target="_blank">API Documentation</a></h3>
-                                        <p>The DNS server HTTP API allows any 3rd party app or script to configure the DNS server. The HTTP API is used by this web console and thus all the actions that this web console does can be performed via the API. Read the <a href="https://github.com/TechnitiumSoftware/DnsServer/blob/master/APIDOCS.md" target="_blank">HTTP API documentation</a> for complete details.</p>
+                                        <p>The DNS Server HTTP API allows any 3rd party app or script to configure the DNS Server. The HTTP API is used by this web console and thus all the actions that this web console does can be performed via the API. Read the <a href="https://github.com/TechnitiumSoftware/DnsServer/blob/master/APIDOCS.md" target="_blank">HTTP API documentation</a> for complete details.</p>
 
                                         <h3 style="margin-top: 40px;"><a href="https://go.technitium.com/?id=25" target="_blank">Help Topics</a></h3>
                                         <p>Read the latest <a href="https://go.technitium.com/?id=25" target="_blank">online help topics</a> which contains the DNS Server user manual and covers frequently asked questions.</p>
@@ -3245,6 +3430,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 <label for="txtMyProfileUsername" class="col-sm-4 control-label">Username</label>
                                 <div class="col-sm-7">
                                     <input id="txtMyProfileUsername" type="text" class="form-control" placeholder="username" disabled>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="lblMyProfileUserType" class="col-sm-4 control-label">Type</label>
+                                <div class="col-sm-7">
+                                    <div id="lblMyProfileUserType" style="padding: 6px 0; font-weight: bold;"></div>
                                 </div>
                             </div>
 
@@ -3331,21 +3523,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 <div class="col-sm-7">
                                     <input id="txtCreateApiTokenUsername" type="text" class="form-control" placeholder="username" disabled>
                                     <select id="optCreateApiTokenUsername" class="form-control"></select>
-                                </div>
-                            </div>
-
-                            <div class="form-group" id="divCreateApiTokenPassword">
-                                <label for="txtCreateApiTokenPassword" class="col-sm-4 control-label">Password</label>
-                                <div class="col-sm-7">
-                                    <input id="txtCreateApiTokenPassword" type="password" class="form-control" placeholder="password" maxlength="255">
-                                </div>
-                            </div>
-
-                            <div class="form-group" id="divCreateApiToken2FAOTP">
-                                <label for="txtCreateApiToken2FATOTP" class="col-sm-4 control-label">Enter OTP</label>
-                                <div class="col-sm-7">
-                                    <input id="txtCreateApiToken2FATOTP" type="text" class="form-control" style="width: 100px;" placeholder="OTP" maxlength="6">
-                                    <div style="padding-top: 5px;">Enter the 6-digit code you see in your authenticator app.</div>
                                 </div>
                             </div>
 
@@ -3439,7 +3616,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <div id="divChangePassword2FATOTP" class="form-group">
                             <label for="txtChangePassword2FATOTP" class="col-sm-4 control-label">Enter OTP</label>
                             <div class="col-sm-7">
-                                <input id="txtChangePassword2FATOTP" type="text" class="form-control" style="width: 100px;" placeholder="OTP" maxlength="6">
+                                <input id="txtChangePassword2FATOTP" type="text" class="form-control" style="width: 100px;" placeholder="OTP" maxlength="6" autocomplete="off">
                                 <div style="padding-top: 5px;">Enter the 6-digit code you see in your authenticator app.</div>
                             </div>
                         </div>
@@ -3498,7 +3675,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 <div class="form-group">
                                     <label for="txtConfigure2FATOTP" class="col-sm-3 control-label">Enter OTP</label>
                                     <div class="col-sm-8">
-                                        <input id="txtConfigure2FATOTP" type="text" class="form-control" style="width: 100px;" placeholder="OTP" maxlength="6">
+                                        <input id="txtConfigure2FATOTP" type="text" class="form-control" style="width: 100px;" placeholder="OTP" maxlength="6" autocomplete="off">
                                         <div style="padding-top: 5px;">Enter the 6-digit code you see in your authenticator app.</div>
                                     </div>
                                 </div>
@@ -3515,6 +3692,53 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         </form>
     </div>
 
+    <div id="modalChangeTheme" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">Change Theme</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="col-sm-4 control-label">Theme</label>
+                            <div class="col-sm-8">
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdChangeTheme" id="rdChangeThemeSystem" onclick="changeTheme('system');">
+                                        Use System Theme (default)
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdChangeTheme" id="rdChangeThemeLight" onclick="changeTheme('light');">
+                                        Light Theme
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdChangeTheme" id="rdChangeThemeDark" onclick="changeTheme('dark');">
+                                        Dark Theme
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdChangeTheme" id="rdChangeThemeAmber" onclick="changeTheme('amber');">
+                                        Amber Theme
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
     <div id="modalForgotPassword" class="modal fade" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document" style="width: 780px;">
             <div class="modal-content">
@@ -3523,16 +3747,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     <h4 class="modal-title">Forgot Password?</h4>
                 </div>
                 <div class="modal-body">
-                    <p>To reset your password, you need to contact the DNS server administrator.</p>
+                    <p>To reset your password, you need to contact the DNS Server administrator.</p>
                     <p>If you are an administrator, follow these steps to reset the 'admin' user's password:</p>
                     <ol>
-                        <li>Stop the DNS server.</li>
+                        <li>Stop the DNS Server.</li>
                         <li>Find the DNS Server config folder and locate the <b>auth.config</b> file. The config folder will be found where the DNS Server is installed on Windows or /etc/dns/ folder on Linux.</li>
                         <li>Rename the <b>auth.config</b> file as <b>resetadmin.config</b></li>
                         <li>Start the DNS Server.</li>
                         <li>Just refresh this web page in the web browser to auto login with default credentials and quickly change the password.</li>
                     </ol>
-                    <p>On Linux, stop the DNS server by running 'sudo systemctl stop dns' command and 'sudo systemctl start dns' command to start it.</p>
+                    <p>On Linux, stop the DNS Server by running 'sudo systemctl stop dns' command and 'sudo systemctl start dns' command to start it.</p>
                     <p>On Windows, press Win+R to open Run, enter 'services.msc', and press enter to open Services console. Find service named 'Technitium DNS Server' and use the Action menu to start/stop it.</p>
                     <p><b>Note: </b>To reset 'admin' password, you will need file system access on the server running this DNS Server. If the 'admin' user does not exists then it will be created automatically. If the 'admin' user has Two-factor Authentication (2FA) configured then it will be disabled too.</p>
                 </div>
@@ -3564,10 +3788,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <a id="lnkUpdateChangeLog" href="#" target="_blank" style="font-weight: bold;">Read Change Logs</a>
                     </div>
                     <div style="margin-bottom: 10px;">
-                        Note! It is highly recommended to Backup Settings before installing the update.
+                        <b>Note!</b> It is highly recommended to Backup Settings before installing the update.
                     </div>
                     <div>
-                        Note! You will have to refresh this web page manually after updating the DNS server so that new UI changes are loaded.
+                        <b>Note!</b> You will have to refresh this web page manually after updating the DNS Server so that new UI changes are loaded.
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -3796,7 +4020,7 @@ ns1.example.com ([2001:db8::])
                                         </label>
                                     </div>
                                     <div style="padding-top: 5px; padding-left: 20px; padding-bottom: 10px;">
-                                        When using "This Server", if a record does not exists in the zone then the request is forwarded to the DNS server's resolver internally. This allows you to override any record for the forwarded domain name or control its DNSSEC validation.
+                                        When using "This Server", if a record does not exists in the zone then the request is forwarded to the DNS Server's resolver internally. This allows you to override any record for the forwarded domain name or control its DNSSEC validation.
                                     </div>
 
                                     <input id="txtAddZoneForwarder" type="text" class="form-control" placeholder="8.8.8.8">
@@ -4434,7 +4658,7 @@ MII...
                                             </label>
                                         </div>
                                         <div style="padding-top: 5px; padding-left: 20px; padding-bottom: 10px;">
-                                            When using "This Server", if a record does not exists in the zone then the request is forwarded to the DNS server's resolver internally. This allows you to override any record for the forwarded domain name or control its DNSSEC validation.
+                                            When using "This Server", if a record does not exists in the zone then the request is forwarded to the DNS Server's resolver internally. This allows you to override any record for the forwarded domain name or control its DNSSEC validation.
                                         </div>
 
                                         <input id="txtAddEditRecordDataForwarder" type="text" class="form-control" placeholder="8.8.8.8">
@@ -4602,9 +4826,15 @@ MII...
                             <div class="col-sm-8">
                                 <div class="checkbox">
                                     <label>
-                                        <input id="chkImportZoneOverwrite" type="checkbox"> Overwrite existing records
+                                        <input id="chkImportZoneOverwrite" type="checkbox"> Overwrite Existing Records
                                     </label>
                                     <div style="padding-top: 5px; padding-left: 20px;">Enable this option to overwrite existing records for the record types being imported.</div>
+                                </div>
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkImportZoneOverwriteZone" type="checkbox"> Overwrite Zone
+                                    </label>
+                                    <div style="padding-top: 5px; padding-left: 20px;">Enable this option to delete all existing records from the zone before importing new records.</div>
                                 </div>
                                 <div class="checkbox">
                                     <label>
@@ -4649,8 +4879,8 @@ MII...
                         </div>
                     </div>
 
-                    <p>Note! The <code>$ORIGIN</code> and <code>$TTL</code> values will be automatically set if not specified.</p>
-                    <p>Warning! Overwrite SOA serial option when used to set a lower SOA serial value than the current SOA serial will cause secondary zones to fail to sync.</p>
+                    <p><b>Note!</b> The <code>$ORIGIN</code> and <code>$TTL</code> values will be automatically set if not specified.</p>
+                    <p><b>Warning!</b> Overwrite SOA serial option when used to set a lower SOA serial value than the current SOA serial will cause secondary zones to fail to sync.</p>
                 </div>
                 <div class="modal-footer">
                     <button id="btnImportZone" type="submit" class="btn btn-primary" data-loading-text="Importing..." onclick="importZone(); return false;">Import</button>
@@ -4806,7 +5036,7 @@ MII...
                                             </div>
                                         </div>
 
-                                        <div>Note! When a zone becomes a member of a Catalog zone, all of the Catalog zone's Options are inherited unless they are explicitly overridden using the Override Options.</div>
+                                        <div><b>Note!</b> When a zone becomes a member of a Catalog zone, all of the Catalog zone's Options are inherited unless they are explicitly overridden using the Override Options.</div>
                                     </div>
 
                                     <div class="well well-sm form-horizontal" id="divZoneOptionsGeneralPrimaryServer">
@@ -4925,7 +5155,7 @@ ns1.example.com ([2001:db8::])
                                             </div>
                                         </div>
 
-                                        <div>Note! The zone can always be queried from loopback IP addresses and internally by the DNS server irrespective of the Query Access configuration.</div>
+                                        <div><b>Note!</b> The zone can always be queried from loopback IP addresses and internally by the DNS Server irrespective of the Query Access configuration.</div>
                                     </div>
                                 </div>
 
@@ -4980,7 +5210,7 @@ ns1.example.com ([2001:db8::])
                                             </div>
                                         </div>
 
-                                        <div>Note! Zone transfer should be allowed only for trusted name servers to sync their secondary zone.</div>
+                                        <div><b>Note!</b> Zone transfer should be allowed only for trusted name servers to sync their secondary zone.</div>
                                     </div>
 
                                     <div class="well well-sm form-horizontal">
@@ -4995,7 +5225,7 @@ ns1.example.com ([2001:db8::])
                                             </div>
                                         </div>
 
-                                        <div>Note! TSIG key names must be configured from the Settings before using them here. Entering one or more TSIG key names above will cause the DNS server to authenticate all zone transfer requests. A secondary zone must be configured with one of the above keys to be able to perform a zone transfer.</div>
+                                        <div><b>Note!</b> TSIG key names must be configured from the Settings before using them here. Entering one or more TSIG key names above will cause the DNS Server to authenticate all zone transfer requests. A secondary zone must be configured with one of the above keys to be able to perform a zone transfer.</div>
                                     </div>
                                 </div>
 
@@ -5065,7 +5295,7 @@ ns1.example.com ([2001:db8::])
                                             </div>
                                         </div>
 
-                                        <div>Note! Notification must be enabled to allow other name servers to trigger a zone transfer immediately when the zone is updated.</div>
+                                        <div><b>Note!</b> Notification must be enabled to allow other name servers to trigger a zone transfer immediately when the zone is updated.</div>
                                     </div>
                                 </div>
 
@@ -5120,8 +5350,8 @@ ns1.example.com ([2001:db8::])
                                             </div>
                                         </div>
 
-                                        <div>Note! Dynamic updates should be allowed only to trusted IP addresses since they will be able to add/delete records in the zone.</div>
-                                        <div style="padding-top: 10px;">Warning! If no security policy is configured in the Primary Zone then access will be provided only based on the options selected here. Thus setting up a security policy in the Primary Zone is highly recommended.</div>
+                                        <div><b>Note!</b> Dynamic updates should be allowed only to trusted IP addresses since they will be able to add/delete records in the zone.</div>
+                                        <div style="padding-top: 10px;"><b>Warning!</b> If no security policy is configured in the Primary Zone then access will be provided only based on the options selected here. Thus setting up a security policy in the Primary Zone is highly recommended.</div>
                                     </div>
 
                                     <div id="divDynamicUpdateSecurityPolicy" class="well well-sm form-horizontal">
@@ -5141,7 +5371,7 @@ ns1.example.com ([2001:db8::])
                                             <tbody id="tbodyDynamicUpdateSecurityPolicy"></tbody>
                                         </table>
 
-                                        <div>Note! Configuring a security policy above will cause the DNS server to authenticate all dynamic update requests. A TSIG key can add/delete records only for the specified domain name and allowed record types. TSIG key names must be configured from the Settings before using them here. Use wildcard domain name to specify all sub domain names. Use a comma separator to specify more than one record type. Use ANY to specify all record types.</div>
+                                        <div><b>Note!</b> Configuring a security policy above will cause the DNS Server to authenticate all dynamic update requests. A TSIG key can add/delete records only for the specified domain name and allowed record types. TSIG key names must be configured from the Settings before using them here. Use wildcard domain name to specify all sub domain names. Use a comma separator to specify more than one record type. Use ANY to specify all record types.</div>
                                     </div>
                                 </div>
                             </div>
@@ -5355,7 +5585,7 @@ MII...
                                     <span>(valid range 0-50, recommended 0)</span>
                                 </div>
                                 <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
-                                    The number of iterations used by NSEC3 for hashing the domain names. It is recommended to use 0 iterations since more iterations will increase computational costs for both the DNS server and resolver while not providing much value against "zone walking" [<a href="https://www.rfc-editor.org/rfc/rfc9276.html#name-iterations" target="_blank">RFC 9276</a>].
+                                    The number of iterations used by NSEC3 for hashing the domain names. It is recommended to use 0 iterations since more iterations will increase computational costs for both the DNS Server and resolver while not providing much value against "zone walking" [<a href="https://www.rfc-editor.org/rfc/rfc9276.html#name-iterations" target="_blank">RFC 9276</a>].
                                 </div>
                             </div>
 
@@ -5389,7 +5619,7 @@ MII...
                                 <span>days (valid range 0-365; default 30; set 0 to disable)</span>
                             </div>
                             <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
-                                The frequency at which the DNS server must automatically rollover the Zone Signing Key (ZSK).
+                                The frequency at which the DNS Server must automatically rollover the Zone Signing Key (ZSK).
                             </div>
                         </div>
                     </div>
@@ -5633,7 +5863,7 @@ MII...
                                             </div>
                                         </div>
                                         <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
-                                            The frequency at which the DNS server must automatically rollover the key.
+                                            The frequency at which the DNS Server must automatically rollover the key.
                                         </div>
                                     </div>
 
@@ -5646,13 +5876,13 @@ MII...
                             </div>
 
                             <div id="divDnssecPropertiesNoteReadyBy" style="margin-top: 10px; display: none;">
-                                Note! The Key State for a newly published Key Signing Key (KSK) must be <code>Ready</code> before you can add a DS record for it. Use the <b>View DS Info</b> option for more details on adding DS record.
+                                <b>Note!</b> The Key State for a newly published Key Signing Key (KSK) must be <code>Ready</code> before you can add a DS record for it. Use the <b>View DS Info</b> option for more details on adding DS record.
                             </div>
                             <div id="divDnssecPropertiesNoteActiveBy" style="margin-top: 10px; display: none;">
-                                Note! The Key State for a Key Signing Key (KSK) will automatically switch from <code>Ready</code> to <code>Active</code> once you have added DS record for it and the DNS server is able to detect it. Use the <b>View DS Info</b> option for more details on adding DS record.
+                                <b>Note!</b> The Key State for a Key Signing Key (KSK) will automatically switch from <code>Ready</code> to <code>Active</code> once you have added DS record for it and the DNS Server is able to detect it. Use the <b>View DS Info</b> option for more details on adding DS record. If this is a private zone, then you should manually activate the KSK so that the DNS Server stops the detection process which queries for DS records periodically.
                             </div>
                             <div id="divDnssecPropertiesNoteRetiredRevoked" style="margin-top: 10px; display: none;">
-                                Note! The keys with <code>Retired</code> or <code>Revoked</code> Key State will be automatically unpublished and removed when its safe to do so.
+                                <b>Note!</b> The keys with <code>Retired</code> or <code>Revoked</code> Key State will be automatically unpublished and removed when its safe to do so.
                             </div>
                         </div>
 
@@ -5689,7 +5919,7 @@ MII...
                                         <span>(valid range 0-50, recommended 0)</span>
                                     </div>
                                     <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
-                                        The number of iterations used by NSEC3 for hashing the domain names. It is recommended to use 0 iterations since more iterations will increase computational costs for both the DNS server and resolver while not providing much value against "zone walking" [<a href="https://www.rfc-editor.org/rfc/rfc9276.html#name-iterations" target="_blank">RFC 9276</a>].
+                                        The number of iterations used by NSEC3 for hashing the domain names. It is recommended to use 0 iterations since more iterations will increase computational costs for both the DNS Server and resolver while not providing much value against "zone walking" [<a href="https://www.rfc-editor.org/rfc/rfc9276.html#name-iterations" target="_blank">RFC 9276</a>].
                                     </div>
                                 </div>
 
@@ -5729,7 +5959,7 @@ MII...
                                 </div>
                             </div>
                             <div style="margin-top: 10px;">
-                                Warning! You MUST wait for at least the number of seconds specified by the the old TTL value to elapse before making any changes to the DNS keys above to ensure that all recursive resolvers would have expired the DNSKEY records from its cache. For example, if the old TTL value was 3600, then you must wait for 3600 seconds (1 hour) to pass before making any changes to the DNS keys.
+                                <b>Warning!</b> You MUST wait for at least the number of seconds specified by the the old TTL value to elapse before making any changes to the DNS keys above to ensure that all recursive resolvers would have expired the DNSKEY records from its cache. For example, if the old TTL value was 3600, then you must wait for 3600 seconds (1 hour) to pass before making any changes to the DNS keys.
                             </div>
                         </div>
                     </div>
@@ -6024,13 +6254,13 @@ MII...
                         </div>
                     </div>
 
-                    <p><b>Note!</b> The Web Service or Optional Protocols TLS certificate (.pfx or .p12) files will be included in the backup only if they exist within the DNS server's config folder.</p>
+                    <p><b>Note!</b> The Web Service or Optional Protocols TLS certificate (.pfx or .p12) files will be included in the backup only if they exist within the DNS Server's config folder.</p>
 
                     <p><b>Note!</b> It may take several minutes to generate the backup zip file if log files are selected to be backed up which will depend on the size of the log files on the disk.</p>
 
                 </div>
                 <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary" data-loading-text="Backup" onclick="backupSettings(); return false;">Backup</button>
+                    <button type="submit" class="btn btn-primary" data-loading-text="Backup" onclick="backupSettings(this); return false;">Backup</button>
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                 </div>
             </div>
@@ -6343,6 +6573,13 @@ MII...
                             </div>
 
                             <div class="form-group">
+                                <label for="lblUserDetailsUserType" class="col-sm-4 control-label">Type</label>
+                                <div class="col-sm-7">
+                                    <div id="lblUserDetailsUserType" style="padding: 6px 0; font-weight: bold;"></div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
                                 <label for="lblUserDetails2FAStatus" class="col-sm-4 control-label">2FA Status</label>
                                 <div class="col-sm-7">
                                     <div id="lblUserDetails2FAStatus" style="padding: 6px 0; font-weight: bold;"></div>
@@ -6571,7 +6808,7 @@ MII...
 
                         <div id="divInitializeNewClusterView" style="max-height: 500px; overflow-y: auto; padding: 0 6px; overflow-x: hidden;">
                             <p>
-                                The initialization of a new Cluster will make the current DNS server its Primary node. You can add other DNS servers to this Cluster later which will get added as Secondary nodes. No data will be lost on this DNS server in this process.
+                                The initialization of a new Cluster will make the current DNS Server its Primary node. You can add other DNS Servers to this Cluster later which will get added as Secondary nodes. No data will be lost on this DNS Server in this process.
                             </p>
 
                             <div class="form-group">
@@ -6590,7 +6827,7 @@ MII...
                                     <label for="optInitializeNewClusterQuickIpAddresses" class="control-label">Quick Add</label>
                                     <select id="optInitializeNewClusterQuickIpAddresses" class="form-control"></select>
 
-                                    <div style="padding-top: 5px;">The static IP addresses of this DNS server that will be accessible by all other DNS Servers to be added later as Secondary nodes.</div>
+                                    <div style="padding-top: 5px;">The static IP addresses of this DNS Server that will be accessible by all other DNS Servers to be added later as Secondary nodes.</div>
                                     <div style="padding-top: 5px;">Enter IP addresses one below another in the above text field or use the Quick Add list to add available IP addresses on the server.</div>
                                 </div>
                             </div>
@@ -6600,7 +6837,7 @@ MII...
                             </p>
 
                             <p>
-                                <b>Note!</b> If the web service does not have HTTPS enabled, then the initialization process will enable it automatically with a self-signed certificate. However, it is recommended to manually configure HTTPS with a valid certificate before initializing the Cluster. This certificate must include the new expected DNS Server Domain Name, as mentioned in the above note, as the Subject Common Name or Subject Alternative Name (SAN) so that it validates when a Secondary node tries to join the Cluster. Once a node joins the Cluster, it uses DANE-EE for server authentication and the domain name in the certificate is no longer required to match the DNS Server Domain Name.
+                                <b>Note!</b> If the Web Service does not have HTTPS enabled, then the initialization process will enable it automatically with a self-signed certificate. However, it is recommended to manually configure HTTPS with a valid certificate before initializing the Cluster. This certificate must include the new expected DNS Server Domain Name, as mentioned in the above note, as the Subject Common Name or Subject Alternative Name (SAN) so that it validates when a Secondary node tries to join the Cluster. Once a node joins the Cluster, it uses DANE-EE for server authentication and the domain name in the certificate is no longer required to match the DNS Server Domain Name.
                             </p>
 
                             <p>
@@ -6641,7 +6878,7 @@ MII...
 
                         <div id="divInitializeJoinClusterView" style="max-height: 500px; overflow-y: auto; padding: 0 6px; overflow-x: hidden;">
                             <p>
-                                Joining a Cluster will make this DNS server its Secondary node. This process will overwrite configuration on this DNS server for Allowed, Blocked, Apps, Settings and Administration sections. The DNS server will automatically synchronize its configuration with the Primary node in the Cluster.
+                                Joining a Cluster will make this DNS Server its Secondary node. This process will overwrite configuration on this DNS Server for Allowed, Blocked, Apps, Settings and Administration sections. The DNS Server will automatically synchronize its configuration with the Primary node in the Cluster.
                             </p>
 
                             <div class="form-group">
@@ -6652,7 +6889,7 @@ MII...
                                     <label for="optInitializeJoinClusterQuickIpAddresses" class="control-label">Quick Add</label>
                                     <select id="optInitializeJoinClusterQuickIpAddresses" class="form-control"></select>
 
-                                    <div style="padding-top: 5px;">The static IP addresses of this DNS server that will be accessible by all other DNS Server nodes in the Cluster.</div>
+                                    <div style="padding-top: 5px;">The static IP addresses of this DNS Server that will be accessible by all other DNS Server nodes in the Cluster.</div>
                                     <div style="padding-top: 5px;">Enter IP addresses one below another in the above text field or use the Quick Add list to add available IP addresses on the server.</div>
                                 </div>
                             </div>
@@ -6661,7 +6898,7 @@ MII...
                                 <label for="txtInitializeJoinClusterPrimaryNodeUrl" class="col-sm-4 control-label">Primary Node URL</label>
                                 <div class="col-sm-7">
                                     <input id="txtInitializeJoinClusterPrimaryNodeUrl" type="text" class="form-control" placeholder="URL" maxlength="255">
-                                    <div style="padding-top: 5px;">The web service HTTPS URL of the Primary node in the Cluster.</div>
+                                    <div style="padding-top: 5px;">The Web Service HTTPS URL of the Primary node in the Cluster.</div>
                                 </div>
                             </div>
 
@@ -6682,7 +6919,7 @@ MII...
                                             Validate Certificate With PKI and DANE (Recommended)
                                         </label>
                                         <div style="padding-top: 5px; padding-left: 20px;">
-                                            The Primary node web service TLS certificate will be validated using PKI and DANE to ensure that your connection is secure.
+                                            The Primary node Web Service TLS certificate will be validated using PKI and DANE to ensure that your connection is secure.
                                         </div>
                                     </div>
                                     <div class="radio">
@@ -6691,7 +6928,7 @@ MII...
                                             Ignore Certificate Validation Errors
                                         </label>
                                         <div style="padding-top: 5px; padding-left: 20px;">
-                                            Use this options only when you know that the Primary node web service is using a self-signed TLS certificate and is reachable on a private network.
+                                            Use this options only when you know that the Primary node Web Service is using a self-signed TLS certificate and is reachable on a private network.
                                         </div>
                                     </div>
                                 </div>
@@ -6716,7 +6953,7 @@ MII...
                             <div id="divInitializeJoinClusterPrimaryNode2faTotp" class="form-group">
                                 <label for="txtInitializeJoinClusterPrimaryNode2faTotp" class="col-sm-4 control-label">Primary Node OTP</label>
                                 <div class="col-sm-7">
-                                    <input id="txtInitializeJoinClusterPrimaryNode2faTotp" type="text" class="form-control" placeholder="OTP" maxlength="6">
+                                    <input id="txtInitializeJoinClusterPrimaryNode2faTotp" type="text" class="form-control" placeholder="OTP" maxlength="6" autocomplete="off">
                                     <div style="padding-top: 5px;">Enter the 6-digit code you see in your authenticator app for the administrator user specified above.</div>
                                 </div>
                             </div>
@@ -6726,11 +6963,11 @@ MII...
                             </p>
 
                             <p>
-                                <b>Note!</b> If the web service does not have HTTPS enabled, then the joining process will enable it automatically with a self-signed certificate. However, its recommended to manually configure HTTPS with a valid certificate before joining the cluster. This certificate should optionally include the new expected DNS Server Domain Name, which will be a subdomain name of the Cluster Domain name, as the Subject Common Name or Subject Alternative Name (SAN).
+                                <b>Note!</b> If the Web Service does not have HTTPS enabled, then the joining process will enable it automatically with a self-signed certificate. However, its recommended to manually configure HTTPS with a valid certificate before joining the cluster. This certificate should optionally include the new expected DNS Server Domain Name, which will be a subdomain name of the Cluster Domain name, as the Subject Common Name or Subject Alternative Name (SAN).
                             </p>
 
                             <p>
-                                <b>Note!</b> The Ignore Certificate Validation Errors option when selected is used only for the initial connection to the Primary node during the joining process. Once the DNS server joins the Cluster, it will always use DANE-EE for authentication using the TLSA records in the Cluster Primary zone that are added for each node in the Cluster.
+                                <b>Note!</b> The Ignore Certificate Validation Errors option when selected is used only for the initial connection to the Primary node during the joining process. Once the DNS Server joins the Cluster, it will always use DANE-EE for authentication using the TLSA records in the Cluster Primary zone that are added for each node in the Cluster.
                             </p>
 
                             <p>
@@ -6781,7 +7018,7 @@ MII...
                                         <input id="txtClusterOptionsHeartbeatRefreshIntervalSeconds" type="number" class="form-control" placeholder="seconds" maxlength="5" style="width: 100px; display: inline;">
                                         <span>seconds (valid range 10-300; default 30)</span>
                                     </div>
-                                    <div style="padding-top: 5px;">The interval in seconds in which the DNS server must refresh the state of all nodes in the Cluster.</div>
+                                    <div style="padding-top: 5px;">The interval in seconds in which the DNS Server must refresh the state of all nodes in the Cluster.</div>
                                 </div>
                             </div>
 
@@ -6792,7 +7029,7 @@ MII...
                                         <input id="txtClusterOptionsHeartbeatRetryIntervalSeconds" type="number" class="form-control" placeholder="seconds" maxlength="5" style="width: 100px; display: inline;">
                                         <span>seconds (valid range 10-300; default 10)</span>
                                     </div>
-                                    <div style="padding-top: 5px;">The interval in seconds in which the DNS server must retry the state refresh process for all nodes in case of a failure.</div>
+                                    <div style="padding-top: 5px;">The interval in seconds in which the DNS Server must retry the state refresh process for all nodes in case of a failure.</div>
                                 </div>
                             </div>
 
@@ -6803,7 +7040,7 @@ MII...
                                         <input id="txtClusterOptionsConfigRefreshIntervalSeconds" type="number" class="form-control" placeholder="seconds" maxlength="5" style="width: 100px; display: inline;">
                                         <span>seconds (valid range 30-3600; default 900)</span>
                                     </div>
-                                    <div style="padding-top: 5px;">The interval in seconds in which the DNS server must refresh the configuration from the Primary node.</div>
+                                    <div style="padding-top: 5px;">The interval in seconds in which the DNS Server must refresh the configuration from the Primary node.</div>
                                 </div>
                             </div>
 
@@ -6814,7 +7051,7 @@ MII...
                                         <input id="txtClusterOptionsConfigRetryIntervalSeconds" type="number" class="form-control" placeholder="seconds" maxlength="5" style="width: 100px; display: inline;">
                                         <span>seconds (valid range 30-3600; default 60)</span>
                                     </div>
-                                    <div style="padding-top: 5px;">The interval in seconds in which the DNS server must retry the configuration refresh process for the Primary node in case of a failure.</div>
+                                    <div style="padding-top: 5px;">The interval in seconds in which the DNS Server must retry the configuration refresh process for the Primary node in case of a failure.</div>
                                 </div>
                             </div>
                         </div>
@@ -6851,7 +7088,7 @@ MII...
                                         <label for="optEditClusterNodeQuickSelfIpAddresses" class="control-label">Quick Add</label>
                                         <select id="optEditClusterNodeQuickSelfIpAddresses" class="form-control"></select>
 
-                                        <div style="padding-top: 5px;">The static IP addresses of this DNS server that will be accessible by all other DNS Server nodes in the Cluster.</div>
+                                        <div style="padding-top: 5px;">The static IP addresses of this DNS Server that will be accessible by all other DNS Server nodes in the Cluster.</div>
                                         <div style="padding-top: 5px;">Enter IP addresses one below another in the above text field or use the Quick Add list to add available IP addresses on the server.</div>
                                     </div>
                                 </div>
@@ -6862,7 +7099,7 @@ MII...
                                     <label for="txtEditClusterNodePrimaryNodeUrl" class="col-sm-4 control-label">Primary Node URL</label>
                                     <div class="col-sm-7">
                                         <input id="txtEditClusterNodePrimaryNodeUrl" type="text" class="form-control" placeholder="URL" maxlength="255">
-                                        <div style="padding-top: 5px;">The web service HTTPS URL of the Primary node in the Cluster.</div>
+                                        <div style="padding-top: 5px;">The Web Service HTTPS URL of the Primary node in the Cluster.</div>
                                     </div>
                                 </div>
 
@@ -6988,7 +7225,7 @@ MII...
                         <div id="divLeaveClusterAlert"></div>
 
                         <p>
-                            The Leave Cluster process will remove all Cluster configuration from this Secondary node and leave the Cluster gracefully. There will be no data loss except for the Cluster configuration. You will need to re-join the Cluster again to use this DNS server as a Secondary node.
+                            The Leave Cluster process will remove all Cluster configuration from this Secondary node and leave the Cluster gracefully. There will be no data loss except for the Cluster configuration. You will need to re-join the Cluster again to use this DNS Server as a Secondary node.
                         </p>
 
                         <div class="form-group">
@@ -7031,7 +7268,7 @@ MII...
                         <div id="divDeleteClusterAlert"></div>
 
                         <p>
-                            The Delete Cluster process will remove all Cluster configuration from this Primary node. There will be no data loss except for the Cluster configuration. You will need to re-initialize the Cluster again to use clustering features on this DNS server.
+                            The Delete Cluster process will remove all Cluster configuration from this Primary node. There will be no data loss except for the Cluster configuration. You will need to re-initialize the Cluster again to use clustering features on this DNS Server.
                         </p>
 
                         <div class="form-group">

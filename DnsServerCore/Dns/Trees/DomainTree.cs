@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -147,22 +147,6 @@ namespace DnsServerCore.Dns.Trees
                 {
                     if (throwException)
                         throw new InvalidDomainNameException("Invalid domain name [" + domain + "]: label length cannot exceed 63 bytes.");
-
-                    return null;
-                }
-
-                if (domain[labelStart + 1] == '-')
-                {
-                    if (throwException)
-                        throw new InvalidDomainNameException("Invalid domain name [" + domain + "]: label cannot start with hyphen.");
-
-                    return null;
-                }
-
-                if (domain[labelEnd] == '-')
-                {
-                    if (throwException)
-                        throw new InvalidDomainNameException("Invalid domain name [" + domain + "]: label cannot end with hyphen.");
 
                     return null;
                 }

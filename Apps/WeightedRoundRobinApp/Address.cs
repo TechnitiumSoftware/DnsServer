@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -31,6 +31,12 @@ namespace WeightedRoundRobin
 {
     public sealed class Address : IDnsApplication, IDnsAppRecordRequestHandler
     {
+        #region variables
+
+        internal readonly static JsonDocumentOptions _jsonParseOptions = new JsonDocumentOptions() { CommentHandling = JsonCommentHandling.Skip };
+
+        #endregion
+
         #region IDisposable
 
         public void Dispose()
@@ -73,7 +79,7 @@ namespace WeightedRoundRobin
             List<WeightedAddress> addresses;
             int totalWeight = 0;
 
-            using (JsonDocument jsonDocument = JsonDocument.Parse(appRecordData))
+            using (JsonDocument jsonDocument = JsonDocument.Parse(appRecordData, _jsonParseOptions))
             {
                 JsonElement jsonAppRecordData = jsonDocument.RootElement;
 

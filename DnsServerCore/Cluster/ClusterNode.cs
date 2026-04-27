@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -122,7 +122,7 @@ namespace DnsServerCore.Cluster
                 case 1:
                 case 2:
                     _id = bR.ReadInt32();
-                    _url = new Uri(bR.ReadShortString());
+                    _url = new Uri(bR.BaseStream.ReadShortString());
 
                     if (version >= 2)
                     {
@@ -193,13 +193,13 @@ namespace DnsServerCore.Cluster
 
             if (_apiClient is null)
             {
-                _apiClient = new HttpApiClient(_url, _clusterManager.DnsWebService.DnsServer.Proxy, _clusterManager.DnsWebService.DnsServer.PreferIPv6, false, new InternalDnsClient(_clusterManager.DnsWebService.DnsServer, this));
+                _apiClient = new HttpApiClient(_url, _clusterManager.DnsWebService.DnsServer.Proxy, _clusterManager.DnsWebService.DnsServer.IPv6Mode, false, new InternalDnsClient(_clusterManager.DnsWebService.DnsServer, this));
 
                 UserSession clusterApiToken = null;
 
                 foreach (UserSession session in _clusterManager.DnsWebService.AuthManager.Sessions)
                 {
-                    if ((session.Type == UserSessionType.ApiToken) && (session.TokenName == _clusterManager.ClusterDomain))
+                    if (session.Type == UserSessionType.ClusterApiToken)
                     {
                         clusterApiToken = session;
                         break;
@@ -472,6 +472,42 @@ namespace DnsServerCore.Cluster
             }
         }
 
+        public async Task CreateSsoUserAsync(string ssoIdentifier, string username, string displayName = null, IReadOnlyCollection<string> memberOfGroups = null, CancellationToken cancellationToken = default)
+        {
+            HttpApiClient apiClient = GetApiClient();
+
+            try
+            {
+                await apiClient.CreateSsoUserAsync(ssoIdentifier, username, displayName, memberOfGroups, cancellationToken);
+
+                _lastSeen = DateTime.UtcNow;
+                _state = ClusterNodeState.Connected;
+            }
+            catch
+            {
+                _state = ClusterNodeState.Unreachable;
+                throw;
+            }
+        }
+
+        public async Task SetSsoUserAsync(string username, string newUsername = null, string displayName = null, IReadOnlyCollection<string> memberOfGroups = null, CancellationToken cancellationToken = default)
+        {
+            HttpApiClient apiClient = GetApiClient();
+
+            try
+            {
+                await apiClient.SetSsoUserAsync(username, newUsername, displayName, memberOfGroups, cancellationToken);
+
+                _lastSeen = DateTime.UtcNow;
+                _state = ClusterNodeState.Connected;
+            }
+            catch
+            {
+                _state = ClusterNodeState.Unreachable;
+                throw;
+            }
+        }
+
         public async Task<ClusterInfo> GetClusterStateAsync(CancellationToken cancellationToken = default)
         {
             HttpApiClient apiClient = GetApiClient();
@@ -653,7 +689,7 @@ namespace DnsServerCore.Cluster
         {
             bW.Write((byte)2); //version
             bW.Write(_id);
-            bW.WriteShortString(_url.OriginalString);
+            bW.BaseStream.WriteShortString(_url.OriginalString);
 
             bW.Write(Convert.ToByte(_ipAddresses.Count));
 

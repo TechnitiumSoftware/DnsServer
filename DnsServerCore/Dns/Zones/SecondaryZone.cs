@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.Zones
@@ -40,7 +41,7 @@ namespace DnsServerCore.Dns.Zones
 
         IReadOnlyCollection<DnssecPrivateKey> _dnssecPrivateKeys; //for holding DNSSEC private keys as a backup on secondary cluster nodes
 
-        readonly object _refreshTimerLock = new object();
+        readonly Lock _refreshTimerLock = new Lock();
         Timer _refreshTimer;
         bool _refreshTimerTriggered;
         const int REFRESH_TIMER_INTERVAL = 5000;
@@ -140,13 +141,13 @@ namespace DnsServerCore.Dns.Zones
                     foreach (NameServerAddress nameServerAddress in dnsClient.Servers)
                     {
                         if (nameServerAddress.IsIPEndPointStale)
-                            tasks.Add(nameServerAddress.ResolveIPAddressAsync(secondaryZone._dnsServer, secondaryZone._dnsServer.PreferIPv6));
+                            tasks.Add(nameServerAddress.ResolveIPAddressAsync(secondaryZone._dnsServer, secondaryZone._dnsServer.IPv6Mode));
                     }
 
                     await Task.WhenAll(tasks);
 
                     dnsClient.Proxy = secondaryZone._dnsServer.Proxy;
-                    dnsClient.PreferIPv6 = secondaryZone._dnsServer.PreferIPv6;
+                    dnsClient.IPv6Mode = secondaryZone._dnsServer.IPv6Mode;
 
                     DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, [soaQuestion], null, null, null, secondaryZone._dnsServer.UdpPayloadSize);
 
@@ -280,12 +281,13 @@ namespace DnsServerCore.Dns.Zones
                         }
 
                         //refresh zone
-                        if (await RefreshZoneAsync(primaryNameServerAddresses, primaryZoneTransferProtocol, key, _validateZone))
+                        (bool, uint) result = await RefreshZoneAsync(primaryNameServerAddresses, primaryZoneTransferProtocol, key, _validateZone);
+                        if (result.Item1)
                         {
                             DnsSOARecordData latestSoa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
 
                             _syncFailed = false;
-                            _expiry = DateTime.UtcNow.AddSeconds(latestSoa.Expire);
+                            _expiry = DateTime.UtcNow.AddSeconds(result.Item2);
                             _isExpired = false;
                             _resync = false;
                             _dnsServer.AuthZoneManager.SaveZoneFile(_name);
@@ -333,7 +335,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        private async Task<bool> RefreshZoneAsync(IReadOnlyList<NameServerAddress> primaryNameServers, DnsTransportProtocol zoneTransferProtocol, TsigKey key, bool validateZone)
+        private async Task<(bool, uint)> RefreshZoneAsync(IReadOnlyList<NameServerAddress> primaryNameServers, DnsTransportProtocol zoneTransferProtocol, TsigKey key, bool validateZone)
         {
             try
             {
@@ -374,7 +376,7 @@ namespace DnsServerCore.Dns.Zones
                 //init XFR DNS Client
                 DnsClient xfrClient = new DnsClient(updatedNameServers);
                 xfrClient.Proxy = _dnsServer.Proxy;
-                xfrClient.PreferIPv6 = _dnsServer.PreferIPv6;
+                xfrClient.IPv6Mode = _dnsServer.IPv6Mode;
                 xfrClient.Retries = REFRESH_RETRIES;
                 xfrClient.Concurrency = 1;
 
@@ -386,7 +388,7 @@ namespace DnsServerCore.Dns.Zones
                     //check for update
                     xfrClient.Timeout = REFRESH_SOA_TIMEOUT;
 
-                    DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, [new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN)], null, null, null, _dnsServer.UdpPayloadSize);
+                    DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, [new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN)], null, null, null, _dnsServer.UdpPayloadSize, options: [new EDnsOption(EDnsOptionCode.EDNS_EXPIRE, new EDnsExpireOptionData())]);
                     DnsDatagram soaResponse;
 
                     if (key is null)
@@ -397,13 +399,13 @@ namespace DnsServerCore.Dns.Zones
                     if (soaResponse.RCODE != DnsResponseCode.NoError)
                     {
                         _dnsServer.LogManager.Write("DNS Server received RCODE=" + soaResponse.RCODE.ToString() + " for '" + ToString() + "' " + GetZoneTypeName() + " zone refresh from: " + soaResponse.Metadata.NameServer.ToString());
-                        return false;
+                        return (false, 0u);
                     }
 
                     if ((soaResponse.Answer.Count < 1) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA) || !_name.Equals(soaResponse.Answer[0].Name, StringComparison.OrdinalIgnoreCase))
                     {
                         _dnsServer.LogManager.Write("DNS Server received an empty response for SOA query for '" + ToString() + "' " + GetZoneTypeName() + " zone refresh from: " + soaResponse.Metadata.NameServer.ToString());
-                        return false;
+                        return (false, 0u);
                     }
 
                     DnsResourceRecord receivedSoaRecord = soaResponse.Answer[0];
@@ -413,7 +415,28 @@ namespace DnsServerCore.Dns.Zones
                     if (!currentSoa.IsZoneUpdateAvailable(receivedSoa))
                     {
                         _dnsServer.LogManager.Write("DNS Server successfully checked for '" + ToString() + "' " + GetZoneTypeName() + " zone update from: " + soaResponse.Metadata.NameServer.ToString());
-                        return true;
+
+                        if (soaResponse.EDNS is not null)
+                        {
+                            //RFC 7314 EDNS EXPIRE option support
+                            foreach (EDnsOption option in soaResponse.EDNS.Options)
+                            {
+                                if (option.Code == EDnsOptionCode.EDNS_EXPIRE)
+                                {
+                                    if (option.Data is EDnsExpireOptionData expireOptionData && (expireOptionData.Expire is not null))
+                                    {
+                                        uint ednsExpire = Math.Min(expireOptionData.Expire.Value, receivedSoa.Expire);
+                                        uint expire = Math.Max(ednsExpire, CurrentExpireValue);
+
+                                        return (true, expire);
+                                    }
+
+                                    break;
+                                }
+                            }
+                        }
+
+                        return (true, receivedSoa.Expire);
                     }
                 }
 
@@ -438,7 +461,7 @@ namespace DnsServerCore.Dns.Zones
                         xfrAuthority = null;
                     }
 
-                    DnsDatagram xfrRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, [xfrQuestion], null, xfrAuthority);
+                    DnsDatagram xfrRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, [xfrQuestion], null, xfrAuthority, udpPayloadSize: _dnsServer.UdpPayloadSize, options: [new EDnsOption(EDnsOptionCode.EDNS_EXPIRE, new EDnsExpireOptionData())]);
                     DnsDatagram xfrResponse;
 
                     if (key is null)
@@ -455,19 +478,19 @@ namespace DnsServerCore.Dns.Zones
                     if (xfrResponse.RCODE != DnsResponseCode.NoError)
                     {
                         _dnsServer.LogManager.Write("DNS Server received a zone transfer response (RCODE=" + xfrResponse.RCODE.ToString() + ") for '" + ToString() + "' " + GetZoneTypeName() + " zone from: " + xfrResponse.Metadata.NameServer.ToString());
-                        return false;
+                        return (false, 0u);
                     }
 
                     if (xfrResponse.Answer.Count < 1)
                     {
                         _dnsServer.LogManager.Write("DNS Server received an empty response for zone transfer query for '" + ToString() + "' " + GetZoneTypeName() + " zone from: " + xfrResponse.Metadata.NameServer.ToString());
-                        return false;
+                        return (false, 0u);
                     }
 
                     if (!_name.Equals(xfrResponse.Answer[0].Name, StringComparison.OrdinalIgnoreCase) || (xfrResponse.Answer[0].RDATA is not DnsSOARecordData xfrSoa))
                     {
                         _dnsServer.LogManager.Write("DNS Server received invalid response for zone transfer query for '" + ToString() + "' " + GetZoneTypeName() + " zone from: " + xfrResponse.Metadata.NameServer.ToString());
-                        return false;
+                        return (false, 0u);
                     }
 
                     if (_resync || currentSoa.IsZoneUpdateAvailable(xfrSoa))
@@ -506,20 +529,59 @@ namespace DnsServerCore.Dns.Zones
 
                             _dnsServer.LogManager.Write("DNS Server successfully refreshed '" + ToString() + "' " + GetZoneTypeName() + " zone from: " + xfrResponse.Metadata.NameServer.ToString());
                         }
+
+                        if (xfrResponse.EDNS is not null)
+                        {
+                            //RFC 7314 EDNS EXPIRE option support
+                            foreach (EDnsOption option in xfrResponse.EDNS.Options)
+                            {
+                                if (option.Code == EDnsOptionCode.EDNS_EXPIRE)
+                                {
+                                    if (option.Data is EDnsExpireOptionData expireOptionData && (expireOptionData.Expire is not null))
+                                    {
+                                        uint ednsExpire = Math.Min(expireOptionData.Expire.Value, xfrSoa.Expire);
+
+                                        return (true, ednsExpire);
+                                    }
+
+                                    break;
+                                }
+                            }
+                        }
                     }
                     else
                     {
                         _dnsServer.LogManager.Write("DNS Server successfully checked for '" + ToString() + "' " + GetZoneTypeName() + " zone update from: " + xfrResponse.Metadata.NameServer.ToString());
+
+                        if (xfrResponse.EDNS is not null)
+                        {
+                            //RFC 7314 EDNS EXPIRE option support
+                            foreach (EDnsOption option in xfrResponse.EDNS.Options)
+                            {
+                                if (option.Code == EDnsOptionCode.EDNS_EXPIRE)
+                                {
+                                    if (option.Data is EDnsExpireOptionData expireOptionData && (expireOptionData.Expire is not null))
+                                    {
+                                        uint ednsExpire = Math.Min(expireOptionData.Expire.Value, xfrSoa.Expire);
+                                        uint expire = Math.Max(ednsExpire, CurrentExpireValue);
+
+                                        return (true, expire);
+                                    }
+
+                                    break;
+                                }
+                            }
+                        }
                     }
 
-                    return true;
+                    return (true, xfrSoa.Expire);
                 }
             }
             catch (Exception ex)
             {
                 _dnsServer.LogManager.Write("DNS Server failed to refresh '" + ToString() + "' " + GetZoneTypeName() + " zone from: " + primaryNameServers.Join() + "\r\n" + ex.ToString());
 
-                return false;
+                return (false, 0u);
             }
         }
 
@@ -962,6 +1024,15 @@ namespace DnsServerCore.Dns.Zones
 
         public bool IsExpired
         { get { return _isExpired; } }
+
+        public uint CurrentExpireValue
+        {
+            get
+            {
+                double expirySeconds = (_expiry - DateTime.UtcNow).TotalSeconds;
+                return expirySeconds > 0 ? Convert.ToUInt32(expirySeconds) : 0u;
+            }
+        }
 
         public virtual bool ValidateZone
         {

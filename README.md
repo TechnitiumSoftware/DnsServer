@@ -32,20 +32,21 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Installs in just a minute and works out-of-the-box with zero configuration.
 - Block ads & malware using one or more block list URLs.
 - Supports working as an authoritative as well as a recursive DNS server.
-- Includes built-in Clustering feature to allow managing two or more DNS server instances from a single admin web console.
+- Includes built-in Clustering feature to allow managing two or more DNS Server instances from a single admin web console.
+- Supports Single Sign-On (SSO) with OpenID Connect (OIDC).
 - High performance DNS server based on async IO that can serve millions of requests per minute even on a commodity desktop PC hardware (load tested on Intel i7-8700 CPU with more than 100,000 request/second over Gigabit Ethernet).
 - Self host [DNS-over-TLS](https://www.rfc-editor.org/rfc/rfc7858.html), [DNS-over-HTTPS](https://www.rfc-editor.org/rfc/rfc8484.html), and [DNS-over-QUIC](https://www.ietf.org/rfc/rfc9250.html) DNS services on your network.
 - DNS-over-HTTPS implementation supports HTTP/1.1, HTTP/2, and HTTP/3 transport protocols.
 - Supports DNS over [PROXY protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) version 1 and 2 for both UDP and TCP transports.
-- Use public DNS resolvers like Cloudflare, Google, Quad9, and AdGuard with [DNS-over-TLS](https://www.rfc-editor.org/rfc/rfc7858.html), [DNS-over-HTTPS](https://www.rfc-editor.org/rfc/rfc8484.html), or [DNS-over-QUIC](https://www.ietf.org/rfc/rfc9250.html) protocols as forwarders.
+- Use public DNS resolvers like Cloudflare, Google, Quad9, or AdGuard with [DNS-over-TLS](https://www.rfc-editor.org/rfc/rfc7858.html), [DNS-over-HTTPS](https://www.rfc-editor.org/rfc/rfc8484.html), or [DNS-over-QUIC](https://www.ietf.org/rfc/rfc9250.html) protocols as forwarders.
 - Support for latency based name server selection algorithm that works with concurrency feature for both recursive resolution and forwarders.
 - Advanced caching with features like serve stale, prefetching and auto prefetching.
-- Persistent caching feature that saves cache to disk when DNS server restarts.
+- Persistent caching feature that saves cache to disk when DNS Server restarts.
 - DNS rebinding attack protection feature available with DNS Rebinding Protection App.
 - DNSSEC validation support with RSA, ECDSA & EdDSA algorithms for recursive resolver, forwarders, and conditional forwarders with NSEC and NSEC3 support.
 - DNSSEC support for all supported DNS transport protocols including encrypted DNS protocols.
 - DANE TLSA [RFC 6698](https://datatracker.ietf.org/doc/html/rfc6698) record type support. This includes support for automatically generating the hash values using certificates in PEM format.
-- SVCB & HTTPS [draft-ietf-dnsop-svcb-https](https://www.ietf.org/archive/id/draft-ietf-dnsop-svcb-https-12.html) record type support.
+- SVCB & HTTPS [RFC 9460](https://datatracker.ietf.org/doc/rfc9460/) record type support.
 - URI [RFC 7553](https://www.rfc-editor.org/rfc/rfc7553.html) record type support.
 - SSHFP [RFC 4255](https://www.rfc-editor.org/rfc/rfc4255.html) record type support.
 - CNAME cloaking feature to block domain names that resolve to CNAME which are blocked.
@@ -72,37 +73,41 @@ Be it a home network or an organization's network, having a locally running DNS 
 - EDNS(0) [RFC6891](https://datatracker.ietf.org/doc/html/rfc6891) support.
 - EDNS Client Subnet (ECS) [RFC 7871](https://datatracker.ietf.org/doc/html/rfc7871) support for recursive resolution and forwarding.
 - Extended DNS Errors [RFC 8914](https://datatracker.ietf.org/doc/html/rfc8914) support.
+- EDNS EXPIRE option [RFC 7314](https://datatracker.ietf.org/doc/html/rfc7314) support.
 - DNS64 function [RFC 6147](https://www.rfc-editor.org/rfc/rfc6147) support for use by IPv6 only clients using the DNS64 App.
 - Support to host DNSBL / RBL block lists [RFC 5782](https://www.rfc-editor.org/rfc/rfc5782).
 - Multi-user role based access with non-expiring API token support.
-- Self host your domain names on your own DNS server.
+- Self host your domain names on your own DNS Server.
 - Wildcard sub domain support.
 - Enable/disable zones and records to allow testing with ease.
 - Built-in DNS Client with option to import responses to local zone.
 - Supports out-of-order DNS request processing for DNS-over-TCP and DNS-over-TLS protocols [RFC 7766](https://www.rfc-editor.org/rfc/rfc7766#section-7).
 - Built-in DHCP Server that can work for multiple networks.
-- IPv6 support in DNS server core.
+- IPv6 support in DNS Server core.
 - HTTP & SOCKS5 proxy support which can be configured to route DNS over [Tor Network](https://www.torproject.org/) or use [Cloudflare's hidden DNS resolver](https://blog.cloudflare.com/welcome-hidden-resolver/).
 - Admin web console for easy configuration using any web browser with support for Dark Mode.
-- Built in HTTP API to allow 3rd party apps to control and configure the DNS server.
+- Built in HTTP API to allow 3rd party apps to control and configure the DNS Server.
 - Supports TOTP based Two-factor authentication (2FA).
 - Built-in system logging and query logging.
-- Open source cross-platform .NET 9 implementation hosted on [GitHub](https://github.com/TechnitiumSoftware/DnsServer).
+- Open source cross-platform .NET 10 implementation hosted on [GitHub](https://github.com/TechnitiumSoftware/DnsServer).
+
+# Supported RFCs
+Read the complete [list of RFCs](https://github.com/TechnitiumSoftware/DnsServer/blob/master/SupportedRFCs.md) supported by the DNS Server.
 
 # Installation
 - **Windows**: [Download setup installer](https://download.technitium.com/dns/DnsServerSetup.zip) for easy installation.
 - **Linux & Raspberry Pi**: Follow install instructions from [this blog post](https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html).
-- **Cross-Platform**: [Download portable app](https://download.technitium.com/dns/DnsServerPortable.tar.gz) to run on any platform that has .NET 9 installed.
+- **Cross-Platform**: [Download portable app](https://download.technitium.com/dns/DnsServerPortable.tar.gz) to run on any platform that has .NET 10 installed.
 - **Docker**: Pull the official image from [Docker Hub](https://hub.docker.com/r/technitium/dns-server). Use the [docker-compose.yml](https://github.com/TechnitiumSoftware/DnsServer/blob/master/docker-compose.yml) example to create a new container and edit it as required for your deployments. For more details and troubleshooting read the [install instructions](https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html).
 
 # Build Instructions
-You can build the DNS server from source and install it manually by following the [Build Instructions](https://github.com/TechnitiumSoftware/DnsServer/blob/master/build.md).
+You can build the DNS Server from source and install it manually by following the [Build Instructions](https://github.com/TechnitiumSoftware/DnsServer/blob/master/build.md).
 
 # Docker Environment Variables
-Technitium DNS Server supports environment variables to allow initializing the config when the DNS server starts for the first time. Read the [environment variable documentation](https://github.com/TechnitiumSoftware/DnsServer/blob/master/DockerEnvironmentVariables.md) for complete details.
+Technitium DNS Server supports environment variables to allow initializing the config when the DNS Server starts for the first time. Read the [environment variable documentation](https://github.com/TechnitiumSoftware/DnsServer/blob/master/DockerEnvironmentVariables.md) for complete details.
 
 # API Documentation
-The DNS server HTTP API allows any 3rd party app or script to configure the DNS server. The HTTP API is used by the web console and thus all the actions that the web console does can be performed via the API. Read the [HTTP API documentation](https://github.com/TechnitiumSoftware/DnsServer/blob/master/APIDOCS.md) for complete details.
+The DNS Server HTTP API allows any 3rd party app or script to configure the DNS Server. The HTTP API is used by the web console and thus all the actions that the web console does can be performed via the API. Read the [HTTP API documentation](https://github.com/TechnitiumSoftware/DnsServer/blob/master/APIDOCS.md) for complete details.
 
 # Help Topics
 Read the latest [online help topics](https://go.technitium.com/?id=25) which contains the DNS Server user manual and covers frequently asked questions.
@@ -118,6 +123,7 @@ Make contribution to Technitium and help making new software, updates, and featu
 [Donate Now!](https://www.patreon.com/technitium)
 
 # Blog Posts
+- [Technitium Blog: Technitium DNS Server v15 Released!](https://blog.technitium.com/2026/04/technitium-dns-server-v15-released.html) (Apr 2026)
 - [Technitium Blog: Understanding Clustering And How To Configure It](https://blog.technitium.com/2025/11/understanding-clustering-and-how-to.html) (Nov 2025)
 - [How-To Geek: These open-source DNS tools block annoyances and speed up your browsing](https://www.howtogeek.com/block-ad-traffic-and-speed-up-your-browsing-with-these-3-free-open-source-dns-tools/) (Nov 2025)
 - [Technitium Blog: Technitium DNS Server v14 Released!](https://blog.technitium.com/2025/11/technitium-dns-server-v14-released.html) (Nov 2025)

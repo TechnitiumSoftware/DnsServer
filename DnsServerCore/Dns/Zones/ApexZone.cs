@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.Dns.ResourceRecords;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -107,7 +108,7 @@ namespace DnsServerCore.Dns.Zones
         protected bool _syncFailed;
 
         Timer _recordExpiryTimer;
-        readonly object _recordExpiryTimerLock = new object();
+        readonly Lock _recordExpiryTimerLock = new Lock();
         DateTime _recordExpiryTimerStartedOn;
         uint _recordExpiryTimerTtl;
         bool _recordExpiryTimerRunning;
@@ -764,7 +765,7 @@ namespace DnsServerCore.Dns.Zones
                     counter = byte.Parse(strOldSerial.Substring(8));
                 }
 
-                string strSerialDate = DateTime.UtcNow.ToString("yyyyMMdd");
+                string strSerialDate = DateTime.UtcNow.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
 
                 if (strOldSerialDate is null)
                 {
@@ -1136,7 +1137,7 @@ namespace DnsServerCore.Dns.Zones
                 _dnsServer.ResolverLogManager?.Write(ex);
             }
 
-            if (_dnsServer.PreferIPv6)
+            if (_dnsServer.IPv6Mode != IPv6Mode.Disabled)
             {
                 try
                 {
@@ -1171,7 +1172,7 @@ namespace DnsServerCore.Dns.Zones
                             break;
 
                         case DnsResourceRecordType.AAAA:
-                            if (_dnsServer.PreferIPv6)
+                            if (_dnsServer.IPv6Mode != IPv6Mode.Disabled)
                                 outNameServers.Add(new NameServerAddress(nsDomain, (glueRecord.RDATA as DnsAAAARecordData).Address));
 
                             break;

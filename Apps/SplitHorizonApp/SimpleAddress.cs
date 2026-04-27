@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -35,6 +35,8 @@ namespace SplitHorizon
     public sealed class SimpleAddress : IDnsApplication, IDnsAppRecordRequestHandler
     {
         #region variables
+
+        internal readonly static JsonDocumentOptions _jsonParseOptions = new JsonDocumentOptions() { CommentHandling = JsonCommentHandling.Skip };
 
         static Dictionary<string, List<NetworkAddress>> _networks;
 
@@ -106,7 +108,7 @@ namespace SplitHorizon
                 await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
             }
 
-            using JsonDocument jsonDocument = JsonDocument.Parse(config);
+            using JsonDocument jsonDocument = JsonDocument.Parse(config, _jsonParseOptions);
             JsonElement jsonConfig = jsonDocument.RootElement;
 
             if (jsonConfig.TryGetProperty("networks", out JsonElement jsonNetworks))
@@ -148,7 +150,7 @@ namespace SplitHorizon
             {
                 case DnsResourceRecordType.A:
                 case DnsResourceRecordType.AAAA:
-                    using (JsonDocument jsonDocument = JsonDocument.Parse(appRecordData))
+                    using (JsonDocument jsonDocument = JsonDocument.Parse(appRecordData, _jsonParseOptions))
                     {
                         JsonElement jsonAppRecordData = jsonDocument.RootElement;
                         JsonElement jsonAddresses = default;

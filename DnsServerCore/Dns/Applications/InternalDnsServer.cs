@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -107,8 +107,8 @@ namespace DnsServerCore.Dns.Applications
         public NetProxy Proxy
         { get { return _dnsServer.Proxy; } }
 
-        public bool PreferIPv6
-        { get { return _dnsServer.PreferIPv6; } }
+        public IPv6Mode IPv6Mode
+        { get { return _dnsServer.IPv6Mode; } }
 
         public ushort UdpPayloadSize
         { get { return _dnsServer.UdpPayloadSize; } }

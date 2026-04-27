@@ -3,8 +3,10 @@
 
 #define SERVICE_NAME "DnsService"
 #define SERVICE_FILE "DnsService.exe"
+#define SERVICE_CONFIG_FOLDER "%ProgramData%\Technitium DNS Server"
 #define SERVICE_DISPLAY_NAME "Technitium DNS Server"
 #define SERVICE_DESCRIPTION "Technitium DNS Server"
+#define SERVICE_LOGONAS "NT SERVICE\DnsService"
 #define TRAYAPP_FILENAME "DnsServerSystemTrayApp.exe"
 
 [Code]
@@ -117,7 +119,15 @@ begin
     Log('Service: Already installed, skip install service');
   end else begin 
     Log('Service: Begin Install');
-    InstallSuccess := InstallService(ExpandConstant('"{app}\DnsService.exe"'), '{#SERVICE_NAME}', '{#SERVICE_DISPLAY_NAME}', '{#SERVICE_DESCRIPTION}', SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START);
+    
+    if DirExists(ExpandConstant('{app}\config')) then
+    begin 
+      InstallSuccess := InstallService(ExpandConstant('"{app}\{#SERVICE_FILE}"'), '{#SERVICE_NAME}', '{#SERVICE_DISPLAY_NAME}', '{#SERVICE_DESCRIPTION}', '', SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START);
+    end else 
+    begin
+      InstallSuccess := InstallService(ExpandConstant('"{app}\{#SERVICE_FILE}" "{#SERVICE_CONFIG_FOLDER}"'), '{#SERVICE_NAME}', '{#SERVICE_DISPLAY_NAME}', '{#SERVICE_DESCRIPTION}', '{#SERVICE_LOGONAS}', SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START);
+    end;
+    
     if not InstallSuccess then
     begin
       Log('Service: Install Fail ' + ServiceErrorToMessage(GetLastError()));

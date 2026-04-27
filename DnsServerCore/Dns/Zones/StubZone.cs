@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ namespace DnsServerCore.Dns.Zones
     {
         #region variables
 
-        readonly object _refreshTimerLock = new object();
+        readonly Lock _refreshTimerLock = new Lock();
         Timer _refreshTimer;
         bool _refreshTimerTriggered;
         const int REFRESH_TIMER_INTERVAL = 5000;
@@ -104,13 +104,13 @@ namespace DnsServerCore.Dns.Zones
                     foreach (NameServerAddress nameServerAddress in dnsClient.Servers)
                     {
                         if (nameServerAddress.IsIPEndPointStale)
-                            tasks.Add(nameServerAddress.ResolveIPAddressAsync(stubZone._dnsServer, stubZone._dnsServer.PreferIPv6));
+                            tasks.Add(nameServerAddress.ResolveIPAddressAsync(stubZone._dnsServer, stubZone._dnsServer.IPv6Mode));
                     }
 
                     await Task.WhenAll(tasks);
 
                     dnsClient.Proxy = stubZone._dnsServer.Proxy;
-                    dnsClient.PreferIPv6 = stubZone._dnsServer.PreferIPv6;
+                    dnsClient.IPv6Mode = stubZone._dnsServer.IPv6Mode;
 
                     DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, [soaQuestion], null, null, null, dnsServer.UdpPayloadSize);
 
@@ -264,7 +264,7 @@ namespace DnsServerCore.Dns.Zones
                 DnsClient client = new DnsClient(nameServers);
 
                 client.Proxy = _dnsServer.Proxy;
-                client.PreferIPv6 = _dnsServer.PreferIPv6;
+                client.IPv6Mode = _dnsServer.IPv6Mode;
                 client.Timeout = REFRESH_TIMEOUT;
                 client.Retries = REFRESH_RETRIES;
                 client.Concurrency = 1;
@@ -309,7 +309,7 @@ namespace DnsServerCore.Dns.Zones
                 client = new DnsClient(tcpNameServers);
 
                 client.Proxy = _dnsServer.Proxy;
-                client.PreferIPv6 = _dnsServer.PreferIPv6;
+                client.IPv6Mode = _dnsServer.IPv6Mode;
                 client.Timeout = REFRESH_TIMEOUT;
                 client.Retries = REFRESH_RETRIES;
                 client.Concurrency = 1;

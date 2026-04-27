@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -116,7 +116,7 @@ namespace SplitHorizon
 
             do
             {
-                using JsonDocument jsonDocument = JsonDocument.Parse(config);
+                using JsonDocument jsonDocument = JsonDocument.Parse(config, SimpleAddress._jsonParseOptions);
                 JsonElement jsonConfig = jsonDocument.RootElement;
 
                 _appPreference = Convert.ToByte(jsonConfig.GetPropertyValue("appPreference", 40));
@@ -327,9 +327,7 @@ namespace SplitHorizon
             if ((groupName is null) || !_groups.TryGetValue(groupName, out Group group) || !group.Enabled || !group.TranslateReverseLookups)
                 return Task.FromResult<DnsDatagram>(null);
 
-            IPAddress ptrIpAddress = IPAddressExtensions.ParseReverseDomain(question.Name);
-
-            if (!group.TryInternalToExternalTranslation(ptrIpAddress, out IPAddress externalIp))
+            if (!IPAddressExtensions.TryParseReverseDomain(question.Name, out IPAddress ptrIpAddress) || !group.TryInternalToExternalTranslation(ptrIpAddress, out IPAddress externalIp))
                 return Task.FromResult<DnsDatagram>(null);
 
             IReadOnlyList<DnsResourceRecord> answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, question.Class, 600, new DnsCNAMERecordData(externalIp.GetReverseDomain())) };

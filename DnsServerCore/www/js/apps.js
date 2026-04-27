@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -25,7 +25,8 @@ function refreshApps() {
     divViewAppsLoader.show();
 
     HTTPRequest({
-        url: "api/apps/list?token=" + sessionData.token,
+        url: "api/apps/list",
+        token: sessionData.token,
         success: function (responseJSON) {
             var apps = responseJSON.response.apps;
             var tableHtmlRows = "";
@@ -143,7 +144,8 @@ function showStoreAppsModal() {
     $("#modalStoreApps").modal("show");
 
     HTTPRequest({
-        url: "api/apps/listStoreApps?token=" + sessionData.token,
+        url: "api/apps/listStoreApps",
+        token: sessionData.token,
         success: function (responseJSON) {
             var storeApps = responseJSON.response.storeApps;
             var tableHtmlRows = "";
@@ -222,7 +224,8 @@ function installStoreApp(objBtn, appName, url) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/apps/downloadAndInstall?token=" + sessionData.token + "&name=" + encodeURIComponent(appName) + "&url=" + encodeURIComponent(url),
+        url: "api/apps/downloadAndInstall?name=" + encodeURIComponent(appName) + "&url=" + encodeURIComponent(url),
+        token: sessionData.token,
         success: function (responseJSON) {
             btn.button("reset");
             btn.hide();
@@ -257,7 +260,8 @@ function updateStoreApp(objBtn, appName, url, isModal) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/apps/downloadAndUpdate?token=" + sessionData.token + "&name=" + encodeURIComponent(appName) + "&url=" + encodeURIComponent(url),
+        url: "api/apps/downloadAndUpdate?name=" + encodeURIComponent(appName) + "&url=" + encodeURIComponent(url),
+        token: sessionData.token,
         success: function (responseJSON) {
             btn.button("reset");
             btn.hide();
@@ -295,7 +299,8 @@ function uninstallStoreApp(objBtn, appName) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/apps/uninstall?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
+        url: "api/apps/uninstall?name=" + encodeURIComponent(appName),
+        token: sessionData.token,
         success: function (responseJSON) {
             btn.button("reset");
             btn.hide();
@@ -347,7 +352,8 @@ function installApp() {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/apps/install?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
+        url: "api/apps/install?name=" + encodeURIComponent(appName),
+        token: sessionData.token,
         method: "POST",
         data: formData,
         contentType: false,
@@ -390,7 +396,8 @@ function updateApp() {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/apps/update?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
+        url: "api/apps/update?name=" + encodeURIComponent(appName),
+        token: sessionData.token,
         method: "POST",
         data: formData,
         contentType: false,
@@ -423,7 +430,8 @@ function uninstallApp(objBtn, appName) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/apps/uninstall?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
+        url: "api/apps/uninstall?name=" + encodeURIComponent(appName),
+        token: sessionData.token,
         success: function (responseJSON) {
             var id = btn.attr("data-id");
             $("#trApp" + id).remove();
@@ -455,7 +463,8 @@ function showAppConfigModal(objBtn, appName) {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/apps/config/get?token=" + sessionData.token + "&name=" + encodeURIComponent(appName) + "&node=" + encodeURIComponent(node),
+        url: "api/apps/config/get?name=" + encodeURIComponent(appName) + "&node=" + encodeURIComponent(node),
+        token: sessionData.token,
         success: function (responseJSON) {
             btn.button("reset");
 
@@ -491,7 +500,8 @@ function saveAppConfig() {
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/apps/config/set?token=" + sessionData.token + "&name=" + encodeURIComponent(appName),
+        url: "api/apps/config/set?name=" + encodeURIComponent(appName),
+        token: sessionData.token,
         method: "POST",
         data: "config=" + encodeURIComponent(config),
         processData: false,

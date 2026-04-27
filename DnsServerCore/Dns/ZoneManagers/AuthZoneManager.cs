@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -32,8 +32,10 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
+using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.ZoneManagers
@@ -65,7 +67,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         readonly List<AuthZoneInfo> _catalogZoneIndex = new List<AuthZoneInfo>(2);
         readonly ReaderWriterLockSlim _zoneIndexLock = new ReaderWriterLockSlim();
 
-        readonly object _saveLock = new object();
+        readonly Lock _saveLock = new Lock();
         readonly Dictionary<string, object> _pendingSaveZones = new Dictionary<string, object>();
         readonly Timer _saveTimer;
         const int SAVE_TIMER_INITIAL_INTERVAL = 5000;
@@ -177,7 +179,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             //move zone files to new folder
             {
-                string[] oldZoneFiles = Directory.GetFiles(_dnsServer.ConfigFolder, "*.zone");
+                string[] oldZoneFiles = Directory.GetFiles(_dnsServer.ConfigFolder, "*.zone", SearchOption.TopDirectoryOnly);
 
                 foreach (string oldZoneFile in oldZoneFiles)
                     File.Move(oldZoneFile, Path.Combine(zonesFolder, Path.GetFileName(oldZoneFile)));
@@ -213,7 +215,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             _zoneIndexLock.EnterWriteLock();
             try
             {
-                string[] zoneFiles = Directory.GetFiles(zonesFolder, "*.zone");
+                string[] zoneFiles = Directory.GetFiles(zonesFolder, "*.zone", SearchOption.TopDirectoryOnly);
 
                 foreach (string zoneFile in zoneFiles)
                 {
@@ -284,6 +286,9 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             zoneName = zoneName.ToLowerInvariant();
 
+            string tmpZoneFile = Path.Combine(_dnsServer.ConfigFolder, "zones", zoneName + ".tmp");
+            string zoneFile = Path.Combine(_dnsServer.ConfigFolder, "zones", zoneName + ".zone");
+
             using (MemoryStream mS = new MemoryStream())
             {
                 //serialize zone
@@ -295,11 +300,13 @@ namespace DnsServerCore.Dns.ZoneManagers
                 //write to zone file
                 mS.Position = 0;
 
-                using (FileStream fS = new FileStream(Path.Combine(_dnsServer.ConfigFolder, "zones", zoneName + ".zone"), FileMode.Create, FileAccess.Write))
+                using (FileStream fS = new FileStream(tmpZoneFile, FileMode.Create, FileAccess.Write))
                 {
                     mS.CopyTo(fS);
                 }
             }
+
+            File.Move(tmpZoneFile, zoneFile, true);
 
             _dnsServer.LogManager.Write("Saved zone file for domain: " + (zoneName == "" ? "<root>" : zoneName));
         }
@@ -461,10 +468,10 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public AuthZoneInfo LoadZoneFrom(Stream s, DateTime lastModified)
         {
-            BinaryReader bR = new BinaryReader(s);
-
-            if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "DZ")
+            if (Encoding.ASCII.GetString(s.ReadExactly(2)) != "DZ")
                 throw new InvalidDataException("DnsServer zone file format is invalid.");
+
+            BinaryReader bR = new BinaryReader(s);
 
             switch (bR.ReadByte())
             {
@@ -2068,6 +2075,16 @@ namespace DnsServerCore.Dns.ZoneManagers
             SaveZoneFile(primaryZone.Name);
         }
 
+        public void ActivatePrimaryZoneKskDnsKey(string zoneName, ushort keyTag)
+        {
+            if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+                throw new DnsServerException("No such primary zone was found: " + zoneName);
+
+            primaryZone.ActivateKskDnsKey(keyTag);
+
+            SaveZoneFile(primaryZone.Name);
+        }
+
         public void RolloverPrimaryZoneDnsKey(string zoneName, ushort keyTag)
         {
             if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
@@ -2456,6 +2473,40 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
 
             return false;
+        }
+
+        public void DeleteAllRecords(string zoneName)
+        {
+            foreach (AuthZone authZone in _root.GetApexZoneWithSubDomainZones(zoneName))
+            {
+                foreach (DnsResourceRecordType recordType in authZone.Entries.Keys)
+                {
+                    switch (recordType)
+                    {
+                        case DnsResourceRecordType.SOA:
+                            break; //skip SOA record
+
+                        case DnsResourceRecordType.DNSKEY:
+                        case DnsResourceRecordType.RRSIG:
+                        case DnsResourceRecordType.NSEC:
+                        case DnsResourceRecordType.NSEC3PARAM:
+                        case DnsResourceRecordType.NSEC3:
+                            break; //skip DNSSEC records
+
+                        default:
+                            authZone.DeleteRecords(recordType);
+                            break;
+                    }
+                }
+
+                if (authZone is SubDomainZone subDomainZone)
+                {
+                    if (authZone.IsEmpty)
+                        _root.TryRemove(authZone.Name, out SubDomainZone _); //remove empty sub zone
+                    else
+                        subDomainZone.AutoUpdateState();
+                }
+            }
         }
 
         #endregion
@@ -3055,7 +3106,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             return condensedRecords;
         }
 
-        internal void ImportRecords(string zoneName, IReadOnlyList<DnsResourceRecord> records, bool overwrite, bool overwriteSoaSerial)
+        internal void ImportRecords(string zoneName, IReadOnlyList<DnsResourceRecord> records, bool overwriteRecords, bool overwriteZone, bool overwriteSoaSerial)
         {
             _ = _root.FindZone(zoneName, out _, out _, out ApexZone apexZone, out _);
             if ((apexZone is null) || !apexZone.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase))
@@ -3063,6 +3114,14 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             if ((apexZone is not PrimaryZone) && (apexZone is not ForwarderZone))
                 throw new DnsServerException("Zone must be a primary or forwarder type: " + apexZone.ToString());
+
+            if (overwriteZone)
+            {
+                //remove all existing records from the zone
+                DeleteAllRecords(zoneName);
+
+                overwriteRecords = true; //set to true for optimization
+            }
 
             List<DnsResourceRecord> soaRRSet = null;
 
@@ -3088,7 +3147,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 break;
 
                             default:
-                                if (overwrite)
+                                if (overwriteRecords)
                                 {
                                     apexZone.SetRecords(rrsetEntry.Key, rrsetEntry.Value);
                                 }
@@ -3118,7 +3177,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 break;
 
                             default:
-                                if (overwrite)
+                                if (overwriteRecords)
                                 {
                                     authZone.SetRecords(rrsetEntry.Key, rrsetEntry.Value);
                                 }
@@ -3294,6 +3353,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 IReadOnlyList<DnsResourceRecord> answer = null;
                 IReadOnlyList<DnsResourceRecord> authority = null;
                 IReadOnlyList<DnsResourceRecord> additional = null;
+                IReadOnlyList<EDnsOption> eDnsOptions = null;
 
                 if (closest is not null)
                 {
@@ -3431,6 +3491,36 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                         switch (question.Type)
                         {
+                            case DnsResourceRecordType.SOA:
+                                if (request.EDNS is not null)
+                                {
+                                    //RFC 7314 EDNS EXPIRE option support
+                                    if ((zone is PrimaryZone) || (zone is SecondaryZone && zone is not SecondaryForwarderZone))
+                                    {
+                                        foreach (EDnsOption option in request.EDNS.Options)
+                                        {
+                                            if ((option.Code == EDnsOptionCode.EDNS_EXPIRE) && (option.Data is EDnsExpireOptionData expireOptionData) && (expireOptionData.Expire is null))
+                                            {
+                                                if (zone is PrimaryZone primaryZone)
+                                                {
+                                                    DnsResourceRecord soaRecord = primaryZone.GetRecords(DnsResourceRecordType.SOA)[0];
+                                                    DnsSOARecordData soa = soaRecord.RDATA as DnsSOARecordData;
+
+                                                    eDnsOptions = [new EDnsOption(EDnsOptionCode.EDNS_EXPIRE, new EDnsExpireOptionData(soa.Expire))];
+                                                }
+                                                else if (zone is SecondaryZone secondaryZone)
+                                                {
+                                                    eDnsOptions = [new EDnsOption(EDnsOptionCode.EDNS_EXPIRE, new EDnsExpireOptionData(secondaryZone.CurrentExpireValue))];
+                                                }
+
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+
+                                break;
+
                             case DnsResourceRecordType.NS:
                             case DnsResourceRecordType.MX:
                             case DnsResourceRecordType.SRV:
@@ -3446,7 +3536,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     }
                 }
 
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, rCode, request.Question, answer, authority, additional);
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, rCode, request.Question, answer, authority, additional, udpPayloadSize: _dnsServer.UdpPayloadSize, options: eDnsOptions);
             }
         }
 

@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -33,10 +33,10 @@ namespace DnsServerSystemTrayApp
 
         const string MUTEX_NAME = "TechnitiumDnsServerSystemTrayApp";
 
-        public static readonly string APP_PATH = Assembly.GetEntryAssembly().Location;
+        public static readonly string APP_PATH = Assembly.GetEntryAssembly()!.Location;
 
         static readonly bool _isAdmin = new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
-        static Mutex _app;
+        static Mutex _app = null!;
 
         #endregion
 
@@ -79,7 +79,7 @@ namespace DnsServerSystemTrayApp
 
             #endregion
 
-            string configFile = Path.Combine(Path.GetDirectoryName(APP_PATH), "SystemTrayApp.config");
+            string configFile = Path.Combine(Path.GetDirectoryName(APP_PATH)!, "SystemTrayApp.config");
 
             MainApplicationContext mainApp = new MainApplicationContext(configFile, args, ref exitApp);
 

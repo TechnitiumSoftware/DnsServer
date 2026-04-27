@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Net;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -133,7 +134,109 @@ namespace DnsServerCore
 
             #region public
 
-            public async Task GetStats(HttpContext context)
+            public Task GetMetricsJson(HttpContext context)
+            {
+                User sessionUser = _dnsWebService.GetSessionUser(context);
+
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Dashboard, sessionUser, PermissionFlag.View))
+                    throw new DnsWebServiceException("Access was denied.");
+
+                Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+
+                jsonWriter.WriteString("uptimestamp", _dnsWebService._uptimestamp);
+                jsonWriter.WriteNumber("uptimeSeconds", Convert.ToUInt64((DateTime.UtcNow - _dnsWebService._uptimestamp).TotalSeconds));
+
+                //lifetimeCounters
+                {
+                    jsonWriter.WriteStartObject("lifetimeCounters");
+
+                    jsonWriter.WriteNumber("totalQueries", _dnsWebService._dnsServer.StatsManager.TotalQueries);
+                    jsonWriter.WriteNumber("totalNoError", _dnsWebService._dnsServer.StatsManager.TotalNoError);
+                    jsonWriter.WriteNumber("totalServerFailure", _dnsWebService._dnsServer.StatsManager.TotalServerFailure);
+                    jsonWriter.WriteNumber("totalNxDomain", _dnsWebService._dnsServer.StatsManager.TotalNxDomain);
+                    jsonWriter.WriteNumber("totalRefused", _dnsWebService._dnsServer.StatsManager.TotalRefused);
+
+                    jsonWriter.WriteNumber("totalAuthoritative", _dnsWebService._dnsServer.StatsManager.TotalAuthoritative);
+                    jsonWriter.WriteNumber("totalRecursive", _dnsWebService._dnsServer.StatsManager.TotalRecursive);
+                    jsonWriter.WriteNumber("totalCached", _dnsWebService._dnsServer.StatsManager.TotalCached);
+                    jsonWriter.WriteNumber("totalBlocked", _dnsWebService._dnsServer.StatsManager.TotalBlocked);
+                    jsonWriter.WriteNumber("totalDropped", _dnsWebService._dnsServer.StatsManager.TotalDropped);
+
+                    jsonWriter.WriteNumber("totalClients", _dnsWebService._dnsServer.StatsManager.TotalClients);
+
+                    jsonWriter.WriteEndObject();
+                }
+
+                return Task.CompletedTask;
+            }
+
+            public ValueTask GetMetricsText(HttpContext context)
+            {
+                User sessionUser = _dnsWebService.GetSessionUser(context);
+
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Dashboard, sessionUser, PermissionFlag.View))
+                    throw new DnsWebServiceException("Access was denied.");
+
+                StringBuilder sb = new StringBuilder(512);
+
+                sb.Append("# HELP uptime_seconds Uptime of the DNS Server in seconds\n");
+                sb.Append("# TYPE uptime_seconds gauge\n");
+                sb.Append($"uptime_seconds {Convert.ToUInt64((DateTime.UtcNow - _dnsWebService._uptimestamp).TotalSeconds)}\n");
+
+                sb.Append("# HELP start_time Start time of the DNS Server since epoch (milliseconds)\n");
+                sb.Append("# TYPE start_time gauge\n");
+                sb.Append($"start_time {Convert.ToUInt64((_dnsWebService._uptimestamp - DateTime.UnixEpoch).TotalMilliseconds)}\n");
+
+                sb.Append("# TYPE total_queries counter\n");
+                sb.Append($"total_queries {_dnsWebService._dnsServer.StatsManager.TotalQueries}\n");
+
+                sb.Append("# TYPE total_no_error counter\n");
+                sb.Append($"total_no_error {_dnsWebService._dnsServer.StatsManager.TotalNoError}\n");
+
+                sb.Append("# TYPE total_server_failure counter\n");
+                sb.Append($"total_server_failure {_dnsWebService._dnsServer.StatsManager.TotalServerFailure}\n");
+
+                sb.Append("# TYPE total_nx_domain counter\n");
+                sb.Append($"total_nx_domain {_dnsWebService._dnsServer.StatsManager.TotalNxDomain}\n");
+
+                sb.Append("# TYPE total_refused counter\n");
+                sb.Append($"total_refused {_dnsWebService._dnsServer.StatsManager.TotalRefused}\n");
+
+
+                sb.Append("# TYPE total_authoritative counter\n");
+                sb.Append($"total_authoritative {_dnsWebService._dnsServer.StatsManager.TotalAuthoritative}\n");
+
+                sb.Append("# TYPE total_recursive counter\n");
+                sb.Append($"total_recursive {_dnsWebService._dnsServer.StatsManager.TotalRecursive}\n");
+
+                sb.Append("# TYPE total_cached counter\n");
+                sb.Append($"total_cached {_dnsWebService._dnsServer.StatsManager.TotalCached}\n");
+
+                sb.Append("# TYPE total_blocked counter\n");
+                sb.Append($"total_blocked {_dnsWebService._dnsServer.StatsManager.TotalBlocked}\n");
+
+                sb.Append("# TYPE total_dropped counter\n");
+                sb.Append($"total_dropped {_dnsWebService._dnsServer.StatsManager.TotalDropped}\n");
+
+
+                sb.Append("# TYPE total_clients counter\n");
+                sb.Append($"total_clients {_dnsWebService._dnsServer.StatsManager.TotalClients}\n");
+
+                byte[] data = Encoding.UTF8.GetBytes(sb.ToString());
+
+                HttpResponse response = context.Response;
+
+                response.StatusCode = StatusCodes.Status200OK;
+                response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
+                response.Headers.Pragma = "no-cache";
+                response.Headers.Expires = "0";
+                response.ContentType = "text/plain; version=0.0.4";
+                response.ContentLength = data.Length;
+
+                return response.Body.WriteAsync(data);
+            }
+
+            public async Task GetStatsAsync(HttpContext context)
             {
                 User sessionUser = _dnsWebService.GetSessionUser(context);
 
@@ -656,7 +759,7 @@ namespace DnsServerCore
                 }
             }
 
-            public async Task GetTopStats(HttpContext context)
+            public async Task GetTopStatsAsync(HttpContext context)
             {
                 User sessionUser = _dnsWebService.GetSessionUser(context);
 

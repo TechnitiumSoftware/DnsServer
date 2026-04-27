@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Mail;
@@ -61,62 +62,6 @@ namespace DnsServerCore
 
             #region private
 
-            private void RestartService(bool restartDnsService, bool restartWebService, IReadOnlyList<IPAddress> oldWebServiceLocalAddresses, int oldWebServiceHttpPort, int oldWebServiceTlsPort)
-            {
-                if (restartDnsService)
-                {
-                    ThreadPool.QueueUserWorkItem(async delegate (object state)
-                    {
-                        try
-                        {
-                            _dnsWebService._log.Write("Attempting to restart DNS service.");
-
-                            await _dnsWebService._dnsServer.StopAsync();
-                            await _dnsWebService._dnsServer.StartAsync();
-
-                            _dnsWebService._log.Write("DNS service was restarted successfully.");
-                        }
-                        catch (Exception ex)
-                        {
-                            _dnsWebService._log.Write("Failed to restart DNS service.\r\n" + ex.ToString());
-                        }
-                    });
-                }
-
-                if (restartWebService)
-                {
-                    ThreadPool.QueueUserWorkItem(async delegate (object state)
-                    {
-                        try
-                        {
-                            await Task.Delay(2000); //wait for this HTTP response to be delivered before stopping web server
-
-                            _dnsWebService._log.Write("Attempting to restart web service.");
-
-                            try
-                            {
-                                await _dnsWebService.StopWebServiceAsync();
-                                await _dnsWebService.TryStartWebServiceAsync(oldWebServiceLocalAddresses, oldWebServiceHttpPort, oldWebServiceTlsPort);
-
-                                _dnsWebService._log.Write("Web service was restarted successfully.");
-                            }
-                            catch (Exception ex)
-                            {
-                                _dnsWebService._log.Write("Failed to restart web service.\r\n" + ex.ToString());
-                            }
-
-                            //update cluster node URL to reflect latest TLS port
-                            if (_dnsWebService._clusterManager.ClusterInitialized)
-                                _dnsWebService._clusterManager.UpdateSelfNodeUrlAndCertificate();
-                        }
-                        catch (Exception ex)
-                        {
-                            _dnsWebService._log.Write(ex);
-                        }
-                    });
-                }
-            }
-
             private void WriteDnsSettings(Utf8JsonWriter jsonWriter)
             {
                 //info
@@ -152,7 +97,8 @@ namespace DnsServerCore
 
                 jsonWriter.WriteBoolean("dnsAppsEnableAutomaticUpdate", _dnsWebService._dnsServer.DnsApplicationManager.EnableAutomaticUpdate);
 
-                jsonWriter.WriteBoolean("preferIPv6", _dnsWebService._dnsServer.PreferIPv6);
+                jsonWriter.WriteString("ipv6Mode", _dnsWebService._dnsServer.IPv6Mode.ToString());
+                jsonWriter.WriteBoolean("preferIPv6", _dnsWebService._dnsServer.IPv6Mode == IPv6Mode.Preferred);
                 jsonWriter.WriteBoolean("enableUdpSocketPool", _dnsWebService._dnsServer.EnableUdpSocketPool);
 
                 jsonWriter.WriteStartArray("socketPoolExcludedPorts");
@@ -226,6 +172,8 @@ namespace DnsServerCore
                 jsonWriter.WriteNumber("quicIdleTimeout", _dnsWebService._dnsServer.QuicIdleTimeout);
                 jsonWriter.WriteNumber("quicMaxInboundStreams", _dnsWebService._dnsServer.QuicMaxInboundStreams);
                 jsonWriter.WriteNumber("listenBacklog", _dnsWebService._dnsServer.ListenBacklog);
+                jsonWriter.WriteNumber("udpSendBufferSizeKB", _dnsWebService._dnsServer.UdpSendBufferSizeKB);
+                jsonWriter.WriteNumber("udpReceiveBufferSizeKB", _dnsWebService._dnsServer.UdpReceiveBufferSizeKB);
                 jsonWriter.WriteNumber("maxConcurrentResolutionsPerCore", _dnsWebService._dnsServer.MaxConcurrentResolutionsPerCore);
 
                 //web service
@@ -256,6 +204,7 @@ namespace DnsServerCore
                 jsonWriter.WriteString("webServiceRealIpHeader", _dnsWebService._webServiceRealIpHeader);
 
                 //optional protocols
+                jsonWriter.WriteBoolean("enableEDnsClientSubnetSourceAddress", _dnsWebService._dnsServer.EnableEDnsClientSubnetSourceAddress);
                 jsonWriter.WriteBoolean("enableDnsOverUdpProxy", _dnsWebService._dnsServer.EnableDnsOverUdpProxy);
                 jsonWriter.WriteBoolean("enableDnsOverTcpProxy", _dnsWebService._dnsServer.EnableDnsOverTcpProxy);
                 jsonWriter.WriteBoolean("enableDnsOverHttp", _dnsWebService._dnsServer.EnableDnsOverHttp);
@@ -552,7 +501,7 @@ namespace DnsServerCore
                             }
                         }
 
-                        if (request.TryGetQueryOrFormArray("dnsServerLocalEndPoints", IPEndPoint.Parse, out IPEndPoint[] dnsServerLocalEndPoints))
+                        if (request.TryQueryOrFormArray("dnsServerLocalEndPoints", IPEndPoint.Parse, out IPEndPoint[] dnsServerLocalEndPoints))
                         {
                             if (dnsServerLocalEndPoints.Length == 0)
                             {
@@ -573,10 +522,10 @@ namespace DnsServerCore
                             _dnsWebService._dnsServer.LocalEndPoints = dnsServerLocalEndPoints;
                         }
 
-                        if (request.TryGetQueryOrFormArray("dnsServerIPv4SourceAddresses", NetworkAddress.Parse, out NetworkAddress[] dnsServerIPv4SourceAddresses))
+                        if (request.TryQueryOrFormArray("dnsServerIPv4SourceAddresses", NetworkAddress.Parse, out NetworkAddress[] dnsServerIPv4SourceAddresses))
                             DnsClientConnection.IPv4SourceAddresses = dnsServerIPv4SourceAddresses;
 
-                        if (request.TryGetQueryOrFormArray("dnsServerIPv6SourceAddresses", NetworkAddress.Parse, out NetworkAddress[] dnsServerIPv6SourceAddresses))
+                        if (request.TryQueryOrFormArray("dnsServerIPv6SourceAddresses", NetworkAddress.Parse, out NetworkAddress[] dnsServerIPv6SourceAddresses))
                             DnsClientConnection.IPv6SourceAddresses = dnsServerIPv6SourceAddresses;
 
                         if (request.TryGetQueryOrForm("defaultRecordTtl", ZoneFile.ParseTtl, out uint defaultRecordTtl))
@@ -634,14 +583,14 @@ namespace DnsServerCore
                             clusterParameters.Add("minSoaRetry", minSoaRetry.ToString());
                         }
 
-                        if (request.TryGetQueryOrFormArray("zoneTransferAllowedNetworks", NetworkAddress.Parse, out NetworkAddress[] zoneTransferAllowedNetworks))
+                        if (request.TryQueryOrFormArray("zoneTransferAllowedNetworks", NetworkAddress.Parse, out NetworkAddress[] zoneTransferAllowedNetworks))
                         {
                             _dnsWebService._dnsServer.ZoneTransferAllowedNetworks = zoneTransferAllowedNetworks;
 
                             clusterParameters.Add("zoneTransferAllowedNetworks", zoneTransferAllowedNetworks.Join());
                         }
 
-                        if (request.TryGetQueryOrFormArray("notifyAllowedNetworks", NetworkAddress.Parse, out NetworkAddress[] notifyAllowedNetworks))
+                        if (request.TryQueryOrFormArray("notifyAllowedNetworks", NetworkAddress.Parse, out NetworkAddress[] notifyAllowedNetworks))
                         {
                             _dnsWebService._dnsServer.NotifyAllowedNetworks = notifyAllowedNetworks;
 
@@ -655,13 +604,15 @@ namespace DnsServerCore
                             clusterParameters.Add("dnsAppsEnableAutomaticUpdate", dnsAppsEnableAutomaticUpdate.ToString());
                         }
 
-                        if (request.TryGetQueryOrForm("preferIPv6", bool.Parse, out bool preferIPv6))
-                            _dnsWebService._dnsServer.PreferIPv6 = preferIPv6;
+                        if (request.TryGetQueryOrFormEnum("ipv6Mode", out IPv6Mode ipv6Mode))
+                            _dnsWebService._dnsServer.IPv6Mode = ipv6Mode;
+                        else if (request.TryGetQueryOrForm("preferIPv6", bool.Parse, out bool preferIPv6))
+                            _dnsWebService._dnsServer.IPv6Mode = preferIPv6 ? IPv6Mode.Preferred : IPv6Mode.Disabled;
 
                         if (request.TryGetQueryOrForm("enableUdpSocketPool", bool.Parse, out bool enableUdpSocketPool))
                             _dnsWebService._dnsServer.EnableUdpSocketPool = enableUdpSocketPool;
 
-                        if (request.TryGetQueryOrFormArray("socketPoolExcludedPorts", ushort.Parse, out ushort[] socketPoolExcludedPorts))
+                        if (request.TryQueryOrFormArray("socketPoolExcludedPorts", ushort.Parse, out ushort[] socketPoolExcludedPorts))
                             UdpClientConnection.SocketPoolExcludedPorts = socketPoolExcludedPorts;
 
                         if (request.TryGetQueryOrForm("udpPayloadSize", ushort.Parse, out ushort udpPayloadSize))
@@ -721,7 +672,7 @@ namespace DnsServerCore
                             clusterParameters.Add("eDnsClientSubnetIpv6Override", eDnsClientSubnetIpv6Override);
                         }
 
-                        if (request.TryGetQueryOrFormArray("qpmPrefixLimitsIPv4", delegate (JsonElement jsonObject)
+                        if (request.TryQueryOrFormArray("qpmPrefixLimitsIPv4", delegate (JsonElement jsonObject)
                             {
                                 int prefix = jsonObject.GetProperty("prefix").GetInt32();
                                 int udpLimit = jsonObject.GetProperty("udpLimit").GetInt32();
@@ -764,7 +715,7 @@ namespace DnsServerCore
                             clusterParameters.Add("qpmPrefixLimitsIPv4", strQpmPrefixLimitsIPv4);
                         }
 
-                        if (request.TryGetQueryOrFormArray("qpmPrefixLimitsIPv6", delegate (JsonElement jsonObject)
+                        if (request.TryQueryOrFormArray("qpmPrefixLimitsIPv6", delegate (JsonElement jsonObject)
                         {
                             int prefix = jsonObject.GetProperty("prefix").GetInt32();
                             int udpLimit = jsonObject.GetProperty("udpLimit").GetInt32();
@@ -821,7 +772,7 @@ namespace DnsServerCore
                             clusterParameters.Add("qpmLimitUdpTruncationPercentage", qpmLimitUdpTruncationPercentage.ToString());
                         }
 
-                        if (request.TryGetQueryOrFormArray("qpmLimitBypassList", NetworkAddress.Parse, out NetworkAddress[] qpmLimitBypassList))
+                        if (request.TryQueryOrFormArray("qpmLimitBypassList", NetworkAddress.Parse, out NetworkAddress[] qpmLimitBypassList))
                         {
                             _dnsWebService._dnsServer.QpmLimitBypassList = qpmLimitBypassList;
 
@@ -882,6 +833,28 @@ namespace DnsServerCore
                             clusterParameters.Add("listenBacklog", listenBacklog.ToString());
                         }
 
+                        if (request.TryGetQueryOrForm("udpSendBufferSizeKB", int.Parse, out int udpSendBufferSizeKB))
+                        {
+                            if (_dnsWebService._dnsServer.UdpSendBufferSizeKB != udpSendBufferSizeKB)
+                            {
+                                _dnsWebService._dnsServer.UdpSendBufferSizeKB = udpSendBufferSizeKB;
+                                restartDnsService = true;
+                            }
+
+                            clusterParameters.Add("udpSendBufferSizeKB", udpSendBufferSizeKB.ToString());
+                        }
+
+                        if (request.TryGetQueryOrForm("udpReceiveBufferSizeKB", int.Parse, out int udpReceiveBufferSizeKB))
+                        {
+                            if (_dnsWebService._dnsServer.UdpReceiveBufferSizeKB != udpReceiveBufferSizeKB)
+                            {
+                                _dnsWebService._dnsServer.UdpReceiveBufferSizeKB = udpReceiveBufferSizeKB;
+                                restartDnsService = true;
+                            }
+
+                            clusterParameters.Add("udpReceiveBufferSizeKB", udpReceiveBufferSizeKB.ToString());
+                        }
+
                         if (request.TryGetQueryOrForm("maxConcurrentResolutionsPerCore", ushort.Parse, out ushort maxConcurrentResolutionsPerCore))
                         {
                             _dnsWebService._dnsServer.MaxConcurrentResolutionsPerCore = maxConcurrentResolutionsPerCore;
@@ -893,7 +866,7 @@ namespace DnsServerCore
 
                         #region web service
 
-                        if (request.TryGetQueryOrFormArray("webServiceLocalAddresses", IPAddress.Parse, out IPAddress[] webServiceLocalAddresses))
+                        if (request.TryQueryOrFormArray("webServiceLocalAddresses", IPAddress.Parse, out IPAddress[] webServiceLocalAddresses))
                         {
                             if (webServiceLocalAddresses.Length == 0)
                                 webServiceLocalAddresses = [IPAddress.Any, IPAddress.IPv6Any];
@@ -1018,6 +991,9 @@ namespace DnsServerCore
 
                         #region optional protocols
 
+                        if (request.TryGetQueryOrForm("enableEDnsClientSubnetSourceAddress", bool.Parse, out bool enableEDnsClientSubnetSourceAddress))
+                            _dnsWebService._dnsServer.EnableEDnsClientSubnetSourceAddress = enableEDnsClientSubnetSourceAddress;
+
                         if (request.TryGetQueryOrForm("enableDnsOverUdpProxy", bool.Parse, out bool enableDnsOverUdpProxy))
                         {
                             if (_dnsWebService._dnsServer.EnableDnsOverUdpProxy != enableDnsOverUdpProxy)
@@ -1141,25 +1117,19 @@ namespace DnsServerCore
                             }
                         }
 
-                        if (request.TryGetQueryOrForm("dnsOverHttpUnixSocket", out string dnsOverHttpUnixSocket))
+                        if (request.TryQueryOrFormArray("dnsOverHttpUnixSocket", NetworkAccessControl.Parse, out NetworkAccessControl[] dnsOverHttpUnixSocket))
                         {
-                            if (_dnsWebService._dnsServer.DnsOverHttpUnixSocket != dnsOverHttpUnixSocket)
-                            {
-                                restartDnsService = true;
-                            }
-                            _dnsWebService._dnsServer.DnsOverHttpUnixSocket = dnsOverHttpUnixSocket;
+                            _dnsWebService._dnsServer.DnsOverHttpUnixSocket = dnsOverHttpUnixSocket.Length > 0 ? dnsOverHttpUnixSocket[0] : string.Empty;
+                            restartDnsService = true;
                         }
 
-                        if (request.TryGetQueryOrForm("dnsOverHttpsUnixSocket", out string dnsOverHttpsUnixSocket))
+                        if (request.TryQueryOrFormArray("dnsOverHttpsUnixSocket", NetworkAccessControl.Parse, out NetworkAccessControl[] dnsOverHttpsUnixSocket))
                         {
-                            if (_dnsWebService._dnsServer.DnsOverHttpsUnixSocket != dnsOverHttpsUnixSocket)
-                            {
-                                restartDnsService = true;
-                            }
-                            _dnsWebService._dnsServer.DnsOverHttpsUnixSocket = dnsOverHttpsUnixSocket;
+                            _dnsWebService._dnsServer.DnsOverHttpsUnixSocket = dnsOverHttpsUnixSocket.Length > 0 ? dnsOverHttpsUnixSocket[0] : string.Empty;
+                            restartDnsService = true;
                         }
 
-                        if (request.TryGetQueryOrFormArray("reverseProxyNetworkACL", NetworkAccessControl.Parse, out NetworkAccessControl[] reverseProxyNetworkACL))
+                        if (request.TryQueryOrFormArray("reverseProxyNetworkACL", NetworkAccessControl.Parse, out NetworkAccessControl[] reverseProxyNetworkACL))
                             _dnsWebService._dnsServer.ReverseProxyNetworkACL = reverseProxyNetworkACL;
 
                         string dnsTlsCertificatePath = request.QueryOrForm("dnsTlsCertificatePath");
@@ -1196,7 +1166,7 @@ namespace DnsServerCore
 
                         #region tsig
 
-                        if (request.TryGetQueryOrFormArray("tsigKeys", delegate (JsonElement jsonObject)
+                        if (request.TryQueryOrFormArray("tsigKeys", delegate (JsonElement jsonObject)
                             {
                                 string keyName = jsonObject.GetProperty("keyName").GetString().TrimEnd('.').ToLowerInvariant();
                                 string sharedSecret = jsonObject.GetProperty("sharedSecret").GetString();
@@ -1277,7 +1247,7 @@ namespace DnsServerCore
                             clusterParameters.Add("recursion", recursion.ToString());
                         }
 
-                        if (request.TryGetQueryOrFormArray("recursionNetworkACL", NetworkAccessControl.Parse, out NetworkAccessControl[] recursionNetworkACL))
+                        if (request.TryQueryOrFormArray("recursionNetworkACL", NetworkAccessControl.Parse, out NetworkAccessControl[] recursionNetworkACL))
                         {
                             _dnsWebService._dnsServer.RecursionNetworkACL = recursionNetworkACL;
 
@@ -1394,7 +1364,7 @@ namespace DnsServerCore
                             clusterParameters.Add("allowTxtBlockingReport", allowTxtBlockingReport.ToString());
                         }
 
-                        if (request.TryGetQueryOrFormArray("blockingBypassList", NetworkAddress.Parse, out NetworkAddress[] blockingBypassList))
+                        if (request.TryQueryOrFormArray("blockingBypassList", NetworkAddress.Parse, out NetworkAddress[] blockingBypassList))
                         {
                             _dnsWebService._dnsServer.BlockingBypassList = blockingBypassList;
 
@@ -1415,7 +1385,7 @@ namespace DnsServerCore
                             clusterParameters.Add("blockingAnswerTtl", blockingAnswerTtl.ToString());
                         }
 
-                        if (request.TryGetQueryOrFormArray("customBlockingAddresses", out string[] customBlockingAddresses))
+                        if (request.TryQueryOrFormArray("customBlockingAddresses", out string[] customBlockingAddresses))
                         {
                             if (customBlockingAddresses.Length == 0)
                             {
@@ -1451,7 +1421,7 @@ namespace DnsServerCore
                             clusterParameters.Add("customBlockingAddresses", customBlockingAddresses.Join());
                         }
 
-                        if (request.TryGetQueryOrFormArray("blockListUrls", out string[] blockListUrls))
+                        if (request.TryQueryOrFormArray("blockListUrls", out string[] blockListUrls))
                         {
                             _dnsWebService._dnsServer.BlockListZoneManager.BlockListUrls = blockListUrls;
                             _dnsWebService._dnsServer.BlockListZoneManager.SaveConfigFile();
@@ -1505,7 +1475,7 @@ namespace DnsServerCore
                                 clusterParameters.Add("proxyAddress", proxyAddress);
                                 clusterParameters.Add("proxyPort", proxyPort);
 
-                                if (request.TryGetQueryOrFormArray("proxyBypass", delegate (string value) { return new NetProxyBypassItem(value); }, out NetProxyBypassItem[] proxyBypass))
+                                if (request.TryQueryOrFormArray("proxyBypass", delegate (string value) { return new NetProxyBypassItem(value); }, out NetProxyBypassItem[] proxyBypass))
                                 {
                                     _dnsWebService._dnsServer.Proxy.BypassList = proxyBypass;
 
@@ -1516,7 +1486,7 @@ namespace DnsServerCore
                             clusterParameters.Add("proxyType", proxyType.ToString());
                         }
 
-                        if (request.TryGetQueryOrFormArray("forwarders", NameServerAddress.Parse, out NameServerAddress[] forwarders))
+                        if (request.TryQueryOrFormArray("forwarders", NameServerAddress.Parse, out NameServerAddress[] forwarders))
                         {
                             if (forwarders.Length == 0)
                             {
@@ -1678,7 +1648,7 @@ namespace DnsServerCore
                 finally
                 {
                     if (restartDnsService || restartWebService)
-                        RestartService(restartDnsService, restartWebService, oldWebServiceLocalAddresses, oldWebServiceHttpPort, oldWebServiceTlsPort);
+                        _dnsWebService.RestartService(restartDnsService, restartWebService, oldWebServiceLocalAddresses, oldWebServiceHttpPort, oldWebServiceTlsPort);
                 }
             }
 
@@ -1748,7 +1718,7 @@ namespace DnsServerCore
 
                         response.ContentType = "application/zip";
                         response.ContentLength = backupZipStream.Length;
-                        response.Headers.ContentDisposition = "attachment;filename=" + _dnsWebService._dnsServer.ServerDomain + DateTime.UtcNow.ToString("_yyyy-MM-dd_HH-mm-ss") + "_backup.zip";
+                        response.Headers.ContentDisposition = "attachment;filename=" + _dnsWebService._dnsServer.ServerDomain + DateTime.UtcNow.ToString("_yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture) + "_backup.zip";
 
                         await using (Stream output = response.Body)
                         {
@@ -1842,7 +1812,7 @@ namespace DnsServerCore
                 finally
                 {
                     if (dnsSettings || webServiceSettings)
-                        RestartService(dnsSettings, webServiceSettings, oldWebServiceLocalAddresses, oldWebServiceHttpPort, oldWebServiceTlsPort);
+                        _dnsWebService.RestartService(dnsSettings, webServiceSettings, oldWebServiceLocalAddresses, oldWebServiceHttpPort, oldWebServiceTlsPort);
                 }
             }
 
@@ -1861,7 +1831,7 @@ namespace DnsServerCore
                 {
                     UserSession session = context.GetCurrentSession();
 
-                    if ((session.Type == UserSessionType.ApiToken) && session.TokenName.Equals(_dnsWebService._clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
+                    if (session.Type == UserSessionType.ClusterApiToken)
                         return; //call from cluster node itself
 
                     //relay action on all other cluster nodes async
@@ -1918,7 +1888,7 @@ namespace DnsServerCore
                 {
                     UserSession session = context.GetCurrentSession();
 
-                    if ((session.Type == UserSessionType.ApiToken) && session.TokenName.Equals(_dnsWebService._clusterManager.ClusterDomain, StringComparison.OrdinalIgnoreCase))
+                    if (session.Type == UserSessionType.ClusterApiToken)
                         return; //call from cluster node itself
 
                     //relay action on all other cluster nodes async

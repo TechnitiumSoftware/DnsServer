@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -57,7 +57,7 @@ namespace DnsServerCore.Dns.Zones
         internal const int DNSSEC_TIMER_PERIODIC_INTERVAL = 900000;
 
         DateTime _lastSignatureRefreshCheckedOn;
-        readonly object _dnssecUpdateLock = new object();
+        readonly Lock _dnssecUpdateLock = new Lock();
 
         #endregion
 
@@ -1224,6 +1224,31 @@ namespace DnsServerCore.Dns.Zones
             _dnsServer.LogManager.Write("The ZSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were activated successfully: " + ToString());
         }
 
+        public void ActivateKskDnsKey(ushort keyTag)
+        {
+            if (_dnssecStatus == AuthZoneDnssecStatus.Unsigned)
+                throw new DnsServerException("The zone must be signed.");
+
+            DnssecPrivateKey privateKey;
+
+            lock (_dnssecPrivateKeys)
+            {
+                if (!_dnssecPrivateKeys.TryGetValue(keyTag, out privateKey))
+                    throw new DnsServerException("Cannot activate private key: no such private key was found.");
+            }
+
+            if (privateKey.KeyType != DnssecPrivateKeyType.KeySigningKey)
+                throw new DnsServerException("Cannot activate private key: only a Key Signing Key (KSK) can be activated.");
+
+            if (privateKey.State != DnssecPrivateKeyState.Ready)
+                throw new DnsServerException("Cannot activate private key: the Key Signing Key (KSK) must be in 'Ready' state.");
+
+            if (privateKey.IsRetiring)
+                throw new DnsServerException("Cannot activate private key: the Key Signing Key (KSK) is already set to retire.");
+
+            privateKey.SetState(DnssecPrivateKeyState.Active);
+        }
+
         public void RolloverDnsKey(ushort keyTag)
         {
             if (_dnssecStatus == AuthZoneDnssecStatus.Unsigned)
@@ -1309,7 +1334,7 @@ namespace DnsServerCore.Dns.Zones
                     switch (privateKeyToRetire.State)
                     {
                         case DnssecPrivateKeyState.Active:
-                            if (!RetireZskDnsKeys(new DnssecPrivateKey[] { privateKeyToRetire }, true))
+                            if (!RetireZskDnsKeys([privateKeyToRetire], true))
                                 throw new DnsServerException("Cannot retire private key: no successor key was found to safely retire the key.");
 
                             break;

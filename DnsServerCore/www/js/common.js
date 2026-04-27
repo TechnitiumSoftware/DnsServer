@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ function htmlDecode(value) {
     return $('<div/>').html(value).text();
 }
 
-function HTTPRequest(url, method, data, isTextResponse, success, error, invalidToken, twoFactorAuthRequired, objAlertPlaceholder, objLoaderPlaceholder, processData, contentType, dontHideAlert, showInnerError) {
+function HTTPRequest(url, method, data, isTextResponse, success, error, invalidToken, twoFactorAuthRequired, objAlertPlaceholder, objLoaderPlaceholder, processData, contentType, dontHideAlert, showInnerError, token) {
     var finalUrl;
 
     if ((url != null) && (url.url != null))
@@ -71,6 +71,18 @@ function HTTPRequest(url, method, data, isTextResponse, success, error, invalidT
     if (objAlertPlaceholder == null)
         objAlertPlaceholder = arguments[0].objAlertPlaceholder;
 
+    if (objLoaderPlaceholder == null)
+        objLoaderPlaceholder = arguments[0].objLoaderPlaceholder;
+
+    if (objLoaderPlaceholder != null)
+        objLoaderPlaceholder.html("<div style='width: 64px; height: inherit; margin: auto;'><div style='height: inherit; display: table-cell; vertical-align: middle;'><img src='img/loader.gif'/></div></div>");
+
+    if (processData == null)
+        processData = arguments[0].processData;
+
+    if (contentType == null)
+        contentType = arguments[0].contentType;
+
     if (dontHideAlert == null)
         dontHideAlert = arguments[0].dontHideAlert;
 
@@ -83,23 +95,20 @@ function HTTPRequest(url, method, data, isTextResponse, success, error, invalidT
     if (showInnerError == null)
         showInnerError = false;
 
-    if (objLoaderPlaceholder == null)
-        objLoaderPlaceholder = arguments[0].objLoaderPlaceholder;
+    var headers = {};
 
-    if (processData == null)
-        processData = arguments[0].processData;
+    if (token == null)
+        token = arguments[0].token;
 
-    if (contentType == null)
-        contentType = arguments[0].contentType;
-
-    if (objLoaderPlaceholder != null)
-        objLoaderPlaceholder.html("<div style='width: 64px; height: inherit; margin: auto;'><div style='height: inherit; display: table-cell; vertical-align: middle;'><img src='img/loader.gif'/></div></div>");
+    if (token != null)
+        headers = { "Authorization": "Bearer " + token };
 
     var successFlag = false;
 
     $.ajax({
         type: method,
         url: finalUrl,
+        headers: headers,
         data: data,
         dataType: dataType,
         async: async,
@@ -328,4 +337,22 @@ function cleanTextList(text) {
         text = text.substr(0, text.length - 1);
 
     return text;
+}
+
+function getCookie(name) {
+    name = name + "=";
+    var cookieParts = document.cookie.split(';');
+
+    for (var i = 0; i < cookieParts.length; i++) {
+        var c = cookieParts[i].trimStart();
+
+        if (c.indexOf(name) == 0)
+            return c.substring(name.length, c.length);
+    }
+
+    return null;
+}
+
+function setCookie(name, value, maxAge) {
+    document.cookie = name + "=" + value + ";Max-Age=" + maxAge + ";path=/";
 }

@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -81,7 +81,7 @@ namespace GeoCountry
             if (!question.Name.Equals(appRecordName, StringComparison.OrdinalIgnoreCase) && !appRecordName.StartsWith('*'))
                 return Task.FromResult<DnsDatagram>(null);
 
-            using JsonDocument jsonDocument = JsonDocument.Parse(appRecordData);
+            using JsonDocument jsonDocument = JsonDocument.Parse(appRecordData, Address._jsonParseOptions);
             JsonElement jsonAppRecordData = jsonDocument.RootElement;
             JsonElement jsonCountry = default;
             string countryCode = null;
@@ -90,45 +90,69 @@ namespace GeoCountry
             EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
             if (requestECS is not null)
             {
+                long? asn = null;
+
                 if ((_maxMind.IspReader is not null) && _maxMind.IspReader.TryIsp(requestECS.Address, out IspResponse csIsp) && (csIsp.Network is not null))
-                    scopePrefixLength = (byte)csIsp.Network.PrefixLength;
-                else if ((_maxMind.AsnReader is not null) && _maxMind.AsnReader.TryAsn(requestECS.Address, out AsnResponse csAsn) && (csAsn.Network is not null))
-                    scopePrefixLength = (byte)csAsn.Network.PrefixLength;
-                else
-                    scopePrefixLength = requestECS.SourcePrefixLength;
-
-                if (_maxMind.CountryReader.TryCountry(requestECS.Address, out CountryResponse csResponse))
                 {
-                    string cc = csResponse.Country.IsoCode;
+                    scopePrefixLength = (byte)csIsp.Network.PrefixLength;
+                    asn = csIsp.AutonomousSystemNumber;
+                }
+                else if ((_maxMind.AsnReader is not null) && _maxMind.AsnReader.TryAsn(requestECS.Address, out AsnResponse csAsn) && (csAsn.Network is not null))
+                {
+                    scopePrefixLength = (byte)csAsn.Network.PrefixLength;
+                    asn = csAsn.AutonomousSystemNumber;
+                }
+                else
+                {
+                    scopePrefixLength = requestECS.SourcePrefixLength;
+                }
 
-                    if (!jsonAppRecordData.TryGetProperty(cc, out jsonCountry))
+                if ((asn is null) || !jsonAppRecordData.TryGetProperty("AS" + asn, out jsonCountry))
+                {
+                    if (_maxMind.CountryReader.TryCountry(requestECS.Address, out CountryResponse csResponse))
                     {
-                        jsonAppRecordData.TryGetProperty("default", out jsonCountry);
-                        countryCode = cc is null ? "default" : cc.ToLowerInvariant();
+                        string cc = csResponse.Country.IsoCode;
+
+                        if (!jsonAppRecordData.TryGetProperty(cc, out jsonCountry))
+                        {
+                            if (jsonAppRecordData.TryGetProperty("default", out jsonCountry))
+                                countryCode = cc is null ? "default" : cc.ToLowerInvariant();
+                        }
                     }
                 }
             }
 
             if (jsonCountry.ValueKind == JsonValueKind.Undefined)
             {
-                if (_maxMind.CountryReader.TryCountry(remoteEP.Address, out CountryResponse response))
-                {
-                    string cc = response.Country.IsoCode;
+                long? asn = null;
 
-                    if (!jsonAppRecordData.TryGetProperty(cc, out jsonCountry))
+                if ((_maxMind.IspReader is not null) && _maxMind.IspReader.TryIsp(remoteEP.Address, out IspResponse csIsp) && (csIsp.Network is not null))
+                    asn = csIsp.AutonomousSystemNumber;
+                else if ((_maxMind.AsnReader is not null) && _maxMind.AsnReader.TryAsn(remoteEP.Address, out AsnResponse csAsn) && (csAsn.Network is not null))
+                    asn = csAsn.AutonomousSystemNumber;
+
+                if ((asn is null) || !jsonAppRecordData.TryGetProperty("AS" + asn, out jsonCountry))
+                {
+                    if (_maxMind.CountryReader.TryCountry(remoteEP.Address, out CountryResponse response))
                     {
-                        jsonAppRecordData.TryGetProperty("default", out jsonCountry);
-                        countryCode = cc is null ? "default" : cc.ToLowerInvariant();
+                        string cc = response.Country.IsoCode;
+
+                        if (!jsonAppRecordData.TryGetProperty(cc, out jsonCountry))
+                        {
+                            if (!jsonAppRecordData.TryGetProperty("default", out jsonCountry))
+                                return Task.FromResult<DnsDatagram>(null);
+
+                            countryCode = cc is null ? "default" : cc.ToLowerInvariant();
+                        }
+                    }
+                    else
+                    {
+                        if (!jsonAppRecordData.TryGetProperty("default", out jsonCountry))
+                            return Task.FromResult<DnsDatagram>(null);
+
+                        countryCode = "default";
                     }
                 }
-                else
-                {
-                    jsonAppRecordData.TryGetProperty("default", out jsonCountry);
-                    countryCode = "default";
-                }
-
-                if (jsonCountry.ValueKind == JsonValueKind.Undefined)
-                    return Task.FromResult<DnsDatagram>(null);
             }
 
             string cname = jsonCountry.GetString();
@@ -141,9 +165,9 @@ namespace GeoCountry
             IReadOnlyList<DnsResourceRecord> answers;
 
             if (question.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
-                answers = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.ANAME, DnsClass.IN, appRecordTtl, new DnsANAMERecordData(cname)) }; //use ANAME
+                answers = [new DnsResourceRecord(question.Name, DnsResourceRecordType.ANAME, DnsClass.IN, appRecordTtl, new DnsANAMERecordData(cname))]; //use ANAME
             else
-                answers = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, DnsClass.IN, appRecordTtl, new DnsCNAMERecordData(cname)) };
+                answers = [new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, DnsClass.IN, appRecordTtl, new DnsCNAMERecordData(cname))];
 
             EDnsOption[] options = null;
 
@@ -158,7 +182,7 @@ namespace GeoCountry
         #region properties
 
         public string Description
-        { get { return "Returns CNAME record based on the country the client queries from using MaxMind GeoIP2 Country database. Note that the app will return ANAME record for an APP record at zone apex. Use the two-character ISO 3166-1 alpha code for the country. You can also use '{CountryCode}' variable in the default case domain name which will get replaced by the app using the client's actual ISO country code or 'default' if not found."; } }
+        { get { return "Returns CNAME record based on the country or Autonomous System Number (ASN) the client queries from using MaxMind GeoIP2 Country database. Note that the app will return ANAME record for an APP record at zone apex. Use the two-character ISO 3166-1 alpha code for the country or ASN like 'AS1234'. Note that ASN will be matched before the country code. You can also use '{CountryCode}' variable in the default case domain name which will get replaced by the app using the client's actual ISO country code or 'default' if not found."; } }
 
         public string ApplicationRecordDataTemplate
         {
@@ -166,7 +190,8 @@ namespace GeoCountry
             {
                 return @"{
   ""IN"": ""in.example.com"",
-  ""default"": ""example.com""
+  ""AS1234"": ""xyz.example.com"",
+  ""default"": ""{CountryCode}.example.com""
 }";
             }
         }

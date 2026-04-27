@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -20,7 +20,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.ApplicationCommon;
 using System;
 using System.Net;
+using System.Net.Sockets;
+using System.Text.Json;
 using System.Threading.Tasks;
+using TechnitiumLibrary;
+using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -29,6 +33,8 @@ namespace WildIp
     public sealed class App : IDnsApplication, IDnsAppRecordRequestHandler
     {
         #region variables
+
+        readonly static JsonDocumentOptions _jsonParseOptions = new JsonDocumentOptions() { CommentHandling = JsonCommentHandling.Skip };
 
         static readonly char[] aRecordSeparator = new char[] { '.', '-' };
         static readonly char[] aaaaRecordSeparator = new char[] { '.' };
@@ -57,38 +63,24 @@ namespace WildIp
 
         public async Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, string appRecordName, uint appRecordTtl, string appRecordData)
         {
-            string qname = request.Question[0].Name;
+            DnsQuestionRecord question = request.Question[0];
+            string qname = question.Name;
 
             if (qname.Length == appRecordName.Length)
                 return null;
 
             DnsResourceRecord answer = null;
 
-            switch (request.Question[0].Type)
+            switch (question.Type)
             {
                 case DnsResourceRecordType.A:
-                    {
-                        string subdomain = qname.Substring(0, qname.Length - appRecordName.Length);
-                        string[] parts = subdomain.Split(aRecordSeparator, StringSplitOptions.RemoveEmptyEntries);
-                        byte[] rawIp = new byte[4];
-                        int i = 0;
-
-                        for (int j = 0; (j < parts.Length) && (i < 4); j++)
-                        {
-                            if (byte.TryParse(parts[j], out byte x))
-                                rawIp[i++] = x;
-                        }
-
-                        if (i == 4)
-                            answer = new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.A, DnsClass.IN, appRecordTtl, new DnsARecordData(new IPAddress(rawIp)));
-                    }
-                    break;
-
                 case DnsResourceRecordType.AAAA:
+                    IPAddress address = null;
+                    string subdomain = qname.Substring(0, qname.Length - appRecordName.Length - 1);
+
+                    //attempt to parse ipv6 first
                     {
-                        string subdomain = qname.Substring(0, qname.Length - appRecordName.Length - 1);
                         string[] parts = subdomain.Split(aaaaRecordSeparator, StringSplitOptions.RemoveEmptyEntries);
-                        IPAddress address = null;
 
                         foreach (string part in parts)
                         {
@@ -112,10 +104,65 @@ namespace WildIp
                                     break;
                             }
                         }
-
-                        if (address is not null)
-                            answer = new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.AAAA, DnsClass.IN, appRecordTtl, new DnsAAAARecordData(address));
                     }
+
+                    if (address is null)
+                    {
+                        //failed to parse ipv6; attempt to parse ipv4
+                        string[] parts = subdomain.Split(aRecordSeparator, StringSplitOptions.RemoveEmptyEntries);
+                        byte[] rawIp = new byte[4];
+                        int i = 0;
+
+                        for (int j = 0; (j < parts.Length) && (i < 4); j++)
+                        {
+                            if (byte.TryParse(parts[j], out byte x))
+                                rawIp[i++] = x;
+                        }
+
+                        if (i != 4)
+                            return null; //failed to parse ipv4
+
+                        address = new IPAddress(rawIp);
+                    }
+
+                    if (!string.IsNullOrEmpty(appRecordData))
+                    {
+                        using JsonDocument jsonDocument = JsonDocument.Parse(appRecordData, _jsonParseOptions);
+                        JsonElement jsonAppRecordData = jsonDocument.RootElement;
+
+                        if (jsonAppRecordData.TryReadArray("allowedNetworks", delegate (JsonElement jsonElement) { return NetworkAddress.Parse(jsonElement.GetString()); }, out NetworkAddress[] allowedNetworks))
+                        {
+                            bool isAllowed = false;
+
+                            foreach (NetworkAddress networkAddress in allowedNetworks)
+                            {
+                                if (networkAddress.Contains(address))
+                                {
+                                    isAllowed = true;
+                                    break;
+                                }
+                            }
+
+                            if (!isAllowed)
+                                return null; //network not allowed
+                        }
+                    }
+
+                    switch (question.Type)
+                    {
+                        case DnsResourceRecordType.A:
+                            if (address.AddressFamily == AddressFamily.InterNetwork)
+                                answer = new DnsResourceRecord(question.Name, DnsResourceRecordType.A, DnsClass.IN, appRecordTtl, new DnsARecordData(address));
+
+                            break;
+
+                        case DnsResourceRecordType.AAAA:
+                            if (address.AddressFamily == AddressFamily.InterNetworkV6)
+                                answer = new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, DnsClass.IN, appRecordTtl, new DnsAAAARecordData(address));
+
+                            break;
+                    }
+
                     break;
             }
 
@@ -138,7 +185,17 @@ namespace WildIp
         { get { return "Returns the IP address that was embedded in the subdomain name for A and AAAA queries. It works similar to sslip.io."; } }
 
         public string ApplicationRecordDataTemplate
-        { get { return null; } }
+        {
+            get
+            {
+                return @"{
+  ""allowedNetworks"": [
+    ""0.0.0.0/0"",
+    ""::/0""
+  ]
+}";
+            }
+        }
 
         #endregion
     }

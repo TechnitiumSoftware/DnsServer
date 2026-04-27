@@ -1,3 +1,5 @@
+#define DOTNET_VERSION "10.0.7"
+
 [Setup]
 MinVersion=6.1sp1
 
@@ -310,7 +312,7 @@ var
   ResultCode: Integer;
 begin
   Result := false;
-  Exec('cmd.exe', '/c dotnet --list-runtimes | find /n "Microsoft.AspNetCore.App 9.0.11"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('cmd.exe', '/c dotnet --list-runtimes | find /n "Microsoft.AspNetCore.App {#DOTNET_VERSION}"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   if ResultCode = 0 then 
   begin 
     Result := true;
@@ -322,7 +324,7 @@ var
   ResultCode: Integer;
 begin
   Result := false;
-  Exec('cmd.exe', '/c dotnet --list-runtimes | find /n "Microsoft.WindowsDesktop.App 9.0.11"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('cmd.exe', '/c dotnet --list-runtimes | find /n "Microsoft.WindowsDesktop.App {#DOTNET_VERSION}"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   if ResultCode = 0 then 
   begin 
     Result := true;
@@ -334,19 +336,19 @@ procedure CheckDotnetDependency;
 begin
   if not IsAspDotNetInstalled then
   begin
-    AddDependency('aspdotnet80' + GetArchitectureSuffix + '.exe',
+    AddDependency('aspdotnet' + GetArchitectureSuffix + '.exe',
       '/lcid ' + IntToStr(GetUILanguage) + ' /passive /norestart',
-      'ASP.NET Core Runtime 9.0.11' + GetArchitectureTitle,
-      GetString('https://builds.dotnet.microsoft.com/dotnet/aspnetcore/Runtime/9.0.11/aspnetcore-runtime-9.0.11-win-x86.exe', 'https://builds.dotnet.microsoft.com/dotnet/aspnetcore/Runtime/9.0.11/aspnetcore-runtime-9.0.11-win-x64.exe'),
+      'ASP.NET Core Runtime {#DOTNET_VERSION}' + GetArchitectureTitle,
+      GetString('https://builds.dotnet.microsoft.com/dotnet/aspnetcore/Runtime/{#DOTNET_VERSION}/aspnetcore-runtime-{#DOTNET_VERSION}-win-x86.exe', 'https://builds.dotnet.microsoft.com/dotnet/aspnetcore/Runtime/{#DOTNET_VERSION}/aspnetcore-runtime-{#DOTNET_VERSION}-win-x64.exe'),
       '', False, False, False);
   end;
 
   if not IsDotNetDesktopInstalled then
   begin
-    AddDependency('dotnet80desktop' + GetArchitectureSuffix + '.exe',
+    AddDependency('dotnetdesktop' + GetArchitectureSuffix + '.exe',
       '/lcid ' + IntToStr(GetUILanguage) + ' /passive /norestart',
-      '.NET Desktop Runtime 9.0.11' + GetArchitectureTitle,
-      GetString('https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/9.0.11/windowsdesktop-runtime-9.0.11-win-x86.exe', 'https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/9.0.11/windowsdesktop-runtime-9.0.11-win-x64.exe'),
+      '.NET Desktop Runtime {#DOTNET_VERSION}' + GetArchitectureTitle,
+      GetString('https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/{#DOTNET_VERSION}/windowsdesktop-runtime-{#DOTNET_VERSION}-win-x86.exe', 'https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/{#DOTNET_VERSION}/windowsdesktop-runtime-{#DOTNET_VERSION}-win-x64.exe'),
       '', False, False, False);
   end;
 end;

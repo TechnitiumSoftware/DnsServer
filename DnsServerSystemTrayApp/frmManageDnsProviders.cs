@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -110,7 +110,7 @@ namespace DnsServerSystemTrayApp
 
             foreach (string item in txtIpv4Addresses.Text.Split(commaSeparator, StringSplitOptions.RemoveEmptyEntries))
             {
-                if (IPAddress.TryParse(item.Trim(), out IPAddress address) && (address.AddressFamily == AddressFamily.InterNetwork))
+                if (IPAddress.TryParse(item.Trim(), out IPAddress? address) && (address.AddressFamily == AddressFamily.InterNetwork))
                 {
                     addresses.Add(address);
                 }
@@ -123,7 +123,7 @@ namespace DnsServerSystemTrayApp
 
             foreach (string item in txtIpv6Addresses.Text.Split(commaSeparator, StringSplitOptions.RemoveEmptyEntries))
             {
-                if (IPAddress.TryParse(item.Trim(), out IPAddress address) && (address.AddressFamily == AddressFamily.InterNetworkV6))
+                if (IPAddress.TryParse(item.Trim(), out IPAddress? address) && (address.AddressFamily == AddressFamily.InterNetworkV6))
                 {
                     addresses.Add(address);
                 }
@@ -143,9 +143,9 @@ namespace DnsServerSystemTrayApp
             if ((btnAddUpdate.Text != "Add") && (listView1.SelectedItems.Count > 0))
             {
                 ListViewItem selectedItem = listView1.SelectedItems[0];
-                DnsProvider dnsProvider = selectedItem.Tag as DnsProvider;
+                DnsProvider? dnsProvider = selectedItem.Tag as DnsProvider;
 
-                dnsProvider.Name = txtDnsProviderName.Text.Trim();
+                dnsProvider!.Name = txtDnsProviderName.Text.Trim();
                 dnsProvider.Addresses = addresses;
             }
             else
@@ -162,9 +162,9 @@ namespace DnsServerSystemTrayApp
             if (listView1.SelectedItems.Count > 0)
             {
                 ListViewItem selectedItem = listView1.SelectedItems[0];
-                DnsProvider dnsProvider = selectedItem.Tag as DnsProvider;
+                DnsProvider? dnsProvider = selectedItem.Tag as DnsProvider;
 
-                _dnsProviders.Remove(dnsProvider);
+                _dnsProviders.Remove(dnsProvider!);
                 listView1.Items.Remove(selectedItem);
             }
 

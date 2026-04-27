@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 Copyright (C) 2025  Zafer Balkan (zafer@zaferbalkan.com)
 
 This program is free software: you can redistribute it and/or modify
@@ -89,9 +89,13 @@ namespace LogExporter
 
         #region public
 
-        public Task InitializeAsync(IDnsServer dnsServer, string config)
+        public Task InitializeAsync(IDnsServer dnsServer, string? config)
         {
             _dnsServer = dnsServer;
+
+            if (config is null)
+                throw new InvalidOperationException();
+
             _config = AppConfig.Deserialize(config);
 
             if (_config is null)

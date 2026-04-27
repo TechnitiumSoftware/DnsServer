@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
-using System.Net.Sockets;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -74,7 +73,7 @@ namespace DnsServerCore
                 {
                     HttpClientNetworkHandler handler = new HttpClientNetworkHandler();
                     handler.Proxy = _dnsWebService._dnsServer.Proxy;
-                    handler.NetworkType = _dnsWebService._dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default;
+                    handler.NetworkType = HttpClientNetworkHandler.GetNetworkType(_dnsWebService._dnsServer.IPv6Mode);
                     handler.DnsClient = _dnsWebService._dnsServer;
 
                     using (HttpClient http = new HttpClient(handler))
@@ -129,24 +128,7 @@ namespace DnsServerCore
                         jsonWriter.WriteString("changeLogLink", changeLogLink);
                     }
 
-                    string strLog = "Check for update was done {updateAvailable: " + updateAvailable + "; updateVersion: " + updateVersion + ";";
-
-                    if (!string.IsNullOrEmpty(updateTitle))
-                        strLog += " updateTitle: " + updateTitle + ";";
-
-                    if (!string.IsNullOrEmpty(updateMessage))
-                        strLog += " updateMessage: " + updateMessage + ";";
-
-                    if (!string.IsNullOrEmpty(downloadLink))
-                        strLog += " downloadLink: " + downloadLink + ";";
-
-                    if (!string.IsNullOrEmpty(instructionsLink))
-                        strLog += " instructionsLink: " + instructionsLink + ";";
-
-                    if (!string.IsNullOrEmpty(changeLogLink))
-                        strLog += " changeLogLink: " + changeLogLink + ";";
-
-                    strLog += "}";
+                    string strLog = "Check for update was done {updateAvailable: " + updateAvailable + "; updateVersion: " + updateVersion + ";}";
 
                     _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), strLog);
                 }
@@ -172,29 +154,11 @@ namespace DnsServerCore
                 DnsResourceRecordType type = request.GetQueryOrFormEnum<DnsResourceRecordType>("type");
                 DnsTransportProtocol protocol = request.GetQueryOrFormEnum("protocol", DnsTransportProtocol.Udp);
                 bool dnssecValidation = request.GetQueryOrForm("dnssec", bool.Parse, false);
-
                 NetworkAddress eDnsClientSubnet = request.GetQueryOrForm("eDnsClientSubnet", NetworkAddress.Parse, null);
-                if (eDnsClientSubnet is not null)
-                {
-                    switch (eDnsClientSubnet.AddressFamily)
-                    {
-                        case AddressFamily.InterNetwork:
-                            if (eDnsClientSubnet.PrefixLength == 32)
-                                eDnsClientSubnet = new NetworkAddress(eDnsClientSubnet.Address, 24);
-
-                            break;
-
-                        case AddressFamily.InterNetworkV6:
-                            if (eDnsClientSubnet.PrefixLength == 128)
-                                eDnsClientSubnet = new NetworkAddress(eDnsClientSubnet.Address, 56);
-
-                            break;
-                    }
-                }
-
                 bool importResponse = request.GetQueryOrForm("import", bool.Parse, false);
+
                 NetProxy proxy = _dnsWebService._dnsServer.Proxy;
-                bool preferIPv6 = _dnsWebService._dnsServer.PreferIPv6;
+                IPv6Mode ipv6Mode = _dnsWebService._dnsServer.IPv6Mode;
                 ushort udpPayloadSize = _dnsWebService._dnsServer.UdpPayloadSize;
                 bool randomizeName = false;
                 bool qnameMinimization = _dnsWebService._dnsServer.QnameMinimization;
@@ -225,7 +189,7 @@ namespace DnsServerCore
                     {
                         dnsResponse = await TechnitiumLibrary.TaskExtensions.TimeoutAsync(async delegate (CancellationToken cancellationToken1)
                         {
-                            return await DnsClient.RecursiveResolveAsync(question, dnsCache, proxy, preferIPv6, udpPayloadSize, randomizeName, qnameMinimization, dnssecValidation, eDnsClientSubnet, RETRIES, TIMEOUT, rawResponses: rawResponses, cancellationToken: cancellationToken1);
+                            return await DnsClient.RecursiveResolveAsync(question, dnsCache, proxy, ipv6Mode, udpPayloadSize, randomizeName, qnameMinimization, dnssecValidation, eDnsClientSubnet, RETRIES, TIMEOUT, rawResponses: rawResponses, cancellationToken: cancellationToken1);
                         }, DnsServer.RECURSIVE_RESOLUTION_TIMEOUT);
                     }
                     catch (DnsClientResponseDnssecValidationException ex)
@@ -243,7 +207,7 @@ namespace DnsServerCore
                     DnsClient dnsClient = new DnsClient();
 
                     dnsClient.Proxy = proxy;
-                    dnsClient.PreferIPv6 = preferIPv6;
+                    dnsClient.IPv6Mode = ipv6Mode;
                     dnsClient.RandomizeName = randomizeName;
                     dnsClient.Retries = RETRIES;
                     dnsClient.Timeout = TIMEOUT;
@@ -307,7 +271,7 @@ namespace DnsServerCore
                             nameServer = nameServer.Clone(protocol);
 
                         if (nameServer.IsIPEndPointStale)
-                            await nameServer.ResolveIPAddressAsync(_dnsWebService._dnsServer, _dnsWebService._dnsServer.PreferIPv6);
+                            await nameServer.ResolveIPAddressAsync(_dnsWebService._dnsServer, _dnsWebService._dnsServer.IPv6Mode);
 
                         if ((nameServer.DomainEndPoint is null) && ((protocol == DnsTransportProtocol.Udp) || (protocol == DnsTransportProtocol.Tcp)))
                         {
@@ -323,7 +287,7 @@ namespace DnsServerCore
                     DnsClient dnsClient = new DnsClient(nameServer);
 
                     dnsClient.Proxy = proxy;
-                    dnsClient.PreferIPv6 = preferIPv6;
+                    dnsClient.IPv6Mode = ipv6Mode;
                     dnsClient.RandomizeName = randomizeName;
                     dnsClient.Retries = RETRIES;
                     dnsClient.Timeout = TIMEOUT;
@@ -457,7 +421,7 @@ namespace DnsServerCore
                             }
                         }
 
-                        _dnsWebService._dnsServer.AuthZoneManager.ImportRecords(zoneInfo.Name, importRecords, true, true);
+                        _dnsWebService._dnsServer.AuthZoneManager.ImportRecords(zoneInfo.Name, importRecords, true, false, true);
                     }
 
                     _dnsWebService._log.Write(context.GetRemoteEndPoint(_dnsWebService._webServiceRealIpHeader), "[" + sessionUser.Username + "] DNS Client imported record(s) for authoritative zone {server: " + server + "; zone: " + zoneInfo.DisplayName + "; type: " + type + ";}");
