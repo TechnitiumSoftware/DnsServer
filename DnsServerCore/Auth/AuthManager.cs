@@ -337,6 +337,7 @@ namespace DnsServerCore.Auth
                 using (FileStream fS = new FileStream(tmpConfigFile, FileMode.Create, FileAccess.Write))
                 {
                     mS.CopyTo(fS);
+                    fS.Flush(flushToDisk: true);
                 }
             }
 

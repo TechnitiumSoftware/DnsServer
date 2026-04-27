@@ -184,6 +184,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             using (FileStream fS = new FileStream(tmpBlockedZoneFile, FileMode.Create, FileAccess.Write))
             {
                 WriteConfigTo(fS);
+                fS.Flush(flushToDisk: true);
             }
 
             File.Move(tmpBlockedZoneFile, blockedZoneFile, true);
