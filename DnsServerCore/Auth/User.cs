@@ -47,6 +47,8 @@ namespace DnsServerCore.Auth
         string _username;
         bool _isSsoUser;
         string _ssoIdentifier;
+        bool _isLdapUser;
+        string _ldapIdentifier;
         UserPasswordHashType _passwordHashType;
         int _iterations;
         byte[] _salt;
@@ -83,6 +85,7 @@ namespace DnsServerCore.Auth
                 case 1:
                 case 2:
                 case 3:
+                case 4:
                     _displayName = bR.BaseStream.ReadShortString();
                     _username = bR.BaseStream.ReadShortString();
 
@@ -95,18 +98,28 @@ namespace DnsServerCore.Auth
                     }
                     else
                     {
-                        _passwordHashType = (UserPasswordHashType)bR.ReadByte();
-                        _iterations = bR.ReadInt32();
-                        _salt = bR.ReadBuffer();
-                        _passwordHash = bR.BaseStream.ReadShortString();
+                        if (version >= 4)
+                            _isLdapUser = bR.ReadBoolean();
 
-                        if (version >= 2)
+                        if (_isLdapUser)
                         {
-                            string otpKeyUri = bR.ReadString();
-                            if (!string.IsNullOrEmpty(otpKeyUri))
-                                _totpKeyUri = AuthenticatorKeyUri.Parse(otpKeyUri);
+                            _ldapIdentifier = bR.BaseStream.ReadShortString();
+                        }
+                        else
+                        {
+                            _passwordHashType = (UserPasswordHashType)bR.ReadByte();
+                            _iterations = bR.ReadInt32();
+                            _salt = bR.ReadBuffer();
+                            _passwordHash = bR.BaseStream.ReadShortString();
 
-                            _totpEnabled = bR.ReadBoolean();
+                            if (version >= 2)
+                            {
+                                string otpKeyUri = bR.ReadString();
+                                if (!string.IsNullOrEmpty(otpKeyUri))
+                                    _totpKeyUri = AuthenticatorKeyUri.Parse(otpKeyUri);
+
+                                _totpEnabled = bR.ReadBoolean();
+                            }
                         }
                     }
 
@@ -159,6 +172,18 @@ namespace DnsServerCore.Auth
             user.DisplayName = displayName;
             user._isSsoUser = true;
             user._ssoIdentifier = ssoIdentifier;
+
+            return user;
+        }
+
+        public static User CreateLdapUser(string displayName, string username, string ldapIdentifier)
+        {
+            User user = new User();
+
+            user.SetUsername(username);
+            user.DisplayName = displayName;
+            user._isLdapUser = true;
+            user._ldapIdentifier = ldapIdentifier;
 
             return user;
         }
@@ -260,6 +285,9 @@ namespace DnsServerCore.Auth
             if (_isSsoUser)
                 throw new InvalidOperationException("Cannot change password for SSO users.");
 
+            if (_isLdapUser)
+                throw new InvalidOperationException("Cannot change password for LDAP users.");
+
             _passwordHashType = UserPasswordHashType.PBKDF2_SHA256;
             _iterations = iterations;
 
@@ -274,6 +302,9 @@ namespace DnsServerCore.Auth
             if (_isSsoUser)
                 throw new InvalidOperationException();
 
+            if (_isLdapUser)
+                throw new InvalidOperationException();
+
             _passwordHashType = UserPasswordHashType.OldScheme;
             _passwordHash = passwordHash;
         }
@@ -282,6 +313,9 @@ namespace DnsServerCore.Auth
         {
             if (_isSsoUser)
                 throw new InvalidOperationException("Time-based one-time password (TOTP) feature is not available for SSO users.");
+
+            if (_isLdapUser)
+                throw new InvalidOperationException("Time-based one-time password (TOTP) feature is not available for LDAP users.");
 
             if (_totpEnabled)
                 throw new InvalidOperationException("Time-based one-time password (TOTP) is already enabled for user: " + _username);
@@ -295,6 +329,9 @@ namespace DnsServerCore.Auth
         {
             if (_isSsoUser)
                 throw new InvalidOperationException("Time-based one-time password (TOTP) feature is not available for SSO users.");
+
+            if (_isLdapUser)
+                throw new InvalidOperationException("Time-based one-time password (TOTP) feature is not available for LDAP users.");
 
             if (_totpKeyUri is null)
                 throw new InvalidOperationException("Time-based one-time password (TOTP) was not initialized for user: " + _username);
@@ -314,6 +351,9 @@ namespace DnsServerCore.Auth
         {
             if (_isSsoUser)
                 throw new InvalidOperationException("Time-based one-time password (TOTP) feature is not available for SSO users.");
+
+            if (_isLdapUser)
+                throw new InvalidOperationException("Time-based one-time password (TOTP) feature is not available for LDAP users.");
 
             if (!_totpEnabled)
                 throw new InvalidOperationException("Time-based one-time password (TOTP) is already disabled for user: " + _username);
@@ -371,7 +411,7 @@ namespace DnsServerCore.Auth
 
         public void WriteTo(BinaryWriter bW)
         {
-            bW.Write((byte)3);
+            bW.Write((byte)4);
 
             bW.BaseStream.WriteShortString(_displayName);
             bW.BaseStream.WriteShortString(_username);
@@ -383,17 +423,26 @@ namespace DnsServerCore.Auth
             }
             else
             {
-                bW.Write((byte)_passwordHashType);
-                bW.Write(_iterations);
-                bW.WriteBuffer(_salt);
-                bW.BaseStream.WriteShortString(_passwordHash);
+                bW.Write(_isLdapUser);
 
-                if (_totpKeyUri is null)
-                    bW.Write("");
+                if (_isLdapUser)
+                {
+                    bW.BaseStream.WriteShortString(_ldapIdentifier);
+                }
                 else
-                    bW.Write(_totpKeyUri.ToString());
+                {
+                    bW.Write((byte)_passwordHashType);
+                    bW.Write(_iterations);
+                    bW.WriteBuffer(_salt);
+                    bW.BaseStream.WriteShortString(_passwordHash);
 
-                bW.Write(_totpEnabled);
+                    if (_totpKeyUri is null)
+                        bW.Write("");
+                    else
+                        bW.Write(_totpKeyUri.ToString());
+
+                    bW.Write(_totpEnabled);
+                }
             }
 
             bW.Write(_disabled);
@@ -459,6 +508,12 @@ namespace DnsServerCore.Auth
 
         public string SsoIdentifier
         { get { return _ssoIdentifier; } }
+
+        public bool IsLdapUser
+        { get { return _isLdapUser; } }
+
+        public string LdapIdentifier
+        { get { return _ldapIdentifier; } }
 
         public UserPasswordHashType PasswordHashType
         { get { return _passwordHashType; } }

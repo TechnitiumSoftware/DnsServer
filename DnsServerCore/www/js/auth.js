@@ -655,13 +655,18 @@ function showMyProfileModal() {
 
             $("#mnuUserDisplayName").text(sessionData.displayName);
 
-            $("#txtMyProfileDisplayName").prop("disabled", responseJSON.response.isSsoUser);
+            var isRemoteUser = responseJSON.response.isSsoUser || responseJSON.response.isLdapUser;
+            $("#txtMyProfileDisplayName").prop("disabled", isRemoteUser);
             $("#txtMyProfileDisplayName").val(responseJSON.response.displayName);
             $("#txtMyProfileUsername").val(responseJSON.response.username);
 
             if (responseJSON.response.isSsoUser) {
                 $("#lblMyProfileUserType").text("Remote/SSO");
                 $("#lblMyProfile2FAStatus").text("SSO Managed");
+            }
+            else if (responseJSON.response.isLdapUser) {
+                $("#lblMyProfileUserType").text("Remote/LDAP");
+                $("#lblMyProfile2FAStatus").text("LDAP Managed");
             }
             else {
                 $("#lblMyProfileUserType").text("Local");
@@ -842,6 +847,8 @@ function refreshAdminTab() {
         refreshAdminPermissions();
     else if ($("#adminTabListSso").hasClass("active"))
         refreshAdminSsoConfig();
+    else if ($("#adminTabListLdap").hasClass("active"))
+        refreshAdminLdapConfig();
     else if ($("#adminTabListCluster").hasClass("active"))
         refreshAdminCluster();
     else
@@ -1113,6 +1120,10 @@ function getAdminUsersRowHtml(id, user) {
         userType = "Remote/SSO";
         totpStatus = "<span class=\"label label-info\">SSO Managed</span>"
     }
+    else if (user.isLdapUser) {
+        userType = "Remote/LDAP";
+        totpStatus = "<span class=\"label label-info\">LDAP Managed</span>"
+    }
     else {
         userType = "Local";
 
@@ -1256,15 +1267,21 @@ function showUserDetailsModal(objMenuItem) {
         url: "api/admin/users/get?user=" + encodeURIComponent(username) + "&includeGroups=true",
         token: sessionData.token,
         success: function (responseJSON) {
-            $("#txtUserDetailsDisplayName").prop("disabled", responseJSON.response.isSsoUser);
+            var isRemoteUser = responseJSON.response.isSsoUser || responseJSON.response.isLdapUser;
+
+            $("#txtUserDetailsDisplayName").prop("disabled", isRemoteUser);
             $("#txtUserDetailsDisplayName").val(responseJSON.response.displayName);
 
-            $("#txtUserDetailsUsername").prop("disabled", responseJSON.response.isSsoUser);
+            $("#txtUserDetailsUsername").prop("disabled", isRemoteUser);
             $("#txtUserDetailsUsername").val(responseJSON.response.username);
 
             if (responseJSON.response.isSsoUser) {
                 $("#lblUserDetailsUserType").text("Remote/SSO");
                 $("#lblUserDetails2FAStatus").text("SSO Managed");
+            }
+            else if (responseJSON.response.isLdapUser) {
+                $("#lblUserDetailsUserType").text("Remote/LDAP");
+                $("#lblUserDetails2FAStatus").text("LDAP Managed");
             }
             else {
                 $("#lblUserDetailsUserType").text("Local");
@@ -1280,8 +1297,10 @@ function showUserDetailsModal(objMenuItem) {
                 memberOf += htmlEncode(responseJSON.response.memberOfGroups[i]) + "\n";
             }
 
-            $("#txtUserDetailsMemberOf").prop("disabled", responseJSON.response.isSsoUser && responseJSON.response.ssoManagedGroups)
-            $("#optUserDetailsGroupList").prop("disabled", responseJSON.response.isSsoUser && responseJSON.response.ssoManagedGroups)
+            var groupsDisabled = (responseJSON.response.isSsoUser && responseJSON.response.ssoManagedGroups) ||
+                                 (responseJSON.response.isLdapUser && responseJSON.response.ldapManagedGroups);
+            $("#txtUserDetailsMemberOf").prop("disabled", groupsDisabled)
+            $("#optUserDetailsGroupList").prop("disabled", groupsDisabled)
 
             $("#txtUserDetailsMemberOf").val(memberOf);
 
@@ -2272,6 +2291,171 @@ function saveAdminSsoConfig(objBtn) {
             btn.button("reset");
 
             showAlert("success", "SSO Config Saved!", "Single Sign-On (SSO) config was saved successfully.");
+        },
+        error: function () {
+            btn.button("reset");
+        },
+        invalidToken: function () {
+            btn.button("reset");
+            showPageLogin();
+        }
+    });
+}
+
+function refreshAdminLdapConfig() {
+    var divAdminLdapLoader = $("#divAdminLdapLoader");
+    var divAdminLdapView = $("#divAdminLdapView");
+
+    divAdminLdapLoader.show();
+    divAdminLdapView.hide();
+
+    HTTPRequest({
+        url: "api/admin/ldap/get?includeGroups=true",
+        token: sessionData.token,
+        success: function (responseJSON) {
+            localGroups = responseJSON.response.localGroups;
+
+            loadAdminLdapConfig(responseJSON);
+
+            divAdminLdapLoader.hide();
+            divAdminLdapView.show();
+        },
+        invalidToken: function () {
+            showPageLogin();
+        },
+        objLoaderPlaceholder: divAdminLdapLoader
+    });
+}
+
+function loadAdminLdapConfig(responseJSON) {
+    $("#chkAdminLdapEnabled").prop("checked", responseJSON.response.ldapEnabled);
+    $("#txtAdminLdapServer").val(responseJSON.response.ldapServer || "");
+    $("#txtAdminLdapPort").val(responseJSON.response.ldapPort || 389);
+    $("#chkAdminLdapUseSsl").prop("checked", responseJSON.response.ldapUseSsl);
+    $("#chkAdminLdapIgnoreSslErrors").prop("checked", responseJSON.response.ldapIgnoreSslErrors);
+    $("#txtAdminLdapBindDn").val(responseJSON.response.ldapBindDn || "");
+    $("#txtAdminLdapBindPassword").val(responseJSON.response.ldapBindPassword || "");
+    $("#txtAdminLdapSearchBase").val(responseJSON.response.ldapSearchBase || "");
+    $("#txtAdminLdapUserFilter").val(responseJSON.response.ldapUserFilter || "");
+    $("#txtAdminLdapGroupAttribute").val(responseJSON.response.ldapGroupAttribute || "");
+    $("#chkAdminLdapAllowSignup").prop("checked", responseJSON.response.ldapAllowSignup);
+    $("#chkAdminLdapAllowSignupOnlyForMappedUsers").prop("checked", responseJSON.response.ldapAllowSignupOnlyForMappedUsers);
+
+    $("#tableAdminLdapGroupMap").html("");
+
+    for (var i = 0; i < responseJSON.response.ldapGroupMap.length; i++)
+        addAdminLdapGroupMapRow(responseJSON.response.ldapGroupMap[i].remoteGroup, responseJSON.response.ldapGroupMap[i].localGroup);
+}
+
+function addAdminLdapGroupMapRow(remoteGroup, localGroup) {
+    var id = Math.floor(Math.random() * 10000);
+
+    var tableHtmlRows = "<tr id=\"tableAdminLdapGroupMapRow" + id + "\"><td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(remoteGroup) + "\"></td>";
+
+    tableHtmlRows += "<td><select class=\"form-control\">";
+
+    for (var i = 0; i < localGroups.length; i++)
+        tableHtmlRows += "<option" + (localGroups[i] == localGroup ? " selected" : "") + ">" + htmlEncode(localGroups[i]) + "</option>";
+
+    tableHtmlRows += "</select></td>";
+
+    tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-danger\" onclick=\"$('#tableAdminLdapGroupMapRow" + id + "').remove();\">Delete</button></td></tr>";
+
+    $("#tableAdminLdapGroupMap").append(tableHtmlRows);
+}
+
+function saveAdminLdapConfig(objBtn) {
+    var btn = $(objBtn);
+
+    var ldapEnabled = $("#chkAdminLdapEnabled").prop("checked");
+
+    var ldapServer = $("#txtAdminLdapServer").val();
+    if (ldapEnabled && (ldapServer === "")) {
+        showAlert("warning", "Missing!", "Please enter the LDAP Server address.");
+        $("#txtAdminLdapServer").trigger("focus");
+        return;
+    }
+
+    var ldapPort = $("#txtAdminLdapPort").val();
+    if (ldapEnabled && (ldapPort === "")) {
+        showAlert("warning", "Missing!", "Please enter the LDAP Port.");
+        $("#txtAdminLdapPort").trigger("focus");
+        return;
+    }
+
+    var ldapUseSsl = $("#chkAdminLdapUseSsl").prop("checked");
+    var ldapIgnoreSslErrors = $("#chkAdminLdapIgnoreSslErrors").prop("checked");
+    var ldapBindDn = $("#txtAdminLdapBindDn").val();
+    var ldapBindPassword = $("#txtAdminLdapBindPassword").val();
+    var ldapSearchBase = $("#txtAdminLdapSearchBase").val();
+    var ldapUserFilter = $("#txtAdminLdapUserFilter").val();
+    var ldapGroupAttribute = $("#txtAdminLdapGroupAttribute").val();
+    var ldapAllowSignup = $("#chkAdminLdapAllowSignup").prop("checked");
+    var ldapAllowSignupOnlyForMappedUsers = $("#chkAdminLdapAllowSignupOnlyForMappedUsers").prop("checked");
+
+    var ldapGroupMap = serializeTableData($("#tableAdminLdapGroupMap"), 2);
+    if (ldapGroupMap === false)
+        return;
+
+    if (ldapGroupMap.length == 0)
+        ldapGroupMap = false;
+
+    btn.button("loading");
+
+    HTTPRequest({
+        url: "api/admin/ldap/set",
+        token: sessionData.token,
+        method: "POST",
+        data: "ldapEnabled=" + ldapEnabled + "&ldapServer=" + encodeURIComponent(ldapServer) + "&ldapPort=" + ldapPort + "&ldapUseSsl=" + ldapUseSsl + "&ldapIgnoreSslErrors=" + ldapIgnoreSslErrors + "&ldapBindDn=" + encodeURIComponent(ldapBindDn) + "&ldapBindPassword=" + encodeURIComponent(ldapBindPassword) + "&ldapSearchBase=" + encodeURIComponent(ldapSearchBase) + "&ldapUserFilter=" + encodeURIComponent(ldapUserFilter) + "&ldapGroupAttribute=" + encodeURIComponent(ldapGroupAttribute) + "&ldapAllowSignup=" + ldapAllowSignup + "&ldapAllowSignupOnlyForMappedUsers=" + ldapAllowSignupOnlyForMappedUsers + "&ldapGroupMap=" + encodeURIComponent(ldapGroupMap),
+        success: function (responseJSON) {
+            loadAdminLdapConfig(responseJSON);
+            btn.button("reset");
+
+            showAlert("success", "LDAP Config Saved!", "LDAP authentication config was saved successfully.");
+        },
+        error: function () {
+            btn.button("reset");
+        },
+        invalidToken: function () {
+            btn.button("reset");
+            showPageLogin();
+        }
+    });
+}
+
+function testAdminLdapConnection(objBtn) {
+    var btn = $(objBtn);
+
+    var ldapServer = $("#txtAdminLdapServer").val();
+    if (ldapServer === "") {
+        showAlert("warning", "Missing!", "Please enter the LDAP Server address.");
+        $("#txtAdminLdapServer").trigger("focus");
+        return;
+    }
+
+    var ldapPort = $("#txtAdminLdapPort").val() || 389;
+    var ldapUseSsl = $("#chkAdminLdapUseSsl").prop("checked");
+    var ldapIgnoreSslErrors = $("#chkAdminLdapIgnoreSslErrors").prop("checked");
+    var ldapBindDn = $("#txtAdminLdapBindDn").val();
+    var ldapBindPassword = $("#txtAdminLdapBindPassword").val();
+    var ldapSearchBase = $("#txtAdminLdapSearchBase").val();
+    var ldapUserFilter = $("#txtAdminLdapUserFilter").val();
+    var ldapGroupAttribute = $("#txtAdminLdapGroupAttribute").val();
+
+    btn.button("loading");
+
+    HTTPRequest({
+        url: "api/admin/ldap/test",
+        token: sessionData.token,
+        method: "POST",
+        data: "ldapServer=" + encodeURIComponent(ldapServer) + "&ldapPort=" + ldapPort + "&ldapUseSsl=" + ldapUseSsl + "&ldapIgnoreSslErrors=" + ldapIgnoreSslErrors + "&ldapBindDn=" + encodeURIComponent(ldapBindDn) + "&ldapBindPassword=" + encodeURIComponent(ldapBindPassword) + "&ldapSearchBase=" + encodeURIComponent(ldapSearchBase) + "&ldapUserFilter=" + encodeURIComponent(ldapUserFilter) + "&ldapGroupAttribute=" + encodeURIComponent(ldapGroupAttribute),
+        success: function (responseJSON) {
+            btn.button("reset");
+
+            if (responseJSON.response.success)
+                showAlert("success", "Connection Successful!", responseJSON.response.message);
+            else
+                showAlert("danger", "Connection Failed!", responseJSON.response.message);
         },
         error: function () {
             btn.button("reset");
