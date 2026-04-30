@@ -446,6 +446,23 @@ namespace DnsServerCore
                         }
                         break;
 
+                    case DnsResourceRecordType.CERT:
+                        {
+                            if (record.RDATA is DnsCERTRecordData rdata)
+                            {
+                                jsonWriter.WriteString("certType", rdata.CertType.ToString());
+                                jsonWriter.WriteNumber("keyTag", rdata.KeyTag);
+                                jsonWriter.WriteNumber("algorithm", rdata.Algorithm);
+                                jsonWriter.WriteString("certificate", Convert.ToBase64String(rdata.Certificate));
+                            }
+                            else
+                            {
+                                jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                                jsonWriter.WriteString("data", record.RDATA.ToString());
+                            }
+                        }
+                        break;
+
                     case DnsResourceRecordType.RRSIG:
                         {
                             if (record.RDATA is DnsRRSIGRecordData rdata)
@@ -4003,6 +4020,17 @@ namespace DnsServerCore
                         }
                         break;
 
+                    case DnsResourceRecordType.CERT:
+                        {
+                            DnsCertType certType = Enum.Parse<DnsCertType>(request.GetQueryOrForm("certType").Replace('-', '_'), true);
+                            ushort certKeyTag = request.GetQueryOrForm("certKeyTag", ushort.Parse);
+                            byte certAlgorithm = request.GetQueryOrForm("certAlgorithm", byte.Parse);
+                            byte[] certificate = request.GetQueryOrForm("certificate", Convert.FromBase64String);
+
+                            newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsCERTRecordData(certType, certKeyTag, certAlgorithm, certificate));
+                        }
+                        break;
+
                     case DnsResourceRecordType.TLSA:
                         {
                             DnsTLSACertificateUsage tlsaCertificateUsage = Enum.Parse<DnsTLSACertificateUsage>(request.GetQueryOrForm("tlsaCertificateUsage").Replace('-', '_'), true);
@@ -4424,6 +4452,18 @@ namespace DnsServerCore
                             byte[] sshfpFingerprint = request.GetQueryOrForm("sshfpFingerprint", Convert.FromHexString);
 
                             if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSSHFPRecordData(sshfpAlgorithm, sshfpFingerprintType, sshfpFingerprint)))
+                                throw new DnsWebServiceException("Cannot delete record: no such record exists.");
+                        }
+                        break;
+
+                    case DnsResourceRecordType.CERT:
+                        {
+                            DnsCertType certType = Enum.Parse<DnsCertType>(request.GetQueryOrForm("certType").Replace('-', '_'), true);
+                            ushort certKeyTag = request.GetQueryOrForm("certKeyTag", ushort.Parse);
+                            byte certAlgorithm = request.GetQueryOrForm("certAlgorithm", byte.Parse);
+                            byte[] certificate = request.GetQueryOrForm("certificate", Convert.FromBase64String);
+
+                            if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsCERTRecordData(certType, certKeyTag, certAlgorithm, certificate)))
                                 throw new DnsWebServiceException("Cannot delete record: no such record exists.");
                         }
                         break;
@@ -4889,6 +4929,25 @@ namespace DnsServerCore
 
                             oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsSSHFPRecordData(sshfpAlgorithm, sshfpFingerprintType, sshfpFingerprint));
                             newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsSSHFPRecordData(newSshfpAlgorithm, newSshfpFingerprintType, newSshfpFingerprint));
+                        }
+                        break;
+
+                    case DnsResourceRecordType.CERT:
+                        {
+                            DnsCertType certType = Enum.Parse<DnsCertType>(request.GetQueryOrForm("certType").Replace('-', '_'), true);
+                            DnsCertType newCertType = Enum.Parse<DnsCertType>(request.GetQueryOrForm("newCertType", certType.ToString()).Replace('-', '_'), true);
+
+                            ushort certKeyTag = request.GetQueryOrForm("certKeyTag", ushort.Parse);
+                            ushort newCertKeyTag = request.GetQueryOrForm("newCertKeyTag", ushort.Parse, certKeyTag);
+
+                            byte certAlgorithm = request.GetQueryOrForm("certAlgorithm", byte.Parse);
+                            byte newCertAlgorithm = request.GetQueryOrForm("newCertAlgorithm", byte.Parse, certAlgorithm);
+
+                            byte[] certificate = request.GetQueryOrForm("certificate", Convert.FromBase64String);
+                            byte[] newCertificate = request.GetQueryOrForm("newCertificate", Convert.FromBase64String, certificate);
+
+                            oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsCERTRecordData(certType, certKeyTag, certAlgorithm, certificate));
+                            newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsCERTRecordData(newCertType, newCertKeyTag, newCertAlgorithm, newCertificate));
                         }
                         break;
 
