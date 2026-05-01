@@ -464,10 +464,14 @@ namespace DnsServerCore.Dns.Zones
                     DnsDatagram xfrRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, [xfrQuestion], null, xfrAuthority, udpPayloadSize: _dnsServer.UdpPayloadSize, options: [new EDnsOption(EDnsOptionCode.EDNS_EXPIRE, new EDnsExpireOptionData())]);
                     DnsDatagram xfrResponse;
 
-                    if (key is null)
-                        xfrResponse = await xfrClient.RawResolveAsync(xfrRequest);
-                    else
-                        xfrResponse = await xfrClient.TsigResolveAsync(xfrRequest, key, REFRESH_TSIG_FUDGE);
+                    try
+                    {
+                        if (key is null)
+                            xfrResponse = await xfrClient.RawResolveAsync(xfrRequest);
+                        else
+                            xfrResponse = await xfrClient.TsigResolveAsync(xfrRequest, key, REFRESH_TSIG_FUDGE);
+                    }
+                    catch when (doIXFR) { doIXFR = false; continue; }
 
                     if (doIXFR && ((xfrResponse.RCODE == DnsResponseCode.NotImplemented) || (xfrResponse.RCODE == DnsResponseCode.Refused)))
                     {
