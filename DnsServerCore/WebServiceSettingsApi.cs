@@ -190,6 +190,9 @@ namespace DnsServerCore
 
                 jsonWriter.WriteEndArray();
 
+                jsonWriter.WriteString("webServiceHttpUnixSocket", _dnsWebService._webServiceHttpUnixSocket);
+                jsonWriter.WriteString("webServiceTlsUnixSocket", _dnsWebService._webServiceTlsUnixSocket);
+
                 jsonWriter.WriteNumber("webServiceHttpPort", _dnsWebService._webServiceHttpPort);
                 jsonWriter.WriteBoolean("webServiceEnableTls", _dnsWebService._webServiceEnableTls);
                 jsonWriter.WriteBoolean("webServiceEnableHttp3", _dnsWebService._webServiceEnableHttp3);
@@ -215,6 +218,9 @@ namespace DnsServerCore
                 jsonWriter.WriteNumber("dnsOverTlsPort", _dnsWebService._dnsServer.DnsOverTlsPort);
                 jsonWriter.WriteNumber("dnsOverHttpsPort", _dnsWebService._dnsServer.DnsOverHttpsPort);
                 jsonWriter.WriteNumber("dnsOverQuicPort", _dnsWebService._dnsServer.DnsOverQuicPort);
+
+                jsonWriter.WriteString("dnsOverHttpUnixSocket", _dnsWebService._dnsServer.DnsOverHttpUnixSocket);
+                jsonWriter.WriteString("dnsOverHttpsUnixSocket", _dnsWebService._dnsServer.DnsOverHttpsUnixSocket);
 
                 jsonWriter.WritePropertyName("reverseProxyNetworkACL");
                 {
@@ -874,6 +880,24 @@ namespace DnsServerCore
                             _dnsWebService._webServiceLocalAddresses = WebUtilities.GetValidKestrelLocalAddresses(webServiceLocalAddresses);
                         }
 
+                        if (request.TryGetQueryOrForm("webServiceHttpUnixSocket", out string webServiceHttpUnixSocket))
+                        {
+                            if (_dnsWebService._webServiceHttpUnixSocket != webServiceHttpUnixSocket)
+                            {
+                                restartWebService = true;
+                            }
+                            _dnsWebService._webServiceHttpUnixSocket = webServiceHttpUnixSocket;
+                        }
+
+                        if (request.TryGetQueryOrForm("webServiceTlsUnixSocket", out string webServiceTlsUnixSocket))
+                        {
+                            if (_dnsWebService._webServiceTlsUnixSocket != webServiceTlsUnixSocket)
+                            {
+                                restartWebService = true;
+                            }
+                            _dnsWebService._webServiceTlsUnixSocket = webServiceTlsUnixSocket;
+                        }
+
                         if (request.TryGetQueryOrForm("webServiceHttpPort", int.Parse, out int webServiceHttpPort))
                         {
                             if (_dnsWebService._webServiceHttpPort != webServiceHttpPort)
@@ -1091,6 +1115,18 @@ namespace DnsServerCore
                                 _dnsWebService._dnsServer.DnsOverQuicPort = dnsOverQuicPort;
                                 restartDnsService = true;
                             }
+                        }
+
+                        if (request.TryQueryOrFormArray("dnsOverHttpUnixSocket", NetworkAccessControl.Parse, out NetworkAccessControl[] dnsOverHttpUnixSocket))
+                        {
+                            _dnsWebService._dnsServer.DnsOverHttpUnixSocket = dnsOverHttpUnixSocket.Length > 0 ? dnsOverHttpUnixSocket[0] : string.Empty;
+                            restartDnsService = true;
+                        }
+
+                        if (request.TryQueryOrFormArray("dnsOverHttpsUnixSocket", NetworkAccessControl.Parse, out NetworkAccessControl[] dnsOverHttpsUnixSocket))
+                        {
+                            _dnsWebService._dnsServer.DnsOverHttpsUnixSocket = dnsOverHttpsUnixSocket.Length > 0 ? dnsOverHttpsUnixSocket[0] : string.Empty;
+                            restartDnsService = true;
                         }
 
                         if (request.TryQueryOrFormArray("reverseProxyNetworkACL", NetworkAccessControl.Parse, out NetworkAccessControl[] reverseProxyNetworkACL))

@@ -193,6 +193,8 @@ namespace DnsServerCore.Dns
         int _dnsOverTlsPort = 853;
         int _dnsOverHttpsPort = 443;
         int _dnsOverQuicPort = 853;
+        string _dnsOverHttpUnixSocket;
+        string _dnsOverHttpsUnixSocket;
         string _dnsTlsCertificatePath;
         string _dnsTlsCertificatePassword;
         string _dnsOverHttpRealIpHeader = "X-Real-IP";
@@ -1125,6 +1127,23 @@ namespace DnsServerCore.Dns
             int maxStatFileDays = bR.ReadInt32();
             if (!isConfigTransfer)
                 _statsManager.MaxStatFileDays = maxStatFileDays;
+
+            if (version >= 3)
+            {
+                if (bR.ReadByte() > 0)
+                {
+                    string socket = bR.ReadShortString();
+                    if (!isConfigTransfer)
+                        _dnsOverHttpUnixSocket = socket;
+                }
+
+                if (bR.ReadByte() > 0)
+                {
+                    string socket = bR.ReadShortString();
+                    if (!isConfigTransfer)
+                        _dnsOverHttpsUnixSocket = socket;
+                }
+            }
         }
 
         private void WriteConfigTo(Stream s)
@@ -1409,6 +1428,26 @@ namespace DnsServerCore.Dns
             bW.Write(_queryLog is not null); //log all queries
             bW.Write(_statsManager.EnableInMemoryStats);
             bW.Write(_statsManager.MaxStatFileDays);
+
+            if (string.IsNullOrWhiteSpace(_dnsOverHttpUnixSocket))
+            {
+                bW.Write((byte)0);
+            }
+            else
+            {
+                bW.Write((byte)1);
+                bW.WriteShortString(_dnsOverHttpUnixSocket);
+            }
+
+            if (string.IsNullOrWhiteSpace(_dnsOverHttpsUnixSocket))
+            {
+                bW.Write((byte)0);
+            }
+            else
+            {
+                bW.Write((byte)1);
+                bW.WriteShortString(_dnsOverHttpsUnixSocket);
+            }
         }
 
         #endregion
@@ -6407,6 +6446,9 @@ namespace DnsServerCore.Dns
                     {
                         foreach (IPAddress localAddress in localAddresses)
                             serverOptions.Listen(localAddress, _dnsOverHttpPort);
+
+                        if (!string.IsNullOrWhiteSpace(_dnsOverHttpUnixSocket))
+                            serverOptions.ListenUnixSocket(_dnsOverHttpUnixSocket);
                     }
 
                     //bind to https port
@@ -6419,6 +6461,22 @@ namespace DnsServerCore.Dns
                                 if (_enableDnsOverHttp3)
                                     listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
                                 else if (IsHttp2Supported())
+                                    listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
+                                else
+                                    listenOptions.Protocols = HttpProtocols.Http1;
+
+                                listenOptions.UseHttps(delegate (SslStream stream, SslClientHelloInfo clientHelloInfo, object state, CancellationToken cancellationToken)
+                                {
+                                    return ValueTask.FromResult(_dohSslServerAuthenticationOptions);
+                                }, null);
+                            });
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(_dnsOverHttpsUnixSocket))
+                        {
+                            serverOptions.ListenUnixSocket(_dnsOverHttpsUnixSocket, delegate (ListenOptions listenOptions)
+                            {
+                                if (IsHttp2Supported())
                                     listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
                                 else
                                     listenOptions.Protocols = HttpProtocols.Http1;
@@ -6470,6 +6528,18 @@ namespace DnsServerCore.Dns
                     if (_enableDnsOverHttps && (_dohSslServerAuthenticationOptions is not null))
                         _log.Write(new IPEndPoint(localAddress, _dnsOverHttpsPort), "Https", "DNS Server was bound successfully.");
                 }
+
+                if (_enableDnsOverHttp)
+                {
+                    if (!string.IsNullOrWhiteSpace(_dnsOverHttpUnixSocket))
+                        _log.Write(new IPEndPoint(IPAddress.None, 0), "Http", $"DNS Server was bound successfully on unix socket: {_dnsOverHttpUnixSocket}");
+                }
+
+                if (_enableDnsOverHttps && (_dohSslServerAuthenticationOptions is not null))
+                {
+                    if (!string.IsNullOrWhiteSpace(_dnsOverHttpsUnixSocket))
+                        _log.Write(new IPEndPoint(IPAddress.None, 0), "Https", $"DNS Server was bound successfully on unix socket: {_dnsOverHttpsUnixSocket}");
+                }
             }
             catch (Exception ex)
             {
@@ -6482,6 +6552,18 @@ namespace DnsServerCore.Dns
 
                     if (_enableDnsOverHttps && (_dohSslServerAuthenticationOptions is not null))
                         _log.Write(new IPEndPoint(localAddress, _dnsOverHttpsPort), "Https", "DNS Server failed to bind.");
+                }
+
+                if (_enableDnsOverHttp)
+                {
+                    if (!string.IsNullOrWhiteSpace(_dnsOverHttpUnixSocket))
+                        _log.Write(new IPEndPoint(IPAddress.None, 0), "Http", $"DNS Server failed to bind on unix socket: {_dnsOverHttpUnixSocket}");
+                }
+
+                if (_enableDnsOverHttps && (_dohSslServerAuthenticationOptions is not null))
+                {
+                    if (!string.IsNullOrWhiteSpace(_dnsOverHttpsUnixSocket))
+                        _log.Write(new IPEndPoint(IPAddress.None, 0), "Https", $"DNS Server failed to bind on unix socket: {_dnsOverHttpsUnixSocket}");
                 }
 
                 _log.Write(ex);
@@ -7611,6 +7693,18 @@ namespace DnsServerCore.Dns
 
                 _dnsOverQuicPort = value;
             }
+        }
+
+        public string DnsOverHttpUnixSocket
+        {
+            get { return _dnsOverHttpUnixSocket; }
+            set { _dnsOverHttpUnixSocket = value; }
+        }
+
+        public string DnsOverHttpsUnixSocket
+        {
+            get { return _dnsOverHttpsUnixSocket; }
+            set { _dnsOverHttpsUnixSocket = value; }
         }
 
         public string DnsTlsCertificatePath

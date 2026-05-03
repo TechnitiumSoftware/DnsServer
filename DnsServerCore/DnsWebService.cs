@@ -99,6 +99,8 @@ namespace DnsServerCore
 
         //web service
         IReadOnlyList<IPAddress> _webServiceLocalAddresses = [IPAddress.Any, IPAddress.IPv6Any];
+        string _webServiceHttpUnixSocket;
+        string _webServiceTlsUnixSocket;
         int _webServiceHttpPort = 5380;
         int _webServiceTlsPort = 53443;
         bool _webServiceEnableTls;
@@ -451,7 +453,7 @@ namespace DnsServerCore
             BinaryReader bR = new BinaryReader(s);
 
             int version = bR.ReadByte();
-            if (version > 1)
+            if (version > 2)
                 throw new InvalidDataException("Web Service config version not supported.");
 
             _webServiceHttpPort = bR.ReadInt32();
@@ -512,6 +514,19 @@ namespace DnsServerCore
             CheckAndLoadSelfSignedCertificate(false, false);
 
             _webServiceRealIpHeader = s.ReadShortString();
+
+            if (version >= 2)
+            {
+                if (s.ReadByte() > 0)
+                {
+                    _webServiceHttpUnixSocket = s.ReadShortString();
+                }
+
+                if (s.ReadByte() > 0)
+                {
+                    _webServiceTlsUnixSocket = s.ReadShortString();
+                }
+            }
         }
 
         private void WriteConfigTo(Stream s)
@@ -519,7 +534,7 @@ namespace DnsServerCore
             BinaryWriter bW = new BinaryWriter(s);
 
             bW.Write(Encoding.ASCII.GetBytes("WC")); //format
-            bW.Write((byte)1); //version
+            bW.Write((byte)2); //version
 
             bW.Write(_webServiceHttpPort);
             bW.Write(_webServiceTlsPort);
@@ -546,7 +561,27 @@ namespace DnsServerCore
             else
                 s.WriteShortString(_webServiceTlsCertificatePassword);
 
-            s.WriteShortString(_webServiceRealIpHeader);
+            bW.WriteShortString(_webServiceRealIpHeader);
+
+            if (string.IsNullOrWhiteSpace(_webServiceHttpUnixSocket))
+            {
+                bW.Write((byte)0);
+            }
+            else
+            {
+                bW.Write((byte)1);
+                bW.WriteShortString(_webServiceHttpUnixSocket);
+            }
+
+            if (string.IsNullOrWhiteSpace(_webServiceTlsUnixSocket))
+            {
+                bW.Write((byte)0);
+            }
+            else
+            {
+                bW.Write((byte)1);
+                bW.WriteShortString(_webServiceTlsUnixSocket);
+            }
         }
 
         #endregion
@@ -1696,6 +1731,9 @@ namespace DnsServerCore
                 foreach (IPAddress webServiceLocalAddress in _webServiceLocalAddresses)
                     serverOptions.Listen(webServiceLocalAddress, _webServiceHttpPort);
 
+                if (!string.IsNullOrWhiteSpace(_webServiceHttpUnixSocket))
+                    serverOptions.ListenUnixSocket(_webServiceHttpUnixSocket);
+
                 //https
                 if (!httpOnlyMode && _webServiceEnableTls && (_webServiceSslServerAuthenticationOptions is not null))
                 {
@@ -1706,6 +1744,22 @@ namespace DnsServerCore
                             if (_webServiceEnableHttp3)
                                 listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
                             else if (IsHttp2Supported())
+                                listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
+                            else
+                                listenOptions.Protocols = HttpProtocols.Http1;
+
+                            listenOptions.UseHttps(delegate (SslStream stream, SslClientHelloInfo clientHelloInfo, object state, CancellationToken cancellationToken)
+                            {
+                                return ValueTask.FromResult(_webServiceSslServerAuthenticationOptions);
+                            }, null);
+                        });
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(_webServiceTlsUnixSocket))
+                    {
+                        serverOptions.ListenUnixSocket(_webServiceTlsUnixSocket, delegate (ListenOptions listenOptions)
+                        {
+                            if (IsHttp2Supported())
                                 listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
                             else
                                 listenOptions.Protocols = HttpProtocols.Http1;
@@ -1797,6 +1851,15 @@ namespace DnsServerCore
                     if (!httpOnlyMode && _webServiceEnableTls && (_webServiceSslServerAuthenticationOptions is not null))
                         _log.Write(new IPEndPoint(webServiceLocalAddress, _webServiceTlsPort), "Https", "Web Service was bound successfully.");
                 }
+
+                if (!string.IsNullOrWhiteSpace(_webServiceHttpUnixSocket))
+                    _log.Write(new IPEndPoint(IPAddress.None, 0), "Http", $"Web Service was bound successfully on unix socket: {_webServiceHttpUnixSocket}");
+
+                if (!httpOnlyMode && _webServiceEnableTls && (_webServiceSslServerAuthenticationOptions is not null))
+                {
+                    if (!string.IsNullOrWhiteSpace(_webServiceTlsUnixSocket))
+                        _log.Write(new IPEndPoint(IPAddress.None, 0), "Https", $"Web Service was bound successfully on unix socket: {_webServiceTlsUnixSocket}");
+                }
             }
             catch
             {
@@ -1808,6 +1871,15 @@ namespace DnsServerCore
 
                     if (!httpOnlyMode && _webServiceEnableTls && (_webServiceSslServerAuthenticationOptions is not null))
                         _log.Write(new IPEndPoint(webServiceLocalAddress, _webServiceTlsPort), "Https", "Web Service failed to bind.");
+                }
+
+                if (!string.IsNullOrWhiteSpace(_webServiceHttpUnixSocket))
+                    _log.Write(new IPEndPoint(IPAddress.None, 0), "Http", $"Web Service failed to bind on unix socket: {_webServiceHttpUnixSocket}");
+
+                if (!httpOnlyMode && _webServiceEnableTls && (_webServiceSslServerAuthenticationOptions is not null))
+                {
+                    if (!string.IsNullOrWhiteSpace(_webServiceTlsUnixSocket))
+                        _log.Write(new IPEndPoint(IPAddress.None, 0), "Https", $"Web Service failed to bind on unix socket: {_webServiceTlsUnixSocket}");
                 }
 
                 throw;
