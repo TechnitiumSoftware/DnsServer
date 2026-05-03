@@ -337,6 +337,19 @@ namespace BlockPage
                 _webServer.UseResponseCompression();
 
                 _webServer.UseDefaultFiles();
+
+                if (_serveBlockPageFromWebServerRoot)
+                {
+                    _webServer.Use(async (HttpContext context, RequestDelegate next) =>
+                    {
+                        if (HttpMethods.IsGet(context.Request.Method) &&
+                            (context.Request.Path == "/" || context.Request.Path == "/index.html"))
+                            await ServeDefaultPageAsync(context, next);
+                        else
+                            await next(context);
+                    });
+                }
+
                 _webServer.UseStaticFiles(new StaticFileOptions()
                 {
                     OnPrepareResponse = delegate (StaticFileResponseContext ctx)
@@ -474,7 +487,10 @@ namespace BlockPage
 
             private async Task ServeDefaultPageAsync(HttpContext context, RequestDelegate next)
             {
-                string blockPageContent = _blockPageContent!;
+                string indexFilePath = Path.Combine(_webServerRootPath!, "index.html");
+                string blockPageContent = (_serveBlockPageFromWebServerRoot && File.Exists(indexFilePath))
+                    ? await File.ReadAllTextAsync(indexFilePath)
+                    : _blockPageContent!;
 
                 if (_includeBlockingInfo)
                 {
