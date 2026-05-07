@@ -473,7 +473,8 @@ namespace BlockPage
                         if (host is not null)
                         {
                             DnsDatagram dnsRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, [new DnsQuestionRecord(host, DnsResourceRecordType.A, DnsClass.IN)], udpPayloadSize: DnsDatagram.EDNS_DEFAULT_UDP_PAYLOAD_SIZE);
-                            DnsDatagram dnsResponse = await _dnsServer.DirectQueryAsync(dnsRequest, 500);
+                            System.Net.IPEndPoint clientEndPoint = context.Connection.RemoteIpAddress is null ? new System.Net.IPEndPoint(System.Net.IPAddress.Any, 0) : new System.Net.IPEndPoint(context.Connection.RemoteIpAddress, context.Connection.RemotePort);
+                            DnsDatagram dnsResponse = await _dnsServer.DirectQueryAsync(dnsRequest, clientEndPoint, 500);
 
                             List<EDnsExtendedDnsErrorOptionData> options = new List<EDnsExtendedDnsErrorOptionData>();
 

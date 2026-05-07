@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore.ApplicationCommon;
 using System;
+using System.Net;
 using System.Net.Mail;
 using System.Threading;
 using System.Threading.Tasks;
@@ -60,6 +61,11 @@ namespace DnsServerCore.Dns.Applications
         public Task<DnsDatagram> DirectQueryAsync(DnsDatagram request, int timeout = 4000, CancellationToken cancellationToken = default)
         {
             return _dnsServer.DirectQueryAsync(request, timeout, true, cancellationToken);
+        }
+
+        public Task<DnsDatagram> DirectQueryAsync(DnsDatagram request, IPEndPoint remoteEndPoint, int timeout = 4000, CancellationToken cancellationToken = default)
+        {
+            return _dnsServer.DirectQueryAsync(request, remoteEndPoint, timeout, true, cancellationToken);
         }
 
         public Task<DnsDatagram> ResolveAsync(DnsQuestionRecord question, CancellationToken cancellationToken = default)
