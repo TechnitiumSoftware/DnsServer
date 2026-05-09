@@ -330,6 +330,7 @@ namespace DnsServerCore
                 using (FileStream fS = new FileStream(tmpLogConfigFile, FileMode.Create, FileAccess.Write))
                 {
                     mS.CopyTo(fS);
+                    fS.Flush(flushToDisk: true);
                 }
             }
 

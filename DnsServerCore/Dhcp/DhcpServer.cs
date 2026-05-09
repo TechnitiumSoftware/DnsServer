@@ -1282,6 +1282,7 @@ namespace DnsServerCore.Dhcp
                     using (FileStream fS = new FileStream(tmpScopeFile, FileMode.Create, FileAccess.Write))
                     {
                         mS.CopyTo(fS);
+                        fS.Flush(flushToDisk: true);
                     }
                 }
 
