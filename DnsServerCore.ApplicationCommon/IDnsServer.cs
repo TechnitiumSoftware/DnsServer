@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using System;
+using System.Net;
 using System.Net.Mail;
 using System.Threading;
 using System.Threading.Tasks;
@@ -50,6 +51,17 @@ namespace DnsServerCore.ApplicationCommon
         /// <returns>The DNS response for the DNS query.</returns>
         /// <exception cref="TimeoutException">When request times out.</exception>
         Task<DnsDatagram> DirectQueryAsync(DnsDatagram request, int timeout = 4000, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Allows querying the DNS server core directly on behalf of a specific client endpoint. This overload passes the supplied <paramref name="remoteEndPoint"/> through the full query pipeline, allowing DNS Apps that perform client-based group mapping (such as the Advanced Blocking App) to apply the correct policy for the originating client rather than treating the query as originating from 0.0.0.0. The request wont be routed to any of the installed DNS Apps except for processing APP records. The request and its response are not counted in any stats or logged.
+        /// </summary>
+        /// <param name="request">The DNS request to query.</param>
+        /// <param name="remoteEndPoint">The client endpoint to present to the query pipeline.</param>
+        /// <param name="timeout">The timeout value in milliseconds to wait for response.</param>
+        /// <param name="cancellationToken">The cancellation token to cancel the operation.</param>
+        /// <returns>The DNS response for the DNS query.</returns>
+        /// <exception cref="TimeoutException">When request times out.</exception>
+        Task<DnsDatagram> DirectQueryAsync(DnsDatagram request, IPEndPoint remoteEndPoint, int timeout = 4000, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Writes a log entry to the DNS server log file.

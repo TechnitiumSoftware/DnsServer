@@ -6978,6 +6978,14 @@ namespace DnsServerCore.Dns
             }, timeout, cancellationToken);
         }
 
+        public Task<DnsDatagram> DirectQueryAsync(DnsDatagram request, IPEndPoint remoteEndPoint, int timeout = 4000, bool skipDnsAppAuthoritativeRequestHandlers = false, CancellationToken cancellationToken = default)
+        {
+            return TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
+            {
+                return ProcessQueryAsync(request, remoteEndPoint, DnsTransportProtocol.Tcp, true, skipDnsAppAuthoritativeRequestHandlers, timeout, null);
+            }, timeout, cancellationToken);
+        }
+
         Task<DnsDatagram> IDnsClient.ResolveAsync(DnsQuestionRecord question, CancellationToken cancellationToken)
         {
             return DirectQueryAsync(question, cancellationToken: cancellationToken);
