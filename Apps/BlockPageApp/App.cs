@@ -271,6 +271,8 @@ namespace BlockPage
                                             {
                                                 if (!_certCache.TryGetValue(sniDomain, out SslServerAuthenticationOptions? sslServerAuthenticationOptions))
                                                 {
+                                                    X509Certificate2 caCert = _sslServerAuthenticationOptions!.ServerCertificateContext!.TargetCertificate;
+
                                                     RSA rsa = RSA.Create(2048);
                                                     CertificateRequest req = new CertificateRequest("cn=" + sniDomain, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
 
@@ -286,13 +288,24 @@ namespace BlockPage
                                                     Span<byte> serial = stackalloc byte[16];
                                                     RandomNumberGenerator.Fill(serial);
 
-                                                    X509Certificate2 newCert = req.Create(_sslServerAuthenticationOptions!.ServerCertificateContext!.TargetCertificate, DateTime.UtcNow.AddMinutes(-30), DateTime.UtcNow.AddDays(7), serial);
+                                                    DateTimeOffset certNotBefore = DateTimeOffset.UtcNow.AddMinutes(-30);
+                                                    if (certNotBefore < caCert.NotBefore)
+                                                        certNotBefore = caCert.NotBefore;
+
+                                                    X509SignatureGenerator generator;
+                                                    ECDsa? ecdsa = caCert.GetECDsaPrivateKey();
+                                                    if (ecdsa is not null)
+                                                        generator = X509SignatureGenerator.CreateForECDsa(ecdsa);
+                                                    else
+                                                        generator = X509SignatureGenerator.CreateForRSA(caCert.GetRSAPrivateKey()!, RSASignaturePadding.Pkcs1);
+
+                                                    X509Certificate2 newCert = req.Create(caCert.SubjectName, generator, certNotBefore, DateTimeOffset.UtcNow.AddDays(7), serial.ToArray());
                                                     newCert = newCert.CopyWithPrivateKey(rsa);
                                                     newCert = X509CertificateLoader.LoadPkcs12(newCert.Export(X509ContentType.Pfx), null, X509KeyStorageFlags.PersistKeySet);
 
                                                     sslServerAuthenticationOptions = new SslServerAuthenticationOptions()
                                                     {
-                                                        ServerCertificateContext = SslStreamCertificateContext.Create(newCert, null, false)
+                                                        ServerCertificateContext = SslStreamCertificateContext.Create(newCert, new X509Certificate2Collection(caCert), false)
                                                     };
 
                                                     _certCache[sniDomain] = sslServerAuthenticationOptions;
@@ -324,6 +337,19 @@ namespace BlockPage
                 _webServer.UseResponseCompression();
 
                 _webServer.UseDefaultFiles();
+
+                if (_serveBlockPageFromWebServerRoot)
+                {
+                    _webServer.Use(async (HttpContext context, RequestDelegate next) =>
+                    {
+                        if (HttpMethods.IsGet(context.Request.Method) &&
+                            (context.Request.Path == "/" || context.Request.Path == "/index.html"))
+                            await ServeDefaultPageAsync(context, next);
+                        else
+                            await next(context);
+                    });
+                }
+
                 _webServer.UseStaticFiles(new StaticFileOptions()
                 {
                     OnPrepareResponse = delegate (StaticFileResponseContext ctx)
@@ -461,7 +487,10 @@ namespace BlockPage
 
             private async Task ServeDefaultPageAsync(HttpContext context, RequestDelegate next)
             {
-                string blockPageContent = _blockPageContent!;
+                string indexFilePath = Path.Combine(_webServerRootPath!, "index.html");
+                string blockPageContent = (_serveBlockPageFromWebServerRoot && File.Exists(indexFilePath))
+                    ? await File.ReadAllTextAsync(indexFilePath)
+                    : _blockPageContent!;
 
                 if (_includeBlockingInfo)
                 {
