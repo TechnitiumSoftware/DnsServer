@@ -2093,6 +2093,9 @@ namespace DnsServerCore
             _webService.MapGetAndPost("/api/admin/sso/set", _authApi.SetSsoConfig);
             _webService.MapGetAndPost("/api/admin/sso/users/create", _authApi.CreateSsoUser);
             _webService.MapGetAndPost("/api/admin/sso/users/set", _authApi.SetSsoUser);
+            _webService.MapGetAndPost("/api/admin/ldap/get", _authApi.GetLdapConfig);
+            _webService.MapGetAndPost("/api/admin/ldap/set", _authApi.SetLdapConfig);
+            _webService.MapGetAndPost("/api/admin/ldap/test", _authApi.TestLdapConnectionAsync);
             _webService.MapGetAndPost("/api/admin/cluster/state", _clusterApi.GetClusterState);
             _webService.MapGetAndPost("/api/admin/cluster/init", _clusterApi.InitializeCluster);
             _webService.MapGetAndPost("/api/admin/cluster/primary/delete", _clusterApi.DeleteCluster);
@@ -2164,6 +2167,7 @@ namespace DnsServerCore
                 case "/api/admin/sso/set":
                 case "/api/admin/sso/users/create":
                 case "/api/admin/sso/users/set":
+                case "/api/admin/ldap/set":
                     return ClusterNodeType.Primary; //this api can be called only on primary node
 
                 case "/sso/login":

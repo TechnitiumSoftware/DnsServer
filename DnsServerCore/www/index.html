@@ -2815,6 +2815,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                             <li id="adminTabListGroups" role="presentation"><a href="#adminTabPaneGroups" aria-controls="adminTabPaneGroups" role="tab" data-toggle="tab" onclick="refreshAdminGroups();">Groups</a></li>
                                             <li id="adminTabListPermissions" role="presentation"><a href="#adminTabPanePermissions" aria-controls="adminTabPanePermissions" role="tab" data-toggle="tab" onclick="refreshAdminPermissions();">Permissions</a></li>
                                             <li id="adminTabListSso" role="presentation"><a href="#adminTabPaneSso" aria-controls="adminTabPaneSso" role="tab" data-toggle="tab" onclick="refreshAdminSsoConfig();">Single Sign-On (SSO)</a></li>
+                                            <li id="adminTabListLdap" role="presentation"><a href="#adminTabPaneLdap" aria-controls="adminTabPaneLdap" role="tab" data-toggle="tab" onclick="refreshAdminLdapConfig();">LDAP</a></li>
                                             <li id="adminTabListCluster" role="presentation"><a href="#adminTabPaneCluster" aria-controls="adminTabPaneCluster" role="tab" data-toggle="tab" onclick="refreshAdminCluster();">Cluster</a></li>
                                         </ul>
 
@@ -3055,6 +3056,149 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
                                                 <div class="form-group" style="margin-bottom: 0px;">
                                                     <button type="button" class="btn btn-primary" data-loading-text="Saving..." onclick="saveAdminSsoConfig(this);">Save Config</button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div id="adminTabPaneLdap" class="tab-pane">
+                                            <div id="divAdminLdapLoader" style="margin-top: 10px; height: 350px;"></div>
+
+                                            <div id="divAdminLdapView" style="margin-top: 10px">
+                                                <div class="well well-sm form-horizontal">
+                                                    <div class="form-group">
+                                                        <label class="col-sm-3 control-label">LDAP Authentication</label>
+                                                        <div class="col-sm-7">
+                                                            <div class="checkbox">
+                                                                <label>
+                                                                    <input id="chkAdminLdapEnabled" type="checkbox"> Enable LDAP Authentication
+                                                                </label>
+                                                            </div>
+                                                            <div style="padding-top: 5px; padding-left: 20px;">Enable to allow users from an LDAP directory (Active Directory, OpenLDAP, etc.) to log in using their directory credentials.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtAdminLdapServer" class="col-sm-3 control-label">LDAP Server</label>
+                                                        <div class="col-sm-7">
+                                                            <input type="text" class="form-control" id="txtAdminLdapServer" maxlength="255" placeholder="ldap.example.com">
+                                                            <div style="padding-top: 5px;">Hostname or IP address of the LDAP server.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtAdminLdapPort" class="col-sm-3 control-label">Port</label>
+                                                        <div class="col-sm-7">
+                                                            <input type="number" class="form-control" id="txtAdminLdapPort" min="1" max="65535" placeholder="389">
+                                                            <div style="padding-top: 5px;">Use 389 for plain LDAP or StartTLS, 636 for LDAPS.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label class="col-sm-3 control-label">SSL / TLS</label>
+                                                        <div class="col-sm-7">
+                                                            <div class="checkbox">
+                                                                <label>
+                                                                    <input id="chkAdminLdapUseSsl" type="checkbox"> Use SSL/TLS (StartTLS on port 389, LDAPS on port 636)
+                                                                </label>
+                                                            </div>
+                                                            <div class="checkbox">
+                                                                <label>
+                                                                    <input id="chkAdminLdapIgnoreSslErrors" type="checkbox"> Ignore SSL Certificate Errors
+                                                                </label>
+                                                            </div>
+                                                            <div style="padding-top: 5px; padding-left: 20px;"><b>Warning!</b> Ignoring SSL errors is insecure and should only be used for testing.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtAdminLdapBindDn" class="col-sm-3 control-label">Bind DN</label>
+                                                        <div class="col-sm-7">
+                                                            <input type="text" class="form-control" id="txtAdminLdapBindDn" maxlength="512" placeholder="CN=svcDNS,OU=ServiceAccounts,DC=example,DC=com">
+                                                            <div style="padding-top: 5px;">Distinguished Name of a service account used to search the directory. Leave empty for anonymous bind.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtAdminLdapBindPassword" class="col-sm-3 control-label">Bind Password</label>
+                                                        <div class="col-sm-7">
+                                                            <input type="password" class="form-control" id="txtAdminLdapBindPassword" maxlength="255" placeholder="service account password">
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtAdminLdapSearchBase" class="col-sm-3 control-label">Search Base</label>
+                                                        <div class="col-sm-7">
+                                                            <input type="text" class="form-control" id="txtAdminLdapSearchBase" maxlength="512" placeholder="DC=example,DC=com">
+                                                            <div style="padding-top: 5px;">The base Distinguished Name used to search for user entries.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtAdminLdapUserFilter" class="col-sm-3 control-label">User Search Filter</label>
+                                                        <div class="col-sm-7">
+                                                            <input type="text" class="form-control" id="txtAdminLdapUserFilter" maxlength="512" placeholder="(sAMAccountName={0})">
+                                                            <div style="padding-top: 5px;">LDAP search filter used to find the user. Use <code>{0}</code> as a placeholder for the username. Default: <code>(sAMAccountName={0})</code> for Active Directory, <code>(uid={0})</code> for OpenLDAP.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtAdminLdapGroupAttribute" class="col-sm-3 control-label">Group Attribute</label>
+                                                        <div class="col-sm-7">
+                                                            <input type="text" class="form-control" id="txtAdminLdapGroupAttribute" maxlength="255" placeholder="memberOf">
+                                                            <div style="padding-top: 5px;">The user attribute listing group memberships. Default: <code>memberOf</code> for Active Directory.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label class="col-sm-3 control-label">LDAP User Sign Up</label>
+                                                        <div class="col-sm-7">
+                                                            <div class="checkbox">
+                                                                <label>
+                                                                    <input id="chkAdminLdapAllowSignup" type="checkbox"> Allow New User Sign Up
+                                                                </label>
+                                                            </div>
+                                                            <div style="padding-top: 5px; padding-left: 20px;">Enable to automatically create a local account for LDAP users on first login.</div>
+
+                                                            <div class="checkbox">
+                                                                <label>
+                                                                    <input id="chkAdminLdapAllowSignupOnlyForMappedUsers" type="checkbox"> Allow Sign Up Only For Mapped Users
+                                                                </label>
+                                                            </div>
+                                                            <div style="padding-top: 5px; padding-left: 20px;">Restrict auto-provisioning to users who are members of at least one mapped group.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label class="col-sm-3 control-label">Group Map (Optional)</label>
+                                                        <div class="col-sm-7">
+                                                            <table class="table" style="margin-bottom: 0px;">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>Remote Group (LDAP CN)</th>
+                                                                        <th>Local Group</th>
+                                                                        <th style="width: 84px;">
+                                                                            <button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addAdminLdapGroupMapRow('', '');">Add</button>
+                                                                        </th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody id="tableAdminLdapGroupMap"></tbody>
+                                                            </table>
+                                                            <div style="padding-top: 5px;">Map LDAP groups (by CN name) to local Technitium groups. Group memberships are synced on each login.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div>
+                                                        <p><b>Note!</b> LDAP authentication works by binding to the directory with a service account to locate the user, then re-binding as that user to validate credentials.</p>
+                                                        <p><b>Note!</b> If a user exists locally with a password, local authentication takes priority. LDAP is used when no local account is found, or when the account was previously provisioned via LDAP.</p>
+                                                        <p><b>Note!</b> LDAP users cannot use Two-Factor Authentication (TOTP). Credentials are validated by the LDAP directory on each login.</p>
+                                                        <p><b>Note!</b> It is recommended to always keep a local administrator account as a fallback in case the LDAP server becomes unreachable.</p>
+                                                        <p><b>Note!</b> The following environment variables can be used to configure LDAP: <code>DNS_SERVER_LDAP_ENABLED</code>, <code>DNS_SERVER_LDAP_SERVER</code>, <code>DNS_SERVER_LDAP_PORT</code>, <code>DNS_SERVER_LDAP_USE_SSL</code>, <code>DNS_SERVER_LDAP_BIND_DN</code>, <code>DNS_SERVER_LDAP_BIND_PASSWORD</code>, <code>DNS_SERVER_LDAP_SEARCH_BASE</code>, <code>DNS_SERVER_LDAP_USER_FILTER</code>, <code>DNS_SERVER_LDAP_GROUP_ATTRIBUTE</code>, <code>DNS_SERVER_LDAP_ALLOW_SIGNUP</code>, <code>DNS_SERVER_LDAP_ALLOW_SIGNUP_ONLY_FOR_MAPPED_USERS</code>, <code>DNS_SERVER_LDAP_GROUP_MAP</code>.</p>
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <button type="button" class="btn btn-primary" data-loading-text="Saving..." onclick="saveAdminLdapConfig(this);">Save Config</button>
+                                                    <button type="button" class="btn btn-default" style="margin-left: 10px;" data-loading-text="Testing..." onclick="testAdminLdapConnection(this);">Test Connection</button>
                                                 </div>
                                             </div>
                                         </div>
