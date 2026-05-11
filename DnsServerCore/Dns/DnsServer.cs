@@ -301,7 +301,7 @@ namespace DnsServerCore.Dns
         const int COOKIE_FAILURE_RETENTION_SECONDS = 300;
         const int COOKIE_BOOTSTRAP_WINDOW_SECONDS = 10;
         const int COOKIE_BOOTSTRAP_HARD_THRESHOLD = 30;
-        const int COOKIE_BOOTSTRAP_REFILL_RATE_PER_SECOND = 3; // 30 tokens per 10 seconds
+        const int COOKIE_BOOTSTRAP_REFILL_RATE_PER_SECOND = COOKIE_BOOTSTRAP_HARD_THRESHOLD / COOKIE_BOOTSTRAP_WINDOW_SECONDS; // 30 tokens per 10 seconds        const int COOKIE_BOOTSTRAP_IDLE_EVICT_SECONDS = 120;
         const int COOKIE_BOOTSTRAP_IDLE_EVICT_SECONDS = 120;
         const int COOKIE_BOOTSTRAP_BUCKET_COUNT = 16384; // power-of-two for fast masking
         const int COOKIE_BOOTSTRAP_MAX_PROBES = 8;
@@ -3340,9 +3340,10 @@ namespace DnsServerCore.Dns
             // DNS Cookies (RFC 7873 / RFC 9018 v1)
             CookieOptionData requestCookie = null;
             object responseCookie;
+            var cookieValidator = _cookieValidator;
             if (protocol == DnsTransportProtocol.Udp &&
                 request.EDNS != null &&
-                _cookieValidator != null)
+                cookieValidator != null)
             {
                 requestCookie = TryGetCookieOption(request);
 

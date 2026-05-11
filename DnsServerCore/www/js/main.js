@@ -1796,17 +1796,18 @@ function saveDnsSettings(objBtn) {
             "&enableDnsOverHttps=" + enableDnsOverHttps +
             "&enableDnsOverHttp3=" + enableDnsOverHttp3 +
             "&enableDnsOverQuic=" + enableDnsOverQuic +
-            "&useDnsCookies=" + useDnsCookies + // Added from feat branch
+            "&useDnsCookies=" + useDnsCookies +
             "&dnsOverUdpProxyPort=" + dnsOverUdpProxyPort +
             "&dnsOverTcpProxyPort=" + dnsOverTcpProxyPort +
             "&dnsOverHttpPort=" + dnsOverHttpPort +
             "&dnsOverTlsPort=" + dnsOverTlsPort +
             "&dnsOverHttpsPort=" + dnsOverHttpsPort +
             "&dnsOverQuicPort=" + dnsOverQuicPort +
-            "&dnsReverseProxyNetworkACL=" + encodeURIComponent(dnsReverseProxyNetworkACL) + // Kept master naming
+            "&dnsReverseProxyNetworkACL=" + encodeURIComponent(dnsReverseProxyNetworkACL) +
             "&dnsOverHttpRealIpHeader=" + encodeURIComponent(dnsOverHttpRealIpHeader) +
             "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) +
-            "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword);    }
+            "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword);
+    }
 
     //tsig
     if (includeClusterParameters) {
