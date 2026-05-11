@@ -154,13 +154,38 @@ namespace DnsServerCore.Dns.Security
                 Directory.CreateDirectory(directory);
 
             string tmpPath = _secretFilePath + ".tmp";
-            File.WriteAllBytes(tmpPath, ms.ToArray());
+            WriteSecretFile(tmpPath, ms.ToArray());
 
             // Atomic replace where supported
             if (File.Exists(_secretFilePath))
                 File.Replace(tmpPath, _secretFilePath, destinationBackupFileName: null);
             else
                 File.Move(tmpPath, _secretFilePath);
+
+            RestrictSecretFilePermissions(_secretFilePath);
+        }
+
+        private static void WriteSecretFile(string path, byte[] contents)
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                File.WriteAllBytes(path, contents);
+                return;
+            }
+            FileStreamOptions options = new FileStreamOptions
+            {
+                Mode = FileMode.Create,
+                Access = FileAccess.Write,
+                Share = FileShare.None,
+                UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite
+            };
+            using FileStream stream = new FileStream(path, options);
+            stream.Write(contents, 0, contents.Length);
+        }
+        private static void RestrictSecretFilePermissions(string path)
+        {
+            if (!OperatingSystem.IsWindows() && File.Exists(path))
+                File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
         }
 
         private Snapshot GenerateNewSnapshot(byte[] previousSecret)
