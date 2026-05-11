@@ -1149,6 +1149,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <div><b>Note!</b> Enabling UDP socket pool provides port randomization for all outbound DNS-over-UDP requests to mitigate spoofing attacks. It is recommended to enable UDP socket pool on Windows platform. On Linux, ports are fairly random and thus socket pool may be enabled if more randomization is desired. The DNS Server can detect DNS spoofing attack attempts based on ID mismatch and switch to TCP protocol automatically.</div>
                                                     </div>
 
+                                                    <div id="divSettingsGeneralDnsCookies" class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Use DNS Cookies</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkUseDnsCookies" type="checkbox"/> Use DNS Cookies
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div style="padding-top: 5px;">Enable this option to use DNS Cookies for UDP queries. Disable this option to support older DNS clients that may not interoperate well with DNS Cookie behavior.</div>
+                                                    </div>
+
                                                     <div id="divSettingsGeneralEDns" class="well well-sm form-horizontal">
                                                         <div class="form-group">
                                                             <label for="txtEdnsUdpPayloadSize" class="col-sm-3 control-label">EDNS UDP Payload Size</label>

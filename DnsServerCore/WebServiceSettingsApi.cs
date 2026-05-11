@@ -224,6 +224,7 @@ namespace DnsServerCore
                 jsonWriter.WriteBoolean("enableDnsOverHttps", _dnsWebService._dnsServer.EnableDnsOverHttps);
                 jsonWriter.WriteBoolean("enableDnsOverHttp3", _dnsWebService._dnsServer.EnableDnsOverHttp3);
                 jsonWriter.WriteBoolean("enableDnsOverQuic", _dnsWebService._dnsServer.EnableDnsOverQuic);
+                jsonWriter.WriteBoolean("useDnsCookies", _dnsWebService._dnsServer.UseDnsCookies);
                 jsonWriter.WriteNumber("dnsOverUdpProxyPort", _dnsWebService._dnsServer.DnsOverUdpProxyPort);
                 jsonWriter.WriteNumber("dnsOverTcpProxyPort", _dnsWebService._dnsServer.DnsOverTcpProxyPort);
                 jsonWriter.WriteNumber("dnsOverHttpPort", _dnsWebService._dnsServer.DnsOverHttpPort);
@@ -1060,6 +1061,15 @@ namespace DnsServerCore
                                     DnsWebService.ValidateQuicSupport();
 
                                 _dnsWebService._dnsServer.EnableDnsOverQuic = enableDnsOverQuic;
+                                restartDnsService = true;
+                            }
+                        }
+
+                        if (request.TryGetQueryOrForm("useDnsCookies", bool.Parse, out bool useDnsCookies))
+                        {
+                            if (_dnsWebService._dnsServer.UseDnsCookies != useDnsCookies)
+                            {
+                                _dnsWebService._dnsServer.UseDnsCookies = useDnsCookies;
                                 restartDnsService = true;
                             }
                         }
