@@ -827,6 +827,7 @@ function showClusterOptionsModal() {
             $("#txtClusterOptionsHeartbeatRetryIntervalSeconds").attr("disabled", !isPrimaryNode);
             $("#txtClusterOptionsConfigRefreshIntervalSeconds").attr("disabled", !isPrimaryNode);
             $("#txtClusterOptionsConfigRetryIntervalSeconds").attr("disabled", !isPrimaryNode);
+            $("#chkClusterOptionsIgnoreCertificateErrors").attr("disabled", !isPrimaryNode);
 
             if (isPrimaryNode)
                 $("#btnClusterOptionsSave").show();
@@ -838,6 +839,7 @@ function showClusterOptionsModal() {
             $("#txtClusterOptionsHeartbeatRetryIntervalSeconds").val(responseJSON.response.heartbeatRetryIntervalSeconds);
             $("#txtClusterOptionsConfigRefreshIntervalSeconds").val(responseJSON.response.configRefreshIntervalSeconds);
             $("#txtClusterOptionsConfigRetryIntervalSeconds").val(responseJSON.response.configRetryIntervalSeconds);
+            $("#chkClusterOptionsIgnoreCertificateErrors").prop("checked", responseJSON.response.ignoreCertificateErrors === true);
 
             divClusterOptionsLoader.hide();
             divClusterOptionsView.show();
@@ -886,6 +888,8 @@ function saveClusterOptions(objBtn) {
         return;
     }
 
+    var ignoreCertificateErrors = $("#chkClusterOptionsIgnoreCertificateErrors").prop("checked");
+
     var node = $("#optAdminClusterNode").val();
 
     var btn = $(objBtn);
@@ -894,6 +898,7 @@ function saveClusterOptions(objBtn) {
     HTTPRequest({
         url: "api/admin/cluster/primary/setOptions?heartbeatRefreshIntervalSeconds=" + heartbeatRefreshIntervalSeconds + "&heartbeatRetryIntervalSeconds=" + heartbeatRetryIntervalSeconds
             + "&configRefreshIntervalSeconds=" + configRefreshIntervalSeconds + "&configRetryIntervalSeconds=" + configRetryIntervalSeconds
+            + "&ignoreCertificateErrors=" + ignoreCertificateErrors
             + "&node=" + encodeURIComponent(node),
         token: sessionData.token,
         success: function (responseJSON) {

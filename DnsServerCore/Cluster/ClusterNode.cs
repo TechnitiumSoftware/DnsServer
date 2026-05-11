@@ -193,7 +193,7 @@ namespace DnsServerCore.Cluster
 
             if (_apiClient is null)
             {
-                _apiClient = new HttpApiClient(_url, _clusterManager.DnsWebService.DnsServer.Proxy, _clusterManager.DnsWebService.DnsServer.IPv6Mode, false, new InternalDnsClient(_clusterManager.DnsWebService.DnsServer, this));
+                _apiClient = new HttpApiClient(_url, _clusterManager.DnsWebService.DnsServer.Proxy, _clusterManager.DnsWebService.DnsServer.IPv6Mode, _clusterManager.IgnoreCertificateErrors, new InternalDnsClient(_clusterManager.DnsWebService.DnsServer, this));
 
                 UserSession clusterApiToken = null;
 
@@ -318,6 +318,15 @@ namespace DnsServerCore.Cluster
             }
 
             if (changed && (_apiClient is not null))
+            {
+                _apiClient.Dispose();
+                _apiClient = null;
+            }
+        }
+
+        public void ResetApiClient()
+        {
+            if (_apiClient is not null)
             {
                 _apiClient.Dispose();
                 _apiClient = null;

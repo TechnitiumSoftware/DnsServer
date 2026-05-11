@@ -70,6 +70,7 @@ namespace DnsServerCore
                     jsonWriter.WriteNumber("heartbeatRetryIntervalSeconds", _dnsWebService._clusterManager.HeartBeatRetryIntervalSeconds);
                     jsonWriter.WriteNumber("configRefreshIntervalSeconds", _dnsWebService._clusterManager.ConfigRefreshIntervalSeconds);
                     jsonWriter.WriteNumber("configRetryIntervalSeconds", _dnsWebService._clusterManager.ConfigRetryIntervalSeconds);
+                    jsonWriter.WriteBoolean("ignoreCertificateErrors", _dnsWebService._clusterManager.IgnoreCertificateErrors);
 
                     WriteClusterNodes(jsonWriter);
                 }
@@ -437,8 +438,9 @@ namespace DnsServerCore
                 ushort heartbeatRetryIntervalSeconds = request.GetQueryOrForm("heartbeatRetryIntervalSeconds", ushort.Parse, _dnsWebService._clusterManager.HeartBeatRetryIntervalSeconds);
                 ushort configRefreshIntervalSeconds = request.GetQueryOrForm("configRefreshIntervalSeconds", ushort.Parse, _dnsWebService._clusterManager.ConfigRefreshIntervalSeconds);
                 ushort configRetryIntervalSeconds = request.GetQueryOrForm("configRetryIntervalSeconds", ushort.Parse, _dnsWebService._clusterManager.ConfigRetryIntervalSeconds);
+                bool ignoreCertificateErrors = request.GetQueryOrForm("ignoreCertificateErrors", bool.Parse, _dnsWebService._clusterManager.IgnoreCertificateErrors);
 
-                _dnsWebService._clusterManager.UpdateClusterOptions(heartbeatRefreshIntervalSeconds, heartbeatRetryIntervalSeconds, configRefreshIntervalSeconds, configRetryIntervalSeconds);
+                _dnsWebService._clusterManager.UpdateClusterOptions(heartbeatRefreshIntervalSeconds, heartbeatRetryIntervalSeconds, configRefreshIntervalSeconds, configRetryIntervalSeconds, ignoreCertificateErrors);
 
                 _dnsWebService._log.Write(_dnsWebService.GetRemoteEndPoint(context), "[" + sessionUser.Username + "] Cluster (" + _dnsWebService._clusterManager.ClusterDomain + ") options were updated successfully.");
 

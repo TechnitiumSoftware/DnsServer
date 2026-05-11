@@ -7048,6 +7048,14 @@ MII...
                                     <div style="padding-top: 5px;">The interval in seconds in which the DNS Server must retry the configuration refresh process for the Primary node in case of a failure.</div>
                                 </div>
                             </div>
+
+                            <div class="form-group">
+                                <label class="col-sm-4 control-label">Ignore Certificate Errors</label>
+                                <div class="col-sm-7">
+                                    <div class="checkbox" style="margin: 0px;"><label><input id="chkClusterOptionsIgnoreCertificateErrors" type="checkbox"> Skip TLS certificate validation for Cluster heartbeat and config-refresh calls between nodes.</label></div>
+                                    <div style="padding-top: 5px;">Enable this only when nodes use self-signed TLS certificates on a private network. Disable after migrating all nodes to PKI-trusted certificates.</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">

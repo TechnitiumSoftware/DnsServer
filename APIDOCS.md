@@ -7521,6 +7521,7 @@ WHERE:
 - `heartbeatRetryIntervalSeconds` (optional): The interval in seconds in which the DNS server must retry the state refresh process for all nodes in case of a failure. The valid range is `10`-`300` and default value is `10`.
 - `configRefreshIntervalSeconds` (optional): The interval in seconds in which the DNS server must refresh the configuration from the Primary node. The valid range is `30`-`3600` and default value is `900`.
 - `configRetryIntervalSeconds` (optional): The interval in seconds in which the DNS server must retry the configuration refresh process for the Primary node in case of a failure. The valid range is `30`-`3600` and default value is `60`.
+- `ignoreCertificateErrors` (optional): Set to `true` to skip TLS certificate validation on heartbeat and config-refresh calls between Cluster nodes. This is intended for deployments where nodes use self-signed TLS certificates on a private network. The flag defaults to whatever was set during `initJoin` and persists across restarts. Set to `false` after migrating all nodes to PKI-trusted certificates.
 
 RESPONSE:
 ```
@@ -7534,6 +7535,7 @@ RESPONSE:
 		"heartbeatRetryIntervalSeconds": 10,
 		"configRefreshIntervalSeconds": 900,
 		"configRetryIntervalSeconds": 60,
+		"ignoreCertificateErrors": false,
 		"configLastSynced": "2025-09-26T12:30:16Z",
 		"nodes": [
 			{
@@ -7588,7 +7590,7 @@ WHERE:
 - `secondaryNodeIpAddresses`: A comma separated list of IP addresses of this DNS server that will be accessible by all other DNS Server nodes in the Cluster.
 - `primaryNodeUrl`: The web service HTTPS URL of the Primary node in the Cluster.
 - `primaryNodeIpAddress` (optional): The IP address of the Primary node in the Cluster. When unspecified, domain name in the Primary node URL will be resolved and used.
-- `ignoreCertificateErrors` (optional): Set to `true` only when you know that the Primary node web service is using a self-signed TLS certificate and is reachable on a private network. 
+- `ignoreCertificateErrors` (optional): Set to `true` only when you know that the Primary node web service is using a self-signed TLS certificate and is reachable on a private network. The value is persisted as the Cluster-wide default and continues to apply to subsequent heartbeat and config-refresh calls between nodes. It can be toggled later via the `Set Cluster Options` API once all nodes use PKI-trusted certificates. 
 - `primaryNodeUsername`: The username of an administrator on the Primary node in the Cluster.
 - `primaryNodePassword`: The password of the administrator user specified above.
 - `primaryNodeTotp` (optional): The the 6-digit code you see in your authenticator app for the administrator user specified above. Only to be used if the user has 2FA enabled.

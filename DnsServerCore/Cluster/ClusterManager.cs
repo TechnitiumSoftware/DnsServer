@@ -58,6 +58,7 @@ namespace DnsServerCore.Cluster
         ushort _heartbeatRetryIntervalSeconds;
         ushort _configRefreshIntervalSeconds;
         ushort _configRetryIntervalSeconds;
+        bool _ignoreCertificateErrors;
         DateTime _configLastSynced;
 
         IReadOnlyDictionary<int, ClusterNode> _clusterNodes;
@@ -368,11 +369,16 @@ namespace DnsServerCore.Cluster
             switch (version)
             {
                 case 1:
+                case 2:
                     _clusterDomain = bR.ReadString();
                     _heartbeatRefreshIntervalSeconds = bR.ReadUInt16();
                     _heartbeatRetryIntervalSeconds = bR.ReadUInt16();
                     _configRefreshIntervalSeconds = bR.ReadUInt16();
                     _configRetryIntervalSeconds = bR.ReadUInt16();
+
+                    if (version >= 2)
+                        _ignoreCertificateErrors = bR.ReadBoolean();
+
                     _configLastSynced = s.ReadDateTime();
 
                     Dictionary<int, ClusterNode> clusterNodes = null;
@@ -402,13 +408,14 @@ namespace DnsServerCore.Cluster
             BinaryWriter bW = new BinaryWriter(s);
 
             bW.Write(Encoding.ASCII.GetBytes("CL")); //format
-            bW.Write((byte)1); //version
+            bW.Write((byte)2); //version
 
             bW.Write(_clusterDomain);
             bW.Write(_heartbeatRefreshIntervalSeconds);
             bW.Write(_heartbeatRetryIntervalSeconds);
             bW.Write(_configRefreshIntervalSeconds);
             bW.Write(_configRetryIntervalSeconds);
+            bW.Write(_ignoreCertificateErrors);
             s.WriteDateTime(_configLastSynced);
 
             IReadOnlyDictionary<int, ClusterNode> clusterNodes = _clusterNodes;
@@ -462,6 +469,21 @@ namespace DnsServerCore.Cluster
                         continue;
 
                     clusterNode.Value.UpdateHeartbeatTimer();
+                }
+            }
+        }
+
+        private void ResetApiClientForAllClusterNodes()
+        {
+            IReadOnlyDictionary<int, ClusterNode> clusterNodes = _clusterNodes;
+            if (clusterNodes is not null)
+            {
+                foreach (KeyValuePair<int, ClusterNode> clusterNode in clusterNodes)
+                {
+                    if (clusterNode.Value.State == ClusterNodeState.Self)
+                        continue;
+
+                    clusterNode.Value.ResetApiClient();
                 }
             }
         }
@@ -896,7 +918,7 @@ namespace DnsServerCore.Cluster
                                                     includeZones: includeZones);
         }
 
-        public void UpdateClusterOptions(ushort heartbeatRefreshIntervalSeconds, ushort heartbeatRetryIntervalSeconds, ushort configRefreshIntervalSeconds, ushort configRetryIntervalSeconds)
+        public void UpdateClusterOptions(ushort heartbeatRefreshIntervalSeconds, ushort heartbeatRetryIntervalSeconds, ushort configRefreshIntervalSeconds, ushort configRetryIntervalSeconds, bool ignoreCertificateErrors)
         {
             if (!ClusterInitialized)
                 throw new DnsServerException("Failed to update Cluster options: the Cluster is not initialized.");
@@ -920,6 +942,7 @@ namespace DnsServerCore.Cluster
                 throw new ArgumentException("Failed to update Cluster options: The config refresh interval must be greater than the heartbeat refresh interval.");
 
             bool changed = false;
+            bool ignoreCertificateErrorsChanged = false;
 
             if (_heartbeatRefreshIntervalSeconds != heartbeatRefreshIntervalSeconds)
             {
@@ -945,10 +968,21 @@ namespace DnsServerCore.Cluster
                 changed = true;
             }
 
+            if (_ignoreCertificateErrors != ignoreCertificateErrors)
+            {
+                _ignoreCertificateErrors = ignoreCertificateErrors;
+                changed = true;
+                ignoreCertificateErrorsChanged = true;
+            }
+
             if (changed)
             {
                 //apply new interval to all cluster nodes immediately
                 UpdateHeartbeatTimerForAllClusterNodes();
+
+                //rebuild cached HttpApiClient on all nodes so the new TLS validation policy takes effect
+                if (ignoreCertificateErrorsChanged)
+                    ResetApiClientForAllClusterNodes();
 
                 //save changes
                 SaveConfigFile();
@@ -1413,6 +1447,7 @@ namespace DnsServerCore.Cluster
                 _heartbeatRetryIntervalSeconds = primaryNodeClusterInfo.HeartbeatRetryIntervalSeconds;
                 _configRefreshIntervalSeconds = primaryNodeClusterInfo.ConfigRefreshIntervalSeconds;
                 _configRetryIntervalSeconds = primaryNodeClusterInfo.ConfigRetryIntervalSeconds;
+                _ignoreCertificateErrors = ignoreCertificateErrors;
 
                 try
                 {
@@ -2213,6 +2248,9 @@ namespace DnsServerCore.Cluster
 
         public ushort ConfigRetryIntervalSeconds
         { get { return _configRetryIntervalSeconds; } }
+
+        public bool IgnoreCertificateErrors
+        { get { return _ignoreCertificateErrors; } }
 
         public DateTime ConfigLastSynced
         { get { return _configLastSynced; } }
