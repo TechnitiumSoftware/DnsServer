@@ -34,7 +34,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace QueryLogsSqlServer
 {
-    public sealed class App : IDnsApplication, IDnsQueryLogger, IDnsQueryLogs
+    public sealed class App : IDnsApplication, IDnsQueryLoggerEx, IDnsQueryLogs
     {
         #region variables
 
@@ -52,7 +52,7 @@ namespace QueryLogsSqlServer
         Channel<LogEntry>? _channel;
         ChannelWriter<LogEntry>? _channelWriter;
         Thread? _consumerThread;
-        const int BULK_INSERT_COUNT = 190; //sql server supports a maximum of 2100 parameters per query
+        const int BULK_INSERT_COUNT = 175; //sql server supports a maximum of 2100 parameters per query
         const int BULK_INSERT_ERROR_DELAY = 10000;
         const int BULK_REMOVE_COUNT = 10000;
 
@@ -236,14 +236,14 @@ namespace QueryLogsSqlServer
                     await using (SqlCommand command = connection.CreateCommand())
                     {
                         sb.Length = 0;
-                        sb.Append("INSERT INTO dns_logs (server, timestamp, client_ip, protocol, response_type, response_rtt, rcode, qname, qtype, qclass, answer) VALUES ");
+                        sb.Append("INSERT INTO dns_logs (server, timestamp, client_ip, protocol, response_type, response_rtt, rcode, qname, qtype, qclass, answer, blocking_metadata) VALUES ");
 
                         for (int i = 0; i < logs.Count; i++)
                         {
                             if (i == 0)
-                                sb.Append($"(@server{i}, @timestamp{i}, @client_ip{i}, @protocol{i}, @response_type{i}, @response_rtt{i}, @rcode{i}, @qname{i}, @qtype{i}, @qclass{i}, @answer{i})");
+                                sb.Append($"(@server{i}, @timestamp{i}, @client_ip{i}, @protocol{i}, @response_type{i}, @response_rtt{i}, @rcode{i}, @qname{i}, @qtype{i}, @qclass{i}, @answer{i}, @blocking_metadata{i})");
                             else
-                                sb.Append($", (@server{i}, @timestamp{i}, @client_ip{i}, @protocol{i}, @response_type{i}, @response_rtt{i}, @rcode{i}, @qname{i}, @qtype{i}, @qclass{i}, @answer{i})");
+                                sb.Append($", (@server{i}, @timestamp{i}, @client_ip{i}, @protocol{i}, @response_type{i}, @response_rtt{i}, @rcode{i}, @qname{i}, @qtype{i}, @qclass{i}, @answer{i}, @blocking_metadata{i})");
                         }
 
                         command.CommandText = sb.ToString();
@@ -263,18 +263,14 @@ namespace QueryLogsSqlServer
                             SqlParameter paramQtype = command.Parameters.Add("@qtype" + i, SqlDbType.Int);
                             SqlParameter paramQclass = command.Parameters.Add("@qclass" + i, SqlDbType.SmallInt);
                             SqlParameter paramAnswer = command.Parameters.Add("@answer" + i, SqlDbType.VarChar);
+                            SqlParameter paramBlockingMetadata = command.Parameters.Add("@blocking_metadata" + i, SqlDbType.NVarChar, -1);
 
                             paramServer.Value = _dnsServer?.ServerDomain;
                             paramTimestamp.Value = log.Timestamp;
                             paramClientIp.Value = log.RemoteEP.Address.ToString();
                             paramProtocol.Value = (byte)log.Protocol;
 
-                            DnsServerResponseType responseType;
-
-                            if (log.Response.Tag == null)
-                                responseType = DnsServerResponseType.Recursive;
-                            else
-                                responseType = (DnsServerResponseType)log.Response.Tag;
+                            DnsServerResponseType responseType = DnsServerResponseTag.GetResponseType(log.Response.Tag);
 
                             paramResponseType.Value = (byte)responseType;
 
@@ -328,6 +324,11 @@ namespace QueryLogsSqlServer
 
                                 paramAnswer.Value = answer;
                             }
+
+                            if (log.Metadata is null)
+                                paramBlockingMetadata.Value = DBNull.Value;
+                            else
+                                paramBlockingMetadata.Value = JsonSerializer.Serialize(log.Metadata.Values);
                         }
 
                         await command.ExecuteNonQueryAsync();
@@ -414,13 +415,30 @@ BEGIN
         qname VARCHAR(255),
         qtype INT,
         qclass SMALLINT,
-        answer VARCHAR(4000)
+        answer VARCHAR(4000),
+        blocking_metadata NVARCHAR(MAX)
     );
 END
 
 IF NOT EXISTS(SELECT * FROM sys.columns WHERE name = 'server' AND object_id = OBJECT_ID('dns_logs'))
 BEGIN
     ALTER TABLE dns_logs ADD server varchar(255);
+END
+
+IF NOT EXISTS(SELECT * FROM sys.columns WHERE name = 'blocking_metadata' AND object_id = OBJECT_ID('dns_logs'))
+BEGIN
+    ALTER TABLE dns_logs ADD blocking_metadata NVARCHAR(MAX);
+END
+ELSE IF EXISTS
+(
+    SELECT *
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID('dns_logs')
+      AND name = 'blocking_metadata'
+      AND system_type_id = 167
+)
+BEGIN
+    ALTER TABLE dns_logs ALTER COLUMN blocking_metadata NVARCHAR(MAX);
 END
 
 IF NOT EXISTS(SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='dns_logs' AND COLUMN_NAME='qtype' AND DATA_TYPE='INT')
@@ -598,8 +616,13 @@ END
 
         public Task InsertLogAsync(DateTime timestamp, DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
         {
+            return InsertLogAsync(timestamp, request, remoteEP, protocol, response, null);
+        }
+
+        public Task InsertLogAsync(DateTime timestamp, DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response, DnsQueryLogMetadata? metadata)
+        {
             if (_enableLogging)
-                _channelWriter?.TryWrite(new LogEntry(timestamp, request, remoteEP, protocol, response));
+                _channelWriter?.TryWrite(new LogEntry(timestamp, request, remoteEP, protocol, response, metadata));
 
             return Task.CompletedTask;
         }
@@ -817,18 +840,20 @@ FETCH NEXT @limit ROWS ONLY";
             public readonly IPEndPoint RemoteEP;
             public readonly DnsTransportProtocol Protocol;
             public readonly DnsDatagram Response;
+            public readonly DnsQueryLogMetadata? Metadata;
 
             #endregion
 
             #region constructor
 
-            public LogEntry(DateTime timestamp, DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
+            public LogEntry(DateTime timestamp, DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response, DnsQueryLogMetadata? metadata = null)
             {
                 Timestamp = timestamp;
                 Request = request;
                 RemoteEP = remoteEP;
                 Protocol = protocol;
                 Response = response;
+                Metadata = metadata ?? DnsServerResponseTag.GetLogMetadata(response.Tag);
             }
 
             #endregion

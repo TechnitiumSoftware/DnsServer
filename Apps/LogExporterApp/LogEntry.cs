@@ -34,7 +34,7 @@ namespace LogExporter
 {
     public class LogEntry
     {
-        public LogEntry(DateTime timestamp, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram request, DnsDatagram response, bool ednsLogging = false)
+        public LogEntry(DateTime timestamp, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram request, DnsDatagram response, bool ednsLogging = false, DnsQueryLogMetadata? metadata = null)
         {
             // Assign timestamp and ensure it's in UTC
             Timestamp = timestamp.Kind == DateTimeKind.Utc ? timestamp : timestamp.ToUniversalTime();
@@ -42,7 +42,9 @@ namespace LogExporter
             // Extract client information
             ClientIp = remoteEP.Address.ToString();
             Protocol = protocol;
-            ResponseType = response.Tag == null ? DnsServerResponseType.Recursive : (DnsServerResponseType)response.Tag;
+            ResponseType = DnsServerResponseTag.GetResponseType(response.Tag);
+            DnsQueryLogMetadata? logMetadata = metadata ?? DnsServerResponseTag.GetLogMetadata(response.Tag);
+            BlockingMetadata = logMetadata?.Values;
 
             if ((ResponseType == DnsServerResponseType.Recursive) && (response.Metadata is not null))
                 ResponseRtt = response.Metadata.RoundTripTime;
@@ -85,18 +87,27 @@ namespace LogExporter
 
             foreach (EDnsOption extendedErrorLog in response.EDNS.Options.Where(o => o.Code == EDnsOptionCode.EXTENDED_DNS_ERROR))
             {
-                string[] extractedData = extendedErrorLog.Data.ToString().Replace("[", string.Empty).Replace("]", string.Empty).Split(":", StringSplitOptions.TrimEntries);
+                string[] extractedData = extendedErrorLog.Data.ToString().Replace("[", string.Empty).Replace("]", string.Empty).Split(":", 2, StringSplitOptions.TrimEntries);
+                string? errType = null;
+                string? message = null;
+
+                if (extractedData.Length > 0)
+                    errType = extractedData[0];
+
+                if (extractedData.Length > 1)
+                    message = extractedData[1];
 
                 EDNS.Add(new EDNSLog
                 {
-                    ErrType = extractedData[0],
-                    Message = extractedData[1]
+                    ErrType = errType,
+                    Message = message
                 });
             }
         }
 
         public List<DnsResourceRecord> Answers { get; private set; }
         public string ClientIp { get; private set; }
+        public IReadOnlyDictionary<string, string>? BlockingMetadata { get; private set; }
         public List<EDNSLog> EDNS { get; private set; }
         public DnsTransportProtocol Protocol { get; private set; }
         public DnsQuestion? Question { get; private set; }
