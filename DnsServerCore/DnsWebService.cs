@@ -44,8 +44,10 @@ using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Quic;
@@ -1732,6 +1734,26 @@ namespace DnsServerCore
 
                             context.HandleResponse();
                             context.Response.Redirect("/#error=" + Uri.EscapeDataString("SSO remote failure. Please contact your administrator."));
+
+                            return Task.CompletedTask;
+                        },
+                        OnUserInformationReceived = delegate (UserInformationReceivedContext context)
+                        {
+                            var userClaims = context.User.RootElement.EnumerateObject().Select(element => element.Name).ToImmutableHashSet();
+                            var knownClaims = context.Options.ClaimActions.Select(action => action.ClaimType).ToImmutableHashSet();
+                            // Only add claim actions for the claims that exist in the user info response and are not already mapped by default
+                            if (userClaims.Contains("email") && !knownClaims.Contains("email")) {
+                                context.Options.ClaimActions.MapUniqueJsonKey("email", "email");
+                            }
+                            if (userClaims.Contains("preferred_username") && !knownClaims.Contains("preferred_username")) {
+                                context.Options.ClaimActions.MapUniqueJsonKey("preferred_username", "preferred_username");
+                            }
+                            if (userClaims.Contains("groups") && !knownClaims.Contains("groups")) {
+                                context.Options.ClaimActions.MapJsonKey("groups", "groups");
+                            }
+                            if (userClaims.Contains("roles") && !knownClaims.Contains("roles")) {
+                                context.Options.ClaimActions.MapJsonKey("roles", "roles");
+                            }
 
                             return Task.CompletedTask;
                         }
