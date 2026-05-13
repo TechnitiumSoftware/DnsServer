@@ -2677,7 +2677,6 @@ namespace DnsServerCore.Dns.ZoneManagers
             // Load networks
             Dictionary<string, List<NetworkAddress>> _networks;
             string config = File.ReadAllText(Path.Combine(_dnsServer.ConfigFolder, "apps", "Split Horizon", "dnsApp.config"));
-            Console.WriteLine(config);
 
             using JsonDocument networkDocument = JsonDocument.Parse(config);
             JsonElement jsonConfig = networkDocument.RootElement;
