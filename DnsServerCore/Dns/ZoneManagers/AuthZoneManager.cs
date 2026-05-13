@@ -17,6 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.ApplicationCommon;
+using DnsServerCore.Dns.Applications;
 using DnsServerCore.Dns.Dnssec;
 using DnsServerCore.Dns.ResourceRecords;
 using DnsServerCore.Dns.Trees;
@@ -29,8 +31,10 @@ using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using TechnitiumLibrary;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
@@ -2513,9 +2517,10 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         #region zone transfer / import
 
-        public IReadOnlyList<DnsResourceRecord> QueryZoneTransferRecords(string zoneName)
+        public IReadOnlyList<DnsResourceRecord> QueryZoneTransferRecords(string zoneName, IPEndPoint remoteEP)
         {
             AuthZoneInfo zoneInfo = GetAuthZoneInfo(zoneName);
+            
             if (zoneInfo is null)
                 throw new InvalidOperationException("Zone was not found: " + zoneName);
 
@@ -2555,6 +2560,16 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 xfrRecords.Add(glueRecord);
                         }
                         break;
+                    case DnsResourceRecordType.APP:
+                        DnsApplicationRecordData rd = record.RDATA as DnsApplicationRecordData;
+                        if (rd.AppName == "Split Horizon" && rd.ClassPath == "SplitHorizon.SimpleAddress")
+                        {
+                            xfrRecords.AddRange(ConvertSplitHorizonZoneTransferRequest(record, remoteEP));
+                        }
+                        else
+                            xfrRecords.Add(record);
+                        
+                        break;
 
                     default:
                         xfrRecords.Add(record);
@@ -2568,7 +2583,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             return xfrRecords;
         }
 
-        public IReadOnlyList<DnsResourceRecord> QueryIncrementalZoneTransferRecords(string zoneName, DnsResourceRecord clientSoaRecord)
+        public IReadOnlyList<DnsResourceRecord> QueryIncrementalZoneTransferRecords(string zoneName, DnsResourceRecord clientSoaRecord, IPEndPoint remoteEP)
         {
             AuthZoneInfo authZone = GetAuthZoneInfo(zoneName, true);
             if (authZone is null)
@@ -2620,7 +2635,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 //client's serial was not found in zone history
                 //do full zone transfer
-                return QueryZoneTransferRecords(zoneName);
+                return QueryZoneTransferRecords(zoneName, remoteEP);
             }
 
             List<DnsResourceRecord> xfrRecords = new List<DnsResourceRecord>();
@@ -2630,7 +2645,25 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             //write history
             for (int i = index; i < zoneHistory.Count; i++)
-                xfrRecords.Add(zoneHistory[i]);
+            {
+                DnsResourceRecord current = zoneHistory[i];
+                switch(current.Type)
+                {
+                    case DnsResourceRecordType.APP:
+                        DnsApplicationRecordData rd = current.RDATA as DnsApplicationRecordData;
+                        if (rd.AppName == "Split Horizon" && rd.ClassPath == "SplitHorizon.SimpleAddress")
+                        {
+                            xfrRecords.AddRange(ConvertSplitHorizonZoneTransferRequest(current, remoteEP));
+                        }
+                        else
+                            xfrRecords.Add(zoneHistory[i]);
+                        break;
+                    default:
+                        xfrRecords.Add(zoneHistory[i]);
+                        break;
+                }
+            }
+                
 
             //end incremental message
             xfrRecords.Add(currentSoaRecord);
@@ -2638,7 +2671,121 @@ namespace DnsServerCore.Dns.ZoneManagers
             //condense
             return CondenseIncrementalZoneTransferRecords(zoneName, clientSoaRecord, xfrRecords);
         }
+        public List<DnsResourceRecord> ConvertSplitHorizonZoneTransferRequest(DnsResourceRecord record, IPEndPoint remoteEP)
+        {
+            List<DnsResourceRecord> results = new List<DnsResourceRecord>();
+            DnsApplicationRecordData rd = record.RDATA as DnsApplicationRecordData;
 
+            // Load networks
+            Dictionary<string, List<NetworkAddress>> _networks;
+            string config = File.ReadAllText(Path.Combine(_dnsServer.ConfigFolder, "apps", "Split Horizon", "dnsApp.config"));
+            Console.WriteLine(config);
+
+            using JsonDocument networkDocument = JsonDocument.Parse(config);
+            JsonElement jsonConfig = networkDocument.RootElement;
+
+            if (jsonConfig.TryGetProperty("networks", out JsonElement jsonNetworks))
+            {
+                Dictionary<string, List<NetworkAddress>> networks = new Dictionary<string, List<NetworkAddress>>();
+
+                foreach (JsonProperty jsonProperty in jsonNetworks.EnumerateObject())
+                {
+                    string networkName = jsonProperty.Name;
+
+                    JsonElement jsonNetworkAddresses = jsonProperty.Value;
+                    if (jsonNetworkAddresses.ValueKind == JsonValueKind.Array)
+                    {
+                        List<NetworkAddress> networkAddresses = new List<NetworkAddress>(jsonNetworkAddresses.GetArrayLength());
+
+                        foreach (JsonElement jsonNetworkAddress in jsonNetworkAddresses.EnumerateArray())
+                            networkAddresses.Add(NetworkAddress.Parse(jsonNetworkAddress.GetString()));
+
+                        networks.TryAdd(networkName, networkAddresses);
+                    }
+                }
+
+                _networks = networks;
+            }
+            else
+            {
+                _networks = new Dictionary<string, List<NetworkAddress>>(1);
+            }
+
+            using (JsonDocument jsonDocument = JsonDocument.Parse(rd.Data))
+            {
+                JsonElement jsonAppRecordData = jsonDocument.RootElement;
+                JsonElement jsonAddresses = default;
+
+                NetworkAddress selectedNetwork = null;
+
+                foreach (JsonProperty jsonProperty in jsonAppRecordData.EnumerateObject())
+                {
+                    string name = jsonProperty.Name;
+
+                    // We skip public/private records here and look for defined networks/addresses first
+                    if ((name == "public") || (name == "private"))
+                        continue;
+
+                    if (_networks.TryGetValue(name, out List<NetworkAddress> networkAddresses))
+                    {
+                        foreach (NetworkAddress networkAddress in networkAddresses)
+                        {
+                            if (networkAddress.Contains(remoteEP.Address))
+                            {
+                                jsonAddresses = jsonProperty.Value;
+                                break;
+                            }
+                        }
+
+                        if (jsonAddresses.ValueKind != JsonValueKind.Undefined)
+                            break;
+                    }
+                    else if (NetworkAddress.TryParse(name, out NetworkAddress networkAddress))
+                    {
+                        if (networkAddress.Contains(remoteEP.Address) && ((selectedNetwork is null) || (networkAddress.PrefixLength > selectedNetwork.PrefixLength)))
+                        {
+                            selectedNetwork = networkAddress;
+                            jsonAddresses = jsonProperty.Value;
+                        }
+                    }
+
+                    
+                }
+
+                if (jsonAddresses.ValueKind == JsonValueKind.Undefined)
+                {
+                    if (NetUtilities.IsPrivateIP(remoteEP.Address))
+                    {
+                        jsonAppRecordData.TryGetProperty("private", out jsonAddresses);
+                    }
+                    else
+                    {
+                        jsonAppRecordData.TryGetProperty("public", out jsonAddresses);
+                    }
+                }
+
+                foreach (JsonElement jsonAddress in jsonAddresses.EnumerateArray())
+                {
+                    if (IPAddress.TryParse(jsonAddress.GetString(), out IPAddress address))
+                    {
+                        switch (address.AddressFamily)
+                        {
+                            case AddressFamily.InterNetwork:
+                                results.Add(new DnsResourceRecord(record.Name, DnsResourceRecordType.A, DnsClass.IN, record.TTL, new DnsARecordData(address)));
+                                break;
+                            case AddressFamily.InterNetworkV6:
+                                results.Add(new DnsResourceRecord(record.Name, DnsResourceRecordType.AAAA, DnsClass.IN, record.TTL, new DnsAAAARecordData(address)));
+                                break;
+
+                            default:
+                                break;
+                        }
+                    }
+                }
+            }
+
+            return results;
+        }
         public void SyncZoneTransferRecords(string zoneName, IReadOnlyList<DnsResourceRecord> xfrRecords)
         {
             if ((xfrRecords.Count < 2) || (xfrRecords[0].Type != DnsResourceRecordType.SOA) || !xfrRecords[0].Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase) || !xfrRecords[xfrRecords.Count - 1].Equals(xfrRecords[0]))

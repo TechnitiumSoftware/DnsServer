@@ -3563,13 +3563,13 @@ namespace DnsServerCore.Dns
             if (request.Question[0].Type == DnsResourceRecordType.IXFR)
             {
                 if ((request.Authority.Count == 1) && (request.Authority[0].Type == DnsResourceRecordType.SOA))
-                    xfrRecords = _authZoneManager.QueryIncrementalZoneTransferRecords(request.Question[0].Name, request.Authority[0]);
+                    xfrRecords = _authZoneManager.QueryIncrementalZoneTransferRecords(request.Question[0].Name, request.Authority[0], remoteEP);
                 else
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
             }
             else
             {
-                xfrRecords = _authZoneManager.QueryZoneTransferRecords(request.Question[0].Name);
+                xfrRecords = _authZoneManager.QueryZoneTransferRecords(request.Question[0].Name, remoteEP);
             }
 
             IReadOnlyList<EDnsOption> eDnsOptions = null;
