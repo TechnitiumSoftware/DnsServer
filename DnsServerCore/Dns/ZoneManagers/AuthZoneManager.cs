@@ -1380,6 +1380,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 zoneInfo.ZoneTransfer = sourceZoneInfo.ZoneTransfer;
                 zoneInfo.ZoneTransferNetworkACL = sourceZoneInfo.ZoneTransferNetworkACL;
+                zoneInfo.ZoneTransferSplitHorizonServers = sourceZoneInfo.ZoneTransferSplitHorizonServers;
                 zoneInfo.ZoneTransferTsigKeyNames = sourceZoneInfo.ZoneTransferTsigKeyNames;
 
                 zoneInfo.Notify = sourceZoneInfo.Notify;
@@ -2562,7 +2563,10 @@ namespace DnsServerCore.Dns.ZoneManagers
                         DnsApplicationRecordData rd = record.RDATA as DnsApplicationRecordData;
                         if (rd.AppName == "Split Horizon" && rd.ClassPath == "SplitHorizon.SimpleAddress")
                         {
-                            xfrRecords.AddRange(ConvertSplitHorizonZoneTransferRequest(record, remoteEP));
+                            if(zoneInfo.ApexZone.IsSplitHorizonConversionNeeded(remoteEP.Address))
+                                xfrRecords.AddRange(ConvertSplitHorizonZoneTransferRequest(record, remoteEP));
+                            else
+                                xfrRecords.Add(record);
                         }
                         else
                             xfrRecords.Add(record);
@@ -2651,13 +2655,16 @@ namespace DnsServerCore.Dns.ZoneManagers
                         DnsApplicationRecordData rd = current.RDATA as DnsApplicationRecordData;
                         if (rd.AppName == "Split Horizon" && rd.ClassPath == "SplitHorizon.SimpleAddress")
                         {
-                            xfrRecords.AddRange(ConvertSplitHorizonZoneTransferRequest(current, remoteEP));
+                            if (authZone.ApexZone.IsSplitHorizonConversionNeeded(remoteEP.Address))
+                                xfrRecords.AddRange(ConvertSplitHorizonZoneTransferRequest(current, remoteEP));
+                            else
+                                xfrRecords.Add(current);
                         }
                         else
-                            xfrRecords.Add(zoneHistory[i]);
+                            xfrRecords.Add(current);
                         break;
                     default:
-                        xfrRecords.Add(zoneHistory[i]);
+                        xfrRecords.Add(current);
                         break;
                 }
             }

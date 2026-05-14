@@ -1917,6 +1917,16 @@ function showZoneOptionsModal(zone) {
 
                     {
                         var value = "";
+                        if (responseJSON.response.zoneTransferSplitHorizonServers != null) {
+                            for (var i = 0; i < responseJSON.response.zoneTransferSplitHorizonServers.length; i++) {
+                                value += responseJSON.response.zoneTransferSplitHorizonServers[i] + "\r\n";
+                            }
+                        }
+                        $("#txtZoneOptionsZoneTransferSplitHorizonConversionServers").val(value);
+                    }
+
+                    {
+                        var value = "";
 
                         if (responseJSON.response.zoneTransferTsigKeyNames != null) {
                             for (var i = 0; i < responseJSON.response.zoneTransferTsigKeyNames.length; i++) {
@@ -1962,6 +1972,7 @@ function showZoneOptionsModal(zone) {
                                 $("#rdZoneTransferAllowOnlyZoneNameServers").prop("disabled", false);
                                 $("#rdZoneTransferUseSpecifiedNetworkACL").prop("disabled", false);
                                 $("#rdZoneTransferAllowZoneNameServersAndUseSpecifiedNetworkACL").prop("disabled", false);
+                                $("#txtZoneOptionsZoneTransferSplitHorizonConversionServers").prop("disabled", false);
                                 $("#txtZoneOptionsZoneTransferTsigKeyNames").prop("disabled", false);
                                 $("#optZoneOptionsQuickTsigKeyNames").prop("disabled", false);
 
@@ -1984,6 +1995,7 @@ function showZoneOptionsModal(zone) {
                                 if (responseJSON.response.catalog != null)
                                     $("#txtZoneTransferNetworkACL").prop("disabled", true);
 
+                                $("#txtZoneOptionsZoneTransferSplitHorizonConversionServers").prop("disabled", responseJSON.response.catalog != null);
                                 $("#txtZoneOptionsZoneTransferTsigKeyNames").prop("disabled", responseJSON.response.catalog != null);
                                 $("#optZoneOptionsQuickTsigKeyNames").prop("disabled", responseJSON.response.catalog != null);
 
@@ -2001,6 +2013,7 @@ function showZoneOptionsModal(zone) {
                             $("#rdZoneTransferAllowOnlyZoneNameServers").prop("disabled", false);
                             $("#rdZoneTransferUseSpecifiedNetworkACL").prop("disabled", false);
                             $("#rdZoneTransferAllowZoneNameServersAndUseSpecifiedNetworkACL").prop("disabled", false);
+                            $("#txtZoneOptionsZoneTransferSplitHorizonConversionServers").prop("disabled", false);
                             $("#txtZoneOptionsZoneTransferTsigKeyNames").prop("disabled", false);
                             $("#optZoneOptionsQuickTsigKeyNames").prop("disabled", false);
 
@@ -2014,6 +2027,8 @@ function showZoneOptionsModal(zone) {
                             $("#rdZoneTransferUseSpecifiedNetworkACL").prop("disabled", true);
                             $("#rdZoneTransferAllowZoneNameServersAndUseSpecifiedNetworkACL").prop("disabled", true);
                             $("#txtZoneTransferNetworkACL").prop("disabled", true);
+
+                            $("#txtZoneOptionsZoneTransferSplitHorizonConversionServers").prop("disabled", true);
                             $("#txtZoneOptionsZoneTransferTsigKeyNames").prop("disabled", true);
                             $("#optZoneOptionsQuickTsigKeyNames").prop("disabled", true);
 
@@ -2356,6 +2371,13 @@ function saveZoneOptions() {
     else
         $("#txtZoneTransferNetworkACL").val(zoneTransferNetworkACL.replace(/,/g, "\n"));
 
+    var zoneTransferSplitHorizonServers = cleanTextList($("#txtZoneOptionsZoneTransferSplitHorizonConversionServers").val());
+
+    if ((zoneTransferSplitHorizonServers.length === 0) || (zoneTransferSplitHorizonServers === ","))
+        zoneTransferSplitHorizonServers = false;
+    else
+        $("#txtZoneOptionsZoneTransferSplitHorizonConversionServers").val(zoneTransferSplitHorizonServers.replace(/,/g, "\n"));
+
     var zoneTransferTsigKeyNames = cleanTextList($("#txtZoneOptionsZoneTransferTsigKeyNames").val());
 
     if ((zoneTransferTsigKeyNames.length === 0) || (zoneTransferTsigKeyNames === ","))
@@ -2407,7 +2429,7 @@ function saveZoneOptions() {
             + "&catalog=" + encodeURIComponent(catalog) + "&overrideCatalogQueryAccess=" + overrideCatalogQueryAccess + "&overrideCatalogZoneTransfer=" + overrideCatalogZoneTransfer + "&overrideCatalogNotify=" + overrideCatalogNotify
             + "&primaryNameServerAddresses=" + encodeURIComponent(primaryNameServerAddresses) + "&primaryZoneTransferProtocol=" + primaryZoneTransferProtocol + "&primaryZoneTransferTsigKeyName=" + encodeURIComponent(primaryZoneTransferTsigKeyName) + "&validateZone=" + validateZone
             + "&queryAccess=" + queryAccess + "&queryAccessNetworkACL=" + encodeURIComponent(queryAccessNetworkACL)
-            + "&zoneTransfer=" + zoneTransfer + "&zoneTransferNetworkACL=" + encodeURIComponent(zoneTransferNetworkACL) + "&zoneTransferTsigKeyNames=" + encodeURIComponent(zoneTransferTsigKeyNames)
+            + "&zoneTransfer=" + zoneTransfer + "&zoneTransferNetworkACL=" + encodeURIComponent(zoneTransferNetworkACL) + "&zoneTransferSplitHorizonServers=" + encodeURIComponent(zoneTransferSplitHorizonServers) + "&zoneTransferTsigKeyNames=" + encodeURIComponent(zoneTransferTsigKeyNames)
             + "&notify=" + notify + "&notifyNameServers=" + encodeURIComponent(notifyNameServers) + "&notifySecondaryCatalogsNameServers=" + encodeURIComponent(notifySecondaryCatalogsNameServers)
             + "&update=" + update + "&updateNetworkACL=" + encodeURIComponent(updateNetworkACL) + "&updateSecurityPolicies=" + encodeURIComponent(updateSecurityPolicies)
             + "&node=" + encodeURIComponent(node),

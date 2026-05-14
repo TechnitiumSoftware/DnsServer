@@ -84,6 +84,7 @@ namespace DnsServerCore.Dns.Zones
 
         protected AuthZoneTransfer _zoneTransfer;
         IReadOnlyCollection<NetworkAccessControl> _zoneTransferNetworkACL;
+        IReadOnlyCollection<IPAddress> _zoneTransferSplitHorizonServers;
         IReadOnlySet<string> _zoneTransferTsigKeyNames;
         readonly List<DnsResourceRecord> _zoneHistory; //for IXFR support
 
@@ -135,6 +136,7 @@ namespace DnsServerCore.Dns.Zones
 
             _zoneTransfer = zoneInfo.ZoneTransfer;
             _zoneTransferNetworkACL = zoneInfo.ZoneTransferNetworkACL;
+            _zoneTransferSplitHorizonServers = zoneInfo.ZoneTransferSplitHorizonServers;
             _zoneTransferTsigKeyNames = zoneInfo.ZoneTransferTsigKeyNames;
 
             if (zoneInfo.ZoneHistory is null)
@@ -1328,6 +1330,33 @@ namespace DnsServerCore.Dns.Zones
                     throw new ArgumentOutOfRangeException(nameof(ZoneTransferNetworkACL), "Network ACL cannot have more than 255 entries.");
                 else
                     _zoneTransferNetworkACL = value;
+            }
+        }
+
+        public bool IsSplitHorizonConversionNeeded(IPAddress remoteEP)
+        {
+            if ((ZoneTransferSplitHorizonServers is null) || (ZoneTransferSplitHorizonServers.Count < 1))
+                return false;
+
+            foreach (IPAddress address in ZoneTransferSplitHorizonServers)
+            {
+                if (address.Equals(remoteEP))
+                    return true;
+            }
+            return false;
+        }
+
+        public IReadOnlyCollection<IPAddress> ZoneTransferSplitHorizonServers
+        {
+            get { return _zoneTransferSplitHorizonServers; }
+            set
+            {
+                if ((value is null) || (value.Count == 0))
+                    _zoneTransferSplitHorizonServers = null;
+                else if (value.Count > byte.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(ZoneTransferSplitHorizonServers), "Zone transfer Split Horizon Servers cannot have more than 255 entries.");
+                else
+                    _zoneTransferSplitHorizonServers = value;
             }
         }
 

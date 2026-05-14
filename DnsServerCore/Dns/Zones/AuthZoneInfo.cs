@@ -65,6 +65,7 @@ namespace DnsServerCore.Dns.Zones
 
         readonly AuthZoneTransfer _zoneTransfer;
         readonly IReadOnlyCollection<NetworkAccessControl> _zoneTransferNetworkACL;
+        readonly IReadOnlyCollection<IPAddress> _zoneTransferSplitHorizonServers;
         readonly IReadOnlySet<string> _zoneTransferTsigKeyNames;
         readonly IReadOnlyList<DnsResourceRecord> _zoneHistory; //for IXFR support
 
@@ -473,6 +474,7 @@ namespace DnsServerCore.Dns.Zones
                 case 12:
                 case 13:
                 case 14:
+                case 15:
                     {
                         _name = bR.BaseStream.ReadShortString();
                         _type = (AuthZoneType)bR.ReadByte();
@@ -495,6 +497,7 @@ namespace DnsServerCore.Dns.Zones
 
                                 _zoneTransfer = (AuthZoneTransfer)bR.ReadByte();
                                 _zoneTransferNetworkACL = ReadNetworkACLFrom(bR);
+                                _zoneTransferSplitHorizonServers = ReadZoneTransferSplitHorizonServersFrom(bR);
                                 _zoneTransferTsigKeyNames = ReadZoneTransferTsigKeyNamesFrom(bR);
                                 _zoneHistory = ReadZoneHistoryFrom(bR);
 
@@ -522,6 +525,7 @@ namespace DnsServerCore.Dns.Zones
 
                                 _zoneTransfer = (AuthZoneTransfer)bR.ReadByte();
                                 _zoneTransferNetworkACL = ReadNetworkACLFrom(bR);
+                                _zoneTransferSplitHorizonServers = ReadZoneTransferSplitHorizonServersFrom(bR);
                                 _zoneTransferTsigKeyNames = ReadZoneTransferTsigKeyNamesFrom(bR);
                                 _zoneHistory = ReadZoneHistoryFrom(bR);
 
@@ -574,6 +578,7 @@ namespace DnsServerCore.Dns.Zones
 
                                 _zoneTransfer = (AuthZoneTransfer)bR.ReadByte();
                                 _zoneTransferNetworkACL = ReadNetworkACLFrom(bR);
+                                _zoneTransferSplitHorizonServers = ReadZoneTransferSplitHorizonServersFrom(bR);
                                 _zoneTransferTsigKeyNames = ReadZoneTransferTsigKeyNamesFrom(bR);
                                 _zoneHistory = ReadZoneHistoryFrom(bR);
 
@@ -613,6 +618,7 @@ namespace DnsServerCore.Dns.Zones
 
                                 _zoneTransfer = (AuthZoneTransfer)bR.ReadByte();
                                 _zoneTransferNetworkACL = ReadNetworkACLFrom(bR);
+                                _zoneTransferSplitHorizonServers = ReadZoneTransferSplitHorizonServersFrom(bR);
                                 _zoneTransferTsigKeyNames = ReadZoneTransferTsigKeyNamesFrom(bR);
                                 _zoneHistory = ReadZoneHistoryFrom(bR);
 
@@ -630,6 +636,7 @@ namespace DnsServerCore.Dns.Zones
 
                                 _zoneTransfer = (AuthZoneTransfer)bR.ReadByte();
                                 _zoneTransferNetworkACL = ReadNetworkACLFrom(bR);
+                                _zoneTransferSplitHorizonServers = ReadZoneTransferSplitHorizonServersFrom(bR);
                                 _zoneTransferTsigKeyNames = ReadZoneTransferTsigKeyNamesFrom(bR);
 
                                 _primaryNameServerAddresses = ReadNameServerAddressesFrom(bR);
@@ -670,6 +677,7 @@ namespace DnsServerCore.Dns.Zones
 
                 _zoneTransfer = _apexZone.ZoneTransfer;
                 _zoneTransferNetworkACL = _apexZone.ZoneTransferNetworkACL;
+                _zoneTransferSplitHorizonServers = _apexZone.ZoneTransferSplitHorizonServers;
                 _zoneTransferTsigKeyNames = _apexZone.ZoneTransferTsigKeyNames;
 
                 if (loadHistory)
@@ -693,6 +701,7 @@ namespace DnsServerCore.Dns.Zones
 
                 _zoneTransfer = _apexZone.ZoneTransfer;
                 _zoneTransferNetworkACL = _apexZone.ZoneTransferNetworkACL;
+                _zoneTransferSplitHorizonServers = _apexZone.ZoneTransferSplitHorizonServers;
                 _zoneTransferTsigKeyNames = _apexZone.ZoneTransferTsigKeyNames;
 
                 _primaryNameServerAddresses = secondaryCatalogZone.PrimaryNameServerAddresses;
@@ -734,6 +743,7 @@ namespace DnsServerCore.Dns.Zones
 
                 _zoneTransfer = _apexZone.ZoneTransfer;
                 _zoneTransferNetworkACL = _apexZone.ZoneTransferNetworkACL;
+                _zoneTransferSplitHorizonServers = _apexZone.ZoneTransferSplitHorizonServers;
                 _zoneTransferTsigKeyNames = _apexZone.ZoneTransferTsigKeyNames;
 
                 if (loadHistory)
@@ -778,6 +788,7 @@ namespace DnsServerCore.Dns.Zones
 
                 _zoneTransfer = _apexZone.ZoneTransfer;
                 _zoneTransferNetworkACL = _apexZone.ZoneTransferNetworkACL;
+                _zoneTransferSplitHorizonServers = _apexZone.ZoneTransferSplitHorizonServers;
                 _zoneTransferTsigKeyNames = _apexZone.ZoneTransferTsigKeyNames;
 
                 if (loadHistory)
@@ -801,6 +812,7 @@ namespace DnsServerCore.Dns.Zones
 
                 _zoneTransfer = _apexZone.ZoneTransfer;
                 _zoneTransferNetworkACL = _apexZone.ZoneTransferNetworkACL;
+                _zoneTransferSplitHorizonServers = _apexZone.ZoneTransferSplitHorizonServers;
                 _zoneTransferTsigKeyNames = _apexZone.ZoneTransferTsigKeyNames;
 
                 if (loadHistory)
@@ -974,6 +986,34 @@ namespace DnsServerCore.Dns.Zones
                 return acl;
 
             return null;
+        }
+
+        private static HashSet<IPAddress> ReadZoneTransferSplitHorizonServersFrom(BinaryReader bR)
+        {
+            int count = bR.ReadByte();
+            HashSet<IPAddress> zoneTransferSplitHorizonServers = new HashSet<IPAddress>(count);
+
+            for (int i = 0; i < count; i++)
+            {
+                if (IPAddress.TryParse(bR.BaseStream.ReadShortString(), out IPAddress address))
+                {
+                    zoneTransferSplitHorizonServers.Add(address);
+                }
+            }
+            return zoneTransferSplitHorizonServers;
+        }
+
+        private static void WriteZoneTransferSplitHorizonServersTo(IReadOnlyCollection<IPAddress> zoneTransferSplitHorizonServers, BinaryWriter bW)
+        {
+            if(zoneTransferSplitHorizonServers is null)
+            {
+                bW.Write((byte)0);
+            } else
+            {
+                bW.Write(Convert.ToByte(zoneTransferSplitHorizonServers.Count));
+                foreach (IPAddress splitHorizonServer in zoneTransferSplitHorizonServers)
+                    bW.BaseStream.WriteShortString(splitHorizonServer.ToString());
+            }
         }
 
         private static HashSet<string> ReadZoneTransferTsigKeyNamesFrom(BinaryReader bR)
@@ -1191,7 +1231,7 @@ namespace DnsServerCore.Dns.Zones
             if (_apexZone is null)
                 throw new InvalidOperationException();
 
-            bW.Write((byte)14); //version
+            bW.Write((byte)15); //version
 
             bW.BaseStream.WriteShortString(_name);
             bW.Write((byte)_type);
@@ -1211,6 +1251,7 @@ namespace DnsServerCore.Dns.Zones
 
                     bW.Write((byte)_zoneTransfer);
                     WriteNetworkACLTo(_zoneTransferNetworkACL, bW);
+                    WriteZoneTransferSplitHorizonServersTo(_zoneTransferSplitHorizonServers, bW);
                     WriteZoneTransferTsigKeyNamesTo(_zoneTransferTsigKeyNames, bW);
                     WriteZoneHistoryTo(_zoneHistory, bW);
 
@@ -1235,6 +1276,7 @@ namespace DnsServerCore.Dns.Zones
 
                     bW.Write((byte)_zoneTransfer);
                     WriteNetworkACLTo(_zoneTransferNetworkACL, bW);
+                    WriteZoneTransferSplitHorizonServersTo(_zoneTransferSplitHorizonServers, bW);
                     WriteZoneTransferTsigKeyNamesTo(_zoneTransferTsigKeyNames, bW);
                     WriteZoneHistoryTo(_zoneHistory, bW);
 
@@ -1278,6 +1320,7 @@ namespace DnsServerCore.Dns.Zones
 
                     bW.Write((byte)_zoneTransfer);
                     WriteNetworkACLTo(_zoneTransferNetworkACL, bW);
+                    WriteZoneTransferSplitHorizonServersTo(_zoneTransferSplitHorizonServers, bW);
                     WriteZoneTransferTsigKeyNamesTo(_zoneTransferTsigKeyNames, bW);
                     WriteZoneHistoryTo(_zoneHistory, bW);
 
@@ -1312,6 +1355,7 @@ namespace DnsServerCore.Dns.Zones
 
                     bW.Write((byte)_zoneTransfer);
                     WriteNetworkACLTo(_zoneTransferNetworkACL, bW);
+                    WriteZoneTransferSplitHorizonServersTo(_zoneTransferSplitHorizonServers, bW);
                     WriteZoneTransferTsigKeyNamesTo(_zoneTransferTsigKeyNames, bW);
                     WriteZoneHistoryTo(_zoneHistory, bW);
 
@@ -1326,6 +1370,7 @@ namespace DnsServerCore.Dns.Zones
 
                     bW.Write((byte)_zoneTransfer);
                     WriteNetworkACLTo(_zoneTransferNetworkACL, bW);
+                    WriteZoneTransferSplitHorizonServersTo(_zoneTransferSplitHorizonServers, bW);
                     WriteZoneTransferTsigKeyNamesTo(_zoneTransferTsigKeyNames, bW);
 
                     WriteNameServerAddressesTo(_primaryNameServerAddresses, bW);
@@ -1582,6 +1627,24 @@ namespace DnsServerCore.Dns.Zones
                     throw new InvalidOperationException();
 
                 _apexZone.ZoneTransferNetworkACL = value;
+            }
+        }
+
+        public IReadOnlyCollection<IPAddress> ZoneTransferSplitHorizonServers
+        {
+            get
+            {
+                if (_apexZone is null)
+                    return _zoneTransferSplitHorizonServers;
+
+                return _apexZone.ZoneTransferSplitHorizonServers;
+            }
+            set
+            {
+                if (_apexZone is null)
+                    throw new InvalidOperationException();
+
+                _apexZone.ZoneTransferSplitHorizonServers = value;
             }
         }
 

@@ -3168,6 +3168,19 @@ namespace DnsServerCore
                             jsonWriter.WriteEndArray();
                         }
 
+                        jsonWriter.WritePropertyName("zoneTransferSplitHorizonServers");
+                        {
+                            jsonWriter.WriteStartArray();
+
+                            if (zoneInfo.ZoneTransferSplitHorizonServers is not null)
+                            {
+                                foreach (IPAddress address in zoneInfo.ZoneTransferSplitHorizonServers)
+                                    jsonWriter.WriteStringValue(address.ToString());
+                            }
+
+                            jsonWriter.WriteEndArray();
+                        }
+
                         jsonWriter.WritePropertyName("zoneTransferTsigKeyNames");
                         {
                             jsonWriter.WriteStartArray();
@@ -3522,6 +3535,19 @@ namespace DnsServerCore
 
                         if (request.TryGetQueryOrFormEnum("zoneTransfer", out AuthZoneTransfer zoneTransfer))
                             zoneInfo.ZoneTransfer = zoneTransfer;
+
+                        string strZoneTransferSplitHorizonServers = request.QueryOrForm("zoneTransferSplitHorizonServers");
+                        if(strZoneTransferSplitHorizonServers is not null)
+                        {
+                            if((strZoneTransferSplitHorizonServers.Length == 0) || (strZoneTransferSplitHorizonServers.Equals("false", StringComparison.OrdinalIgnoreCase)))
+                            {
+                                zoneInfo.ZoneTransferSplitHorizonServers = null;
+                            }
+                            else
+                            {
+                                zoneInfo.ZoneTransferSplitHorizonServers = strZoneTransferSplitHorizonServers.Split(IPAddress.Parse, ',');
+                            }
+                        }
 
                         string strZoneTransferTsigKeyNames = request.QueryOrForm("zoneTransferTsigKeyNames");
                         if (strZoneTransferTsigKeyNames is not null)
