@@ -46,12 +46,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Quic;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -1674,6 +1676,11 @@ namespace DnsServerCore
                     options.ResponseType = OpenIdConnectResponseType.Code;
                     options.ResponseMode = OpenIdConnectResponseMode.FormPost;
 
+                    // todo: add claim name to SSO settings
+                    options.TokenValidationParameters.RoleClaimType = "roles";
+                    
+                    options.ClaimActions.MapJsonKey("roles", "roles");
+                    
                     _ssoHttpHandler?.Dispose();
                     _ssoHttpClient?.Dispose();
 
