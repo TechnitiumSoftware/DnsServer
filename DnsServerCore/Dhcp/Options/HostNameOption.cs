@@ -50,7 +50,10 @@ namespace DnsServerCore.Dhcp.Options
         protected override void ParseOptionValue(Stream s)
         {
             if (s.Length < 1)
-                throw new InvalidDataException();
+            {
+                _hostName = string.Empty;
+                return;
+            }
 
             _hostName = Encoding.ASCII.GetString(s.ReadExactly((int)s.Length));
         }
@@ -65,7 +68,12 @@ namespace DnsServerCore.Dhcp.Options
         #region properties
 
         public string HostName
-        { get { return _hostName; } }
+        {
+            get
+            {
+                return string.IsNullOrEmpty(_hostName) ? null : _hostName;
+            }
+        }
 
         #endregion
     }
