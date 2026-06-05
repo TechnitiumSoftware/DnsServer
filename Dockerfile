@@ -1,23 +1,44 @@
 # syntax=docker.io/docker/dockerfile:1
 
+# Build stage: clone and build TechnitiumLibrary, publish DnsServerApp
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends git ca-certificates wget \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+
+# Clone TechnitiumLibrary into the same parent folder as the DnsServer source
+RUN git clone --depth 1 https://github.com/TechnitiumSoftware/TechnitiumLibrary.git /src/TechnitiumLibrary
+
+# Copy the DnsServer repository into the image build context
+COPY . /src/DnsServer
+
+# Build required TechnitiumLibrary projects (matches build.md)
+RUN dotnet build /src/TechnitiumLibrary/TechnitiumLibrary.ByteTree/TechnitiumLibrary.ByteTree.csproj -c Release \
+ && dotnet build /src/TechnitiumLibrary/TechnitiumLibrary.Net/TechnitiumLibrary.Net.csproj -c Release \
+ && dotnet build /src/TechnitiumLibrary/TechnitiumLibrary.Security.OTP/TechnitiumLibrary.Security.OTP.csproj -c Release
+
+# Publish the DnsServerApp
+RUN dotnet publish /src/DnsServer/DnsServerApp/DnsServerApp.csproj -c Release -o /publish
+
+
+# Runtime stage: small runtime image with libmsquic and troubleshooting tools
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 
-# Add the MS repo to install `libmsquic` to support DNS-over-QUIC:
+# Add the MS repository so we can install `libmsquic` for DOQ/HTTP3 support
 ADD --link https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb /
-RUN <<HEREDOC
-  dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb
-  # `dnsutils` added to include the `dig` command for troubleshooting:
-  apt-get update && apt-get install -y libmsquic dnsutils
-  apt-get clean -y && rm -rf /var/lib/apt/lists/*
+RUN dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends libmsquic dnsutils \
+  && apt-get clean -y && rm -rf /var/lib/apt/lists/* \
+  && mkdir -p /etc/dns
 
-  # `/etc/dns` is expected to exist the default directory for persisting state:
-  # (Users should volume mount to this location or modify the `CMD` of their container)
-  mkdir /etc/dns
-HEREDOC
-
-# Project is built outside of Docker, copy over the build directory:
 WORKDIR /opt/technitium/dns
-COPY --link ./DnsServerApp/bin/Release/publish /opt/technitium/dns
+
+# Copy published output from build stage
+COPY --from=build /publish /opt/technitium/dns
 
 ENTRYPOINT ["/usr/bin/dotnet", "/opt/technitium/dns/DnsServerApp.dll"]
 CMD ["/etc/dns"]
