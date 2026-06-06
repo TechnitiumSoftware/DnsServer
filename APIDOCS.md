@@ -1957,6 +1957,7 @@ WHERE:
 - `node` (optional): The node domain name for which the this API call is intended. When unspecified, the current node is used. This parameter can be used only when Clustering is initialized.
 - `pageNumber` (optional): When this parameter is specified, the API will return paginated results based on the page number and zones per pages options. When not specified, the API will return a list of all zones.
 - `zonesPerPage` (optional): The number of zones per page to be returned. This option is only used when `pageNumber` options is specified. The default value is `10` when not specified.
+- `filter` (optional): When specified, only zones whose name contains the given substring (case-insensitive) are returned. Both the wire-format zone name and its IDN-decoded Unicode form are matched. Filtering is applied before pagination so that `pageNumber`, `totalPages` and `totalZones` reflect the filtered result set.
 
 RESPONSE:
 ```

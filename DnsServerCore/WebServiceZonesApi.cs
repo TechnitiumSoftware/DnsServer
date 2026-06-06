@@ -1457,6 +1457,26 @@ namespace DnsServerCore
                     return _dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, sessionUser, PermissionFlag.View);
                 });
 
+                string filter = request.GetQueryOrForm("filter", null);
+                if (!string.IsNullOrEmpty(filter))
+                {
+                    List<AuthZoneInfo> filteredList = new List<AuthZoneInfo>(zoneInfoList.Count);
+
+                    foreach (AuthZoneInfo zoneInfo in zoneInfoList)
+                    {
+                        if (zoneInfo.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                        {
+                            filteredList.Add(zoneInfo);
+                            continue;
+                        }
+
+                        if (DnsClient.TryConvertDomainNameToUnicode(zoneInfo.Name, out string nameIdn) && nameIdn.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                            filteredList.Add(zoneInfo);
+                    }
+
+                    zoneInfoList = filteredList;
+                }
+
                 if (request.TryGetQueryOrForm("pageNumber", int.Parse, out int pageNumber))
                 {
                     int zonesPerPage = request.GetQueryOrForm("zonesPerPage", int.Parse, 10);

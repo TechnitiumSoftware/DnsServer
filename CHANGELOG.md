@@ -1,5 +1,9 @@
 # Technitium DNS Server Change Log
 
+## Unreleased
+
+- Added Search field to the Zones tab to filter zones by case-insensitive substring match. The matching is performed server-side against both the zone name and its IDN-decoded Unicode form, and is applied before pagination. The `/api/zones/list` API now accepts an optional `filter` query parameter.
+
 ## Version 15.2
 Release Date: 9 May 2026
 

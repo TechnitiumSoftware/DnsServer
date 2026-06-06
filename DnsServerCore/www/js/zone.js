@@ -22,7 +22,33 @@ var editZoneInfo;
 var editZoneRecords;
 var editZoneFilteredRecords;
 
+var zonesSearchTimer;
+
+function clearZonesSearch() {
+    $("#txtZonesSearch").val("");
+    $("#btnZonesSearchClear").hide();
+    refreshZones(false, 1);
+}
+
 $(function () {
+    $("#txtZonesSearch").on("input", function () {
+        if (zonesSearchTimer != null)
+            clearTimeout(zonesSearchTimer);
+
+        zonesSearchTimer = setTimeout(function () {
+            refreshZones(false, 1);
+        }, 300);
+    });
+
+    $("#txtZonesSearch").on("keydown", function (e) {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            if (zonesSearchTimer != null)
+                clearTimeout(zonesSearchTimer);
+            refreshZones(false, 1);
+        }
+    });
+
     $("input[type=radio][name=rdAddZoneType]").on("change", function () {
         $("#txtAddZone").prop("disabled", false);
         $("#divAddZoneCatalogZone").hide();
@@ -663,6 +689,11 @@ function refreshZones(checkDisplay, pageNumber) {
         zonesPerPage = 10;
 
     var node = $("#optZonesClusterNode").val();
+    var filter = $("#txtZonesSearch").val();
+    if (filter == null)
+        filter = "";
+
+    $("#btnZonesSearchClear").css("display", filter.length > 0 ? "" : "none");
 
     var divViewZonesLoader = $("#divViewZonesLoader");
     var divEditZone = $("#divEditZone");
@@ -672,7 +703,7 @@ function refreshZones(checkDisplay, pageNumber) {
     divViewZonesLoader.show();
 
     HTTPRequest({
-        url: "api/zones/list?pageNumber=" + pageNumber + "&zonesPerPage=" + zonesPerPage + "&node=" + encodeURIComponent(node),
+        url: "api/zones/list?pageNumber=" + pageNumber + "&zonesPerPage=" + zonesPerPage + "&node=" + encodeURIComponent(node) + "&filter=" + encodeURIComponent(filter),
         token: sessionData.token,
         success: function (responseJSON) {
             var zones = responseJSON.response.zones;
