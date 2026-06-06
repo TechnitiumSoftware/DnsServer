@@ -698,6 +698,11 @@ function refreshZones(checkDisplay, pageNumber) {
     var divViewZonesLoader = $("#divViewZonesLoader");
     var divEditZone = $("#divEditZone");
 
+    var searchInput = document.getElementById("txtZonesSearch");
+    var restoreSearchFocus = (document.activeElement === searchInput);
+    var searchSelStart = restoreSearchFocus ? searchInput.selectionStart : null;
+    var searchSelEnd = restoreSearchFocus ? searchInput.selectionEnd : null;
+
     divViewZones.hide();
     divEditZone.hide();
     divViewZonesLoader.show();
@@ -966,10 +971,18 @@ function refreshZones(checkDisplay, pageNumber) {
 
             divViewZonesLoader.hide();
             divViewZones.show();
+
+            if (restoreSearchFocus) {
+                searchInput.focus();
+                try { searchInput.setSelectionRange(searchSelStart, searchSelEnd); } catch (e) { }
+            }
         },
         error: function () {
             divViewZonesLoader.hide();
             divViewZones.show();
+
+            if (restoreSearchFocus)
+                searchInput.focus();
         },
         invalidToken: function () {
             divViewZonesLoader.hide();
