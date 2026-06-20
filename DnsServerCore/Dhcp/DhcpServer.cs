@@ -263,7 +263,7 @@ namespace DnsServerCore.Dhcp
 
 						if (OperatingSystem.IsMacOS())
 						{
-                            await udpSocket.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.None, new IPEndPoint(IPAddress.Broadcast, 68)); //interface pinned above
+                            await udpSocket.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.None, new IPEndPoint(IPAddress.Broadcast, 68));
 						}
 						else
 						{
