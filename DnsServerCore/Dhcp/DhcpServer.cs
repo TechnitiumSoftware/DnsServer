@@ -261,7 +261,28 @@ namespace DnsServerCore.Dhcp
                         else
                             udpSocket = udpListener; //no appropriate socket found so use default socket
 
-                        await udpSocket.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.DontRoute, new IPEndPoint(IPAddress.Broadcast, 68)); //no routing for broadcast
+						if (OperatingSystem.IsMacOS())
+						{
+							//macOS will not select an egress interface for the 255.255.255.255 limited broadcast when
+							//SocketFlags.DontRoute suppresses the route lookup, so the send fails with NetworkUnreachable.
+							//Pin the interface the request arrived on (IP_BOUND_IF), then send without DontRoute.
+							const int IPPROTO_IP = 0;
+							const int IP_BOUND_IF = 25;
+
+							udpSocket.SetRawSocketOption(IPPROTO_IP, IP_BOUND_IF, BitConverter.GetBytes(ipPacketInformation.Interface));
+							try
+							{
+								await udpSocket.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.None, new IPEndPoint(IPAddress.Broadcast, 68)); //interface pinned above
+							}
+							finally
+							{
+								udpSocket.SetRawSocketOption(IPPROTO_IP, IP_BOUND_IF, BitConverter.GetBytes(0)); //clear binding on this shared socket
+							}
+						}
+						else
+						{
+							await udpSocket.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.DontRoute, new IPEndPoint(IPAddress.Broadcast, 68)); //no routing for broadcast
+						}
                     }
                 }
             }
