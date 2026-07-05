@@ -876,7 +876,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (blockLists.Count > 0)
             {
                 metadataValues["blockListUrl"] = blockLists[0].AbsoluteUri;
-                metadataValues["blockListCount"] = blockLists.Count.ToString();
+                metadataValues["blockListCount"] = blockLists.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
             }
 
             DnsQueryLogMetadata CreateLogMetadata(Uri? blockList = null)
