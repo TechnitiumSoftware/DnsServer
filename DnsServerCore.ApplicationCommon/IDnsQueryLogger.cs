@@ -30,7 +30,7 @@ namespace DnsServerCore.ApplicationCommon
     {
         public DnsQueryLogMetadata(IReadOnlyDictionary<string, string>? values = null)
         {
-            Values = values is null ? new Dictionary<string, string>(0) : new Dictionary<string, string>(values, StringComparer.OrdinalIgnoreCase);
+            Values = values is null ? new Dictionary<string, string>(0, StringComparer.OrdinalIgnoreCase) : new Dictionary<string, string>(values, StringComparer.OrdinalIgnoreCase);
         }
 
         /// <summary>
