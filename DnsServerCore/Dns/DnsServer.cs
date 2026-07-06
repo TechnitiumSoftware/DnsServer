@@ -44,6 +44,7 @@ using System.Net.Quic;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Runtime.ExceptionServices;
+using System.Runtime.InteropServices;
 using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -1895,7 +1896,7 @@ namespace DnsServerCore.Dns
                                             //create new socket and bind socket to source EP
                                             newUdpListener = GetUdpListenerSocket(sourceEP.AddressFamily);
 
-                                            if ((Environment.OSVersion.Platform == PlatformID.Unix) && TryBindToDevice(newUdpListener, sourceEP.Address, out string interfaceName))
+                                            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && TryBindToDevice(newUdpListener, sourceEP.Address, out string interfaceName))
                                                 _log.Write(sourceEP, protocol, $"Socket was bound to device '{interfaceName}' successfully.");
 
                                             newUdpListener.Bind(sourceEP);
@@ -6602,7 +6603,7 @@ namespace DnsServerCore.Dns
                 {
                     udpListener = GetUdpListenerSocket(localEP.AddressFamily);
 
-                    if ((Environment.OSVersion.Platform == PlatformID.Unix) && TryBindToDevice(udpListener, localEP.Address, out string interfaceName))
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && TryBindToDevice(udpListener, localEP.Address, out string interfaceName))
                         _log.Write(localEP, DnsTransportProtocol.Udp, $"Socket was bound to device '{interfaceName}' successfully.");
 
                     try
@@ -6646,7 +6647,7 @@ namespace DnsServerCore.Dns
                     {
                         udpProxyListener = GetUdpListenerSocket(udpProxyEP.AddressFamily);
 
-                        if ((Environment.OSVersion.Platform == PlatformID.Unix) && TryBindToDevice(udpProxyListener, udpProxyEP.Address, out string interfaceName))
+                        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && TryBindToDevice(udpProxyListener, udpProxyEP.Address, out string interfaceName))
                             _log.Write(udpProxyEP, DnsTransportProtocol.UdpProxy, $"Socket was bound to device '{interfaceName}' successfully.");
 
                         udpProxyListener.Bind(udpProxyEP);
