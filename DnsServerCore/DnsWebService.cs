@@ -1828,7 +1828,20 @@ namespace DnsServerCore
 
                 //unix socket
                 if (!httpOnlyMode && _webServiceEnableHttpUnixSocket && (_webServiceHttpUnixSocket is not null))
+                {
+                    try
+                    {
+                        File.Delete(_webServiceHttpUnixSocket);
+                    }
+                    catch (DirectoryNotFoundException)
+                    { }
+                    catch (Exception ex)
+                    {
+                        _log.Write(ex);
+                    }
+
                     serverOptions.ListenUnixSocket(_webServiceHttpUnixSocket);
+                }
 
                 //https
                 if (!httpOnlyMode && _webServiceEnableTls && (_webServiceSslServerAuthenticationOptions is not null))
@@ -1964,6 +1977,17 @@ namespace DnsServerCore
             {
                 await _webService.DisposeAsync();
                 _webService = null;
+            }
+
+            // clean up stale unix socket file
+            if (_webServiceEnableHttpUnixSocket && (_webServiceHttpUnixSocket is not null))
+            {
+                try
+                {
+                    File.Delete(_webServiceHttpUnixSocket);
+                }
+                catch
+                { }
             }
 
             _ssoHttpHandler?.Dispose();

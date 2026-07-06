@@ -6424,7 +6424,20 @@ namespace DnsServerCore.Dns
 
                     //bind to unix socket
                     if (_enableDnsOverHttpUnixSocket && (_dnsOverHttpUnixSocket is not null))
+                    {
+                        try
+                        {
+                            File.Delete(_dnsOverHttpUnixSocket);
+                        }
+                        catch (DirectoryNotFoundException)
+                        { }
+                        catch (Exception ex)
+                        {
+                            _log.Write(ex);
+                        }
+
                         serverOptions.ListenUnixSocket(_dnsOverHttpUnixSocket);
+                    }
 
                     //bind to https port
                     if (_enableDnsOverHttps && (_dohSslServerAuthenticationOptions is not null))
@@ -6528,6 +6541,17 @@ namespace DnsServerCore.Dns
                 }
 
                 _dohWebService = null;
+            }
+
+            // clean up stale unix socket file
+            if (_enableDnsOverHttpUnixSocket && (_dnsOverHttpUnixSocket is not null))
+            {
+                try
+                {
+                    File.Delete(_dnsOverHttpUnixSocket);
+                }
+                catch
+                { }
             }
         }
 
