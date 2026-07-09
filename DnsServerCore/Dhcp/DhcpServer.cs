@@ -655,7 +655,14 @@ namespace DnsServerCore.Dhcp
                     {
                         Scope scope = entry.Value;
 
-                        if (scope.Enabled && scope.IsAddressInRange(request.ClientIpAddress))
+                        if (!scope.Enabled)
+                            continue;
+
+                        Lease reservedLease = scope.GetReservedLease(request);
+                        if ((reservedLease is not null) && reservedLease.Address.Equals(request.ClientIpAddress))
+                            return scope; //ciaddr is this client's reserved address (may be out of pool range)
+
+                        if (scope.IsAddressInRange(request.ClientIpAddress))
                             return scope;
                     }
 
