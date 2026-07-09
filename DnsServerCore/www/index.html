@@ -2893,6 +2893,26 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
                                                     </div>
 
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group" style="margin-bottom: 0px;">
+                                                            <label for="tableDhcpScopeHostNameOverrides" class="col-sm-3 control-label">Host Name Overrides</label>
+                                                            <div class="col-sm-9">
+                                                                <table class="table table-hover" style="margin-bottom: 0px;">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th>Host Name</th>
+                                                                            <th>MAC Address</th>
+                                                                            <th>Comments</th>
+                                                                            <th style="width: 84px;"><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeHostNameOverrideRow('', '', '');">Add</button></th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody id="tableDhcpScopeHostNameOverrides"></tbody>
+                                                                </table>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Override the DNS hostname for a specific client based on their MAC address without reserving a static IP address; the client still receives a normal dynamically allocated lease.</div>
+                                                        </div>
+                                                    </div>
+
                                                     <div class="form-group" style="margin-bottom: 0px;">
                                                         <button type="submit" class="btn btn-primary" style="width: 100px;" id="btnSaveDhcpScope" data-loading-text="Saving..." onclick="saveDhcpScope(); return false;">Save</button>
                                                         <button type="button" class="btn btn-default" style="width: 100px;" onclick="refreshDhcpScopes();">Cancel</button>

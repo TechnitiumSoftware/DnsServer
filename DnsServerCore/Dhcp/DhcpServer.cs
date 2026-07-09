@@ -312,10 +312,8 @@ namespace DnsServerCore.Dhcp
 
                         if (!string.IsNullOrWhiteSpace(scope.DomainName))
                         {
-                            //get override host name from reserved lease
-                            Lease reservedLease = scope.GetReservedLease(request);
-                            if (reservedLease is not null)
-                                reservedLeaseHostName = reservedLease.HostName;
+                            //get override host name from reserved lease or host name override
+                            reservedLeaseHostName = GetOverrideHostName(scope, request);
                         }
 
                         List<DhcpOption> options = await scope.GetOptionsAsync(request, serverIdentifierAddress, reservedLeaseHostName, _dnsServer);
@@ -443,10 +441,8 @@ namespace DnsServerCore.Dhcp
 
                         if (!string.IsNullOrWhiteSpace(scope.DomainName))
                         {
-                            //get override host name from reserved lease
-                            Lease reservedLease = scope.GetReservedLease(request);
-                            if (reservedLease is not null)
-                                reservedLeaseHostName = reservedLease.HostName;
+                            //get override host name from reserved lease or host name override
+                            reservedLeaseHostName = GetOverrideHostName(scope, request);
                         }
 
                         List<DhcpOption> options = await scope.GetOptionsAsync(request, serverIdentifierAddress, reservedLeaseHostName, _dnsServer);
@@ -711,6 +707,19 @@ namespace DnsServerCore.Dhcp
             }
 
             return sb.ToString();
+        }
+
+        private static string GetOverrideHostName(Scope scope, DhcpMessage request)
+        {
+            Lease reservedLease = scope.GetReservedLease(request);
+            if (reservedLease is not null)
+                return reservedLease.HostName;
+
+            HostNameOverride hostNameOverride = scope.GetHostNameOverride(request);
+            if (hostNameOverride is not null)
+                return hostNameOverride.HostName;
+
+            return null;
         }
 
         internal void AddDnsEntries(Scope scope, Lease lease)
