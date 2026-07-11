@@ -243,7 +243,13 @@ namespace DnsServerCore.Dns.Applications
             {
                 string tmpConfigFile = Path.Combine(_dnsServer.ApplicationFolder, "dnsApp.tmp");
 
-                await File.WriteAllTextAsync(tmpConfigFile, config);
+                await using (FileStream fS = new FileStream(tmpConfigFile, FileMode.Create, FileAccess.Write))
+                {
+                    byte[] configBytes = System.Text.Encoding.UTF8.GetBytes(config);
+                    await fS.WriteAsync(configBytes);
+                    await fS.FlushAsync();
+                    fS.Flush(flushToDisk: true);
+                }
 
                 File.Move(tmpConfigFile, configFile, true);
             }

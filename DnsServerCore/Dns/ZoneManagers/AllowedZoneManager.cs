@@ -168,6 +168,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             using (FileStream fS = new FileStream(tmpAllowedZoneFile, FileMode.Create, FileAccess.Write))
             {
                 WriteConfigTo(fS);
+                fS.Flush(flushToDisk: true);
             }
 
             File.Move(tmpAllowedZoneFile, allowedZoneFile, true);

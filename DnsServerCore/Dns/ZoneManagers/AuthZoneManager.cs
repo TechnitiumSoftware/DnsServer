@@ -265,6 +265,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 using (FileStream fS = new FileStream(tmpZoneFile, FileMode.Create, FileAccess.Write))
                 {
                     mS.CopyTo(fS);
+                    fS.Flush(flushToDisk: true);
                 }
             }
 

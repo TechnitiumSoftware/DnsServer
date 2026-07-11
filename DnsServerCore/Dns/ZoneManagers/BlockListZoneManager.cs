@@ -209,6 +209,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 using (FileStream fS = new FileStream(tmpBlockListConfigFile, FileMode.Create, FileAccess.Write))
                 {
                     mS.CopyTo(fS);
+                    fS.Flush(flushToDisk: true);
                 }
             }
 
