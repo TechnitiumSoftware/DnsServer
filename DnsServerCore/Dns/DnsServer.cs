@@ -41,6 +41,7 @@ using System.Net;
 using System.Net.Mail;
 using System.Net.Quic;
 using System.Net.Security;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
@@ -97,6 +98,11 @@ namespace DnsServerCore.Dns
 
         const int SOL_SOCKET = 1;
         const int SO_BINDTODEVICE = 25;
+
+        const int IPPROTO_IP = 0;
+        const int IP_BOUND_IF = 25;
+        const int IPPROTO_IPV6 = 41;
+        const int IPV6_BOUND_IF = 125;
 
         readonly static char[] commaSeparator = new char[] { ',' };
 
@@ -1716,6 +1722,20 @@ namespace DnsServerCore.Dns
             udpListener.ReceiveBufferSize = _udpReceiveBufferSizeKB * 1024;
 
             return udpListener;
+        }
+
+        private static int GetInterfaceIndex(string interfaceName)
+        {
+            foreach (NetworkInterface ni in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (ni.Name.Equals(interfaceName, StringComparison.Ordinal))
+                {
+                    IPInterfaceProperties ipProps = ni.GetIPProperties();
+                    return ipProps.GetIPv4Properties()?.Index ?? ipProps.GetIPv6Properties()?.Index ?? 0;
+                }
+            }
+
+            return 0;
         }
 
         private async Task ReadUdpRequestAsync(Socket udpListener, DnsTransportProtocol protocol)
@@ -6647,16 +6667,45 @@ namespace DnsServerCore.Dns
                 {
                     udpListener = GetUdpListenerSocket(localEP.AddressFamily);
 
-                    if ((localEP is InterfaceEndPoint intEP) && (intEP.InterfaceName is not null) && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                    if (localEP is InterfaceEndPoint intEP && intEP.InterfaceName is not null)
                     {
-                        try
+                        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                         {
-                            udpListener.SetRawSocketOption(SOL_SOCKET, SO_BINDTODEVICE, Encoding.ASCII.GetBytes(intEP.InterfaceName));
-                            _log.Write(localEP, DnsTransportProtocol.Udp, $"Socket was bound to device '{intEP.InterfaceName}' successfully.");
+                            try
+                            {
+                                udpListener.SetRawSocketOption(SOL_SOCKET, SO_BINDTODEVICE, Encoding.ASCII.GetBytes(intEP.InterfaceName));
+                                _log.Write(localEP, DnsTransportProtocol.Udp, $"Socket was bound to device '{intEP.InterfaceName}' successfully.");
+                            }
+                            catch (Exception ex)
+                            {
+                                _log.Write(ex);
+                            }
                         }
-                        catch (Exception ex)
+                        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                         {
-                            _log.Write(ex);
+                            try
+                            {
+                                int interfaceIndex = GetInterfaceIndex(intEP.InterfaceName);
+                                if (interfaceIndex > 0)
+                                {
+                                    byte[] interfaceIndexBytes = BitConverter.GetBytes(interfaceIndex);
+
+                                    if (localEP.AddressFamily == AddressFamily.InterNetwork)
+                                        udpListener.SetRawSocketOption(IPPROTO_IP, IP_BOUND_IF, interfaceIndexBytes);
+                                    else
+                                        udpListener.SetRawSocketOption(IPPROTO_IPV6, IPV6_BOUND_IF, interfaceIndexBytes);
+
+                                    _log.Write(localEP, DnsTransportProtocol.Udp, $"Socket was bound to interface '{intEP.InterfaceName}' (index {interfaceIndex}) successfully.");
+                                }
+                                else
+                                {
+                                    _log.Write(localEP, DnsTransportProtocol.Udp, $"Failed to bind socket to interface '{intEP.InterfaceName}': interface not found.");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _log.Write(ex);
+                            }
                         }
                     }
 
@@ -6701,16 +6750,45 @@ namespace DnsServerCore.Dns
                     {
                         udpProxyListener = GetUdpListenerSocket(udpProxyEP.AddressFamily);
 
-                        if ((localEP is InterfaceEndPoint intEP) && (intEP.InterfaceName is not null) && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                        if (localEP is InterfaceEndPoint intEP && intEP.InterfaceName is not null)
                         {
-                            try
+                            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                             {
-                                udpProxyListener.SetRawSocketOption(SOL_SOCKET, SO_BINDTODEVICE, Encoding.ASCII.GetBytes(intEP.InterfaceName));
-                                _log.Write(udpProxyEP, DnsTransportProtocol.UdpProxy, $"Socket was bound to device '{intEP.InterfaceName}' successfully.");
+                                try
+                                {
+                                    udpProxyListener.SetRawSocketOption(SOL_SOCKET, SO_BINDTODEVICE, Encoding.ASCII.GetBytes(intEP.InterfaceName));
+                                    _log.Write(udpProxyEP, DnsTransportProtocol.UdpProxy, $"Socket was bound to device '{intEP.InterfaceName}' successfully.");
+                                }
+                                catch (Exception ex)
+                                {
+                                    _log.Write(ex);
+                                }
                             }
-                            catch (Exception ex)
+                            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                             {
-                                _log.Write(ex);
+                                try
+                                {
+                                    int interfaceIndex = GetInterfaceIndex(intEP.InterfaceName);
+                                    if (interfaceIndex > 0)
+                                    {
+                                        byte[] interfaceIndexBytes = BitConverter.GetBytes(interfaceIndex);
+
+                                        if (udpProxyEP.AddressFamily == AddressFamily.InterNetwork)
+                                            udpProxyListener.SetRawSocketOption(IPPROTO_IP, IP_BOUND_IF, interfaceIndexBytes);
+                                        else
+                                            udpProxyListener.SetRawSocketOption(IPPROTO_IPV6, IPV6_BOUND_IF, interfaceIndexBytes);
+
+                                        _log.Write(udpProxyEP, DnsTransportProtocol.UdpProxy, $"Socket was bound to interface '{intEP.InterfaceName}' (index {interfaceIndex}) successfully.");
+                                    }
+                                    else
+                                    {
+                                        _log.Write(udpProxyEP, DnsTransportProtocol.UdpProxy, $"Failed to bind socket to interface '{intEP.InterfaceName}': interface not found.");
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    _log.Write(ex);
+                                }
                             }
                         }
 
