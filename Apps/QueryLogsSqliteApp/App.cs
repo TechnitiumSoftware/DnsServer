@@ -303,7 +303,7 @@ namespace QueryLogsSqlite
                                 {
                                     DnsQuestionRecord query = log.Request.Question[0];
 
-                                    paramQname.Value = query.Name.ToLowerInvariant();
+                                    paramQname.Value = query.Name.ToLowerInvariant().Replace("\0", "");
                                     paramQtype.Value = (int)query.Type;
                                     paramQclass.Value = (int)query.Class;
                                 }
@@ -337,7 +337,7 @@ namespace QueryLogsSqlite
                                             answer += ", " + record.Type.ToString() + " " + record.RDATA.ToString();
                                     }
 
-                                    paramAnswer.Value = answer;
+                                    paramAnswer.Value = answer?.Replace("\0", "");
                                 }
 
                                 await command.ExecuteNonQueryAsync();
