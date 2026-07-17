@@ -289,7 +289,7 @@ namespace QueryLogsPostgreSql
                             {
                                 DnsQuestionRecord query = log.Request.Question[0];
 
-                                paramQname.Value = query.Name.ToLowerInvariant();
+                                paramQname.Value = query.Name.ToLowerInvariant().Replace("\0", "");
                                 paramQtype.Value = (int)query.Type;
                                 paramQclass.Value = (short)query.Class;
                             }
@@ -326,7 +326,7 @@ namespace QueryLogsPostgreSql
                                 if (answer?.Length > 4000)
                                     answer = answer.Substring(0, 4000);
 
-                                paramAnswer.Value = answer;
+                                paramAnswer.Value = answer?.Replace("\0", "");
                             }
                         }
 
