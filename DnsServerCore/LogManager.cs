@@ -732,12 +732,17 @@ namespace DnsServerCore
 
         public void DeleteLogFile(string logName)
         {
-            string logFile = Path.Combine(ConvertToAbsolutePath(_logFolder), logName + ".log");
+            string logFileName = logName + ".log";
+            string logFolder = ConvertToAbsolutePath(_logFolder);
 
-            if (logFile.Equals(_logFile, StringComparison.OrdinalIgnoreCase))
+            string logFilePath = Path.GetFullPath(Path.Combine(logFolder, logFileName));
+            if (!logFilePath.StartsWith(logFolder.TrimEnd(['/', '\\']) + Path.DirectorySeparatorChar))
+                throw new ArgumentException("Invalid log file name.", nameof(logName));
+
+            if (logFilePath.Equals(_logFile, StringComparison.OrdinalIgnoreCase))
                 DeleteCurrentLogFile();
             else
-                File.Delete(logFile);
+                File.Delete(logFilePath);
         }
 
         public void DeleteAllLogFiles()
