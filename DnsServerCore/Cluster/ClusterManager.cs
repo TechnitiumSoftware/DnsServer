@@ -1020,7 +1020,10 @@ namespace DnsServerCore.Cluster
                 if (reverseZoneInfo is not null)
                 {
                     if ((reverseZoneInfo.Type == AuthZoneType.Primary) || (reverseZoneInfo.Type == AuthZoneType.Forwarder))
+                    {
                         _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(reverseZoneInfo.Name, ptrDomain, DnsResourceRecordType.PTR, new DnsPTRRecordData(node.Name));
+                        _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(reverseZoneInfo.Name);
+                    }
                 }
             }
 
@@ -1109,6 +1112,7 @@ namespace DnsServerCore.Cluster
                         ptrRecordInfo.Comments = recordComments;
 
                         _dnsWebService.DnsServer.AuthZoneManager.SetRecord(reverseZoneInfo.Name, ptrRecord);
+                        _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(reverseZoneInfo.Name);
                     }
                 }
             }
