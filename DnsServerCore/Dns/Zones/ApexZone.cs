@@ -819,6 +819,13 @@ namespace DnsServerCore.Dns.Zones
                 //update SOA
                 _entries[DnsResourceRecordType.SOA] = newSoaRecords;
 
+                if (_dnssecStatus != AuthZoneDnssecStatus.Unsigned)
+                {
+                    //sign SOA and update RRSig
+                    IReadOnlyList<DnsResourceRecord> newRRSigRecords = SignRRSet(newSoaRecords);
+                    AddOrUpdateRRSigRecords(newRRSigRecords, out _);
+                }
+
                 //clear history
                 _zoneHistory.Clear();
             }
