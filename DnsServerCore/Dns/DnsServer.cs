@@ -2514,7 +2514,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task ProcessDoHRequestAsync(HttpContext context)
+        private async Task ProcessDoHRequestAsync(HttpContext context, CancellationToken cancellationToken)
         {
             IPEndPoint remoteEP = null;
             {
@@ -2559,7 +2559,7 @@ namespace DnsServerCore.Dns
                     {
                         //DNS-over-HTTP insecure protocol is intended to be used with an SSL terminated reverse proxy like nginx on private network
                         response.StatusCode = 403;
-                        await response.WriteAsync("DNS-over-HTTPS (DoH) queries are supported only on HTTPS.");
+                        await response.WriteAsync("DNS-over-HTTPS (DoH) queries are supported only on HTTPS.", cancellationToken);
                         return;
                     }
                 }
@@ -2569,7 +2569,7 @@ namespace DnsServerCore.Dns
                     _statsManager.QueueUpdate(null, remoteEP, DnsTransportProtocol.Https, null, true);
 
                     response.StatusCode = 429;
-                    await response.WriteAsync("Too Many Requests");
+                    await response.WriteAsync("Too Many Requests", cancellationToken);
                     return;
                 }
 
@@ -2608,7 +2608,7 @@ namespace DnsServerCore.Dns
                         if (string.IsNullOrEmpty(dnsRequestBase64Url))
                         {
                             response.StatusCode = 400;
-                            await response.WriteAsync("Bad Request");
+                            await response.WriteAsync("Bad Request", cancellationToken);
                             return;
                         }
 
@@ -2630,7 +2630,7 @@ namespace DnsServerCore.Dns
                         catch (FormatException)
                         {
                             response.StatusCode = 400;
-                            await response.WriteAsync("Bad Request");
+                            await response.WriteAsync("Bad Request", cancellationToken);
                             return;
                         }
 
@@ -2646,13 +2646,16 @@ namespace DnsServerCore.Dns
                         if (!string.Equals(request.Headers.ContentType, "application/dns-message", StringComparison.OrdinalIgnoreCase))
                         {
                             response.StatusCode = 415;
-                            await response.WriteAsync("Unsupported Media Type");
+                            await response.WriteAsync("Unsupported Media Type", cancellationToken);
                             return;
                         }
 
                         using (MemoryStream mS = new MemoryStream(32))
                         {
-                            await request.Body.CopyToAsync(mS, 32);
+                            await TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
+                            {
+                                return request.Body.CopyToAsync(mS, 32, cancellationToken1);
+                            }, _tcpReceiveTimeout, cancellationToken);
 
                             mS.Position = 0;
                             dnsRequest = DnsDatagram.ReadFrom(mS);
@@ -2689,7 +2692,7 @@ namespace DnsServerCore.Dns
                         {
                             await mS.CopyToAsync(s, 512, cancellationToken1);
                         }
-                    }, _tcpSendTimeout);
+                    }, _tcpSendTimeout, cancellationToken);
                 }
 
                 _queryLog?.Write(remoteEP, DnsTransportProtocol.Https, dnsRequest, dnsResponse);
