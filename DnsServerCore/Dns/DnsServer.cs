@@ -6353,13 +6353,13 @@ namespace DnsServerCore.Dns
         {
             foreach (IPEndPoint localEndPoint in _localEndPoints)
             {
-                if (localEndPoint.Address.Equals(IPAddress.Any))
+                if (localEndPoint.Address.Equals(IPAddress.Any) || localEndPoint.Address.Equals(IPAddress.Loopback))
                 {
                     _thisServer = new NameServerAddress(_serverDomain, new IPEndPoint(IPAddress.Loopback, localEndPoint.Port));
                     return;
                 }
 
-                if (localEndPoint.Address.Equals(IPAddress.IPv6Any))
+                if (localEndPoint.Address.Equals(IPAddress.IPv6Any) || localEndPoint.Address.Equals(IPAddress.IPv6Loopback))
                 {
                     _thisServer = new NameServerAddress(_serverDomain, new IPEndPoint(IPAddress.IPv6Loopback, localEndPoint.Port));
                     return;
@@ -6491,8 +6491,8 @@ namespace DnsServerCore.Dns
                     serverOptions.Limits.RequestHeadersTimeout = TimeSpan.FromMilliseconds(_tcpReceiveTimeout);
                     serverOptions.Limits.KeepAliveTimeout = TimeSpan.FromMilliseconds(_tcpReceiveTimeout);
                     serverOptions.Limits.MaxRequestHeadersTotalSize = 4096;
-                    serverOptions.Limits.MaxRequestLineSize = serverOptions.Limits.MaxRequestHeadersTotalSize;
-                    serverOptions.Limits.MaxRequestBufferSize = serverOptions.Limits.MaxRequestLineSize;
+                    serverOptions.Limits.MaxRequestLineSize = 4096;
+                    serverOptions.Limits.MaxRequestBufferSize = 4096;
                     serverOptions.Limits.MaxRequestBodySize = 64 * 1024;
                     serverOptions.Limits.MaxResponseBufferSize = 4096;
                 });
