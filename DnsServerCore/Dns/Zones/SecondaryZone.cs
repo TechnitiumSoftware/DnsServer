@@ -48,7 +48,7 @@ namespace DnsServerCore.Dns.Zones
 
         const int REFRESH_SOA_TIMEOUT = 10000;
         const int REFRESH_XFR_TIMEOUT = 120000;
-        const int REFRESH_RETRIES = 5;
+        const int REFRESH_RETRIES = 2;
 
         const int REFRESH_TSIG_FUDGE = 300;
 
