@@ -1441,9 +1441,9 @@ function loadDnsSettings(responseJSON) {
     $("#rdBlockingTypeAnyAddress").prop("disabled", !responseJSON.response.enableBlocking);
     $("#rdBlockingTypeNxDomain").prop("disabled", !responseJSON.response.enableBlocking);
     $("#rdBlockingTypeCustomAddress").prop("disabled", !responseJSON.response.enableBlocking);
+    $("#txtBlockingAnswerTtl").prop("disabled", !responseJSON.response.enableBlocking);
     $("#txtBlockListUrls").prop("disabled", !responseJSON.response.enableBlocking);
     $("#optQuickBlockList").prop("disabled", !responseJSON.response.enableBlocking);
-    $("#txtBlockListUpdateIntervalHours").prop("disabled", !responseJSON.response.enableBlocking);
 
     $("#chkAllowTxtBlockingReport").prop("checked", responseJSON.response.allowTxtBlockingReport);
 
@@ -1485,7 +1485,7 @@ function loadDnsSettings(responseJSON) {
     }
     else {
         $("#txtBlockListUrls").val(getArrayAsString(blockListUrls));
-        $("#btnUpdateBlockListsNow").prop("disabled", !responseJSON.response.enableBlocking);
+        $("#btnUpdateBlockListsNow").prop("disabled", false);
     }
 
     $("#optQuickBlockList").val("blank");
@@ -2419,11 +2419,10 @@ function updateBlockingState() {
     $("#rdBlockingTypeAnyAddress").prop("disabled", !enableBlocking);
     $("#rdBlockingTypeNxDomain").prop("disabled", !enableBlocking);
     $("#rdBlockingTypeCustomAddress").prop("disabled", !enableBlocking);
+    $("#txtBlockingAnswerTtl").prop("disabled", !enableBlocking);
     $("#txtCustomBlockingAddresses").prop("disabled", !enableBlocking || !$("#rdBlockingTypeCustomAddress").prop("checked"));
     $("#txtBlockListUrls").prop("disabled", !enableBlocking);
     $("#optQuickBlockList").prop("disabled", !enableBlocking);
-    $("#txtBlockListUpdateIntervalHours").prop("disabled", !enableBlocking);
-    $("#btnUpdateBlockListsNow").prop("disabled", !enableBlocking || ($("#txtBlockListUrls").val() == ""));
 }
 
 function dashboardBlockingOptionsOnClick() {
