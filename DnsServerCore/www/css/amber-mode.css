@@ -98,12 +98,13 @@ body.amber-mode {
 }
 
 .amber-mode .nav-tabs {
-    border-bottom: 1px solid #3d2a1c !important;
+    border-bottom: 1px solid #ffc107 !important;
 }
 
     .amber-mode .nav-tabs > li > a:hover {
-        background-color: #3d2a1c !important;
-        border-color: #3d2a1c !important;
+        border-color: #4a3322 !important;
+        border-bottom-color: #ffc107 !important;
+        background-color: #3d2a1c;
         color: #ffb000 !important;
     }
 
@@ -111,8 +112,9 @@ body.amber-mode {
     .amber-mode .nav-tabs > li.active > a:hover,
     .amber-mode .nav-tabs > li.active > a:focus {
         background-color: #251a11 !important;
-        border-color: #3d2a1c #3d2a1c transparent !important;
+        border-color: #ffc107 !important;
         color: #ffb000 !important;
+        border-bottom-color: transparent !important;
     }
 
 .amber-mode .table-hover > tbody > tr:hover {
@@ -127,13 +129,13 @@ body.amber-mode {
 .amber-mode .table > tbody > tr > td,
 .amber-mode .table > tfoot > tr > th,
 .amber-mode .table > tfoot > tr > td {
-    border-top: 1px solid #3d2a1c !important;
+    border-top-color: #3d2a1c !important;
 }
 
 .amber-mode .table-bordered,
 .amber-mode .table-bordered > thead > tr > th,
 .amber-mode .table-bordered > tbody > tr > td {
-    border: 1px solid #3d2a1c !important;
+    border-color: #3d2a1c !important;
 }
 
 .amber-mode .form-control {
@@ -192,6 +194,7 @@ body.amber-mode {
 
 .amber-mode .stats-panel .stats-item,
 .amber-mode .zone-stats-panel .stats-item {
+    color: #ffb000 !important;
     border-right-color: #3d2a1c !important;
 }
 
@@ -224,9 +227,9 @@ body.amber-mode {
     }
 
 .amber-mode .pagination li:not(.active) a {
-    background-color: #2c1e14 !important;
-    border-color: #3d2a1c !important;
     color: #ffb000 !important;
+    background-color: #2c1e14 !important;
+    border: 1px solid #ffc107 !important;
 }
 
     .amber-mode .pagination li:not(.active) a:hover {
