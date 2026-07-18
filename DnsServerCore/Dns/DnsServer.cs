@@ -96,9 +96,11 @@ namespace DnsServerCore.Dns
 
         #region variables
 
+        //linux socket
         const int SOL_SOCKET = 1;
         const int SO_BINDTODEVICE = 25;
 
+        //macOs socket
         const int IPPROTO_IP = 0;
         const int IP_BOUND_IF = 25;
         const int IPPROTO_IPV6 = 41;
@@ -1724,18 +1726,18 @@ namespace DnsServerCore.Dns
             return udpListener;
         }
 
-        private static int GetInterfaceIndex(string interfaceName)
+        private static int? GetInterfaceIndex(string interfaceName)
         {
             foreach (NetworkInterface ni in NetworkInterface.GetAllNetworkInterfaces())
             {
                 if (ni.Name.Equals(interfaceName, StringComparison.Ordinal))
                 {
                     IPInterfaceProperties ipProps = ni.GetIPProperties();
-                    return ipProps.GetIPv4Properties()?.Index ?? ipProps.GetIPv6Properties()?.Index ?? 0;
+                    return ipProps.GetIPv4Properties()?.Index ?? ipProps.GetIPv6Properties()?.Index;
                 }
             }
 
-            return 0;
+            return null;
         }
 
         private async Task ReadUdpRequestAsync(Socket udpListener, DnsTransportProtocol protocol)
@@ -6685,21 +6687,21 @@ namespace DnsServerCore.Dns
                         {
                             try
                             {
-                                int interfaceIndex = GetInterfaceIndex(intEP.InterfaceName);
-                                if (interfaceIndex > 0)
+                                int? interfaceIndex = GetInterfaceIndex(intEP.InterfaceName);
+                                if (interfaceIndex is not null)
                                 {
-                                    byte[] interfaceIndexBytes = BitConverter.GetBytes(interfaceIndex);
+                                    byte[] interfaceIndexBytes = BitConverter.GetBytes(interfaceIndex.Value);
 
                                     if (localEP.AddressFamily == AddressFamily.InterNetwork)
                                         udpListener.SetRawSocketOption(IPPROTO_IP, IP_BOUND_IF, interfaceIndexBytes);
                                     else
                                         udpListener.SetRawSocketOption(IPPROTO_IPV6, IPV6_BOUND_IF, interfaceIndexBytes);
 
-                                    _log.Write(localEP, DnsTransportProtocol.Udp, $"Socket was bound to interface '{intEP.InterfaceName}' (index {interfaceIndex}) successfully.");
+                                    _log.Write(localEP, DnsTransportProtocol.Udp, $"Socket was bound to device '{intEP.InterfaceName} ({interfaceIndex})' successfully.");
                                 }
                                 else
                                 {
-                                    _log.Write(localEP, DnsTransportProtocol.Udp, $"Failed to bind socket to interface '{intEP.InterfaceName}': interface not found.");
+                                    _log.Write(localEP, DnsTransportProtocol.Udp, $"Socket failed to bind to device '{intEP.InterfaceName}': interface not found.");
                                 }
                             }
                             catch (Exception ex)
@@ -6768,21 +6770,21 @@ namespace DnsServerCore.Dns
                             {
                                 try
                                 {
-                                    int interfaceIndex = GetInterfaceIndex(intEP.InterfaceName);
-                                    if (interfaceIndex > 0)
+                                    int? interfaceIndex = GetInterfaceIndex(intEP.InterfaceName);
+                                    if (interfaceIndex is not null)
                                     {
-                                        byte[] interfaceIndexBytes = BitConverter.GetBytes(interfaceIndex);
+                                        byte[] interfaceIndexBytes = BitConverter.GetBytes(interfaceIndex.Value);
 
                                         if (udpProxyEP.AddressFamily == AddressFamily.InterNetwork)
                                             udpProxyListener.SetRawSocketOption(IPPROTO_IP, IP_BOUND_IF, interfaceIndexBytes);
                                         else
                                             udpProxyListener.SetRawSocketOption(IPPROTO_IPV6, IPV6_BOUND_IF, interfaceIndexBytes);
 
-                                        _log.Write(udpProxyEP, DnsTransportProtocol.UdpProxy, $"Socket was bound to interface '{intEP.InterfaceName}' (index {interfaceIndex}) successfully.");
+                                        _log.Write(localEP, DnsTransportProtocol.Udp, $"Socket was bound to device '{intEP.InterfaceName} ({interfaceIndex})' successfully.");
                                     }
                                     else
                                     {
-                                        _log.Write(udpProxyEP, DnsTransportProtocol.UdpProxy, $"Failed to bind socket to interface '{intEP.InterfaceName}': interface not found.");
+                                        _log.Write(localEP, DnsTransportProtocol.Udp, $"Socket failed to bind to device '{intEP.InterfaceName}': interface not found.");
                                     }
                                 }
                                 catch (Exception ex)
