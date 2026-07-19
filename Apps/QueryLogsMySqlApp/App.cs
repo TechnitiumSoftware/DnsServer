@@ -289,7 +289,7 @@ namespace QueryLogsMySql
                             {
                                 DnsQuestionRecord query = log.Request.Question[0];
 
-                                paramQname.Value = query.Name.ToLowerInvariant().Replace("\0", "");
+                                paramQname.Value = query.Name.ToLowerInvariant();
                                 paramQtype.Value = (ushort)query.Type;
                                 paramQclass.Value = (short)query.Class;
                             }
@@ -326,7 +326,7 @@ namespace QueryLogsMySql
                                 if (answer?.Length > 4000)
                                     answer = answer.Substring(0, 4000);
 
-                                paramAnswer.Value = answer?.Replace("\0", "");
+                                paramAnswer.Value = answer;
                             }
                         }
 
