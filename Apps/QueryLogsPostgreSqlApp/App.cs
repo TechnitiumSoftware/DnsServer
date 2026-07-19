@@ -289,7 +289,7 @@ namespace QueryLogsPostgreSql
                             {
                                 DnsQuestionRecord query = log.Request.Question[0];
 
-                                paramQname.Value = query.Name.ToLowerInvariant().Replace("\0", "");
+                                paramQname.Value = query.Name.ToLowerInvariant();
                                 paramQtype.Value = (int)query.Type;
                                 paramQclass.Value = (short)query.Class;
                             }
