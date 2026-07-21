@@ -25,6 +25,8 @@ Create an APP record for the base name you want to use (for example `ip.example.
 
 - Parses decimal octets from the subdomain using `.` and `-` separators.
 - Example: `192-168-1-10.ip.example.com` → `192.168.1.10`
+- Accepts an 8-character hexadecimal IPv4 label, with optional labels before it.
+- Examples: `c0a8010a.ip.example.com` and `web.c0a8010a.ip.example.com` → `192.168.1.10`
 
 ### AAAA queries
 
