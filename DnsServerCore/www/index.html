@@ -805,30 +805,76 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 </div>
 
                                 <div id="mainPanelTabPaneApps" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
-                                    <div id="divViewAppsLoader" style=" display: none; margin-top: 10px; height: 400px;"></div>
+                                    <ul class="nav nav-tabs" role="tablist">
+                                        <li id="appsTabListInstalled" role="presentation" class="active"><a href="#appsTabPaneInstalled" aria-controls="appsTabPaneInstalled" role="tab" data-toggle="tab">Apps</a></li>
+                                        <li id="appsTabListThirdParty" role="presentation"><a href="#appsTabPaneThirdParty" aria-controls="appsTabPaneThirdParty" role="tab" data-toggle="tab" onclick="refreshThirdPartyApps();">Third Party</a></li>
+                                    </ul>
 
-                                    <div id="divViewApps">
-                                        <div class="form-inline">
-                                            <div style="float: right;">
-                                                <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showStoreAppsModal();">App Store</button>
-                                                <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showInstallAppModal();">Install</button>
+                                    <div class="tab-content" style="padding-top: 10px;">
+                                        <div id="appsTabPaneInstalled" role="tabpanel" class="tab-pane active">
+                                            <div id="divViewAppsLoader" style=" display: none; margin-top: 10px; height: 400px;"></div>
+
+                                            <div id="divViewApps">
+                                                <div class="form-inline">
+                                                    <div style="float: right;">
+                                                        <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showStoreAppsModal();">App Store</button>
+                                                        <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showInstallAppModal();">Install</button>
+                                                    </div>
+                                                    <div style="clear: both;"></div>
+                                                </div>
+
+                                                <table id="tableApps" class="table table-hover">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="min-width: 100px;"><a href="#" onclick="sortTable('tableAppsBody', 0); return false;">Installed Apps</a></th>
+                                                            <th style="width: 96px;"></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="tableAppsBody">
+                                                    </tbody>
+                                                    <tfoot id="tableAppsFooter">
+                                                        <tr><td colspan="3"><b>Total Apps: 0</b></td></tr>
+                                                    </tfoot>
+                                                </table>
                                             </div>
-                                            <div style="clear: both;"></div>
                                         </div>
 
-                                        <table id="tableApps" class="table table-hover">
-                                            <thead>
-                                                <tr>
-                                                    <th style="min-width: 100px;"><a href="#" onclick="sortTable('tableAppsBody', 0); return false;">Installed Apps</a></th>
-                                                    <th style="width: 96px;"></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="tableAppsBody">
-                                            </tbody>
-                                            <tfoot id="tableAppsFooter">
-                                                <tr><td colspan="3"><b>Total Apps: 0</b></td></tr>
-                                            </tfoot>
-                                        </table>
+                                        <div id="appsTabPaneThirdParty" role="tabpanel" class="tab-pane">
+                                            <div id="divThirdPartyAppsAlert"></div>
+
+                                            <div class="well well-sm">
+                                                <label>DNS App Repositories</label>
+                                                <p style="font-size: 12px;">Add a third-party DNS App repository URL (a JSON manifest in the same format as the official DNS App Store) to browse and install apps from it. These apps are not maintained or vetted by Technitium.</p>
+
+                                                <div class="form-inline" style="margin-bottom: 10px;">
+                                                    <input id="txtThirdPartyRepoUrl" type="text" class="form-control" placeholder="https://example.com/store.json" style="width: 420px;">
+                                                    <button id="btnThirdPartyRepoAdd" type="button" class="btn btn-primary" onclick="addThirdPartyRepository();" data-loading-text="Adding...">Add Repository</button>
+                                                </div>
+
+                                                <table id="tableThirdPartyRepos" class="table table-condensed" style="margin-bottom: 0;">
+                                                    <tbody id="tableThirdPartyReposBody">
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            <div id="divThirdPartyAppsLoader" style="display: none; margin-top: 10px; height: 200px;"></div>
+
+                                            <div id="divThirdPartyApps">
+                                                <table id="tableThirdPartyStoreApps" class="table table-hover">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="min-width: 120px;">Third Party Apps</th>
+                                                            <th style="width: 96px;"></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="tableThirdPartyStoreAppsBody">
+                                                    </tbody>
+                                                    <tfoot id="tableThirdPartyStoreAppsFooter">
+                                                        <tr><td colspan="3"><b>Total Apps: 0</b></td></tr>
+                                                    </tfoot>
+                                                </table>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 

@@ -60,6 +60,18 @@ namespace DnsServerCore.Dns.Applications
         const int APP_UPDATE_TIMER_INITIAL_INTERVAL = 10000;
         const int APP_UPDATE_TIMER_PERIODIC_INTERVAL = 86400000;
 
+        readonly string _customRepositoriesConfigFile;
+        readonly object _customRepositoriesLock = new object();
+        List<string> _customRepositoryUrls = new List<string>();
+        readonly ConcurrentDictionary<string, CustomRepositoryCacheEntry> _customRepositoryCache = new ConcurrentDictionary<string, CustomRepositoryCacheEntry>();
+
+        sealed class CustomRepositoryCacheEntry
+        {
+            public string JsonData;
+            public DateTime UpdatedOn;
+            public string LastError;
+        }
+
         #endregion
 
         #region constructor
@@ -72,6 +84,9 @@ namespace DnsServerCore.Dns.Applications
 
             if (!Directory.Exists(_appsPath))
                 Directory.CreateDirectory(_appsPath);
+
+            _customRepositoriesConfigFile = Path.Combine(_dnsServer.ConfigFolder, "appRepositories.config");
+            LoadCustomRepositoriesConfig();
         }
 
         #endregion
@@ -305,6 +320,94 @@ namespace DnsServerCore.Dns.Applications
             }
 
             return _storeAppsJsonData;
+        }
+
+        private void LoadCustomRepositoriesConfig()
+        {
+            if (!File.Exists(_customRepositoriesConfigFile))
+                return;
+
+            using (FileStream fS = new FileStream(_customRepositoriesConfigFile, FileMode.Open, FileAccess.Read))
+            {
+                if (Encoding.ASCII.GetString(fS.ReadExactly(2)) != "AR")
+                    throw new InvalidDataException("DNS Apps repositories config file format is invalid.");
+
+                BinaryReader bR = new BinaryReader(fS);
+
+                int version = bR.ReadByte();
+                if (version > 1)
+                    throw new InvalidDataException("DNS Apps repositories config version not supported.");
+
+                int count = bR.ReadInt32();
+                List<string> repoUrls = new List<string>(count);
+
+                for (int i = 0; i < count; i++)
+                    repoUrls.Add(fS.ReadShortString());
+
+                lock (_customRepositoriesLock)
+                {
+                    _customRepositoryUrls = repoUrls;
+                }
+            }
+        }
+
+        private void SaveCustomRepositoriesConfig()
+        {
+            //must be called with _customRepositoriesLock already held
+            string tmpFile = _customRepositoriesConfigFile + ".tmp";
+
+            using (FileStream fS = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite))
+            {
+                fS.Write(Encoding.ASCII.GetBytes("AR"));
+
+                BinaryWriter bW = new BinaryWriter(fS);
+                bW.Write((byte)1); //version
+                bW.Write(_customRepositoryUrls.Count);
+
+                foreach (string repoUrl in _customRepositoryUrls)
+                    fS.WriteShortString(repoUrl);
+            }
+
+            File.Copy(tmpFile, _customRepositoriesConfigFile, true);
+            File.Delete(tmpFile);
+        }
+
+        private async Task<(string jsonData, string error)> GetCustomRepositoryJsonDataAsync(string repoUrl)
+        {
+            if (_customRepositoryCache.TryGetValue(repoUrl, out CustomRepositoryCacheEntry cache) && (DateTime.UtcNow <= cache.UpdatedOn.AddSeconds(STORE_APPS_JSON_DATA_CACHE_TIME_SECONDS)))
+                return (cache.JsonData, cache.LastError);
+
+            try
+            {
+                HttpClientNetworkHandler handler = new HttpClientNetworkHandler();
+                handler.Proxy = _dnsServer.Proxy;
+                handler.NetworkType = HttpClientNetworkHandler.GetNetworkType(_dnsServer.IPv6Mode);
+                handler.DnsClient = _dnsServer;
+
+                using (HttpClient http = new HttpClient(handler))
+                {
+                    string jsonData = await http.GetStringAsync(new Uri(repoUrl));
+
+                    _customRepositoryCache[repoUrl] = new CustomRepositoryCacheEntry() { JsonData = jsonData, UpdatedOn = DateTime.UtcNow, LastError = null };
+
+                    return (jsonData, null);
+                }
+            }
+            catch (Exception ex)
+            {
+                _dnsServer.LogManager.Write("DNS Server failed to fetch DNS App repository data from: " + repoUrl, ex);
+
+                CustomRepositoryCacheEntry existing = _customRepositoryCache.AddOrUpdate(repoUrl,
+                    new CustomRepositoryCacheEntry() { JsonData = null, UpdatedOn = DateTime.UtcNow, LastError = ex.Message },
+                    delegate (string key, CustomRepositoryCacheEntry old)
+                    {
+                        old.LastError = ex.Message;
+                        old.UpdatedOn = DateTime.UtcNow;
+                        return old;
+                    });
+
+                return (existing.JsonData, existing.LastError);
+            }
         }
 
         #endregion
@@ -566,6 +669,76 @@ namespace DnsServerCore.Dns.Applications
                     _dnsServer.LogManager.Write(ex);
                 }
             }
+        }
+
+        public void AddCustomRepository(string repoUrl)
+        {
+            if (string.IsNullOrWhiteSpace(repoUrl))
+                throw new DnsServerException("DNS App repository URL is required.");
+
+            repoUrl = repoUrl.Trim();
+
+            if (!repoUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                throw new DnsServerException("DNS App repository URL must start with 'https://'.");
+
+            lock (_customRepositoriesLock)
+            {
+                foreach (string existingUrl in _customRepositoryUrls)
+                {
+                    if (existingUrl.Equals(repoUrl, StringComparison.OrdinalIgnoreCase))
+                        throw new DnsServerException("DNS App repository already exists: " + repoUrl);
+                }
+
+                List<string> updated = new List<string>(_customRepositoryUrls) { repoUrl };
+                _customRepositoryUrls = updated;
+
+                SaveCustomRepositoriesConfig();
+            }
+        }
+
+        public void RemoveCustomRepository(string repoUrl)
+        {
+            lock (_customRepositoriesLock)
+            {
+                int index = _customRepositoryUrls.FindIndex(delegate (string existingUrl) { return existingUrl.Equals(repoUrl, StringComparison.OrdinalIgnoreCase); });
+                if (index < 0)
+                    throw new DnsServerException("DNS App repository does not exist: " + repoUrl);
+
+                List<string> updated = new List<string>(_customRepositoryUrls);
+                updated.RemoveAt(index);
+                _customRepositoryUrls = updated;
+
+                SaveCustomRepositoriesConfig();
+            }
+
+            _customRepositoryCache.TryRemove(repoUrl, out _);
+        }
+
+        public IReadOnlyList<string> GetCustomRepositoryUrls()
+        {
+            lock (_customRepositoriesLock)
+            {
+                return _customRepositoryUrls;
+            }
+        }
+
+        public async Task<IReadOnlyList<(string repoUrl, string jsonData, string error)>> GetCustomRepositoriesStoreAppsJsonDataAsync()
+        {
+            IReadOnlyList<string> repoUrls = GetCustomRepositoryUrls();
+
+            Task<(string jsonData, string error)>[] tasks = new Task<(string, string)>[repoUrls.Count];
+
+            for (int i = 0; i < repoUrls.Count; i++)
+                tasks[i] = GetCustomRepositoryJsonDataAsync(repoUrls[i]);
+
+            (string jsonData, string error)[] results = await Task.WhenAll(tasks);
+
+            List<(string, string, string)> repoResults = new List<(string, string, string)>(repoUrls.Count);
+
+            for (int i = 0; i < repoUrls.Count; i++)
+                repoResults.Add((repoUrls[i], results[i].jsonData, results[i].error));
+
+            return repoResults;
         }
 
         #endregion
