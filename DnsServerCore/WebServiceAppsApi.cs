@@ -307,15 +307,30 @@ namespace DnsServerCore
                         if (jsonData is null)
                             continue; //should not happen when fetchError is null, but guard anyway
 
+                        JsonDocument jsonDocument;
+
                         try
                         {
-                            parsedRepoData[repoUrl] = JsonDocument.Parse(jsonData);
+                            jsonDocument = JsonDocument.Parse(jsonData);
                         }
                         catch (Exception ex)
                         {
                             _dnsWebService._log.Write("DNS App repository returned invalid JSON data: " + repoUrl, ex);
                             repoErrors[repoUrl] = "Repository data is not valid JSON: " + ex.Message;
+                            continue;
                         }
+
+                        //a repository is expected to be a JSON array of app entries, but also accept a single
+                        //app entry as a bare JSON object (as published directly by some single-app repositories)
+                        JsonValueKind rootKind = jsonDocument.RootElement.ValueKind;
+                        if ((rootKind != JsonValueKind.Array) && (rootKind != JsonValueKind.Object))
+                        {
+                            jsonDocument.Dispose();
+                            repoErrors[repoUrl] = "Repository data must be a JSON array of app entries or a single app entry object.";
+                            continue;
+                        }
+
+                        parsedRepoData[repoUrl] = jsonDocument;
                     }
 
                     jsonWriter.WritePropertyName("repositories");
@@ -343,60 +358,71 @@ namespace DnsServerCore
                     {
                         string repoUrl = parsedRepo.Key;
                         string repoName = repoNames[repoUrl];
+                        JsonElement root = parsedRepo.Value.RootElement;
 
-                        foreach (JsonElement jsonStoreApp in parsedRepo.Value.RootElement.EnumerateArray())
+                        IEnumerable<JsonElement> jsonStoreApps = (root.ValueKind == JsonValueKind.Array) ? root.EnumerateArray() : new[] { root };
+
+                        foreach (JsonElement jsonStoreApp in jsonStoreApps)
                         {
-                            string name = jsonStoreApp.GetProperty("name").GetString();
-                            string description = jsonStoreApp.GetProperty("description").GetString();
-                            string version = null;
-                            string url = null;
-                            string size = null;
-                            Version storeAppVersion = null;
-                            Version lastServerVersion = null;
-
-                            foreach (JsonElement jsonVersion in jsonStoreApp.GetProperty("versions").EnumerateArray())
+                            try
                             {
-                                string strServerVersion = jsonVersion.GetProperty("serverVersion").GetString();
-                                Version requiredServerVersion = new Version(strServerVersion);
+                                string name = jsonStoreApp.GetProperty("name").GetString();
+                                string description = jsonStoreApp.GetProperty("description").GetString();
+                                string version = null;
+                                string url = null;
+                                string size = null;
+                                Version storeAppVersion = null;
+                                Version lastServerVersion = null;
 
-                                if (_dnsWebService._currentVersion < requiredServerVersion)
-                                    continue;
+                                foreach (JsonElement jsonVersion in jsonStoreApp.GetProperty("versions").EnumerateArray())
+                                {
+                                    string strServerVersion = jsonVersion.GetProperty("serverVersion").GetString();
+                                    Version requiredServerVersion = new Version(strServerVersion);
 
-                                if ((lastServerVersion is not null) && (lastServerVersion > requiredServerVersion))
-                                    continue;
+                                    if (_dnsWebService._currentVersion < requiredServerVersion)
+                                        continue;
 
-                                version = jsonVersion.GetProperty("version").GetString();
-                                url = jsonVersion.GetProperty("url").GetString();
-                                size = jsonVersion.GetProperty("size").GetString();
+                                    if ((lastServerVersion is not null) && (lastServerVersion > requiredServerVersion))
+                                        continue;
 
-                                storeAppVersion = new Version(version);
-                                lastServerVersion = requiredServerVersion;
+                                    version = jsonVersion.GetProperty("version").GetString();
+                                    url = jsonVersion.GetProperty("url").GetString();
+                                    size = jsonVersion.GetProperty("size").GetString();
+
+                                    storeAppVersion = new Version(version);
+                                    lastServerVersion = requiredServerVersion;
+                                }
+
+                                if (storeAppVersion is null)
+                                    continue; //app is not compatible with this server version
+
+                                jsonWriter.WriteStartObject();
+
+                                jsonWriter.WriteString("name", name);
+                                jsonWriter.WriteString("description", description);
+                                jsonWriter.WriteString("version", version);
+                                jsonWriter.WriteString("url", url);
+                                jsonWriter.WriteString("size", size);
+                                jsonWriter.WriteString("repository", repoUrl);
+                                jsonWriter.WriteString("repositoryName", repoName);
+
+                                bool installed = _dnsWebService._dnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication installedApp);
+
+                                jsonWriter.WriteBoolean("installed", installed);
+
+                                if (installed)
+                                {
+                                    jsonWriter.WriteString("installedVersion", DnsWebService.GetCleanVersion(installedApp.Version));
+                                    jsonWriter.WriteBoolean("updateAvailable", storeAppVersion > installedApp.Version);
+                                }
+
+                                jsonWriter.WriteEndObject();
                             }
-
-                            if (storeAppVersion is null)
-                                continue; //app is not compatible with this server version
-
-                            jsonWriter.WriteStartObject();
-
-                            jsonWriter.WriteString("name", name);
-                            jsonWriter.WriteString("description", description);
-                            jsonWriter.WriteString("version", version);
-                            jsonWriter.WriteString("url", url);
-                            jsonWriter.WriteString("size", size);
-                            jsonWriter.WriteString("repository", repoUrl);
-                            jsonWriter.WriteString("repositoryName", repoName);
-
-                            bool installed = _dnsWebService._dnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication installedApp);
-
-                            jsonWriter.WriteBoolean("installed", installed);
-
-                            if (installed)
+                            catch (Exception ex)
                             {
-                                jsonWriter.WriteString("installedVersion", DnsWebService.GetCleanVersion(installedApp.Version));
-                                jsonWriter.WriteBoolean("updateAvailable", storeAppVersion > installedApp.Version);
+                                //a single malformed app entry must not break the rest of this repo's listing, nor any other repo's
+                                _dnsWebService._log.Write("DNS App repository has a malformed app entry: " + repoUrl, ex);
                             }
-
-                            jsonWriter.WriteEndObject();
                         }
                     }
                 }
