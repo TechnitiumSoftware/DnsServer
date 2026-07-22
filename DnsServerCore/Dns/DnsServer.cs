@@ -5197,45 +5197,63 @@ namespace DnsServerCore.Dns
                     if (_proxy is null)
                     {
                         //recursive resolve forwarders only when proxy is null else let proxy resolve it to allow using .onion or private domains
-                        List<NameServerAddress> newForwarders = new List<NameServerAddress>(forwarders.Count);
-                        List<Task<NameServerAddress>> resolveTasks = new List<Task<NameServerAddress>>(forwarders.Count);
+                        NameServerAddress[] forwarderSnapshot = [.. forwarders];
+                        forwarders = forwarderSnapshot;
 
-                        foreach (NameServerAddress forwarder in forwarders)
+                        // Preserve the existing empty-forwarder failure path too.
+                        bool useResolutionPath = forwarderSnapshot.Length < 1;
+
+                        foreach (NameServerAddress forwarder in forwarderSnapshot)
                         {
                             if (forwarder.IsIPEndPointStale)
                             {
-                                //refresh forwarder IPEndPoint if stale
-                                resolveTasks.Add(TechnitiumLibrary.TaskExtensions.TimeoutAsync(async delegate (CancellationToken cancellationToken1)
-                                {
-                                    await forwarder.RecursiveResolveIPAddressAsync(dnsCache, null, _ipv6Mode, _udpPayloadSize, _randomizeName, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, cancellationToken1);
-                                    return forwarder;
-                                }, RECURSIVE_RESOLUTION_TIMEOUT, cancellationToken));
-                            }
-                            else
-                            {
-                                newForwarders.Add(forwarder);
+                                useResolutionPath = true;
+                                break;
                             }
                         }
 
-                        Exception lastException = null;
-
-                        foreach (Task<NameServerAddress> resolveTask in resolveTasks)
+                        if (useResolutionPath)
                         {
-                            try
+                            List<NameServerAddress> newForwarders = new List<NameServerAddress>(forwarders.Count);
+                            List<Task<NameServerAddress>> resolveTasks = new List<Task<NameServerAddress>>(forwarders.Count);
+
+                            foreach (NameServerAddress forwarder in forwarders)
                             {
-                                newForwarders.Add(await resolveTask);
+                                if (forwarder.IsIPEndPointStale)
+                                {
+                                    //refresh forwarder IPEndPoint if stale
+                                    resolveTasks.Add(TechnitiumLibrary.TaskExtensions.TimeoutAsync(async delegate (CancellationToken cancellationToken1)
+                                    {
+                                        await forwarder.RecursiveResolveIPAddressAsync(dnsCache, null, _ipv6Mode, _udpPayloadSize, _randomizeName, _resolverRetries, _resolverTimeout, _resolverConcurrency, _resolverMaxStackCount, cancellationToken1);
+                                        return forwarder;
+                                    }, RECURSIVE_RESOLUTION_TIMEOUT, cancellationToken));
+                                }
+                                else
+                                {
+                                    newForwarders.Add(forwarder);
+                                }
                             }
-                            catch (Exception ex)
+
+                            Exception lastException = null;
+
+                            foreach (Task<NameServerAddress> resolveTask in resolveTasks)
                             {
-                                lastException = ex;
-                                _resolverLog?.Write(ex);
+                                try
+                                {
+                                    newForwarders.Add(await resolveTask);
+                                }
+                                catch (Exception ex)
+                                {
+                                    lastException = ex;
+                                    _resolverLog?.Write(ex);
+                                }
                             }
+
+                            if (newForwarders.Count < 1)
+                                throw new DnsServerException("Failed to resolve forwarder domain name for all forwarders: " + forwarders.Join(), lastException);
+
+                            forwarders = newForwarders;
                         }
-
-                        if (newForwarders.Count < 1)
-                            throw new DnsServerException("Failed to resolve forwarder domain name for all forwarders: " + forwarders.Join(), lastException);
-
-                        forwarders = newForwarders;
                     }
 
                     //query forwarders and update cache
