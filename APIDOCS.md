@@ -4693,7 +4693,7 @@ RESPONSE:
 
 Lists apps available from all configured community (third-party) DNS App repositories. A repository is any HTTPS URL serving a JSON manifest in the same schema as the official DNS App Store (a JSON array of app entries, or a single app entry as a bare JSON object). Each configured repository is fetched independently; if a repository is unreachable, returns invalid JSON, or has an unsupported JSON shape, it is reported with an `error` and does not affect the other repositories' listings. See `CommunityAppRepositories.md` for the full manifest schema and a guide for app authors who want to publish one.
 
-Unlike the official DNS App Store, apps installed from a community repository are **not** covered by the automatic update timer (`EnableAutomaticUpdate` DNS setting) — that timer only checks the official store. Updates for community apps must be applied manually via `downloadAndUpdate` after calling this endpoint to check for a newer version.
+Apps installed from a community repository are covered by their own separate automatic update timer, controlled by the `dnsAppsEnableAutomaticUpdateCommunity` DNS setting (disabled by default) — the official DNS App Store's `dnsAppsEnableAutomaticUpdate` timer only checks the official store and has no effect on community apps. Updates for community apps can also be applied manually via `downloadAndUpdate` after calling this endpoint to check for a newer version.
 
 URL:\
 `http://localhost:5380/api/apps/repositories/list`
@@ -5222,6 +5222,7 @@ RESPONSE:
 		"notifyAllowedNetworks": [],
 		"dnsServerEnableCheckForUpdate": true,
 		"dnsAppsEnableAutomaticUpdate": true,
+		"dnsAppsEnableAutomaticUpdateCommunity": false,
 		"ipv6Mode": "Disabled",
 		"preferIPv6": false,
 		"enableUdpSocketPool": true,
@@ -5431,6 +5432,7 @@ WHERE:
 - `notifyAllowedNetworks` (optional, cluster parameter): A comma separated list of IP addresses or network addresses that are allowed to Notify all secondary zones.
 - `dnsServerEnableCheckForUpdate` (optional): Set to `true` to enable the DNS Server to check if an update is available when the Check For Update API is called which usually occurs after a user logs into the Web Console.
 - `dnsAppsEnableAutomaticUpdate` (optional, cluster parameter): Set to `true` to allow DNS server to automatically update the DNS Apps from the DNS App Store. The DNS Server will check for updates every 24 hrs when this option is enabled.
+- `dnsAppsEnableAutomaticUpdateCommunity` (optional, cluster parameter): Set to `true` to allow the DNS server to automatically update apps installed from Community (third-party) DNS App repositories. Independent of `dnsAppsEnableAutomaticUpdate`, which only covers the official DNS App Store. The DNS Server will check for updates every 24 hrs when this option is enabled. Initial value is `false`.
 - `ipv6Mode` (optional): Valid options are `Disabled`, `Enabled`, and `Preferred`. Initial value is `Disabled`.
 - `enableUdpSocketPool` (optional): Set this to `true` to enable UDP socket pool. The DNS Server will use UDP socket pool for all outbound DNS-over-UDP requests when enabled.
 - `socketPoolExcludedPorts` (optional): A comma separated list of port numbers that must be excluded from being used by the UDP socket pool.

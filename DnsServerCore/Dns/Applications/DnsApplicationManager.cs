@@ -60,6 +60,8 @@ namespace DnsServerCore.Dns.Applications
         const int APP_UPDATE_TIMER_INITIAL_INTERVAL = 10000;
         const int APP_UPDATE_TIMER_PERIODIC_INTERVAL = 86400000;
 
+        Timer _communityAppUpdateTimer;
+
         readonly string _customRepositoriesConfigFile;
         readonly object _customRepositoriesLock = new object();
         List<AppRepository> _customRepositories = new List<AppRepository>();
@@ -119,6 +121,7 @@ namespace DnsServerCore.Dns.Applications
             if (disposing)
             {
                 _appUpdateTimer?.Dispose();
+                _communityAppUpdateTimer?.Dispose();
 
                 if (_applications != null)
                     UnloadAllApplications();
@@ -319,6 +322,112 @@ namespace DnsServerCore.Dns.Applications
             }
         }
 
+        private void StartCommunityAutomaticUpdate()
+        {
+            if (_communityAppUpdateTimer is null)
+            {
+                _communityAppUpdateTimer = new Timer(async delegate (object state)
+                {
+                    try
+                    {
+                        if (_applications.IsEmpty)
+                            return;
+
+                        IReadOnlyList<AppRepository> repositories = GetCustomRepositories();
+                        if (repositories.Count == 0)
+                            return;
+
+                        _dnsServer.LogManager.Write("DNS Server has started automatic update check for Community DNS Apps.");
+
+                        IReadOnlyList<(string name, string repoUrl, string jsonData, string error)> repoResults = await GetCustomRepositoriesStoreAppsJsonDataAsync();
+
+                        Version currentVersion = Assembly.GetExecutingAssembly().GetName().Version;
+
+                        foreach (DnsApplication application in _applications.Values)
+                        {
+                            string bestUrl = null;
+                            Version bestVersion = null;
+                            Version lastServerVersion = null;
+
+                            foreach ((_, string repoUrl, string jsonData, _) in repoResults)
+                            {
+                                if (jsonData is null)
+                                    continue;
+
+                                try
+                                {
+                                    using JsonDocument jsonDocument = JsonDocument.Parse(jsonData);
+                                    JsonElement root = jsonDocument.RootElement;
+
+                                    IEnumerable<JsonElement> jsonStoreApps = (root.ValueKind == JsonValueKind.Array) ? root.EnumerateArray() : [root];
+
+                                    foreach (JsonElement jsonStoreApp in jsonStoreApps)
+                                    {
+                                        string name = jsonStoreApp.GetProperty("name").GetString();
+                                        if (!name.Equals(application.Name, StringComparison.Ordinal))
+                                            continue;
+
+                                        foreach (JsonElement jsonVersion in jsonStoreApp.GetProperty("versions").EnumerateArray())
+                                        {
+                                            string strServerVersion = jsonVersion.GetProperty("serverVersion").GetString();
+                                            Version requiredServerVersion = new Version(strServerVersion);
+
+                                            if (currentVersion < requiredServerVersion)
+                                                continue;
+
+                                            if ((lastServerVersion is not null) && (lastServerVersion > requiredServerVersion))
+                                                continue;
+
+                                            string version = jsonVersion.GetProperty("version").GetString();
+
+                                            bestVersion = new Version(version);
+                                            bestUrl = jsonVersion.GetProperty("url").GetString();
+                                            lastServerVersion = requiredServerVersion;
+                                        }
+
+                                        break;
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    _dnsServer.LogManager.Write("DNS App repository has a malformed manifest and was skipped during Community app automatic update check: " + repoUrl, ex);
+                                }
+                            }
+
+                            if ((bestVersion is not null) && (bestVersion > application.Version))
+                            {
+                                try
+                                {
+                                    await DownloadAndUpdateAppAsync(application.Name, new Uri(bestUrl));
+
+                                    _dnsServer.LogManager.Write("Community DNS application '" + application.Name + "' was automatically updated successfully from: " + bestUrl);
+                                }
+                                catch (Exception ex)
+                                {
+                                    _dnsServer.LogManager.Write("Failed to automatically download and update Community DNS application '" + application.Name + "'.", ex);
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _dnsServer.LogManager.Write(ex);
+                    }
+                });
+
+                _communityAppUpdateTimer.Change(APP_UPDATE_TIMER_INITIAL_INTERVAL, APP_UPDATE_TIMER_PERIODIC_INTERVAL);
+            }
+        }
+
+        private void StopCommunityAutomaticUpdate()
+        {
+            if (_communityAppUpdateTimer is not null)
+            {
+                _communityAppUpdateTimer.Dispose();
+                _communityAppUpdateTimer = null;
+            }
+        }
+
         internal async Task<string> GetStoreAppsJsonData()
         {
             if ((_storeAppsJsonData is null) || (DateTime.UtcNow > _storeAppsJsonDataUpdatedOn.AddSeconds(STORE_APPS_JSON_DATA_CACHE_TIME_SECONDS)))
@@ -351,7 +460,7 @@ namespace DnsServerCore.Dns.Applications
                 BinaryReader bR = new BinaryReader(fS);
 
                 int version = bR.ReadByte();
-                if (version > 2)
+                if (version > 3)
                     throw new InvalidDataException("DNS Apps repositories config version not supported.");
 
                 int count = bR.ReadInt32();
@@ -374,10 +483,15 @@ namespace DnsServerCore.Dns.Applications
                     }
                 }
 
+                bool enableCommunityAutomaticUpdate = (version >= 3) && bR.ReadBoolean();
+
                 lock (_customRepositoriesLock)
                 {
                     _customRepositories = repositories;
                 }
+
+                if (enableCommunityAutomaticUpdate)
+                    StartCommunityAutomaticUpdate();
             }
         }
 
@@ -391,7 +505,7 @@ namespace DnsServerCore.Dns.Applications
                 fS.Write(Encoding.ASCII.GetBytes("AR"));
 
                 BinaryWriter bW = new BinaryWriter(fS);
-                bW.Write((byte)2); //version
+                bW.Write((byte)3); //version
                 bW.Write(_customRepositories.Count);
 
                 foreach (AppRepository repository in _customRepositories)
@@ -399,6 +513,8 @@ namespace DnsServerCore.Dns.Applications
                     fS.WriteShortString(repository.Name);
                     fS.WriteShortString(repository.Url);
                 }
+
+                bW.Write(_communityAppUpdateTimer is not null);
             }
 
             File.Copy(tmpFile, _customRepositoriesConfigFile, true);
@@ -810,6 +926,23 @@ namespace DnsServerCore.Dns.Applications
                     StartAutomaticUpdate();
                 else
                     StopAutomaticUpdate();
+            }
+        }
+
+        public bool EnableCommunityAutomaticUpdate
+        {
+            get { return _communityAppUpdateTimer is not null; }
+            set
+            {
+                lock (_customRepositoriesLock)
+                {
+                    if (value)
+                        StartCommunityAutomaticUpdate();
+                    else
+                        StopCommunityAutomaticUpdate();
+
+                    SaveCustomRepositoriesConfig();
+                }
             }
         }
 

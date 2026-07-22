@@ -14,6 +14,8 @@ There's no central index or directory of community repositories — this is a de
 
 Since nothing here is vetted or reviewed, only add repository URLs from authors/sources you trust — an installed app runs as native code inside the DNS server process. See "No checksum or signature verification" below.
 
+By default, community apps are **not** auto-updated, unlike apps from the official DNS App Store. To have the server check daily and automatically download/install newer versions for community apps too, enable "Enable Automatic Update For Community Apps" in Settings &rarr; General &rarr; Software Update — this is a separate switch from the official store's "Enable Automatic Update", so turning one off does not affect the other.
+
 ## Publishing your own community app
 
 The rest of this document is for **app authors** who want their app installable this way.
