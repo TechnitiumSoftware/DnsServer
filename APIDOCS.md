@@ -4691,7 +4691,9 @@ RESPONSE:
 
 ### List Community App Repository Apps
 
-Lists apps available from all configured community (third-party) DNS App repositories. A repository is any HTTPS URL serving a JSON manifest in the same schema as the official DNS App Store. Each configured repository is fetched independently; if a repository is unreachable or returns invalid data, it is reported with an `error` and does not affect the other repositories' listings.
+Lists apps available from all configured community (third-party) DNS App repositories. A repository is any HTTPS URL serving a JSON manifest in the same schema as the official DNS App Store (a JSON array of app entries, or a single app entry as a bare JSON object). Each configured repository is fetched independently; if a repository is unreachable, returns invalid JSON, or has an unsupported JSON shape, it is reported with an `error` and does not affect the other repositories' listings.
+
+Unlike the official DNS App Store, apps installed from a community repository are **not** covered by the automatic update timer (`EnableAutomaticUpdate` DNS setting) — that timer only checks the official store. Updates for community apps must be applied manually via `downloadAndUpdate` after calling this endpoint to check for a newer version.
 
 URL:\
 `http://localhost:5380/api/apps/repositories/list`
