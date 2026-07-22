@@ -62,7 +62,7 @@ namespace DnsServerCore.Dns.Applications
 
         readonly string _customRepositoriesConfigFile;
         readonly object _customRepositoriesLock = new object();
-        List<string> _customRepositoryUrls = new List<string>();
+        List<AppRepository> _customRepositories = new List<AppRepository>();
         readonly ConcurrentDictionary<string, CustomRepositoryCacheEntry> _customRepositoryCache = new ConcurrentDictionary<string, CustomRepositoryCacheEntry>();
 
         sealed class CustomRepositoryCacheEntry
@@ -70,6 +70,22 @@ namespace DnsServerCore.Dns.Applications
             public string JsonData;
             public DateTime UpdatedOn;
             public string LastError;
+        }
+
+        #endregion
+
+        #region public types
+
+        public readonly struct AppRepository
+        {
+            public readonly string Name;
+            public readonly string Url;
+
+            public AppRepository(string name, string url)
+            {
+                Name = name;
+                Url = url;
+            }
         }
 
         #endregion
@@ -335,18 +351,32 @@ namespace DnsServerCore.Dns.Applications
                 BinaryReader bR = new BinaryReader(fS);
 
                 int version = bR.ReadByte();
-                if (version > 1)
+                if (version > 2)
                     throw new InvalidDataException("DNS Apps repositories config version not supported.");
 
                 int count = bR.ReadInt32();
-                List<string> repoUrls = new List<string>(count);
+                List<AppRepository> repositories = new List<AppRepository>(count);
 
                 for (int i = 0; i < count; i++)
-                    repoUrls.Add(fS.ReadShortString());
+                {
+                    if (version >= 2)
+                    {
+                        string name = fS.ReadShortString();
+                        string url = fS.ReadShortString();
+
+                        repositories.Add(new AppRepository(name, url));
+                    }
+                    else
+                    {
+                        string url = fS.ReadShortString();
+
+                        repositories.Add(new AppRepository(url, url)); //v1 had no name; use URL as the display name
+                    }
+                }
 
                 lock (_customRepositoriesLock)
                 {
-                    _customRepositoryUrls = repoUrls;
+                    _customRepositories = repositories;
                 }
             }
         }
@@ -361,11 +391,14 @@ namespace DnsServerCore.Dns.Applications
                 fS.Write(Encoding.ASCII.GetBytes("AR"));
 
                 BinaryWriter bW = new BinaryWriter(fS);
-                bW.Write((byte)1); //version
-                bW.Write(_customRepositoryUrls.Count);
+                bW.Write((byte)2); //version
+                bW.Write(_customRepositories.Count);
 
-                foreach (string repoUrl in _customRepositoryUrls)
-                    fS.WriteShortString(repoUrl);
+                foreach (AppRepository repository in _customRepositories)
+                {
+                    fS.WriteShortString(repository.Name);
+                    fS.WriteShortString(repository.Url);
+                }
             }
 
             File.Copy(tmpFile, _customRepositoriesConfigFile, true);
@@ -671,7 +704,7 @@ namespace DnsServerCore.Dns.Applications
             }
         }
 
-        public void AddCustomRepository(string repoUrl)
+        public void AddCustomRepository(string name, string repoUrl)
         {
             if (string.IsNullOrWhiteSpace(repoUrl))
                 throw new DnsServerException("DNS App repository URL is required.");
@@ -681,16 +714,21 @@ namespace DnsServerCore.Dns.Applications
             if (!repoUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                 throw new DnsServerException("DNS App repository URL must start with 'https://'.");
 
+            if (string.IsNullOrWhiteSpace(name))
+                name = repoUrl;
+            else
+                name = name.Trim();
+
             lock (_customRepositoriesLock)
             {
-                foreach (string existingUrl in _customRepositoryUrls)
+                foreach (AppRepository existing in _customRepositories)
                 {
-                    if (existingUrl.Equals(repoUrl, StringComparison.OrdinalIgnoreCase))
+                    if (existing.Url.Equals(repoUrl, StringComparison.OrdinalIgnoreCase))
                         throw new DnsServerException("DNS App repository already exists: " + repoUrl);
                 }
 
-                List<string> updated = new List<string>(_customRepositoryUrls) { repoUrl };
-                _customRepositoryUrls = updated;
+                List<AppRepository> updated = new List<AppRepository>(_customRepositories) { new AppRepository(name, repoUrl) };
+                _customRepositories = updated;
 
                 SaveCustomRepositoriesConfig();
             }
@@ -700,13 +738,13 @@ namespace DnsServerCore.Dns.Applications
         {
             lock (_customRepositoriesLock)
             {
-                int index = _customRepositoryUrls.FindIndex(delegate (string existingUrl) { return existingUrl.Equals(repoUrl, StringComparison.OrdinalIgnoreCase); });
+                int index = _customRepositories.FindIndex(delegate (AppRepository existing) { return existing.Url.Equals(repoUrl, StringComparison.OrdinalIgnoreCase); });
                 if (index < 0)
                     throw new DnsServerException("DNS App repository does not exist: " + repoUrl);
 
-                List<string> updated = new List<string>(_customRepositoryUrls);
+                List<AppRepository> updated = new List<AppRepository>(_customRepositories);
                 updated.RemoveAt(index);
-                _customRepositoryUrls = updated;
+                _customRepositories = updated;
 
                 SaveCustomRepositoriesConfig();
             }
@@ -714,29 +752,29 @@ namespace DnsServerCore.Dns.Applications
             _customRepositoryCache.TryRemove(repoUrl, out _);
         }
 
-        public IReadOnlyList<string> GetCustomRepositoryUrls()
+        public IReadOnlyList<AppRepository> GetCustomRepositories()
         {
             lock (_customRepositoriesLock)
             {
-                return _customRepositoryUrls;
+                return _customRepositories;
             }
         }
 
-        public async Task<IReadOnlyList<(string repoUrl, string jsonData, string error)>> GetCustomRepositoriesStoreAppsJsonDataAsync()
+        public async Task<IReadOnlyList<(string name, string repoUrl, string jsonData, string error)>> GetCustomRepositoriesStoreAppsJsonDataAsync()
         {
-            IReadOnlyList<string> repoUrls = GetCustomRepositoryUrls();
+            IReadOnlyList<AppRepository> repositories = GetCustomRepositories();
 
-            Task<(string jsonData, string error)>[] tasks = new Task<(string, string)>[repoUrls.Count];
+            Task<(string jsonData, string error)>[] tasks = new Task<(string, string)>[repositories.Count];
 
-            for (int i = 0; i < repoUrls.Count; i++)
-                tasks[i] = GetCustomRepositoryJsonDataAsync(repoUrls[i]);
+            for (int i = 0; i < repositories.Count; i++)
+                tasks[i] = GetCustomRepositoryJsonDataAsync(repositories[i].Url);
 
             (string jsonData, string error)[] results = await Task.WhenAll(tasks);
 
-            List<(string, string, string)> repoResults = new List<(string, string, string)>(repoUrls.Count);
+            List<(string, string, string, string)> repoResults = new List<(string, string, string, string)>(repositories.Count);
 
-            for (int i = 0; i < repoUrls.Count; i++)
-                repoResults.Add((repoUrls[i], results[i].jsonData, results[i].error));
+            for (int i = 0; i < repositories.Count; i++)
+                repoResults.Add((repositories[i].Name, repositories[i].Url, results[i].jsonData, results[i].error));
 
             return repoResults;
         }

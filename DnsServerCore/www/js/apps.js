@@ -528,13 +528,13 @@ function saveAppConfig() {
 //content - always render them via htmlEncode(), never as raw inline JS string
 //literals in onclick attributes.
 
-function refreshThirdPartyApps() {
-    var divThirdPartyAppsAlert = $("#divThirdPartyAppsAlert");
-    var divThirdPartyAppsLoader = $("#divThirdPartyAppsLoader");
-    var divThirdPartyApps = $("#divThirdPartyApps");
+function refreshCommunityApps() {
+    var divCommunityAppsAlert = $("#divCommunityAppsAlert");
+    var divCommunityAppsLoader = $("#divCommunityAppsLoader");
+    var divCommunityApps = $("#divCommunityApps");
 
-    divThirdPartyApps.hide();
-    divThirdPartyAppsLoader.show();
+    divCommunityApps.hide();
+    divCommunityAppsLoader.show();
 
     HTTPRequest({
         url: "api/apps/repositories/list",
@@ -546,81 +546,90 @@ function refreshThirdPartyApps() {
             var repoHtmlRows = "";
 
             for (var i = 0; i < repositories.length; i++)
-                repoHtmlRows += getThirdPartyRepoRowHtml(repositories[i]);
+                repoHtmlRows += getCommunityRepoRowHtml(repositories[i]);
 
             if (repositories.length > 0)
-                $("#tableThirdPartyReposBody").html(repoHtmlRows);
+                $("#tableCommunityReposBody").html(repoHtmlRows);
             else
-                $("#tableThirdPartyReposBody").html("<tr><td colspan=\"2\" align=\"center\">No Repositories Added</td></tr>");
+                $("#tableCommunityReposBody").html("<tr><td colspan=\"2\" align=\"center\">No Repositories Added</td></tr>");
 
             var tableHtmlRows = "";
 
             for (var i = 0; i < storeApps.length; i++)
-                tableHtmlRows += getThirdPartyStoreAppRowHtml(storeApps[i]);
+                tableHtmlRows += getCommunityStoreAppRowHtml(storeApps[i]);
 
-            $("#tableThirdPartyStoreAppsBody").html(tableHtmlRows);
+            $("#tableCommunityStoreAppsBody").html(tableHtmlRows);
 
             if (storeApps.length > 0)
-                $("#tableThirdPartyStoreAppsFooter").html("<tr><td colspan=\"3\"><b>Total Apps: " + storeApps.length + "</b></td></tr>");
+                $("#tableCommunityStoreAppsFooter").html("<tr><td colspan=\"3\"><b>Total Apps: " + storeApps.length + "</b></td></tr>");
             else
-                $("#tableThirdPartyStoreAppsFooter").html("<tr><td colspan=\"3\" align=\"center\">No Apps Found</td></tr>");
+                $("#tableCommunityStoreAppsFooter").html("<tr><td colspan=\"3\" align=\"center\">No Apps Found</td></tr>");
 
-            divThirdPartyAppsLoader.hide();
-            divThirdPartyApps.show();
+            divCommunityAppsLoader.hide();
+            divCommunityApps.show();
         },
         error: function () {
-            divThirdPartyAppsLoader.hide();
-            divThirdPartyApps.show();
+            divCommunityAppsLoader.hide();
+            divCommunityApps.show();
         },
         invalidToken: function () {
             showPageLogin();
         },
-        objAlertPlaceholder: divThirdPartyAppsAlert,
-        objLoaderPlaceholder: divThirdPartyAppsLoader
+        objAlertPlaceholder: divCommunityAppsAlert,
+        objLoaderPlaceholder: divCommunityAppsLoader
     });
 }
 
-function getThirdPartyRepoRowId(url) {
+function getCommunityRepoRowId(url) {
     return btoa(url).replace(/[^a-zA-Z0-9]/g, "");
 }
 
-function getThirdPartyRepoRowHtml(repo) {
-    var id = getThirdPartyRepoRowId(repo.url);
+function getCommunityRepoRowHtml(repo) {
+    var id = getCommunityRepoRowId(repo.url);
 
-    var row = "<tr id=\"trThirdPartyRepo" + id + "\"><td><div>" + htmlEncode(repo.url) + "</div>";
+    var row = "<tr id=\"trCommunityRepo" + id + "\"><td><div style=\"font-weight: bold;\">" + htmlEncode(repo.name) + "</div><div style=\"font-size: 12px; color: #777;\">" + htmlEncode(repo.url) + "</div>";
 
     if (repo.error != null)
         row += "<div class=\"label label-danger\" style=\"margin-top: 4px; white-space: normal;\">Unreachable: " + htmlEncode(repo.error) + "</div>";
 
-    row += "</td><td><button type=\"button\" data-url=\"" + htmlEncode(repo.url) + "\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 80px;\" onclick=\"removeThirdPartyRepository(this);\" data-loading-text=\"Removing...\">Remove</button></td></tr>";
+    row += "</td><td><button type=\"button\" data-url=\"" + htmlEncode(repo.url) + "\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 80px;\" onclick=\"removeCommunityRepository(this);\" data-loading-text=\"Removing...\">Remove</button></td></tr>";
 
     return row;
 }
 
-function addThirdPartyRepository() {
-    var divThirdPartyAppsAlert = $("#divThirdPartyAppsAlert");
-    var txtThirdPartyRepoUrl = $("#txtThirdPartyRepoUrl");
-    var url = txtThirdPartyRepoUrl.val();
+function addCommunityRepository() {
+    var divCommunityAppsAlert = $("#divCommunityAppsAlert");
+    var txtCommunityRepoName = $("#txtCommunityRepoName");
+    var txtCommunityRepoUrl = $("#txtCommunityRepoUrl");
+    var name = txtCommunityRepoName.val();
+    var url = txtCommunityRepoUrl.val();
 
-    if ((url === null) || (url === "")) {
-        showAlert("warning", "Missing!", "Please enter a DNS App repository URL.", divThirdPartyAppsAlert);
-        txtThirdPartyRepoUrl.trigger("focus");
+    if ((name === null) || (name === "")) {
+        showAlert("warning", "Missing!", "Please enter a name for the DNS App repository.", divCommunityAppsAlert);
+        txtCommunityRepoName.trigger("focus");
         return;
     }
 
-    var btn = $("#btnThirdPartyRepoAdd");
+    if ((url === null) || (url === "")) {
+        showAlert("warning", "Missing!", "Please enter a DNS App repository URL.", divCommunityAppsAlert);
+        txtCommunityRepoUrl.trigger("focus");
+        return;
+    }
+
+    var btn = $("#btnCommunityRepoAdd");
     btn.button("loading");
 
     HTTPRequest({
-        url: "api/apps/repositories/add?url=" + encodeURIComponent(url),
+        url: "api/apps/repositories/add?name=" + encodeURIComponent(name) + "&url=" + encodeURIComponent(url),
         token: sessionData.token,
         success: function (responseJSON) {
             btn.button("reset");
-            txtThirdPartyRepoUrl.val("");
+            txtCommunityRepoName.val("");
+            txtCommunityRepoUrl.val("");
 
-            showAlert("success", "Repository Added!", "DNS App repository was added successfully.", divThirdPartyAppsAlert);
+            showAlert("success", "Repository Added!", "DNS App repository was added successfully.", divCommunityAppsAlert);
 
-            refreshThirdPartyApps();
+            refreshCommunityApps();
         },
         error: function () {
             btn.button("reset");
@@ -628,18 +637,18 @@ function addThirdPartyRepository() {
         invalidToken: function () {
             showPageLogin();
         },
-        objAlertPlaceholder: divThirdPartyAppsAlert
+        objAlertPlaceholder: divCommunityAppsAlert
     });
 }
 
-function removeThirdPartyRepository(objBtn) {
+function removeCommunityRepository(objBtn) {
     var btn = $(objBtn);
     var url = btn.attr("data-url");
 
     if (!confirm("Are you sure you want to remove the DNS App repository '" + url + "'?"))
         return;
 
-    var divThirdPartyAppsAlert = $("#divThirdPartyAppsAlert");
+    var divCommunityAppsAlert = $("#divCommunityAppsAlert");
 
     btn.button("loading");
 
@@ -647,9 +656,9 @@ function removeThirdPartyRepository(objBtn) {
         url: "api/apps/repositories/remove?url=" + encodeURIComponent(url),
         token: sessionData.token,
         success: function (responseJSON) {
-            showAlert("success", "Repository Removed!", "DNS App repository was removed successfully.", divThirdPartyAppsAlert);
+            showAlert("success", "Repository Removed!", "DNS App repository was removed successfully.", divCommunityAppsAlert);
 
-            refreshThirdPartyApps();
+            refreshCommunityApps();
         },
         error: function () {
             btn.button("reset");
@@ -657,40 +666,40 @@ function removeThirdPartyRepository(objBtn) {
         invalidToken: function () {
             showPageLogin();
         },
-        objAlertPlaceholder: divThirdPartyAppsAlert
+        objAlertPlaceholder: divCommunityAppsAlert
     });
 }
 
-function getThirdPartyStoreAppRowHtml(app) {
+function getCommunityStoreAppRowHtml(app) {
     var id = Math.floor(Math.random() * 1000000);
     var name = app.name;
     var version = app.version;
     var description = app.description;
     var url = app.url;
     var size = app.size;
-    var repository = app.repository;
+    var repositoryName = app.repositoryName;
     var installed = app.installed;
     var installedVersion = app.installedVersion;
     var updateAvailable = installed ? app.updateAvailable : false;
 
     var displayVersion = installed ? installedVersion : version;
 
-    var row = "<tr id=\"trThirdPartyStoreApp" + id + "\"><td><div style=\"margin-bottom: 14px;\"><span style=\"font-weight: bold; font-size: 16px;\">" + htmlEncode(name) + "</span><br />";
-    row += "<span id=\"spanThirdPartyStoreAppDisplayVersion" + id + "\" class=\"label label-primary\">Version " + htmlEncode(displayVersion) + "</span> ";
-    row += "<span id=\"spanThirdPartyStoreAppUpdateVersion" + id + "\" class=\"label label-warning\" style=\"" + (updateAvailable ? "" : "display: none;") + "\">Update " + htmlEncode(version) + "</span></div>";
+    var row = "<tr id=\"trCommunityStoreApp" + id + "\"><td><div style=\"margin-bottom: 14px;\"><span style=\"font-weight: bold; font-size: 16px;\">" + htmlEncode(name) + "</span><br />";
+    row += "<span id=\"spanCommunityStoreAppDisplayVersion" + id + "\" class=\"label label-primary\">Version " + htmlEncode(displayVersion) + "</span> ";
+    row += "<span id=\"spanCommunityStoreAppUpdateVersion" + id + "\" class=\"label label-warning\" style=\"" + (updateAvailable ? "" : "display: none;") + "\">Update " + htmlEncode(version) + "</span></div>";
     row += "<div style=\"margin-bottom: 10px;\">" + htmlEncode(description).replace(/\n/g, "<br />") + "</div>";
-    row += "<div><b>Repository</b>: " + htmlEncode(repository) + "<br /><b>App Zip File</b>: " + htmlEncode(url) + "<br /><b>Size</b>: " + htmlEncode(size) + "</div></td><td>";
+    row += "<div><b>Repository</b>: " + htmlEncode(repositoryName) + "<br /><b>App Zip File</b>: " + htmlEncode(url) + "<br /><b>Size</b>: " + htmlEncode(size) + "</div></td><td>";
 
-    row += "<button id=\"btnThirdPartyStoreAppInstall" + id + "\" type=\"button\" data-id=\"" + id + "\" data-name=\"" + htmlEncode(name) + "\" data-url=\"" + htmlEncode(url) + "\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; " + (installed ? "display: none;" : "") + "\" onclick=\"installThirdPartyStoreApp(this);\" data-loading-text=\"Installing...\">Install</button>";
-    row += "<button id=\"btnThirdPartyStoreAppUpdate" + id + "\" type=\"button\" data-id=\"" + id + "\" data-name=\"" + htmlEncode(name) + "\" data-url=\"" + htmlEncode(url) + "\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; " + (updateAvailable ? "" : "display: none;") + "\" onclick=\"updateThirdPartyStoreApp(this);\" data-loading-text=\"Updating...\">Update</button>";
-    row += "<button id=\"btnThirdPartyStoreAppUninstall" + id + "\" type=\"button\" data-id=\"" + id + "\" data-name=\"" + htmlEncode(name) + "\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; " + (installed ? "" : "display: none;") + "\" onclick=\"uninstallThirdPartyStoreApp(this);\" data-loading-text=\"Uninstalling...\">Uninstall</button>";
+    row += "<button id=\"btnCommunityStoreAppInstall" + id + "\" type=\"button\" data-id=\"" + id + "\" data-name=\"" + htmlEncode(name) + "\" data-url=\"" + htmlEncode(url) + "\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; " + (installed ? "display: none;" : "") + "\" onclick=\"installCommunityStoreApp(this);\" data-loading-text=\"Installing...\">Install</button>";
+    row += "<button id=\"btnCommunityStoreAppUpdate" + id + "\" type=\"button\" data-id=\"" + id + "\" data-name=\"" + htmlEncode(name) + "\" data-url=\"" + htmlEncode(url) + "\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; " + (updateAvailable ? "" : "display: none;") + "\" onclick=\"updateCommunityStoreApp(this);\" data-loading-text=\"Updating...\">Update</button>";
+    row += "<button id=\"btnCommunityStoreAppUninstall" + id + "\" type=\"button\" data-id=\"" + id + "\" data-name=\"" + htmlEncode(name) + "\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; " + (installed ? "" : "display: none;") + "\" onclick=\"uninstallCommunityStoreApp(this);\" data-loading-text=\"Uninstalling...\">Uninstall</button>";
     row += "</td></tr>";
 
     return row;
 }
 
-function installThirdPartyStoreApp(objBtn) {
-    var divThirdPartyAppsAlert = $("#divThirdPartyAppsAlert");
+function installCommunityStoreApp(objBtn) {
+    var divCommunityAppsAlert = $("#divCommunityAppsAlert");
     var btn = $(objBtn);
     var appName = btn.attr("data-name");
     var url = btn.attr("data-url");
@@ -705,13 +714,13 @@ function installThirdPartyStoreApp(objBtn) {
             btn.hide();
 
             var id = btn.attr("data-id");
-            $("#btnThirdPartyStoreAppUninstall" + id).show();
+            $("#btnCommunityStoreAppUninstall" + id).show();
 
             var tableHtmlRow = getAppRowHtml(responseJSON.response.installedApp);
             $("#tableAppsBody").prepend(tableHtmlRow);
             updateAppsFooterCount();
 
-            showAlert("success", "App Installed!", "DNS application '" + appName + "' was installed successfully from the third-party repository.", divThirdPartyAppsAlert);
+            showAlert("success", "App Installed!", "DNS application '" + appName + "' was installed successfully from the third-party repository.", divCommunityAppsAlert);
         },
         error: function () {
             btn.button("reset");
@@ -719,12 +728,12 @@ function installThirdPartyStoreApp(objBtn) {
         invalidToken: function () {
             showPageLogin();
         },
-        objAlertPlaceholder: divThirdPartyAppsAlert
+        objAlertPlaceholder: divCommunityAppsAlert
     });
 }
 
-function updateThirdPartyStoreApp(objBtn) {
-    var divThirdPartyAppsAlert = $("#divThirdPartyAppsAlert");
+function updateCommunityStoreApp(objBtn) {
+    var divCommunityAppsAlert = $("#divCommunityAppsAlert");
     var btn = $(objBtn);
     var appName = btn.attr("data-name");
     var url = btn.attr("data-url");
@@ -739,14 +748,14 @@ function updateThirdPartyStoreApp(objBtn) {
             btn.hide();
 
             var id = btn.attr("data-id");
-            $("#spanThirdPartyStoreAppUpdateVersion" + id).hide();
-            $("#spanThirdPartyStoreAppDisplayVersion" + id).text($("#spanThirdPartyStoreAppUpdateVersion" + id).text().replace(/Update/g, "Version"));
+            $("#spanCommunityStoreAppUpdateVersion" + id).hide();
+            $("#spanCommunityStoreAppDisplayVersion" + id).text($("#spanCommunityStoreAppUpdateVersion" + id).text().replace(/Update/g, "Version"));
 
             var tableHtmlRow = getAppRowHtml(responseJSON.response.updatedApp);
             var appRowId = getAppRowId(responseJSON.response.updatedApp.name);
             $("#trApp" + appRowId).replaceWith(tableHtmlRow);
 
-            showAlert("success", "App Updated!", "DNS application '" + appName + "' was updated successfully from the third-party repository.", divThirdPartyAppsAlert);
+            showAlert("success", "App Updated!", "DNS application '" + appName + "' was updated successfully from the third-party repository.", divCommunityAppsAlert);
         },
         error: function () {
             btn.button("reset");
@@ -754,18 +763,18 @@ function updateThirdPartyStoreApp(objBtn) {
         invalidToken: function () {
             showPageLogin();
         },
-        objAlertPlaceholder: divThirdPartyAppsAlert
+        objAlertPlaceholder: divCommunityAppsAlert
     });
 }
 
-function uninstallThirdPartyStoreApp(objBtn) {
+function uninstallCommunityStoreApp(objBtn) {
     var btn = $(objBtn);
     var appName = btn.attr("data-name");
 
     if (!confirm("Are you sure you want to uninstall the DNS application '" + appName + "'?"))
         return;
 
-    var divThirdPartyAppsAlert = $("#divThirdPartyAppsAlert");
+    var divCommunityAppsAlert = $("#divCommunityAppsAlert");
 
     btn.button("loading");
 
@@ -777,14 +786,14 @@ function uninstallThirdPartyStoreApp(objBtn) {
             btn.hide();
 
             var id = btn.attr("data-id");
-            $("#btnThirdPartyStoreAppInstall" + id).show();
-            $("#btnThirdPartyStoreAppUpdate" + id).hide();
+            $("#btnCommunityStoreAppInstall" + id).show();
+            $("#btnCommunityStoreAppUpdate" + id).hide();
 
             var appRowId = getAppRowId(appName);
             $("#trApp" + appRowId).remove();
             updateAppsFooterCount();
 
-            showAlert("success", "App Uninstalled!", "DNS application '" + appName + "' was uninstalled successfully.", divThirdPartyAppsAlert);
+            showAlert("success", "App Uninstalled!", "DNS application '" + appName + "' was uninstalled successfully.", divCommunityAppsAlert);
         },
         error: function () {
             btn.button("reset");
@@ -792,6 +801,6 @@ function uninstallThirdPartyStoreApp(objBtn) {
         invalidToken: function () {
             showPageLogin();
         },
-        objAlertPlaceholder: divThirdPartyAppsAlert
+        objAlertPlaceholder: divCommunityAppsAlert
     });
 }

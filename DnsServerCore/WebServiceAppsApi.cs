@@ -283,18 +283,21 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, sessionUser, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
 
-                IReadOnlyList<(string repoUrl, string jsonData, string error)> repoResults = await _dnsWebService._dnsServer.DnsApplicationManager.GetCustomRepositoriesStoreAppsJsonDataAsync();
+                IReadOnlyList<(string name, string repoUrl, string jsonData, string error)> repoResults = await _dnsWebService._dnsServer.DnsApplicationManager.GetCustomRepositoriesStoreAppsJsonDataAsync();
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
                 //parse each repo's data upfront so a parse failure can be reported as the repo's error too, not just a fetch failure
                 Dictionary<string, JsonDocument> parsedRepoData = new Dictionary<string, JsonDocument>();
+                Dictionary<string, string> repoNames = new Dictionary<string, string>();
                 Dictionary<string, string> repoErrors = new Dictionary<string, string>();
 
                 try
                 {
-                    foreach ((string repoUrl, string jsonData, string fetchError) in repoResults)
+                    foreach ((string name, string repoUrl, string jsonData, string fetchError) in repoResults)
                     {
+                        repoNames[repoUrl] = name;
+
                         if (fetchError is not null)
                         {
                             repoErrors[repoUrl] = fetchError;
@@ -318,10 +321,11 @@ namespace DnsServerCore
                     jsonWriter.WritePropertyName("repositories");
                     jsonWriter.WriteStartArray();
 
-                    foreach ((string repoUrl, _, _) in repoResults)
+                    foreach ((string name, string repoUrl, _, _) in repoResults)
                     {
                         jsonWriter.WriteStartObject();
 
+                        jsonWriter.WriteString("name", name);
                         jsonWriter.WriteString("url", repoUrl);
 
                         if (repoErrors.TryGetValue(repoUrl, out string error))
@@ -338,6 +342,7 @@ namespace DnsServerCore
                     foreach (KeyValuePair<string, JsonDocument> parsedRepo in parsedRepoData)
                     {
                         string repoUrl = parsedRepo.Key;
+                        string repoName = repoNames[repoUrl];
 
                         foreach (JsonElement jsonStoreApp in parsedRepo.Value.RootElement.EnumerateArray())
                         {
@@ -379,6 +384,7 @@ namespace DnsServerCore
                             jsonWriter.WriteString("url", url);
                             jsonWriter.WriteString("size", size);
                             jsonWriter.WriteString("repository", repoUrl);
+                            jsonWriter.WriteString("repositoryName", repoName);
 
                             bool installed = _dnsWebService._dnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication installedApp);
 
@@ -412,9 +418,10 @@ namespace DnsServerCore
 
                 HttpRequest request = context.Request;
 
+                string name = request.GetQueryOrForm("name", "").Trim();
                 string url = request.GetQueryOrForm("url").Trim();
 
-                _dnsWebService._dnsServer.DnsApplicationManager.AddCustomRepository(url);
+                _dnsWebService._dnsServer.DnsApplicationManager.AddCustomRepository(name, url);
 
                 _dnsWebService._log.Write(_dnsWebService.GetRemoteEndPoint(context), "[" + sessionUser.Username + "] DNS App repository was added: " + url);
             }
