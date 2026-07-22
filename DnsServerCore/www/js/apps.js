@@ -25,42 +25,66 @@ function refreshApps() {
     divViewAppsLoader.show();
 
     HTTPRequest({
-        url: "api/apps/list",
+        url: "api/apps/repositories/list",
         token: sessionData.token,
         success: function (responseJSON) {
-            var apps = responseJSON.response.apps;
-            var tableHtmlRows = "";
+            var storeApps = responseJSON.response.storeApps;
+            var communityAppNames = {};
 
-            for (var i = 0; i < apps.length; i++) {
-                tableHtmlRows += getAppRowHtml(apps[i]);
+            for (var i = 0; i < storeApps.length; i++) {
+                if (storeApps[i].installed)
+                    communityAppNames[storeApps[i].name] = true;
             }
 
-            $("#tableAppsBody").html(tableHtmlRows);
-
-            if (apps.length > 0)
-                $("#tableAppsFooter").html("<tr><td colspan=\"3\"><b>Total Apps: " + apps.length + "</b></td></tr>");
-            else
-                $("#tableAppsFooter").html("<tr><td colspan=\"3\" align=\"center\">No Apps Found</td></tr>");
-
-            divViewAppsLoader.hide();
-            divViewApps.show();
+            refreshAppsList(communityAppNames);
         },
         error: function () {
-            divViewAppsLoader.hide();
-            divViewApps.show();
+            refreshAppsList({});
         },
         invalidToken: function () {
             showPageLogin();
-        },
-        objLoaderPlaceholder: divViewAppsLoader
+        }
     });
+
+    function refreshAppsList(communityAppNames) {
+        HTTPRequest({
+            url: "api/apps/list",
+            token: sessionData.token,
+            success: function (responseJSON) {
+                var apps = responseJSON.response.apps;
+                var tableHtmlRows = "";
+
+                for (var i = 0; i < apps.length; i++) {
+                    tableHtmlRows += getAppRowHtml(apps[i], communityAppNames[apps[i].name] === true);
+                }
+
+                $("#tableAppsBody").html(tableHtmlRows);
+
+                if (apps.length > 0)
+                    $("#tableAppsFooter").html("<tr><td colspan=\"3\"><b>Total Apps: " + apps.length + "</b></td></tr>");
+                else
+                    $("#tableAppsFooter").html("<tr><td colspan=\"3\" align=\"center\">No Apps Found</td></tr>");
+
+                divViewAppsLoader.hide();
+                divViewApps.show();
+            },
+            error: function () {
+                divViewAppsLoader.hide();
+                divViewApps.show();
+            },
+            invalidToken: function () {
+                showPageLogin();
+            },
+            objLoaderPlaceholder: divViewAppsLoader
+        });
+    }
 }
 
 function getAppRowId(appName) {
     return btoa(appName).replace(/=/g, "");
 }
 
-function getAppRowHtml(app) {
+function getAppRowHtml(app, isCommunity) {
     var name = app.name;
     var version = app.version;
     var updateVersion = app.updateVersion;
@@ -113,7 +137,7 @@ function getAppRowHtml(app) {
     }
 
     var id = getAppRowId(name);
-    var tableHtmlRow = "<tr id=\"trApp" + id + "\"><td><div><span style=\"font-weight: bold; font-size: 16px;\">" + htmlEncode(name) + "</span><br /><span id=\"trAppVersion" + id + "\" class=\"label label-primary\">Version " + htmlEncode(version) + "</span> <span id=\"trAppUpdateVersion" + id + "\" class=\"label label-warning\" style=\"" + (updateAvailable ? "" : "display: none;") + "\">Update " + htmlEncode(updateVersion) + "</span></div>";
+    var tableHtmlRow = "<tr id=\"trApp" + id + "\"><td><div><span style=\"font-weight: bold; font-size: 16px;\">" + htmlEncode(name) + "</span><br /><span id=\"trAppVersion" + id + "\" class=\"label label-primary\">Version " + htmlEncode(version) + "</span> <span id=\"trAppUpdateVersion" + id + "\" class=\"label label-warning\" style=\"" + (updateAvailable ? "" : "display: none;") + "\">Update " + htmlEncode(updateVersion) + "</span> " + (isCommunity ? "<span class=\"label label-info\">Community</span>" : "") + "</div>";
 
     if (app.description != null)
         tableHtmlRow += "<div style=\"margin-top: 10px;\">" + htmlEncode(app.description).replace(/\n/g, "<br />") + "</div>";
@@ -716,7 +740,7 @@ function installCommunityStoreApp(objBtn) {
             var id = btn.attr("data-id");
             $("#btnCommunityStoreAppUninstall" + id).show();
 
-            var tableHtmlRow = getAppRowHtml(responseJSON.response.installedApp);
+            var tableHtmlRow = getAppRowHtml(responseJSON.response.installedApp, true);
             $("#tableAppsBody").prepend(tableHtmlRow);
             updateAppsFooterCount();
 
@@ -751,7 +775,7 @@ function updateCommunityStoreApp(objBtn) {
             $("#spanCommunityStoreAppUpdateVersion" + id).hide();
             $("#spanCommunityStoreAppDisplayVersion" + id).text($("#spanCommunityStoreAppUpdateVersion" + id).text().replace(/Update/g, "Version"));
 
-            var tableHtmlRow = getAppRowHtml(responseJSON.response.updatedApp);
+            var tableHtmlRow = getAppRowHtml(responseJSON.response.updatedApp, true);
             var appRowId = getAppRowId(responseJSON.response.updatedApp.name);
             $("#trApp" + appRowId).replaceWith(tableHtmlRow);
 
