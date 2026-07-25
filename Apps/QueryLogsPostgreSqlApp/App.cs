@@ -326,7 +326,7 @@ namespace QueryLogsPostgreSql
                                 if (answer?.Length > 4000)
                                     answer = answer.Substring(0, 4000);
 
-                                paramAnswer.Value = answer;
+                                paramAnswer.Value = answer?.Replace("\0", "");
                             }
                         }
 
