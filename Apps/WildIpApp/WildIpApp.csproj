@@ -4,7 +4,7 @@
 		<TargetFramework>net10.0</TargetFramework>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-		<Version>6.0</Version>
+		<Version>6.1</Version>
 		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 		<Company>Technitium</Company>
 		<Product>Technitium DNS Server</Product>
@@ -13,7 +13,7 @@
 		<RootNamespace>WildIp</RootNamespace>
 		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-		<Description>Allows creating APP records in primary and forwarder zones that can return the IP address embedded in the subdomain name for A and AAAA queries. It works similar to sslip.io.</Description>
+		<Description>Allows creating APP records in primary and forwarder zones that can return the IP address embedded in the subdomain name for A and AAAA queries, including compact hexadecimal IPv4 labels. It works similar to sslip.io.</Description>
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
 		<OutputType>Library</OutputType>
 	</PropertyGroup>
