@@ -1785,6 +1785,7 @@ namespace DnsServerCore.Dns
                 if (ReferenceEquals(this, Empty))
                     return;
 
+                _hourStat.ClearQueries(); //only the last hour's query data is required for cache auto prefetching
                 _minuteStats = null;
             }
 
@@ -2364,6 +2365,11 @@ namespace DnsServerCore.Dns
                 }
 
                 return truncated;
+            }
+
+            public void ClearQueries()
+            {
+                _queries.Clear();
             }
 
             public void WriteTo(BinaryWriter bW)
