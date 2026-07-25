@@ -5222,22 +5222,18 @@ namespace DnsServerCore.Dns
                     if (_proxy is null)
                     {
                         //recursive resolve forwarders only when proxy is null else let proxy resolve it to allow using .onion or private domains
-                        NameServerAddress[] forwarderSnapshot = [.. forwarders];
-                        forwarders = forwarderSnapshot;
+                        bool foundStaleEP = false;
 
-                        // Preserve the existing empty-forwarder failure path too.
-                        bool useResolutionPath = forwarderSnapshot.Length < 1;
-
-                        foreach (NameServerAddress forwarder in forwarderSnapshot)
+                        foreach (NameServerAddress forwarder in forwarders)
                         {
                             if (forwarder.IsIPEndPointStale)
                             {
-                                useResolutionPath = true;
+                                foundStaleEP = true;
                                 break;
                             }
                         }
 
-                        if (useResolutionPath)
+                        if (foundStaleEP)
                         {
                             List<NameServerAddress> newForwarders = new List<NameServerAddress>(forwarders.Count);
                             List<Task<NameServerAddress>> resolveTasks = new List<Task<NameServerAddress>>(forwarders.Count);
