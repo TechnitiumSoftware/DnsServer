@@ -1,5 +1,13 @@
 # Technitium DNS Server Change Log
 
+## Version 15.4
+Release Date: 11 July 2026
+
+- Fixed issue with UDP socket binding that cause response routing issues for a few of deployment scenarios.
+- Fixed issues with RFC compliance checks causing issues with resolution and zone transfer in some cases.
+- Added support for Unix Domain Sockets (UDS) for Web Service over HTTPS and DNS-over-HTTPS optional protocol.
+- Other minor bug fixes and improvements.
+
 ## Version 15.3
 Release Date: 5 July 2026
 

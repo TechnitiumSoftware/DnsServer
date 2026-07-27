@@ -110,6 +110,9 @@ namespace DnsServerCore
         bool _webServiceEnableHttpUnixSocket;
         string _webServiceHttpUnixSocket;
 
+        bool _webServiceEnableTlsUnixSocket;
+        string _webServiceTlsUnixSocket;
+
         bool _webServiceEnableTls;
         bool _webServiceEnableHttp3;
         bool _webServiceHttpToTlsRedirect;
@@ -473,7 +476,7 @@ namespace DnsServerCore
             BinaryReader bR = new BinaryReader(s);
 
             int version = bR.ReadByte();
-            if (version > 3)
+            if (version > 4)
                 throw new InvalidDataException("Web Service config version not supported.");
 
             _webServiceHttpPort = bR.ReadInt32();
@@ -512,6 +515,20 @@ namespace DnsServerCore
             {
                 _webServiceEnableHttpUnixSocket = false;
                 _webServiceHttpUnixSocket = null;
+            }
+
+            if (version >= 4)
+            {
+                _webServiceEnableTlsUnixSocket = bR.ReadBoolean();
+
+                _webServiceTlsUnixSocket = s.ReadShortString();
+                if (_webServiceTlsUnixSocket.Length == 0)
+                    _webServiceTlsUnixSocket = null;
+            }
+            else
+            {
+                _webServiceEnableTlsUnixSocket = false;
+                _webServiceTlsUnixSocket = null;
             }
 
             _webServiceEnableTls = bR.ReadBoolean();
@@ -579,7 +596,7 @@ namespace DnsServerCore
             BinaryWriter bW = new BinaryWriter(s);
 
             bW.Write(Encoding.ASCII.GetBytes("WC")); //format
-            bW.Write((byte)3); //version
+            bW.Write((byte)4); //version
 
             bW.Write(_webServiceHttpPort);
             bW.Write(_webServiceTlsPort);
@@ -593,6 +610,9 @@ namespace DnsServerCore
 
             bW.Write(_webServiceEnableHttpUnixSocket);
             s.WriteShortString(_webServiceHttpUnixSocket ?? "");
+
+            bW.Write(_webServiceEnableTlsUnixSocket);
+            s.WriteShortString(_webServiceTlsUnixSocket ?? "");
 
             bW.Write(_webServiceEnableTls);
             bW.Write(_webServiceEnableHttp3);
@@ -1826,9 +1846,48 @@ namespace DnsServerCore
                 foreach (IPAddress webServiceLocalAddress in _webServiceLocalAddresses)
                     serverOptions.Listen(webServiceLocalAddress, _webServiceHttpPort);
 
-                //unix socket
+                //http unix socket
                 if (!httpOnlyMode && _webServiceEnableHttpUnixSocket && (_webServiceHttpUnixSocket is not null))
+                {
+                    try
+                    {
+                        if (File.Exists(_webServiceHttpUnixSocket))
+                            File.Delete(_webServiceHttpUnixSocket);
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Write(ex);
+                    }
+
                     serverOptions.ListenUnixSocket(_webServiceHttpUnixSocket);
+                }
+
+                //https unix socket
+                if (!httpOnlyMode && _webServiceEnableTlsUnixSocket && (_webServiceTlsUnixSocket is not null) && (_webServiceSslServerAuthenticationOptions is not null))
+                {
+                    try
+                    {
+                        if (File.Exists(_webServiceTlsUnixSocket))
+                            File.Delete(_webServiceTlsUnixSocket);
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Write(ex);
+                    }
+
+                    serverOptions.ListenUnixSocket(_webServiceTlsUnixSocket, delegate (ListenOptions listenOptions)
+                    {
+                        if (IsHttp2Supported())
+                            listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
+                        else
+                            listenOptions.Protocols = HttpProtocols.Http1;
+
+                        listenOptions.UseHttps(delegate (SslStream stream, SslClientHelloInfo clientHelloInfo, object state, CancellationToken cancellationToken)
+                        {
+                            return ValueTask.FromResult(_webServiceSslServerAuthenticationOptions);
+                        }, null);
+                    });
+                }
 
                 //https
                 if (!httpOnlyMode && _webServiceEnableTls && (_webServiceSslServerAuthenticationOptions is not null))
@@ -1935,7 +1994,10 @@ namespace DnsServerCore
                 }
 
                 if (!httpOnlyMode && _webServiceEnableHttpUnixSocket && (_webServiceHttpUnixSocket is not null))
-                    _log.Write(new UnixDomainSocketEndPoint(_webServiceHttpUnixSocket), "Unix", "Web Service was bound successfully.");
+                    _log.Write(new UnixDomainSocketEndPoint(_webServiceHttpUnixSocket), "HttpUnix", "Web Service was bound successfully.");
+
+                if (!httpOnlyMode && _webServiceEnableTlsUnixSocket && (_webServiceTlsUnixSocket is not null) && (_webServiceSslServerAuthenticationOptions is not null))
+                    _log.Write(new UnixDomainSocketEndPoint(_webServiceTlsUnixSocket), "HttpsUnix", "Web Service was bound successfully.");
             }
             catch
             {
@@ -1950,7 +2012,10 @@ namespace DnsServerCore
                 }
 
                 if (!httpOnlyMode && _webServiceEnableHttpUnixSocket && (_webServiceHttpUnixSocket is not null))
-                    _log.Write(new UnixDomainSocketEndPoint(_webServiceHttpUnixSocket), "Unix", "Web Service failed to bind.");
+                    _log.Write(new UnixDomainSocketEndPoint(_webServiceHttpUnixSocket), "HttpUnix", "Web Service failed to bind.");
+
+                if (!httpOnlyMode && _webServiceEnableTlsUnixSocket && (_webServiceTlsUnixSocket is not null) && (_webServiceSslServerAuthenticationOptions is not null))
+                    _log.Write(new UnixDomainSocketEndPoint(_webServiceTlsUnixSocket), "HttpsUnix", "Web Service failed to bind.");
 
                 throw;
             }
@@ -2260,7 +2325,7 @@ namespace DnsServerCore
 
         private Task WebServiceHttpsRedirectionMiddleware(HttpContext context, RequestDelegate next)
         {
-            if (context.Request.IsHttps)
+            if (context.Request.IsHttps || (context.Connection.RemoteIpAddress is null)) //no redirect for unix socket connection too
                 return next(context);
 
             context.Response.Redirect("https://" + (context.Request.Host.HasValue ? context.Request.Host.Host : _dnsServer.ServerDomain) + (_webServiceTlsPort == 443 ? "" : ":" + _webServiceTlsPort) + context.Request.Path + (context.Request.QueryString.HasValue ? context.Request.QueryString.Value : ""), false, true);
@@ -2732,7 +2797,7 @@ namespace DnsServerCore
                     File.WriteAllBytes(selfSignedCertificateFilePath, cert.Export(X509ContentType.Pkcs12, null as string));
                 }
 
-                if (_webServiceEnableTls && ((_webServiceSslServerAuthenticationOptions is null) || string.IsNullOrEmpty(_webServiceTlsCertificatePath)))
+                if ((_webServiceSslServerAuthenticationOptions is null) || string.IsNullOrEmpty(_webServiceTlsCertificatePath))
                 {
                     try
                     {

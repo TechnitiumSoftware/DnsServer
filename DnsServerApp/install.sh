@@ -181,6 +181,9 @@ if [ "$(ps --no-headers -o comm 1 | tr -d '\n')" = "systemd" ]
 then
     if [ -f "/etc/systemd/system/dns.service" ]
     then
+        echo "Configuring permissions..."
+        chown -R $serviceUser:$serviceUser $dnsDir $dnsConfig $dnsLog >> $installLog 2>&1
+
         echo "Restarting systemd service..."
         systemctl restart dns.service >> $installLog 2>&1
     else
@@ -216,6 +219,9 @@ elif [ -x "/sbin/rc-service" ]
 then
     if [ -f "/etc/init.d/dns" ]
     then
+        echo "Configuring permissions..."
+        chown -R $serviceUser:$serviceUser $dnsDir $dnsConfig $dnsLog >> $installLog 2>&1
+
         echo "Restarting OpenRC service..."
         rc-service dns stop >> $installLog 2>&1
         rc-service dns start >> $installLog 2>&1

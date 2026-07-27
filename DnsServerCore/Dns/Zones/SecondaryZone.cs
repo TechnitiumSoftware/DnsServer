@@ -690,7 +690,7 @@ namespace DnsServerCore.Dns.Zones
                             continue;
                     }
 
-                    if (computedDigest.ListEquals(zoneMd.Digest))
+                    if (computedDigest.SequenceEqual(zoneMd.Digest))
                     {
                         //validation successfull
                         _validationFailed = false;

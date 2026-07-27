@@ -5178,6 +5178,8 @@ RESPONSE:
 		"webServiceHttpPort": 5380,
 		"webServiceEnableHttpUnixSocket": false,
 		"webServiceHttpUnixSocket": null,
+		"webServiceEnableTlsUnixSocket": false,
+		"webServiceTlsUnixSocket": null,
 		"webServiceEnableTls": true,
 		"webServiceEnableHttp3": false,
 		"webServiceHttpToTlsRedirect": false,
@@ -5202,6 +5204,7 @@ RESPONSE:
 		"enableDnsOverTcpProxy": false,
 		"enableDnsOverHttp": false,
 		"enableDnsOverHttpUnixSocket": false,
+		"enableDnsOverHttpsUnixSocket": false,
 		"enableDnsOverTls": false,
 		"enableDnsOverHttps": false,
 		"enableDnsOverHttp3": false,
@@ -5211,6 +5214,7 @@ RESPONSE:
 		"dnsOverTcpProxyPort": 538,
 		"dnsOverHttpPort": 80,
 		"dnsOverHttpUnixSocket": null,
+		"dnsOverHttpsUnixSocket": null,
 		"dnsOverTlsPort": 853,
 		"dnsOverHttpsPort": 443,
 		"dnsOverQuicPort": 853,
@@ -5349,8 +5353,10 @@ WHERE:
 - `maxConcurrentResolutionsPerCore` (optional, cluster parameter): The maximum number of concurrent async outbound resolutions that should be done per CPU core.  Initial value is `100`.
 - `webServiceLocalAddresses` (optional): Local addresses are the network interface IP addresses you want the web service to listen for requests. 
 - `webServiceHttpPort` (optional): Specify the TCP port number for the web console and this API web service. Initial value is `5380`.
-- `webServiceEnableHttpUnixSocket` (optional): Set this to `true` to enable Web Service HTTP over Unix socket.
-- `webServiceHttpUnixSocket` (optional): Specify the Unix socket file path for Web Service. Ensure that the DNS Server has read+write permissions to the parent directory to be able to create the Unix Socket file.
+- `webServiceEnableHttpUnixSocket` (optional): Set this to `true` to enable Web Service HTTP over Unix Domain Socket (UDS).
+- `webServiceHttpUnixSocket` (optional): Specify the Unix Domain Sockets (UDS) file path for HTTP Web Service. Ensure that the DNS Server has read+write permissions to the parent directory to be able to create the UDS file.
+- `webServiceEnableTlsUnixSocket` (optional): Set this to `true` to enable Web Service HTTPS over Unix Domain Socket (UDS).
+- `webServiceTlsUnixSocket` (optional): Specify the Unix Domain Sockets (UDS) file path for HTTPS Web Service. Ensure that the DNS Server has read+write permissions to the parent directory to be able to create the UDS file.
 - `webServiceEnableTls` (optional): Set this to `true` to start the HTTPS service to access web service.
 - `webServiceEnableHttp3` (optional): Set this to `true` to enable HTTP/3 protocol for the web service.
 - `webServiceHttpToTlsRedirect` (optional): Set this option to `true` to enable HTTP to HTTPS Redirection.
@@ -5365,7 +5371,8 @@ WHERE:
 - `enableDnsOverUdpProxy` (optional): Enable this option to accept DNS-over-UDP-PROXY requests. It implements the [PROXY Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) for both version 1 & 2 over UDP datagram. Configure the `dnsReverseProxyNetworkACL` option to allow only requests coming from your reverse proxy server.
 - `enableDnsOverTcpProxy` (optional): Enable this option to accept DNS-over-TCP-PROXY requests. It implements the [PROXY Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) for both version 1 & 2 over TCP connection. Configure the `dnsReverseProxyNetworkACL` option to allow only requests coming from your reverse proxy server.
 - `enableDnsOverHttp` (optional): Enable this option to accept DNS-over-HTTP requests. It must be used with a TLS terminating reverse proxy like nginx. Configure the `dnsReverseProxyNetworkACL` option to allow only requests coming from your reverse proxy server. Enabling this option also allows automatic TLS certificate renewal with HTTP challenge (webroot) for DNS-over-HTTPS service.
-- `enableDnsOverHttpUnixSocket` (optional): Enable this option to accept DNS-over-HTTP requests over Unix socket. It must be used with a TLS terminating reverse proxy like nginx.
+- `enableDnsOverHttpUnixSocket` (optional): Enable this option to accept DNS-over-HTTP requests over Unix Domain Sockets (UDS).
+- `enableDnsOverHttpsUnixSocket` (optional): Enable this option to accept DNS-over-HTTPS requests over Unix Domain Sockets (UDS).
 - `enableDnsOverTls` (optional): Enable this option to accept DNS-over-TLS requests.
 - `enableDnsOverHttps` (optional): Enable this option to accept DNS-over-HTTPS requests.
 - `enableDnsOverQuic` (optional): Enable this option to accept DNS-over-QUIC requests.
@@ -5373,7 +5380,8 @@ WHERE:
 - `dnsOverUdpProxyPort` (optional): The UDP port number for DNS-over-UDP-PROXY protocol. Initial value is `538`.
 - `dnsOverTcpProxyPort` (optional): The TCP port number for DNS-over-TCP-PROXY protocol. Initial value is `538`.
 - `dnsOverHttpPort` (optional): The TCP port number for DNS-over-HTTP protocol. Initial value is `80`.
-- `dnsOverHttpUnixSocket` (optional): Specify the Unix socket file path for DNS-over-HTTP protocol service. Ensure that the DNS Server has read+write permissions to the parent directory to be able to create the Unix Socket file.
+- `dnsOverHttpUnixSocket` (optional): Specify the Unix Domain Sockets (UDS) file path for DNS-over-HTTP protocol service. Ensure that the DNS Server has read+write permissions to the parent directory to be able to create the UDS file.
+- `dnsOverHttpsUnixSocket` (optional): Specify the Unix Domain Sockets (UDS) file path for DNS-over-HTTPS protocol service. Ensure that the DNS Server has read+write permissions to the parent directory to be able to create the UDS file.
 - `dnsOverTlsPort` (optional): The TCP port number for DNS-over-TLS protocol. Initial value is `853`.
 - `dnsOverHttpsPort` (optional): The TCP port number for DNS-over-HTTPS protocol. Initial value is `443`.
 - `dnsOverQuicPort` (optional): The UDP port number for DNS-over-QUIC protocol. Initial value is `853`.

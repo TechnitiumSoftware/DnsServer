@@ -374,7 +374,9 @@ namespace DnsServerCore.Dns.Applications
             if (_applications.ContainsKey(applicationName))
                 throw new DnsServerException("DNS application already exists: " + applicationName);
 
-            string applicationFolder = Path.Combine(_appsPath, applicationName);
+            string applicationFolder = Path.GetFullPath(Path.Combine(_appsPath, applicationName));
+            if (!applicationFolder.StartsWith(_appsPath + Path.DirectorySeparatorChar))
+                throw new DnsServerException("The application name is invalid: " + applicationName);
 
             if (Directory.Exists(applicationFolder))
                 Directory.Delete(applicationFolder, true);
@@ -538,7 +540,7 @@ namespace DnsServerCore.Dns.Applications
                     using (HttpClient http = new HttpClient(handler))
                     {
                         HttpResponseMessage httpResponse = await http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead);
-                        
+
                         httpResponse.EnsureSuccessStatusCode();
 
                         await using (Stream httpStream = await httpResponse.Content.ReadAsStreamAsync())

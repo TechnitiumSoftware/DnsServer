@@ -197,6 +197,9 @@ namespace DnsServerCore
                 jsonWriter.WriteBoolean("webServiceEnableHttpUnixSocket", _dnsWebService._webServiceEnableHttpUnixSocket);
                 jsonWriter.WriteString("webServiceHttpUnixSocket", _dnsWebService._webServiceHttpUnixSocket);
 
+                jsonWriter.WriteBoolean("webServiceEnableTlsUnixSocket", _dnsWebService._webServiceEnableTlsUnixSocket);
+                jsonWriter.WriteString("webServiceTlsUnixSocket", _dnsWebService._webServiceTlsUnixSocket);
+
                 jsonWriter.WriteBoolean("webServiceEnableTls", _dnsWebService._webServiceEnableTls);
                 jsonWriter.WriteBoolean("webServiceEnableHttp3", _dnsWebService._webServiceEnableHttp3);
                 jsonWriter.WriteBoolean("webServiceHttpToTlsRedirect", _dnsWebService._webServiceHttpToTlsRedirect);
@@ -228,6 +231,7 @@ namespace DnsServerCore
                 jsonWriter.WriteBoolean("enableDnsOverTcpProxy", _dnsWebService._dnsServer.EnableDnsOverTcpProxy);
                 jsonWriter.WriteBoolean("enableDnsOverHttp", _dnsWebService._dnsServer.EnableDnsOverHttp);
                 jsonWriter.WriteBoolean("enableDnsOverHttpUnixSocket", _dnsWebService._dnsServer.EnableDnsOverHttpUnixSocket);
+                jsonWriter.WriteBoolean("enableDnsOverHttpsUnixSocket", _dnsWebService._dnsServer.EnableDnsOverHttpsUnixSocket);
                 jsonWriter.WriteBoolean("enableDnsOverTls", _dnsWebService._dnsServer.EnableDnsOverTls);
                 jsonWriter.WriteBoolean("enableDnsOverHttps", _dnsWebService._dnsServer.EnableDnsOverHttps);
                 jsonWriter.WriteBoolean("enableDnsOverHttp3", _dnsWebService._dnsServer.EnableDnsOverHttp3);
@@ -238,6 +242,7 @@ namespace DnsServerCore
                 jsonWriter.WriteNumber("dnsOverTcpProxyPort", _dnsWebService._dnsServer.DnsOverTcpProxyPort);
                 jsonWriter.WriteNumber("dnsOverHttpPort", _dnsWebService._dnsServer.DnsOverHttpPort);
                 jsonWriter.WriteString("dnsOverHttpUnixSocket", _dnsWebService._dnsServer.DnsOverHttpUnixSocket);
+                jsonWriter.WriteString("dnsOverHttpsUnixSocket", _dnsWebService._dnsServer.DnsOverHttpsUnixSocket);
                 jsonWriter.WriteNumber("dnsOverTlsPort", _dnsWebService._dnsServer.DnsOverTlsPort);
                 jsonWriter.WriteNumber("dnsOverHttpsPort", _dnsWebService._dnsServer.DnsOverHttpsPort);
                 jsonWriter.WriteNumber("dnsOverQuicPort", _dnsWebService._dnsServer.DnsOverQuicPort);
@@ -523,7 +528,7 @@ namespace DnsServerCore
                             }
                         }
 
-                        if (request.TryQueryOrFormArray("dnsServerLocalEndPoints", IPEndPoint.Parse, out IPEndPoint[] dnsServerLocalEndPoints))
+                        if (request.TryQueryOrFormArray("dnsServerLocalEndPoints", InterfaceEndPoint.Parse, out IPEndPoint[] dnsServerLocalEndPoints))
                         {
                             if (dnsServerLocalEndPoints.Length == 0)
                             {
@@ -924,8 +929,8 @@ namespace DnsServerCore
                             {
                                 if (webServiceEnableHttpUnixSocket)
                                 {
-                                    if (!DnsServer.IsUnixSocketSupported())
-                                        throw new ArgumentException("Unix Sockets are supported only on Linux, Windows 10 (build 17063 and later), and Windows Server 2019 (update 1809 and later).", "webServiceEnableHttpUnixSocket");
+                                    if (!DnsServer.IsUnixDomainSocketSupported())
+                                        throw new ArgumentException("Unix Domain Sockets (UDS) are supported only on Linux, Windows 10 (build 17063 and later), and Windows Server 2019 (update 1809 and later).", "webServiceEnableHttpUnixSocket");
                                 }
 
                                 _dnsWebService._webServiceEnableHttpUnixSocket = webServiceEnableHttpUnixSocket;
@@ -933,11 +938,41 @@ namespace DnsServerCore
                             }
                         }
 
-                        if (request.TryGetQueryOrForm("webServiceHttpUnixSocket", out string webServiceHttpUnixSocket))
+                        if (request.TryQueryOrForm("webServiceHttpUnixSocket", out string webServiceHttpUnixSocket))
                         {
+                            if (string.IsNullOrWhiteSpace(webServiceHttpUnixSocket))
+                                webServiceHttpUnixSocket = null;
+
                             if (_dnsWebService._webServiceHttpUnixSocket != webServiceHttpUnixSocket)
                             {
                                 _dnsWebService._webServiceHttpUnixSocket = webServiceHttpUnixSocket;
+                                restartWebService = true;
+                            }
+                        }
+
+                        if (request.TryGetQueryOrForm("webServiceEnableTlsUnixSocket", bool.Parse, out bool webServiceEnableTlsUnixSocket))
+                        {
+                            if (_dnsWebService._webServiceEnableTlsUnixSocket != webServiceEnableTlsUnixSocket)
+                            {
+                                if (webServiceEnableTlsUnixSocket)
+                                {
+                                    if (!DnsServer.IsUnixDomainSocketSupported())
+                                        throw new ArgumentException("Unix Domain Sockets (UDS) are supported only on Linux, Windows 10 (build 17063 and later), and Windows Server 2019 (update 1809 and later).", "webServiceEnableTlsUnixSocket");
+                                }
+
+                                _dnsWebService._webServiceEnableTlsUnixSocket = webServiceEnableTlsUnixSocket;
+                                restartWebService = true;
+                            }
+                        }
+
+                        if (request.TryQueryOrForm("webServiceTlsUnixSocket", out string webServiceTlsUnixSocket))
+                        {
+                            if (string.IsNullOrWhiteSpace(webServiceTlsUnixSocket))
+                                webServiceTlsUnixSocket = null;
+
+                            if (_dnsWebService._webServiceTlsUnixSocket != webServiceTlsUnixSocket)
+                            {
+                                _dnsWebService._webServiceTlsUnixSocket = webServiceTlsUnixSocket;
                                 restartWebService = true;
                             }
                         }
@@ -1086,6 +1121,15 @@ namespace DnsServerCore
                             }
                         }
 
+                        if (request.TryGetQueryOrForm("enableDnsOverHttpsUnixSocket", bool.Parse, out bool enableDnsOverHttpsUnixSocket))
+                        {
+                            if (_dnsWebService._dnsServer.EnableDnsOverHttpsUnixSocket != enableDnsOverHttpsUnixSocket)
+                            {
+                                _dnsWebService._dnsServer.EnableDnsOverHttpsUnixSocket = enableDnsOverHttpsUnixSocket;
+                                restartDnsService = true;
+                            }
+                        }
+
                         if (request.TryGetQueryOrForm("enableDnsOverTls", bool.Parse, out bool enableDnsOverTls))
                         {
                             if (_dnsWebService._dnsServer.EnableDnsOverTls != enableDnsOverTls)
@@ -1161,9 +1205,24 @@ namespace DnsServerCore
 
                         if (request.TryQueryOrForm("dnsOverHttpUnixSocket", out string dnsOverHttpUnixSocket))
                         {
+                            if (string.IsNullOrWhiteSpace(dnsOverHttpUnixSocket))
+                                dnsOverHttpUnixSocket = null;
+
                             if (_dnsWebService._dnsServer.DnsOverHttpUnixSocket != dnsOverHttpUnixSocket)
                             {
                                 _dnsWebService._dnsServer.DnsOverHttpUnixSocket = dnsOverHttpUnixSocket;
+                                restartDnsService = true;
+                            }
+                        }
+
+                        if (request.TryQueryOrForm("dnsOverHttpsUnixSocket", out string dnsOverHttpsUnixSocket))
+                        {
+                            if (string.IsNullOrWhiteSpace(dnsOverHttpsUnixSocket))
+                                dnsOverHttpsUnixSocket = null;
+
+                            if (_dnsWebService._dnsServer.DnsOverHttpsUnixSocket != dnsOverHttpsUnixSocket)
+                            {
+                                _dnsWebService._dnsServer.DnsOverHttpsUnixSocket = dnsOverHttpsUnixSocket;
                                 restartDnsService = true;
                             }
                         }
@@ -1222,7 +1281,7 @@ namespace DnsServerCore
 
                                 if ((dnsTlsCertificatePath != _dnsWebService._dnsServer.DnsTlsCertificatePath) || (dnsTlsCertificatePassword != _dnsWebService._dnsServer.DnsTlsCertificatePassword))
                                 {
-                                    _dnsWebService._dnsServer.SetDnsTlsCertificate(dnsTlsCertificatePath, dnsTlsCertificatePassword);
+                                    _dnsWebService._dnsServer.SetDnsTlsCertificate(dnsTlsCertificatePath, dnsTlsCertificatePassword, true);
 
                                     if (string.IsNullOrEmpty(_dnsWebService._dnsServer.DnsTlsCertificatePath) && (_dnsWebService._dnsServer.EnableDnsOverTls || _dnsWebService._dnsServer.EnableDnsOverHttps || _dnsWebService._dnsServer.EnableDnsOverQuic))
                                         restartDnsService = true;

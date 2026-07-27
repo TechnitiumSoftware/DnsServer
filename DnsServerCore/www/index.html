@@ -991,7 +991,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtDnsServerLocalEndPoints" class="form-control" rows="3" spellcheck="false"></textarea>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local End Points are the network interface IP addresses and ports you want the DNS Server to listen for requests.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local End Points are the network interface IP addresses and ports you want the DNS Server to listen for requests. To explicitly bind the UDP sockets to interface device on Linux, specify the interface name as shown in these examples: <code>192.168.1.10%eth0:53</code> or <code>[2001:db8::1%eth1]:53</code>. For VRF, the interface name can be the VRF name.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1447,23 +1447,38 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
 
                                                         <div class="form-group">
-                                                            <label class="col-sm-3 control-label">Unix Socket</label>
+                                                            <label class="col-sm-3 control-label">Unix Domain Sockets (UDS)</label>
                                                             <div class="col-sm-8">
                                                                 <div class="checkbox">
                                                                     <label>
-                                                                        <input id="chkWebServiceEnableHttpUnixSocket" type="checkbox"> Enable HTTP Unix Socket
+                                                                        <input id="chkWebServiceEnableHttpUnixSocket" type="checkbox"> Enable HTTP Unix Domain Sockets (UDS)
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enables Web Service HTTP over Unix socket.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enables Web Service HTTP over Unix Domain Sockets (UDS).</div>
+
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkWebServiceEnableTlsUnixSocket" type="checkbox"> Enable HTTPS Unix Domain Sockets (UDS)
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enables Web Service HTTPS over Unix Domain Sockets (UDS).</div>
                                                             </div>
                                                         </div>
 
                                                         <div class="form-group">
-                                                            <label for="txtWebServiceHttpUnixSocket" class="col-sm-3 control-label">Web Service HTTP Unix Socket</label>
+                                                            <label for="txtWebServiceHttpUnixSocket" class="col-sm-3 control-label">Web Service HTTP UDS File Path</label>
                                                             <div class="col-sm-6">
-                                                                <input type="text" id="txtWebServiceHttpUnixSocket" class="form-control" spellcheck="false" placeholder="/path/to/socket.sock">
+                                                                <input type="text" id="txtWebServiceHttpUnixSocket" class="form-control" spellcheck="false" placeholder="/path/to/http.sock">
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the Unix socket file path for Web Service. Ensure that the DNS Server has read+write permissions to the parent directory to be able to create the Unix Socket file.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the Unix Domain Sockets (UDS) file path for HTTP Web Service. Ensure that the DNS Server has read+write permissions to the parent directory to be able to create the UDS file.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtWebServiceTlsUnixSocket" class="col-sm-3 control-label">Web Service HTTPS UDS File Path</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" id="txtWebServiceTlsUnixSocket" class="form-control" spellcheck="false" placeholder="/path/to/https.sock">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the Unix Domain Sockets (UDS) file path for HTTPS Web Service. Ensure that the DNS Server has read+write permissions to the parent directory to be able to create the UDS file.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1549,7 +1564,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <p><b>Note!</b> When using a reverse proxy with the Web Service, you need to add <code id="lblWebServiceRealIpHeader">X-Real-IP</code> header to the proxy request with the IP address of the client to allow the Web Service to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code id="lblWebServiceRealIpNginx">proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
                                                             <p><b>Note!</b> The Web Service uses Kestrel web server which supports both HTTP/2 and HTTP/3 protocols when TLS certificate is configured. HTTP/3 protocol support is not available on all platforms. On Windows, it is available only on Windows 11 (build 22000 and later) and Windows Server 2022 (and later). On Linux, it requires <code>libmsquic</code> to be installed. It also requires IPv6 support on the system to work.</p>
                                                             <p><b>Note!</b> The Web Service will always bind to <code>[::]</code> local address for HTTP/3 protocol since this is how the <code>libmsquic</code> library is designed to work.</p>
-                                                            <p><b>Note!</b> Unix Sockets are supported only on Linux, Windows 10 (build 17063 and later), and Windows Server 2019 (update 1809 and later).</p>
+                                                            <p><b>Note!</b> Unix Domain Sockets (UDS) are supported only on Linux, Windows 10 (build 17063 and later), and Windows Server 2019 (update 1809 and later).</p>
                                                             <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
                                                             <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "privkey.pem" -in "cert.pem" -certfile "chain.pem"</pre>
                                                         </div>
@@ -1593,10 +1608,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
                                                                 <div class="checkbox">
                                                                     <label>
-                                                                        <input id="chkEnableDnsOverHttpUnixSocket" type="checkbox"> Enable DNS-over-HTTP Unix Socket
+                                                                        <input id="chkEnableDnsOverHttpUnixSocket" type="checkbox"> Enable DNS-over-HTTP Unix Domain Sockets (UDS)
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTP requests over Unix socket. It must be used with a TLS terminating reverse proxy like nginx.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTP requests over Unix Domain Sockets (UDS).</div>
+
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkEnableDnsOverHttpsUnixSocket" type="checkbox"> Enable DNS-over-HTTPS Unix Domain Sockets (UDS)
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTPS requests over Unix Domain Sockets (UDS).</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
@@ -1668,11 +1690,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
 
                                                         <div class="form-group">
-                                                            <label for="txtDnsOverHttpUnixSocket" class="col-sm-3 control-label">DNS-over-HTTP Unix Socket</label>
+                                                            <label for="txtDnsOverHttpUnixSocket" class="col-sm-3 control-label">DNS-over-HTTP UDS File Path</label>
                                                             <div class="col-sm-6">
-                                                                <input type="text" id="txtDnsOverHttpUnixSocket" class="form-control" spellcheck="false" placeholder="/path/to/socket.sock">
+                                                                <input type="text" id="txtDnsOverHttpUnixSocket" class="form-control" spellcheck="false" placeholder="/path/to/doh.sock">
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the Unix socket file path for DNS-over-HTTP protocol service. Ensure that the DNS Server has read+write permissions to the parent directory to be able to create the Unix Socket file.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the Unix Domain Sockets (UDS) file path for DNS-over-HTTP protocol service. Ensure that the DNS Server has read+write permissions to the parent directory to be able to create the UDS file.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDnsOverHttpsUnixSocket" class="col-sm-3 control-label">DNS-over-HTTPS UDS File Path</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" id="txtDnsOverHttpsUnixSocket" class="form-control" spellcheck="false" placeholder="/path/to/dohs.sock">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the Unix Domain Sockets (UDS) file path for DNS-over-HTTPS protocol service. Ensure that the DNS Server has read+write permissions to the parent directory to be able to create the UDS file.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1741,7 +1771,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <p><b>Note!</b> When using a reverse proxy with the DNS-over-HTTP service, you need to add <code id="lblDnsOverHttpRealIpHeader">X-Real-IP</code> header to the proxy request with the IP address of the client to allow the DNS Server to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code id="lblDnsOverHttpRealIpNginx">proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
                                                             <p><b>Note!</b> DNS-over-QUIC protocol support is not available on all platforms. On Windows, it is available only on Windows 11 (build 22000 and later) and Windows Server 2022 (and later). On Linux, it requires <code>libmsquic</code> to be installed. It also requires IPv6 support on the system to work.</p>
                                                             <p><b>Note!</b> The DNS-over-HTTP/3 protocol will always bind to <code>[::]</code> local address since this is how the <code>libmsquic</code> library is designed to work.</p>
-                                                            <p><b>Note!</b> Unix Sockets are supported only on Linux, Windows 10 (build 17063 and later), and Windows Server 2019 (update 1809 and later).</p>
+                                                            <p><b>Note!</b> Unix Domain Sockets (UDS) are supported only on Linux, Windows 10 (build 17063 and later), and Windows Server 2019 (update 1809 and later).</p>
                                                             <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
                                                             <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "privkey.pem" -in "cert.pem" -certfile "chain.pem"</pre>
                                                         </div>
@@ -1843,7 +1873,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                         <input id="chkLocallyServedDnsZones" type="checkbox"> Locally Served DNS Zones
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enables <a href="https://datatracker.ietf.org/doc/rfc6303/" target="_blank">Locally Served DNS Zones</a> and <a href="https://datatracker.ietf.org/doc/rfc6761/" target="_blank">Special-Use Domain Names</a> for recursive resolution to avoid leakage of queries and reduce load on the root servers.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enables <a href="https://datatracker.ietf.org/doc/rfc6303/" target="_blank">Locally Served DNS Zones</a> and <a href="https://datatracker.ietf.org/doc/rfc6761/" target="_blank">Special-Use Domain Names</a> for recursive resolution to avoid leakage of queries and reduce load on the root servers. Create a Stub or Conditional Forwarder zone for each domain name that you want to resolve externally.</div>
                                                             </div>
                                                         </div>
 

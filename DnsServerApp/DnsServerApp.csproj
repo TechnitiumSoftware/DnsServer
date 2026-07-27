@@ -7,7 +7,7 @@
 		<TargetFramework>net10.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<ApplicationIcon>logo2.ico</ApplicationIcon>
-		<Version>15.3</Version>
+		<Version>15.4</Version>
 		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 		<Company>Technitium</Company>
 		<Product>Technitium DNS Server</Product>
