@@ -855,33 +855,33 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                 <label for="optDnsClientType">Type</label>
                                                 <select class="form-control" id="optDnsClientType" style="padding-left: 6px; padding-right: 0px;">
                                                     <option>A</option>
-                                                    <option>NS</option>
+                                                    <option>AAAA</option>
                                                     <option>CNAME</option>
+                                                    <option>NS</option>
+                                                    <option>TXT</option>
+                                                    <option>MX</option>
                                                     <option>SOA</option>
                                                     <option>PTR</option>
-                                                    <option>MX</option>
-                                                    <option>TXT</option>
-                                                    <option>RP</option>
-                                                    <option>AAAA</option>
+                                                    <option>CAA</option>
                                                     <option>SRV</option>
-                                                    <option>NAPTR</option>
-                                                    <option>DNAME</option>
+                                                    <option>HTTPS</option>
+                                                    <option>SVCB</option>
                                                     <option>DS</option>
-                                                    <option>SSHFP</option>
+                                                    <option>DNSKEY</option>
                                                     <option>RRSIG</option>
                                                     <option>NSEC</option>
-                                                    <option>DNSKEY</option>
                                                     <option>NSEC3</option>
                                                     <option>NSEC3PARAM</option>
                                                     <option>TLSA</option>
-                                                    <option>ZONEMD</option>
-                                                    <option>SVCB</option>
-                                                    <option>HTTPS</option>
+                                                    <option>SSHFP</option>
+                                                    <option>NAPTR</option>
+                                                    <option>DNAME</option>
+                                                    <option>ANAME</option>
                                                     <option>URI</option>
-                                                    <option>CAA</option>
+                                                    <option>RP</option>
+                                                    <option>ZONEMD</option>
                                                     <option>ANY</option>
                                                     <option>AXFR</option>
-                                                    <option>ANAME</option>
                                                 </select>
                                             </div>
 
@@ -4263,25 +4263,25 @@ ns1.example.com ([2001:db8::])
                                 <div class="col-sm-7">
                                     <select id="optAddEditRecordType" class="form-control" onchange="modifyAddRecordFormByType(true);" style="width: auto;">
                                         <option>A</option>
-                                        <option>NS</option>
-                                        <option id="optEditRecordTypeSoa">SOA</option>
-                                        <option>CNAME</option>
-                                        <option>PTR</option>
-                                        <option>MX</option>
-                                        <option>TXT</option>
-                                        <option>RP</option>
                                         <option>AAAA</option>
+                                        <option>CNAME</option>
+                                        <option>NS</option>
+                                        <option>TXT</option>
+                                        <option>MX</option>
+                                        <option id="optEditRecordTypeSoa">SOA</option>
+                                        <option>PTR</option>
+                                        <option>CAA</option>
                                         <option>SRV</option>
+                                        <option>HTTPS</option>
+                                        <option>SVCB</option>
+                                        <option id="optAddEditRecordTypeDs">DS</option>
+                                        <option id="optAddEditRecordTypeTlsa">TLSA</option>
+                                        <option id="optAddEditRecordTypeSshfp">SSHFP</option>
                                         <option>NAPTR</option>
                                         <option>DNAME</option>
-                                        <option id="optAddEditRecordTypeDs">DS</option>
-                                        <option id="optAddEditRecordTypeSshfp">SSHFP</option>
-                                        <option id="optAddEditRecordTypeTlsa">TLSA</option>
-                                        <option>SVCB</option>
-                                        <option>HTTPS</option>
-                                        <option>URI</option>
-                                        <option>CAA</option>
                                         <option id="optAddEditRecordTypeAName">ANAME</option>
+                                        <option>URI</option>
+                                        <option>RP</option>
                                         <option id="optAddEditRecordTypeFwd">FWD</option>
                                         <option id="optAddEditRecordTypeApp">APP</option>
                                         <option>Unknown</option>
