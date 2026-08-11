@@ -77,70 +77,94 @@ namespace DnsServerCore.Dns.Applications
 
             foreach (Assembly appAssembly in _appContext.AppAssemblies)
             {
+                Type[] classTypes;
+
                 try
                 {
-                    foreach (Type classType in appAssembly.ExportedTypes)
+                    //use GetTypes(), not ExportedTypes: GetTypes() reports partial results via
+                    //ReflectionTypeLoadException when one or more referenced types fail to load,
+                    //so a single bad type does not abort discovery of the rest of the assembly
+                    classTypes = appAssembly.GetTypes();
+                }
+                catch (ReflectionTypeLoadException ex)
+                {
+                    classTypes = ex.Types; //array may contain null entries for the types that failed to load
+
+                    foreach (Exception loaderException in ex.LoaderExceptions)
                     {
-                        bool isDnsApp = false;
-
-                        foreach (Type interfaceType in classType.GetInterfaces())
-                        {
-                            if (interfaceType == _dnsApplicationInterface)
-                            {
-                                isDnsApp = true;
-                                break;
-                            }
-                        }
-
-                        if (isDnsApp)
-                        {
-                            try
-                            {
-                                IDnsApplication app = Activator.CreateInstance(classType) as IDnsApplication;
-
-                                dnsApplications.Add(classType.FullName, app);
-
-                                if (app is IDnsAppRecordRequestHandler appRecordHandler)
-                                    dnsAppRecordRequestHandlers.Add(classType.FullName, appRecordHandler);
-
-                                if (app is IDnsRequestController requestController)
-                                    dnsRequestControllers.Add(classType.FullName, requestController);
-
-                                if (app is IDnsAuthoritativeRequestHandler requestHandler)
-                                    dnsAuthoritativeRequestHandlers.Add(classType.FullName, requestHandler);
-
-                                if (app is IDnsRequestBlockingHandler blockingHandler)
-                                    dnsRequestBlockingHandlers.Add(classType.FullName, blockingHandler);
-
-                                if (app is IDnsQueryLogger logger)
-                                    dnsQueryLoggers.Add(classType.FullName, logger);
-
-                                if (app is IDnsQueryLogs queryLogs)
-                                    dnsQueryLogs.Add(classType.FullName, queryLogs);
-
-                                if (app is IDnsPostProcessor postProcessor)
-                                    dnsPostProcessors.Add(classType.FullName, postProcessor);
-
-                                if (_description is null)
-                                {
-                                    AssemblyDescriptionAttribute attribute = appAssembly.GetCustomAttribute<AssemblyDescriptionAttribute>();
-                                    if (attribute is not null)
-                                        _description = attribute.Description.Replace("\\n", "\n");
-                                }
-
-                                if (_version is null)
-                                    _version = appAssembly.GetName().Version;
-                            }
-                            catch (Exception ex)
-                            {
-                                _dnsServer.WriteLog(ex);
-                            }
-                        }
+                        if (loaderException is not null)
+                            _dnsServer.WriteLog(loaderException);
                     }
                 }
                 catch (Exception ex)
                 {
                     _dnsServer.WriteLog(ex);
+                    continue;
+                }
+
+                foreach (Type classType in classTypes)
+                {
+                    if (classType is null)
+                        continue; //this type failed to load; ReflectionTypeLoadException.Types already logged above
+
+                    if (!classType.IsVisible)
+                        continue; //match ExportedTypes semantics: only types visible outside the assembly
+
+                    bool isDnsApp = false;
+
+                    foreach (Type interfaceType in classType.GetInterfaces())
+                    {
+                        if (interfaceType == _dnsApplicationInterface)
+                        {
+                            isDnsApp = true;
+                            break;
+                        }
+                    }
+
+                    if (isDnsApp)
+                    {
+                        try
+                        {
+                            IDnsApplication app = Activator.CreateInstance(classType) as IDnsApplication;
+
+                            dnsApplications.Add(classType.FullName, app);
+
+                            if (app is IDnsAppRecordRequestHandler appRecordHandler)
+                                dnsAppRecordRequestHandlers.Add(classType.FullName, appRecordHandler);
+
+                            if (app is IDnsRequestController requestController)
+                                dnsRequestControllers.Add(classType.FullName, requestController);
+
+                            if (app is IDnsAuthoritativeRequestHandler requestHandler)
+                                dnsAuthoritativeRequestHandlers.Add(classType.FullName, requestHandler);
+
+                            if (app is IDnsRequestBlockingHandler blockingHandler)
+                                dnsRequestBlockingHandlers.Add(classType.FullName, blockingHandler);
+
+                            if (app is IDnsQueryLogger logger)
+                                dnsQueryLoggers.Add(classType.FullName, logger);
+
+                            if (app is IDnsQueryLogs queryLogs)
+                                dnsQueryLogs.Add(classType.FullName, queryLogs);
+
+                            if (app is IDnsPostProcessor postProcessor)
+                                dnsPostProcessors.Add(classType.FullName, postProcessor);
+
+                            if (_description is null)
+                            {
+                                AssemblyDescriptionAttribute attribute = appAssembly.GetCustomAttribute<AssemblyDescriptionAttribute>();
+                                if (attribute is not null)
+                                    _description = attribute.Description.Replace("\\n", "\n");
+                            }
+
+                            if (_version is null)
+                                _version = appAssembly.GetName().Version;
+                        }
+                        catch (Exception ex)
+                        {
+                            _dnsServer.WriteLog(ex);
+                        }
+                    }
                 }
             }
 
