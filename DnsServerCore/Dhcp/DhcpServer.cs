@@ -261,7 +261,39 @@ namespace DnsServerCore.Dhcp
                         else
                             udpSocket = udpListener; //no appropriate socket found so use default socket
 
-                        if (OperatingSystem.IsMacOS())
+                        if (OperatingSystem.IsFreeBSD())
+                        {
+                            Scope broadcastScope = null;
+
+                            foreach (KeyValuePair<string, Scope> entry in _scopes)
+                            {
+                                Scope scope = entry.Value;
+
+                                if (!scope.Enabled)
+                                    continue;
+
+                                if (!scope.InterfaceAddress.Equals(response.ServerIdentifier.Address))
+                                    continue;
+
+                                if (!response.YourClientIpAddress.Equals(IPAddress.Any) &&
+                                    !scope.IsAddressInNetwork(response.YourClientIpAddress))
+                                    continue;
+
+                                if (broadcastScope is not null)
+                                    throw new InvalidOperationException("Multiple DHCP scopes match FreeBSD broadcast response.");
+
+                                broadcastScope = scope;
+                            }
+
+                            if (broadcastScope is null)
+                                throw new InvalidOperationException("No DHCP scope found for FreeBSD broadcast response.");
+
+                            await udpSocket.SendToAsync(
+                                new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position),
+                                SocketFlags.DontRoute,
+                                new IPEndPoint(broadcastScope.BroadcastAddress, 68));
+                        }
+                        else if (OperatingSystem.IsMacOS())
                             await udpSocket.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.None, new IPEndPoint(IPAddress.Broadcast, 68));
                         else
                             await udpSocket.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.DontRoute, new IPEndPoint(IPAddress.Broadcast, 68)); //no routing for broadcast
@@ -627,6 +659,34 @@ namespace DnsServerCore.Dhcp
                         return null; //message destination address must be broadcast address
 
                     //broadcast request
+                    if (OperatingSystem.IsFreeBSD() && (ipPacketInformation.Interface == 0))
+                    {
+                        Scope fallbackScope = null;
+                        int fallbackScopeCount = 0;
+
+                        foreach (KeyValuePair<string, Scope> entry in _scopes)
+                        {
+                            Scope scope = entry.Value;
+
+                            if (!scope.Enabled)
+                                continue;
+
+                            if (scope.GetReservedLease(request) != null)
+                                return scope;
+
+                            if (!scope.AllowOnlyReservedLeases)
+                            {
+                                fallbackScope = scope;
+                                fallbackScopeCount++;
+                            }
+                        }
+
+                        if (fallbackScopeCount == 1)
+                            return fallbackScope;
+
+                        return null;
+                    }
+
                     Scope foundScope = null;
 
                     foreach (KeyValuePair<string, Scope> entry in _scopes)
