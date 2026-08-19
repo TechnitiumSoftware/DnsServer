@@ -805,6 +805,53 @@ namespace DnsServerCore.Dns.ZoneManagers
             return _root.GetApexZone(zoneName);
         }
 
+        internal IReadOnlyList<DnsResourceRecord> GetNSecProofOfNonExistenceNoData(string qname)
+        {
+            //when qname only matches via a wildcard (e.g. a wildcard-owned APP record), FindZone returns the
+            //exact zone as null and provides the wildcard zone via closest instead - same fallback chain
+            //InternalQuery itself uses (see the closest.QueryRecords(APP, ...) / apexZone.QueryRecords(APP, ...)
+            //fallback above). FindNSecProofOfNonExistenceNoData/FindNSec3ProofOfNonExistenceNoData already detect
+            //a wildcard-named zone internally and add the extra proof-of-cover records for the exact qname.
+            AuthZone zone = _root.FindZone(qname, out SubDomainZone closest, out _, out ApexZone apexZone, out _);
+            AuthZone effectiveZone = zone ?? closest;
+
+            if ((effectiveZone is null) || (apexZone is null) || (apexZone.DnssecStatus == AuthZoneDnssecStatus.Unsigned))
+                return Array.Empty<DnsResourceRecord>();
+
+            if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
+                return _root.FindNSec3ProofOfNonExistenceNoData(qname, effectiveZone, apexZone);
+
+            return _root.FindNSecProofOfNonExistenceNoData(qname, effectiveZone);
+        }
+
+        //RFC 4035 5.3.4: a positive answer synthesized from a wildcard must also include proof that the exact
+        //qname does not exist as a literal zone entry (otherwise a validator cannot tell the wildcard expansion
+        //apart from a spoofed answer, and rejects the response outright - confirmed empirically with delv, which
+        //fails "no valid NSEC" on a wildcard-owned APP/ANAME positive answer without this). Only relevant when
+        //recordOwnerName (the record's literal, possibly-wildcard owner from GetRecordOwnerName) starts with "*".
+        //Reuses the zone's existing static NSEC/NSEC3 chain, since whether a literal zone node exists at qname is
+        //a static fact independent of what the app/ANAME resolves per query - no new denial machinery needed.
+        internal IReadOnlyList<DnsResourceRecord> GetNSecProofOfWildcardAnswer(string qname)
+        {
+            AuthZone zone = _root.FindZone(qname, out _, out _, out ApexZone apexZone, out _);
+            if ((apexZone is null) || (apexZone.DnssecStatus == AuthZoneDnssecStatus.Unsigned))
+                return Array.Empty<DnsResourceRecord>();
+
+            if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
+                return _root.FindNSec3ProofOfNonExistenceNxDomain(qname, true);
+
+            return _root.FindNSecProofOfNonExistenceNxDomain(qname, true);
+        }
+
+        //Returns the literal owner name of the AuthZone actually storing records at qname (e.g. "*.example.com"
+        //for a wildcard hit), as opposed to qname itself. Used to sign a dynamically resolved answer (ANAME/ALIAS)
+        //under its true wildcard owner so DnssecPrivateKey.SignRRSet computes the correct RFC 4035 Labels field.
+        internal string GetRecordOwnerName(string qname)
+        {
+            AuthZone zone = _root.FindZone(qname, out SubDomainZone closest, out _, out _, out _);
+            return (zone ?? closest)?.Name;
+        }
+
         public bool NameExists(string zoneName, string domain)
         {
             ValidateIfDomainBelongsToZone(zoneName, domain);
@@ -3226,7 +3273,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     else
                     {
                         answer = null;
-                        authority = closest.QueryRecords(DnsResourceRecordType.APP, false);
+                        authority = closest.QueryRecords(DnsResourceRecordType.APP, dnssecOk);
                     }
                 }
 
@@ -3241,7 +3288,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     else
                     {
                         answer = null;
-                        authority = apexZone.QueryRecords(DnsResourceRecordType.APP, false);
+                        authority = apexZone.QueryRecords(DnsResourceRecordType.APP, dnssecOk);
                         if (authority.Count == 0)
                         {
                             if ((apexZone is ForwarderZone) || (apexZone is SecondaryForwarderZone))
@@ -3359,7 +3406,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 return GetReferralResponse(request, false, apexZone, apexZone);
                         }
 
-                        authority = zone.QueryRecords(DnsResourceRecordType.APP, false);
+                        authority = zone.QueryRecords(DnsResourceRecordType.APP, dnssecOk);
                         if (authority.Count == 0)
                         {
                             if ((apexZone is ForwarderZone) || (apexZone is SecondaryForwarderZone))
@@ -3435,7 +3482,31 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                                 case DnsResourceRecordType.ANAME:
                                 case DnsResourceRecordType.ALIAS:
-                                    authority = apexZone.GetRecords(DnsResourceRecordType.SOA); //adding SOA for use with NO DATA response
+                                    {
+                                        //adding SOA (signed when applicable) for use with NO DATA response if ANAME/ALIAS resolution finds nothing
+                                        authority = apexZone.QueryRecords(DnsResourceRecordType.SOA, dnssecOk);
+
+                                        if (dnssecOk)
+                                        {
+                                            //add proof of non existence (NODATA) to prove that no such type or record exists, in case ANAME/ALIAS resolution finds nothing
+                                            IReadOnlyList<DnsResourceRecord> nsecRecords;
+
+                                            if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
+                                                nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(question.Name, zone, apexZone);
+                                            else
+                                                nsecRecords = _root.FindNSecProofOfNonExistenceNoData(question.Name, zone);
+
+                                            if (nsecRecords.Count > 0)
+                                            {
+                                                List<DnsResourceRecord> newAuthority = new List<DnsResourceRecord>(authority.Count + nsecRecords.Count);
+
+                                                newAuthority.AddRange(authority);
+                                                newAuthority.AddRange(nsecRecords);
+
+                                                authority = newAuthority;
+                                            }
+                                        }
+                                    }
                                     break;
                             }
                         }

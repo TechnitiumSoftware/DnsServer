@@ -576,6 +576,17 @@ namespace DnsServerCore.Dns.Zones
             throw new NotImplementedException();
         }
 
+        //Deliberately NOT adding A/AAAA to the NSEC/NSEC3 type bitmap for APP/ANAME/ALIAS-owned names to hint at
+        //their dynamically resolved answer types: doing so makes the bitmap claim those types exist at this name,
+        //which contradicts a NODATA response served here when the app/ANAME resolution declines to answer for
+        //that exact type (confirmed empirically - RFC 4035 5.4 requires a NODATA proof's bitmap to NOT list the
+        //queried type, and a validator correctly rejects the contradiction as bogus). The accepted tradeoff:
+        //a resolver doing RFC 8198 aggressive NSEC/NSEC3 caching (the Unbound/BIND default) may synthesize a
+        //local NODATA answer for A/AAAA at this name from an unrelated cached NSEC/NSEC3 covering it, without
+        //ever querying this server - a real but disclosed limitation, not a correctness bug. Resolving it properly
+        //needs per-query NSEC synthesis (RFC 4470/4471 white lies) matching what the app actually declines to
+        //answer, which is out of scope here (see the "online signing" PR's tier 3).
+
         internal IReadOnlyList<DnsResourceRecord> GetUpdatedNSecRRSet(string nextDomainName, uint ttl)
         {
             List<DnsResourceRecordType> types = new List<DnsResourceRecordType>(_entries.Count);

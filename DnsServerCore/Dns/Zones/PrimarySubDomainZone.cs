@@ -57,20 +57,10 @@ namespace DnsServerCore.Dns.Zones
         {
             if (_primaryZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned)
             {
-                switch (type)
+                foreach (DnsResourceRecord record in records)
                 {
-                    case DnsResourceRecordType.ANAME:
-                    case DnsResourceRecordType.APP:
-                        throw new DnsServerException("The record type is not supported by DNSSEC signed primary zones.");
-
-                    default:
-                        foreach (DnsResourceRecord record in records)
-                        {
-                            if (record.GetAuthGenericRecordInfo().Disabled)
-                                throw new DnsServerException("Cannot set records: disabling records in a signed zones is not supported.");
-                        }
-
-                        break;
+                    if (record.GetAuthGenericRecordInfo().Disabled)
+                        throw new DnsServerException("Cannot set records: disabling records in a signed zones is not supported.");
                 }
             }
 
@@ -110,18 +100,8 @@ namespace DnsServerCore.Dns.Zones
         {
             if (_primaryZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned)
             {
-                switch (record.Type)
-                {
-                    case DnsResourceRecordType.ANAME:
-                    case DnsResourceRecordType.APP:
-                        throw new DnsServerException("The record type is not supported by DNSSEC signed primary zones.");
-
-                    default:
-                        if (record.GetAuthGenericRecordInfo().Disabled)
-                            throw new DnsServerException("Cannot add record: disabling records in a signed zones is not supported.");
-
-                        break;
-                }
+                if (record.GetAuthGenericRecordInfo().Disabled)
+                    throw new DnsServerException("Cannot add record: disabling records in a signed zones is not supported.");
             }
 
             switch (record.Type)

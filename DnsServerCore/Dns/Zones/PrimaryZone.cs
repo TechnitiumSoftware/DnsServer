@@ -1875,10 +1875,6 @@ namespace DnsServerCore.Dns.Zones
                 case DnsResourceRecordType.RRSIG:
                     throw new InvalidOperationException();
 
-                case DnsResourceRecordType.ANAME:
-                case DnsResourceRecordType.APP:
-                    throw new DnsServerException("Cannot sign RRSet: The record type [" + rrsetType.ToString() + "] is not supported by DNSSEC signed primary zones.");
-
                 default:
                     if ((rrsetType == DnsResourceRecordType.NS) && (records[0].Name.Length > _name.Length))
                         return Array.Empty<DnsResourceRecord>(); //referrer NS records are not signed
@@ -2509,20 +2505,10 @@ namespace DnsServerCore.Dns.Zones
         {
             if (_dnssecStatus != AuthZoneDnssecStatus.Unsigned)
             {
-                switch (type)
+                foreach (DnsResourceRecord record in records)
                 {
-                    case DnsResourceRecordType.ANAME:
-                    case DnsResourceRecordType.APP:
-                        throw new DnsServerException("The record type is not supported by DNSSEC signed primary zones.");
-
-                    default:
-                        foreach (DnsResourceRecord record in records)
-                        {
-                            if (record.GetAuthGenericRecordInfo().Disabled)
-                                throw new DnsServerException("Cannot set records: disabling records in a signed zones is not supported.");
-                        }
-
-                        break;
+                    if (record.GetAuthGenericRecordInfo().Disabled)
+                        throw new DnsServerException("Cannot set records: disabling records in a signed zones is not supported.");
                 }
             }
 
@@ -2621,18 +2607,8 @@ namespace DnsServerCore.Dns.Zones
         {
             if (_dnssecStatus != AuthZoneDnssecStatus.Unsigned)
             {
-                switch (record.Type)
-                {
-                    case DnsResourceRecordType.ANAME:
-                    case DnsResourceRecordType.APP:
-                        throw new DnsServerException("The record type is not supported by DNSSEC signed primary zones.");
-
-                    default:
-                        if (record.GetAuthGenericRecordInfo().Disabled)
-                            throw new DnsServerException("Cannot add record: disabling records in a signed zones is not supported.");
-
-                        break;
-                }
+                if (record.GetAuthGenericRecordInfo().Disabled)
+                    throw new DnsServerException("Cannot add record: disabling records in a signed zones is not supported.");
             }
 
             switch (record.Type)
