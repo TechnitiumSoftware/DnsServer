@@ -833,14 +833,26 @@ namespace DnsServerCore.Dns.ZoneManagers
         //a static fact independent of what the app/ANAME resolves per query - no new denial machinery needed.
         internal IReadOnlyList<DnsResourceRecord> GetNSecProofOfWildcardAnswer(string qname)
         {
+            return GetNSecProofOfNonExistenceNxDomain(qname, true);
+        }
+
+        //General NXDOMAIN proof of non existence for a qname, for the case where a non-wildcard dynamic (APP)
+        //record answers on behalf of a subdomain beneath its own owner name (e.g. an APP record at
+        //"app.example.com" answering for "x.y.app.example.com" via the closest-ancestor fallback in
+        //InternalQuery) and the app declines to answer, so the response is a genuine NXDOMAIN rather than
+        //NODATA. Unlike GetNSecProofOfNonExistenceNoData (which proves "this exact name exists but the type
+        //doesn't", using the static NSEC/NSEC3 record stored at the record's own owner name), this proves the
+        //qname itself does not exist at all - the correct static-chain proof for that rcode.
+        internal IReadOnlyList<DnsResourceRecord> GetNSecProofOfNonExistenceNxDomain(string qname, bool isWildcardAnswer)
+        {
             AuthZone zone = _root.FindZone(qname, out _, out _, out ApexZone apexZone, out _);
             if ((apexZone is null) || (apexZone.DnssecStatus == AuthZoneDnssecStatus.Unsigned))
                 return Array.Empty<DnsResourceRecord>();
 
             if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
-                return _root.FindNSec3ProofOfNonExistenceNxDomain(qname, true);
+                return _root.FindNSec3ProofOfNonExistenceNxDomain(qname, isWildcardAnswer);
 
-            return _root.FindNSecProofOfNonExistenceNxDomain(qname, true);
+            return _root.FindNSecProofOfNonExistenceNxDomain(qname, isWildcardAnswer);
         }
 
         //Returns the literal owner name of the AuthZone actually storing records at qname (e.g. "*.example.com"

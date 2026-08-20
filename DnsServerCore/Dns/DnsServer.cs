@@ -4135,10 +4135,24 @@ namespace DnsServerCore.Dns
 
                             if (dnssecOk)
                             {
-                                //add proof of non existence (NODATA) for the APP record's own owner name; the
-                                //dynamic answer's actual content has no static NSEC/NSEC3 coverage of its own,
-                                //but nonexistence of any record at this exact name is already provable statically
-                                IReadOnlyList<DnsResourceRecord> nsecRecords = _authZoneManager.GetNSecProofOfNonExistenceNoData(request.Question[0].Name);
+                                IReadOnlyList<DnsResourceRecord> nsecRecords;
+
+                                if (rcode == DnsResponseCode.NxDomain)
+                                {
+                                    //non-wildcard APP record answering for a subdomain beneath its own owner
+                                    //name (closest-ancestor fallback) that the app declined to answer: qname
+                                    //itself does not exist, so this needs a real NXDOMAIN proof of cover, not
+                                    //the NODATA proof for the record's own owner name
+                                    nsecRecords = _authZoneManager.GetNSecProofOfNonExistenceNxDomain(request.Question[0].Name, false);
+                                }
+                                else
+                                {
+                                    //add proof of non existence (NODATA) for the APP record's own owner name; the
+                                    //dynamic answer's actual content has no static NSEC/NSEC3 coverage of its own,
+                                    //but nonexistence of any record at this exact name is already provable statically
+                                    nsecRecords = _authZoneManager.GetNSecProofOfNonExistenceNoData(request.Question[0].Name);
+                                }
+
                                 if (nsecRecords.Count > 0)
                                 {
                                     List<DnsResourceRecord> newAuthority = new List<DnsResourceRecord>(authority.Count + nsecRecords.Count);
