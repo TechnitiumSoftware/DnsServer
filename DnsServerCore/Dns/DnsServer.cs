@@ -3970,6 +3970,123 @@ namespace DnsServerCore.Dns
             }
         }
 
+        //Online DNSSEC signing for dynamically resolved answers (APP and ANAME/ALIAS records): the actual answer
+        //content is not known until query time, so it cannot be pre-signed by the normal offline zone signing
+        //cycle. Only the RRset(s) that directly answer the query (owner name == qname) are signed here; any
+        //other owner names an app/ANAME chain may touch (e.g. an externally recursed CNAME target) are left
+        //unsigned since they are not this zone's data to sign.
+        private IReadOnlyList<DnsResourceRecord> SignDynamicAnswer(ApexZone apexZone, string recordOwnerName, string qname, IReadOnlyList<DnsResourceRecord> answer)
+        {
+            Dictionary<DnsResourceRecordType, List<DnsResourceRecord>> rrsetsByType = null;
+
+            foreach (DnsResourceRecord record in answer)
+            {
+                if (!record.Name.Equals(qname, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                rrsetsByType ??= new Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>();
+
+                if (!rrsetsByType.TryGetValue(record.Type, out List<DnsResourceRecord> rrset))
+                {
+                    rrset = new List<DnsResourceRecord>();
+                    rrsetsByType[record.Type] = rrset;
+                }
+
+                rrset.Add(record);
+            }
+
+            if (rrsetsByType is null)
+                return answer;
+
+            List<DnsResourceRecord> newAnswer = new List<DnsResourceRecord>(answer);
+
+            foreach (List<DnsResourceRecord> rrset in rrsetsByType.Values)
+                newAnswer.AddRange(SignDynamicAnswerRRSet(apexZone, recordOwnerName, rrset));
+
+            return newAnswer;
+        }
+
+        //Two-phase sign so that a wildcard-owned dynamic record (e.g. "*.example.com") gets an RRSIG with the
+        //correct RFC 4035 Labels field: DnssecPrivateKey.SignRRSet derives Labels from records[0].Name, so the
+        //RRset must be signed under its literal owner name in the zone (the wildcard form), then the resulting
+        //RRSIG's envelope owner name is rewritten to the actual (possibly QNAME-expanded) answer name, mirroring
+        //AuthZone.QueryRecordsWildcard's handling of static wildcard records.
+        private IReadOnlyList<DnsResourceRecord> SignDynamicAnswerRRSet(ApexZone apexZone, string recordOwnerName, IReadOnlyList<DnsResourceRecord> rrset)
+        {
+            string answerName = rrset[0].Name;
+
+            if (recordOwnerName.Equals(answerName, StringComparison.OrdinalIgnoreCase))
+                return apexZone.SignRRSet(rrset);
+
+            DnsResourceRecord[] signingRRset = new DnsResourceRecord[rrset.Count];
+
+            for (int i = 0; i < rrset.Count; i++)
+                signingRRset[i] = new DnsResourceRecord(recordOwnerName, rrset[i].Type, rrset[i].Class, rrset[i].TTL, rrset[i].RDATA);
+
+            IReadOnlyList<DnsResourceRecord> rrsigRecords = apexZone.SignRRSet(signingRRset);
+            if (rrsigRecords.Count == 0)
+                return rrsigRecords;
+
+            DnsResourceRecord[] rewrittenRRSigRecords = new DnsResourceRecord[rrsigRecords.Count];
+
+            for (int i = 0; i < rrsigRecords.Count; i++)
+                rewrittenRRSigRecords[i] = new DnsResourceRecord(answerName, rrsigRecords[i].Type, rrsigRecords[i].Class, rrsigRecords[i].TTL, rrsigRecords[i].RDATA);
+
+            return rewrittenRRSigRecords;
+        }
+
+        //Signs every RRset in an ANAME/ALIAS-resolved answer. Each record already carries the ANAME record's own
+        //owner name (set by ResolveANAMEAsync), which for a wildcard-owned ANAME has already been expanded to the
+        //queried name by AuthZoneManager.InternalQuery's wildcard substitution. To get the correct RFC 4035
+        //Labels field in that case, re-derive the literal (possibly wildcard) owner name of the AuthZone that
+        //actually stores the ANAME record via AuthZoneManager.GetRecordOwnerName, and route through the same
+        //two-phase signing path APP already uses.
+        private IReadOnlyList<DnsResourceRecord> SignAnameAnswer(ApexZone apexZone, IReadOnlyList<DnsResourceRecord> answer, out IReadOnlyList<DnsResourceRecord> wildcardProofAuthority)
+        {
+            wildcardProofAuthority = null;
+
+            if (answer.Count == 0)
+                return answer;
+
+            Dictionary<(string, DnsResourceRecordType), List<DnsResourceRecord>> rrsetsByNameType = new Dictionary<(string, DnsResourceRecordType), List<DnsResourceRecord>>();
+
+            foreach (DnsResourceRecord record in answer)
+            {
+                var key = (record.Name.ToLowerInvariant(), record.Type);
+                if (!rrsetsByNameType.TryGetValue(key, out List<DnsResourceRecord> rrset))
+                {
+                    rrset = new List<DnsResourceRecord>();
+                    rrsetsByNameType[key] = rrset;
+                }
+
+                rrset.Add(record);
+            }
+
+            List<DnsResourceRecord> newAnswer = new List<DnsResourceRecord>(answer);
+            List<DnsResourceRecord> newWildcardProofAuthority = null;
+
+            foreach (List<DnsResourceRecord> rrset in rrsetsByNameType.Values)
+            {
+                string recordOwnerName = _authZoneManager.GetRecordOwnerName(rrset[0].Name) ?? rrset[0].Name;
+                newAnswer.AddRange(SignDynamicAnswerRRSet(apexZone, recordOwnerName, rrset));
+
+                if (recordOwnerName.StartsWith('*'))
+                {
+                    //RFC 4035 5.3.4: prove the exact qname does not exist as a literal zone entry, so the
+                    //validator can tell this wildcard expansion apart from a spoofed answer
+                    IReadOnlyList<DnsResourceRecord> wildcardProof = _authZoneManager.GetNSecProofOfWildcardAnswer(rrset[0].Name);
+                    if (wildcardProof.Count > 0)
+                    {
+                        newWildcardProofAuthority ??= new List<DnsResourceRecord>();
+                        newWildcardProofAuthority.AddRange(wildcardProof);
+                    }
+                }
+            }
+
+            wildcardProofAuthority = newWildcardProofAuthority;
+            return newAnswer;
+        }
+
         private async Task<DnsDatagram> ProcessAPPAsync(DnsDatagram request, DnsDatagram response, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, bool skipDnsAppAuthoritativeRequestHandlers, int clientTimeout)
         {
             DnsResourceRecord appResourceRecord = response.Authority[0];
@@ -3980,6 +4097,7 @@ namespace DnsServerCore.Dns
                 if (application.DnsAppRecordRequestHandlers.TryGetValue(appRecord.ClassPath, out IDnsAppRecordRequestHandler appRecordRequestHandler))
                 {
                     AuthZoneInfo zoneInfo = _authZoneManager.FindAuthZoneInfo(appResourceRecord.Name);
+                    bool dnssecOk = request.DnssecOk && (zoneInfo.Type == AuthZoneType.Primary) && (zoneInfo.ApexZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned);
 
                     DnsDatagram appResponse = await appRecordRequestHandler.ProcessRequestAsync(request, remoteEP, protocol, isRecursionAllowed, zoneInfo.Name, appResourceRecord.Name, appResourceRecord.TTL, appRecord.Data);
                     if (appResponse is null)
@@ -4013,13 +4131,87 @@ namespace DnsServerCore.Dns
                             else
                                 rcode = DnsResponseCode.NxDomain;
 
-                            authority = zoneInfo.ApexZone.GetRecords(DnsResourceRecordType.SOA);
+                            authority = zoneInfo.ApexZone.QueryRecords(DnsResourceRecordType.SOA, dnssecOk);
+
+                            if (dnssecOk)
+                            {
+                                IReadOnlyList<DnsResourceRecord> nsecRecords;
+
+                                if (rcode == DnsResponseCode.NxDomain)
+                                {
+                                    //non-wildcard APP record answering for a subdomain beneath its own owner
+                                    //name (closest-ancestor fallback) that the app declined to answer: qname
+                                    //itself does not exist, so this needs a real NXDOMAIN proof of cover, not
+                                    //the NODATA proof for the record's own owner name
+                                    nsecRecords = _authZoneManager.GetNSecProofOfNonExistenceNxDomain(request.Question[0].Name, false);
+                                }
+                                else
+                                {
+                                    //add proof of non existence (NODATA) for the APP record's own owner name; the
+                                    //dynamic answer's actual content has no static NSEC/NSEC3 coverage of its own,
+                                    //but nonexistence of any record at this exact name is already provable statically
+                                    nsecRecords = _authZoneManager.GetNSecProofOfNonExistenceNoData(request.Question[0].Name);
+                                }
+
+                                if (nsecRecords.Count > 0)
+                                {
+                                    List<DnsResourceRecord> newAuthority = new List<DnsResourceRecord>(authority.Count + nsecRecords.Count);
+
+                                    newAuthority.AddRange(authority);
+                                    newAuthority.AddRange(nsecRecords);
+
+                                    authority = newAuthority;
+                                }
+                            }
                         }
 
                         return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, rcode, request.Question, null, authority) { Tag = DnsServerResponseType.Authoritative };
                     }
                     else
                     {
+                        if (dnssecOk && appResponse.AuthoritativeAnswer && (appResponse.Answer.Count > 0))
+                        {
+                            IReadOnlyList<DnsResourceRecord> signedAnswer = SignDynamicAnswer(zoneInfo.ApexZone, appResourceRecord.Name, request.Question[0].Name, appResponse.Answer);
+                            if (signedAnswer.Count > appResponse.Answer.Count)
+                            {
+                                IReadOnlyList<DnsResourceRecord> signedAuthority = appResponse.Authority;
+
+                                if (appResourceRecord.Name.StartsWith('*'))
+                                {
+                                    //RFC 4035 5.3.4: prove the exact qname does not exist as a literal zone entry,
+                                    //so the validator can tell this wildcard expansion apart from a spoofed answer
+                                    IReadOnlyList<DnsResourceRecord> wildcardProof = _authZoneManager.GetNSecProofOfWildcardAnswer(request.Question[0].Name);
+                                    if (wildcardProof.Count > 0)
+                                    {
+                                        List<DnsResourceRecord> newAuthority = new List<DnsResourceRecord>(appResponse.Authority.Count + wildcardProof.Count);
+
+                                        newAuthority.AddRange(appResponse.Authority);
+                                        newAuthority.AddRange(wildcardProof);
+
+                                        signedAuthority = newAuthority;
+                                    }
+                                }
+
+                                appResponse = new DnsDatagram(appResponse.Identifier, appResponse.IsResponse, appResponse.OPCODE, appResponse.AuthoritativeAnswer, appResponse.Truncation, appResponse.RecursionDesired, appResponse.RecursionAvailable, appResponse.AuthenticData, appResponse.CheckingDisabled, appResponse.RCODE, appResponse.Question, signedAnswer, signedAuthority, appResponse.Additional, appResponse.EDNS is null ? ushort.MinValue : appResponse.EDNS.UdpPayloadSize, appResponse.EDNS is null ? EDnsHeaderFlags.None : appResponse.EDNS.Flags, appResponse.EDNS?.Options);
+                            }
+                        }
+                        else if (dnssecOk && appResponse.AuthoritativeAnswer && (appResponse.RCODE == DnsResponseCode.NoError) && (appResponse.Answer.Count == 0))
+                        {
+                            //some apps (e.g. the NO DATA app) construct their own explicit NODATA response
+                            //instead of returning null - secure it the same way as the null-appResponse NODATA
+                            //path above: signed SOA + NSEC/NSEC3 proof of non existence at the queried name
+                            IReadOnlyList<DnsResourceRecord> signedSoa = zoneInfo.ApexZone.QueryRecords(DnsResourceRecordType.SOA, dnssecOk);
+                            IReadOnlyList<DnsResourceRecord> nsecRecords = _authZoneManager.GetNSecProofOfNonExistenceNoData(request.Question[0].Name);
+
+                            List<DnsResourceRecord> newAuthority = new List<DnsResourceRecord>(appResponse.Authority.Count + signedSoa.Count + nsecRecords.Count);
+
+                            newAuthority.AddRange(appResponse.Authority);
+                            newAuthority.AddRange(signedSoa);
+                            newAuthority.AddRange(nsecRecords);
+
+                            appResponse = new DnsDatagram(appResponse.Identifier, appResponse.IsResponse, appResponse.OPCODE, appResponse.AuthoritativeAnswer, appResponse.Truncation, appResponse.RecursionDesired, appResponse.RecursionAvailable, appResponse.AuthenticData, appResponse.CheckingDisabled, appResponse.RCODE, appResponse.Question, appResponse.Answer, newAuthority, appResponse.Additional, appResponse.EDNS is null ? ushort.MinValue : appResponse.EDNS.UdpPayloadSize, appResponse.EDNS is null ? EDnsHeaderFlags.None : appResponse.EDNS.Flags, appResponse.EDNS?.Options);
+                        }
+
                         if (appResponse.AuthoritativeAnswer)
                             appResponse.Tag = DnsServerResponseType.Authoritative;
 
@@ -4474,6 +4666,7 @@ namespace DnsServerCore.Dns
 
             DnsResponseCode rcode = DnsResponseCode.NoError;
             IReadOnlyList<DnsResourceRecord> authority = null;
+            IReadOnlyList<DnsResourceRecord> finalAnswer = responseAnswer;
 
             if (responseAnswer.Count == 0)
             {
@@ -4483,6 +4676,8 @@ namespace DnsServerCore.Dns
                 }
                 else
                 {
+                    //authority (SOA, and NSEC/NSEC3 proof when signed) was already resolved by the caller in
+                    //AuthZoneManager.InternalQuery for use with this NODATA response
                     authority = response.Authority;
 
                     //update last used on
@@ -4492,8 +4687,18 @@ namespace DnsServerCore.Dns
                         record.GetAuthGenericRecordInfo().LastUsedOn = utcNow;
                 }
             }
+            else if (request.DnssecOk)
+            {
+                AuthZoneInfo zoneInfo = _authZoneManager.FindAuthZoneInfo(request.Question[0].Name);
+                if ((zoneInfo is not null) && (zoneInfo.Type == AuthZoneType.Primary) && (zoneInfo.ApexZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned))
+                {
+                    finalAnswer = SignAnameAnswer(zoneInfo.ApexZone, responseAnswer, out IReadOnlyList<DnsResourceRecord> wildcardProofAuthority);
+                    if (wildcardProofAuthority is not null)
+                        authority = wildcardProofAuthority;
+                }
+            }
 
-            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, rcode, request.Question, responseAnswer, authority) { Tag = response.Tag };
+            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, rcode, request.Question, finalAnswer, authority) { Tag = response.Tag };
         }
 
         private async Task<bool> IsAllowedAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol)
