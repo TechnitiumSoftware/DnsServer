@@ -185,6 +185,34 @@ namespace DnsServerCore.Auth
                                 groups.Add(cn);
                         }
                     }
+
+                    if (groups.Count == 0)
+                    {
+                        // Fallback for directories that don't maintain a reverse group-membership
+                        // attribute on the user entry (e.g. stock OpenLDAP without the memberof
+                        // overlay loaded). Search for groups that list this user as a member
+                        // instead of relying on the user entry carrying _groupAttribute.
+                        // Best-effort: some directories (e.g. AD without RFC2307/Unix attributes)
+                        // don't define uniqueMember/memberUid at all, which errors instead of just
+                        // not matching - swallow that so it degrades to "no groups", same as before.
+                        try
+                        {
+                            string reverseFilter = "(|(member=" + LdapFilterEscape(userDn) + ")(uniqueMember=" + LdapFilterEscape(userDn) + ")(memberUid=" + LdapFilterEscape(username) + "))";
+                            var groupRequest = new SearchRequest(_searchBase, reverseFilter, SearchScope.Subtree, new[] { "cn" });
+                            groupRequest.TimeLimit = TimeSpan.FromSeconds(15);
+
+                            var groupResponse = (SearchResponse)searchConn.SendRequest(groupRequest);
+
+                            foreach (SearchResultEntry groupEntry in groupResponse.Entries)
+                            {
+                                string cn = GetAttributeValue(groupEntry, "cn");
+                                if (!string.IsNullOrEmpty(cn))
+                                    groups.Add(cn);
+                            }
+                        }
+                        catch
+                        { }
+                    }
                 }
                 catch (LdapException ex) when (ex.ErrorCode == 49)
                 {

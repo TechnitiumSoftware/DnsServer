@@ -363,6 +363,10 @@ namespace DnsServerCore
                 separator = COMMA_SEPARATOR;
 
             string[] cells = value.Split(separator);
+
+            if ((cells.Length % colspan) != 0)
+                throw new DnsWebServiceException("Invalid value for parameter '" + parameter + "': expected each entry to have " + colspan + " values separated by '" + new string(separator) + "'.");
+
             array = new T[cells.Length / colspan];
 
             for (int i = 0, j = 0; i < cells.Length; i += colspan)
@@ -403,6 +407,10 @@ namespace DnsServerCore
                 separator = COMMA_SEPARATOR;
 
             string[] cells = value.Split(separator);
+
+            if ((cells.Length % colspan) != 0)
+                throw new DnsWebServiceException("Invalid value for parameter '" + parameter + "': expected each entry to have " + colspan + " values separated by '" + new string(separator) + "'.");
+
             array = new T[cells.Length / colspan];
 
             for (int i = 0, j = 0; i < cells.Length; i += colspan)
