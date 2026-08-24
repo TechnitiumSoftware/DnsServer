@@ -2192,10 +2192,14 @@ namespace DnsServerCore.Dns
                             // other state (including malformed) remains subject to RRL.
                             CookieRequestClassification cookieClassification =
                                 ClassifyCookieRequest(request, remoteEP.Address);
-                            Security.UdpResponseRateLimitResult rrlResult =
+                            Security.ReflectionRrlRequestTrust rrlTrust =
                                 cookieClassification.State == CookieRequestState.ValidServerCookie
-                                    ? Security.UdpResponseRateLimitResult.Allowed
-                                    : EvaluateReflectionRrl(remoteEP.Address);
+                                    ? Security.ReflectionRrlRequestTrust.ValidServerCookie
+                                    : Security.ReflectionRrlRequestTrust.Unverified;
+                            Security.UdpResponseRateLimitResult rrlResult =
+                                Security.ReflectionRrlPolicy.ShouldEvaluate(_enableResponseRateLimiting, isUdp: true, rrlTrust)
+                                    ? EvaluateReflectionRrl(remoteEP.Address)
+                                    : Security.UdpResponseRateLimitResult.Allowed;
                             if (rrlResult != Security.UdpResponseRateLimitResult.Allowed)
                             {
                                 if (rrlResult == Security.UdpResponseRateLimitResult.LimitedSlip)

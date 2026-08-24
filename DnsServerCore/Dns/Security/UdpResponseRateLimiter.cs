@@ -10,6 +10,22 @@ using System.Security.Cryptography;
 
 namespace DnsServerCore.Dns.Security
 {
+    public enum ReflectionRrlRequestTrust
+    {
+        Unverified,
+        ValidServerCookie
+    }
+
+    /// <summary>
+    /// Defines the narrow DNS Cookie exemption from UDP reflection RRL.
+    /// Other admission and resource limits are intentionally outside this policy.
+    /// </summary>
+    public static class ReflectionRrlPolicy
+    {
+        public static bool ShouldEvaluate(bool enabled, bool isUdp, ReflectionRrlRequestTrust trust) =>
+            enabled && isUdp && trust != ReflectionRrlRequestTrust.ValidServerCookie;
+    }
+
     public enum UdpResponseRateLimitResult
     {
         Allowed,
