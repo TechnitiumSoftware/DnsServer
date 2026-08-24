@@ -310,28 +310,6 @@ namespace DnsServerCore.Dns
         long _cookieMissing;
         long _cookieBadcookieSent;
         long _cookieClientOnly;
-        long _cookieInvalidDropped;
-        long _cookieRateLimited;
-
-        // Hard-coded initial policy for invalid DNS cookie abuse handling.
-        // Iteration 2 can make these values configurable.
-        const int COOKIE_FAILURE_WINDOW_SECONDS = 60;
-        const int COOKIE_FAILURE_SOFT_THRESHOLD = 20;
-        const int COOKIE_FAILURE_BADCOOKIE_SLIP_THRESHOLD = 40;
-        const int COOKIE_FAILURE_BADCOOKIE_SLIP_FACTOR = 4; // send BADCOOKIE for every Nth request after slip threshold
-        const int COOKIE_FAILURE_HARD_THRESHOLD = 100;
-        const int COOKIE_FAILURE_RETENTION_SECONDS = 300;
-        const int COOKIE_BOOTSTRAP_WINDOW_SECONDS = 10;
-        const int COOKIE_BOOTSTRAP_HARD_THRESHOLD = 30;
-        const int COOKIE_BOOTSTRAP_REFILL_RATE_PER_SECOND = COOKIE_BOOTSTRAP_HARD_THRESHOLD / COOKIE_BOOTSTRAP_WINDOW_SECONDS; // 30 tokens per 10 seconds        const int COOKIE_BOOTSTRAP_IDLE_EVICT_SECONDS = 120;
-        const int COOKIE_BOOTSTRAP_IDLE_EVICT_SECONDS = 120;
-        const int COOKIE_BOOTSTRAP_BUCKET_COUNT = 16384; // power-of-two for fast masking
-        const int COOKIE_BOOTSTRAP_MAX_PROBES = 8;
-
-        readonly Dictionary<IPAddress, (long WindowStart, int Count)> _cookieFailureByClient = new();
-        readonly object _cookieFailureLock = new();
-        readonly object _cookieBootstrapLock = new();
-        readonly CookieBootstrapBucket[] _cookieBootstrapBuckets = new CookieBootstrapBucket[COOKIE_BOOTSTRAP_BUCKET_COUNT];
 
         #endregion
 
@@ -1783,14 +1761,6 @@ namespace DnsServerCore.Dns
 
         #region cookie
 
-        private struct CookieBootstrapBucket
-        {
-            public ulong ClientHash;
-            public uint LastRefillSecond;
-            public uint LastSeenSecond;
-            public int Tokens;
-        }
-
         private void InitDnsCookies()
         {
             lock (_saveLock)
@@ -1802,13 +1772,6 @@ namespace DnsServerCore.Dns
                     _cookieRotationTimer = null;
                     _cookieSecrets = null;
                     _cookieValidator = null;
-
-                    lock (_cookieFailureLock)
-                        _cookieFailureByClient.Clear();
-                    lock (_cookieBootstrapLock)
-                    {
-                        Array.Clear(_cookieBootstrapBuckets, 0, _cookieBootstrapBuckets.Length);
-                    }
 
                     return;
                 }
@@ -2018,200 +1981,18 @@ namespace DnsServerCore.Dns
             return list;
         }
 
-        private bool ShouldDropInvalidCookie(IPAddress clientAddress, out int failureCount)
-        {
-            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-
-            lock (_cookieFailureLock)
-            {
-                if (!_cookieFailureByClient.TryGetValue(clientAddress, out (long WindowStart, int Count) state) || ((now - state.WindowStart) >= COOKIE_FAILURE_WINDOW_SECONDS))
-                {
-                    state = (now, 0);
-                }
-
-                failureCount = state.Count + 1;
-                _cookieFailureByClient[clientAddress] = (state.WindowStart, failureCount);
-
-                if ((_cookieFailureByClient.Count > 4096) || ((now % 31) == 0))
-                {
-                    // Keep bounded in-memory state so abusive source churn cannot grow memory unbounded.
-                    long staleBefore = now - COOKIE_FAILURE_RETENTION_SECONDS;
-                    List<IPAddress> staleKeys = new List<IPAddress>();
-                    foreach (KeyValuePair<IPAddress, (long WindowStart, int Count)> item in _cookieFailureByClient)
-                    {
-                        if (item.Value.WindowStart < staleBefore)
-                            staleKeys.Add(item.Key);
-                    }
-
-                    foreach (IPAddress staleKey in staleKeys)
-                    {
-                        _cookieFailureByClient.Remove(staleKey);
-                    }
-                }
-            }
-
-            if (failureCount > COOKIE_FAILURE_HARD_THRESHOLD)
-                return true;
-
-            if (failureCount > COOKIE_FAILURE_BADCOOKIE_SLIP_THRESHOLD)
-                return (failureCount % COOKIE_FAILURE_BADCOOKIE_SLIP_FACTOR) != 0;
-
-            return false;
-        }
-
-        private static ulong GetCookieBootstrapClientHash(IPAddress clientAddress)
-        {
-            Span<byte> addressBytes = stackalloc byte[16];
-            if (!clientAddress.TryWriteBytes(addressBytes, out int written))
-                written = 0;
-
-            int offset = 0;
-            if (written == 16)
-            {
-                bool isV4Mapped =
-                    addressBytes[0] == 0 && addressBytes[1] == 0 && addressBytes[2] == 0 && addressBytes[3] == 0 &&
-                    addressBytes[4] == 0 && addressBytes[5] == 0 && addressBytes[6] == 0 && addressBytes[7] == 0 &&
-                    addressBytes[8] == 0 && addressBytes[9] == 0 &&
-                    addressBytes[10] == 0xff && addressBytes[11] == 0xff;
-
-                if (isV4Mapped)
-                {
-                    offset = 12;
-                    written = 4;
-                }
-            }
-
-            // FNV-1a 64-bit.
-            ulong hash = 1469598103934665603UL;
-            for (int i = 0; i < written; i++)
-            {
-                hash ^= addressBytes[offset + i];
-                hash *= 1099511628211UL;
-            }
-
-            // Reserve zero as "empty bucket" marker.
-            return hash == 0 ? 1UL : hash;
-        }
-
-        private bool ShouldRateLimitCookieBootstrap(IPAddress clientAddress, out int requestCount)
-        {
-            uint now = unchecked((uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-            ulong clientHash = GetCookieBootstrapClientHash(clientAddress);
-            int mask = COOKIE_BOOTSTRAP_BUCKET_COUNT - 1;
-            int start = (int)(clientHash & (uint)mask);
-
-            lock (_cookieBootstrapLock)
-            {
-                int selectedIndex = -1;
-                int staleIndex = -1;
-
-                for (int probe = 0; probe < COOKIE_BOOTSTRAP_MAX_PROBES; probe++)
-                {
-                    int index = (start + probe) & mask;
-                    ref CookieBootstrapBucket bucket = ref _cookieBootstrapBuckets[index];
-
-                    if (bucket.ClientHash == clientHash)
-                    {
-                        selectedIndex = index;
-                        break;
-                    }
-
-                    if (bucket.ClientHash == 0)
-                    {
-                        selectedIndex = index;
-                        break;
-                    }
-
-                    if ((now - bucket.LastSeenSecond) >= COOKIE_BOOTSTRAP_IDLE_EVICT_SECONDS && staleIndex < 0)
-                        staleIndex = index;
-                }
-
-                if (selectedIndex < 0)
-                    selectedIndex = staleIndex;
-
-                if (selectedIndex < 0)
-                {
-                    requestCount = int.MaxValue; // table pressure fail-closed
-                    return true;
-                }
-
-                ref CookieBootstrapBucket state = ref _cookieBootstrapBuckets[selectedIndex];
-
-                if (state.ClientHash != clientHash)
-                {
-                    state.ClientHash = clientHash;
-                    state.LastRefillSecond = now;
-                    state.LastSeenSecond = now;
-                    state.Tokens = COOKIE_BOOTSTRAP_HARD_THRESHOLD;
-                }
-                else
-                {
-                    uint elapsed = now - state.LastRefillSecond;
-                    if (elapsed > 0)
-                    {
-                        int refill = (int)Math.Min(int.MaxValue, elapsed * (uint)COOKIE_BOOTSTRAP_REFILL_RATE_PER_SECOND);
-                        state.Tokens = Math.Min(COOKIE_BOOTSTRAP_HARD_THRESHOLD, state.Tokens + refill);
-                        state.LastRefillSecond = now;
-                    }
-
-                    state.LastSeenSecond = now;
-                }
-
-                if (state.Tokens <= 0)
-                {
-                    requestCount = COOKIE_BOOTSTRAP_HARD_THRESHOLD + 1;
-                    return true;
-                }
-
-                state.Tokens--;
-            }
-
-            requestCount = 0;
-            return false;
-        }
-
         private DnsDatagram HandleInvalidCookieRequest(
             DnsDatagram request,
             IPEndPoint remoteEP,
             bool isRecursionAllowed,
-            CookieOptionData requestCookie,
-            string reason)
+            CookieOptionData requestCookie)
         {
             Interlocked.Increment(ref _cookieInvalid);
-
-            bool drop = ShouldDropInvalidCookie(remoteEP.Address, out int failuresInWindow);
-
-            if (failuresInWindow == COOKIE_FAILURE_SOFT_THRESHOLD)
-            {
-                _log.Write($"Client '{remoteEP.Address}' hit DNS cookie invalid soft threshold ({COOKIE_FAILURE_SOFT_THRESHOLD}/{COOKIE_FAILURE_WINDOW_SECONDS}s).");
-            }
-
-            if (drop)
-            {
-                Interlocked.Increment(ref _cookieInvalidDropped);
-
-                if (failuresInWindow == (COOKIE_FAILURE_BADCOOKIE_SLIP_THRESHOLD + 1))
-                {
-                    _log.Write($"Client '{remoteEP.Address}' crossed DNS cookie invalid slip threshold ({COOKIE_FAILURE_BADCOOKIE_SLIP_THRESHOLD}/{COOKIE_FAILURE_WINDOW_SECONDS}s); BADCOOKIE responses are now throttled to 1/{COOKIE_FAILURE_BADCOOKIE_SLIP_FACTOR}.");
-                }
-
-                if (failuresInWindow == (COOKIE_FAILURE_HARD_THRESHOLD + 1))
-                {
-                    _log.Write($"Client '{remoteEP.Address}' exceeded DNS cookie invalid hard threshold ({COOKIE_FAILURE_HARD_THRESHOLD}/{COOKIE_FAILURE_WINDOW_SECONDS}s); dropping invalid-cookie requests.");
-                }
-
-                return null; // drop abusive invalid-cookie traffic; caller treats null as "no response"
-            }
 
             byte[] serverCookie = _cookieValidator.CreateResponseCookie(remoteEP.Address, requestCookie.ClientCookie);
             var responseCookie = new EDnsCookieOptionData(requestCookie.ClientCookie, serverCookie);
 
             Interlocked.Increment(ref _cookieBadcookieSent);
-
-            if (failuresInWindow == COOKIE_FAILURE_SOFT_THRESHOLD)
-            {
-                _log.Write($"Returning BADCOOKIE to '{remoteEP.Address}' for reason='{reason}'.");
-            }
 
             return BuildBadCookieResponse(request, remoteEP, isRecursionAllowed, responseCookie);
         }
@@ -3369,18 +3150,6 @@ namespace DnsServerCore.Dns
                 if (cookieClassification.State == CookieRequestState.NoCookie)
                 {
                     Interlocked.Increment(ref _cookieMissing);
-
-                    if (ShouldRateLimitCookieBootstrap(remoteEP.Address, out int requestsInWindow))
-                    {
-                        Interlocked.Increment(ref _cookieRateLimited);
-
-                        if (requestsInWindow == (COOKIE_BOOTSTRAP_HARD_THRESHOLD + 1))
-                        {
-                            _log.Write($"Client '{remoteEP.Address}' exceeded DNS cookie bootstrap threshold ({COOKIE_BOOTSTRAP_HARD_THRESHOLD}/{COOKIE_BOOTSTRAP_WINDOW_SECONDS}s); dropping UDP requests without cookie.");
-                        }
-
-                        return null;
-                    }
                 }
                 else
                 {
@@ -3411,57 +3180,20 @@ namespace DnsServerCore.Dns
                         { Tag = DnsServerResponseType.Authoritative };
                     }
 
-                    int scLen = requestCookie.ServerCookie.Length;
-
                     // CC-only: valid request; we'll attach SC to the normal response later (no extra RTT).
                     if (cookieClassification.State == CookieRequestState.ClientOnly)
                     {
                         Interlocked.Increment(ref _cookieClientOnly);
-
-                        if (ShouldRateLimitCookieBootstrap(remoteEP.Address, out int requestsInWindow))
-                        {
-                            Interlocked.Increment(ref _cookieRateLimited);
-
-                            if (requestsInWindow == (COOKIE_BOOTSTRAP_HARD_THRESHOLD + 1))
-                            {
-                                _log.Write($"Client '{remoteEP.Address}' exceeded DNS cookie bootstrap threshold ({COOKIE_BOOTSTRAP_HARD_THRESHOLD}/{COOKIE_BOOTSTRAP_WINDOW_SECONDS}s); dropping client-cookie-only requests.");
-                            }
-
-                            return null;
-                        }
                     }
                     else if (cookieClassification.State == CookieRequestState.InvalidServerCookie)
                     {
-                        // CC+SC present
-                        // v1 requires totalLen == 24 (CC 8 + SC 16). Anything else is “not a valid server cookie”.
-                        bool looksLikeV1 = requestCookie.ServerCookie[0] == 1;
-                        if (looksLikeV1 && scLen != 16)
-                        {
-                            return HandleInvalidCookieRequest(
-                                request,
-                                remoteEP,
-                                isRecursionAllowed,
-                                requestCookie,
-                                "v1-length");
-                        }
-
-                        // If non-v1 versions are unsupported, you can also BADCOOKIE them:
-                        if (!looksLikeV1)
-                        {
-                            return HandleInvalidCookieRequest(
-                                request,
-                                remoteEP,
-                                isRecursionAllowed,
-                                requestCookie,
-                                "unsupported-version");
-                        }
-
+                        // Treat an invalid Server Cookie like a Client-Cookie-only request:
+                        // return a fresh Server Cookie without maintaining per-client state.
                         return HandleInvalidCookieRequest(
                             request,
                             remoteEP,
                             isRecursionAllowed,
-                            requestCookie,
-                            "crypto-validate");
+                            requestCookie);
                     }
                     else
                     {
