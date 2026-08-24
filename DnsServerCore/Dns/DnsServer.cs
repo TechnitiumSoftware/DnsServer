@@ -1898,6 +1898,17 @@ namespace DnsServerCore.Dns
                 protocol == DnsTransportProtocol.TcpProxy;
         }
 
+        private static bool IsCookieAcquisitionRequest(DnsDatagram request, CookieRequestState cookieState)
+        {
+            // RFC 7873 section 5.4 permits a COOKIE option in a QUERY with no
+            // question as a lightweight way to acquire or refresh a Server Cookie.
+            return request.OPCODE == DnsOpcode.StandardQuery &&
+                request.Question.Count == 0 &&
+                (cookieState == CookieRequestState.ClientOnly ||
+                 cookieState == CookieRequestState.InvalidServerCookie ||
+                 cookieState == CookieRequestState.ValidServerCookie);
+        }
+
         private DnsDatagram BuildBadCookieResponse(
             DnsDatagram request,
             IPEndPoint remoteEP,
@@ -3149,6 +3160,7 @@ namespace DnsServerCore.Dns
 
             // DNS Cookies (RFC 7873 / RFC 9018 v1)
             CookieOptionData requestCookie = null;
+            bool isCookieAcquisitionRequest = false;
             var cookieValidator = _cookieValidator;
             if (SupportsDnsCookies(protocol) &&
                 request.EDNS != null &&
@@ -3156,6 +3168,7 @@ namespace DnsServerCore.Dns
             {
                 CookieRequestClassification cookieClassification = ClassifyCookieRequest(request, remoteEP.Address);
                 requestCookie = cookieClassification.Cookie;
+                isCookieAcquisitionRequest = IsCookieAcquisitionRequest(request, cookieClassification.State);
 
                 if (cookieClassification.State == CookieRequestState.NoCookie)
                 {
@@ -3197,10 +3210,10 @@ namespace DnsServerCore.Dns
                     }
                     else if (cookieClassification.State == CookieRequestState.InvalidServerCookie)
                     {
-                        // Treat an invalid Server Cookie like a Client-Cookie-only request:
-                        // TCP can safely process the query and return a fresh cookie. UDP uses
-                        // BADCOOKIE so that an unverified source cannot solicit a full response.
-                        if (IsUdpTransport(protocol))
+                        // TCP can safely process an ordinary query and return a fresh cookie.
+                        // UDP, and the transport-independent zero-question acquisition
+                        // mechanism, use BADCOOKIE as required by RFC 7873.
+                        if (IsUdpTransport(protocol) || isCookieAcquisitionRequest)
                         {
                             return HandleInvalidCookieRequest(
                                 request,
@@ -3218,7 +3231,35 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            DnsDatagram response = await ProcessQueryAsync(request, remoteEP, protocol, isRecursionAllowed, false, _clientTimeout, null);
+            DnsDatagram response;
+            if (isCookieAcquisitionRequest)
+            {
+                // Do not pass an RFC 7873 zero-question exchange to normal QUERY
+                // processing, which correctly rejects all other QDCOUNT != 1 queries.
+                response = new DnsDatagram(
+                    request.Identifier,
+                    true,
+                    DnsOpcode.StandardQuery,
+                    false,
+                    false,
+                    request.RecursionDesired,
+                    isRecursionAllowed,
+                    false,
+                    request.CheckingDisabled,
+                    DnsResponseCode.NoError,
+                    request.Question,
+                    null,
+                    null,
+                    null,
+                    request.EDNS.UdpPayloadSize,
+                    request.EDNS.Flags)
+                { Tag = DnsServerResponseType.Authoritative };
+            }
+            else
+            {
+                response = await ProcessQueryAsync(request, remoteEP, protocol, isRecursionAllowed, false, _clientTimeout, null);
+            }
+
             if (response is null)
                 return null;
 
