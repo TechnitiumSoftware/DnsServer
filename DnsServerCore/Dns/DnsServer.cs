@@ -1926,7 +1926,10 @@ namespace DnsServerCore.Dns
                 true,
                 request.OPCODE,
                 false,
-                truncation: true, // REQUIRED by RFC 7873 §5.2.3
+                // BADCOOKIE is a COOKIE protocol retry signal, not an RRL slip or
+                // DNS truncation response. Reflection RRL may independently drop
+                // the unverified UDP request before this response is emitted.
+                truncation: false,
                 recursionDesired: request.RecursionDesired,
                 recursionAvailable: isRecursionAllowed,
                 authenticData: false,
