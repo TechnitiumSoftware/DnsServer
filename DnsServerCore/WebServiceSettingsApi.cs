@@ -154,6 +154,13 @@ namespace DnsServerCore
 
                 jsonWriter.WriteEndArray();
 
+                jsonWriter.WriteBoolean("enableResponseRateLimiting", _dnsWebService._dnsServer.EnableResponseRateLimiting);
+                jsonWriter.WriteNumber("responseRateLimit", _dnsWebService._dnsServer.ResponseRateLimit);
+                jsonWriter.WriteNumber("responseRateLimitInstant", _dnsWebService._dnsServer.ResponseRateLimitInstant);
+                jsonWriter.WriteNumber("responseRateLimitSlip", _dnsWebService._dnsServer.ResponseRateLimitSlip);
+                jsonWriter.WriteNumber("responseRateLimitTableSize", _dnsWebService._dnsServer.ResponseRateLimitTableSize);
+                jsonWriter.WriteStringArray("responseRateLimitBypassList", _dnsWebService._dnsServer.ResponseRateLimitBypassList);
+
                 jsonWriter.WriteNumber("qpmLimitSampleMinutes", _dnsWebService._dnsServer.QpmLimitSampleMinutes);
                 jsonWriter.WriteNumber("qpmLimitUdpTruncationPercentage", _dnsWebService._dnsServer.QpmLimitUdpTruncationPercentage);
 
@@ -790,6 +797,42 @@ namespace DnsServerCore
                             }
 
                             clusterParameters.Add("qpmPrefixLimitsIPv6", strQpmPrefixLimitsIPv6);
+                        }
+
+                        if (request.TryGetQueryOrForm("enableResponseRateLimiting", bool.Parse, out bool enableResponseRateLimiting))
+                        {
+                            _dnsWebService._dnsServer.EnableResponseRateLimiting = enableResponseRateLimiting;
+                            clusterParameters.Add("enableResponseRateLimiting", enableResponseRateLimiting.ToString());
+                        }
+
+                        if (request.TryGetQueryOrForm("responseRateLimit", int.Parse, out int responseRateLimit))
+                        {
+                            _dnsWebService._dnsServer.ResponseRateLimit = responseRateLimit;
+                            clusterParameters.Add("responseRateLimit", responseRateLimit.ToString());
+                        }
+
+                        if (request.TryGetQueryOrForm("responseRateLimitInstant", int.Parse, out int responseRateLimitInstant))
+                        {
+                            _dnsWebService._dnsServer.ResponseRateLimitInstant = responseRateLimitInstant;
+                            clusterParameters.Add("responseRateLimitInstant", responseRateLimitInstant.ToString());
+                        }
+
+                        if (request.TryGetQueryOrForm("responseRateLimitSlip", int.Parse, out int responseRateLimitSlip))
+                        {
+                            _dnsWebService._dnsServer.ResponseRateLimitSlip = responseRateLimitSlip;
+                            clusterParameters.Add("responseRateLimitSlip", responseRateLimitSlip.ToString());
+                        }
+
+                        if (request.TryGetQueryOrForm("responseRateLimitTableSize", int.Parse, out int responseRateLimitTableSize))
+                        {
+                            _dnsWebService._dnsServer.ResponseRateLimitTableSize = responseRateLimitTableSize;
+                            clusterParameters.Add("responseRateLimitTableSize", responseRateLimitTableSize.ToString());
+                        }
+
+                        if (request.TryQueryOrFormArray("responseRateLimitBypassList", NetworkAddress.Parse, out NetworkAddress[] responseRateLimitBypassList))
+                        {
+                            _dnsWebService._dnsServer.ResponseRateLimitBypassList = responseRateLimitBypassList;
+                            clusterParameters.Add("responseRateLimitBypassList", responseRateLimitBypassList.Join());
                         }
 
                         if (request.TryGetQueryOrForm("qpmLimitSampleMinutes", int.Parse, out int qpmLimitSampleMinutes))

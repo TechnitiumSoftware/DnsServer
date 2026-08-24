@@ -177,6 +177,14 @@ namespace DnsServerCore.Dns
         int _qpmLimitUdpTruncationPercentage = 50; //percentage of requests that are responded with TC when QPM limit exceeds for UDP (Slip)
         IReadOnlyCollection<NetworkAddress> _qpmLimitBypassList;
 
+        bool _enableResponseRateLimiting = true;
+        int _responseRateLimit = 100;
+        int _responseRateLimitInstant = 200;
+        int _responseRateLimitSlip = 2;
+        int _responseRateLimitTableSize = 65536;
+        IReadOnlyCollection<NetworkAddress> _responseRateLimitBypassList;
+        volatile Security.UdpResponseRateLimiter _reflectionRrl;
+
         int _clientTimeout = 2000;
         int _tcpSendTimeout = 10000;
         int _tcpReceiveTimeout = 10000;
@@ -368,6 +376,8 @@ namespace DnsServerCore.Dns
             _dohwwwFolder = dohwwwFolder;
             LocalEndPoints = localEndPoints;
             _log = log;
+
+            ResetReflectionRrl();
 
             ReconfigureResolverTaskPool(100);
 
@@ -642,7 +652,7 @@ namespace DnsServerCore.Dns
                 {
                     SaveConfigFileInternal();
                 }
-                
+
                 InitDnsCookies();
             }
             catch (Exception ex)
@@ -1279,6 +1289,17 @@ namespace DnsServerCore.Dns
                 _useDnsCookies = true;
             }
 
+            if (s.Position < s.Length)
+            {
+                _enableResponseRateLimiting = bR.ReadBoolean();
+                _responseRateLimit = bR.ReadInt32();
+                _responseRateLimitInstant = bR.ReadInt32();
+                _responseRateLimitSlip = bR.ReadInt32();
+                _responseRateLimitTableSize = bR.ReadInt32();
+                _responseRateLimitBypassList = AuthZoneInfo.ReadNetworkAddressesFrom(bR);
+                ResetReflectionRrl();
+            }
+
             if (!isConfigTransfer)
             {
                 _cookieRotationTimer?.Dispose();
@@ -1579,6 +1600,12 @@ namespace DnsServerCore.Dns
             bW.Write(_statsManager.EnableInMemoryStats);
             bW.Write(_statsManager.MaxStatFileDays);
             bW.Write(_useDnsCookies);
+            bW.Write(_enableResponseRateLimiting);
+            bW.Write(_responseRateLimit);
+            bW.Write(_responseRateLimitInstant);
+            bW.Write(_responseRateLimitSlip);
+            bW.Write(_responseRateLimitTableSize);
+            AuthZoneInfo.WriteNetworkAddressesTo(_responseRateLimitBypassList, bW);
         }
 
         #endregion
@@ -2294,9 +2321,10 @@ namespace DnsServerCore.Dns
                                 }
                             }
 
-                            if (HasQpmLimitExceeded(remoteEP.Address, DnsTransportProtocol.Udp))
+                            Security.UdpResponseRateLimitResult rrlResult = EvaluateReflectionRrl(remoteEP.Address);
+                            if (rrlResult != Security.UdpResponseRateLimitResult.Allowed)
                             {
-                                if (SendQpmLimitExceededTruncationResponse())
+                                if (rrlResult == Security.UdpResponseRateLimitResult.LimitedSlip)
                                 {
                                     sendTruncationResponse = true;
                                 }
@@ -3401,7 +3429,7 @@ namespace DnsServerCore.Dns
 
             // Attach requestCookie to response if needed
             if (protocol == DnsTransportProtocol.Udp && _cookieValidator != null && request.EDNS != null)
-            {            
+            {
                 if (requestCookie != null && requestCookie.ClientCookie.Length == 8)
                 {
                     byte[] serverCookie = _cookieValidator.CreateResponseCookie(remoteEP.Address, requestCookie.ClientCookie);
@@ -6781,6 +6809,32 @@ namespace DnsServerCore.Dns
             return false;
         }
 
+        private Security.UdpResponseRateLimitResult EvaluateReflectionRrl(IPAddress remoteIP)
+        {
+            if (!_enableResponseRateLimiting)
+                return Security.UdpResponseRateLimitResult.Allowed;
+
+            if (_responseRateLimitBypassList is not null)
+            {
+                foreach (NetworkAddress network in _responseRateLimitBypassList)
+                    if (network.Contains(remoteIP))
+                        return Security.UdpResponseRateLimitResult.Allowed;
+            }
+
+            return _reflectionRrl.Evaluate(remoteIP);
+        }
+
+        private void ResetReflectionRrl()
+        {
+            _reflectionRrl = new Security.UdpResponseRateLimiter(new Security.UdpResponseRateLimiterOptions
+            {
+                Capacity = _responseRateLimitTableSize,
+                SustainedRate = _responseRateLimit,
+                InstantLimit = _responseRateLimitInstant,
+                SlipEvery = _responseRateLimitSlip
+            });
+        }
+
         private bool HasQpmLimitExceeded(NetworkAddress clientSubnet, DnsTransportProtocol protocol, (int, int) qpmLimits, IReadOnlyDictionary<NetworkAddress, (long, long)> qpmLimitClientSubnetStats, out int qpmLimit, out int currentQpm)
         {
             qpmLimit = protocol == DnsTransportProtocol.Udp ? qpmLimits.Item1 : qpmLimits.Item2;
@@ -8143,6 +8197,43 @@ namespace DnsServerCore.Dns
                     throw new ArgumentOutOfRangeException(nameof(QpmLimitBypassList), "Networks cannot have more than 255 entries.");
                 else
                     _qpmLimitBypassList = value;
+            }
+        }
+
+        public bool EnableResponseRateLimiting { get => _enableResponseRateLimiting; set => _enableResponseRateLimiting = value; }
+
+        public int ResponseRateLimit
+        {
+            get => _responseRateLimit;
+            set { if (value < 1) throw new ArgumentOutOfRangeException(nameof(ResponseRateLimit)); _responseRateLimit = value; ResetReflectionRrl(); }
+        }
+
+        public int ResponseRateLimitInstant
+        {
+            get => _responseRateLimitInstant;
+            set { if (value < 1) throw new ArgumentOutOfRangeException(nameof(ResponseRateLimitInstant)); _responseRateLimitInstant = value; ResetReflectionRrl(); }
+        }
+
+        public int ResponseRateLimitSlip
+        {
+            get => _responseRateLimitSlip;
+            set { if (value < 0) throw new ArgumentOutOfRangeException(nameof(ResponseRateLimitSlip)); _responseRateLimitSlip = value; ResetReflectionRrl(); }
+        }
+
+        public int ResponseRateLimitTableSize
+        {
+            get => _responseRateLimitTableSize;
+            set { if (value < 16) throw new ArgumentOutOfRangeException(nameof(ResponseRateLimitTableSize)); _responseRateLimitTableSize = value; ResetReflectionRrl(); }
+        }
+
+        public IReadOnlyCollection<NetworkAddress> ResponseRateLimitBypassList
+        {
+            get => _responseRateLimitBypassList;
+            set
+            {
+                if (value is not null && value.Count > byte.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(ResponseRateLimitBypassList));
+                _responseRateLimitBypassList = value is null || value.Count == 0 ? null : value;
             }
         }
 
