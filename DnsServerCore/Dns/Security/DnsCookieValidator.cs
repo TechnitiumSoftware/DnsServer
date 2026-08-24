@@ -125,8 +125,8 @@ namespace DnsServerCore.Dns.Security
             ReadOnlySpan<byte> key16 = secret.Slice(0, 16); // acceptable if secret is uniformly random
             ulong tag = SipHash24.Compute(key16, input);
 
-            // Store tag in network order for deterministic on-wire representation
-            BinaryPrimitives.WriteUInt64BigEndian(cookie.AsSpan(MacOffset, MacLen), tag);
+            // SipHash's octet output is the little-endian serialization of the ulong result.
+            BinaryPrimitives.WriteUInt64LittleEndian(cookie.AsSpan(MacOffset, MacLen), tag);
 
             return cookie;
         }
@@ -230,7 +230,7 @@ namespace DnsServerCore.Dns.Security
             // Constant-time compare without allocating:
             // compare tags by bytes, not by ulong equality (avoids timing artifacts)
             Span<byte> expectedBytes = stackalloc byte[8];
-            BinaryPrimitives.WriteUInt64BigEndian(expectedBytes, expectedTag);
+            BinaryPrimitives.WriteUInt64LittleEndian(expectedBytes, expectedTag);
             return CryptographicOperations.FixedTimeEquals(expectedBytes, serverCookie.Slice(MacOffset, MacLen));
         }
 
