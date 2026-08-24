@@ -1848,6 +1848,67 @@ namespace DnsServerCore.Dns
             }
         }
 
+        // This is deliberately a statement about return-routability only.  A valid
+        // cookie bypasses reflection RRL, but does not bypass any other admission,
+        // query, or resource-control policy.
+        private enum CookieRequestState
+        {
+            NoCookie,
+            ClientOnly,
+            InvalidServerCookie,
+            ValidServerCookie,
+            MalformedCookie
+        }
+
+        private readonly struct CookieRequestClassification
+        {
+            public CookieRequestState State { get; }
+            public CookieOptionData Cookie { get; }
+
+            public CookieRequestClassification(CookieRequestState state, CookieOptionData cookie = null)
+            {
+                State = state;
+                Cookie = cookie;
+            }
+        }
+
+        private CookieRequestClassification ClassifyCookieForReflectionRrl(DnsDatagram request, IPAddress clientAddress)
+        {
+            if (request.EDNS is null)
+                return new CookieRequestClassification(CookieRequestState.NoCookie);
+
+            // RFC 7873 says to process only the first COOKIE option.  In particular,
+            // never let a later valid option repair a malformed or invalid first one.
+            foreach (EDnsOption option in request.EDNS.Options)
+            {
+                if (option.Code != EDnsOptionCode.COOKIE)
+                    continue;
+
+                if (option.Data is not EDnsCookieOptionData cookieData)
+                    return new CookieRequestClassification(CookieRequestState.MalformedCookie);
+
+                var cookie = new CookieOptionData(cookieData.ClientCookie.ToArray(), cookieData.ServerCookie.ToArray());
+                int clientLength = cookie.ClientCookie.Length;
+                int serverLength = cookie.ServerCookie.Length;
+                if (clientLength != 8 || (serverLength != 0 && (serverLength < 8 || serverLength > 32)))
+                    return new CookieRequestClassification(CookieRequestState.MalformedCookie, cookie);
+
+                if (serverLength == 0)
+                    return new CookieRequestClassification(CookieRequestState.ClientOnly, cookie);
+
+                Security.DnsCookieValidator validator = _cookieValidator;
+                if (serverLength != 16 || cookie.ServerCookie[0] != 1 || validator is null ||
+                    !validator.Validate(clientAddress, cookie.ClientCookie, cookie.ServerCookie))
+                {
+                    return new CookieRequestClassification(CookieRequestState.InvalidServerCookie, cookie);
+                }
+
+                return new CookieRequestClassification(CookieRequestState.ValidServerCookie, cookie);
+            }
+
+            return new CookieRequestClassification(CookieRequestState.NoCookie);
+        }
+
         private static bool HasCookieOption(DnsDatagram request)
         {
             if (request.EDNS is null)
@@ -1860,21 +1921,6 @@ namespace DnsServerCore.Dns
             }
 
             return false;
-        }
-
-        private static CookieOptionData TryGetCookieOption(DnsDatagram request)
-        {
-            DnsDatagramEdns edns = request.EDNS;
-            if (edns is null)
-                return null;
-
-            foreach (EDnsOption opt in edns.Options)
-            {
-                if (opt.Code == EDnsOptionCode.COOKIE && opt.Data is EDnsCookieOptionData cookie)
-                    return new CookieOptionData(cookie.ClientCookie.ToArray(), cookie.ServerCookie.ToArray());
-            }
-
-            return null;
         }
 
         private DnsDatagram BuildBadCookieResponse(
@@ -2321,7 +2367,16 @@ namespace DnsServerCore.Dns
                                 }
                             }
 
-                            Security.UdpResponseRateLimitResult rrlResult = EvaluateReflectionRrl(remoteEP.Address);
+                            // Classify COOKIE before reflection RRL.  Only a cryptographically
+                            // valid Server Cookie proves approximate return-routability; every
+                            // other state (including malformed) remains subject to RRL.
+                            CookieRequestClassification cookieClassification =
+                                ClassifyCookieForReflectionRrl(request, remoteEP.Address);
+                            Security.UdpResponseRateLimitResult rrlResult =
+                                protocol == DnsTransportProtocol.Udp &&
+                                cookieClassification.State == CookieRequestState.ValidServerCookie
+                                    ? Security.UdpResponseRateLimitResult.Allowed
+                                    : EvaluateReflectionRrl(remoteEP.Address);
                             if (rrlResult != Security.UdpResponseRateLimitResult.Allowed)
                             {
                                 if (rrlResult == Security.UdpResponseRateLimitResult.LimitedSlip)
@@ -3307,9 +3362,11 @@ namespace DnsServerCore.Dns
                 request.EDNS != null &&
                 cookieValidator != null)
             {
-                requestCookie = TryGetCookieOption(request);
+                CookieRequestClassification cookieClassification =
+                    ClassifyCookieForReflectionRrl(request, remoteEP.Address);
+                requestCookie = cookieClassification.Cookie;
 
-                if (requestCookie == null)
+                if (cookieClassification.State == CookieRequestState.NoCookie)
                 {
                     Interlocked.Increment(ref _cookieMissing);
 
@@ -3327,17 +3384,7 @@ namespace DnsServerCore.Dns
                 }
                 else
                 {
-                    // RFC 7873: CC MUST be 8 bytes. Total length MUST be 8 OR 16..40.
-                    int ccLen = requestCookie.ClientCookie.Length;
-                    int scLen = requestCookie.ServerCookie.Length;
-                    bool lengthOk =
-                        (ccLen == 8) &&
-                        (
-                            (scLen == 0) ||                     // totalLen == 8
-                            (scLen >= 8 && scLen <= 32)         // totalLen 16..40
-                        );
-
-                    if (!lengthOk)
+                    if (cookieClassification.State == CookieRequestState.MalformedCookie)
                     {
                         // Malformed COOKIE option => FORMERR
                         Interlocked.Increment(ref _cookieInvalid);
@@ -3364,8 +3411,10 @@ namespace DnsServerCore.Dns
                         { Tag = DnsServerResponseType.Authoritative };
                     }
 
+                    int scLen = requestCookie.ServerCookie.Length;
+
                     // CC-only: valid request; we'll attach SC to the normal response later (no extra RTT).
-                    if (scLen == 0)
+                    if (cookieClassification.State == CookieRequestState.ClientOnly)
                     {
                         Interlocked.Increment(ref _cookieClientOnly);
 
@@ -3381,7 +3430,7 @@ namespace DnsServerCore.Dns
                             return null;
                         }
                     }
-                    else
+                    else if (cookieClassification.State == CookieRequestState.InvalidServerCookie)
                     {
                         // CC+SC present
                         // v1 requires totalLen == 24 (CC 8 + SC 16). Anything else is “not a valid server cookie”.
@@ -3407,17 +3456,15 @@ namespace DnsServerCore.Dns
                                 "unsupported-version");
                         }
 
-                        // v1: validate cryptographically
-                        if (!_cookieValidator.Validate(remoteEP.Address, requestCookie.ClientCookie, requestCookie.ServerCookie))
-                        {
-                            return HandleInvalidCookieRequest(
-                                request,
-                                remoteEP,
-                                isRecursionAllowed,
-                                requestCookie,
-                                "crypto-validate");
-                        }
-
+                        return HandleInvalidCookieRequest(
+                            request,
+                            remoteEP,
+                            isRecursionAllowed,
+                            requestCookie,
+                            "crypto-validate");
+                    }
+                    else
+                    {
                         Interlocked.Increment(ref _cookieValid);
                     }
                 }
