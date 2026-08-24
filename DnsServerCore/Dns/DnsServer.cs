@@ -1835,7 +1835,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private CookieRequestClassification ClassifyCookieForReflectionRrl(DnsDatagram request, IPAddress clientAddress)
+        private CookieRequestClassification ClassifyCookieRequest(DnsDatagram request, IPAddress clientAddress)
         {
             if (request.EDNS is null)
                 return new CookieRequestClassification(CookieRequestState.NoCookie);
@@ -1884,6 +1884,18 @@ namespace DnsServerCore.Dns
             }
 
             return false;
+        }
+
+        private static bool IsUdpTransport(DnsTransportProtocol protocol)
+        {
+            return protocol == DnsTransportProtocol.Udp || protocol == DnsTransportProtocol.UdpProxy;
+        }
+
+        private static bool SupportsDnsCookies(DnsTransportProtocol protocol)
+        {
+            return IsUdpTransport(protocol) ||
+                protocol == DnsTransportProtocol.Tcp ||
+                protocol == DnsTransportProtocol.TcpProxy;
         }
 
         private DnsDatagram BuildBadCookieResponse(
@@ -2152,9 +2164,8 @@ namespace DnsServerCore.Dns
                             // valid Server Cookie proves approximate return-routability; every
                             // other state (including malformed) remains subject to RRL.
                             CookieRequestClassification cookieClassification =
-                                ClassifyCookieForReflectionRrl(request, remoteEP.Address);
+                                ClassifyCookieRequest(request, remoteEP.Address);
                             Security.UdpResponseRateLimitResult rrlResult =
-                                protocol == DnsTransportProtocol.Udp &&
                                 cookieClassification.State == CookieRequestState.ValidServerCookie
                                     ? Security.UdpResponseRateLimitResult.Allowed
                                     : EvaluateReflectionRrl(remoteEP.Address);
@@ -3139,12 +3150,11 @@ namespace DnsServerCore.Dns
             // DNS Cookies (RFC 7873 / RFC 9018 v1)
             CookieOptionData requestCookie = null;
             var cookieValidator = _cookieValidator;
-            if (protocol == DnsTransportProtocol.Udp &&
+            if (SupportsDnsCookies(protocol) &&
                 request.EDNS != null &&
                 cookieValidator != null)
             {
-                CookieRequestClassification cookieClassification =
-                    ClassifyCookieForReflectionRrl(request, remoteEP.Address);
+                CookieRequestClassification cookieClassification = ClassifyCookieRequest(request, remoteEP.Address);
                 requestCookie = cookieClassification.Cookie;
 
                 if (cookieClassification.State == CookieRequestState.NoCookie)
@@ -3188,12 +3198,18 @@ namespace DnsServerCore.Dns
                     else if (cookieClassification.State == CookieRequestState.InvalidServerCookie)
                     {
                         // Treat an invalid Server Cookie like a Client-Cookie-only request:
-                        // return a fresh Server Cookie without maintaining per-client state.
-                        return HandleInvalidCookieRequest(
-                            request,
-                            remoteEP,
-                            isRecursionAllowed,
-                            requestCookie);
+                        // TCP can safely process the query and return a fresh cookie. UDP uses
+                        // BADCOOKIE so that an unverified source cannot solicit a full response.
+                        if (IsUdpTransport(protocol))
+                        {
+                            return HandleInvalidCookieRequest(
+                                request,
+                                remoteEP,
+                                isRecursionAllowed,
+                                requestCookie);
+                        }
+
+                        Interlocked.Increment(ref _cookieInvalid);
                     }
                     else
                     {
@@ -3207,7 +3223,7 @@ namespace DnsServerCore.Dns
                 return null;
 
             // Attach requestCookie to response if needed
-            if (protocol == DnsTransportProtocol.Udp && _cookieValidator != null && request.EDNS != null)
+            if (SupportsDnsCookies(protocol) && _cookieValidator != null && request.EDNS != null)
             {
                 if (requestCookie != null && requestCookie.ClientCookie.Length == 8)
                 {
