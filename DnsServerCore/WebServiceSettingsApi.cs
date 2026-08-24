@@ -244,9 +244,11 @@ namespace DnsServerCore
                 jsonWriter.WriteBoolean("enableDnsOverHttp3", _dnsWebService._dnsServer.EnableDnsOverHttp3);
                 jsonWriter.WriteBoolean("enableDnsOverQuic", _dnsWebService._dnsServer.EnableDnsOverQuic);
                 jsonWriter.WriteBoolean("useDnsCookies", _dnsWebService._dnsServer.UseDnsCookies);
+                jsonWriter.WriteString("dnsCookieActiveSecretFingerprint", _dnsWebService._dnsServer.ActiveDnsCookieSecretId);
+                jsonWriter.WriteString("dnsCookieStagingSecretFingerprint", _dnsWebService._dnsServer.StagingDnsCookieSecretId);
                 jsonWriter.WriteBoolean("dnsCookiesAntiReflectionProtectionComplete", !_dnsWebService._dnsServer.UseDnsCookies || _dnsWebService._dnsServer.EnableResponseRateLimiting);
                 if (_dnsWebService._dnsServer.UseDnsCookies && !_dnsWebService._dnsServer.EnableResponseRateLimiting)
-                    jsonWriter.WriteString("dnsCookiesWarning", "DNS Cookies are enabled without UDP response rate limiting; anti-reflection COOKIE protection is incomplete. The recommended configuration is response rate limiting enabled with DNS Cookies enabled.");
+                    jsonWriter.WriteString("dnsCookiesWarning", "DNS Cookies are enabled without UDP Response Rate Limiting. Valid cookies can establish client return-routability, but unverified spoofable UDP traffic is not protected by the DNS Cookie/RRL anti-reflection policy.");
                 jsonWriter.WriteBoolean("enableDnsOverHttpHelpRedirect", _dnsWebService._dnsServer.EnableDnsOverHttpHelpRedirect);
                 jsonWriter.WriteNumber("dnsOverUdpProxyPort", _dnsWebService._dnsServer.DnsOverUdpProxyPort);
                 jsonWriter.WriteNumber("dnsOverTcpProxyPort", _dnsWebService._dnsServer.DnsOverTcpProxyPort);
@@ -502,7 +504,7 @@ namespace DnsServerCore
                 bool protectionComplete = !_dnsWebService._dnsServer.UseDnsCookies || _dnsWebService._dnsServer.EnableResponseRateLimiting;
                 jsonWriter.WriteBoolean("antiReflectionProtectionComplete", protectionComplete);
                 if (!protectionComplete)
-                    jsonWriter.WriteString("warning", "DNS Cookies are enabled without UDP response rate limiting; anti-reflection COOKIE protection is incomplete. The recommended configuration is response rate limiting enabled with DNS Cookies enabled.");
+                    jsonWriter.WriteString("warning", "DNS Cookies are enabled without UDP Response Rate Limiting. Valid cookies can establish client return-routability, but unverified spoofable UDP traffic is not protected by the DNS Cookie/RRL anti-reflection policy.");
             }
 
             private void ChangeDnsCookieSecret(HttpContext context, Action action, string operation)

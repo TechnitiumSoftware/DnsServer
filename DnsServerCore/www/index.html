@@ -1175,20 +1175,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <div><b>Note!</b> Enabling UDP socket pool provides port randomization for all outbound DNS-over-UDP requests to mitigate spoofing attacks. It is recommended to enable UDP socket pool on Windows platform. On Linux, ports are fairly random and thus socket pool may be enabled if more randomization is desired. The DNS Server can detect DNS spoofing attack attempts based on ID mismatch and switch to TCP protocol automatically.</div>
                                                     </div>
 
-                                                    <div id="divSettingsGeneralDnsCookies" class="well well-sm form-horizontal">
-                                                        <div class="form-group">
-                                                            <label class="col-sm-3 control-label">Use DNS Cookies</label>
-                                                            <div class="col-sm-8">
-                                                                <div class="checkbox">
-                                                                    <label>
-                                                                        <input id="chkUseDnsCookies" type="checkbox"/> Use DNS Cookies
-                                                                    </label>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div style="padding-top: 5px;">Enable this option to use DNS Cookies for UDP queries. For complete anti-reflection COOKIE protection, the recommended configuration is Response Rate Limiting enabled with DNS Cookies enabled. Cookies remain available without response rate limiting for other legitimate uses.</div>
-                                                    </div>
-
                                                     <div id="divSettingsGeneralEDns" class="well well-sm form-horizontal">
                                                         <div class="form-group">
                                                             <label for="txtEdnsUdpPayloadSize" class="col-sm-3 control-label">EDNS UDP Payload Size</label>
@@ -1275,6 +1261,48 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                     </div>
 
                                                     <div id="divSettingsGeneralRateLimiting" class="well well-sm form-horizontal">
+                                                        <h4>Response Rate Limiting</h4>
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Enabled</label>
+                                                            <div class="col-sm-8 checkbox"><label><input id="chkEnableResponseRateLimiting" type="checkbox"> Enable UDP Response Rate Limiting</label></div>
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label for="txtResponseRateLimit" class="col-sm-3 control-label">Rate</label>
+                                                            <div class="col-sm-8"><input id="txtResponseRateLimit" type="number" min="1" class="form-control" style="width: 120px; display: inline;"> responses/second</div>
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label for="txtResponseRateLimitInstant" class="col-sm-3 control-label">Instant limit</label>
+                                                            <div class="col-sm-8"><input id="txtResponseRateLimitInstant" type="number" min="1" class="form-control" style="width: 120px; display: inline;"> responses</div>
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label for="txtResponseRateLimitSlip" class="col-sm-3 control-label">Slip</label>
+                                                            <div class="col-sm-8"><input id="txtResponseRateLimitSlip" type="number" min="0" class="form-control" style="width: 120px; display: inline;"></div>
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label for="txtResponseRateLimitTableSize" class="col-sm-3 control-label">Table size</label>
+                                                            <div class="col-sm-8"><input id="txtResponseRateLimitTableSize" type="number" min="16" class="form-control" style="width: 120px; display: inline;"> entries</div>
+                                                        </div>
+
+                                                        <hr>
+                                                        <h4>DNS Cookies</h4>
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Enabled</label>
+                                                            <div class="col-sm-8 checkbox"><label><input id="chkUseDnsCookies" type="checkbox"> Enable DNS Cookies</label></div>
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Active secret fingerprint</label>
+                                                            <div class="col-sm-8"><p id="lblDnsCookieActiveSecretFingerprint" class="form-control-static"><code>Unavailable</code></p></div>
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Staging secret fingerprint</label>
+                                                            <div class="col-sm-8"><p id="lblDnsCookieStagingSecretFingerprint" class="form-control-static"><code>None</code></p></div>
+                                                        </div>
+                                                        <div id="divDnsCookieRrlWarning" class="alert alert-warning" style="display: none;">
+                                                            DNS Cookies are enabled without UDP Response Rate Limiting. Valid cookies can establish client return-routability, but unverified spoofable UDP traffic is not protected by the DNS Cookie/RRL anti-reflection policy.
+                                                        </div>
+
+                                                        <hr>
+                                                        <h4>Query Rate Limiting</h4>
                                                         <div class="form-group">
                                                             <label class="col-sm-3 control-label">Queries Per Minute (QPM) Limits (IPv4)</label>
                                                             <div class="col-sm-6">
