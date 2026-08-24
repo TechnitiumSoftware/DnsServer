@@ -512,6 +512,11 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Access was denied.");
 
                 action();
+                if (_dnsWebService._clusterManager.ClusterInitialized &&
+                    _dnsWebService._clusterManager.GetSelfNode().Type == ClusterNodeType.Primary)
+                {
+                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodes();
+                }
                 _dnsWebService._log.Write(_dnsWebService.GetRemoteEndPoint(context), "[" + sessionUser.Username + "] DNS Cookie " + operation + " completed successfully.");
                 GetDnsCookieSecrets(context);
             }

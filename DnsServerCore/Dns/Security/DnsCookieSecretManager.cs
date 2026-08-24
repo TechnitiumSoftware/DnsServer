@@ -76,12 +76,17 @@ namespace DnsServerCore.Dns.Security
         private Snapshot LoadLocked()
         {
             // Caller must hold _lock
-            if (!File.Exists(_secretFilePath))
+            return LoadFileLocked(_secretFilePath);
+        }
+
+        private static Snapshot LoadFileLocked(string path)
+        {
+            if (!File.Exists(path))
                 return null;
 
             try
             {
-                byte[] data = File.ReadAllBytes(_secretFilePath);
+                byte[] data = File.ReadAllBytes(path);
                 using MemoryStream ms = new MemoryStream(data, writable: false);
                 using BinaryReader br = new BinaryReader(ms);
 
@@ -275,6 +280,34 @@ namespace DnsServerCore.Dns.Security
                 Snapshot next = new Snapshot(current.Active, null, current.ActiveCreatedUtc);
                 SaveLocked(next);
                 Volatile.Write(ref _snapshot, next);
+            }
+        }
+
+        public void Import(Stream stream)
+        {
+            if (stream is null)
+                throw new ArgumentNullException(nameof(stream));
+
+            using MemoryStream buffer = new MemoryStream();
+            stream.CopyTo(buffer);
+
+            lock (_lock)
+            {
+                WriteSecretFile(_secretFilePath + ".tmp", buffer.ToArray());
+                Snapshot imported = LoadFileLocked(_secretFilePath + ".tmp");
+                if (imported is null)
+                {
+                    File.Delete(_secretFilePath + ".tmp");
+                    throw new InvalidDataException("Invalid DNS Cookie secret state.");
+                }
+
+                if (File.Exists(_secretFilePath))
+                    File.Replace(_secretFilePath + ".tmp", _secretFilePath, destinationBackupFileName: null);
+                else
+                    File.Move(_secretFilePath + ".tmp", _secretFilePath);
+
+                RestrictSecretFilePermissions(_secretFilePath);
+                Volatile.Write(ref _snapshot, imported);
             }
         }
 

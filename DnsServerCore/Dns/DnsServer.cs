@@ -1259,8 +1259,7 @@ namespace DnsServerCore.Dns
             {
                 // Backward-compatible read: older config files won't have this trailing flag.
                 bool useDnsCookies = bR.ReadBoolean();
-                if (!isConfigTransfer)
-                    _useDnsCookies = useDnsCookies;
+                _useDnsCookies = useDnsCookies;
             }
             else if (!isConfigTransfer)
             {
@@ -1278,13 +1277,10 @@ namespace DnsServerCore.Dns
                 ResetReflectionRrl();
             }
 
-            if (!isConfigTransfer)
-            {
-                _cookieRotationTimer?.Dispose();
-                _cookieRotationTimer = null;
+            _cookieRotationTimer?.Dispose();
+            _cookieRotationTimer = null;
 
-                InitDnsCookies();
-            }
+            InitDnsCookies();
         }
 
         private void WriteConfigTo(Stream s)
@@ -8316,6 +8312,8 @@ namespace DnsServerCore.Dns
         public void ActivateDnsCookieSecret() => GetDnsCookieSecrets().ActivateStaging();
 
         public void DropDnsCookieSecret() => GetDnsCookieSecrets().DropStaging();
+
+        internal void ImportDnsCookieSecretState(Stream stream) => GetDnsCookieSecrets().Import(stream);
 
         public IReadOnlyCollection<NetworkAccessControl> ReverseProxyNetworkACL
         {

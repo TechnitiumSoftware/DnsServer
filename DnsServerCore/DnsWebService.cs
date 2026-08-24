@@ -686,6 +686,12 @@ namespace DnsServerCore
                     if (File.Exists(dnsConfigFile) && (File.GetLastWriteTimeUtc(dnsConfigFile) > ifModifiedSince))
                         backupZip.CreateEntryFromFile(dnsConfigFile, "dns.config");
 
+                    // DNS Cookie secrets are cluster configuration: all nodes must
+                    // validate cookies issued by any other node.
+                    string dnsCookieStateFile = Path.Combine(_configFolder, "dns.cookies.state");
+                    if (File.Exists(dnsCookieStateFile) && (File.GetLastWriteTimeUtc(dnsCookieStateFile) > ifModifiedSince))
+                        backupZip.CreateEntryFromFile(dnsCookieStateFile, "dns.cookies.state");
+
                     //backup optional protocols cert
                     if (!isConfigTransfer && !string.IsNullOrEmpty(_dnsServer.DnsTlsCertificatePath))
                     {
@@ -696,6 +702,7 @@ namespace DnsServerCore
                             string entryName = ConvertToRelativePath(dnsTlsCertificatePath).Replace('\\', '/');
                             backupZip.CreateEntryFromFile(dnsTlsCertificatePath, entryName);
                         }
+
                     }
                 }
 
@@ -1074,6 +1081,13 @@ namespace DnsServerCore
                                     }
                                 }
                             }
+                        }
+
+                        ZipArchiveEntry dnsCookieStateEntry = backupZip.GetEntry("dns.cookies.state");
+                        if (dnsCookieStateEntry is not null)
+                        {
+                            await using Stream stream = dnsCookieStateEntry.Open();
+                            _dnsServer.ImportDnsCookieSecretState(stream);
                         }
                     }
 
