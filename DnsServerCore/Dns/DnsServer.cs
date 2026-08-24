@@ -1799,6 +1799,23 @@ namespace DnsServerCore.Dns
             }
         }
 
+        private Security.DnsCookieSecretManager GetDnsCookieSecrets()
+        {
+            lock (_saveLock)
+            {
+                if (_cookieSecrets is null)
+                {
+                    string secretPath = Path.IsPathRooted(_dnsCookiesSecretFile)
+                        ? _dnsCookiesSecretFile
+                        : Path.Combine(_configFolder, _dnsCookiesSecretFile);
+
+                    _cookieSecrets = new Security.DnsCookieSecretManager(secretPath);
+                }
+
+                return _cookieSecrets;
+            }
+        }
+
         private sealed class CookieOptionData
         {
             public byte[] ClientCookie { get; }
@@ -8287,6 +8304,18 @@ namespace DnsServerCore.Dns
                 InitDnsCookies();
             }
         }
+
+        public string ActiveDnsCookieSecretId => GetDnsCookieSecrets().ActiveId;
+
+        public string StagingDnsCookieSecretId => GetDnsCookieSecrets().StagingId;
+
+        public DateTime ActiveDnsCookieSecretCreatedUtc => GetDnsCookieSecrets().ActiveCreatedUtc;
+
+        public void AddDnsCookieSecret() => GetDnsCookieSecrets().AddStaging();
+
+        public void ActivateDnsCookieSecret() => GetDnsCookieSecrets().ActivateStaging();
+
+        public void DropDnsCookieSecret() => GetDnsCookieSecrets().DropStaging();
 
         public IReadOnlyCollection<NetworkAccessControl> ReverseProxyNetworkACL
         {

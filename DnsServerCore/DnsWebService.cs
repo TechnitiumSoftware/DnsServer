@@ -2193,6 +2193,10 @@ namespace DnsServerCore
             //settings
             _webService.MapGetAndPost("/api/settings/get", _settingsApi.GetDnsSettings);
             _webService.MapGetAndPost("/api/settings/set", _settingsApi.SetDnsSettingsAsync);
+            _webService.MapGetAndPost("/api/settings/dnsCookies/get", _settingsApi.GetDnsCookieSecrets);
+            _webService.MapGetAndPost("/api/settings/dnsCookies/addSecret", _settingsApi.AddDnsCookieSecret);
+            _webService.MapGetAndPost("/api/settings/dnsCookies/activateSecret", _settingsApi.ActivateDnsCookieSecret);
+            _webService.MapGetAndPost("/api/settings/dnsCookies/dropSecret", _settingsApi.DropDnsCookieSecret);
             _webService.MapGetAndPost("/api/settings/getTsigKeyNames", _settingsApi.GetTsigKeyNames);
             _webService.MapGetAndPost("/api/settings/forceUpdateBlockLists", _settingsApi.ForceUpdateBlockLists);
             _webService.MapGetAndPost("/api/settings/temporaryDisableBlocking", _settingsApi.TemporaryDisableBlocking);

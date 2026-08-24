@@ -244,6 +244,9 @@ namespace DnsServerCore
                 jsonWriter.WriteBoolean("enableDnsOverHttp3", _dnsWebService._dnsServer.EnableDnsOverHttp3);
                 jsonWriter.WriteBoolean("enableDnsOverQuic", _dnsWebService._dnsServer.EnableDnsOverQuic);
                 jsonWriter.WriteBoolean("useDnsCookies", _dnsWebService._dnsServer.UseDnsCookies);
+                jsonWriter.WriteBoolean("dnsCookiesAntiReflectionProtectionComplete", !_dnsWebService._dnsServer.UseDnsCookies || _dnsWebService._dnsServer.EnableResponseRateLimiting);
+                if (_dnsWebService._dnsServer.UseDnsCookies && !_dnsWebService._dnsServer.EnableResponseRateLimiting)
+                    jsonWriter.WriteString("dnsCookiesWarning", "DNS Cookies are enabled without UDP response rate limiting; anti-reflection COOKIE protection is incomplete. The recommended configuration is response rate limiting enabled with DNS Cookies enabled.");
                 jsonWriter.WriteBoolean("enableDnsOverHttpHelpRedirect", _dnsWebService._dnsServer.EnableDnsOverHttpHelpRedirect);
                 jsonWriter.WriteNumber("dnsOverUdpProxyPort", _dnsWebService._dnsServer.DnsOverUdpProxyPort);
                 jsonWriter.WriteNumber("dnsOverTcpProxyPort", _dnsWebService._dnsServer.DnsOverTcpProxyPort);
@@ -483,6 +486,41 @@ namespace DnsServerCore
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteDnsSettings(jsonWriter);
             }
+
+            public void GetDnsCookieSecrets(HttpContext context)
+            {
+                User sessionUser = _dnsWebService.GetSessionUser(context);
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, sessionUser, PermissionFlag.View))
+                    throw new DnsWebServiceException("Access was denied.");
+
+                Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+                jsonWriter.WriteString("activeSecretId", _dnsWebService._dnsServer.ActiveDnsCookieSecretId);
+                jsonWriter.WriteString("activeSecretCreatedUtc", _dnsWebService._dnsServer.ActiveDnsCookieSecretCreatedUtc);
+                jsonWriter.WriteString("stagingSecretId", _dnsWebService._dnsServer.StagingDnsCookieSecretId);
+                jsonWriter.WriteBoolean("useDnsCookies", _dnsWebService._dnsServer.UseDnsCookies);
+                jsonWriter.WriteBoolean("enableResponseRateLimiting", _dnsWebService._dnsServer.EnableResponseRateLimiting);
+                bool protectionComplete = !_dnsWebService._dnsServer.UseDnsCookies || _dnsWebService._dnsServer.EnableResponseRateLimiting;
+                jsonWriter.WriteBoolean("antiReflectionProtectionComplete", protectionComplete);
+                if (!protectionComplete)
+                    jsonWriter.WriteString("warning", "DNS Cookies are enabled without UDP response rate limiting; anti-reflection COOKIE protection is incomplete. The recommended configuration is response rate limiting enabled with DNS Cookies enabled.");
+            }
+
+            private void ChangeDnsCookieSecret(HttpContext context, Action action, string operation)
+            {
+                User sessionUser = _dnsWebService.GetSessionUser(context);
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, sessionUser, PermissionFlag.Modify))
+                    throw new DnsWebServiceException("Access was denied.");
+
+                action();
+                _dnsWebService._log.Write(_dnsWebService.GetRemoteEndPoint(context), "[" + sessionUser.Username + "] DNS Cookie " + operation + " completed successfully.");
+                GetDnsCookieSecrets(context);
+            }
+
+            public void AddDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context, _dnsWebService._dnsServer.AddDnsCookieSecret, "staging secret addition");
+
+            public void ActivateDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context, _dnsWebService._dnsServer.ActivateDnsCookieSecret, "staging secret activation");
+
+            public void DropDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context, _dnsWebService._dnsServer.DropDnsCookieSecret, "staging secret removal");
 
             public async Task SetDnsSettingsAsync(HttpContext context)
             {

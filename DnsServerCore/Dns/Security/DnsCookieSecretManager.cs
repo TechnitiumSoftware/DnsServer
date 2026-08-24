@@ -220,6 +220,25 @@ namespace DnsServerCore.Dns.Security
             get { return Volatile.Read(ref _snapshot)?.Staging; }
         }
 
+        public DateTime ActiveCreatedUtc
+        {
+            get { return Volatile.Read(ref _snapshot).ActiveCreatedUtc; }
+        }
+
+        public string ActiveId
+        {
+            get { return Convert.ToHexString(SHA256.HashData(Volatile.Read(ref _snapshot).Active)); }
+        }
+
+        public string StagingId
+        {
+            get
+            {
+                byte[] staging = Volatile.Read(ref _snapshot).Staging;
+                return staging is null ? null : Convert.ToHexString(SHA256.HashData(staging));
+            }
+        }
+
         public void AddStaging()
         {
             lock (_lock)
