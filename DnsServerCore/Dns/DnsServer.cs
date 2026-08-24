@@ -1861,7 +1861,7 @@ namespace DnsServerCore.Dns
 
                 Security.DnsCookieValidator validator = _cookieValidator;
                 if (serverLength != 16 || cookie.ServerCookie[0] != 1 || validator is null ||
-                    !validator.Validate(clientAddress, cookie.ClientCookie, cookie.ServerCookie))
+                    validator.Validate(clientAddress, cookie.ClientCookie, cookie.ServerCookie) == Security.DnsCookieValidationResult.Invalid)
                 {
                     return new CookieRequestClassification(CookieRequestState.InvalidServerCookie, cookie);
                 }

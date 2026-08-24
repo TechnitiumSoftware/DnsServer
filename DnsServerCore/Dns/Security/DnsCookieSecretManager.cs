@@ -62,7 +62,7 @@ namespace DnsServerCore.Dns.Security
             {
                 Snapshot loaded = LoadLocked();
                 if (loaded is null)
-                    loaded = GenerateNewSnapshot(previousSecret: null);
+                    loaded = new Snapshot(GenerateSecret(), staging: null, DateTime.UtcNow);
 
                 SaveLocked(loaded);
                 Volatile.Write(ref _snapshot, loaded);
@@ -95,24 +95,24 @@ namespace DnsServerCore.Dns.Security
                 if (currentLen < MinSecretLen || currentLen > MaxSecretLen)
                     throw new InvalidDataException("Invalid current secret length.");
 
-                byte[] current = br.ReadBytes(currentLen);
-                if (current.Length != currentLen)
-                    throw new EndOfStreamException("Unexpected end of secret file (current secret).");
+                byte[] active = br.ReadBytes(currentLen);
+                if (active.Length != currentLen)
+                    throw new EndOfStreamException("Unexpected end of secret file (active secret).");
 
                 int previousLen = br.ReadInt32();
-                byte[] previous = null;
+                byte[] staging = null;
 
                 if (previousLen != 0)
                 {
                     if (previousLen < MinSecretLen || previousLen > MaxSecretLen)
                         throw new InvalidDataException("Invalid previous secret length.");
 
-                    previous = br.ReadBytes(previousLen);
-                    if (previous.Length != previousLen)
-                        throw new EndOfStreamException("Unexpected end of secret file (previous secret).");
+                    staging = br.ReadBytes(previousLen);
+                    if (staging.Length != previousLen)
+                        throw new EndOfStreamException("Unexpected end of secret file (staging secret).");
                 }
 
-                return new Snapshot(current, previous, createdUtc);
+                return new Snapshot(active, staging, createdUtc);
             }
             catch
             {
@@ -126,22 +126,22 @@ namespace DnsServerCore.Dns.Security
             if (snapshot is null)
                 throw new ArgumentNullException(nameof(snapshot));
 
-            if (snapshot.CurrentSecret is null || snapshot.CurrentSecret.Length < MinSecretLen)
-                throw new InvalidOperationException("Current secret is missing or too short.");
+            if (snapshot.Active is null || snapshot.Active.Length < MinSecretLen)
+                throw new InvalidOperationException("Active secret is missing or too short.");
 
             using MemoryStream ms = new MemoryStream();
             using (BinaryWriter bw = new BinaryWriter(ms))
             {
                 bw.Write(FileVersion);
-                bw.Write(snapshot.CurrentSecretCreatedUtc.Ticks);
+                bw.Write(snapshot.ActiveCreatedUtc.Ticks);
 
-                bw.Write(snapshot.CurrentSecret.Length);
-                bw.Write(snapshot.CurrentSecret);
+                bw.Write(snapshot.Active.Length);
+                bw.Write(snapshot.Active);
 
-                if (snapshot.PreviousSecret is { Length: >= MinSecretLen and <= MaxSecretLen })
+                if (snapshot.Staging is { Length: >= MinSecretLen and <= MaxSecretLen })
                 {
-                    bw.Write(snapshot.PreviousSecret.Length);
-                    bw.Write(snapshot.PreviousSecret);
+                    bw.Write(snapshot.Staging.Length);
+                    bw.Write(snapshot.Staging);
                 }
                 else
                 {
@@ -188,14 +188,9 @@ namespace DnsServerCore.Dns.Security
                 File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
         }
 
-        private Snapshot GenerateNewSnapshot(byte[] previousSecret)
+        private static byte[] GenerateSecret()
         {
-            // Caller must hold _lock
-            byte[] currentSecret = RandomNumberGenerator.GetBytes(DefaultSecretLen);
-            DateTime createdUtc = DateTime.UtcNow;
-
-            // previousSecret is expected to be immutable once published; we pass it through as-is.
-            return new Snapshot(currentSecret, previousSecret, createdUtc);
+            return RandomNumberGenerator.GetBytes(DefaultSecretLen);
         }
 
         #endregion
@@ -206,10 +201,8 @@ namespace DnsServerCore.Dns.Security
         {
             lock (_lock)
             {
-                Snapshot currentSnapshot = Volatile.Read(ref _snapshot);
-
-                byte[] previous = currentSnapshot?.CurrentSecret;
-                Snapshot nextSnapshot = GenerateNewSnapshot(previous);
+                Snapshot current = Volatile.Read(ref _snapshot);
+                Snapshot nextSnapshot = new Snapshot(GenerateSecret(), current.Active, DateTime.UtcNow);
 
                 SaveLocked(nextSnapshot);
                 Volatile.Write(ref _snapshot, nextSnapshot);
@@ -217,30 +210,67 @@ namespace DnsServerCore.Dns.Security
         }
 
         // Hot path: lock-free, allocation-free. Returned arrays must be treated as read-only by callers.
-        public byte[] GetCurrentSecret()
+        public byte[] Active
         {
-            Snapshot snapshot = Volatile.Read(ref _snapshot);
-            return snapshot?.CurrentSecret;
+            get { return Volatile.Read(ref _snapshot)?.Active; }
         }
 
-        public byte[] GetPreviousSecret()
+        public byte[] Staging
         {
-            Snapshot snapshot = Volatile.Read(ref _snapshot);
-            return snapshot?.PreviousSecret;
+            get { return Volatile.Read(ref _snapshot)?.Staging; }
+        }
+
+        public void AddStaging()
+        {
+            lock (_lock)
+            {
+                Snapshot current = Volatile.Read(ref _snapshot);
+                Snapshot next = new Snapshot(current.Active, GenerateSecret(), current.ActiveCreatedUtc);
+                SaveLocked(next);
+                Volatile.Write(ref _snapshot, next);
+            }
+        }
+
+        public void ActivateStaging()
+        {
+            lock (_lock)
+            {
+                Snapshot current = Volatile.Read(ref _snapshot);
+                if (current.Staging is null)
+                    throw new InvalidOperationException("There is no staging secret to activate.");
+
+                Snapshot next = new Snapshot(current.Staging, current.Active, DateTime.UtcNow);
+                SaveLocked(next);
+                Volatile.Write(ref _snapshot, next);
+            }
+        }
+
+        public void DropStaging()
+        {
+            lock (_lock)
+            {
+                Snapshot current = Volatile.Read(ref _snapshot);
+                if (current.Staging is null)
+                    return;
+
+                Snapshot next = new Snapshot(current.Active, null, current.ActiveCreatedUtc);
+                SaveLocked(next);
+                Volatile.Write(ref _snapshot, next);
+            }
         }
 
         #endregion
         private sealed class Snapshot
         {
-            internal readonly byte[] CurrentSecret;
-            internal readonly byte[] PreviousSecret; // may be null
-            internal readonly DateTime CurrentSecretCreatedUtc;
+            internal readonly byte[] Active;
+            internal readonly byte[] Staging; // may be null
+            internal readonly DateTime ActiveCreatedUtc;
 
-            internal Snapshot(byte[] currentSecret, byte[] previousSecret, DateTime currentSecretCreatedUtc)
+            internal Snapshot(byte[] active, byte[] staging, DateTime activeCreatedUtc)
             {
-                CurrentSecret = currentSecret;
-                PreviousSecret = previousSecret;
-                CurrentSecretCreatedUtc = currentSecretCreatedUtc;
+                Active = active;
+                Staging = staging;
+                ActiveCreatedUtc = activeCreatedUtc;
             }
         }
     }

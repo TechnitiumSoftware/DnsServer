@@ -24,6 +24,13 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 namespace DnsServerCore.Dns.Security
 {
+    public enum DnsCookieValidationResult
+    {
+        Invalid,
+        Valid,
+        ValidRenew
+    }
+
     public sealed class DnsCookieValidator
     {
         #region constants
@@ -238,30 +245,30 @@ namespace DnsServerCore.Dns.Security
 
         #region public
 
-        public bool Validate(IPAddress clientAddress, ReadOnlySpan<byte> clientCookie, ReadOnlySpan<byte> serverCookie)
+        public DnsCookieValidationResult Validate(IPAddress clientAddress, ReadOnlySpan<byte> clientCookie, ReadOnlySpan<byte> serverCookie)
         {
             if (clientAddress is null)
-                return false;
+                return DnsCookieValidationResult.Invalid;
 
             // This validator is specifically for validating presence of BOTH CC and SC.
             if (clientCookie.IsEmpty || serverCookie.IsEmpty)
-                return false;
+                return DnsCookieValidationResult.Invalid;
 
             if (clientCookie.Length != ClientCookieLen)
-                return false;
+                return DnsCookieValidationResult.Invalid;
 
-            byte[] currentSecret = _secretManager.GetCurrentSecret();
+            byte[] active = _secretManager.Active;
 
-            if (currentSecret != null && currentSecret.Length > 0 &&
-                ValidateServerCookieWithSecret(clientAddress, clientCookie, serverCookie, currentSecret))
-                return true;
+            if (active != null && active.Length > 0 &&
+                ValidateServerCookieWithSecret(clientAddress, clientCookie, serverCookie, active))
+                return DnsCookieValidationResult.Valid;
 
-            byte[] previousSecret = _secretManager.GetPreviousSecret();
-            if (previousSecret != null && previousSecret.Length > 0 &&
-                ValidateServerCookieWithSecret(clientAddress, clientCookie, serverCookie, previousSecret))
-                return true;
+            byte[] staging = _secretManager.Staging;
+            if (staging != null && staging.Length > 0 &&
+                ValidateServerCookieWithSecret(clientAddress, clientCookie, serverCookie, staging))
+                return DnsCookieValidationResult.ValidRenew;
 
-            return false;
+            return DnsCookieValidationResult.Invalid;
         }
 
         public byte[] CreateResponseCookie(IPAddress clientAddress, ReadOnlySpan<byte> clientCookie)
@@ -274,10 +281,10 @@ namespace DnsServerCore.Dns.Security
             if (clientCookie.Length != ClientCookieLen)
                 throw new ArgumentException($"Client cookie must be {ClientCookieLen} bytes.", nameof(clientCookie));
 
-            byte[] currentSecret = _secretManager.GetCurrentSecret();
-            ValidateSecret(currentSecret);
+            byte[] active = _secretManager.Active;
+            ValidateSecret(active);
 
-            return ComputeServerCookie(clientAddress, clientCookie, currentSecret);
+            return ComputeServerCookie(clientAddress, clientCookie, active);
         }
 
         #endregion
