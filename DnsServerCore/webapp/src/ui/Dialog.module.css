@@ -1,0 +1,18 @@
+.overlay { position: fixed; inset: 0; background: rgba(5, 7, 10, 0.72); }
+.content {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 64px); overflow: auto;
+  background: var(--pan); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+.head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border-bottom: 1px solid var(--line);
+}
+.title { margin: 0; font-size: 14px; font-weight: 650; color: var(--ink); }
+.close { background: none; border: 0; color: var(--faint); font-size: 16px; cursor: pointer; }
+.body { padding: 6px 16px 14px; display: flex; flex-direction: column; gap: 12px; }
+.foot {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 13px 16px; border-top: 1px solid var(--line); background: var(--pan2);
+}

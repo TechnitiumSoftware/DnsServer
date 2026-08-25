@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
-import { useTheme, THEMES } from '../theme/ThemeProvider'
 import { visibleSections, type Permission } from './sections'
+import { ChangePassword } from '../screens/modals/ChangePassword'
+import { ChangeTheme } from '../screens/modals/ChangeTheme'
+import { Configure2FA } from '../screens/modals/Configure2FA'
+import { CreateApiToken } from '../screens/modals/CreateApiToken'
+import { MyProfile } from '../screens/modals/MyProfile'
 import styles from './Shell.module.css'
+
+type ModalId = 'profile' | 'password' | 'twofa' | 'token' | 'theme'
 
 export interface ShellSession {
   token: string
@@ -21,7 +27,14 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
   const sections = visibleSections(session.info?.permissions)
   const [active, setActive] = useState(() => sections[0]?.id ?? 'about')
   const [menuOpen, setMenuOpen] = useState(false)
-  const { theme, setTheme } = useTheme()
+  const [modal, setModal] = useState<ModalId | null>(null)
+  const [displayName, setDisplayName] = useState(session.displayName)
+  const [totpEnabled, setTotpEnabled] = useState(session.totpEnabled ?? false)
+
+  function abrir(id: ModalId) {
+    setMenuOpen(false)
+    setModal(id)
+  }
 
   // main.js — el título del documento lleva el dominio del servidor y la versión.
   useEffect(() => {
@@ -42,22 +55,28 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
           {session.info && <span className={styles.host}>{session.info.dnsServerDomain}</span>}
           <div className={styles.menu}>
             <button className={styles.menuBtn} onClick={() => setMenuOpen((v) => !v)}>
-              {session.displayName} ▾
+              {displayName} ▾
             </button>
             {menuOpen && (
               <div className={styles.menuList}>
-                <button type="button">My Profile</button>
+                <button type="button" onClick={() => abrir('profile')}>
+                  My Profile
+                </button>
                 {/* main.js:71-78 — a un usuario de SSO se le ocultan estas dos. */}
-                {!session.isSsoUser && <button type="button">Change Password</button>}
-                {!session.isSsoUser && <button type="button">Configure 2FA</button>}
-                <button type="button">Create API Token</button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length]
-                    setTheme(next)
-                  }}
-                >
+                {!session.isSsoUser && (
+                  <button type="button" onClick={() => abrir('password')}>
+                    Change Password
+                  </button>
+                )}
+                {!session.isSsoUser && (
+                  <button type="button" onClick={() => abrir('twofa')}>
+                    Configure 2FA
+                  </button>
+                )}
+                <button type="button" onClick={() => abrir('token')}>
+                  Create API Token
+                </button>
+                <button type="button" onClick={() => abrir('theme')}>
                   Change Theme
                 </button>
                 <button type="button" onClick={onLogout}>
@@ -91,6 +110,32 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
           Esta sección llega en la {current?.phase}.
         </div>
       </main>
+
+      <MyProfile
+        open={modal === 'profile'}
+        onOpenChange={(o) => setModal(o ? 'profile' : null)}
+        token={session.token}
+        onSaved={setDisplayName}
+      />
+      <ChangePassword
+        open={modal === 'password'}
+        onOpenChange={(o) => setModal(o ? 'password' : null)}
+        totpEnabled={totpEnabled}
+        token={session.token}
+      />
+      <Configure2FA
+        open={modal === 'twofa'}
+        onOpenChange={(o) => setModal(o ? 'twofa' : null)}
+        token={session.token}
+        onChanged={setTotpEnabled}
+      />
+      <CreateApiToken
+        open={modal === 'token'}
+        onOpenChange={(o) => setModal(o ? 'token' : null)}
+        username={session.username}
+        token={session.token}
+      />
+      <ChangeTheme open={modal === 'theme'} onOpenChange={(o) => setModal(o ? 'theme' : null)} />
     </div>
   )
 }

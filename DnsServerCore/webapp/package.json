@@ -13,6 +13,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.23",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
