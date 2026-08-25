@@ -1,10 +1,8 @@
 #nullable enable
 
 using System;
-using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Net;
-using System.Numerics;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 
@@ -75,8 +73,7 @@ namespace DnsServerCore.Dns.Security
         private readonly Shard[] _shards;
         private readonly int[] _ipv4PrefixLengths;
         private readonly int[] _ipv6PrefixLengths;
-        private readonly ulong _hashKey0;
-        private readonly ulong _hashKey1;
+        private readonly byte[] _hashKey;
         private const long TokenScale = 1_000_000;
         private readonly long _tokenCapacity;
         private readonly long _tokensPerSecond;
@@ -114,8 +111,7 @@ namespace DnsServerCore.Dns.Security
             _tokensPerSecond = checked((long)Math.Ceiling(options.SustainedRate * TokenScale));
             _instantLimit = options.InstantLimit;
             _slipEvery = options.SlipEvery;
-            _hashKey0 = BinaryPrimitives.ReadUInt64LittleEndian(hashKey);
-            _hashKey1 = BinaryPrimitives.ReadUInt64LittleEndian(hashKey[8..]);
+            _hashKey = hashKey.ToArray();
             _ipv4PrefixLengths = ValidatePrefixes(options.IPv4PrefixLengths, 32, nameof(options.IPv4PrefixLengths));
             _ipv6PrefixLengths = ValidatePrefixes(options.IPv6PrefixLengths, 128, nameof(options.IPv6PrefixLengths));
 
@@ -215,7 +211,7 @@ namespace DnsServerCore.Dns.Security
 
         private UdpResponseRateLimitResult Update(ReadOnlySpan<byte> key, long now)
         {
-            ulong fingerprint = SipHash24(key, _hashKey0, _hashKey1);
+            ulong fingerprint = SipHash24.Compute(_hashKey, key);
             (int shardIndex, int first, int second) = Locate(key, fingerprint);
             Shard shard = _shards[shardIndex];
             lock (shard.SyncRoot)
@@ -279,7 +275,7 @@ namespace DnsServerCore.Dns.Security
             }
         }
 
-        private (int Shard, int First, int Second) Locate(ReadOnlySpan<byte> key) => Locate(key, SipHash24(key, _hashKey0, _hashKey1));
+        private (int Shard, int First, int Second) Locate(ReadOnlySpan<byte> key) => Locate(key, SipHash24.Compute(_hashKey, key));
 
         private (int Shard, int First, int Second) Locate(ReadOnlySpan<byte> key, ulong firstHash)
         {
@@ -333,41 +329,6 @@ namespace DnsServerCore.Dns.Security
             if (remainingBits != 0)
                 bytes[wholeBytes++] &= (byte)(0xff << (8 - remainingBits));
             bytes[wholeBytes..].Clear();
-        }
-
-        // SipHash-2-4 is keyed and deliberately used instead of attacker-predictable runtime hashes.
-        private static ulong SipHash24(ReadOnlySpan<byte> data, ulong key0, ulong key1)
-        {
-            ulong v0 = 0x736f6d6570736575UL ^ key0;
-            ulong v1 = 0x646f72616e646f6dUL ^ key1;
-            ulong v2 = 0x6c7967656e657261UL ^ key0;
-            ulong v3 = 0x7465646279746573UL ^ key1;
-            int offset = 0;
-            while (offset + 8 <= data.Length)
-            {
-                ulong word = BinaryPrimitives.ReadUInt64LittleEndian(data[offset..]);
-                v3 ^= word;
-                SipRound(ref v0, ref v1, ref v2, ref v3); SipRound(ref v0, ref v1, ref v2, ref v3);
-                v0 ^= word;
-                offset += 8;
-            }
-            ulong tail = (ulong)data.Length << 56;
-            for (int i = 0; offset + i < data.Length; i++)
-                tail |= (ulong)data[offset + i] << (8 * i);
-            v3 ^= tail;
-            SipRound(ref v0, ref v1, ref v2, ref v3); SipRound(ref v0, ref v1, ref v2, ref v3);
-            v0 ^= tail;
-            v2 ^= 0xff;
-            for (int i = 0; i < 4; i++) SipRound(ref v0, ref v1, ref v2, ref v3);
-            return v0 ^ v1 ^ v2 ^ v3;
-        }
-
-        private static void SipRound(ref ulong v0, ref ulong v1, ref ulong v2, ref ulong v3)
-        {
-            v0 += v1; v1 = BitOperations.RotateLeft(v1, 13); v1 ^= v0; v0 = BitOperations.RotateLeft(v0, 32);
-            v2 += v3; v3 = BitOperations.RotateLeft(v3, 16); v3 ^= v2;
-            v0 += v3; v3 = BitOperations.RotateLeft(v3, 21); v3 ^= v0;
-            v2 += v1; v1 = BitOperations.RotateLeft(v1, 17); v1 ^= v2; v2 = BitOperations.RotateLeft(v2, 32);
         }
     }
 }
