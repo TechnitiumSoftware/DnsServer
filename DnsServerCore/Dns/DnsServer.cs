@@ -177,7 +177,7 @@ namespace DnsServerCore.Dns
         int _qpmLimitUdpTruncationPercentage = 50; //percentage of requests that are responded with TC when QPM limit exceeds for UDP (Slip)
         IReadOnlyCollection<NetworkAddress> _qpmLimitBypassList;
 
-        bool _enableResponseRateLimiting = true;
+        bool _enableResponseRateLimiting;
         int _responseRateLimit = 100;
         int _responseRateLimitInstant = 200;
         int _responseRateLimitSlip = 2;
@@ -204,7 +204,7 @@ namespace DnsServerCore.Dns
         bool _enableDnsOverHttps;
         bool _enableDnsOverHttp3;
         bool _enableDnsOverQuic;
-        bool _useDnsCookies = true;
+        bool _useDnsCookies;
         IReadOnlyCollection<NetworkAccessControl> _reverseProxyNetworkACL;
         bool _enableDnsOverHttpHelpRedirect = true;
         int _dnsOverUdpProxyPort = 538;
@@ -1258,12 +1258,11 @@ namespace DnsServerCore.Dns
             if (s.Position < s.Length)
             {
                 // Backward-compatible read: older config files won't have this trailing flag.
-                bool useDnsCookies = bR.ReadBoolean();
-                _useDnsCookies = useDnsCookies;
+                _useDnsCookies = bR.ReadBoolean();
             }
-            else if (!isConfigTransfer)
+            else
             {
-                _useDnsCookies = true;
+                _useDnsCookies = false;
             }
 
             if (s.Position < s.Length)
@@ -1275,6 +1274,10 @@ namespace DnsServerCore.Dns
                 _responseRateLimitTableSize = bR.ReadInt32();
                 _responseRateLimitBypassList = AuthZoneInfo.ReadNetworkAddressesFrom(bR);
                 ResetReflectionRrl();
+            }
+            else
+            {
+                _enableResponseRateLimiting = false;
             }
 
             _cookieRotationTimer?.Dispose();
