@@ -34,6 +34,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -177,13 +178,8 @@ namespace DnsServerCore.Dns
         int _qpmLimitUdpTruncationPercentage = 50; //percentage of requests that are responded with TC when QPM limit exceeds for UDP (Slip)
         IReadOnlyCollection<NetworkAddress> _qpmLimitBypassList;
 
-        bool _enableResponseRateLimiting;
-        int _responseRateLimit = 100;
-        int _responseRateLimitInstant = 200;
-        int _responseRateLimitSlip = 2;
-        int _responseRateLimitTableSize = 65536;
-        IReadOnlyCollection<NetworkAddress> _responseRateLimitBypassList;
-        volatile Security.UdpResponseRateLimiter _reflectionRrl;
+        const ulong INITIAL_RRL_GENERATION = 0;
+        RrlRuntimeState _rrlRuntimeState = CreateInitialRrlRuntimeState();
         readonly System.Threading.Lock _reflectionRrlLock = new System.Threading.Lock();
         long _responseRateLimiterRebuildCount;
 
@@ -1288,7 +1284,7 @@ namespace DnsServerCore.Dns
             }
             else
             {
-                _enableResponseRateLimiting = false;
+                ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { Enabled = false });
             }
 
             InitDnsCookies();
@@ -1585,12 +1581,13 @@ namespace DnsServerCore.Dns
             bW.Write(_statsManager.EnableInMemoryStats);
             bW.Write(_statsManager.MaxStatFileDays);
             bW.Write(_useDnsCookies);
-            bW.Write(_enableResponseRateLimiting);
-            bW.Write(_responseRateLimit);
-            bW.Write(_responseRateLimitInstant);
-            bW.Write(_responseRateLimitSlip);
-            bW.Write(_responseRateLimitTableSize);
-            AuthZoneInfo.WriteNetworkAddressesTo(_responseRateLimitBypassList, bW);
+            ResponseRateLimitingOptions rrlOptions = Volatile.Read(ref _rrlRuntimeState).Options;
+            bW.Write(rrlOptions.Enabled);
+            bW.Write(rrlOptions.SustainedRate);
+            bW.Write(rrlOptions.InstantLimit);
+            bW.Write(rrlOptions.SlipEvery);
+            bW.Write(rrlOptions.TableSize);
+            AuthZoneInfo.WriteNetworkAddressesTo(rrlOptions.BypassList, bW);
         }
 
         #endregion
@@ -2405,10 +2402,11 @@ namespace DnsServerCore.Dns
                 Security.ReflectionRrlRequestTrust rrlTrust = cookieClassification.State == CookieRequestState.ValidServerCookie
                     ? Security.ReflectionRrlRequestTrust.ValidServerCookie
                     : Security.ReflectionRrlRequestTrust.Unverified;
-                if (Security.ReflectionRrlPolicy.ShouldEvaluate(_enableResponseRateLimiting, isUdp: true, rrlTrust))
+                RrlRuntimeState rrlState = Volatile.Read(ref _rrlRuntimeState);
+                if (Security.ReflectionRrlPolicy.ShouldEvaluate(rrlState.Enabled, isUdp: true, rrlTrust))
                 {
                     DnsQuestionRecord question = response.Question[0];
-                    Security.UdpResponseRateLimitResult rrlResult = EvaluateReflectionRrl(remoteEP.Address, responseCategory,
+                    Security.UdpResponseRateLimitResult rrlResult = EvaluateReflectionRrl(rrlState, remoteEP.Address, responseCategory,
                         (ushort)question.Type, (ushort)question.Class, question.Name);
                     if (rrlResult == Security.UdpResponseRateLimitResult.LimitedDrop ||
                         (rrlResult == Security.UdpResponseRateLimitResult.LimitedSlip && !Security.ResponseRateLimitSlipPolicy.IsEligible(responseCategory)))
@@ -6747,20 +6745,13 @@ namespace DnsServerCore.Dns
             return false;
         }
 
-        private Security.UdpResponseRateLimitResult EvaluateReflectionRrl(IPAddress remoteIP,
+        private static Security.UdpResponseRateLimitResult EvaluateReflectionRrl(RrlRuntimeState state, IPAddress remoteIP,
             Security.ResponseRateLimitCategory category, ushort queryType, ushort queryClass, string canonicalName)
         {
-            if (!_enableResponseRateLimiting)
+            if (state.BypassMatcher.IsMatch(remoteIP))
                 return Security.UdpResponseRateLimitResult.Allowed;
 
-            if (_responseRateLimitBypassList is not null)
-            {
-                foreach (NetworkAddress network in _responseRateLimitBypassList)
-                    if (network.Contains(remoteIP))
-                        return Security.UdpResponseRateLimitResult.Allowed;
-            }
-
-            return _reflectionRrl.Evaluate(remoteIP, category, queryType, queryClass, canonicalName);
+            return state.Limiter.Evaluate(remoteIP, category, queryType, queryClass, canonicalName);
         }
 
         private static Security.ResponseRateLimitCategory ClassifyResponseForRateLimiting(DnsDatagram response)
@@ -6784,28 +6775,86 @@ namespace DnsServerCore.Dns
 
         public readonly record struct ResponseRateLimitingOptions(bool Enabled, int SustainedRate, int InstantLimit, int SlipEvery, int TableSize, IReadOnlyCollection<NetworkAddress> BypassList);
 
+        /// <summary>
+        /// An immutable RRL policy generation. Instances are completely constructed before a
+        /// single atomic publication and neither their options nor bypass matcher are mutated
+        /// afterward; readers must capture the published reference once and use only that
+        /// instance for the entire decision.
+        /// </summary>
+        private sealed class RrlRuntimeState
+        {
+            public RrlRuntimeState(ResponseRateLimitingOptions options, Security.UdpResponseRateLimiter limiter, RrlBypassMatcher bypassMatcher, ulong generation)
+            {
+                Options = options;
+                Limiter = limiter ?? throw new ArgumentNullException(nameof(limiter));
+                BypassMatcher = bypassMatcher ?? throw new ArgumentNullException(nameof(bypassMatcher));
+                Generation = generation;
+            }
+
+            public bool Enabled => Options.Enabled;
+            public Security.UdpResponseRateLimiter Limiter { get; }
+            public RrlBypassMatcher BypassMatcher { get; }
+            public ResponseRateLimitingOptions Options { get; }
+            public ulong Generation { get; }
+        }
+
+        private sealed class RrlBypassMatcher
+        {
+            public static readonly RrlBypassMatcher Empty = new RrlBypassMatcher(ImmutableArray<NetworkAddress>.Empty);
+
+            readonly ImmutableArray<NetworkAddress> _networks;
+
+            public RrlBypassMatcher(ImmutableArray<NetworkAddress> networks)
+            {
+                _networks = networks;
+            }
+
+            public bool IsMatch(IPAddress address)
+            {
+                foreach (NetworkAddress network in _networks)
+                    if (network.Contains(address))
+                        return true;
+
+                return false;
+            }
+        }
+
+        private static RrlRuntimeState CreateInitialRrlRuntimeState()
+        {
+            ResponseRateLimitingOptions options = new ResponseRateLimitingOptions(false, 100, 200, 2, 65536, ImmutableArray<NetworkAddress>.Empty);
+            return CreateRrlRuntimeState(options, INITIAL_RRL_GENERATION);
+        }
+
+        private static ulong GetNextRrlGeneration(ulong generation) => generation == ulong.MaxValue ? INITIAL_RRL_GENERATION + 1UL : generation + 1UL;
+
+        private static RrlRuntimeState CreateRrlRuntimeState(ResponseRateLimitingOptions options, ulong generation)
+        {
+            ValidateResponseRateLimitingOptions(options);
+
+            ImmutableArray<NetworkAddress> bypassNetworks = options.BypassList is null
+                ? ImmutableArray<NetworkAddress>.Empty
+                : ImmutableArray.CreateRange(options.BypassList);
+            ResponseRateLimitingOptions normalizedOptions = options with { BypassList = bypassNetworks };
+            Security.UdpResponseRateLimiter limiter = new Security.UdpResponseRateLimiter(new Security.UdpResponseRateLimiterOptions
+            {
+                Capacity = normalizedOptions.TableSize,
+                SustainedRate = normalizedOptions.SustainedRate,
+                InstantLimit = normalizedOptions.InstantLimit,
+                SlipEvery = normalizedOptions.SlipEvery
+            });
+            RrlBypassMatcher bypassMatcher = bypassNetworks.IsEmpty ? RrlBypassMatcher.Empty : new RrlBypassMatcher(bypassNetworks);
+            return new RrlRuntimeState(normalizedOptions, limiter, bypassMatcher, generation);
+        }
+
         public void ApplyResponseRateLimitingOptions(ResponseRateLimitingOptions options)
         {
             lock (_reflectionRrlLock)
             {
-                ValidateResponseRateLimitingOptions(options);
+                RrlRuntimeState current = Volatile.Read(ref _rrlRuntimeState);
+                RrlRuntimeState replacement = CreateRrlRuntimeState(options, GetNextRrlGeneration(current.Generation));
 
-                Security.UdpResponseRateLimiter replacement = new Security.UdpResponseRateLimiter(new Security.UdpResponseRateLimiterOptions
-                {
-                    Capacity = options.TableSize,
-                    SustainedRate = options.SustainedRate,
-                    InstantLimit = options.InstantLimit,
-                    SlipEvery = options.SlipEvery
-                });
-
-                // Publish only after validation and construction succeed, then commit the matching configuration.
-                _reflectionRrl = replacement;
-                _enableResponseRateLimiting = options.Enabled;
-                _responseRateLimit = options.SustainedRate;
-                _responseRateLimitInstant = options.InstantLimit;
-                _responseRateLimitSlip = options.SlipEvery;
-                _responseRateLimitTableSize = options.TableSize;
-                _responseRateLimitBypassList = options.BypassList is null || options.BypassList.Count == 0 ? null : options.BypassList;
+                // The previous generation remains published if any construction step above fails.
+                Volatile.Write(ref _rrlRuntimeState, replacement);
                 Interlocked.Increment(ref _responseRateLimiterRebuildCount);
             }
         }
@@ -8191,33 +8240,29 @@ namespace DnsServerCore.Dns
 
         public ResponseRateLimitingOptions CurrentResponseRateLimitingOptions
         {
-            get
-            {
-                lock (_reflectionRrlLock)
-                    return new ResponseRateLimitingOptions(_enableResponseRateLimiting, _responseRateLimit, _responseRateLimitInstant, _responseRateLimitSlip, _responseRateLimitTableSize, _responseRateLimitBypassList);
-            }
+            get => Volatile.Read(ref _rrlRuntimeState).Options;
         }
 
         // Diagnostic hook: callers can compare this value around a settings update.
         public long ResponseRateLimiterRebuildCount => Interlocked.Read(ref _responseRateLimiterRebuildCount);
 
-        public bool EnableResponseRateLimiting { get => _enableResponseRateLimiting; set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { Enabled = value }); }
+        public bool EnableResponseRateLimiting { get => Volatile.Read(ref _rrlRuntimeState).Enabled; set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { Enabled = value }); }
 
         public int ResponseRateLimit
         {
-            get => _responseRateLimit;
+            get => Volatile.Read(ref _rrlRuntimeState).Options.SustainedRate;
             set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { SustainedRate = value });
         }
 
         public int ResponseRateLimitInstant
         {
-            get => _responseRateLimitInstant;
+            get => Volatile.Read(ref _rrlRuntimeState).Options.InstantLimit;
             set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { InstantLimit = value });
         }
 
         public int ResponseRateLimitSlip
         {
-            get => _responseRateLimitSlip;
+            get => Volatile.Read(ref _rrlRuntimeState).Options.SlipEvery;
             set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { SlipEvery = value });
         }
 
@@ -8228,13 +8273,13 @@ namespace DnsServerCore.Dns
 
         public int ResponseRateLimitTableSize
         {
-            get => _responseRateLimitTableSize;
+            get => Volatile.Read(ref _rrlRuntimeState).Options.TableSize;
             set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { TableSize = value });
         }
 
         public IReadOnlyCollection<NetworkAddress> ResponseRateLimitBypassList
         {
-            get => _responseRateLimitBypassList;
+            get => Volatile.Read(ref _rrlRuntimeState).Options.BypassList;
             set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { BypassList = value });
         }
 
