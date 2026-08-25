@@ -1,4 +1,4 @@
-import { useId, type InputHTMLAttributes, type ReactNode, type Ref } from 'react'
+import { useId, type InputHTMLAttributes, type ReactNode, type Ref, type TextareaHTMLAttributes } from 'react'
 import styles from './Field.module.css'
 
 export function Field({ label, children }: { label: string; children: (id: string) => ReactNode }) {
@@ -32,4 +32,23 @@ export function Input({ mono, className, ...rest }: InputProps) {
  *  en las pruebas con `getByLabelText` igual que lo haría un lector de pantalla. */
 export function LabeledInput({ label, mono, ...rest }: InputProps & { label: string }) {
   return <Field label={label}>{(id) => <Input id={id} mono={mono} {...rest} />}</Field>
+}
+
+export type TextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  mono?: boolean
+  ref?: Ref<HTMLTextAreaElement>
+}
+
+export function Textarea({ mono, className, ...rest }: TextareaProps) {
+  return (
+    <textarea
+      className={[styles.input, mono ? styles.mono : '', className].filter(Boolean).join(' ')}
+      {...rest}
+    />
+  )
+}
+
+/** Área de texto con etiqueta asociada, para poder consultarla por su nombre. */
+export function LabeledTextarea({ label, mono, ...rest }: TextareaProps & { label: string }) {
+  return <Field label={label}>{(id) => <Textarea id={id} mono={mono} {...rest} />}</Field>
 }

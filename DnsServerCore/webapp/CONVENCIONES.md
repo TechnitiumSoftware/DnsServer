@@ -48,6 +48,35 @@ Tres supuestos que ya han resultado falsos, para que no los repitas:
 3. Las estadísticas se vuelcan **por minutos**. Un `dig` recién hecho no aparece
    en el Dashboard hasta el siguiente volcado; no concluyas que algo falla.
 
+## Comportamientos de upstream descubiertos sobre la marcha
+
+Anota aquí lo que encuentres. Lo que ya se sabe:
+
+- **Campos opcionales que parecen obligatorios.** En `apps/list`, los campos
+  `updateVersion`, `updateUrl` y `updateAvailable` **sólo existen** si el app
+  está en el catálogo de la tienda y hay allí una versión compatible; un app
+  instalado desde un zip propio no los trae nunca, y si la consulta al catálogo
+  agota su plazo de 5 s la lista llega entera pero sin ellos. Tiparlos como
+  obligatorios es un error garantizado. Sospecha de todo campo que sólo hayas
+  visto una vez.
+- **Un campo de texto puede volver como `null`.** `apps/config/get` devuelve
+  `config: null` en cuanto alguien guarda una configuración vacía.
+- **Los endpoints de subida son POST-only**: por GET el servidor responde
+  **404**, no un error JSON.
+- **En las subidas, el nombre del campo del fichero da igual**: el servidor coge
+  `Form.Files[0]`. Pero **no fijes `Content-Type` a mano** o el `boundary` se
+  pierde y el servidor dice que falta el fichero.
+- **Borrar algo que no existe suele responder `ok`**, no error.
+- **Hay dos paginaciones distintas.** `zones/list` pagina en el servidor
+  (`pageNumber`, `zonesPerPage`) y sus campos de paginación **sólo aparecen si
+  mandas `pageNumber`**. En cambio `zones/records/get` **no pagina**: se pide con
+  `listZone=true` y se pagina en el cliente.
+- **Dónde sale un aviso no es cosmético**: en upstream, los avisos de un modal
+  salen dentro del modal y los de una pantalla salen en la pantalla. Respétalo.
+- **Permisos asimétricos**: algunas acciones piden `Delete` donde esperarías
+  `Modify`, y `apps/list` se permite con permiso de lectura sobre Apps, Zones
+  **o** Logs. No deduzcas el permiso: míralo.
+
 ## Cómo se escribe el código
 
 - **Cliente**: siempre `apiRequest` de `src/api/client.ts`. Rutas **relativas y

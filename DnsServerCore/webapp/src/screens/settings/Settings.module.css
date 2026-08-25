@@ -1,0 +1,129 @@
+/* Settings. La pantalla más grande de la consola: en upstream, la sub-pestaña
+   General mide 5.452 px de alto. El formulario se trocea en bloques con título
+   y cada fila es una rejilla `210px 1fr` para que la etiqueta y el control
+   queden alineados en vertical de arriba abajo de la página. */
+
+.wrap { display: flex; flex-direction: column; gap: 14px; }
+
+.block {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--pan);
+  margin: 0 0 14px 0;
+  padding: 0 0 14px 0;
+  min-width: 0;
+}
+.blockTitle {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  margin: 0 0 12px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 210px 1fr;
+  gap: 12px;
+  padding: 7px 14px;
+  align-items: start;
+}
+.rowLabel {
+  font-size: 12px;
+  color: var(--ink);
+  font-weight: 600;
+  padding-top: 8px;
+  line-height: 1.35;
+}
+.rowCtl { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.ctlLine { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.suffix { font-size: 11.5px; color: var(--mute); }
+.help { font-size: 11.5px; color: var(--mute); line-height: 1.55; max-width: 720px; }
+.help a { color: var(--acc); }
+.help code, .note code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+.area {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--field);
+  color: var(--ink);
+  resize: vertical;
+  width: 100%;
+  max-width: 560px;
+  line-height: 1.5;
+}
+.area:focus { outline: 2px solid var(--acc); outline-offset: -1px; border-color: var(--acc); }
+.area:disabled { opacity: 0.5; }
+
+.select {
+  font-size: 12.5px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--field);
+  color: var(--ink);
+}
+.select:disabled { opacity: 0.5; }
+
+.check { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; cursor: pointer; }
+.check input { width: 15px; height: 15px; accent-color: var(--acc); margin-top: 2px; flex: none; }
+.check input:disabled { opacity: 0.5; }
+.checkHelp { font-size: 11.5px; color: var(--mute); padding-left: 23px; line-height: 1.55; max-width: 720px; }
+.checkHelp a { color: var(--acc); }
+.checkHelp code {
+  font-family: var(--font-mono); font-size: 11px; background: var(--field);
+  border: 1px solid var(--line); border-radius: 4px; padding: 0 4px;
+}
+.group { display: flex; flex-direction: column; gap: 9px; }
+
+.note { margin: 6px 14px 0 14px; display: flex; flex-direction: column; gap: 7px; }
+.plain { font-size: 11.5px; color: var(--mute); line-height: 1.55; padding: 0 14px; max-width: 860px; }
+.link { font-size: 11.5px; padding: 8px 14px 0 14px; }
+.link a { color: var(--acc); }
+.pre {
+  margin: 0 14px; padding: 10px 12px; background: var(--field); border: 1px solid var(--line);
+  border-radius: 7px; font-family: var(--font-mono); font-size: 11px; color: var(--ink);
+  overflow-x: auto;
+}
+
+/* Listas editables: límites QPM y claves TSIG. Cabecera, una fila por entrada
+   con su botón «Delete», y un «Add» debajo. */
+.table { width: 100%; max-width: 620px; border-collapse: collapse; }
+.table th {
+  text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--mute); padding: 0 8px 7px 0; border-bottom: 1px solid var(--line);
+}
+.table td { padding: 5px 8px 5px 0; vertical-align: middle; }
+.table input, .table select { width: 100%; }
+.tdel { width: 74px; }
+.empty { font-size: 11.5px; color: var(--faint); padding: 9px 0; }
+
+.bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--pan); position: sticky; bottom: 0;
+}
+.spacer { flex: 1; }
+
+.loading, .fail { padding: 28px; text-align: center; color: var(--faint); font-size: 12.5px; }
+.head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.head h1 { margin: 0; font-size: 14px; font-weight: 650; color: var(--ink); }
+.head span { font-size: 11.5px; color: var(--faint); }
+.stack { display: flex; flex-direction: column; gap: 9px; }
+.inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.val { font-size: 12.5px; color: var(--ink); font-family: var(--font-mono); }

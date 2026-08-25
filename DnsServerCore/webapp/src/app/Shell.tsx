@@ -7,6 +7,7 @@ import { MyProfile } from '../screens/modals/MyProfile'
 import { Dashboard } from '../screens/dashboard/Dashboard'
 import { DnsClient } from '../screens/dnsclient/DnsClient'
 import { About } from '../screens/about/About'
+import { Apps } from '../screens/apps/Apps'
 import styles from './Shell.module.css'
 
 type ModalId = 'profile' | 'password' | 'twofa' | 'token'
@@ -137,6 +138,8 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
           <DnsClient token={session.token} />
         ) : current?.id === 'about' ? (
           <About token={session.token} info={session.info} />
+        ) : current?.id === 'apps' ? (
+          <Apps token={session.token} />
         ) : (
           <div className={styles.placeholder}>
             <b>{current?.label}</b>

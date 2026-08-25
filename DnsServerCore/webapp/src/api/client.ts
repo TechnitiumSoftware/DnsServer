@@ -35,6 +35,8 @@ export interface ApiOptions {
   Los campos de `body` viajan también dentro del FormData.
   */
   file?: { campo: string; archivo: File }
+  /** Alternativa a `file` cuando quien llama ya tiene armado el FormData. */
+  form?: FormData
 }
 
 interface Envelope {
@@ -54,7 +56,10 @@ export async function apiRequest<T = unknown>(
   let url = `api/${path}`
   const init: RequestInit & { headers: Record<string, string> } = { method, headers }
 
-  if (opts.file) {
+  if (opts.form) {
+    init.method = 'POST'
+    init.body = opts.form
+  } else if (opts.file) {
     const fd = new FormData()
     for (const [k, v] of Object.entries(body ?? {})) fd.append(k, v)
     fd.append(opts.file.campo, opts.file.archivo)
@@ -67,7 +72,7 @@ export async function apiRequest<T = unknown>(
       headers['Content-Type'] = 'application/x-www-form-urlencoded'
       init.body = encoded
     } else {
-      url += `?${encoded}`
+      url += (url.includes('?') ? '&' : '?') + encoded
     }
   }
 
