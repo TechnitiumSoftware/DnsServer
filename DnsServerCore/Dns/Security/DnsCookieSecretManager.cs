@@ -414,6 +414,9 @@ namespace DnsServerCore.Dns.Security
                     throw new InvalidOperationException("There is no staging secret to activate.");
 
                 DateTime now = DateTime.UtcNow;
+                if (current.Previous is not null && now < current.PreviousRetireUtc.Value)
+                    throw new InvalidOperationException("The staging secret cannot be activated until the previous secret validation window has ended.");
+
                 Snapshot next = new Snapshot(CurrentFileVersion, current.StagedNext, now,
                     current.Active, now + PreviousKeyValidationOverlap, null);
                 SaveLocked(next);
