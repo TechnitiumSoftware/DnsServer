@@ -1254,6 +1254,7 @@ function loadDnsSettings(responseJSON) {
     $("#txtResponseRateLimitInstant").val(responseJSON.response.responseRateLimitInstant);
     $("#txtResponseRateLimitSlip").val(responseJSON.response.responseRateLimitSlip);
     $("#txtResponseRateLimitTableSize").val(responseJSON.response.responseRateLimitTableSize);
+    $("#txtResponseRateLimitBypassList").val(getArrayAsString(responseJSON.response.responseRateLimitBypassList));
     $("#lblDnsCookieActiveSecretFingerprint").text(responseJSON.response.dnsCookieActiveSecretFingerprint || "Unavailable");
     $("#lblDnsCookieStagingSecretFingerprint").text(responseJSON.response.dnsCookieStagingSecretFingerprint || "None");
 
@@ -1784,6 +1785,12 @@ function saveDnsSettings(objBtn) {
         var responseRateLimitInstant = $("#txtResponseRateLimitInstant").val();
         var responseRateLimitSlip = $("#txtResponseRateLimitSlip").val();
         var responseRateLimitTableSize = $("#txtResponseRateLimitTableSize").val();
+        var responseRateLimitBypassList = cleanTextList($("#txtResponseRateLimitBypassList").val());
+
+        if ((responseRateLimitBypassList.length == 0) || (responseRateLimitBypassList === ","))
+            responseRateLimitBypassList = "";
+        else
+            $("#txtResponseRateLimitBypassList").val(responseRateLimitBypassList.replace(/,/g, "\n") + "\n");
 
         if ((responseRateLimit === "") || (responseRateLimitInstant === "") || (responseRateLimitSlip === "") || (responseRateLimitTableSize === "")) {
             showAlert("warning", "Missing!", "Please enter all Response Rate Limiting values.");
@@ -1856,7 +1863,7 @@ function saveDnsSettings(objBtn) {
         formData += "&udpPayloadSize=" + udpPayloadSize + "&dnssecValidation=" + dnssecValidation;
         formData += "&eDnsClientSubnet=" + eDnsClientSubnet + "&eDnsClientSubnetIPv4PrefixLength=" + eDnsClientSubnetIPv4PrefixLength + "&eDnsClientSubnetIPv6PrefixLength=" + eDnsClientSubnetIPv6PrefixLength + "&eDnsClientSubnetIpv4Override=" + encodeURIComponent(eDnsClientSubnetIpv4Override) + "&eDnsClientSubnetIpv6Override=" + encodeURIComponent(eDnsClientSubnetIpv6Override);
         formData += "&qpmPrefixLimitsIPv4=" + encodeURIComponent(qpmPrefixLimitsIPv4) + "&qpmPrefixLimitsIPv6=" + encodeURIComponent(qpmPrefixLimitsIPv6) + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitUdpTruncationPercentage=" + qpmLimitUdpTruncationPercentage + "&qpmLimitBypassList=" + encodeURIComponent(qpmLimitBypassList);
-        formData += "&enableResponseRateLimiting=" + enableResponseRateLimiting + "&responseRateLimit=" + responseRateLimit + "&responseRateLimitInstant=" + responseRateLimitInstant + "&responseRateLimitSlip=" + responseRateLimitSlip + "&responseRateLimitTableSize=" + responseRateLimitTableSize;
+        formData += "&enableResponseRateLimiting=" + enableResponseRateLimiting + "&responseRateLimit=" + responseRateLimit + "&responseRateLimitInstant=" + responseRateLimitInstant + "&responseRateLimitSlip=" + responseRateLimitSlip + "&responseRateLimitTableSize=" + responseRateLimitTableSize + "&responseRateLimitBypassList=" + encodeURIComponent(responseRateLimitBypassList);
         formData += "&clientTimeout=" + clientTimeout + "&tcpSendTimeout=" + tcpSendTimeout + "&tcpReceiveTimeout=" + tcpReceiveTimeout + "&quicIdleTimeout=" + quicIdleTimeout + "&quicMaxInboundStreams=" + quicMaxInboundStreams + "&listenBacklog=" + listenBacklog + "&udpSendBufferSizeKB=" + udpSendBufferSizeKB + "&udpReceiveBufferSizeKB=" + udpReceiveBufferSizeKB + "&maxConcurrentResolutionsPerCore=" + maxConcurrentResolutionsPerCore;
     }
 
