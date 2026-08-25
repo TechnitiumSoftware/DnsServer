@@ -102,6 +102,38 @@ namespace DnsServerCore.Dns.Security
         public int SlipEvery { get; init; } = 2;
         public IReadOnlyList<int> IPv4PrefixLengths { get; init; } = new[] { 32, 24 };
         public IReadOnlyList<int> IPv6PrefixLengths { get; init; } = new[] { 128, 64, 56 };
+
+        internal NormalizedUdpResponseRateLimiterOptions Normalize(long timestampFrequency) =>
+            NormalizedUdpResponseRateLimiterOptions.Create(this, timestampFrequency);
+    }
+
+    internal sealed record NormalizedUdpResponseRateLimiterOptions(
+        int Capacity, int ShardCount, long ScaledTokenCapacity, long ScaledTokensPerSecond,
+        long TimestampFrequency, long InstantWindowTimestampUnits, int InstantLimit, int SlipEvery,
+        IReadOnlyList<int> IPv4PrefixLengths, IReadOnlyList<int> IPv6PrefixLengths)
+    {
+        internal static NormalizedUdpResponseRateLimiterOptions Create(UdpResponseRateLimiterOptions options, long timestampFrequency)
+        {
+            ArgumentNullException.ThrowIfNull(options);
+            if (options.Capacity < 1)
+                throw new ArgumentOutOfRangeException(nameof(options.Capacity));
+            if (options.ShardCount < 1 || options.ShardCount > options.Capacity)
+                throw new ArgumentOutOfRangeException(nameof(options.ShardCount));
+            if (!UdpResponseRateLimiter.TryScalePositiveRate(options.SustainedRate, out long scaledTokensPerSecond))
+                throw new ArgumentOutOfRangeException(nameof(options.SustainedRate), $"Value must be greater than zero and no more than {UdpResponseRateLimiter.MaximumSupportedRate} responses per second.");
+            if (!UdpResponseRateLimiter.TryCalculateScaledTokenCapacity(options.SustainedRate, options.DecayTime, out long scaledTokenCapacity))
+                throw new ArgumentOutOfRangeException(nameof(options.DecayTime), "The rate and decay time exceed the scaled token capacity.");
+            if (options.InstantLimit < 1)
+                throw new ArgumentOutOfRangeException(nameof(options.InstantLimit));
+            if (!UdpResponseRateLimiter.TryConvertDurationToTimestampUnits(options.InstantWindow, timestampFrequency, out long instantWindowTimestampUnits))
+                throw new ArgumentOutOfRangeException(nameof(options.InstantWindow), "The instant window cannot be represented by the timestamp provider.");
+            if (options.SlipEvery < 0)
+                throw new ArgumentOutOfRangeException(nameof(options.SlipEvery));
+
+            return new NormalizedUdpResponseRateLimiterOptions(options.Capacity, options.ShardCount,
+                scaledTokenCapacity, scaledTokensPerSecond, timestampFrequency, instantWindowTimestampUnits,
+                options.InstantLimit, options.SlipEvery, options.IPv4PrefixLengths, options.IPv6PrefixLengths);
+        }
     }
 
     /// <summary>
@@ -134,7 +166,7 @@ namespace DnsServerCore.Dns.Security
             internal long WindowStart;
             internal long Tokens;
             internal long RefillRemainder;
-            internal int InstantCount;
+            internal uint InstantCount;
             internal uint LimitedCount;
             internal uint LastEpoch;
             internal byte ObservationCount;
@@ -145,7 +177,10 @@ namespace DnsServerCore.Dns.Security
         private readonly int[] _ipv4PrefixLengths;
         private readonly int[] _ipv6PrefixLengths;
         private readonly byte[] _hashKey;
-        private const long TokenScale = 1_000_000;
+        public const long TokenScale = 1_000_000;
+        public const long MaximumScaledTokenCapacity = long.MaxValue;
+        public const long MaximumInstantWindowTicks = long.MaxValue;
+        public const long MaximumSupportedRate = MaximumScaledTokenCapacity / TokenScale;
         private readonly long _tokenCapacity;
         private readonly long _tokensPerSecond;
         private readonly long _timestampFrequency;
@@ -168,26 +203,23 @@ namespace DnsServerCore.Dns.Security
         }
 
         internal UdpResponseRateLimiter(UdpResponseRateLimiterOptions options, ReadOnlySpan<byte> hashKey, TimeProvider? timeProvider = null)
+            : this(NormalizedUdpResponseRateLimiterOptions.Create(options, (timeProvider ?? TimeProvider.System).TimestampFrequency), hashKey, timeProvider)
+        {
+        }
+
+        internal UdpResponseRateLimiter(NormalizedUdpResponseRateLimiterOptions options, ReadOnlySpan<byte> hashKey, TimeProvider? timeProvider = null)
         {
             ArgumentNullException.ThrowIfNull(options);
-            if (options.Capacity < 1)
-                throw new ArgumentOutOfRangeException(nameof(options.Capacity));
-            if (options.ShardCount < 1 || options.ShardCount > options.Capacity)
-                throw new ArgumentOutOfRangeException(nameof(options.ShardCount));
-            if (!(options.SustainedRate > 0) || options.DecayTime <= TimeSpan.Zero)
-                throw new ArgumentOutOfRangeException(nameof(options.SustainedRate));
-            if (options.InstantLimit < 1 || options.InstantWindow <= TimeSpan.Zero)
-                throw new ArgumentOutOfRangeException(nameof(options.InstantLimit));
-            if (options.SlipEvery < 0)
-                throw new ArgumentOutOfRangeException(nameof(options.SlipEvery));
             if (hashKey.Length != HashKeyWidthBytes)
                 throw new ArgumentException("The limiter hash key must be 16 bytes.", nameof(hashKey));
 
             _timeProvider = timeProvider ?? TimeProvider.System;
-            _timestampFrequency = _timeProvider.TimestampFrequency;
-            _instantWindowTimestampUnits = checked((long)(options.InstantWindow.TotalSeconds * _timeProvider.TimestampFrequency));
-            _tokenCapacity = checked((long)Math.Ceiling(options.SustainedRate * options.DecayTime.TotalSeconds * TokenScale));
-            _tokensPerSecond = checked((long)Math.Ceiling(options.SustainedRate * TokenScale));
+            if (_timeProvider.TimestampFrequency != options.TimestampFrequency)
+                throw new ArgumentException("Normalized options use a different timestamp frequency.", nameof(options));
+            _timestampFrequency = options.TimestampFrequency;
+            _instantWindowTimestampUnits = options.InstantWindowTimestampUnits;
+            _tokenCapacity = options.ScaledTokenCapacity;
+            _tokensPerSecond = options.ScaledTokensPerSecond;
             _instantLimit = options.InstantLimit;
             _slipEvery = options.SlipEvery;
             _hashKey = hashKey.ToArray();
@@ -199,6 +231,47 @@ namespace DnsServerCore.Dns.Security
             int remainder = options.Capacity % options.ShardCount;
             for (int i = 0; i < _shards.Length; i++)
                 _shards[i] = new Shard(baseCapacity + (i < remainder ? 1 : 0));
+        }
+
+        internal UdpResponseRateLimiter(NormalizedUdpResponseRateLimiterOptions options, TimeProvider? timeProvider = null)
+            : this(options, RandomNumberGenerator.GetBytes(HashKeyWidthBytes), timeProvider) { }
+
+        internal static bool TryScalePositiveRate(double responsesPerSecond, out long scaledTokensPerSecond)
+        {
+            scaledTokensPerSecond = 0;
+            if (!double.IsFinite(responsesPerSecond) || responsesPerSecond <= 0 || responsesPerSecond > MaximumSupportedRate)
+                return false;
+            double scaled = Math.Ceiling(responsesPerSecond * TokenScale);
+            if (scaled > MaximumScaledTokenCapacity)
+                return false;
+            scaledTokensPerSecond = (long)scaled;
+            return scaledTokensPerSecond > 0;
+        }
+
+        internal static bool TryCalculateScaledTokenCapacity(double responsesPerSecond, TimeSpan decayTime, out long scaledTokenCapacity)
+        {
+            scaledTokenCapacity = 0;
+            if (decayTime <= TimeSpan.Zero || !TryScalePositiveRate(responsesPerSecond, out _))
+                return false;
+            double capacity = Math.Ceiling(responsesPerSecond * decayTime.TotalSeconds * TokenScale);
+            if (!double.IsFinite(capacity) || capacity < 1 || capacity > MaximumScaledTokenCapacity)
+                return false;
+            scaledTokenCapacity = (long)capacity;
+            return true;
+        }
+
+        /// <summary>Converts TimeSpan ticks to provider timestamp units with ceiling division and no intermediate overflow.</summary>
+        internal static bool TryConvertDurationToTimestampUnits(TimeSpan duration, long timestampFrequency, out long timestampUnits)
+        {
+            timestampUnits = 0;
+            if (duration <= TimeSpan.Zero || timestampFrequency <= 0)
+                return false;
+            Int128 numerator = (Int128)duration.Ticks * timestampFrequency;
+            Int128 units = (numerator + TimeSpan.TicksPerSecond - 1) / TimeSpan.TicksPerSecond;
+            if (units < 1 || units > MaximumInstantWindowTicks)
+                return false;
+            timestampUnits = (long)units;
+            return true;
         }
 
         public int Capacity
@@ -352,7 +425,8 @@ namespace DnsServerCore.Dns.Security
                 if (elapsed > 0)
                 {
                     // Saturate before multiplying so long-idle entries cannot overflow.
-                    long refillHorizon = _tokenCapacity / _tokensPerSecond + 1;
+                    long refillQuotient = _tokenCapacity / _tokensPerSecond;
+                    long refillHorizon = refillQuotient == long.MaxValue ? long.MaxValue : refillQuotient + 1;
                     long maximumElapsed = refillHorizon >= long.MaxValue / _timestampFrequency
                         ? long.MaxValue
                         : refillHorizon * _timestampFrequency;
@@ -380,16 +454,18 @@ namespace DnsServerCore.Dns.Security
                     entry.WindowStart = now;
                     entry.InstantCount = 0;
                 }
-                entry.InstantCount++;
+                if (entry.InstantCount < uint.MaxValue)
+                    entry.InstantCount++;
 
                 bool sustainedAllowed = entry.Tokens >= TokenScale;
                 if (sustainedAllowed)
                     entry.Tokens -= TokenScale;
 
-                if (sustainedAllowed && entry.InstantCount <= _instantLimit)
+                if (sustainedAllowed && entry.InstantCount <= (uint)_instantLimit)
                     return UdpResponseRateLimitResult.Allowed;
 
-                entry.LimitedCount++;
+                if (entry.LimitedCount < uint.MaxValue)
+                    entry.LimitedCount++;
                 return _slipEvery > 0 && entry.LimitedCount % _slipEvery == 0
                     ? UdpResponseRateLimitResult.LimitedSlip
                     : UdpResponseRateLimitResult.LimitedDrop;

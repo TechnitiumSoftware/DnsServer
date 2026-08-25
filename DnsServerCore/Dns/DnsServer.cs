@@ -6861,10 +6861,11 @@ namespace DnsServerCore.Dns
         private readonly record struct RrlLimiterSemanticSettings(
             int Capacity,
             int ShardCount,
-            double SustainedRate,
-            TimeSpan DecayTime,
+            int SustainedRatePerSecond,
+            long ScaledTokenCapacity,
+            long ScaledTokensPerSecond,
             int InstantLimit,
-            TimeSpan InstantWindow,
+            long InstantWindowTimestampUnits,
             int SlipEvery,
             ImmutableArray<int> IPv4PrefixLengths,
             ImmutableArray<int> IPv6PrefixLengths,
@@ -6879,10 +6880,10 @@ namespace DnsServerCore.Dns
                 RrlLimiterSemanticChanges changes = RrlLimiterSemanticChanges.None;
                 if (Capacity != other.Capacity) changes |= RrlLimiterSemanticChanges.Capacity;
                 if (ShardCount != other.ShardCount) changes |= RrlLimiterSemanticChanges.ShardCount;
-                if (SustainedRate != other.SustainedRate) changes |= RrlLimiterSemanticChanges.SustainedRate;
-                if (DecayTime != other.DecayTime) changes |= RrlLimiterSemanticChanges.DecayTime;
+                if (ScaledTokensPerSecond != other.ScaledTokensPerSecond) changes |= RrlLimiterSemanticChanges.SustainedRate;
+                if (ScaledTokenCapacity != other.ScaledTokenCapacity) changes |= RrlLimiterSemanticChanges.DecayTime;
                 if (InstantLimit != other.InstantLimit) changes |= RrlLimiterSemanticChanges.InstantLimit;
-                if (InstantWindow != other.InstantWindow) changes |= RrlLimiterSemanticChanges.InstantWindow;
+                if (InstantWindowTimestampUnits != other.InstantWindowTimestampUnits) changes |= RrlLimiterSemanticChanges.InstantWindow;
                 if (SlipEvery != other.SlipEvery) changes |= RrlLimiterSemanticChanges.SlipEvery;
                 if (!IPv4PrefixLengths.AsSpan().SequenceEqual(other.IPv4PrefixLengths.AsSpan())) changes |= RrlLimiterSemanticChanges.IPv4Prefixes;
                 if (!IPv6PrefixLengths.AsSpan().SequenceEqual(other.IPv6PrefixLengths.AsSpan())) changes |= RrlLimiterSemanticChanges.IPv6Prefixes;
@@ -6890,18 +6891,9 @@ namespace DnsServerCore.Dns
                 return changes;
             }
 
-            public Security.UdpResponseRateLimiterOptions ToLimiterOptions() => new Security.UdpResponseRateLimiterOptions
-            {
-                Capacity = Capacity,
-                ShardCount = ShardCount,
-                SustainedRate = SustainedRate,
-                DecayTime = DecayTime,
-                InstantLimit = InstantLimit,
-                InstantWindow = InstantWindow,
-                SlipEvery = SlipEvery,
-                IPv4PrefixLengths = IPv4PrefixLengths,
-                IPv6PrefixLengths = IPv6PrefixLengths
-            };
+            public Security.NormalizedUdpResponseRateLimiterOptions ToLimiterOptions() => new Security.NormalizedUdpResponseRateLimiterOptions(
+                Capacity, ShardCount, ScaledTokenCapacity, ScaledTokensPerSecond, TimeProvider.System.TimestampFrequency,
+                InstantWindowTimestampUnits, InstantLimit, SlipEvery, IPv4PrefixLengths, IPv6PrefixLengths);
         }
 
         private readonly record struct NormalizedRrlSettings(RrlPolicySettings Policy, RrlLimiterSemanticSettings Limiter);
@@ -7149,25 +7141,40 @@ namespace DnsServerCore.Dns
             ValidateResponseRateLimitingOptions(options);
             RrlBypassMatcher bypassMatcher = RrlBypassMatcher.Create(options.BypassList, out ImmutableArray<NetworkAddress> bypassNetworks);
             RrlPolicySettings policy = new RrlPolicySettings(options.Enabled, bypassNetworks, bypassMatcher);
+            ImmutableArray<int> ipv4PrefixLengths = ImmutableArray.Create(32, 24);
+            ImmutableArray<int> ipv6PrefixLengths = ImmutableArray.Create(128, 64, 56);
+            Security.NormalizedUdpResponseRateLimiterOptions normalizedLimiter = new Security.UdpResponseRateLimiterOptions
+            {
+                Capacity = options.TableSize,
+                ShardCount = 16,
+                SustainedRate = options.SustainedRate,
+                DecayTime = TimeSpan.FromSeconds(1),
+                InstantLimit = options.InstantLimit,
+                InstantWindow = TimeSpan.FromSeconds(1),
+                SlipEvery = options.SlipEvery,
+                IPv4PrefixLengths = ipv4PrefixLengths,
+                IPv6PrefixLengths = ipv6PrefixLengths
+            }.Normalize(TimeProvider.System.TimestampFrequency);
             RrlLimiterSemanticSettings limiter = new RrlLimiterSemanticSettings(
-                options.TableSize, 16, options.SustainedRate, TimeSpan.FromSeconds(1), options.InstantLimit,
-                TimeSpan.FromSeconds(1), options.SlipEvery, ImmutableArray.Create(32, 24),
-                ImmutableArray.Create(128, 64, 56), RrlKeyInterpretation.ResponseIdentityV1);
+                normalizedLimiter.Capacity, normalizedLimiter.ShardCount, options.SustainedRate,
+                normalizedLimiter.ScaledTokenCapacity, normalizedLimiter.ScaledTokensPerSecond,
+                normalizedLimiter.InstantLimit, normalizedLimiter.InstantWindowTimestampUnits,
+                normalizedLimiter.SlipEvery, ipv4PrefixLengths, ipv6PrefixLengths, RrlKeyInterpretation.ResponseIdentityV1);
             return new NormalizedRrlSettings(policy, limiter);
         }
 
         private static RrlRuntimeState CreateRrlRuntimeState(NormalizedRrlSettings settings, Security.UdpResponseRateLimiter limiter, ulong generation)
         {
             ResponseRateLimitingOptions options = new ResponseRateLimitingOptions(
-                settings.Policy.Enabled, (int)settings.Limiter.SustainedRate, settings.Limiter.InstantLimit,
+                settings.Policy.Enabled, settings.Limiter.SustainedRatePerSecond, settings.Limiter.InstantLimit,
                 settings.Limiter.SlipEvery, settings.Limiter.Capacity, settings.Policy.BypassList);
             return new RrlRuntimeState(options, settings.Limiter, limiter, settings.Policy.BypassMatcher, generation);
         }
 
         private static void ValidateResponseRateLimitingOptions(ResponseRateLimitingOptions options)
         {
-            if (options.SustainedRate < 1)
-                throw new ArgumentOutOfRangeException(nameof(ResponseRateLimit));
+            if (options.SustainedRate < 1 || options.SustainedRate > ResponseRateLimitMaximum)
+                throw new ArgumentOutOfRangeException(nameof(ResponseRateLimit), $"Value must be between 1 and {ResponseRateLimitMaximum} responses per second.");
             if (options.InstantLimit < 1)
                 throw new ArgumentOutOfRangeException(nameof(ResponseRateLimitInstant));
             if (options.SlipEvery < 0)
@@ -8558,6 +8565,8 @@ namespace DnsServerCore.Dns
             get => Volatile.Read(ref _rrlRuntimeState).Options.SustainedRate;
             set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { SustainedRate = value });
         }
+
+        public static readonly int ResponseRateLimitMaximum = (int)Math.Min(int.MaxValue, Security.UdpResponseRateLimiter.MaximumSupportedRate);
 
         public int ResponseRateLimitInstant
         {
