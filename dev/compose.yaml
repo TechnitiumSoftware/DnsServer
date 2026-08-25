@@ -1,0 +1,37 @@
+# Harness de desarrollo de technitium-ui. NO es el compose de producción de
+# upstream (ese es ../docker-compose.yml y no se toca).
+#
+#   dev  -> imagen oficial + nuestro www/ montado encima  -> 127.0.0.1:5380
+#   ref  -> imagen oficial intacta (consola de upstream)  -> 127.0.0.1:5381
+#
+# Sin puerto 53 (systemd-resolved lo ocupa en WSL) y sin DHCP: aquí solo se
+# prueba la consola web.
+services:
+  dev:
+    container_name: technitium-ui-dev
+    image: docker.io/technitium/dns-server:latest
+    ports:
+      - "127.0.0.1:5380:5380/tcp"
+    environment:
+      - DNS_SERVER_DOMAIN=dev.technitium-ui.test
+      - DNS_SERVER_ADMIN_PASSWORD=technitium-ui-dev
+    volumes:
+      - ../DnsServerCore/www:/opt/technitium/dns/www:ro
+      - dev-config:/etc/dns
+    restart: unless-stopped
+
+  ref:
+    container_name: technitium-ui-ref
+    image: docker.io/technitium/dns-server:latest
+    ports:
+      - "127.0.0.1:5381:5380/tcp"
+    environment:
+      - DNS_SERVER_DOMAIN=ref.technitium-ui.test
+      - DNS_SERVER_ADMIN_PASSWORD=technitium-ui-dev
+    volumes:
+      - ref-config:/etc/dns
+    restart: unless-stopped
+
+volumes:
+  dev-config:
+  ref-config:
