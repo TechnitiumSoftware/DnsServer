@@ -1798,18 +1798,19 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private Security.DnsCookieSecretManager GetDnsCookieSecrets()
+        private string GetDnsCookieSecretPath()
+        {
+            return Path.IsPathRooted(_dnsCookiesSecretFile)
+                ? _dnsCookiesSecretFile
+                : Path.Combine(_configFolder, _dnsCookiesSecretFile);
+        }
+
+        private Security.DnsCookieSecretManager GetOrCreateDnsCookieSecrets()
         {
             lock (_saveLock)
             {
                 if (_cookieSecrets is null)
-                {
-                    string secretPath = Path.IsPathRooted(_dnsCookiesSecretFile)
-                        ? _dnsCookiesSecretFile
-                        : Path.Combine(_configFolder, _dnsCookiesSecretFile);
-
-                    _cookieSecrets = new Security.DnsCookieSecretManager(secretPath);
-                }
+                    _cookieSecrets = new Security.DnsCookieSecretManager(GetDnsCookieSecretPath());
 
                 return _cookieSecrets;
             }
@@ -8332,19 +8333,35 @@ namespace DnsServerCore.Dns
             }
         }
 
-        public string ActiveDnsCookieSecretId => GetDnsCookieSecrets().ActiveId;
+        // Status lookup is deliberately non-creating. When cookies are disabled and no
+        // persisted state exists, false is returned and all output values are unavailable.
+        public bool TryGetDnsCookieSecretStatus(out string activeId, out string stagingId, out DateTime activeCreatedUtc)
+        {
+            lock (_saveLock)
+            {
+                if (_cookieSecrets is not null)
+                {
+                    _cookieSecrets.GetStatus(out activeId, out stagingId, out activeCreatedUtc);
+                    return true;
+                }
 
-        public string StagingDnsCookieSecretId => GetDnsCookieSecrets().StagingId;
+                return Security.DnsCookieSecretManager.TryGetStatus(GetDnsCookieSecretPath(), out activeId, out stagingId, out activeCreatedUtc);
+            }
+        }
 
-        public DateTime ActiveDnsCookieSecretCreatedUtc => GetDnsCookieSecrets().ActiveCreatedUtc;
+        public string ActiveDnsCookieSecretId => TryGetDnsCookieSecretStatus(out string activeId, out _, out _) ? activeId : null;
 
-        public void AddDnsCookieSecret() => GetDnsCookieSecrets().AddStaging();
+        public string StagingDnsCookieSecretId => TryGetDnsCookieSecretStatus(out _, out string stagingId, out _) ? stagingId : null;
 
-        public void ActivateDnsCookieSecret() => GetDnsCookieSecrets().ActivateStaging();
+        public DateTime? ActiveDnsCookieSecretCreatedUtc => TryGetDnsCookieSecretStatus(out _, out _, out DateTime activeCreatedUtc) ? activeCreatedUtc : null;
 
-        public void DropDnsCookieSecret() => GetDnsCookieSecrets().DropStaging();
+        public void AddDnsCookieSecret() => GetOrCreateDnsCookieSecrets().AddStaging();
 
-        internal void ImportDnsCookieSecretState(Stream stream) => GetDnsCookieSecrets().Import(stream);
+        public void ActivateDnsCookieSecret() => GetOrCreateDnsCookieSecrets().ActivateStaging();
+
+        public void DropDnsCookieSecret() => GetOrCreateDnsCookieSecrets().DropStaging();
+
+        internal void ImportDnsCookieSecretState(Stream stream) => GetOrCreateDnsCookieSecrets().Import(stream);
 
         public IReadOnlyCollection<NetworkAccessControl> ReverseProxyNetworkACL
         {

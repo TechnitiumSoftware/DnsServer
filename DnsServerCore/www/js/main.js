@@ -1255,8 +1255,9 @@ function loadDnsSettings(responseJSON) {
     $("#txtResponseRateLimitSlip").val(responseJSON.response.responseRateLimitSlip);
     $("#txtResponseRateLimitTableSize").val(responseJSON.response.responseRateLimitTableSize);
     $("#txtResponseRateLimitBypassList").val(getArrayAsString(responseJSON.response.responseRateLimitBypassList));
-    $("#lblDnsCookieActiveSecretFingerprint").text(responseJSON.response.dnsCookieActiveSecretFingerprint || "Unavailable");
-    $("#lblDnsCookieStagingSecretFingerprint").text(responseJSON.response.dnsCookieStagingSecretFingerprint || "None");
+    var dnsCookieStatusAvailable = responseJSON.response.dnsCookieStatusAvailable === true;
+    $("#lblDnsCookieActiveSecretFingerprint").text(dnsCookieStatusAvailable ? responseJSON.response.dnsCookieActiveSecretFingerprint : "Unavailable");
+    $("#lblDnsCookieStagingSecretFingerprint").text(dnsCookieStatusAvailable ? (responseJSON.response.dnsCookieStagingSecretFingerprint || "None") : "Unavailable");
 
     function updateDnsCookieRrlWarning() {
         $("#divDnsCookieRrlWarning").toggle(

@@ -125,6 +125,28 @@ namespace DnsServerCore.Dns.Security
             }
         }
 
+        internal static bool TryGetStatus(string path, out string activeId, out string stagingId, out DateTime activeCreatedUtc)
+        {
+            Snapshot snapshot = LoadFileLocked(path);
+            if (snapshot is null)
+            {
+                activeId = null;
+                stagingId = null;
+                activeCreatedUtc = default;
+                return false;
+            }
+
+            GetStatus(snapshot, out activeId, out stagingId, out activeCreatedUtc);
+            return true;
+        }
+
+        private static void GetStatus(Snapshot snapshot, out string activeId, out string stagingId, out DateTime activeCreatedUtc)
+        {
+            activeId = Convert.ToHexString(SHA256.HashData(snapshot.Active));
+            stagingId = snapshot.Staging is null ? null : Convert.ToHexString(SHA256.HashData(snapshot.Staging));
+            activeCreatedUtc = snapshot.ActiveCreatedUtc;
+        }
+
         private void SaveLocked(Snapshot snapshot)
         {
             // Caller must hold _lock
@@ -242,6 +264,11 @@ namespace DnsServerCore.Dns.Security
                 byte[] staging = Volatile.Read(ref _snapshot).Staging;
                 return staging is null ? null : Convert.ToHexString(SHA256.HashData(staging));
             }
+        }
+
+        internal void GetStatus(out string activeId, out string stagingId, out DateTime activeCreatedUtc)
+        {
+            GetStatus(Volatile.Read(ref _snapshot), out activeId, out stagingId, out activeCreatedUtc);
         }
 
         public void AddStaging()

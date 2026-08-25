@@ -244,8 +244,10 @@ namespace DnsServerCore
                 jsonWriter.WriteBoolean("enableDnsOverHttp3", _dnsWebService._dnsServer.EnableDnsOverHttp3);
                 jsonWriter.WriteBoolean("enableDnsOverQuic", _dnsWebService._dnsServer.EnableDnsOverQuic);
                 jsonWriter.WriteBoolean("useDnsCookies", _dnsWebService._dnsServer.UseDnsCookies);
-                jsonWriter.WriteString("dnsCookieActiveSecretFingerprint", _dnsWebService._dnsServer.ActiveDnsCookieSecretId);
-                jsonWriter.WriteString("dnsCookieStagingSecretFingerprint", _dnsWebService._dnsServer.StagingDnsCookieSecretId);
+                bool dnsCookieStatusAvailable = _dnsWebService._dnsServer.TryGetDnsCookieSecretStatus(out string activeDnsCookieSecretId, out string stagingDnsCookieSecretId, out _);
+                jsonWriter.WriteBoolean("dnsCookieStatusAvailable", dnsCookieStatusAvailable);
+                jsonWriter.WriteString("dnsCookieActiveSecretFingerprint", activeDnsCookieSecretId);
+                jsonWriter.WriteString("dnsCookieStagingSecretFingerprint", stagingDnsCookieSecretId);
                 jsonWriter.WriteBoolean("dnsCookiesAntiReflectionProtectionComplete", !_dnsWebService._dnsServer.UseDnsCookies || _dnsWebService._dnsServer.EnableResponseRateLimiting);
                 if (_dnsWebService._dnsServer.UseDnsCookies && !_dnsWebService._dnsServer.EnableResponseRateLimiting)
                     jsonWriter.WriteString("dnsCookiesWarning", "DNS Cookies are enabled without UDP Response Rate Limiting. Valid cookies can establish client return-routability, but unverified spoofable UDP traffic is not protected by the DNS Cookie/RRL anti-reflection policy.");
@@ -496,9 +498,14 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Access was denied.");
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
-                jsonWriter.WriteString("activeSecretId", _dnsWebService._dnsServer.ActiveDnsCookieSecretId);
-                jsonWriter.WriteString("activeSecretCreatedUtc", _dnsWebService._dnsServer.ActiveDnsCookieSecretCreatedUtc);
-                jsonWriter.WriteString("stagingSecretId", _dnsWebService._dnsServer.StagingDnsCookieSecretId);
+                bool statusAvailable = _dnsWebService._dnsServer.TryGetDnsCookieSecretStatus(out string activeSecretId, out string stagingSecretId, out DateTime activeSecretCreatedUtc);
+                jsonWriter.WriteBoolean("statusAvailable", statusAvailable);
+                jsonWriter.WriteString("activeSecretId", activeSecretId);
+                if (statusAvailable)
+                    jsonWriter.WriteString("activeSecretCreatedUtc", activeSecretCreatedUtc);
+                else
+                    jsonWriter.WriteNull("activeSecretCreatedUtc");
+                jsonWriter.WriteString("stagingSecretId", stagingSecretId);
                 jsonWriter.WriteBoolean("useDnsCookies", _dnsWebService._dnsServer.UseDnsCookies);
                 jsonWriter.WriteBoolean("enableResponseRateLimiting", _dnsWebService._dnsServer.EnableResponseRateLimiting);
                 bool protectionComplete = !_dnsWebService._dnsServer.UseDnsCookies || _dnsWebService._dnsServer.EnableResponseRateLimiting;
