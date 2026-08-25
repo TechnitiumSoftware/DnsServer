@@ -851,7 +851,7 @@ namespace DnsServerCore
                             clusterParameters.Add("qpmPrefixLimitsIPv6", strQpmPrefixLimitsIPv6);
                         }
 
-                        DnsServer.ResponseRateLimitingOptions rrlOptions = _dnsWebService._dnsServer.CurrentResponseRateLimitingOptions;
+                        Dns.Security.ResponseRateLimitingOptions rrlOptions = _dnsWebService._dnsServer.CurrentResponseRateLimitingOptions;
                         bool hasRrlUpdate = false;
 
                         if (request.TryGetQueryOrForm("enableResponseRateLimiting", bool.Parse, out bool enableResponseRateLimiting))

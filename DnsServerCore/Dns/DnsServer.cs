@@ -178,10 +178,7 @@ namespace DnsServerCore.Dns
         int _qpmLimitUdpTruncationPercentage = 50; //percentage of requests that are responded with TC when QPM limit exceeds for UDP (Slip)
         IReadOnlyCollection<NetworkAddress> _qpmLimitBypassList;
 
-        const ulong INITIAL_RRL_GENERATION = 0;
-        RrlRuntimeState _rrlRuntimeState = CreateInitialRrlRuntimeState();
-        readonly System.Threading.Lock _reflectionRrlLock = new System.Threading.Lock();
-        long _responseRateLimiterRebuildCount;
+        readonly Security.UdpResponseRateLimiterRuntime _rrlRuntime = new Security.UdpResponseRateLimiterRuntime();
 
         int _clientTimeout = 2000;
         int _tcpSendTimeout = 10000;
@@ -1284,7 +1281,7 @@ namespace DnsServerCore.Dns
 
                 // Validate and allocate before accepting persisted or transferred values. A corrupt or
                 // malicious configuration must not replace a working limiter with an invalid one.
-                ApplyResponseRateLimitingOptions(new ResponseRateLimitingOptions(enableResponseRateLimiting, responseRateLimit, responseRateLimitInstant, responseRateLimitSlip, responseRateLimitTableSize, responseRateLimitBypassList));
+                ApplyResponseRateLimitingOptions(new Security.ResponseRateLimitingOptions(enableResponseRateLimiting, responseRateLimit, responseRateLimitInstant, responseRateLimitSlip, responseRateLimitTableSize, responseRateLimitBypassList));
             }
             else
             {
@@ -1585,7 +1582,7 @@ namespace DnsServerCore.Dns
             bW.Write(_statsManager.EnableInMemoryStats);
             bW.Write(_statsManager.MaxStatFileDays);
             bW.Write(_useDnsCookies);
-            ResponseRateLimitingOptions rrlOptions = Volatile.Read(ref _rrlRuntimeState).Options;
+            Security.ResponseRateLimitingOptions rrlOptions = _rrlRuntime.CurrentOptions;
             bW.Write(rrlOptions.Enabled);
             bW.Write(rrlOptions.SustainedRate);
             bW.Write(rrlOptions.InstantLimit);
@@ -2457,15 +2454,14 @@ namespace DnsServerCore.Dns
 
                 // RRL is response policy: classify and limit only after resolution has
                 // produced the response, immediately before the UDP emission path.
-                Security.ResponseRateLimitCategory responseCategory = ClassifyResponseForRateLimiting(response);
+                Security.ResponseRateLimitCategory responseCategory = Security.UdpResponseRateLimiterRuntime.ClassifyResponse(response);
                 Security.ReflectionRrlRequestTrust rrlTrust = cookieClassification.State == CookieRequestState.ValidServerCookie
                     ? Security.ReflectionRrlRequestTrust.ValidServerCookie
                     : Security.ReflectionRrlRequestTrust.Unverified;
-                RrlRuntimeState rrlState = Volatile.Read(ref _rrlRuntimeState);
-                if (Security.ReflectionRrlPolicy.ShouldEvaluate(rrlState.Enabled, isUdp: true, rrlTrust))
+                if (Security.ReflectionRrlPolicy.ShouldEvaluate(_rrlRuntime.Enabled, isUdp: true, rrlTrust))
                 {
                     DnsQuestionRecord question = response.Question[0];
-                    Security.UdpResponseRateLimitResult rrlResult = EvaluateReflectionRrl(rrlState, remoteEP.Address, responseCategory,
+                    Security.UdpResponseRateLimitResult rrlResult = _rrlRuntime.Evaluate(remoteEP.Address, responseCategory,
                         (ushort)question.Type, (ushort)question.Class, question.Name);
                     if (rrlResult == Security.UdpResponseRateLimitResult.LimitedDrop ||
                         (rrlResult == Security.UdpResponseRateLimitResult.LimitedSlip && !Security.ResponseRateLimitSlipPolicy.IsEligible(responseCategory)))
@@ -6805,386 +6801,6 @@ namespace DnsServerCore.Dns
             return false;
         }
 
-        private static Security.UdpResponseRateLimitResult EvaluateReflectionRrl(RrlRuntimeState state, IPAddress remoteIP,
-            Security.ResponseRateLimitCategory category, ushort queryType, ushort queryClass, string canonicalName)
-        {
-            if (state.BypassMatcher.IsMatch(remoteIP))
-                return Security.UdpResponseRateLimitResult.Allowed;
-
-            return state.Limiter.Evaluate(remoteIP, category, queryType, queryClass, canonicalName);
-        }
-
-        private static Security.ResponseRateLimitCategory ClassifyResponseForRateLimiting(DnsDatagram response)
-        {
-            if (response.RCODE == DnsResponseCode.NxDomain)
-                return Security.ResponseRateLimitCategory.NxDomain;
-            if (response.RCODE != DnsResponseCode.NoError)
-                return Security.ResponseRateLimitCategory.ServerError;
-            if (response.Answer.Count == 0)
-            {
-                for (int i = 0; i < response.Authority.Count; i++)
-                    if (response.Authority[i].Type == DnsResourceRecordType.NS)
-                        return Security.ResponseRateLimitCategory.Referral;
-                return Security.ResponseRateLimitCategory.NoData;
-            }
-            for (int i = 0; i < response.Answer.Count; i++)
-                if (response.Answer[i].Type == DnsResourceRecordType.RRSIG && DnsRRSIGRecordData.IsWildcard(response.Answer[i]))
-                    return Security.ResponseRateLimitCategory.Wildcard;
-            return Security.ResponseRateLimitCategory.Positive;
-        }
-
-        public readonly record struct ResponseRateLimitingOptions(bool Enabled, int SustainedRate, int InstantLimit, int SlipEvery, int TableSize, IReadOnlyCollection<NetworkAddress> BypassList);
-
-        private readonly record struct RrlPolicySettings(bool Enabled, ImmutableArray<NetworkAddress> BypassList, RrlBypassMatcher BypassMatcher);
-
-        [Flags]
-        private enum RrlLimiterSemanticChanges
-        {
-            None = 0,
-            Capacity = 1 << 0,
-            ShardCount = 1 << 1,
-            SustainedRate = 1 << 2,
-            DecayTime = 1 << 3,
-            InstantLimit = 1 << 4,
-            InstantWindow = 1 << 5,
-            SlipEvery = 1 << 6,
-            IPv4Prefixes = 1 << 7,
-            IPv6Prefixes = 1 << 8,
-            KeyInterpretation = 1 << 9
-        }
-
-        private enum RrlKeyInterpretation
-        {
-            ResponseIdentityV1
-        }
-
-        private readonly record struct RrlLimiterSemanticSettings(
-            int Capacity,
-            int ShardCount,
-            int SustainedRatePerSecond,
-            long ScaledTokenCapacity,
-            long ScaledTokensPerSecond,
-            int InstantLimit,
-            long InstantWindowTimestampUnits,
-            int SlipEvery,
-            ImmutableArray<int> IPv4PrefixLengths,
-            ImmutableArray<int> IPv6PrefixLengths,
-            RrlKeyInterpretation KeyInterpretation)
-        {
-            /// <summary>
-            /// Identifies changes that alter the table layout, token/window accounting, slip
-            /// counters, address aggregation, or response-identity keys stored in limiter history.
-            /// </summary>
-            public RrlLimiterSemanticChanges GetHistoryAffectingChanges(in RrlLimiterSemanticSettings other)
-            {
-                RrlLimiterSemanticChanges changes = RrlLimiterSemanticChanges.None;
-                if (Capacity != other.Capacity) changes |= RrlLimiterSemanticChanges.Capacity;
-                if (ShardCount != other.ShardCount) changes |= RrlLimiterSemanticChanges.ShardCount;
-                if (ScaledTokensPerSecond != other.ScaledTokensPerSecond) changes |= RrlLimiterSemanticChanges.SustainedRate;
-                if (ScaledTokenCapacity != other.ScaledTokenCapacity) changes |= RrlLimiterSemanticChanges.DecayTime;
-                if (InstantLimit != other.InstantLimit) changes |= RrlLimiterSemanticChanges.InstantLimit;
-                if (InstantWindowTimestampUnits != other.InstantWindowTimestampUnits) changes |= RrlLimiterSemanticChanges.InstantWindow;
-                if (SlipEvery != other.SlipEvery) changes |= RrlLimiterSemanticChanges.SlipEvery;
-                if (!IPv4PrefixLengths.AsSpan().SequenceEqual(other.IPv4PrefixLengths.AsSpan())) changes |= RrlLimiterSemanticChanges.IPv4Prefixes;
-                if (!IPv6PrefixLengths.AsSpan().SequenceEqual(other.IPv6PrefixLengths.AsSpan())) changes |= RrlLimiterSemanticChanges.IPv6Prefixes;
-                if (KeyInterpretation != other.KeyInterpretation) changes |= RrlLimiterSemanticChanges.KeyInterpretation;
-                return changes;
-            }
-
-            public Security.NormalizedUdpResponseRateLimiterOptions ToLimiterOptions() => new Security.NormalizedUdpResponseRateLimiterOptions(
-                Capacity, ShardCount, ScaledTokenCapacity, ScaledTokensPerSecond, TimeProvider.System.TimestampFrequency,
-                InstantWindowTimestampUnits, InstantLimit, SlipEvery, IPv4PrefixLengths, IPv6PrefixLengths);
-        }
-
-        private readonly record struct NormalizedRrlSettings(RrlPolicySettings Policy, RrlLimiterSemanticSettings Limiter);
-
-        /// <summary>
-        /// An immutable RRL policy generation. Instances are completely constructed before a
-        /// single atomic publication and neither their options nor bypass matcher are mutated
-        /// afterward; readers must capture the published reference once and use only that
-        /// instance for the entire decision.
-        /// </summary>
-        private sealed class RrlRuntimeState
-        {
-            public RrlRuntimeState(ResponseRateLimitingOptions options, RrlLimiterSemanticSettings limiterSettings, Security.UdpResponseRateLimiter limiter, RrlBypassMatcher bypassMatcher, ulong generation)
-            {
-                Options = options;
-                LimiterSettings = limiterSettings;
-                Limiter = limiter ?? throw new ArgumentNullException(nameof(limiter));
-                BypassMatcher = bypassMatcher ?? throw new ArgumentNullException(nameof(bypassMatcher));
-                Generation = generation;
-            }
-
-            public bool Enabled => Options.Enabled;
-            public Security.UdpResponseRateLimiter Limiter { get; }
-            public RrlLimiterSemanticSettings LimiterSettings { get; }
-            public RrlBypassMatcher BypassMatcher { get; }
-            public ResponseRateLimitingOptions Options { get; }
-            public ulong Generation { get; }
-        }
-
-        private sealed class RrlBypassMatcher
-        {
-            const int IPV4_BIT_WIDTH = 32;
-            const int IPV4_BYTE_WIDTH = 4;
-            const int IPV6_BIT_WIDTH = 128;
-            const int IPV6_BYTE_WIDTH = 16;
-            const byte IPV4_MAPPED_PREFIX_LENGTH = IPV6_BIT_WIDTH - IPV4_BIT_WIDTH;
-
-            public static readonly RrlBypassMatcher Empty = new RrlBypassMatcher(Array.Empty<Node>(), Array.Empty<Node>());
-
-            readonly Node[] _ipv4Nodes;
-            readonly Node[] _ipv6Nodes;
-
-            private RrlBypassMatcher(Node[] ipv4Nodes, Node[] ipv6Nodes)
-            {
-                _ipv4Nodes = ipv4Nodes;
-                _ipv6Nodes = ipv6Nodes;
-            }
-
-            /// <summary>
-            /// Compiles normalized network prefixes into separate immutable IPv4 and IPv6 radix
-            /// trees. IPv4-mapped IPv6 prefixes are represented as IPv4 prefixes, duplicate and
-            /// contained prefixes are omitted, and a lookup succeeds when any stored prefix
-            /// contains the normalized address. Since this is a Boolean containment matcher rather
-            /// than a route selector, a more-specific (longest) prefix cannot change the result and
-            /// the first containing prefix ends the radix walk.
-            /// </summary>
-            public static RrlBypassMatcher Create(IReadOnlyCollection<NetworkAddress> networks, out ImmutableArray<NetworkAddress> normalizedNetworks)
-            {
-                if ((networks is null) || (networks.Count == 0))
-                {
-                    normalizedNetworks = ImmutableArray<NetworkAddress>.Empty;
-                    return Empty;
-                }
-
-                NetworkAddress[] candidates = new NetworkAddress[networks.Count];
-                int candidateIndex = 0;
-                foreach (NetworkAddress network in networks)
-                    candidates[candidateIndex++] = NormalizeNetwork(network);
-
-                Array.Sort(candidates, static (x, y) =>
-                {
-                    int familyComparison = x.AddressFamily.CompareTo(y.AddressFamily);
-                    return familyComparison != 0 ? familyComparison : x.PrefixLength.CompareTo(y.PrefixLength);
-                });
-
-                TrieBuilder ipv4Builder = new TrieBuilder();
-                TrieBuilder ipv6Builder = new TrieBuilder();
-                ImmutableArray<NetworkAddress>.Builder normalizedBuilder = ImmutableArray.CreateBuilder<NetworkAddress>(candidates.Length);
-                foreach (NetworkAddress network in candidates)
-                {
-                    byte[] bytes = network.Address.GetAddressBytes();
-                    TrieBuilder builder = network.AddressFamily == AddressFamily.InterNetwork ? ipv4Builder : ipv6Builder;
-                    if (builder.Add(bytes, network.PrefixLength))
-                        normalizedBuilder.Add(network);
-                }
-
-                normalizedNetworks = normalizedBuilder.MoveToImmutable();
-                return new RrlBypassMatcher(ipv4Builder.ToArray(), ipv6Builder.ToArray());
-            }
-
-            /// <summary>
-            /// Tests prefix containment without allocations. IPv4-mapped IPv6 addresses are
-            /// normalized to IPv4 before selecting a tree; traversal is bounded by 32 bits for
-            /// IPv4 and 128 bits for IPv6.
-            /// </summary>
-            public bool IsMatch(IPAddress address)
-            {
-                if (address.IsIPv4MappedToIPv6)
-                {
-                    Span<byte> mappedBytes = stackalloc byte[IPV6_BYTE_WIDTH];
-                    return address.TryWriteBytes(mappedBytes, out int bytesWritten) && (bytesWritten == IPV6_BYTE_WIDTH) &&
-                        IsMatch(_ipv4Nodes, mappedBytes.Slice(IPV4_MAPPED_PREFIX_LENGTH / 8), IPV4_BIT_WIDTH);
-                }
-
-                if (address.AddressFamily == AddressFamily.InterNetwork)
-                {
-                    Span<byte> bytes = stackalloc byte[IPV4_BYTE_WIDTH];
-                    return address.TryWriteBytes(bytes, out int bytesWritten) && (bytesWritten == IPV4_BYTE_WIDTH) && IsMatch(_ipv4Nodes, bytes, IPV4_BIT_WIDTH);
-                }
-
-                if (address.AddressFamily == AddressFamily.InterNetworkV6)
-                {
-                    Span<byte> bytes = stackalloc byte[IPV6_BYTE_WIDTH];
-                    return address.TryWriteBytes(bytes, out int bytesWritten) && (bytesWritten == IPV6_BYTE_WIDTH) && IsMatch(_ipv6Nodes, bytes, IPV6_BIT_WIDTH);
-                }
-
-                return false;
-            }
-
-            private static NetworkAddress NormalizeNetwork(NetworkAddress network)
-            {
-                IPAddress address = network.Address;
-                byte prefixLength = network.PrefixLength;
-                if (address.IsIPv4MappedToIPv6)
-                {
-                    address = address.MapToIPv4();
-                    prefixLength = (byte)Math.Max(0, prefixLength - IPV4_MAPPED_PREFIX_LENGTH);
-                }
-
-                return new NetworkAddress(address, prefixLength);
-            }
-
-            private static bool IsMatch(Node[] nodes, ReadOnlySpan<byte> address, int bitWidth)
-            {
-                if (nodes.Length == 0)
-                    return false;
-
-                int nodeIndex = 0;
-                for (int bitIndex = 0; bitIndex < bitWidth; bitIndex++)
-                {
-                    Node node = nodes[nodeIndex];
-                    if (node.IsPrefix)
-                        return true;
-
-                    int bit = (address[bitIndex >> 3] >> (7 - (bitIndex & 7))) & 1;
-                    nodeIndex = bit == 0 ? node.Zero : node.One;
-                    if (nodeIndex < 0)
-                        return false;
-                }
-
-                return nodes[nodeIndex].IsPrefix;
-            }
-
-            private readonly struct Node
-            {
-                public Node(int zero, int one, bool isPrefix)
-                {
-                    Zero = zero;
-                    One = one;
-                    IsPrefix = isPrefix;
-                }
-
-                public int Zero { get; }
-                public int One { get; }
-                public bool IsPrefix { get; }
-            }
-
-            private sealed class TrieBuilder
-            {
-                readonly List<Node> _nodes = new List<Node>();
-
-                public bool Add(ReadOnlySpan<byte> address, int prefixLength)
-                {
-                    if (_nodes.Count == 0)
-                        _nodes.Add(new Node(-1, -1, false));
-
-                    int nodeIndex = 0;
-                    for (int bitIndex = 0; bitIndex < prefixLength; bitIndex++)
-                    {
-                        Node node = _nodes[nodeIndex];
-                        if (node.IsPrefix)
-                            return false;
-
-                        int bit = (address[bitIndex >> 3] >> (7 - (bitIndex & 7))) & 1;
-                        int childIndex = bit == 0 ? node.Zero : node.One;
-                        if (childIndex < 0)
-                        {
-                            childIndex = _nodes.Count;
-                            _nodes.Add(new Node(-1, -1, false));
-                            _nodes[nodeIndex] = bit == 0
-                                ? new Node(childIndex, node.One, false)
-                                : new Node(node.Zero, childIndex, false);
-                        }
-
-                        nodeIndex = childIndex;
-                    }
-
-                    if (_nodes[nodeIndex].IsPrefix)
-                        return false;
-
-                    _nodes[nodeIndex] = new Node(-1, -1, true);
-                    return true;
-                }
-
-                public Node[] ToArray() => _nodes.ToArray();
-            }
-        }
-
-        private static RrlRuntimeState CreateInitialRrlRuntimeState()
-        {
-            ResponseRateLimitingOptions options = new ResponseRateLimitingOptions(false, 100, 200, 2, 65536, ImmutableArray<NetworkAddress>.Empty);
-            return CreateRrlRuntimeState(options, INITIAL_RRL_GENERATION);
-        }
-
-        private static ulong GetNextRrlGeneration(ulong generation) => generation == ulong.MaxValue ? INITIAL_RRL_GENERATION + 1UL : generation + 1UL;
-
-        private static RrlRuntimeState CreateRrlRuntimeState(ResponseRateLimitingOptions options, ulong generation)
-        {
-            NormalizedRrlSettings settings = NormalizeRrlSettings(options);
-            Security.UdpResponseRateLimiter limiter = new Security.UdpResponseRateLimiter(settings.Limiter.ToLimiterOptions());
-            return CreateRrlRuntimeState(settings, limiter, generation);
-        }
-
-        public void ApplyResponseRateLimitingOptions(ResponseRateLimitingOptions options)
-        {
-            lock (_reflectionRrlLock)
-            {
-                RrlRuntimeState current = Volatile.Read(ref _rrlRuntimeState);
-                NormalizedRrlSettings settings = NormalizeRrlSettings(options);
-                bool rebuild = current.LimiterSettings.GetHistoryAffectingChanges(settings.Limiter) != RrlLimiterSemanticChanges.None;
-                Security.UdpResponseRateLimiter limiter = rebuild
-                    ? new Security.UdpResponseRateLimiter(settings.Limiter.ToLimiterOptions())
-                    : current.Limiter;
-                RrlRuntimeState replacement = CreateRrlRuntimeState(settings, limiter, GetNextRrlGeneration(current.Generation));
-
-                // The previous generation remains published if any construction step above fails.
-                Volatile.Write(ref _rrlRuntimeState, replacement);
-                if (rebuild)
-                    Interlocked.Increment(ref _responseRateLimiterRebuildCount);
-            }
-        }
-
-        private static NormalizedRrlSettings NormalizeRrlSettings(ResponseRateLimitingOptions options)
-        {
-            ValidateResponseRateLimitingOptions(options);
-            RrlBypassMatcher bypassMatcher = RrlBypassMatcher.Create(options.BypassList, out ImmutableArray<NetworkAddress> bypassNetworks);
-            RrlPolicySettings policy = new RrlPolicySettings(options.Enabled, bypassNetworks, bypassMatcher);
-            ImmutableArray<int> ipv4PrefixLengths = ImmutableArray.Create(32, 24);
-            ImmutableArray<int> ipv6PrefixLengths = ImmutableArray.Create(128, 64, 56);
-            Security.NormalizedUdpResponseRateLimiterOptions normalizedLimiter = new Security.UdpResponseRateLimiterOptions
-            {
-                Capacity = options.TableSize,
-                ShardCount = 16,
-                SustainedRate = options.SustainedRate,
-                DecayTime = TimeSpan.FromSeconds(1),
-                InstantLimit = options.InstantLimit,
-                InstantWindow = TimeSpan.FromSeconds(1),
-                SlipEvery = options.SlipEvery,
-                IPv4PrefixLengths = ipv4PrefixLengths,
-                IPv6PrefixLengths = ipv6PrefixLengths
-            }.Normalize(TimeProvider.System.TimestampFrequency);
-            RrlLimiterSemanticSettings limiter = new RrlLimiterSemanticSettings(
-                normalizedLimiter.Capacity, normalizedLimiter.ShardCount, options.SustainedRate,
-                normalizedLimiter.ScaledTokenCapacity, normalizedLimiter.ScaledTokensPerSecond,
-                normalizedLimiter.InstantLimit, normalizedLimiter.InstantWindowTimestampUnits,
-                normalizedLimiter.SlipEvery, ipv4PrefixLengths, ipv6PrefixLengths, RrlKeyInterpretation.ResponseIdentityV1);
-            return new NormalizedRrlSettings(policy, limiter);
-        }
-
-        private static RrlRuntimeState CreateRrlRuntimeState(NormalizedRrlSettings settings, Security.UdpResponseRateLimiter limiter, ulong generation)
-        {
-            ResponseRateLimitingOptions options = new ResponseRateLimitingOptions(
-                settings.Policy.Enabled, settings.Limiter.SustainedRatePerSecond, settings.Limiter.InstantLimit,
-                settings.Limiter.SlipEvery, settings.Limiter.Capacity, settings.Policy.BypassList);
-            return new RrlRuntimeState(options, settings.Limiter, limiter, settings.Policy.BypassMatcher, generation);
-        }
-
-        private static void ValidateResponseRateLimitingOptions(ResponseRateLimitingOptions options)
-        {
-            if (options.SustainedRate < 1 || options.SustainedRate > ResponseRateLimitMaximum)
-                throw new ArgumentOutOfRangeException(nameof(ResponseRateLimit), $"Value must be between 1 and {ResponseRateLimitMaximum} responses per second.");
-            if (options.InstantLimit < 1)
-                throw new ArgumentOutOfRangeException(nameof(ResponseRateLimitInstant));
-            if (options.SlipEvery < 0)
-                throw new ArgumentOutOfRangeException(nameof(ResponseRateLimitSlip));
-            if ((options.TableSize < ResponseRateLimitTableSizeMinimum) || (options.TableSize > ResponseRateLimitTableSizeMaximum))
-                throw new ArgumentOutOfRangeException(nameof(ResponseRateLimitTableSize), $"Value must be between {ResponseRateLimitTableSizeMinimum} and {ResponseRateLimitTableSizeMaximum} entries.");
-            if (options.BypassList is not null && options.BypassList.Count > byte.MaxValue)
-                throw new ArgumentOutOfRangeException(nameof(ResponseRateLimitBypassList));
-        }
-
         private bool HasQpmLimitExceeded(NetworkAddress clientSubnet, DnsTransportProtocol protocol, (int, int) qpmLimits, IReadOnlyDictionary<NetworkAddress, (long, long)> qpmLimitClientSubnetStats, out int qpmLimit, out int currentQpm)
         {
             qpmLimit = protocol == DnsTransportProtocol.Udp ? qpmLimits.Item1 : qpmLimits.Item2;
@@ -8550,50 +8166,47 @@ namespace DnsServerCore.Dns
             }
         }
 
-        public ResponseRateLimitingOptions CurrentResponseRateLimitingOptions
-        {
-            get => Volatile.Read(ref _rrlRuntimeState).Options;
-        }
+        public Security.ResponseRateLimitingOptions CurrentResponseRateLimitingOptions => _rrlRuntime.CurrentOptions;
+
+        public void ApplyResponseRateLimitingOptions(Security.ResponseRateLimitingOptions options) => _rrlRuntime.Apply(options);
 
         // Diagnostic hook: callers can compare this value around a settings update.
-        public long ResponseRateLimiterRebuildCount => Interlocked.Read(ref _responseRateLimiterRebuildCount);
+        public long ResponseRateLimiterRebuildCount => _rrlRuntime.RebuildCount;
 
-        public bool EnableResponseRateLimiting { get => Volatile.Read(ref _rrlRuntimeState).Enabled; set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { Enabled = value }); }
+        public bool EnableResponseRateLimiting { get => _rrlRuntime.Enabled; set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { Enabled = value }); }
 
         public int ResponseRateLimit
         {
-            get => Volatile.Read(ref _rrlRuntimeState).Options.SustainedRate;
+            get => _rrlRuntime.CurrentOptions.SustainedRate;
             set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { SustainedRate = value });
         }
 
-        public static readonly int ResponseRateLimitMaximum = (int)Math.Min(int.MaxValue, Security.UdpResponseRateLimiter.MaximumSupportedRate);
+        public static readonly int ResponseRateLimitMaximum = Security.UdpResponseRateLimiterRuntime.SustainedRateMaximum;
 
         public int ResponseRateLimitInstant
         {
-            get => Volatile.Read(ref _rrlRuntimeState).Options.InstantLimit;
+            get => _rrlRuntime.CurrentOptions.InstantLimit;
             set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { InstantLimit = value });
         }
 
         public int ResponseRateLimitSlip
         {
-            get => Volatile.Read(ref _rrlRuntimeState).Options.SlipEvery;
+            get => _rrlRuntime.CurrentOptions.SlipEvery;
             set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { SlipEvery = value });
         }
 
-        public const int ResponseRateLimitTableSizeMinimum = 16;
-        // Eight times the default capacity. This keeps worst-case allocation bounded while
-        // allowing deployments to scale to the same order of magnitude as Knot Resolver.
-        public const int ResponseRateLimitTableSizeMaximum = 524288;
+        public const int ResponseRateLimitTableSizeMinimum = Security.UdpResponseRateLimiterRuntime.TableSizeMinimum;
+        public const int ResponseRateLimitTableSizeMaximum = Security.UdpResponseRateLimiterRuntime.TableSizeMaximum;
 
         public int ResponseRateLimitTableSize
         {
-            get => Volatile.Read(ref _rrlRuntimeState).Options.TableSize;
+            get => _rrlRuntime.CurrentOptions.TableSize;
             set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { TableSize = value });
         }
 
         public IReadOnlyCollection<NetworkAddress> ResponseRateLimitBypassList
         {
-            get => Volatile.Read(ref _rrlRuntimeState).Options.BypassList;
+            get => _rrlRuntime.CurrentOptions.BypassList;
             set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { BypassList = value });
         }
 
