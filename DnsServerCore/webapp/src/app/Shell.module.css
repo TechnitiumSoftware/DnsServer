@@ -1,44 +1,27 @@
-.shell { min-height: 100vh; background: var(--bg); color: var(--ink); }
-.top {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 20px; height: 52px;
-  border-bottom: 1px solid var(--line); background: var(--pan);
-}
-.brand { display: flex; align-items: center; gap: 9px; font-weight: 700; letter-spacing: -0.01em; }
-.mark {
-  width: 22px; height: 22px; border-radius: 6px;
-  background: var(--acc); color: var(--on-acc);
-  display: grid; place-items: center; font: 700 11px/1 system-ui;
-}
-.right { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--mute); }
-.host {
-  font-family: var(--font-mono); font-size: 11.5px; color: var(--faint);
-  border-right: 1px solid var(--line); padding-right: 9px;
-}
-.menu { position: relative; }
-.menuBtn {
-  background: none; border: 0; color: var(--mute); font: inherit; font-size: 12.5px; cursor: pointer;
-}
-.menuList {
-  position: absolute; right: 0; top: 26px; min-width: 190px; z-index: 10;
-  background: var(--pan); border: 1px solid var(--line); border-radius: 9px; padding: 5px;
-  display: flex; flex-direction: column;
-}
-.menuList button {
-  background: none; border: 0; color: var(--ink); font: inherit; font-size: 12.5px;
-  text-align: left; padding: 7px 9px; border-radius: 6px; cursor: pointer;
-}
-.menuList button:hover { background: var(--hover); }
-.nav { display: flex; gap: 2px; padding: 0 14px; border-bottom: 1px solid var(--line); background: var(--pan); overflow: auto; }
-.tab {
-  padding: 11px; font-size: 12.5px; color: var(--mute);
-  background: none; border: 0; border-bottom: 2px solid transparent;
-  white-space: nowrap; cursor: pointer; font-family: inherit;
-}
-.tab[aria-selected='true'] { color: var(--acc); font-weight: 650; border-bottom-color: var(--acc); }
-.body { padding: 22px; }
-.placeholder {
-  border: 1px dashed var(--line); border-radius: 10px; padding: 34px;
-  text-align: center; color: var(--mute); font-size: 12.5px;
-}
-.placeholder b { display: block; color: var(--ink); font-size: 14px; margin-bottom: 6px; }
+/* Panel lateral con sub-items anidados. Decidido midiendo (ver el documento de
+   diseño 09-navegacion): 72 px de cromo frente a 163 con pestañas arriba, y
+   desaparece la segunda fila de pestañas apiladas. */
+.shell { min-height:100vh; background:var(--bg); color:var(--ink); display:grid; grid-template-columns:216px 1fr; align-items:start; }
+.side { background:var(--pan); border-right:1px solid var(--line); align-self:stretch; position:sticky; top:0; height:100vh; overflow:auto; }
+.sbrand { display:flex; align-items:center; gap:9px; padding:0 16px; height:52px; border-bottom:1px solid var(--line); font-weight:700; letter-spacing:-.01em; color:var(--ink); }
+.mark { width:22px; height:22px; border-radius:6px; background:var(--acc); color:var(--on-acc); display:grid; place-items:center; font:700 11px/1 var(--font-ui); flex:none; }
+.slist { padding:10px 8px; display:flex; flex-direction:column; gap:1px; }
+.s { display:flex; align-items:center; gap:9px; padding:7px 9px; border-radius:7px; font:400 12.5px/1.3 var(--font-ui); color:var(--mute); background:none; border:0; cursor:pointer; text-align:left; white-space:nowrap; width:100%; }
+.s:hover { background:var(--hover); color:var(--ink); }
+.s[aria-selected='true'] { background:var(--acc); color:var(--on-acc); font-weight:650; }
+.ico { width:15px; text-align:center; font-size:11px; opacity:.9; flex:none; }
+.sub { display:flex; flex-direction:column; gap:1px; margin:2px 0 4px 23px; padding-left:9px; border-left:1px solid var(--line); }
+.s2 { padding:5px 9px; border-radius:6px; font:400 12px/1.3 var(--font-ui); color:var(--mute); background:none; border:0; cursor:pointer; text-align:left; white-space:nowrap; }
+.s2:hover { color:var(--ink); }
+.s2[aria-current='true'] { color:var(--acc); font-weight:650; background:var(--pan2); }
+.main { min-width:0; }
+.rtop { display:flex; align-items:center; justify-content:flex-end; gap:9px; padding:0 20px; height:52px; border-bottom:1px solid var(--line); background:var(--pan); font-size:12.5px; color:var(--mute); }
+.host { font-family:var(--font-mono); font-size:11.5px; color:var(--faint); border-right:1px solid var(--line); padding-right:9px; }
+.menu { position:relative; }
+.menuBtn { background:none; border:0; color:var(--mute); font:inherit; font-size:12.5px; cursor:pointer; }
+.menuList { position:absolute; right:0; top:30px; min-width:190px; z-index:10; background:var(--pan); border:1px solid var(--line); border-radius:9px; padding:5px; display:flex; flex-direction:column; box-shadow:0 12px 32px rgba(0,0,0,.5); }
+.menuList button { background:none; border:0; color:var(--ink); font:inherit; font-size:12.5px; text-align:left; padding:7px 9px; border-radius:6px; cursor:pointer; }
+.menuList button:hover { background:var(--hover); }
+.body { padding:20px 22px 26px; min-width:0; }
+.placeholder { border:1px dashed var(--line); border-radius:10px; padding:34px; text-align:center; color:var(--mute); font-size:12.5px; }
+.placeholder b { display:block; color:var(--ink); font-size:14px; margin-bottom:6px; }

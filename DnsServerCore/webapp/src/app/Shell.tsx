@@ -4,9 +4,17 @@ import { ChangePassword } from '../screens/modals/ChangePassword'
 import { Configure2FA } from '../screens/modals/Configure2FA'
 import { CreateApiToken } from '../screens/modals/CreateApiToken'
 import { MyProfile } from '../screens/modals/MyProfile'
+import { Dashboard } from '../screens/dashboard/Dashboard'
 import styles from './Shell.module.css'
 
 type ModalId = 'profile' | 'password' | 'twofa' | 'token'
+
+/** Un glifo por sección. Sin dependencia de iconos: la CSP del servidor no
+ *  permite CDN y una fuente de iconos tendría que ir como fichero en www/. */
+const ICONOS: Record<string, string> = {
+  dashboard: '▣', zones: '◆', cache: '○', allowed: '✓', blocked: '⊘', apps: '⊞',
+  dnsclient: '⌕', settings: '⚙', dhcp: '▤', admin: '☺', logs: '≡', about: 'ⓘ',
+}
 
 export interface ShellSession {
   token: string
@@ -27,6 +35,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
   const [active, setActive] = useState(() => sections[0]?.id ?? 'about')
   const [menuOpen, setMenuOpen] = useState(false)
   const [modal, setModal] = useState<ModalId | null>(null)
+  const [sub, setSub] = useState<string | null>(null)
   const [displayName, setDisplayName] = useState(session.displayName)
   const [totpEnabled, setTotpEnabled] = useState(session.totpEnabled ?? false)
 
@@ -46,11 +55,47 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
 
   return (
     <div className={styles.shell}>
-      <header className={styles.top}>
-        <div className={styles.brand}>
+      <aside className={styles.side}>
+        <div className={styles.sbrand}>
           <span className={styles.mark}>T</span> Technitium
         </div>
-        <div className={styles.right}>
+        <nav className={styles.slist} role="navigation" aria-label="Sections">
+          <div role="tablist" aria-orientation="vertical">
+            {sections.map((sec) => (
+              <div key={sec.id}>
+                <button
+                  role="tab"
+                  className={styles.s}
+                  aria-selected={sec.id === current?.id}
+                  onClick={() => { setActive(sec.id); setSub(null) }}
+                >
+                  <span className={styles.ico} aria-hidden="true">{ICONOS[sec.id] ?? '•'}</span>
+                  {sec.label}
+                </button>
+                {/* main.js — los sub-items sólo se ven cuando su sección está
+                    activa, igual que hoy las sub-pestañas. Sin desplegable. */}
+                {sec.id === current?.id && sec.subs && (
+                  <div className={styles.sub}>
+                    {sec.subs.map((t, i) => (
+                      <button
+                        key={t}
+                        className={styles.s2}
+                        aria-current={(sub ?? sec.subs![0]) === t || (sub === null && i === 0)}
+                        onClick={() => setSub(t)}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </nav>
+      </aside>
+
+      <div className={styles.main}>
+        <header className={styles.rtop}>
           {session.info && <span className={styles.host}>{session.info.dnsServerDomain}</span>}
           <div className={styles.menu}>
             <button className={styles.menuBtn} onClick={() => setMenuOpen((v) => !v)}>
@@ -81,31 +126,19 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
               </div>
             )}
           </div>
-        </div>
-      </header>
+        </header>
 
-      <nav className={styles.nav} role="navigation" aria-label="Sections">
-        <div role="tablist">
-          {sections.map((s) => (
-            <button
-              key={s.id}
-              role="tab"
-              className={styles.tab}
-              aria-selected={s.id === current?.id}
-              onClick={() => setActive(s.id)}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </nav>
-
-      <main className={styles.body}>
-        <div className={styles.placeholder}>
-          <b>{current?.label}</b>
-          Esta sección llega en la {current?.phase}.
-        </div>
-      </main>
+        <main className={styles.body}>
+        {current?.id === 'dashboard' ? (
+          <Dashboard token={session.token} />
+        ) : (
+          <div className={styles.placeholder}>
+            <b>{current?.label}</b>
+            Esta sección llega en la {current?.phase}.
+          </div>
+        )}
+        </main>
+      </div>
 
       <MyProfile
         open={modal === 'profile'}

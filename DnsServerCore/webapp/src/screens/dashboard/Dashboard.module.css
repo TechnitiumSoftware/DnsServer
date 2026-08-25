@@ -1,0 +1,23 @@
+.seg { display:inline-flex; padding:3px; background:var(--pan2); border:1px solid var(--line); border-radius:9px; gap:2px; margin-bottom:18px; }
+.seg button { font:500 12.5px/1 inherit; padding:7px 13px; border:0; border-radius:6px; background:transparent; color:var(--mute); cursor:pointer; }
+.seg button[aria-pressed='true'] { background:var(--acc); color:var(--on-acc); font-weight:650; }
+.tiles { display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-bottom:18px; }
+.tile { padding:12px 13px; background:var(--pan); border:1px solid var(--line); border-radius:10px; border-left:3px solid var(--tc); }
+.tile .v { font:700 21px/1.1 var(--font-mono); letter-spacing:-.02em; color:var(--ink); }
+.tile .p { font-size:11px; color:var(--faint); margin-top:1px; font-family:var(--font-mono); }
+.tile .k { font-size:10.5px; color:var(--mute); margin-top:6px; text-transform:uppercase; letter-spacing:.05em; font-weight:650; }
+.grid { display:grid; grid-template-columns:1fr 310px; gap:14px; align-items:start; }
+.col { display:flex; flex-direction:column; gap:14px; }
+.panel { background:var(--pan); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+.ph { display:flex; align-items:center; justify-content:space-between; padding:11px 14px; border-bottom:1px solid var(--line); }
+.ph h2 { margin:0; font-size:12.5px; font-weight:650; color:var(--ink); }
+.pb { padding:14px; }
+.counters { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
+.cnt { padding:11px; background:var(--pan2); border:1px solid var(--line2); border-radius:8px; }
+.cnt .v { font:700 17px/1 var(--font-mono); color:var(--ink); }
+.cnt .k { font-size:10.5px; color:var(--mute); margin-top:5px; text-transform:uppercase; letter-spacing:.05em; }
+.toprow { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:7px 0; border-bottom:1px solid var(--line2); font-size:12.5px; }
+.toprow:last-child { border-bottom:0; }
+.toprow .n { color:var(--ink); font-family:var(--font-mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.toprow .c { color:var(--mute); font-family:var(--font-mono); flex:none; }
+.vacio { color:var(--faint); font-size:12px; padding:10px 0; }
