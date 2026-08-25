@@ -2190,6 +2190,25 @@ namespace DnsServerCore.Dns
                                 }
                             }
 
+                            // QPM is request/workload control and applies independently of
+                            // DNS Cookie trust and the later response RRL decision.
+                            if (HasQpmLimitExceeded(remoteEP.Address, DnsTransportProtocol.Udp))
+                            {
+                                if (SendQpmLimitExceededTruncationResponse())
+                                {
+                                    sendTruncationResponse = true;
+                                }
+                                else
+                                {
+                                    _statsManager.QueueUpdate(null, remoteEP, protocol, null, true);
+                                    continue;
+                                }
+                            }
+                            else
+                            {
+                                sendTruncationResponse = false;
+                            }
+
                             // Classify COOKIE before reflection RRL.  Only a cryptographically
                             // valid Server Cookie proves approximate return-routability; every
                             // other state (including malformed) remains subject to RRL.
@@ -2215,11 +2234,6 @@ namespace DnsServerCore.Dns
                                     continue;
                                 }
                             }
-                            else
-                            {
-                                sendTruncationResponse = false;
-                            }
-
                             if (enableSocketBindingToSourceEP)
                             {
                                 Socket newUdpListener = null;
