@@ -1,0 +1,504 @@
+{
+ "cacheRoot": {
+  "domain": "",
+  "zones": [
+   "com"
+  ],
+  "records": [
+   {
+    "name": "",
+    "type": "DNSKEY",
+    "ttl": "27834 (7h43m54s)",
+    "rData": {
+     "flags": "SecureEntryPoint, ZoneKey",
+     "protocol": 3,
+     "algorithm": "RSASHA256",
+     "algorithmNumber": 8,
+     "publicKey": "AwEAAaz/tAm8yTn4Mfeh5eyI96WSVexTBAvkMgJzkKTOiW1vkIbzxeF3+/4RgWOq7HrxRixHlFlExOLAJr5emLvN7SWXgnLh4+B5xQlNVz8Og8kvArMtNROxVQuCaSnIDdD5LKyWbRd2n9WGe2R8PzgCmr3EgVLrjyBxWezF0jLHwVN8efS3rCj/EWgvIWgb9tarpVUDK/b58Da+sqqls3eNbuv7pr+eoZG+SrDK6nWeL3c6H5Apxz7LjVc1uTIdsIXxuOLYA4/ilBmSVIzuDWfdRUfhHdY6+cn8HFRm+2hM8AnXGXws9555KrUB5qihylGa8subX2Nn6UwNR1AkUTV74bU=",
+     "computedKeyTag": 20326
+    },
+    "dnssecStatus": "Secure",
+    "dnssecRecords": [
+     ".                     28833     IN  RRSIG         48 8 0 172800 1788998400 1787184000 20326 . hQqYrSY1hgaqax9ke/8SFj0ZozkRgdHJJlXvIU5t2Bsrcmu3J87WkgjeMLeMiKK/TsFIlpb+XCl33T8C3Ja04IyZ2ifVGuMlrDAp7qg3lkO6gXmQ9V7DQscPFbUmicFX0SyhR9wy3JxDQ/tVQx11sMlxphdhRx5kBobY2DeRG0SS2WODJi4qCFLk7bvQ0uRQ3adCI7MS8F6QX5NZEy7oHnmERYF1vosrJhTTw/lDOL6qx6k2LklIWnJI8gvAlhwqOWlQZk8hjkYkkrmgAW2s+pwGqeeYmz1Ttfs7yY2yreKEnJhdeg08q4NURPM1FrNeR5F4k38P3Es8vAIn5r/xYw=="
+    ],
+    "responseMetadata": {
+     "nameServer": "8.8.8.8",
+     "protocol": "Udp",
+     "datagramSize": "1139 bytes",
+     "roundTripTime": "0.84 ms"
+    },
+    "lastUsedOn": "2026-08-25T20:15:04.7024524Z"
+   },
+   {
+    "name": "",
+    "type": "DNSKEY",
+    "ttl": "27834 (7h43m54s)",
+    "rData": {
+     "flags": "ZoneKey",
+     "protocol": 3,
+     "algorithm": "RSASHA256",
+     "algorithmNumber": 8,
+     "publicKey": "AwEAAeCYD6Z7WWKVLeuWgowKP+3g+Gs1cnLKq7a3CaQxQpv8bfuFVI0WnG33qaSH/Mw9IBgifrdzf4XY/DQLnyBJ9MfaOyAWuEaEmYJ+GQPiwVVfstGwSA1McfFJUttTgq2Huu74KARhtA8wPo/N3XcyYQtNhz+qCM5NBb3ecx/naw6sYab9LxS6f2cU0q03++BP5Ks0Uef8WJCa/1izCYE+vMkwoltV+tENa3hpXiZ7jle/xdgaZrPi5ZGmyLVI34g1XVYrNlsCCTmNvFQIfzW5STFQFsQpizczyFn9r3LzSxxPCNwdlCG84bER0BmdwqbF6Tanv+FxMOavrahkj4wIy5k=",
+     "computedKeyTag": 57780
+    },
+    "dnssecStatus": "Secure",
+    "responseMetadata": {
+     "nameServer": "8.8.8.8",
+     "protocol": "Udp",
+     "datagramSize": "1139 bytes",
+     "roundTripTime": "0.84 ms"
+    },
+    "lastUsedOn": "2026-08-25T20:15:04.7024524Z"
+   },
+   {
+    "name": "",
+    "type": "DNSKEY",
+    "ttl": "27834 (7h43m54s)",
+    "rData": {
+     "flags": "SecureEntryPoint, ZoneKey",
+     "protocol": 3,
+     "algorithm": "RSASHA256",
+     "algorithmNumber": 8,
+     "publicKey": "AwEAAa96jeuknZlaeSrvyAJj6ZHv28hhOKkx3rLGXVaC6rXTsDc449/cidltpkyGwCJNnOAlFNKF2jBosZBU5eeHspaQWOmOElZsjICMQMC3aeHbGiShvZsx4wMYSjH8e7Vrhbu6irwCzVBApESjbUdpWWmEnhathWu1jo+siFUiRAAxm9qyJNg/wOZqqzL/dL/q8PkcRU5oUKEpUge71M3ej2/7CPqpdVwuMoTvoB+ZOT4YeGyxMvHmbrxlFzGOHOijtzN+u1TQNatX2XBuzZNQ1K+s2CXkPIZo7s6JgZyvaBevYtxPvYLw4z9mR7K2vaF18UYH9Z9GNUUeayffKC73PYc=",
+     "computedKeyTag": 38696
+    },
+    "dnssecStatus": "Secure",
+    "responseMetadata": {
+     "nameServer": "8.8.8.8",
+     "protocol": "Udp",
+     "datagramSize": "1139 bytes",
+     "roundTripTime": "0.84 ms"
+    },
+    "lastUsedOn": "2026-08-25T20:15:04.7024524Z"
+   }
+  ]
+ },
+ "cacheCom": {
+  "domain": "com",
+  "zones": [
+   "example.com",
+   "technitium.com"
+  ],
+  "records": [
+   {
+    "name": "com",
+    "type": "DS",
+    "ttl": "37031 (10h17m11s)",
+    "rData": {
+     "keyTag": 19718,
+     "algorithm": "ECDSAP256SHA256",
+     "algorithmNumber": 13,
+     "digestType": "SHA256",
+     "digestTypeNumber": 2,
+     "digest": "8ACBB0CD28F41250A80A491389424D341522D946B0DA0C0291F2D3D771D7805A"
+    },
+    "dnssecStatus": "Secure",
+    "dnssecRecords": [
+     "com.                  37031     IN  RRSIG         43 8 1 86400 1788800400 1787673600 57780 . egPmM49Luy1QL74QC5CtcvFnvpkbZ5MbLYlxxBNDq8GkknJ6iicx5pjhwIjv9RisnpY9BfGur+BjMwNWfOCoNADPuDhnUfe2lauaTx3IMj9L9vfwauESFAgqy7EOl/CHpa+jINIp7jayMZyYYUIGcCf3whBs+kSdFrZ/ysS9O6b640b1+qW2+ay3vubjs2JQyK9YQqU1UwHNIhd6ctU5wyKTowr/eZPe5nhTkkMQJ/c1tSJM6dzseTuJQs73LRMGNDpwr+QTxVuhVcEZuOYzWOfUuvSyRSDyy7vks7vM06LteOMBXjdV3O7NaKjxnTQrtY12CEwdnDznuqtKOcwpQQ=="
+    ],
+    "responseMetadata": {
+     "nameServer": "1.1.1.1",
+     "protocol": "Udp",
+     "datagramSize": "367 bytes",
+     "roundTripTime": "1.19 ms"
+    },
+    "lastUsedOn": "2026-08-25T20:15:04.7071387Z"
+   },
+   {
+    "name": "com",
+    "type": "DNSKEY",
+    "ttl": "10554 (2h55m54s)",
+    "rData": {
+     "flags": "SecureEntryPoint, ZoneKey",
+     "protocol": 3,
+     "algorithm": "ECDSAP256SHA256",
+     "algorithmNumber": 13,
+     "publicKey": "tx8EZRAd2+K/DJRV0S+hbBzaRPS/G6JVNBitHzqpsGlz8huE61Ms9ANe6NSDLKJtiTBqfTJWDAywEp1FCsEINQ==",
+     "computedKeyTag": 19718
+    },
+    "dnssecStatus": "Secure",
+    "responseMetadata": {
+     "nameServer": "8.8.8.8",
+     "protocol": "Udp",
+     "datagramSize": "291 bytes",
+     "roundTripTime": "0.86 ms"
+    },
+    "lastUsedOn": "2026-08-25T20:15:04.708032Z"
+   },
+   {
+    "name": "com",
+    "type": "DNSKEY",
+    "ttl": "10554 (2h55m54s)",
+    "rData": {
+     "flags": "ZoneKey",
+     "protocol": 3,
+     "algorithm": "ECDSAP256SHA256",
+     "algorithmNumber": 13,
+     "publicKey": "o6onp+t66olg3PFhuIXaaatogT3OrqHrqt48IkYGuxwW8tSnQVMGyO+TSmp8sTRtkD9km+N/VQvvtqVM8ra9/Q==",
+     "computedKeyTag": 41446
+    },
+    "dnssecStatus": "Secure",
+    "dnssecRecords": [
+     "com.                  10554     IN  RRSIG         48 13 1 86400 1788098555 1786802255 19718 com. nD3eYn4yCuQC7tM6GiIonIj0w/F5TRXGsVAojL5y7GThN+Z6IERdKawjev7UaztEceE0jRjx0scyfU749pv2lA=="
+    ],
+    "responseMetadata": {
+     "nameServer": "8.8.8.8",
+     "protocol": "Udp",
+     "datagramSize": "291 bytes",
+     "roundTripTime": "0.86 ms"
+    },
+    "lastUsedOn": "2026-08-25T20:15:04.708032Z"
+   }
+  ]
+ },
+ "cacheExample": {
+  "domain": "example.com",
+  "zones": [],
+  "records": [
+   {
+    "name": "example.com",
+    "type": "A",
+    "ttl": "113 (1m53s)",
+    "rData": {
+     "ipAddress": "104.20.23.154"
+    },
+    "dnssecStatus": "Secure",
+    "dnssecRecords": [
+     "example.com.          113       IN  RRSIG         1 13 2 300 1787778717 1787598717 34505 example.com. v8EUKfzH03aruEKFG5OhnU3hKESqVsc2KNtCMiEuAv1pzE6uxiLz6+gk7Jg6mSOKRxnNNc3NjHIbVr0WLmjZ1g=="
+    ],
+    "responseMetadata": {
+     "nameServer": "1.1.1.1",
+     "protocol": "Udp",
+     "datagramSize": "179 bytes",
+     "roundTripTime": "14.7 ms"
+    },
+    "lastUsedOn": "2026-08-25T20:15:04.7063699Z"
+   },
+   {
+    "name": "example.com",
+    "type": "A",
+    "ttl": "113 (1m53s)",
+    "rData": {
+     "ipAddress": "172.66.147.243"
+    },
+    "dnssecStatus": "Secure",
+    "responseMetadata": {
+     "nameServer": "1.1.1.1",
+     "protocol": "Udp",
+     "datagramSize": "179 bytes",
+     "roundTripTime": "14.7 ms"
+    },
+    "lastUsedOn": "2026-08-25T20:15:04.7063699Z"
+   },
+   {
+    "name": "example.com",
+    "type": "DS",
+    "ttl": "26022 (7h13m42s)",
+    "rData": {
+     "keyTag": 2371,
+     "algorithm": "ECDSAP256SHA256",
+     "algorithmNumber": 13,
+     "digestType": "SHA256",
+     "digestTypeNumber": 2,
+     "digest": "C988EC423E3880EB8DD8A46FE06CA230EE23F35B578D64E78B29C3E1C83D245A"
+    },
+    "dnssecStatus": "Secure",
+    "dnssecRecords": [
+     "example.com.          26022     IN  RRSIG         43 13 2 86400 1787967251 1787358251 41446 com. HCxxux3dEccO7Zamz1og9PWu7T1z1l1sYTWoovqJzwyvH2B2jtXQlAxOfRYL9CTpHKAiv7TMHqixWQnBdUjO9A=="
+    ],
+    "responseMetadata": {
+     "nameServer": "1.1.1.1",
+     "protocol": "Udp",
+     "datagramSize": "187 bytes",
+     "roundTripTime": "1.16 ms"
+    },
+    "lastUsedOn": "2026-08-25T20:15:04.7089309Z"
+   },
+   {
+    "name": "example.com",
+    "type": "DNSKEY",
+    "ttl": "253 (4m13s)",
+    "rData": {
+     "flags": "ZoneKey",
+     "protocol": 3,
+     "algorithm": "ECDSAP256SHA256",
+     "algorithmNumber": 13,
+     "publicKey": "kxipjoIbNZDsWqEKaYaGq6fM/XThrRp1ue6AV9R/n3eWxpGCeCWJb47PEEEj/Q6VAYFW/7UFo5mXoZfxKYZa3A==",
+     "computedKeyTag": 9776
+    },
+    "dnssecStatus": "Secure",
+    "dnssecRecords": [
+     "example.com.          253       IN  RRSIG         48 13 2 3600 1791481604 1786211204 2371 example.com. dpLooW0rFNvAXlISkR6EdK3oMFeUE0YRXoFUVymtTbKpYHGdQEJ6VaY00b0NJtgZGX08aN4DNBM/T9ttnToIng=="
+    ],
+    "responseMetadata": {
+     "nameServer": "1.1.1.1",
+     "protocol": "Udp",
+     "datagramSize": "467 bytes",
+     "roundTripTime": "1.09 ms"
+    },
+    "lastUsedOn": "2026-08-25T20:15:04.7097438Z"
+   },
+   {
+    "name": "example.com",
+    "type": "DNSKEY",
+    "ttl": "253 (4m13s)",
+    "rData": {
+     "flags": "ZoneKey",
+     "protocol": 3,
+     "algorithm": "ECDSAP256SHA256",
+     "algorithmNumber": 13,
+     "publicKey": "MjyZielP0GqniI1+j+wAG/3t0ImDDIlj1CxR0oobkZQHSKH2Fqx6tm2NcYu57POJ83SzCWLkqIjZHS1mh5wbaw==",
+     "computedKeyTag": 36315
+    },
+    "dnssecStatus": "Secure",
+    "responseMetadata": {
+     "nameServer": "1.1.1.1",
+     "protocol": "Udp",
+     "datagramSize": "467 bytes",
+     "roundTripTime": "1.09 ms"
+    },
+    "lastUsedOn": "2026-08-25T20:15:04.7097438Z"
+   },
+   {
+    "name": "example.com",
+    "type": "DNSKEY",
+    "ttl": "253 (4m13s)",
+    "rData": {
+     "flags": "ZoneKey",
+     "protocol": 3,
+     "algorithm": "ECDSAP256SHA256",
+     "algorithmNumber": 13,
+     "publicKey": "oJMRESz5E4gYzS/q6XDrvU1qMPYIjCWzJaOau8XNEZeqCYKD5ar0IRd8KqXXFJkqmVfRvMGPmM1x8fGAa2XhSA==",
+     "computedKeyTag": 34505
+    },
+    "dnssecStatus": "Secure",
+    "responseMetadata": {
+     "nameServer": "1.1.1.1",
+     "protocol": "Udp",
+     "datagramSize": "467 bytes",
+     "roundTripTime": "1.09 ms"
+    },
+    "lastUsedOn": "2026-08-25T20:15:04.7097438Z"
+   },
+   {
+    "name": "example.com",
+    "type": "DNSKEY",
+    "ttl": "253 (4m13s)",
+    "rData": {
+     "flags": "SecureEntryPoint, ZoneKey",
+     "protocol": 3,
+     "algorithm": "ECDSAP256SHA256",
+     "algorithmNumber": 13,
+     "publicKey": "mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==",
+     "computedKeyTag": 2371
+    },
+    "dnssecStatus": "Secure",
+    "responseMetadata": {
+     "nameServer": "1.1.1.1",
+     "protocol": "Udp",
+     "datagramSize": "467 bytes",
+     "roundTripTime": "1.09 ms"
+    },
+    "lastUsedOn": "2026-08-25T20:15:04.7097438Z"
+   }
+  ]
+ },
+ "cacheTechnitium": {
+  "domain": "technitium.com",
+  "zones": [],
+  "records": [
+   {
+    "name": "technitium.com",
+    "type": "NS",
+    "ttl": "19419 (5h23m39s)",
+    "rData": {
+     "nameServer": "ns1.technitium.com"
+    },
+    "dnssecStatus": "Secure",
+    "dnssecRecords": [
+     "technitium.com.       19419     IN  RRSIG         2 13 2 86400 1788662431 1787449231 29164 technitium.com. DAS2JrMQfk2IUoEddx6IEHXAV0QNM5C7/cEvmSH9Q2w0vnsGu98zm8+mAhKDzBV1IKTiSRp/pBlA5IccAhNKOQ=="
+    ],
+    "nameServerMetadata": {
+     "totalQueries": 0,
+     "answerRate": "0%",
+     "smoothedRoundTripTime": "0 ms",
+     "smoothedPenaltyRoundTripTime": "0 ms",
+     "netRoundTripTime": "0 ms",
+     "isMisconfigured": false
+    },
+    "responseMetadata": {
+     "nameServer": "8.8.8.8",
+     "protocol": "Udp",
+     "datagramSize": "218 bytes",
+     "roundTripTime": "28.46 ms"
+    },
+    "lastUsedOn": "2026-08-25T20:15:04.6782408Z"
+   },
+   {
+    "name": "technitium.com",
+    "type": "NS",
+    "ttl": "19419 (5h23m39s)",
+    "rData": {
+     "nameServer": "ns2.technitium.com"
+    },
+    "dnssecStatus": "Secure",
+    "nameServerMetadata": {
+     "totalQueries": 0,
+     "answerRate": "0%",
+     "smoothedRoundTripTime": "0 ms",
+     "smoothedPenaltyRoundTripTime": "0 ms",
+     "netRoundTripTime": "0 ms",
+     "isMisconfigured": false
+    },
+    "responseMetadata": {
+     "nameServer": "8.8.8.8",
+     "protocol": "Udp",
+     "datagramSize": "218 bytes",
+     "roundTripTime": "28.46 ms"
+    },
+    "lastUsedOn": "2026-08-25T20:15:04.6782408Z"
+   },
+   {
+    "name": "technitium.com",
+    "type": "NS",
+    "ttl": "19419 (5h23m39s)",
+    "rData": {
+     "nameServer": "ns-global.kjsl.com"
+    },
+    "dnssecStatus": "Secure",
+    "nameServerMetadata": {
+     "totalQueries": 0,
+     "answerRate": "0%",
+     "smoothedRoundTripTime": "0 ms",
+     "smoothedPenaltyRoundTripTime": "0 ms",
+     "netRoundTripTime": "0 ms",
+     "isMisconfigured": false
+    },
+    "responseMetadata": {
+     "nameServer": "8.8.8.8",
+     "protocol": "Udp",
+     "datagramSize": "218 bytes",
+     "roundTripTime": "28.46 ms"
+    },
+    "lastUsedOn": "2026-08-25T20:15:04.6782408Z"
+   },
+   {
+    "name": "technitium.com",
+    "type": "DS",
+    "ttl": "20993 (5h49m53s)",
+    "rData": {
+     "keyTag": 39487,
+     "algorithm": "ECDSAP256SHA256",
+     "algorithmNumber": 13,
+     "digestType": "SHA256",
+     "digestTypeNumber": 2,
+     "digest": "A9736D46CD58EB79F9B778C1CEF1C4714842B47CE659FEDF393E0C81F4C8690D"
+    },
+    "dnssecStatus": "Secure",
+    "dnssecRecords": [
+     "technitium.com.       20993     IN  RRSIG         43 13 2 86400 1787964911 1787355911 41446 com. SRbo+DvNBwCoMjVg7hs31HMpZpX1JyrKDgbko0k6b41PjPltk562geSkOoQdaPD0DP2dx7j8cUWTHPPUOGgk2Q=="
+    ],
+    "responseMetadata": {
+     "nameServer": "8.8.8.8",
+     "protocol": "Udp",
+     "datagramSize": "190 bytes",
+     "roundTripTime": "0.92 ms"
+    },
+    "lastUsedOn": "2026-08-25T20:15:04.680151Z"
+   },
+   {
+    "name": "technitium.com",
+    "type": "DNSKEY",
+    "ttl": "3241 (54m1s)",
+    "rData": {
+     "flags": "SecureEntryPoint, ZoneKey",
+     "protocol": 3,
+     "algorithm": "ECDSAP256SHA256",
+     "algorithmNumber": 13,
+     "publicKey": "kQKG+ben13CmaKJKYGHtrhfXZt8VT34ZVIC4o1wIS0SwhHllP+7by+/J6Z1UKQoGF64xbPTySK/BrDJHGf5/3w==",
+     "computedKeyTag": 39487
+    },
+    "dnssecStatus": "Secure",
+    "dnssecRecords": [
+     "technitium.com.       3241      IN  RRSIG         48 13 2 3600 1788783931 1787570731 39487 technitium.com. QyBExamogsB6UlxMmUWmq/FOPr8aFjUYnxGelbNq6YUJyc1q7O7CZizi+qP8pyVtEswSYdY3AxlvCThciOfqTA=="
+    ],
+    "responseMetadata": {
+     "nameServer": "1.1.1.1",
+     "protocol": "Udp",
+     "datagramSize": "313 bytes",
+     "roundTripTime": "0.86 ms"
+    },
+    "lastUsedOn": "2026-08-25T20:15:04.6807893Z"
+   },
+   {
+    "name": "technitium.com",
+    "type": "DNSKEY",
+    "ttl": "3241 (54m1s)",
+    "rData": {
+     "flags": "ZoneKey",
+     "protocol": 3,
+     "algorithm": "ECDSAP256SHA256",
+     "algorithmNumber": 13,
+     "publicKey": "2EMiEIy7FDqVjG1imD+uEaRipfSVcmlgcyaaHtDWEiEvDWv4epiPPdrM6kuBN9InUDAVLuCX03tEmCcFeJqU8A==",
+     "computedKeyTag": 29164
+    },
+    "dnssecStatus": "Secure",
+    "responseMetadata": {
+     "nameServer": "1.1.1.1",
+     "protocol": "Udp",
+     "datagramSize": "313 bytes",
+     "roundTripTime": "0.86 ms"
+    },
+    "lastUsedOn": "2026-08-25T20:15:04.6807893Z"
+   }
+  ]
+ },
+ "allowed": {
+  "domain": "example.org",
+  "zones": [
+   "foo.example.org"
+  ],
+  "records": [
+   {
+    "name": "example.org",
+    "type": "NS",
+    "ttl": 14400,
+    "ttlString": "4h",
+    "disabled": false,
+    "rData": {
+     "nameServer": "ref.technitium-ui.test"
+    },
+    "dnssecStatus": "Unknown",
+    "lastUsedOn": "0001-01-01T00:00:00",
+    "lastModified": "0001-01-01T00:00:00",
+    "expiryTtl": 0,
+    "expiryTtlString": "0s"
+   },
+   {
+    "name": "example.org",
+    "type": "SOA",
+    "ttl": 30,
+    "ttlString": "30s",
+    "disabled": false,
+    "rData": {
+     "primaryNameServer": "ref.technitium-ui.test",
+     "responsiblePerson": "hostadmin@a7066b38026f",
+     "serial": 1,
+     "refresh": 900,
+     "retry": 300,
+     "expire": 604800,
+     "minimum": 30,
+     "refreshString": "15m",
+     "retryString": "5m",
+     "expireString": "1w",
+     "minimumString": "30s"
+    },
+    "dnssecStatus": "Unknown",
+    "lastUsedOn": "0001-01-01T00:00:00",
+    "lastModified": "0001-01-01T00:00:00",
+    "expiryTtl": 0,
+    "expiryTtlString": "0s"
+   }
+  ]
+ }
+}

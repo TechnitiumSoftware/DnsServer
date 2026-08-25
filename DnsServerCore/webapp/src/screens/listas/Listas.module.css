@@ -58,5 +58,4 @@
 
 .avisoHueco { margin-bottom:14px; }
 .parrafo { margin:0 0 10px; font-size:12.5px; color:var(--mute); line-height:1.6; }
-.area { width:100%; min-height:260px; resize:vertical; font-family:var(--font-mono); font-size:12.5px; padding:9px; border:1px solid var(--line); border-radius:6px; background:var(--field); color:var(--ink); }
-.etiquetaCampo { display:block; font-size:11px; color:var(--mute); font-weight:650; margin-bottom:5px; }
+.area { min-height:260px; resize:vertical; }

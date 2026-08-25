@@ -189,11 +189,18 @@ export interface SettingsForm {
   maxStatFileDays: string
 }
 
-/** `getArrayAsString` (main.js:1140): una entrada por línea, con `\r\n`.
- *  El array nulo da cadena vacía, igual que las guardas de upstream. */
+/*
+`getArrayAsString` (main.js:1140) concatena cada entrada con `\r\n`, pero eso NO
+es lo que acaba viajando al servidor: el HTML obliga al navegador a normalizar
+los saltos del valor de un `<textarea>` a `\n` al leerlo, así que cuando
+`cleanTextList` lo recoge los `\r` ya no están. Aquí no hay DOM intermedio que
+normalice nada, de modo que se emite `\n` directamente. Copiar el `\r\n` literal
+mandaría `forwarders=1.1.1.1%0D,8.8.8.8%0D` al servidor, que es justo lo que
+upstream NO manda.
+*/
 export function listaATexto(lista: readonly string[] | number[] | null | undefined): string {
   if (lista == null) return ''
-  return (lista as readonly (string | number)[]).map((v) => `${v}\r\n`).join('')
+  return (lista as readonly (string | number)[]).map((v) => `${v}\n`).join('')
 }
 
 /** `cleanTextList` (common.js:326): saltos de línea a comas, comas repetidas

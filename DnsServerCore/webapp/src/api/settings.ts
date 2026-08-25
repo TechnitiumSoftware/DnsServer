@@ -303,11 +303,9 @@ export function parametrosBackup(
 }
 
 /*
-`settings/restore` es el ÚNICO endpoint de la consola que manda un fichero, y va
-como `multipart/form-data` con el resto de opciones en la query (main.js:3170).
-`apiRequest` sólo sabe mandar cuerpos urlencoded, así que aquí se hace el `fetch`
-a mano repitiendo su contrato. La solución buena es una opción `body: FormData`
-en `src/api/client.ts`, que esta fase no puede tocar; queda anotado.
+`settings/restore` manda el fichero por multipart y el resto de opciones en la
+QUERY, no en el cuerpo (main.js:3170). Se respeta al pie de la letra: la ruta
+lleva ya la query montada y `apiRequest` sólo añade el FormData con el zip.
 */
 export async function restoreSettings(
   token: string | null,
@@ -319,31 +317,11 @@ export async function restoreSettings(
   const query = new URLSearchParams(parametrosBackup(seleccion, node))
   query.set('deleteExistingFiles', String(deleteExistingFiles))
 
-  const cuerpo = new FormData()
-  cuerpo.append('fileBackupZip', fichero)
-
-  let payload: { status?: string; errorMessage?: string }
-  try {
-    const res = await fetch(`api/settings/restore?${query.toString()}`, {
-      method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: cuerpo,
-    })
-    payload = (await res.json()) as { status?: string; errorMessage?: string }
-  } catch {
-    return { kind: 'error', message: 'Unable to reach the DNS server.' }
-  }
-
-  switch (payload.status) {
-    case 'ok':
-      return { kind: 'ok', data: payload as { response: DnsSettings } }
-    case 'invalid-token':
-      return { kind: 'invalid-token' }
-    case '2fa-required':
-      return { kind: 'two-factor-required' }
-    default:
-      return { kind: 'error', message: payload.errorMessage ?? 'Unknown error.' }
-  }
+  return apiRequest<{ response: DnsSettings }>(`settings/restore?${query.toString()}`, {
+    token,
+    method: 'POST',
+    file: { campo: 'fileBackupZip', archivo: fichero },
+  })
 }
 
 /** `cache/flush` (other-zones.js:20). Vive aquí de prestado: ver cabecera. */

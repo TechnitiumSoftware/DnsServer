@@ -73,6 +73,27 @@ Anota aquí lo que encuentres. Lo que ya se sabe:
   `listZone=true` y se pagina en el cliente.
 - **Dónde sale un aviso no es cosmético**: en upstream, los avisos de un modal
   salen dentro del modal y los de una pantalla salen en la pantalla. Respétalo.
+- **El servidor puede devolverte un dominio distinto del que pediste.** Al
+  navegar el árbol de cache/allowed/blocked, `WebServiceOtherZonesApi.cs`
+  **desciende solo** mientras el nodo no tenga registros y tenga exactamente un
+  hijo. Pinta siempre `response.domain`, **nunca** el dominio que pediste, o el
+  árbol y la tabla se desincronizan.
+- **El mismo campo puede tener dos tipos según el endpoint.** En `cache/list` el
+  `ttl` es una cadena ya compuesta (`"218 (3m38s)"`); en `allowed/list` y
+  `blocked/list` es un número con `ttlString` aparte. Igual con `refresh`,
+  `retry`, `expire` y `minimum` de un SOA. Tipar los registros con una sola
+  forma es un error garantizado.
+- **`0001-01-01T00:00:00` es el `default(DateTime)` de .NET**: significa
+  «nunca», no el año 1.
+- **Reglas de visibilidad que parecen la misma y no lo son**: el borrado de un
+  nodo se ofrece en cache si el nodo no es la raíz, y en allowed/blocked si el
+  nodo tiene registros. No las uniformes sin mirar.
+- **Un recuento puede no estar donde lo pintas.** `blocked/list` sólo lee las
+  zonas bloqueadas a mano; las listas de bloqueo descargadas **sólo** se cuentan
+  en `dashboard/stats/get` (`blockListZones`).
+- **Ojo con replicar la intención en vez del comportamiento.** En `other-zones.js`
+  hay tres `domain.toLowerCase();` **sin asignar el resultado**: no hacen nada.
+  Se replica lo que el código hace, no lo que parece querer hacer.
 - **Permisos asimétricos**: algunas acciones piden `Delete` donde esperarías
   `Modify`, y `apps/list` se permite con permiso de lectura sobre Apps, Zones
   **o** Logs. No deduzcas el permiso: míralo.

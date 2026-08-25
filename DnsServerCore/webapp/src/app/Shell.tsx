@@ -8,6 +8,7 @@ import { Dashboard } from '../screens/dashboard/Dashboard'
 import { DnsClient } from '../screens/dnsclient/DnsClient'
 import { About } from '../screens/about/About'
 import { Apps } from '../screens/apps/Apps'
+import { Cache, Allowed, Blocked } from '../screens/listas/Listas'
 import styles from './Shell.module.css'
 
 type ModalId = 'profile' | 'password' | 'twofa' | 'token'
@@ -140,6 +141,12 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
           <About token={session.token} info={session.info} />
         ) : current?.id === 'apps' ? (
           <Apps token={session.token} />
+        ) : current?.id === 'cache' ? (
+          <Cache token={session.token} />
+        ) : current?.id === 'allowed' ? (
+          <Allowed token={session.token} />
+        ) : current?.id === 'blocked' ? (
+          <Blocked token={session.token} />
         ) : (
           <div className={styles.placeholder}>
             <b>{current?.label}</b>
