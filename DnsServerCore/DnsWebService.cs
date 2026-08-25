@@ -23,6 +23,7 @@ using DnsServerCore.Dhcp;
 using DnsServerCore.Dns;
 using DnsServerCore.Dns.Applications;
 using DnsServerCore.Dns.Dnssec;
+using DnsServerCore.Dns.Security;
 using DnsServerCore.Dns.Zones;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.BearerToken;
@@ -1090,6 +1091,9 @@ namespace DnsServerCore
                         ZipArchiveEntry dnsCookieStateEntry = backupZip.GetEntry("dns.cookies.state");
                         if (dnsCookieStateEntry is not null)
                         {
+                            if (dnsCookieStateEntry.Length > DnsCookieSecretManager.MaxSerializedStateSize)
+                                throw new InvalidDataException($"DNS Cookie secret state exceeds the maximum size of {DnsCookieSecretManager.MaxSerializedStateSize} bytes.");
+
                             await using Stream stream = dnsCookieStateEntry.Open();
                             _dnsServer.ImportDnsCookieSecretState(stream);
                         }

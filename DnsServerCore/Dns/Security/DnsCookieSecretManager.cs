@@ -34,6 +34,11 @@ namespace DnsServerCore.Dns.Security
         private const int MinSecretLen = 16;
         private const int MaxSecretLen = 256;
 
+        // Serialized state contains fixed metadata followed by at most two secrets:
+        // version, creation ticks, active length, and staging length.
+        private const int SerializedMetadataSize = sizeof(int) + sizeof(long) + sizeof(int) + sizeof(int);
+        internal const int MaxSerializedStateSize = SerializedMetadataSize + (2 * MaxSecretLen);
+
         // Default secret size (256-bit)
         private const int DefaultSecretLen = 32;
 
@@ -355,33 +360,48 @@ namespace DnsServerCore.Dns.Security
             if (stream is null)
                 throw new ArgumentNullException(nameof(stream));
 
-            using MemoryStream buffer = new MemoryStream();
-            stream.CopyTo(buffer);
+            if (stream.CanSeek && (stream.Length - stream.Position > MaxSerializedStateSize))
+                throw new InvalidDataException($"DNS Cookie secret state exceeds the maximum size of {MaxSerializedStateSize} bytes.");
+
+            using MemoryStream buffer = new MemoryStream(MaxSerializedStateSize);
+            byte[] readBuffer = new byte[Math.Min(4096, MaxSerializedStateSize + 1)];
+            int totalBytesRead = 0;
+
+            while (true)
+            {
+                int bytesRead = stream.Read(readBuffer, 0, Math.Min(readBuffer.Length, MaxSerializedStateSize - totalBytesRead + 1));
+                if (bytesRead == 0)
+                    break;
+
+                totalBytesRead += bytesRead;
+                if (totalBytesRead > MaxSerializedStateSize)
+                    throw new InvalidDataException($"DNS Cookie secret state exceeds the maximum size of {MaxSerializedStateSize} bytes.");
+
+                buffer.Write(readBuffer, 0, bytesRead);
+            }
 
             lock (_lock)
             {
                 string tmpPath = _secretFilePath + ".tmp";
-                WriteSecretFile(tmpPath, buffer.ToArray());
-                Snapshot imported;
                 try
                 {
-                    imported = LoadFileLocked(tmpPath);
+                    WriteSecretFile(tmpPath, buffer.ToArray());
+                    Snapshot imported = LoadFileLocked(tmpPath);
                     if (imported is null)
                         throw new InvalidDataException("Imported DNS Cookie secret state is missing.");
+
+                    if (File.Exists(_secretFilePath))
+                        File.Replace(tmpPath, _secretFilePath, destinationBackupFileName: null);
+                    else
+                        File.Move(tmpPath, _secretFilePath);
+
+                    RestrictSecretFilePermissions(_secretFilePath);
+                    Volatile.Write(ref _snapshot, imported);
                 }
-                catch
+                finally
                 {
                     File.Delete(tmpPath);
-                    throw;
                 }
-
-                if (File.Exists(_secretFilePath))
-                    File.Replace(tmpPath, _secretFilePath, destinationBackupFileName: null);
-                else
-                    File.Move(tmpPath, _secretFilePath);
-
-                RestrictSecretFilePermissions(_secretFilePath);
-                Volatile.Write(ref _snapshot, imported);
             }
         }
 
