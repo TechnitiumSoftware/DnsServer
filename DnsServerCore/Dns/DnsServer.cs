@@ -296,10 +296,16 @@ namespace DnsServerCore.Dns
 
         // DNS Cookies (RFC 7873)
         readonly string _dnsCookiesSecretFile = "dns.cookies.state";
-        readonly int _dnsCookiesRotationPeriodHours = 1;
+        const int DNS_COOKIE_ROTATION_PERIOD_HOURS = 1;
+        const int DNS_COOKIE_ROTATION_INITIAL_DELAY_MINUTES = 5;
+        const int DNS_COOKIE_CLIENT_LENGTH = 8;
+        const int DNS_COOKIE_SERVER_MIN_LENGTH = 8;
+        const int DNS_COOKIE_SERVER_MAX_LENGTH = 32;
+        const int DNS_COOKIE_V1_SERVER_LENGTH = 16;
+        const byte DNS_COOKIE_V1 = 1;
 
-        Security.DnsCookieSecretManager _cookieSecrets;
-        Security.DnsCookieValidator _cookieValidator;
+        DnsCookieRuntimeState _cookieRuntimeState = DnsCookieDisabledState.Instance;
+        long _cookieRuntimeGeneration;
         Timer _cookieRotationTimer;
 
         // Optional observability counters
@@ -479,8 +485,7 @@ namespace DnsServerCore.Dns
             {
                 _cookieRotationTimer?.Dispose();
                 _cookieRotationTimer = null;
-                _cookieSecrets = null;
-                _cookieValidator = null;
+                Volatile.Write(ref _cookieRuntimeState, DnsCookieDisabledState.Instance);
             }
 
             _disposed = true;
@@ -1765,68 +1770,99 @@ namespace DnsServerCore.Dns
 
         #region cookie
 
+        /// <summary>
+        /// A published state is immutable and remains usable for the complete lifetime of every
+        /// request that captured it; generation changes are observed only by later classifications.
+        /// </summary>
+        private abstract class DnsCookieRuntimeState
+        {
+            protected DnsCookieRuntimeState(long generation) => Generation = generation;
+            public long Generation { get; }
+        }
+
+        private sealed class DnsCookieEnabledState : DnsCookieRuntimeState
+        {
+            public DnsCookieEnabledState(long generation, Security.DnsCookieSecretManager secretManager)
+                : base(generation)
+            {
+                SecretManager = secretManager;
+                Validator = new Security.DnsCookieValidator(secretManager);
+            }
+
+            public Security.DnsCookieSecretManager SecretManager { get; }
+            public Security.DnsCookieValidator Validator { get; }
+        }
+
+        private sealed class DnsCookieDisabledState : DnsCookieRuntimeState
+        {
+            public static readonly DnsCookieDisabledState Instance = new DnsCookieDisabledState();
+            private DnsCookieDisabledState() : base(0) { }
+        }
+
+        private sealed class DnsCookieDegradedState : DnsCookieRuntimeState
+        {
+            public DnsCookieDegradedState(long generation) : base(generation) { }
+        }
+
+        private long NextDnsCookieGeneration() => Interlocked.Increment(ref _cookieRuntimeGeneration);
+
         private void InitDnsCookies()
         {
             lock (_saveLock)
             {
+                Timer previousTimer = _cookieRotationTimer;
+                _cookieRotationTimer = null;
+
                 if (!_useDnsCookies)
                 {
-                    // Operational compatibility switch: when disabled, RFC 7873/9018 cookie handling is bypassed.
-                    _cookieRotationTimer?.Dispose();
-                    _cookieRotationTimer = null;
-                    _cookieSecrets = null;
-                    _cookieValidator = null;
-
+                    Volatile.Write(ref _cookieRuntimeState, DnsCookieDisabledState.Instance);
+                    previousTimer?.Dispose();
                     return;
                 }
-
-                string secretPath = Path.IsPathRooted(_dnsCookiesSecretFile)
-                    ? _dnsCookiesSecretFile
-                    : Path.Combine(_configFolder, _dnsCookiesSecretFile);
 
                 try
                 {
-                    Security.DnsCookieSecretManager cookieSecrets = new Security.DnsCookieSecretManager(secretPath);
-                    _cookieSecrets = cookieSecrets;
-                    _cookieValidator = new Security.DnsCookieValidator(cookieSecrets);
-
-                    _cookieRotationTimer?.Dispose();
-                    _cookieRotationTimer = null;
-
-                    if (_dnsCookiesRotationPeriodHours > 0)
-                    {
-                        _cookieRotationTimer = new Timer(
-                            _ => RotateDnsCookieSecrets(cookieSecrets),
+                    Security.DnsCookieSecretManager secretManager = new Security.DnsCookieSecretManager(GetDnsCookieSecretPath());
+                    var nextState = new DnsCookieEnabledState(NextDnsCookieGeneration(), secretManager);
+                    Timer nextTimer = DNS_COOKIE_ROTATION_PERIOD_HOURS > 0
+                        ? new Timer(
+                            _ => RotateDnsCookieSecrets(secretManager),
                             null,
-                            dueTime: TimeSpan.FromMinutes(5),
-                            period: TimeSpan.FromHours(_dnsCookiesRotationPeriodHours));
-                    }
+                            dueTime: TimeSpan.FromMinutes(DNS_COOKIE_ROTATION_INITIAL_DELAY_MINUTES),
+                            period: TimeSpan.FromHours(DNS_COOKIE_ROTATION_PERIOD_HOURS))
+                        : null;
+
+                    Volatile.Write(ref _cookieRuntimeState, nextState);
+                    _cookieRotationTimer = nextTimer;
+                    previousTimer?.Dispose();
                 }
                 catch (Exception ex) when (ex is InvalidDataException || ex is IOException || ex is UnauthorizedAccessException)
                 {
-                    _cookieSecrets = null;
-                    _cookieValidator = null;
-                    _cookieRotationTimer?.Dispose();
-                    _cookieRotationTimer = null;
+                    Volatile.Write(ref _cookieRuntimeState, new DnsCookieDegradedState(NextDnsCookieGeneration()));
+                    previousTimer?.Dispose();
                     _log.Write(new InvalidOperationException("DNS Cookie protection is degraded because its secret state could not be loaded. The existing state file was not overwritten.", ex));
-                    return;
                 }
             }
         }
 
-        private void RotateDnsCookieSecrets(Security.DnsCookieSecretManager cookieSecrets)
+        private void RotateDnsCookieSecrets(Security.DnsCookieSecretManager secretManager)
         {
             lock (_saveLock)
             {
-                // Timer disposal does not prevent an already queued callback. Only the timer belonging
-                // to the currently published manager is allowed to rotate cookie state.
-                if (!ReferenceEquals(_cookieSecrets, cookieSecrets))
+                if (Volatile.Read(ref _cookieRuntimeState) is not DnsCookieEnabledState current ||
+                    !ReferenceEquals(current.SecretManager, secretManager))
                     return;
 
                 try
                 {
-                    if (!cookieSecrets.Rotate())
+                    if (!secretManager.Rotate())
+                    {
                         _log.Write("Skipped automatic DNS Cookie secret rotation since a manually staged secret is pending activation or removal.");
+                        return;
+                    }
+
+                    Volatile.Write(ref _cookieRuntimeState,
+                        new DnsCookieEnabledState(NextDnsCookieGeneration(), secretManager));
                 }
                 catch (Exception ex) { _log.Write(ex); }
             }
@@ -1841,12 +1877,26 @@ namespace DnsServerCore.Dns
 
         private Security.DnsCookieSecretManager GetOrCreateDnsCookieSecrets()
         {
+            DnsCookieRuntimeState state = Volatile.Read(ref _cookieRuntimeState);
+            return state is DnsCookieEnabledState enabled
+                ? enabled.SecretManager
+                : new Security.DnsCookieSecretManager(GetDnsCookieSecretPath());
+        }
+
+        private void UpdateDnsCookieSecrets(Action<Security.DnsCookieSecretManager> update)
+        {
             lock (_saveLock)
             {
-                if (_cookieSecrets is null)
-                    _cookieSecrets = new Security.DnsCookieSecretManager(GetDnsCookieSecretPath());
+                Security.DnsCookieSecretManager secretManager = GetOrCreateDnsCookieSecrets();
+                update(secretManager);
 
-                return _cookieSecrets;
+                if (_useDnsCookies &&
+                    Volatile.Read(ref _cookieRuntimeState) is DnsCookieEnabledState current &&
+                    ReferenceEquals(current.SecretManager, secretManager))
+                {
+                    Volatile.Write(ref _cookieRuntimeState,
+                        new DnsCookieEnabledState(NextDnsCookieGeneration(), secretManager));
+                }
             }
         }
 
@@ -1865,23 +1915,25 @@ namespace DnsServerCore.Dns
 
         private readonly struct CookieRequestClassification
         {
+            public DnsCookieRuntimeState RuntimeState { get; }
             public CookieRequestState State { get; }
             public EDnsCookieOptionData Cookie { get; }
             public Security.DnsCookieValidationResult ValidationResult { get; }
 
-            public CookieRequestClassification(CookieRequestState state, EDnsCookieOptionData cookie = null,
+            public CookieRequestClassification(DnsCookieRuntimeState runtimeState, CookieRequestState state, EDnsCookieOptionData cookie = null,
                 Security.DnsCookieValidationResult validationResult = Security.DnsCookieValidationResult.Invalid)
             {
+                RuntimeState = runtimeState;
                 State = state;
                 Cookie = cookie;
                 ValidationResult = validationResult;
             }
         }
 
-        private CookieRequestClassification ClassifyCookieRequest(DnsDatagram request, IPAddress clientAddress)
+        private CookieRequestClassification ClassifyCookieRequest(DnsDatagram request, IPAddress clientAddress, DnsCookieEnabledState runtimeState)
         {
             if (request.EDNS is null)
-                return new CookieRequestClassification(CookieRequestState.NoCookie);
+                return new CookieRequestClassification(runtimeState, CookieRequestState.NoCookie);
 
             // RFC 7873 says to process only the first COOKIE option.  In particular,
             // never let a later valid option repair a malformed or invalid first one.
@@ -1891,31 +1943,31 @@ namespace DnsServerCore.Dns
                     continue;
 
                 if (option.Data is not EDnsCookieOptionData cookieData)
-                    return new CookieRequestClassification(CookieRequestState.MalformedCookie);
+                    return new CookieRequestClassification(runtimeState, CookieRequestState.MalformedCookie);
 
                 int clientLength = cookieData.ClientCookie.Length;
                 int serverLength = cookieData.ServerCookie.Length;
-                if (clientLength != 8 || (serverLength != 0 && (serverLength < 8 || serverLength > 32)))
-                    return new CookieRequestClassification(CookieRequestState.MalformedCookie, cookieData);
+                if (clientLength != DNS_COOKIE_CLIENT_LENGTH || (serverLength != 0 && (serverLength < DNS_COOKIE_SERVER_MIN_LENGTH || serverLength > DNS_COOKIE_SERVER_MAX_LENGTH)))
+                    return new CookieRequestClassification(runtimeState, CookieRequestState.MalformedCookie, cookieData);
 
                 if (serverLength == 0)
-                    return new CookieRequestClassification(CookieRequestState.ClientOnly, cookieData);
+                    return new CookieRequestClassification(runtimeState, CookieRequestState.ClientOnly, cookieData);
 
-                Security.DnsCookieValidator validator = _cookieValidator;
-                if (serverLength != 16 || cookieData.ServerCookie[0] != 1 || validator is null)
+                Security.DnsCookieValidator validator = runtimeState.Validator;
+                if (serverLength != DNS_COOKIE_V1_SERVER_LENGTH || cookieData.ServerCookie[0] != DNS_COOKIE_V1)
                 {
-                    return new CookieRequestClassification(CookieRequestState.InvalidServerCookie, cookieData);
+                    return new CookieRequestClassification(runtimeState, CookieRequestState.InvalidServerCookie, cookieData);
                 }
 
                 Interlocked.Increment(ref _cookieValidationInvocations);
                 Security.DnsCookieValidationResult validationResult =
                     validator.Validate(clientAddress, cookieData.ClientCookie, cookieData.ServerCookie);
                 return validationResult == Security.DnsCookieValidationResult.Invalid
-                    ? new CookieRequestClassification(CookieRequestState.InvalidServerCookie, cookieData)
-                    : new CookieRequestClassification(CookieRequestState.ValidServerCookie, cookieData, validationResult);
+                    ? new CookieRequestClassification(runtimeState, CookieRequestState.InvalidServerCookie, cookieData)
+                    : new CookieRequestClassification(runtimeState, CookieRequestState.ValidServerCookie, cookieData, validationResult);
             }
 
-            return new CookieRequestClassification(CookieRequestState.NoCookie);
+            return new CookieRequestClassification(runtimeState, CookieRequestState.NoCookie);
         }
 
         private CookieRequestClassification CreateCookieRequestClassification(
@@ -1923,10 +1975,11 @@ namespace DnsServerCore.Dns
             IPAddress clientAddress,
             DnsTransportProtocol protocol)
         {
-            if (!_useDnsCookies || !SupportsDnsCookies(protocol) || _cookieValidator is null)
-                return default;
+            DnsCookieRuntimeState runtimeState = Volatile.Read(ref _cookieRuntimeState);
+            if (!SupportsDnsCookies(protocol) || runtimeState is not DnsCookieEnabledState enabledState)
+                return new CookieRequestClassification(runtimeState, CookieRequestState.NotEvaluated);
 
-            return ClassifyCookieRequest(request, clientAddress);
+            return ClassifyCookieRequest(request, clientAddress, enabledState);
         }
 
         private static bool HasCookieOption(DnsDatagram request)
@@ -2068,11 +2121,12 @@ namespace DnsServerCore.Dns
             DnsDatagram request,
             IPEndPoint remoteEP,
             bool isRecursionAllowed,
-            EDnsCookieOptionData requestCookie)
+            EDnsCookieOptionData requestCookie,
+            DnsCookieEnabledState runtimeState)
         {
             Interlocked.Increment(ref _cookieInvalid);
 
-            byte[] serverCookie = _cookieValidator.CreateResponseCookie(remoteEP.Address, requestCookie.ClientCookie);
+            byte[] serverCookie = runtimeState.Validator.CreateResponseCookie(remoteEP.Address, requestCookie.ClientCookie);
             var responseCookie = new EDnsCookieOptionData(requestCookie.ClientCookie.ToArray(), serverCookie);
 
             Interlocked.Increment(ref _cookieBadcookieSent);
@@ -3251,10 +3305,10 @@ namespace DnsServerCore.Dns
             // DNS Cookies (RFC 7873 / RFC 9018 v1)
             EDnsCookieOptionData requestCookie = null;
             bool isCookieAcquisitionRequest = false;
-            var cookieValidator = _cookieValidator;
+            DnsCookieEnabledState cookieRuntimeState = cookieClassification.RuntimeState as DnsCookieEnabledState;
             if (SupportsDnsCookies(protocol) &&
                 request.EDNS != null &&
-                cookieValidator != null)
+                cookieRuntimeState != null)
             {
                 requestCookie = cookieClassification.Cookie;
                 isCookieAcquisitionRequest = IsCookieAcquisitionRequest(request, cookieClassification.State);
@@ -3308,7 +3362,8 @@ namespace DnsServerCore.Dns
                                 request,
                                 remoteEP,
                                 isRecursionAllowed,
-                                requestCookie);
+                                requestCookie,
+                                cookieRuntimeState);
                         }
 
                         Interlocked.Increment(ref _cookieInvalid);
@@ -3353,9 +3408,9 @@ namespace DnsServerCore.Dns
                 return null;
 
             // Attach requestCookie to response if needed
-            if (SupportsDnsCookies(protocol) && _cookieValidator != null && request.EDNS != null)
+            if (SupportsDnsCookies(protocol) && cookieRuntimeState != null && request.EDNS != null)
             {
-                if (requestCookie != null && requestCookie.ClientCookie.Length == 8)
+                if (requestCookie != null && requestCookie.ClientCookie.Length == DNS_COOKIE_CLIENT_LENGTH)
                 {
                     EDnsCookieOptionData responseCookie;
                     if (cookieClassification.State == CookieRequestState.ValidServerCookie &&
@@ -3367,7 +3422,7 @@ namespace DnsServerCore.Dns
                     }
                     else
                     {
-                        byte[] serverCookie = _cookieValidator.CreateResponseCookie(remoteEP.Address, requestCookie.ClientCookie);
+                        byte[] serverCookie = cookieRuntimeState.Validator.CreateResponseCookie(remoteEP.Address, requestCookie.ClientCookie);
                         responseCookie = new EDnsCookieOptionData(requestCookie.ClientCookie.ToArray(), serverCookie);
                     }
 
@@ -8491,6 +8546,9 @@ namespace DnsServerCore.Dns
                     return;
 
                 _useDnsCookies = value;
+                if (!value)
+                    Volatile.Write(ref _cookieRuntimeState, DnsCookieDisabledState.Instance);
+
                 InitDnsCookies();
             }
         }
@@ -8506,9 +8564,9 @@ namespace DnsServerCore.Dns
         {
             lock (_saveLock)
             {
-                if (_cookieSecrets is not null)
+                if (Volatile.Read(ref _cookieRuntimeState) is DnsCookieEnabledState enabled)
                 {
-                    _cookieSecrets.GetStatus(out activeId, out stagingId, out activeCreatedUtc);
+                    enabled.SecretManager.GetStatus(out activeId, out stagingId, out activeCreatedUtc);
                     return true;
                 }
 
@@ -8522,13 +8580,13 @@ namespace DnsServerCore.Dns
 
         public DateTime? ActiveDnsCookieSecretCreatedUtc => TryGetDnsCookieSecretStatus(out _, out _, out DateTime activeCreatedUtc) ? activeCreatedUtc : null;
 
-        public void AddDnsCookieSecret() => GetOrCreateDnsCookieSecrets().AddStaging();
+        public void AddDnsCookieSecret() => UpdateDnsCookieSecrets(static secrets => secrets.AddStaging());
 
-        public void ActivateDnsCookieSecret() => GetOrCreateDnsCookieSecrets().ActivateStaging();
+        public void ActivateDnsCookieSecret() => UpdateDnsCookieSecrets(static secrets => secrets.ActivateStaging());
 
-        public void DropDnsCookieSecret() => GetOrCreateDnsCookieSecrets().DropStaging();
+        public void DropDnsCookieSecret() => UpdateDnsCookieSecrets(static secrets => secrets.DropStaging());
 
-        internal void ImportDnsCookieSecretState(Stream stream) => GetOrCreateDnsCookieSecrets().Import(stream);
+        internal void ImportDnsCookieSecretState(Stream stream) => UpdateDnsCookieSecrets(secrets => secrets.Import(stream));
 
         internal void ExportDnsCookieSecretState(Stream stream) => GetOrCreateDnsCookieSecrets().Export(stream);
 

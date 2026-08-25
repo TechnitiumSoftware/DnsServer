@@ -275,15 +275,23 @@ namespace DnsServerCore.Dns.Security
             }
         }
 
-        // Hot path: lock-free, allocation-free. Returned arrays must be treated as read-only by callers.
+        // Management-facing copies prevent callers from mutating published secret material.
         public byte[] Active
         {
-            get { return Volatile.Read(ref _snapshot)?.Active; }
+            get
+            {
+                byte[] active = Volatile.Read(ref _snapshot)?.Active;
+                return active is null ? null : (byte[])active.Clone();
+            }
         }
 
         public byte[] Staging
         {
-            get { return Volatile.Read(ref _snapshot)?.Staging; }
+            get
+            {
+                byte[] staging = Volatile.Read(ref _snapshot)?.Staging;
+                return staging is null ? null : (byte[])staging.Clone();
+            }
         }
 
         public DateTime ActiveCreatedUtc
@@ -308,6 +316,13 @@ namespace DnsServerCore.Dns.Security
         internal void GetStatus(out string activeId, out string stagingId, out DateTime activeCreatedUtc)
         {
             GetStatus(Volatile.Read(ref _snapshot), out activeId, out stagingId, out activeCreatedUtc);
+        }
+
+        internal void GetSecrets(out byte[] active, out byte[] staging)
+        {
+            Snapshot snapshot = Volatile.Read(ref _snapshot);
+            active = snapshot.Active;
+            staging = snapshot.Staging;
         }
 
         public void AddStaging()

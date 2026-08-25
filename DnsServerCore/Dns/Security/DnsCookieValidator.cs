@@ -61,7 +61,8 @@ namespace DnsServerCore.Dns.Security
 
         #region variables
 
-        readonly DnsCookieSecretManager _secretManager;
+        readonly byte[] _activeSecret;
+        readonly byte[] _stagingSecret;
         readonly TimeProvider _timeProvider;
 
         #endregion
@@ -70,7 +71,8 @@ namespace DnsServerCore.Dns.Security
 
         public DnsCookieValidator(DnsCookieSecretManager secretManager, TimeProvider timeProvider = null)
         {
-            _secretManager = secretManager ?? throw new ArgumentNullException(nameof(secretManager));
+            ArgumentNullException.ThrowIfNull(secretManager);
+            secretManager.GetSecrets(out _activeSecret, out _stagingSecret);
             _timeProvider = timeProvider ?? TimeProvider.System;
         }
 
@@ -281,13 +283,13 @@ namespace DnsServerCore.Dns.Security
             if (clientCookie.Length != ClientCookieLen)
                 return DnsCookieValidationResult.Invalid;
 
-            byte[] active = _secretManager.Active;
+            byte[] active = _activeSecret;
 
             if (active != null && active.Length > 0 &&
                 ValidateServerCookieWithSecret(clientAddress, clientCookie, serverCookie, active))
                 return DnsCookieValidationResult.Valid;
 
-            byte[] staging = _secretManager.Staging;
+            byte[] staging = _stagingSecret;
             if (staging != null && staging.Length > 0 &&
                 ValidateServerCookieWithSecret(clientAddress, clientCookie, serverCookie, staging))
                 return DnsCookieValidationResult.ValidRenew;
@@ -305,7 +307,7 @@ namespace DnsServerCore.Dns.Security
             if (clientCookie.Length != ClientCookieLen)
                 throw new ArgumentException($"Client cookie must be {ClientCookieLen} bytes.", nameof(clientCookie));
 
-            byte[] active = _secretManager.Active;
+            byte[] active = _activeSecret;
             ValidateSecret(active);
 
             return ComputeServerCookie(clientAddress, clientCookie, active);
