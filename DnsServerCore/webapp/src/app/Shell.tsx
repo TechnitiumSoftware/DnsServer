@@ -5,6 +5,8 @@ import { Configure2FA } from '../screens/modals/Configure2FA'
 import { CreateApiToken } from '../screens/modals/CreateApiToken'
 import { MyProfile } from '../screens/modals/MyProfile'
 import { Dashboard } from '../screens/dashboard/Dashboard'
+import { DnsClient } from '../screens/dnsclient/DnsClient'
+import { About } from '../screens/about/About'
 import styles from './Shell.module.css'
 
 type ModalId = 'profile' | 'password' | 'twofa' | 'token'
@@ -131,6 +133,10 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
         <main className={styles.body}>
         {current?.id === 'dashboard' ? (
           <Dashboard token={session.token} />
+        ) : current?.id === 'dnsclient' ? (
+          <DnsClient token={session.token} />
+        ) : current?.id === 'about' ? (
+          <About token={session.token} info={session.info} />
         ) : (
           <div className={styles.placeholder}>
             <b>{current?.label}</b>
