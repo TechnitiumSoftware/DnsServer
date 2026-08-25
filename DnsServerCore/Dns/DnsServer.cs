@@ -184,6 +184,7 @@ namespace DnsServerCore.Dns
         int _responseRateLimitTableSize = 65536;
         IReadOnlyCollection<NetworkAddress> _responseRateLimitBypassList;
         volatile Security.UdpResponseRateLimiter _reflectionRrl;
+        readonly System.Threading.Lock _reflectionRrlLock = new System.Threading.Lock();
 
         int _clientTimeout = 2000;
         int _tcpSendTimeout = 10000;
@@ -1267,13 +1268,18 @@ namespace DnsServerCore.Dns
 
             if (s.Position < s.Length)
             {
-                _enableResponseRateLimiting = bR.ReadBoolean();
-                _responseRateLimit = bR.ReadInt32();
-                _responseRateLimitInstant = bR.ReadInt32();
-                _responseRateLimitSlip = bR.ReadInt32();
-                _responseRateLimitTableSize = bR.ReadInt32();
-                _responseRateLimitBypassList = AuthZoneInfo.ReadNetworkAddressesFrom(bR);
-                ResetReflectionRrl();
+                bool enableResponseRateLimiting = bR.ReadBoolean();
+                int responseRateLimit = bR.ReadInt32();
+                int responseRateLimitInstant = bR.ReadInt32();
+                int responseRateLimitSlip = bR.ReadInt32();
+                int responseRateLimitTableSize = bR.ReadInt32();
+                IReadOnlyCollection<NetworkAddress> responseRateLimitBypassList = AuthZoneInfo.ReadNetworkAddressesFrom(bR);
+
+                // Validate and allocate before accepting persisted or transferred values. A corrupt or
+                // malicious configuration must not replace a working limiter with an invalid one.
+                ResetReflectionRrl(responseRateLimit, responseRateLimitInstant, responseRateLimitSlip, responseRateLimitTableSize);
+                _enableResponseRateLimiting = enableResponseRateLimiting;
+                _responseRateLimitBypassList = responseRateLimitBypassList;
             }
             else
             {
@@ -6708,15 +6714,44 @@ namespace DnsServerCore.Dns
             return _reflectionRrl.Evaluate(remoteIP);
         }
 
-        private void ResetReflectionRrl()
+        private void ResetReflectionRrl(int? responseRateLimit = null, int? responseRateLimitInstant = null, int? responseRateLimitSlip = null, int? responseRateLimitTableSize = null)
         {
-            _reflectionRrl = new Security.UdpResponseRateLimiter(new Security.UdpResponseRateLimiterOptions
+            lock (_reflectionRrlLock)
             {
-                Capacity = _responseRateLimitTableSize,
-                SustainedRate = _responseRateLimit,
-                InstantLimit = _responseRateLimitInstant,
-                SlipEvery = _responseRateLimitSlip
-            });
+                int newResponseRateLimit = responseRateLimit ?? _responseRateLimit;
+                int newResponseRateLimitInstant = responseRateLimitInstant ?? _responseRateLimitInstant;
+                int newResponseRateLimitSlip = responseRateLimitSlip ?? _responseRateLimitSlip;
+                int newResponseRateLimitTableSize = responseRateLimitTableSize ?? _responseRateLimitTableSize;
+
+                ValidateResponseRateLimitConfiguration(newResponseRateLimit, newResponseRateLimitInstant, newResponseRateLimitSlip, newResponseRateLimitTableSize);
+
+                Security.UdpResponseRateLimiter replacement = new Security.UdpResponseRateLimiter(new Security.UdpResponseRateLimiterOptions
+                {
+                    Capacity = newResponseRateLimitTableSize,
+                    SustainedRate = newResponseRateLimit,
+                    InstantLimit = newResponseRateLimitInstant,
+                    SlipEvery = newResponseRateLimitSlip
+                });
+
+                // Publish only after construction succeeds, then commit the matching configuration.
+                _reflectionRrl = replacement;
+                _responseRateLimit = newResponseRateLimit;
+                _responseRateLimitInstant = newResponseRateLimitInstant;
+                _responseRateLimitSlip = newResponseRateLimitSlip;
+                _responseRateLimitTableSize = newResponseRateLimitTableSize;
+            }
+        }
+
+        private static void ValidateResponseRateLimitConfiguration(int responseRateLimit, int responseRateLimitInstant, int responseRateLimitSlip, int responseRateLimitTableSize)
+        {
+            if (responseRateLimit < 1)
+                throw new ArgumentOutOfRangeException(nameof(ResponseRateLimit));
+            if (responseRateLimitInstant < 1)
+                throw new ArgumentOutOfRangeException(nameof(ResponseRateLimitInstant));
+            if (responseRateLimitSlip < 0)
+                throw new ArgumentOutOfRangeException(nameof(ResponseRateLimitSlip));
+            if ((responseRateLimitTableSize < ResponseRateLimitTableSizeMinimum) || (responseRateLimitTableSize > ResponseRateLimitTableSizeMaximum))
+                throw new ArgumentOutOfRangeException(nameof(ResponseRateLimitTableSize), $"Value must be between {ResponseRateLimitTableSizeMinimum} and {ResponseRateLimitTableSizeMaximum} entries.");
         }
 
         private bool HasQpmLimitExceeded(NetworkAddress clientSubnet, DnsTransportProtocol protocol, (int, int) qpmLimits, IReadOnlyDictionary<NetworkAddress, (long, long)> qpmLimitClientSubnetStats, out int qpmLimit, out int currentQpm)
@@ -8089,25 +8124,30 @@ namespace DnsServerCore.Dns
         public int ResponseRateLimit
         {
             get => _responseRateLimit;
-            set { if (value < 1) throw new ArgumentOutOfRangeException(nameof(ResponseRateLimit)); _responseRateLimit = value; ResetReflectionRrl(); }
+            set => ResetReflectionRrl(responseRateLimit: value);
         }
 
         public int ResponseRateLimitInstant
         {
             get => _responseRateLimitInstant;
-            set { if (value < 1) throw new ArgumentOutOfRangeException(nameof(ResponseRateLimitInstant)); _responseRateLimitInstant = value; ResetReflectionRrl(); }
+            set => ResetReflectionRrl(responseRateLimitInstant: value);
         }
 
         public int ResponseRateLimitSlip
         {
             get => _responseRateLimitSlip;
-            set { if (value < 0) throw new ArgumentOutOfRangeException(nameof(ResponseRateLimitSlip)); _responseRateLimitSlip = value; ResetReflectionRrl(); }
+            set => ResetReflectionRrl(responseRateLimitSlip: value);
         }
+
+        public const int ResponseRateLimitTableSizeMinimum = 16;
+        // Eight times the default capacity. This keeps worst-case allocation bounded while
+        // allowing deployments to scale to the same order of magnitude as Knot Resolver.
+        public const int ResponseRateLimitTableSizeMaximum = 524288;
 
         public int ResponseRateLimitTableSize
         {
             get => _responseRateLimitTableSize;
-            set { if (value < 16) throw new ArgumentOutOfRangeException(nameof(ResponseRateLimitTableSize)); _responseRateLimitTableSize = value; ResetReflectionRrl(); }
+            set => ResetReflectionRrl(responseRateLimitTableSize: value);
         }
 
         public IReadOnlyCollection<NetworkAddress> ResponseRateLimitBypassList

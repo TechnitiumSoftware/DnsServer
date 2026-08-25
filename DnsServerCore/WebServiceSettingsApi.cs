@@ -877,6 +877,9 @@ namespace DnsServerCore
 
                         if (request.TryGetQueryOrForm("responseRateLimitTableSize", int.Parse, out int responseRateLimitTableSize))
                         {
+                            if ((responseRateLimitTableSize < DnsServer.ResponseRateLimitTableSizeMinimum) || (responseRateLimitTableSize > DnsServer.ResponseRateLimitTableSizeMaximum))
+                                throw new DnsWebServiceException($"Response rate limit table size must be between {DnsServer.ResponseRateLimitTableSizeMinimum} and {DnsServer.ResponseRateLimitTableSizeMaximum} entries.");
+
                             _dnsWebService._dnsServer.ResponseRateLimitTableSize = responseRateLimitTableSize;
                             clusterParameters.Add("responseRateLimitTableSize", responseRateLimitTableSize.ToString());
                         }
