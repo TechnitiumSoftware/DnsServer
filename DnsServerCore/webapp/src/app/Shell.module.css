@@ -1,0 +1,44 @@
+.shell { min-height: 100vh; background: var(--bg); color: var(--ink); }
+.top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; height: 52px;
+  border-bottom: 1px solid var(--line); background: var(--pan);
+}
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 700; letter-spacing: -0.01em; }
+.mark {
+  width: 22px; height: 22px; border-radius: 6px;
+  background: var(--acc); color: var(--on-acc);
+  display: grid; place-items: center; font: 700 11px/1 system-ui;
+}
+.right { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--mute); }
+.host {
+  font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; color: var(--faint);
+  border-right: 1px solid var(--line); padding-right: 9px;
+}
+.menu { position: relative; }
+.menuBtn {
+  background: none; border: 0; color: var(--mute); font: inherit; font-size: 12.5px; cursor: pointer;
+}
+.menuList {
+  position: absolute; right: 0; top: 26px; min-width: 190px; z-index: 10;
+  background: var(--pan); border: 1px solid var(--line); border-radius: 9px; padding: 5px;
+  display: flex; flex-direction: column;
+}
+.menuList button {
+  background: none; border: 0; color: var(--ink); font: inherit; font-size: 12.5px;
+  text-align: left; padding: 7px 9px; border-radius: 6px; cursor: pointer;
+}
+.menuList button:hover { background: var(--hover); }
+.nav { display: flex; gap: 2px; padding: 0 14px; border-bottom: 1px solid var(--line); background: var(--pan); overflow: auto; }
+.tab {
+  padding: 11px; font-size: 12.5px; color: var(--mute);
+  background: none; border: 0; border-bottom: 2px solid transparent;
+  white-space: nowrap; cursor: pointer; font-family: inherit;
+}
+.tab[aria-selected='true'] { color: var(--acc); font-weight: 650; border-bottom-color: var(--acc); }
+.body { padding: 22px; }
+.placeholder {
+  border: 1px dashed var(--line); border-radius: 10px; padding: 34px;
+  text-align: center; color: var(--mute); font-size: 12.5px;
+}
+.placeholder b { display: block; color: var(--ink); font-size: 14px; margin-bottom: 6px; }

@@ -7,7 +7,19 @@
   background: var(--pan);
   color: var(--ink);
 }
-.alert b { display: inline; margin-right: 4px; }
+.alert b { display: inline; }
+.close {
+  float: right;
+  background: none;
+  border: 0;
+  color: inherit;
+  opacity: 0.6;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0 0 8px;
+}
+.close:hover { opacity: 1; }
 .success { border-color: var(--ok); color: var(--ok); }
 .info { border-color: var(--info); color: var(--info); }
 .warning { border-color: var(--warn); color: var(--warn); }

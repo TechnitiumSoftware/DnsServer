@@ -154,7 +154,7 @@ export function Login({
 
         {alert && (
           <div className={styles.alertSlot}>
-            <Alert type={alert.type} title={alert.title}>
+            <Alert type={alert.type} title={alert.title} onDismiss={() => setAlert(null)}>
               {alert.text}
             </Alert>
           </div>
