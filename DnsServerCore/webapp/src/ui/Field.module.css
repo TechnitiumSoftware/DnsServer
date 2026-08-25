@@ -13,4 +13,4 @@
 .input::placeholder { color: var(--faint); }
 .input:focus { outline: 2px solid var(--acc); outline-offset: -1px; border-color: var(--acc); }
 .input:disabled { opacity: 0.5; }
-.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }

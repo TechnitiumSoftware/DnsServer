@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import './tokens.css'
+import './base.css'
 
 export type Theme = 'dark' | 'light' | 'amber'
 

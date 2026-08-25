@@ -12,7 +12,7 @@
 }
 .right { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--mute); }
 .host {
-  font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; color: var(--faint);
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--faint);
   border-right: 1px solid var(--line); padding-right: 9px;
 }
 .menu { position: relative; }

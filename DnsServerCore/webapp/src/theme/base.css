@@ -1,0 +1,24 @@
+/* Estilo base de la consola. Las fuentes son las del sistema: la CSP del
+   servidor no declara `font-src` (DnsWebService.cs:1969-1975), así que las
+   fuentes heredan `default-src 'self'` y no puede haber ni CDN ni `data:` URIs.
+   Una tipografía propia tendría que ir como fichero dentro de `www/`. */
+:root {
+  --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, select, textarea { font-family: inherit; }
