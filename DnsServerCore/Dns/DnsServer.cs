@@ -291,26 +291,8 @@ namespace DnsServerCore.Dns
         readonly Timer _saveTimer;
         const int SAVE_TIMER_INITIAL_INTERVAL = 5000;
 
-        // DNS Cookies (RFC 7873)
-        readonly string _dnsCookiesSecretFile = "dns.cookies.state";
-        const int DNS_COOKIE_ROTATION_PERIOD_HOURS = 1;
-        const int DNS_COOKIE_CLIENT_LENGTH = 8;
-        const int DNS_COOKIE_SERVER_MIN_LENGTH = 8;
-        const int DNS_COOKIE_SERVER_MAX_LENGTH = 32;
-        const int DNS_COOKIE_V1_SERVER_LENGTH = 16;
-        const byte DNS_COOKIE_V1 = 1;
-
-        DnsCookieRuntimeState _cookieRuntimeState = DnsCookieDisabledState.Instance;
-        long _cookieRuntimeGeneration;
-        Timer _cookieRotationTimer;
-
-        // Optional observability counters
-        long _cookieValid;
-        long _cookieInvalid;
-        long _cookieMissing;
-        long _cookieBadcookieSent;
-        long _cookieClientOnly;
-        long _cookieValidationInvocations;
+        // DNS Cookies (RFC 7873 / RFC 9018); see Security.DnsCookieCoordinator.
+        readonly Security.DnsCookieCoordinator _cookieCoordinator;
 
         #endregion
 
@@ -355,6 +337,7 @@ namespace DnsServerCore.Dns
             _dohwwwFolder = dohwwwFolder;
             LocalEndPoints = localEndPoints;
             _log = log;
+            _cookieCoordinator = new Security.DnsCookieCoordinator(_configFolder, _saveLock, _log);
 
             ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions);
 
@@ -477,12 +460,7 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            lock (_saveLock)
-            {
-                _cookieRotationTimer?.Dispose();
-                _cookieRotationTimer = null;
-                Volatile.Write(ref _cookieRuntimeState, DnsCookieDisabledState.Instance);
-            }
+            _cookieCoordinator.Stop();
 
             _disposed = true;
             GC.SuppressFinalize(this);
@@ -636,7 +614,7 @@ namespace DnsServerCore.Dns
                     SaveConfigFileInternal();
                 }
 
-                InitDnsCookies();
+                _cookieCoordinator.Configure(_useDnsCookies);
             }
             catch (Exception ex)
             {
@@ -1288,7 +1266,7 @@ namespace DnsServerCore.Dns
                 ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { Enabled = false });
             }
 
-            InitDnsCookies();
+            _cookieCoordinator.Configure(_useDnsCookies);
         }
 
         private void WriteConfigTo(Stream s)
@@ -1764,380 +1742,6 @@ namespace DnsServerCore.Dns
         }
         #endregion
 
-        #region cookie
-
-        /// <summary>
-        /// A published state is immutable and remains usable for the complete lifetime of every
-        /// request that captured it; generation changes are observed only by later classifications.
-        /// </summary>
-        private abstract class DnsCookieRuntimeState
-        {
-            protected DnsCookieRuntimeState(long generation) => Generation = generation;
-            public long Generation { get; }
-        }
-
-        private sealed class DnsCookieEnabledState : DnsCookieRuntimeState
-        {
-            public DnsCookieEnabledState(long generation, Security.DnsCookieSecretManager secretManager)
-                : base(generation)
-            {
-                SecretManager = secretManager;
-                Validator = new Security.DnsCookieValidator(secretManager);
-            }
-
-            public Security.DnsCookieSecretManager SecretManager { get; }
-            public Security.DnsCookieValidator Validator { get; }
-        }
-
-        private sealed class DnsCookieDisabledState : DnsCookieRuntimeState
-        {
-            public static readonly DnsCookieDisabledState Instance = new DnsCookieDisabledState();
-            private DnsCookieDisabledState() : base(0) { }
-        }
-
-        private sealed class DnsCookieDegradedState : DnsCookieRuntimeState
-        {
-            public DnsCookieDegradedState(long generation) : base(generation) { }
-        }
-
-        private long NextDnsCookieGeneration() => Interlocked.Increment(ref _cookieRuntimeGeneration);
-
-        private void InitDnsCookies()
-        {
-            lock (_saveLock)
-            {
-                Timer previousTimer = _cookieRotationTimer;
-                _cookieRotationTimer = null;
-
-                if (!_useDnsCookies)
-                {
-                    Volatile.Write(ref _cookieRuntimeState, DnsCookieDisabledState.Instance);
-                    previousTimer?.Dispose();
-                    return;
-                }
-
-                try
-                {
-                    Security.DnsCookieSecretManager secretManager = new Security.DnsCookieSecretManager(GetDnsCookieSecretPath());
-                    var nextState = new DnsCookieEnabledState(NextDnsCookieGeneration(), secretManager);
-                    Volatile.Write(ref _cookieRuntimeState, nextState);
-                    previousTimer?.Dispose();
-                    if (DNS_COOKIE_ROTATION_PERIOD_HOURS > 0)
-                        ScheduleDnsCookieSecretTransition(secretManager);
-                }
-                catch (Exception ex) when (ex is InvalidDataException || ex is IOException || ex is UnauthorizedAccessException)
-                {
-                    Volatile.Write(ref _cookieRuntimeState, new DnsCookieDegradedState(NextDnsCookieGeneration()));
-                    previousTimer?.Dispose();
-                    _log.Write(new InvalidOperationException("DNS Cookie protection is degraded because its secret state could not be loaded. The existing state file was not overwritten.", ex));
-                }
-            }
-        }
-
-        private void RotateDnsCookieSecrets(Security.DnsCookieSecretManager secretManager)
-        {
-            lock (_saveLock)
-            {
-                if (Volatile.Read(ref _cookieRuntimeState) is not DnsCookieEnabledState current ||
-                    !ReferenceEquals(current.SecretManager, secretManager))
-                    return;
-
-                try
-                {
-                    if (!secretManager.Rotate())
-                        _log.Write("DNS Cookie secret transition was not yet due.");
-
-                    Volatile.Write(ref _cookieRuntimeState,
-                        new DnsCookieEnabledState(NextDnsCookieGeneration(), secretManager));
-                }
-                catch (Exception ex) { _log.Write(ex); }
-
-                ScheduleDnsCookieSecretTransition(secretManager);
-            }
-        }
-
-        private void ScheduleDnsCookieSecretTransition(Security.DnsCookieSecretManager secretManager)
-        {
-            TimeSpan rotationPeriod = TimeSpan.FromHours(DNS_COOKIE_ROTATION_PERIOD_HOURS);
-            TimeSpan dueTime = secretManager.GetNextTransitionUtc(rotationPeriod) - DateTime.UtcNow;
-            if (dueTime < TimeSpan.Zero)
-                dueTime = TimeSpan.Zero;
-
-            _cookieRotationTimer?.Dispose();
-            _cookieRotationTimer = new Timer(
-                _ => RotateDnsCookieSecrets(secretManager), null, dueTime, Timeout.InfiniteTimeSpan);
-        }
-
-        private string GetDnsCookieSecretPath()
-        {
-            return Path.IsPathRooted(_dnsCookiesSecretFile)
-                ? _dnsCookiesSecretFile
-                : Path.Combine(_configFolder, _dnsCookiesSecretFile);
-        }
-
-        private Security.DnsCookieSecretManager GetOrCreateDnsCookieSecrets()
-        {
-            DnsCookieRuntimeState state = Volatile.Read(ref _cookieRuntimeState);
-            return state is DnsCookieEnabledState enabled
-                ? enabled.SecretManager
-                : new Security.DnsCookieSecretManager(GetDnsCookieSecretPath());
-        }
-
-        private void UpdateDnsCookieSecrets(Action<Security.DnsCookieSecretManager> update)
-        {
-            lock (_saveLock)
-            {
-                Security.DnsCookieSecretManager secretManager = GetOrCreateDnsCookieSecrets();
-                update(secretManager);
-
-                if (_useDnsCookies &&
-                    Volatile.Read(ref _cookieRuntimeState) is DnsCookieEnabledState current &&
-                    ReferenceEquals(current.SecretManager, secretManager))
-                {
-                    Volatile.Write(ref _cookieRuntimeState,
-                        new DnsCookieEnabledState(NextDnsCookieGeneration(), secretManager));
-                    if (DNS_COOKIE_ROTATION_PERIOD_HOURS > 0)
-                        ScheduleDnsCookieSecretTransition(secretManager);
-                }
-            }
-        }
-
-        // This is deliberately a statement about return-routability only.  A valid
-        // cookie bypasses reflection RRL, but does not bypass any other admission,
-        // query, or resource-control policy.
-        private enum CookieRequestState
-        {
-            NotEvaluated,
-            NoCookie,
-            ClientOnly,
-            InvalidServerCookie,
-            ValidServerCookie,
-            MalformedCookie
-        }
-
-        private readonly struct CookieRequestClassification
-        {
-            public DnsCookieRuntimeState RuntimeState { get; }
-            public CookieRequestState State { get; }
-            public EDnsCookieOptionData Cookie { get; }
-            public Security.DnsCookieValidationResult ValidationResult { get; }
-
-            public CookieRequestClassification(DnsCookieRuntimeState runtimeState, CookieRequestState state, EDnsCookieOptionData cookie = null,
-                Security.DnsCookieValidationResult validationResult = Security.DnsCookieValidationResult.Invalid)
-            {
-                RuntimeState = runtimeState;
-                State = state;
-                Cookie = cookie;
-                ValidationResult = validationResult;
-            }
-        }
-
-        private CookieRequestClassification ClassifyCookieRequest(DnsDatagram request, IPAddress clientAddress, DnsCookieEnabledState runtimeState)
-        {
-            if (request.EDNS is null)
-                return new CookieRequestClassification(runtimeState, CookieRequestState.NoCookie);
-
-            // RFC 7873 says to process only the first COOKIE option.  In particular,
-            // never let a later valid option repair a malformed or invalid first one.
-            foreach (EDnsOption option in request.EDNS.Options)
-            {
-                if (option.Code != EDnsOptionCode.COOKIE)
-                    continue;
-
-                if (option.Data is not EDnsCookieOptionData cookieData)
-                    return new CookieRequestClassification(runtimeState, CookieRequestState.MalformedCookie);
-
-                int clientLength = cookieData.ClientCookie.Length;
-                int serverLength = cookieData.ServerCookie.Length;
-                if (clientLength != DNS_COOKIE_CLIENT_LENGTH || (serverLength != 0 && (serverLength < DNS_COOKIE_SERVER_MIN_LENGTH || serverLength > DNS_COOKIE_SERVER_MAX_LENGTH)))
-                    return new CookieRequestClassification(runtimeState, CookieRequestState.MalformedCookie, cookieData);
-
-                if (serverLength == 0)
-                    return new CookieRequestClassification(runtimeState, CookieRequestState.ClientOnly, cookieData);
-
-                Security.DnsCookieValidator validator = runtimeState.Validator;
-                if (serverLength != DNS_COOKIE_V1_SERVER_LENGTH || cookieData.ServerCookie[0] != DNS_COOKIE_V1)
-                {
-                    return new CookieRequestClassification(runtimeState, CookieRequestState.InvalidServerCookie, cookieData);
-                }
-
-                Interlocked.Increment(ref _cookieValidationInvocations);
-                Security.DnsCookieValidationResult validationResult =
-                    validator.Validate(clientAddress, cookieData.ClientCookie, cookieData.ServerCookie);
-                return validationResult == Security.DnsCookieValidationResult.Invalid
-                    ? new CookieRequestClassification(runtimeState, CookieRequestState.InvalidServerCookie, cookieData)
-                    : new CookieRequestClassification(runtimeState, CookieRequestState.ValidServerCookie, cookieData, validationResult);
-            }
-
-            return new CookieRequestClassification(runtimeState, CookieRequestState.NoCookie);
-        }
-
-        private CookieRequestClassification CreateCookieRequestClassification(
-            DnsDatagram request,
-            IPAddress clientAddress,
-            DnsTransportProtocol protocol)
-        {
-            DnsCookieRuntimeState runtimeState = Volatile.Read(ref _cookieRuntimeState);
-            if (!SupportsDnsCookies(protocol) || runtimeState is not DnsCookieEnabledState enabledState)
-                return new CookieRequestClassification(runtimeState, CookieRequestState.NotEvaluated);
-
-            return ClassifyCookieRequest(request, clientAddress, enabledState);
-        }
-
-        private static bool HasCookieOption(DnsDatagram request)
-        {
-            if (request.EDNS is null)
-                return false;
-
-            foreach (EDnsOption opt in request.EDNS.Options)
-            {
-                if (opt.Code == EDnsOptionCode.COOKIE)
-                    return true;
-            }
-
-            return false;
-        }
-
-        private static bool IsUdpTransport(DnsTransportProtocol protocol)
-        {
-            return protocol == DnsTransportProtocol.Udp || protocol == DnsTransportProtocol.UdpProxy;
-        }
-
-        private static bool SupportsDnsCookies(DnsTransportProtocol protocol)
-        {
-            return IsUdpTransport(protocol) ||
-                protocol == DnsTransportProtocol.Tcp ||
-                protocol == DnsTransportProtocol.TcpProxy;
-        }
-
-        private static bool IsCookieAcquisitionRequest(DnsDatagram request, CookieRequestState cookieState)
-        {
-            // RFC 7873 section 5.4 permits a COOKIE option in a QUERY with no
-            // question as a lightweight way to acquire or refresh a Server Cookie.
-            return request.OPCODE == DnsOpcode.StandardQuery &&
-                request.Question.Count == 0 &&
-                (cookieState == CookieRequestState.ClientOnly ||
-                 cookieState == CookieRequestState.InvalidServerCookie ||
-                 cookieState == CookieRequestState.ValidServerCookie);
-        }
-
-        private DnsDatagram BuildBadCookieResponse(
-            DnsDatagram request,
-            IPEndPoint remoteEP,
-            bool isRecursionAllowed,
-            EDnsCookieOptionData responseCookie)
-        {
-            IReadOnlyList<EDnsOption> options =
-                MergeCookieOption(request.EDNS?.Options, responseCookie);
-
-            ushort udpPayload = request.EDNS?.UdpPayloadSize ?? 512;
-            EDnsHeaderFlags flags = request.EDNS?.Flags ?? EDnsHeaderFlags.None;
-
-            return new DnsDatagram(
-                request.Identifier,
-                true,
-                request.OPCODE,
-                false,
-                // BADCOOKIE is a COOKIE protocol retry signal, not an RRL slip or
-                // DNS truncation response. Reflection RRL may independently drop
-                // the unverified UDP request before this response is emitted.
-                truncation: false,
-                recursionDesired: request.RecursionDesired,
-                recursionAvailable: isRecursionAllowed,
-                authenticData: false,
-                checkingDisabled: request.CheckingDisabled,
-                DnsResponseCode.BADCOOKIE,
-                request.Question,
-                null,
-                null,
-                null,
-                udpPayload,
-                flags,
-                options
-            )
-            {
-                Tag = DnsServerResponseType.Authoritative
-            };
-        }
-
-        private static IReadOnlyList<EDnsOption> MergeCookieOption(
-            IReadOnlyList<EDnsOption> existing,
-            EDnsCookieOptionData cookieData)
-        {
-            List<EDnsOption> list;
-
-            if (existing == null)
-            {
-                list = new List<EDnsOption>(cookieData is null ? 0 : 1);
-            }
-            else
-            {
-                list = new List<EDnsOption>(existing.Count + 1);
-                foreach (EDnsOption opt in existing)
-                {
-                    if (opt.Code != EDnsOptionCode.COOKIE)
-                        list.Add(opt);
-                }
-            }
-
-            if (cookieData is not null)
-                list.Add(new EDnsOption(EDnsOptionCode.COOKIE, cookieData));
-
-            return list;
-        }
-
-        private static IReadOnlyList<DnsResourceRecord> UpsertOptRecord(
-            IReadOnlyList<DnsResourceRecord> existingAdditional,
-            DnsDatagram request,
-            DnsDatagram response,
-            IReadOnlyList<EDnsOption> options)
-        {
-            // Build downstream OPT from request EDNS first so advertised UDP payload reflects
-            // what the client can receive (do not up-advertise from upstream recursive response EDNS).
-            DnsDatagramEdns baseEdns = request.EDNS ?? response.EDNS;
-
-            ushort udp = baseEdns?.UdpPayloadSize ?? 512;
-            EDnsHeaderFlags flags = baseEdns?.Flags ?? EDnsHeaderFlags.None;
-
-            DnsResourceRecord opt = DnsDatagramEdns.GetOPTFor(
-                udpPayloadSize: udp,
-                extendedRCODE: response.RCODE,
-                version: 0,
-                flags: flags,
-                options: options);
-
-            int capacity = (existingAdditional?.Count ?? 0) + 1;
-            List<DnsResourceRecord> list = new List<DnsResourceRecord>(capacity);
-            foreach (DnsResourceRecord rr in existingAdditional ?? Array.Empty<DnsResourceRecord>())
-            {
-                if (rr.Type != DnsResourceRecordType.OPT)
-                    list.Add(rr);
-            }
-
-            list.Add(opt);
-
-            return list;
-        }
-
-        private DnsDatagram HandleInvalidCookieRequest(
-            DnsDatagram request,
-            IPEndPoint remoteEP,
-            bool isRecursionAllowed,
-            EDnsCookieOptionData requestCookie,
-            DnsCookieEnabledState runtimeState)
-        {
-            Interlocked.Increment(ref _cookieInvalid);
-
-            byte[] serverCookie = runtimeState.Validator.CreateResponseCookie(remoteEP.Address, requestCookie.ClientCookie);
-            var responseCookie = new EDnsCookieOptionData(requestCookie.ClientCookie.ToArray(), serverCookie);
-
-            Interlocked.Increment(ref _cookieBadcookieSent);
-
-            return BuildBadCookieResponse(request, remoteEP, isRecursionAllowed, responseCookie);
-        }
-
-        #endregion
-
         #region private
 
         private Socket GetUdpListenerSocket(AddressFamily addressFamily)
@@ -2309,8 +1913,8 @@ namespace DnsServerCore.Dns
                             // Capture cookie state once while the parsed request and the final
                             // client address are both available. The same immutable context is
                             // used for the RRL decision and for response processing.
-                            CookieRequestClassification cookieClassification =
-                                CreateCookieRequestClassification(request, remoteEP.Address, protocol);
+                            Security.CookieRequestClassification cookieClassification =
+                                _cookieCoordinator.Classify(request, remoteEP.Address, protocol);
                             if (enableSocketBindingToSourceEP)
                             {
                                 Socket newUdpListener = null;
@@ -2429,7 +2033,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task ProcessUdpRequestAsync(Socket udpListener, IPEndPoint remoteEP, IPEndPoint returnEP, DnsTransportProtocol protocol, DnsDatagram request, bool sendTruncationResponse, CookieRequestClassification cookieClassification)
+        private async Task ProcessUdpRequestAsync(Socket udpListener, IPEndPoint remoteEP, IPEndPoint returnEP, DnsTransportProtocol protocol, DnsDatagram request, bool sendTruncationResponse, Security.CookieRequestClassification cookieClassification)
         {
             byte[] sendBuffer = null;
 
@@ -2455,7 +2059,7 @@ namespace DnsServerCore.Dns
                 // RRL is response policy: classify and limit only after resolution has
                 // produced the response, immediately before the UDP emission path.
                 Security.ResponseRateLimitCategory responseCategory = Security.UdpResponseRateLimiterRuntime.ClassifyResponse(response);
-                Security.ReflectionRrlRequestTrust rrlTrust = cookieClassification.State == CookieRequestState.ValidServerCookie
+                Security.ReflectionRrlRequestTrust rrlTrust = cookieClassification.State == Security.CookieRequestState.ValidServerCookie
                     ? Security.ReflectionRrlRequestTrust.ValidServerCookie
                     : Security.ReflectionRrlRequestTrust.Unverified;
                 if (Security.ReflectionRrlPolicy.ShouldEvaluate(_rrlRuntime.Enabled, isUdp: true, rrlTrust))
@@ -2749,8 +2353,8 @@ namespace DnsServerCore.Dns
                         break;
                     }
 
-                    CookieRequestClassification cookieClassification =
-                        CreateCookieRequestClassification(request, remoteEP.Address, protocol);
+                    Security.CookieRequestClassification cookieClassification =
+                        _cookieCoordinator.Classify(request, remoteEP.Address, protocol);
 
                     //process request async
                     _ = ProcessStreamRequestAsync(stream, writeBuffer, writeSemaphore, remoteEP, request, protocol, cookieClassification);
@@ -2770,7 +2374,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task ProcessStreamRequestAsync(Stream stream, MemoryStream writeBuffer, SemaphoreSlim writeSemaphore, IPEndPoint remoteEP, DnsDatagram request, DnsTransportProtocol protocol, CookieRequestClassification cookieClassification)
+        private async Task ProcessStreamRequestAsync(Stream stream, MemoryStream writeBuffer, SemaphoreSlim writeSemaphore, IPEndPoint remoteEP, DnsDatagram request, DnsTransportProtocol protocol, Security.CookieRequestClassification cookieClassification)
         {
             try
             {
@@ -3198,7 +2802,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, CookieRequestClassification cookieClassification)
+        private async Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, Security.CookieRequestClassification cookieClassification)
         {
             foreach (IDnsRequestController requestController in _dnsApplicationManager.DnsRequestControllers)
             {
@@ -3304,152 +2908,20 @@ namespace DnsServerCore.Dns
             }
 
             // DNS Cookies (RFC 7873 / RFC 9018 v1)
-            EDnsCookieOptionData requestCookie = null;
-            bool isCookieAcquisitionRequest = false;
-            DnsCookieEnabledState cookieRuntimeState = cookieClassification.RuntimeState as DnsCookieEnabledState;
-            if (SupportsDnsCookies(protocol) &&
-                request.EDNS != null &&
-                cookieRuntimeState != null)
-            {
-                requestCookie = cookieClassification.Cookie;
-                isCookieAcquisitionRequest = IsCookieAcquisitionRequest(request, cookieClassification.State);
+            Security.CookiePreflightResult cookiePreflight = _cookieCoordinator.Preflight(
+                request, remoteEP, protocol, isRecursionAllowed, cookieClassification, _udpPayloadSize);
+            if (cookiePreflight.ShortCircuit)
+                return cookiePreflight.Response;
 
-                if (cookieClassification.State == CookieRequestState.NoCookie)
-                {
-                    Interlocked.Increment(ref _cookieMissing);
-                }
-                else
-                {
-                    if (cookieClassification.State == CookieRequestState.MalformedCookie)
-                    {
-                        // Malformed COOKIE option => FORMERR
-                        Interlocked.Increment(ref _cookieInvalid);
-                        ushort udpPayload = request.EDNS?.UdpPayloadSize ?? _udpPayloadSize;
-                        EDnsHeaderFlags flags = request.EDNS?.Flags ?? EDnsHeaderFlags.None;
-
-                        return new DnsDatagram(
-                            request.Identifier,
-                            true,
-                            request.OPCODE,
-                            false,
-                            false,
-                            request.RecursionDesired,
-                            isRecursionAllowed,
-                            false,
-                            request.CheckingDisabled,
-                            DnsResponseCode.FormatError,
-                            request.Question,
-                            null,
-                            null,
-                            null,
-                            request.EDNS is null ? ushort.MinValue : udpPayload,
-                            flags)
-                        { Tag = DnsServerResponseType.Authoritative };
-                    }
-
-                    // CC-only: valid request; we'll attach SC to the normal response later (no extra RTT).
-                    if (cookieClassification.State == CookieRequestState.ClientOnly)
-                    {
-                        Interlocked.Increment(ref _cookieClientOnly);
-                    }
-                    else if (cookieClassification.State == CookieRequestState.InvalidServerCookie)
-                    {
-                        // TCP can safely process an ordinary query and return a fresh cookie.
-                        // UDP, and the transport-independent zero-question acquisition
-                        // mechanism, use BADCOOKIE as required by RFC 7873.
-                        if (IsUdpTransport(protocol) || isCookieAcquisitionRequest)
-                        {
-                            return HandleInvalidCookieRequest(
-                                request,
-                                remoteEP,
-                                isRecursionAllowed,
-                                requestCookie,
-                                cookieRuntimeState);
-                        }
-
-                        Interlocked.Increment(ref _cookieInvalid);
-                    }
-                    else
-                    {
-                        Interlocked.Increment(ref _cookieValid);
-                    }
-                }
-            }
-
-            DnsDatagram response;
-            if (isCookieAcquisitionRequest)
-            {
-                // Do not pass an RFC 7873 zero-question exchange to normal QUERY
-                // processing, which correctly rejects all other QDCOUNT != 1 queries.
-                response = new DnsDatagram(
-                    request.Identifier,
-                    true,
-                    DnsOpcode.StandardQuery,
-                    false,
-                    false,
-                    request.RecursionDesired,
-                    isRecursionAllowed,
-                    false,
-                    request.CheckingDisabled,
-                    DnsResponseCode.NoError,
-                    request.Question,
-                    null,
-                    null,
-                    null,
-                    request.EDNS.UdpPayloadSize,
-                    request.EDNS.Flags)
-                { Tag = DnsServerResponseType.Authoritative };
-            }
-            else
-            {
-                response = await ProcessQueryAsync(request, remoteEP, protocol, isRecursionAllowed, false, _clientTimeout, null);
-            }
+            // A non-null, non-short-circuit result is a pre-built RFC 7873 section 5.4
+            // zero-question acquisition acknowledgement; otherwise process the query as usual.
+            DnsDatagram response = cookiePreflight.Response
+                ?? await ProcessQueryAsync(request, remoteEP, protocol, isRecursionAllowed, false, _clientTimeout, null);
 
             if (response is null)
                 return null;
 
-            // Attach requestCookie to response if needed
-            if (SupportsDnsCookies(protocol) && cookieRuntimeState != null && request.EDNS != null)
-            {
-                if (requestCookie != null && requestCookie.ClientCookie.Length == DNS_COOKIE_CLIENT_LENGTH)
-                {
-                    EDnsCookieOptionData responseCookie;
-                    if (cookieClassification.State == CookieRequestState.ValidServerCookie &&
-                        cookieClassification.ValidationResult == Security.DnsCookieValidationResult.Valid)
-                    {
-                        // A current RFC 9018 cookie remains bound to this client and may be
-                        // echoed. ValidRenew deliberately generates with the active secret.
-                        responseCookie = requestCookie;
-                    }
-                    else
-                    {
-                        byte[] serverCookie = cookieRuntimeState.Validator.CreateResponseCookie(remoteEP.Address, requestCookie.ClientCookie);
-                        responseCookie = new EDnsCookieOptionData(requestCookie.ClientCookie.ToArray(), serverCookie);
-                    }
-
-                    IReadOnlyList<EDnsOption> mergedOptions =
-                        MergeCookieOption(response.EDNS?.Options ?? request.EDNS?.Options, responseCookie);
-
-                    response = response.Clone(
-                        additional: UpsertOptRecord(
-                            response.Additional,
-                            request,
-                            response,
-                            mergedOptions));
-                }
-                else if (requestCookie is null && HasCookieOption(request))
-                {
-                    IReadOnlyList<EDnsOption> mergedOptions =
-                        MergeCookieOption(response.EDNS?.Options ?? request.EDNS?.Options, null);
-
-                    response = response.Clone(
-                        additional: UpsertOptRecord(
-                            response.Additional,
-                            request,
-                            response,
-                            mergedOptions));
-                }
-            }
+            response = _cookieCoordinator.AttachToResponse(request, response, remoteEP, protocol, cookieClassification);
 
             return await PostProcessQueryAsync(request, remoteEP, protocol, response);
         }
@@ -8418,33 +7890,19 @@ namespace DnsServerCore.Dns
                     return;
 
                 _useDnsCookies = value;
-                if (!value)
-                    Volatile.Write(ref _cookieRuntimeState, DnsCookieDisabledState.Instance);
-
-                InitDnsCookies();
+                _cookieCoordinator.Configure(value);
             }
         }
 
         // Monotonic instrumentation for transport-path tests and operational diagnostics.
         // One increment represents one cryptographic validation attempt, not classification
         // of client-only, malformed, or otherwise structurally invalid COOKIE options.
-        public long DnsCookieValidationInvocations => Interlocked.Read(ref _cookieValidationInvocations);
+        public long DnsCookieValidationInvocations => _cookieCoordinator.ValidationInvocations;
 
         // Status lookup is deliberately non-creating. When cookies are disabled and no
         // persisted state exists, false is returned and all output values are unavailable.
-        public bool TryGetDnsCookieSecretStatus(out string activeId, out string stagingId, out DateTime activeCreatedUtc)
-        {
-            lock (_saveLock)
-            {
-                if (Volatile.Read(ref _cookieRuntimeState) is DnsCookieEnabledState enabled)
-                {
-                    enabled.SecretManager.GetStatus(out activeId, out stagingId, out activeCreatedUtc);
-                    return true;
-                }
-
-                return Security.DnsCookieSecretManager.TryGetStatus(GetDnsCookieSecretPath(), out activeId, out stagingId, out activeCreatedUtc);
-            }
-        }
+        public bool TryGetDnsCookieSecretStatus(out string activeId, out string stagingId, out DateTime activeCreatedUtc) =>
+            _cookieCoordinator.TryGetStatus(out activeId, out stagingId, out activeCreatedUtc);
 
         public string ActiveDnsCookieSecretId => TryGetDnsCookieSecretStatus(out string activeId, out _, out _) ? activeId : null;
 
@@ -8452,15 +7910,15 @@ namespace DnsServerCore.Dns
 
         public DateTime? ActiveDnsCookieSecretCreatedUtc => TryGetDnsCookieSecretStatus(out _, out _, out DateTime activeCreatedUtc) ? activeCreatedUtc : null;
 
-        public void AddDnsCookieSecret() => UpdateDnsCookieSecrets(static secrets => secrets.AddStaging());
+        public void AddDnsCookieSecret() => _cookieCoordinator.UpdateSecrets(_useDnsCookies, static secrets => secrets.AddStaging());
 
-        public void ActivateDnsCookieSecret() => UpdateDnsCookieSecrets(static secrets => secrets.ActivateStaging());
+        public void ActivateDnsCookieSecret() => _cookieCoordinator.UpdateSecrets(_useDnsCookies, static secrets => secrets.ActivateStaging());
 
-        public void DropDnsCookieSecret() => UpdateDnsCookieSecrets(static secrets => secrets.DropStaging());
+        public void DropDnsCookieSecret() => _cookieCoordinator.UpdateSecrets(_useDnsCookies, static secrets => secrets.DropStaging());
 
-        internal void ImportDnsCookieSecretState(Stream stream) => UpdateDnsCookieSecrets(secrets => secrets.Import(stream));
+        internal void ImportDnsCookieSecretState(Stream stream) => _cookieCoordinator.Import(stream);
 
-        internal void ExportDnsCookieSecretState(Stream stream) => GetOrCreateDnsCookieSecrets().Export(stream);
+        internal void ExportDnsCookieSecretState(Stream stream) => _cookieCoordinator.Export(stream);
 
         public IReadOnlyCollection<NetworkAccessControl> ReverseProxyNetworkACL
         {
