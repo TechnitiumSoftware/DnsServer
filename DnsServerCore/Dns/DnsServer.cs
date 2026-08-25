@@ -2258,30 +2258,6 @@ namespace DnsServerCore.Dns
                             // used for the RRL decision and for response processing.
                             CookieRequestClassification cookieClassification =
                                 CreateCookieRequestClassification(request, remoteEP.Address, protocol);
-                            Security.UdpResponseRateLimitResult rrlResult = Security.UdpResponseRateLimitResult.Allowed;
-                            if (_enableResponseRateLimiting)
-                            {
-                                // Cookie inspection belongs here only when it can provide the
-                                // narrow return-routability exemption. QPM has already run.
-                                Security.ReflectionRrlRequestTrust rrlTrust = Security.ReflectionRrlRequestTrust.Unverified;
-                                if (cookieClassification.State == CookieRequestState.ValidServerCookie)
-                                    rrlTrust = Security.ReflectionRrlRequestTrust.ValidServerCookie;
-
-                                if (Security.ReflectionRrlPolicy.ShouldEvaluate(true, isUdp: true, rrlTrust))
-                                    rrlResult = EvaluateReflectionRrl(remoteEP.Address);
-                            }
-                            if (rrlResult != Security.UdpResponseRateLimitResult.Allowed)
-                            {
-                                if (rrlResult == Security.UdpResponseRateLimitResult.LimitedSlip)
-                                {
-                                    sendTruncationResponse = true;
-                                }
-                                else
-                                {
-                                    _statsManager.QueueUpdate(null, remoteEP, protocol, null, true);
-                                    continue;
-                                }
-                            }
                             if (enableSocketBindingToSourceEP)
                             {
                                 Socket newUdpListener = null;
@@ -2420,6 +2396,34 @@ namespace DnsServerCore.Dns
                     {
                         _statsManager.QueueUpdate(null, remoteEP, protocol, null, false);
                         return; //drop request
+                    }
+                }
+
+                // RRL is response policy: classify and limit only after resolution has
+                // produced the response, immediately before the UDP emission path.
+                Security.ResponseRateLimitCategory responseCategory = ClassifyResponseForRateLimiting(response);
+                Security.ReflectionRrlRequestTrust rrlTrust = cookieClassification.State == CookieRequestState.ValidServerCookie
+                    ? Security.ReflectionRrlRequestTrust.ValidServerCookie
+                    : Security.ReflectionRrlRequestTrust.Unverified;
+                if (Security.ReflectionRrlPolicy.ShouldEvaluate(_enableResponseRateLimiting, isUdp: true, rrlTrust))
+                {
+                    DnsQuestionRecord question = response.Question[0];
+                    Security.UdpResponseRateLimitResult rrlResult = EvaluateReflectionRrl(remoteEP.Address, responseCategory,
+                        (ushort)question.Type, (ushort)question.Class, question.Name);
+                    if (rrlResult == Security.UdpResponseRateLimitResult.LimitedDrop ||
+                        (rrlResult == Security.UdpResponseRateLimitResult.LimitedSlip && !Security.ResponseRateLimitSlipPolicy.IsEligible(responseCategory)))
+                    {
+                        _statsManager.QueueUpdate(null, remoteEP, protocol, null, true);
+                        return;
+                    }
+                    if (rrlResult == Security.UdpResponseRateLimitResult.LimitedSlip)
+                    {
+                        response = new DnsDatagram(request.Identifier, true, request.OPCODE, false, true,
+                            request.RecursionDesired, recursionAllowed, false, request.CheckingDisabled,
+                            DnsResponseCode.NoError, request.Question, null, null, null,
+                            request.EDNS is null ? ushort.MinValue : _udpPayloadSize,
+                            _dnssecValidation && request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None)
+                        { Tag = DnsServerResponseType.Authoritative };
                     }
                 }
 
@@ -6743,7 +6747,8 @@ namespace DnsServerCore.Dns
             return false;
         }
 
-        private Security.UdpResponseRateLimitResult EvaluateReflectionRrl(IPAddress remoteIP)
+        private Security.UdpResponseRateLimitResult EvaluateReflectionRrl(IPAddress remoteIP,
+            Security.ResponseRateLimitCategory category, ushort queryType, ushort queryClass, string canonicalName)
         {
             if (!_enableResponseRateLimiting)
                 return Security.UdpResponseRateLimitResult.Allowed;
@@ -6755,7 +6760,26 @@ namespace DnsServerCore.Dns
                         return Security.UdpResponseRateLimitResult.Allowed;
             }
 
-            return _reflectionRrl.Evaluate(remoteIP);
+            return _reflectionRrl.Evaluate(remoteIP, category, queryType, queryClass, canonicalName);
+        }
+
+        private static Security.ResponseRateLimitCategory ClassifyResponseForRateLimiting(DnsDatagram response)
+        {
+            if (response.RCODE == DnsResponseCode.NxDomain)
+                return Security.ResponseRateLimitCategory.NxDomain;
+            if (response.RCODE != DnsResponseCode.NoError)
+                return Security.ResponseRateLimitCategory.ServerError;
+            if (response.Answer.Count == 0)
+            {
+                for (int i = 0; i < response.Authority.Count; i++)
+                    if (response.Authority[i].Type == DnsResourceRecordType.NS)
+                        return Security.ResponseRateLimitCategory.Referral;
+                return Security.ResponseRateLimitCategory.NoData;
+            }
+            for (int i = 0; i < response.Answer.Count; i++)
+                if (response.Answer[i].Type == DnsResourceRecordType.RRSIG && DnsRRSIGRecordData.IsWildcard(response.Answer[i]))
+                    return Security.ResponseRateLimitCategory.Wildcard;
+            return Security.ResponseRateLimitCategory.Positive;
         }
 
         public readonly record struct ResponseRateLimitingOptions(bool Enabled, int SustainedRate, int InstantLimit, int SlipEvery, int TableSize, IReadOnlyCollection<NetworkAddress> BypassList);

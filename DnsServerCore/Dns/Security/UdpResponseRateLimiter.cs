@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 
 namespace DnsServerCore.Dns.Security
@@ -29,6 +30,65 @@ namespace DnsServerCore.Dns.Security
         Allowed,
         LimitedDrop,
         LimitedSlip
+    }
+
+    /// <summary>
+    /// Classifies responses into security-relevant equivalence groups used by UDP RRL.
+    /// Values are flags so policy can name sets of responses without numeric literals.
+    /// </summary>
+    [Flags]
+    public enum ResponseRateLimitCategory : byte
+    {
+        Positive = 1 << 0,
+        NxDomain = 1 << 1,
+        NoData = 1 << 2,
+        Referral = 1 << 3,
+        ServerError = 1 << 4,
+        Wildcard = 1 << 5
+    }
+
+    /// <summary>
+    /// Fixed-size packet-path key identifying a client network and an equivalent DNS response.
+    /// The network is already normalized to <see cref="PrefixLength"/> and
+    /// <see cref="ResponseIdentity"/> is a process-keyed hash of the canonical question identity.
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public readonly struct ResponseRateLimitKey
+    {
+        public readonly ulong NetworkHigh;
+        public readonly ulong NetworkLow;
+        public readonly ulong ResponseIdentity;
+        public readonly ushort QueryType;
+        public readonly ushort QueryClass;
+        public readonly ResponseRateLimitCategory Category;
+        public readonly byte AddressFamily;
+        public readonly byte PrefixLength;
+        private readonly byte _reserved;
+
+        internal ResponseRateLimitKey(ulong networkHigh, ulong networkLow, ulong responseIdentity,
+            ushort queryType, ushort queryClass, ResponseRateLimitCategory category, byte addressFamily, byte prefixLength)
+        {
+            NetworkHigh = networkHigh;
+            NetworkLow = networkLow;
+            ResponseIdentity = responseIdentity;
+            QueryType = queryType;
+            QueryClass = queryClass;
+            Category = category;
+            AddressFamily = addressFamily;
+            PrefixLength = prefixLength;
+            _reserved = 0;
+        }
+    }
+
+    /// <summary>Defines which limited response categories may be replaced by a truncated slip response.</summary>
+    public static class ResponseRateLimitSlipPolicy
+    {
+        private const ResponseRateLimitCategory EligibleCategories =
+            ResponseRateLimitCategory.Positive | ResponseRateLimitCategory.NxDomain |
+            ResponseRateLimitCategory.NoData | ResponseRateLimitCategory.Referral |
+            ResponseRateLimitCategory.Wildcard;
+
+        public static bool IsEligible(ResponseRateLimitCategory category) => (EligibleCategories & category) != 0;
     }
 
     public sealed class UdpResponseRateLimiterOptions
@@ -82,9 +142,13 @@ namespace DnsServerCore.Dns.Security
         private readonly int _instantLimit;
         private readonly int _slipEvery;
         private readonly TimeProvider _timeProvider;
+        private const int HashKeyWidthBytes = 16;
+        private const int MaximumCanonicalDnsNameBytes = 255;
+        private const byte IPv4AddressFamilyCode = 4;
+        private const byte IPv6AddressFamilyCode = 6;
 
         public UdpResponseRateLimiter(UdpResponseRateLimiterOptions options, TimeProvider? timeProvider = null)
-            : this(options, RandomNumberGenerator.GetBytes(16), timeProvider)
+            : this(options, RandomNumberGenerator.GetBytes(HashKeyWidthBytes), timeProvider)
         {
         }
 
@@ -101,7 +165,7 @@ namespace DnsServerCore.Dns.Security
                 throw new ArgumentOutOfRangeException(nameof(options.InstantLimit));
             if (options.SlipEvery < 0)
                 throw new ArgumentOutOfRangeException(nameof(options.SlipEvery));
-            if (hashKey.Length != 16)
+            if (hashKey.Length != HashKeyWidthBytes)
                 throw new ArgumentException("The limiter hash key must be 16 bytes.", nameof(hashKey));
 
             _timeProvider = timeProvider ?? TimeProvider.System;
@@ -153,7 +217,8 @@ namespace DnsServerCore.Dns.Security
 
         public int MaximumEntriesExaminedPerRequest => 2 * Math.Max(_ipv4PrefixLengths.Length, _ipv6PrefixLengths.Length);
 
-        public UdpResponseRateLimitResult Evaluate(IPAddress sourceAddress)
+        public UdpResponseRateLimitResult Evaluate(IPAddress sourceAddress, ResponseRateLimitCategory category,
+            ushort queryType, ushort queryClass, string canonicalName)
         {
             ArgumentNullException.ThrowIfNull(sourceAddress);
             Span<byte> addressBytes = stackalloc byte[16];
@@ -164,13 +229,13 @@ namespace DnsServerCore.Dns.Security
             {
                 addressLength = 4;
                 prefixLengths = _ipv4PrefixLengths;
-                family = 4;
+                family = IPv4AddressFamilyCode;
             }
             else if (sourceAddress.AddressFamily == AddressFamily.InterNetworkV6)
             {
                 addressLength = 16;
                 prefixLengths = _ipv6PrefixLengths;
-                family = 6;
+                family = IPv6AddressFamilyCode;
             }
             else
             {
@@ -178,23 +243,45 @@ namespace DnsServerCore.Dns.Security
             }
 
             sourceAddress.TryWriteBytes(addressBytes, out _);
+            ulong responseIdentity = ComputeResponseIdentity(category, queryType, queryClass, canonicalName);
             long now = _timeProvider.GetTimestamp();
             UdpResponseRateLimitResult result = UdpResponseRateLimitResult.Allowed;
-            Span<byte> key = stackalloc byte[18];
+            Span<byte> network = stackalloc byte[16];
             foreach (int prefixLength in prefixLengths)
             {
-                key.Clear();
-                key[0] = family;
-                key[1] = (byte)prefixLength;
-                addressBytes[..addressLength].CopyTo(key[2..]);
-                MaskHostBits(key.Slice(2, addressLength), prefixLength);
-                UdpResponseRateLimitResult levelResult = Update(key[..(addressLength + 2)], now);
+                network.Clear();
+                addressBytes[..addressLength].CopyTo(network);
+                MaskHostBits(network[..addressLength], prefixLength);
+                ResponseRateLimitKey key = new ResponseRateLimitKey(
+                    MemoryMarshal.Read<ulong>(network), MemoryMarshal.Read<ulong>(network[8..]), responseIdentity,
+                    queryType, queryClass, category, family, (byte)prefixLength);
+                UdpResponseRateLimitResult levelResult = Update(MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref key, 1)), now);
                 if (levelResult == UdpResponseRateLimitResult.LimitedDrop)
                     result = levelResult;
                 else if (levelResult == UdpResponseRateLimitResult.LimitedSlip && result == UdpResponseRateLimitResult.Allowed)
                     result = levelResult;
             }
             return result;
+        }
+
+        private ulong ComputeResponseIdentity(ResponseRateLimitCategory category, ushort queryType, ushort queryClass, string canonicalName)
+        {
+            // DNS wire names are at most 255 octets. Domain names in DnsDatagram are
+            // already canonical ASCII/punycode, so encoding them directly avoids a
+            // temporary string or byte array on the packet path.
+            Span<byte> identity = stackalloc byte[MaximumCanonicalDnsNameBytes + 5];
+            identity[0] = (byte)category;
+            identity[1] = (byte)queryType;
+            identity[2] = (byte)(queryType >> 8);
+            identity[3] = (byte)queryClass;
+            identity[4] = (byte)(queryClass >> 8);
+            int length = Math.Min(canonicalName.Length, MaximumCanonicalDnsNameBytes);
+            for (int i = 0; i < length; i++)
+            {
+                char value = canonicalName[i];
+                identity[i + 5] = value is >= 'A' and <= 'Z' ? (byte)(value + ('a' - 'A')) : (byte)value;
+            }
+            return SipHash24.Compute(_hashKey, identity[..(length + 5)]);
         }
 
         internal (int Shard, int First, int Second) GetPlacement(IPAddress address, int prefixLength)
