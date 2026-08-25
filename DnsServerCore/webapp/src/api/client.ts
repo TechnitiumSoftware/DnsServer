@@ -27,6 +27,14 @@ export interface ApiOptions {
   method?: 'GET' | 'POST'
   body?: Record<string, string>
   token?: string | null
+  /*
+  Subida multipart. La consola tiene cinco: instalar y actualizar app, importar
+  zona, importar registros y restaurar ajustes (apps.js:348,392 · zone.js:1273,
+  3039 · main.js:3169). Van con FormData, no con formulario codificado, así que
+  NO se debe fijar Content-Type a mano: el navegador lo pone con su boundary.
+  Los campos de `body` viajan también dentro del FormData.
+  */
+  file?: { campo: string; archivo: File }
 }
 
 interface Envelope {
@@ -46,7 +54,14 @@ export async function apiRequest<T = unknown>(
   let url = `api/${path}`
   const init: RequestInit & { headers: Record<string, string> } = { method, headers }
 
-  if (body) {
+  if (opts.file) {
+    const fd = new FormData()
+    for (const [k, v] of Object.entries(body ?? {})) fd.append(k, v)
+    fd.append(opts.file.campo, opts.file.archivo)
+    init.method = 'POST'
+    init.body = fd
+    // Sin Content-Type a mano: el navegador añade el boundary.
+  } else if (body) {
     const encoded = new URLSearchParams(body).toString()
     if (method === 'POST') {
       headers['Content-Type'] = 'application/x-www-form-urlencoded'

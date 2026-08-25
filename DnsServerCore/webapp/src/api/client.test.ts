@@ -79,3 +79,29 @@ describe('apiRequest', () => {
     })
   })
 })
+
+describe('subidas multipart', () => {
+  it('manda FormData y NO fija Content-Type a mano', async () => {
+    const spy = mockFetch({ status: 'ok' })
+    const archivo = new File(['zona'], 'casa.test.zone', { type: 'text/plain' })
+    await apiRequest('zones/import', { token: 't', body: { zone: 'casa.test' }, file: { campo: 'fileZone', archivo } })
+    const [url, init] = spy.mock.calls[0]
+    expect(url).toBe('api/zones/import')
+    expect(init.method).toBe('POST')
+    expect(init.body).toBeInstanceOf(FormData)
+    // El navegador pone el boundary; fijarlo a mano rompe la subida.
+    expect(init.headers['Content-Type']).toBeUndefined()
+  })
+
+  it('los campos normales viajan dentro del FormData, no en la query', async () => {
+    const spy = mockFetch({ status: 'ok' })
+    const archivo = new File(['x'], 'a.txt')
+    await apiRequest('zones/import', { body: { zone: 'casa.test', overwrite: 'true' }, file: { campo: 'f', archivo } })
+    const [url, init] = spy.mock.calls[0]
+    expect(url).not.toContain('?')
+    const fd = init.body as FormData
+    expect(fd.get('zone')).toBe('casa.test')
+    expect(fd.get('overwrite')).toBe('true')
+    expect(fd.get('f')).toBeInstanceOf(File)
+  })
+})
