@@ -478,8 +478,13 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            _cookieRotationTimer?.Dispose();
-            _cookieRotationTimer = null;
+            lock (_saveLock)
+            {
+                _cookieRotationTimer?.Dispose();
+                _cookieRotationTimer = null;
+                _cookieSecrets = null;
+                _cookieValidator = null;
+            }
 
             _disposed = true;
             GC.SuppressFinalize(this);
@@ -1287,9 +1292,6 @@ namespace DnsServerCore.Dns
                 _enableResponseRateLimiting = false;
             }
 
-            _cookieRotationTimer?.Dispose();
-            _cookieRotationTimer = null;
-
             InitDnsCookies();
         }
 
@@ -1788,8 +1790,21 @@ namespace DnsServerCore.Dns
 
                 try
                 {
-                    _cookieSecrets = new Security.DnsCookieSecretManager(secretPath);
-                    _cookieValidator = new Security.DnsCookieValidator(_cookieSecrets);
+                    Security.DnsCookieSecretManager cookieSecrets = new Security.DnsCookieSecretManager(secretPath);
+                    _cookieSecrets = cookieSecrets;
+                    _cookieValidator = new Security.DnsCookieValidator(cookieSecrets);
+
+                    _cookieRotationTimer?.Dispose();
+                    _cookieRotationTimer = null;
+
+                    if (_dnsCookiesRotationPeriodHours > 0)
+                    {
+                        _cookieRotationTimer = new Timer(
+                            _ => RotateDnsCookieSecrets(cookieSecrets),
+                            null,
+                            dueTime: TimeSpan.FromMinutes(5),
+                            period: TimeSpan.FromHours(_dnsCookiesRotationPeriodHours));
+                    }
                 }
                 catch (Exception ex) when (ex is InvalidDataException || ex is IOException || ex is UnauthorizedAccessException)
                 {
@@ -1800,24 +1815,24 @@ namespace DnsServerCore.Dns
                     _log.Write(new InvalidOperationException("DNS Cookie protection is degraded because its secret state could not be loaded. The existing state file was not overwritten.", ex));
                     return;
                 }
+            }
+        }
 
-                _cookieRotationTimer?.Dispose();
-                if (_dnsCookiesRotationPeriodHours > 0)
+        private void RotateDnsCookieSecrets(Security.DnsCookieSecretManager cookieSecrets)
+        {
+            lock (_saveLock)
+            {
+                // Timer disposal does not prevent an already queued callback. Only the timer belonging
+                // to the currently published manager is allowed to rotate cookie state.
+                if (!ReferenceEquals(_cookieSecrets, cookieSecrets))
+                    return;
+
+                try
                 {
-                    _cookieRotationTimer = new Timer(
-                        _ =>
-                        {
-                            try
-                            {
-                                if (!_cookieSecrets.Rotate())
-                                    _log.Write("Skipped automatic DNS Cookie secret rotation since a manually staged secret is pending activation or removal.");
-                            }
-                            catch (Exception ex) { _log.Write(ex); }
-                        },
-                        null,
-                        dueTime: TimeSpan.FromMinutes(5),
-                        period: TimeSpan.FromHours(_dnsCookiesRotationPeriodHours));
+                    if (!cookieSecrets.Rotate())
+                        _log.Write("Skipped automatic DNS Cookie secret rotation since a manually staged secret is pending activation or removal.");
                 }
+                catch (Exception ex) { _log.Write(ex); }
             }
         }
 
