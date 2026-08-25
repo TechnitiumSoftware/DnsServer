@@ -6864,7 +6864,7 @@ namespace DnsServerCore.Dns
             const int IPV4_BYTE_WIDTH = 4;
             const int IPV6_BIT_WIDTH = 128;
             const int IPV6_BYTE_WIDTH = 16;
-            const int IPV4_MAPPED_PREFIX_LENGTH = IPV6_BIT_WIDTH - IPV4_BIT_WIDTH;
+            const byte IPV4_MAPPED_PREFIX_LENGTH = IPV6_BIT_WIDTH - IPV4_BIT_WIDTH;
 
             public static readonly RrlBypassMatcher Empty = new RrlBypassMatcher(Array.Empty<Node>(), Array.Empty<Node>());
 
@@ -6951,11 +6951,11 @@ namespace DnsServerCore.Dns
             private static NetworkAddress NormalizeNetwork(NetworkAddress network)
             {
                 IPAddress address = network.Address;
-                int prefixLength = network.PrefixLength;
+                byte prefixLength = network.PrefixLength;
                 if (address.IsIPv4MappedToIPv6)
                 {
                     address = address.MapToIPv4();
-                    prefixLength = Math.Max(0, prefixLength - IPV4_MAPPED_PREFIX_LENGTH);
+                    prefixLength = (byte)Math.Max(0, prefixLength - IPV4_MAPPED_PREFIX_LENGTH);
                 }
 
                 return new NetworkAddress(address, prefixLength);
