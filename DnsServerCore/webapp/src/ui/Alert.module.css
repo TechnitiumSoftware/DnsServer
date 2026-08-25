@@ -1,0 +1,14 @@
+.alert {
+  padding: 9px 11px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  border: 1px solid var(--line);
+  background: var(--pan);
+  color: var(--ink);
+}
+.alert b { display: inline; margin-right: 4px; }
+.success { border-color: var(--ok); color: var(--ok); }
+.info { border-color: var(--info); color: var(--info); }
+.warning { border-color: var(--warn); color: var(--warn); }
+.danger { border-color: var(--dan); color: var(--dan); }

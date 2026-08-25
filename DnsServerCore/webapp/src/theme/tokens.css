@@ -1,0 +1,74 @@
+/*
+Los tres temas de la consola, como juegos de variables.
+
+Los tres EXISTEN Y SE CONSERVAN: hay un modal «Change Theme» en la consola y
+borrar dos de ellos sería quitar funcionalidad, que es justo lo que este
+proyecto no hace.
+
+  · dark  — el tema principal. Rediseño del `dark-mode` de upstream, que era
+            gris neutro con acento azul (#007aff). Aquí el acento pasa a ámbar.
+  · light — el tema por defecto de upstream.
+  · amber — ÁMBAR SOBRE NEGRO, texto incluido (#ffb000 sobre #1a120b), fiel a
+            `amber-mode.css` de upstream. No es «oscuro con acento ámbar»: si se
+            convirtiera en eso, oscuro y ámbar quedarían casi iguales y el
+            usuario perdería un tema de facto.
+*/
+
+:root,
+:root[data-theme='dark'] {
+  --bg: #0e1116;
+  --pan: #141923;
+  --pan2: #11151d;
+  --ink: #e6e9ef;
+  --mute: #8b95a7;
+  --faint: #5d6779;
+  --line: #232a36;
+  --line2: #1a202b;
+  --acc: #f5a524;
+  --on-acc: #1a1205;
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --dan: #f87171;
+  --info: #60a5fa;
+  --field: #0a0d12;
+  --hover: #161c27;
+}
+
+:root[data-theme='light'] {
+  --bg: #ffffff;
+  --pan: #f7f8fa;
+  --pan2: #ffffff;
+  --ink: #101828;
+  --mute: #667085;
+  --faint: #98a2b3;
+  --line: #e7e9ee;
+  --line2: #eef0f4;
+  --acc: #b45309;
+  --on-acc: #ffffff;
+  --ok: #027a48;
+  --warn: #b54708;
+  --dan: #b42318;
+  --info: #175cd3;
+  --field: #ffffff;
+  --hover: #f7f8fa;
+}
+
+/* Valores anclados en upstream/master:DnsServerCore/www/css/amber-mode.css */
+:root[data-theme='amber'] {
+  --bg: #1a120b;
+  --pan: #2c1e14;
+  --pan2: #251a11;
+  --ink: #ffb000;
+  --mute: #c57a11;
+  --faint: #664422;
+  --line: #3d2a1c;
+  --line2: #2c1e14;
+  --acc: #ffb000;
+  --on-acc: #1a120b;
+  --ok: #357935;
+  --warn: #cc8800;
+  --dan: #9f2723;
+  --info: #c57a11;
+  --field: #1a120b;
+  --hover: #3d2a1c;
+}

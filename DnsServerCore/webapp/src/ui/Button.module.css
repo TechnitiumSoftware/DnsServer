@@ -1,0 +1,16 @@
+.btn {
+  font-size: 12.5px;
+  padding: 7px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: var(--pan2);
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 500;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.btn:disabled { opacity: 0.5; cursor: default; }
+.btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+.primary { background: var(--acc); border-color: var(--acc); color: var(--on-acc); font-weight: 650; }
+.danger { color: var(--dan); border-color: var(--dan); }
