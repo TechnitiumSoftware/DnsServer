@@ -1,0 +1,198 @@
+[
+	{
+		"name": "Default",
+		"urls": [
+			"https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"
+		]
+	},
+	{
+		"name": "Steven Black [adware + malware]",
+		"urls": [
+			"https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"
+		]
+	},
+	{
+		"name": "Steven Black [adware + malware + fakenews]",
+		"urls": [
+			"https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews/hosts"
+		]
+	},
+	{
+		"name": "Steven Black [adware + malware + gambling]",
+		"urls": [
+			"https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling/hosts"
+		]
+	},
+	{
+		"name": "Steven Black [adware + malware + porn]",
+		"urls": [
+			"https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts"
+		]
+	},
+	{
+		"name": "Steven Black [adware + malware + social]",
+		"urls": [
+			"https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/social/hosts"
+		]
+	},
+	{
+		"name": "Steven Black [adware + malware + fakenews + gambling]",
+		"urls": [
+			"https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling/hosts"
+		]
+	},
+	{
+		"name": "Steven Black [adware + malware + fakenews + porn]",
+		"urls": [
+			"https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-porn/hosts"
+		]
+	},
+	{
+		"name": "Steven Black [adware + malware + fakenews + social]",
+		"urls": [
+			"https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-social/hosts"
+		]
+	},
+	{
+		"name": "Steven Black [adware + malware + gambling + porn]",
+		"urls": [
+			"https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn/hosts"
+		]
+	},
+	{
+		"name": "Steven Black [adware + malware + gambling + social]",
+		"urls": [
+			"https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-social/hosts"
+		]
+	},
+	{
+		"name": "Steven Black [adware + malware + porn + social]",
+		"urls": [
+			"https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-social/hosts"
+		]
+	},
+	{
+		"name": "Steven Black [adware + malware + fakenews + gambling + porn]",
+		"urls": [
+			"https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts"
+		]
+	},
+	{
+		"name": "Steven Black [adware + malware + fakenews + gambling + social]",
+		"urls": [
+			"https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-social/hosts"
+		]
+	},
+	{
+		"name": "Steven Black [adware + malware + fakenews + porn + social]",
+		"urls": [
+			"https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-porn-social/hosts"
+		]
+	},
+	{
+		"name": "Steven Black [adware + malware + gambling + porn + social]",
+		"urls": [
+			"https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn-social/hosts"
+		]
+	},
+	{
+		"name": "Steven Black [adware + malware + fakenews + gambling + porn + social]",
+		"urls": [
+			"https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn-social/hosts"
+		]
+	},
+	{
+		"name": "OISD Big [Domains (Wildcards)]",
+		"urls": [
+			"https://big.oisd.nl/domainswild2"
+		]
+	},
+	{
+		"name": "OISD NSFW [Domains (Wildcards)]",
+		"urls": [
+			"https://nsfw.oisd.nl/domainswild2"
+		]
+	},
+	{
+		"name": "Hagezi [Multi Light - Basic protection]",
+		"urls": [
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/light-onlydomains.txt"
+		]
+	},
+	{
+		"name": "Hagezi [Multi Normal - All-round protection]",
+		"urls": [
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/multi-onlydomains.txt"
+		]
+	},
+	{
+		"name": "Hagezi [Multi PRO - Extended protection]",
+		"urls": [
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro-onlydomains.txt"
+		]
+	},
+	{
+		"name": "Hagezi [Multi PRO++ - Maximum protection]",
+		"urls": [
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt"
+		]
+	},
+	{
+		"name": "Hagezi [Multi ULTIMATE - Aggressive protection]",
+		"urls": [
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/ultimate-onlydomains.txt"
+		]
+	},
+	{
+		"name": "Hagezi Newly Registered Domains (NRD) - 7 days",
+		"urls": [
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/nrd7.txt"
+		]
+	},
+	{
+		"name": "Hagezi Newly Registered Domains (NRD) - 14 days",
+		"urls": [
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/nrd7.txt",
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/nrd14-8.txt"
+		]
+	},
+	{
+		"name": "Hagezi Newly Registered Domains (NRD) - 21 days",
+		"urls": [
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/nrd7.txt",
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/nrd14-8.txt",
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/nrd21-15.txt"
+		]
+	},
+	{
+		"name": "Hagezi Newly Registered Domains (NRD) - 28 days",
+		"urls": [
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/nrd7.txt",
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/nrd14-8.txt",
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/nrd21-15.txt",
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/nrd28-22.txt"
+		]
+	},
+	{
+		"name": "Hagezi Newly Registered Domains (NRD) - 35 days",
+		"urls": [
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/nrd7.txt",
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/nrd14-8.txt",
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/nrd21-15.txt",
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/nrd28-22.txt",
+			"https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/domains/nrd35-29.txt"
+		]
+	},
+	{
+		"name": "Shreshta - Newly Registered Domains (past week) Community Feed",
+		"urls": [
+			"https://shreshtait.com/newly-registered-domains/nrd-1w"
+		]
+	},
+	{
+		"name": "Shreshta - Newly Registered Domains (past month) Community Feed",
+		"urls": [
+			"https://shreshtait.com/newly-registered-domains/nrd-1m"
+		]
+	}
+]
