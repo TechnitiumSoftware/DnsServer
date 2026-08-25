@@ -1,38 +1,17 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import './tokens.css'
 import './base.css'
 
-export type Theme = 'dark' | 'light' | 'amber'
+/*
+Un solo tema: el oscuro. No hay selector ni persistencia porque no hay nada que
+elegir; el proveedor sólo fija el atributo para que los tokens apliquen.
 
-export const THEMES: Theme[] = ['dark', 'light', 'amber']
-
-function isTheme(value: unknown): value is Theme {
-  return typeof value === 'string' && (THEMES as string[]).includes(value)
-}
-
-interface ThemeContextValue {
-  theme: Theme
-  setTheme: (t: Theme) => void
-}
-
-const ThemeContext = createContext<ThemeContextValue | null>(null)
-
+Si algún día vuelven los tres temas de upstream, esto recupera su estado y hay
+que devolver también el modal `Change Theme` y su entrada del menú de usuario.
+*/
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem('theme')
-    return isTheme(saved) ? saved : 'dark'
-  })
-
   useEffect(() => {
-    document.documentElement.dataset.theme = theme
-    localStorage.setItem('theme', theme)
-  }, [theme])
-
-  return <ThemeContext.Provider value={{ theme, setTheme }}>{children}</ThemeContext.Provider>
-}
-
-export function useTheme(): ThemeContextValue {
-  const ctx = useContext(ThemeContext)
-  if (!ctx) throw new Error('useTheme se ha usado fuera de ThemeProvider')
-  return ctx
+    document.documentElement.dataset.theme = 'dark'
+  }, [])
+  return <>{children}</>
 }

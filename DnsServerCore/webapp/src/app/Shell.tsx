@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
 import { visibleSections, type Permission } from './sections'
 import { ChangePassword } from '../screens/modals/ChangePassword'
-import { ChangeTheme } from '../screens/modals/ChangeTheme'
 import { Configure2FA } from '../screens/modals/Configure2FA'
 import { CreateApiToken } from '../screens/modals/CreateApiToken'
 import { MyProfile } from '../screens/modals/MyProfile'
 import styles from './Shell.module.css'
 
-type ModalId = 'profile' | 'password' | 'twofa' | 'token' | 'theme'
+type ModalId = 'profile' | 'password' | 'twofa' | 'token'
 
 export interface ShellSession {
   token: string
@@ -76,9 +75,6 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
                 <button type="button" onClick={() => abrir('token')}>
                   Create API Token
                 </button>
-                <button type="button" onClick={() => abrir('theme')}>
-                  Change Theme
-                </button>
                 <button type="button" onClick={onLogout}>
                   Logout
                 </button>
@@ -135,7 +131,6 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
         username={session.username}
         token={session.token}
       />
-      <ChangeTheme open={modal === 'theme'} onOpenChange={(o) => setModal(o ? 'theme' : null)} />
     </div>
   )
 }
