@@ -851,43 +851,51 @@ namespace DnsServerCore
                             clusterParameters.Add("qpmPrefixLimitsIPv6", strQpmPrefixLimitsIPv6);
                         }
 
+                        DnsServer.ResponseRateLimitingOptions rrlOptions = _dnsWebService._dnsServer.CurrentResponseRateLimitingOptions;
+                        bool hasRrlUpdate = false;
+
                         if (request.TryGetQueryOrForm("enableResponseRateLimiting", bool.Parse, out bool enableResponseRateLimiting))
                         {
-                            _dnsWebService._dnsServer.EnableResponseRateLimiting = enableResponseRateLimiting;
-                            clusterParameters.Add("enableResponseRateLimiting", enableResponseRateLimiting.ToString());
+                            rrlOptions = rrlOptions with { Enabled = enableResponseRateLimiting };
+                            hasRrlUpdate = true;
                         }
-
                         if (request.TryGetQueryOrForm("responseRateLimit", int.Parse, out int responseRateLimit))
                         {
-                            _dnsWebService._dnsServer.ResponseRateLimit = responseRateLimit;
-                            clusterParameters.Add("responseRateLimit", responseRateLimit.ToString());
+                            rrlOptions = rrlOptions with { SustainedRate = responseRateLimit };
+                            hasRrlUpdate = true;
                         }
-
                         if (request.TryGetQueryOrForm("responseRateLimitInstant", int.Parse, out int responseRateLimitInstant))
                         {
-                            _dnsWebService._dnsServer.ResponseRateLimitInstant = responseRateLimitInstant;
-                            clusterParameters.Add("responseRateLimitInstant", responseRateLimitInstant.ToString());
+                            rrlOptions = rrlOptions with { InstantLimit = responseRateLimitInstant };
+                            hasRrlUpdate = true;
                         }
-
                         if (request.TryGetQueryOrForm("responseRateLimitSlip", int.Parse, out int responseRateLimitSlip))
                         {
-                            _dnsWebService._dnsServer.ResponseRateLimitSlip = responseRateLimitSlip;
-                            clusterParameters.Add("responseRateLimitSlip", responseRateLimitSlip.ToString());
+                            rrlOptions = rrlOptions with { SlipEvery = responseRateLimitSlip };
+                            hasRrlUpdate = true;
                         }
-
                         if (request.TryGetQueryOrForm("responseRateLimitTableSize", int.Parse, out int responseRateLimitTableSize))
                         {
-                            if ((responseRateLimitTableSize < DnsServer.ResponseRateLimitTableSizeMinimum) || (responseRateLimitTableSize > DnsServer.ResponseRateLimitTableSizeMaximum))
-                                throw new DnsWebServiceException($"Response rate limit table size must be between {DnsServer.ResponseRateLimitTableSizeMinimum} and {DnsServer.ResponseRateLimitTableSizeMaximum} entries.");
-
-                            _dnsWebService._dnsServer.ResponseRateLimitTableSize = responseRateLimitTableSize;
-                            clusterParameters.Add("responseRateLimitTableSize", responseRateLimitTableSize.ToString());
+                            rrlOptions = rrlOptions with { TableSize = responseRateLimitTableSize };
+                            hasRrlUpdate = true;
                         }
-
                         if (request.TryQueryOrFormArray("responseRateLimitBypassList", NetworkAddress.Parse, out NetworkAddress[] responseRateLimitBypassList))
                         {
-                            _dnsWebService._dnsServer.ResponseRateLimitBypassList = responseRateLimitBypassList;
-                            clusterParameters.Add("responseRateLimitBypassList", responseRateLimitBypassList.Join());
+                            rrlOptions = rrlOptions with { BypassList = responseRateLimitBypassList };
+                            hasRrlUpdate = true;
+                        }
+
+                        if (hasRrlUpdate)
+                        {
+                            _dnsWebService._dnsServer.ApplyResponseRateLimitingOptions(rrlOptions);
+
+                            // Replicate the complete applied snapshot, never a partially parsed request.
+                            clusterParameters.Add("enableResponseRateLimiting", rrlOptions.Enabled.ToString());
+                            clusterParameters.Add("responseRateLimit", rrlOptions.SustainedRate.ToString());
+                            clusterParameters.Add("responseRateLimitInstant", rrlOptions.InstantLimit.ToString());
+                            clusterParameters.Add("responseRateLimitSlip", rrlOptions.SlipEvery.ToString());
+                            clusterParameters.Add("responseRateLimitTableSize", rrlOptions.TableSize.ToString());
+                            clusterParameters.Add("responseRateLimitBypassList", rrlOptions.BypassList is null ? "" : rrlOptions.BypassList.Join());
                         }
 
                         if (request.TryGetQueryOrForm("qpmLimitSampleMinutes", int.Parse, out int qpmLimitSampleMinutes))

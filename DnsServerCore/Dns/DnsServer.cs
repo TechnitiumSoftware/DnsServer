@@ -185,6 +185,7 @@ namespace DnsServerCore.Dns
         IReadOnlyCollection<NetworkAddress> _responseRateLimitBypassList;
         volatile Security.UdpResponseRateLimiter _reflectionRrl;
         readonly System.Threading.Lock _reflectionRrlLock = new System.Threading.Lock();
+        long _responseRateLimiterRebuildCount;
 
         int _clientTimeout = 2000;
         int _tcpSendTimeout = 10000;
@@ -357,7 +358,7 @@ namespace DnsServerCore.Dns
             LocalEndPoints = localEndPoints;
             _log = log;
 
-            ResetReflectionRrl();
+            ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions);
 
             ReconfigureResolverTaskPool(100);
 
@@ -1283,9 +1284,7 @@ namespace DnsServerCore.Dns
 
                 // Validate and allocate before accepting persisted or transferred values. A corrupt or
                 // malicious configuration must not replace a working limiter with an invalid one.
-                ResetReflectionRrl(responseRateLimit, responseRateLimitInstant, responseRateLimitSlip, responseRateLimitTableSize);
-                _enableResponseRateLimiting = enableResponseRateLimiting;
-                _responseRateLimitBypassList = responseRateLimitBypassList;
+                ApplyResponseRateLimitingOptions(new ResponseRateLimitingOptions(enableResponseRateLimiting, responseRateLimit, responseRateLimitInstant, responseRateLimitSlip, responseRateLimitTableSize, responseRateLimitBypassList));
             }
             else
             {
@@ -6759,44 +6758,46 @@ namespace DnsServerCore.Dns
             return _reflectionRrl.Evaluate(remoteIP);
         }
 
-        private void ResetReflectionRrl(int? responseRateLimit = null, int? responseRateLimitInstant = null, int? responseRateLimitSlip = null, int? responseRateLimitTableSize = null)
+        public readonly record struct ResponseRateLimitingOptions(bool Enabled, int SustainedRate, int InstantLimit, int SlipEvery, int TableSize, IReadOnlyCollection<NetworkAddress> BypassList);
+
+        public void ApplyResponseRateLimitingOptions(ResponseRateLimitingOptions options)
         {
             lock (_reflectionRrlLock)
             {
-                int newResponseRateLimit = responseRateLimit ?? _responseRateLimit;
-                int newResponseRateLimitInstant = responseRateLimitInstant ?? _responseRateLimitInstant;
-                int newResponseRateLimitSlip = responseRateLimitSlip ?? _responseRateLimitSlip;
-                int newResponseRateLimitTableSize = responseRateLimitTableSize ?? _responseRateLimitTableSize;
-
-                ValidateResponseRateLimitConfiguration(newResponseRateLimit, newResponseRateLimitInstant, newResponseRateLimitSlip, newResponseRateLimitTableSize);
+                ValidateResponseRateLimitingOptions(options);
 
                 Security.UdpResponseRateLimiter replacement = new Security.UdpResponseRateLimiter(new Security.UdpResponseRateLimiterOptions
                 {
-                    Capacity = newResponseRateLimitTableSize,
-                    SustainedRate = newResponseRateLimit,
-                    InstantLimit = newResponseRateLimitInstant,
-                    SlipEvery = newResponseRateLimitSlip
+                    Capacity = options.TableSize,
+                    SustainedRate = options.SustainedRate,
+                    InstantLimit = options.InstantLimit,
+                    SlipEvery = options.SlipEvery
                 });
 
-                // Publish only after construction succeeds, then commit the matching configuration.
+                // Publish only after validation and construction succeed, then commit the matching configuration.
                 _reflectionRrl = replacement;
-                _responseRateLimit = newResponseRateLimit;
-                _responseRateLimitInstant = newResponseRateLimitInstant;
-                _responseRateLimitSlip = newResponseRateLimitSlip;
-                _responseRateLimitTableSize = newResponseRateLimitTableSize;
+                _enableResponseRateLimiting = options.Enabled;
+                _responseRateLimit = options.SustainedRate;
+                _responseRateLimitInstant = options.InstantLimit;
+                _responseRateLimitSlip = options.SlipEvery;
+                _responseRateLimitTableSize = options.TableSize;
+                _responseRateLimitBypassList = options.BypassList is null || options.BypassList.Count == 0 ? null : options.BypassList;
+                Interlocked.Increment(ref _responseRateLimiterRebuildCount);
             }
         }
 
-        private static void ValidateResponseRateLimitConfiguration(int responseRateLimit, int responseRateLimitInstant, int responseRateLimitSlip, int responseRateLimitTableSize)
+        private static void ValidateResponseRateLimitingOptions(ResponseRateLimitingOptions options)
         {
-            if (responseRateLimit < 1)
+            if (options.SustainedRate < 1)
                 throw new ArgumentOutOfRangeException(nameof(ResponseRateLimit));
-            if (responseRateLimitInstant < 1)
+            if (options.InstantLimit < 1)
                 throw new ArgumentOutOfRangeException(nameof(ResponseRateLimitInstant));
-            if (responseRateLimitSlip < 0)
+            if (options.SlipEvery < 0)
                 throw new ArgumentOutOfRangeException(nameof(ResponseRateLimitSlip));
-            if ((responseRateLimitTableSize < ResponseRateLimitTableSizeMinimum) || (responseRateLimitTableSize > ResponseRateLimitTableSizeMaximum))
+            if ((options.TableSize < ResponseRateLimitTableSizeMinimum) || (options.TableSize > ResponseRateLimitTableSizeMaximum))
                 throw new ArgumentOutOfRangeException(nameof(ResponseRateLimitTableSize), $"Value must be between {ResponseRateLimitTableSizeMinimum} and {ResponseRateLimitTableSizeMaximum} entries.");
+            if (options.BypassList is not null && options.BypassList.Count > byte.MaxValue)
+                throw new ArgumentOutOfRangeException(nameof(ResponseRateLimitBypassList));
         }
 
         private bool HasQpmLimitExceeded(NetworkAddress clientSubnet, DnsTransportProtocol protocol, (int, int) qpmLimits, IReadOnlyDictionary<NetworkAddress, (long, long)> qpmLimitClientSubnetStats, out int qpmLimit, out int currentQpm)
@@ -8164,24 +8165,36 @@ namespace DnsServerCore.Dns
             }
         }
 
-        public bool EnableResponseRateLimiting { get => _enableResponseRateLimiting; set => _enableResponseRateLimiting = value; }
+        public ResponseRateLimitingOptions CurrentResponseRateLimitingOptions
+        {
+            get
+            {
+                lock (_reflectionRrlLock)
+                    return new ResponseRateLimitingOptions(_enableResponseRateLimiting, _responseRateLimit, _responseRateLimitInstant, _responseRateLimitSlip, _responseRateLimitTableSize, _responseRateLimitBypassList);
+            }
+        }
+
+        // Diagnostic hook: callers can compare this value around a settings update.
+        public long ResponseRateLimiterRebuildCount => Interlocked.Read(ref _responseRateLimiterRebuildCount);
+
+        public bool EnableResponseRateLimiting { get => _enableResponseRateLimiting; set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { Enabled = value }); }
 
         public int ResponseRateLimit
         {
             get => _responseRateLimit;
-            set => ResetReflectionRrl(responseRateLimit: value);
+            set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { SustainedRate = value });
         }
 
         public int ResponseRateLimitInstant
         {
             get => _responseRateLimitInstant;
-            set => ResetReflectionRrl(responseRateLimitInstant: value);
+            set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { InstantLimit = value });
         }
 
         public int ResponseRateLimitSlip
         {
             get => _responseRateLimitSlip;
-            set => ResetReflectionRrl(responseRateLimitSlip: value);
+            set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { SlipEvery = value });
         }
 
         public const int ResponseRateLimitTableSizeMinimum = 16;
@@ -8192,18 +8205,13 @@ namespace DnsServerCore.Dns
         public int ResponseRateLimitTableSize
         {
             get => _responseRateLimitTableSize;
-            set => ResetReflectionRrl(responseRateLimitTableSize: value);
+            set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { TableSize = value });
         }
 
         public IReadOnlyCollection<NetworkAddress> ResponseRateLimitBypassList
         {
             get => _responseRateLimitBypassList;
-            set
-            {
-                if (value is not null && value.Count > byte.MaxValue)
-                    throw new ArgumentOutOfRangeException(nameof(ResponseRateLimitBypassList));
-                _responseRateLimitBypassList = value is null || value.Count == 0 ? null : value;
-            }
+            set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { BypassList = value });
         }
 
         public int ClientTimeout
