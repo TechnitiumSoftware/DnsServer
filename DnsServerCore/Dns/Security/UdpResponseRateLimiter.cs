@@ -105,7 +105,8 @@ namespace DnsServerCore.Dns.Security
     }
 
     /// <summary>
-    /// A fixed-size, keyed, two-choice table for UDP response rate limiting.
+    /// A fixed-size, keyed, set-associative table for UDP response rate limiting.
+    /// New identities must survive probation before their history is protected from active collisions.
     /// This class is deliberately independent of query-per-minute and DNS Cookie state.
     /// </summary>
     public sealed class UdpResponseRateLimiter
@@ -114,8 +115,16 @@ namespace DnsServerCore.Dns.Security
         {
             internal readonly object SyncRoot = new object();
             internal readonly Entry[] Entries;
+            internal uint Epoch;
 
             internal Shard(int capacity) => Entries = new Entry[capacity];
+        }
+
+        private enum EntryState : byte
+        {
+            Empty,
+            Probationary,
+            Protected
         }
 
         private struct Entry
@@ -127,7 +136,9 @@ namespace DnsServerCore.Dns.Security
             internal long RefillRemainder;
             internal int InstantCount;
             internal uint LimitedCount;
-            internal bool Occupied;
+            internal uint LastEpoch;
+            internal byte ObservationCount;
+            internal EntryState State;
         }
 
         private readonly Shard[] _shards;
@@ -143,6 +154,10 @@ namespace DnsServerCore.Dns.Security
         private readonly int _slipEvery;
         private readonly TimeProvider _timeProvider;
         private const int HashKeyWidthBytes = 16;
+        private const int CandidateCount = 4;
+        private const int ProbationInitialTokenDivisor = 4;
+        private const byte PromotionObservationThreshold = 3;
+        private const uint StaleEpochThreshold = 4096;
         private const int MaximumCanonicalDnsNameBytes = 255;
         private const byte IPv4AddressFamilyCode = 4;
         private const byte IPv6AddressFamilyCode = 6;
@@ -207,7 +222,7 @@ namespace DnsServerCore.Dns.Security
                     lock (shard.SyncRoot)
                     {
                         foreach (Entry entry in shard.Entries)
-                            if (entry.Occupied)
+                            if (entry.State != EntryState.Empty)
                                 count++;
                     }
                 }
@@ -215,7 +230,7 @@ namespace DnsServerCore.Dns.Security
             }
         }
 
-        public int MaximumEntriesExaminedPerRequest => 2 * Math.Max(_ipv4PrefixLengths.Length, _ipv6PrefixLengths.Length);
+        public int MaximumEntriesExaminedPerRequest => CandidateCount * Math.Max(_ipv4PrefixLengths.Length, _ipv6PrefixLengths.Length);
 
         public UdpResponseRateLimitResult Evaluate(IPAddress sourceAddress, ResponseRateLimitCategory category,
             ushort queryType, ushort queryClass, string canonicalName)
@@ -303,16 +318,35 @@ namespace DnsServerCore.Dns.Security
             Shard shard = _shards[shardIndex];
             lock (shard.SyncRoot)
             {
-                ref Entry entry = ref SelectEntry(shard.Entries, first, second, fingerprint);
-                if (!entry.Occupied || entry.Fingerprint != fingerprint)
+                uint epoch = unchecked(++shard.Epoch);
+                int entryIndex = SelectEntry(shard.Entries, first, second, fingerprint, epoch);
+                if (entryIndex < 0)
+                    return UdpResponseRateLimitResult.LimitedDrop;
+
+                ref Entry entry = ref shard.Entries[entryIndex];
+                if (entry.State == EntryState.Empty || entry.Fingerprint != fingerprint)
                     entry = new Entry
                     {
-                        Occupied = true,
+                        State = EntryState.Probationary,
                         Fingerprint = fingerprint,
                         LastTimestamp = now,
                         WindowStart = now,
-                        Tokens = _tokenCapacity
+                        LastEpoch = epoch,
+                        ObservationCount = 1,
+                        // Collision admissions deliberately receive only a fraction of a burst.
+                        Tokens = _tokenCapacity / ProbationInitialTokenDivisor
                     };
+                else
+                {
+                    entry.LastEpoch = epoch;
+                    if (entry.State == EntryState.Probationary)
+                    {
+                        if (entry.ObservationCount < PromotionObservationThreshold)
+                            entry.ObservationCount++;
+                        if (entry.ObservationCount >= PromotionObservationThreshold)
+                            entry.State = EntryState.Protected;
+                    }
+                }
 
                 long elapsed = Math.Max(0, now - entry.LastTimestamp);
                 if (elapsed > 0)
@@ -379,18 +413,71 @@ namespace DnsServerCore.Dns.Security
             return (shardIndex, first, second);
         }
 
-        private static ref Entry SelectEntry(Entry[] entries, int first, int second, ulong fingerprint)
+        private static int SelectEntry(Entry[] entries, int first, int second, ulong fingerprint, uint epoch)
         {
-            if (entries[first].Occupied && entries[first].Fingerprint == fingerprint)
-                return ref entries[first];
-            if (entries[second].Occupied && entries[second].Fingerprint == fingerprint)
-                return ref entries[second];
-            if (!entries[first].Occupied)
-                return ref entries[first];
-            if (!entries[second].Occupied)
-                return ref entries[second];
-            return ref (entries[first].LastTimestamp <= entries[second].LastTimestamp ? ref entries[first] : ref entries[second]);
+            int empty = -1;
+            int staleProbationary = -1;
+            int staleProtected = -1;
+            int oldestProbationary = -1;
+            uint oldestProbationaryAge = 0;
+
+            // A key has a fixed number of keyed candidates. Active protected entries
+            // are never displaced by one-hit traffic; probation is the admission filter.
+            for (int candidate = 0; candidate < CandidateCount; candidate++)
+            {
+                int index = GetCandidateIndex(first, second, fingerprint, candidate, entries.Length);
+                ref Entry entry = ref entries[index];
+                if (entry.State != EntryState.Empty && entry.Fingerprint == fingerprint)
+                    return index;
+                if (entry.State == EntryState.Empty)
+                {
+                    empty = index;
+                    continue;
+                }
+
+                uint age = GetEpochAge(epoch, entry.LastEpoch);
+                if (entry.State == EntryState.Probationary)
+                {
+                    if (IsStaleEpoch(age))
+                        staleProbationary = index;
+                    if (oldestProbationary < 0 || age > oldestProbationaryAge)
+                    {
+                        oldestProbationary = index;
+                        oldestProbationaryAge = age;
+                    }
+                }
+                else if (IsStaleEpoch(age))
+                {
+                    staleProtected = index;
+                }
+            }
+
+            if (empty >= 0)
+                return empty;
+            if (staleProbationary >= 0)
+                return staleProbationary;
+            if (staleProtected >= 0)
+                return staleProtected;
+            return oldestProbationary;
         }
+
+        private static int GetCandidateIndex(int first, int second, ulong fingerprint, int candidate, int length)
+        {
+            if (candidate == 0)
+                return first;
+            if (candidate == 1)
+                return second;
+
+            ulong mixed = fingerprint + (0x9e3779b97f4a7c15UL * (uint)candidate);
+            mixed = (mixed ^ (mixed >> 30)) * 0xbf58476d1ce4e5b9UL;
+            mixed = (mixed ^ (mixed >> 27)) * 0x94d049bb133111ebUL;
+            return (int)((mixed ^ (mixed >> 31)) % (uint)length);
+        }
+
+        /// <summary>Unsigned subtraction preserves recency ordering across one epoch wrap.</summary>
+        private static uint GetEpochAge(uint current, uint previous) => unchecked(current - previous);
+
+        private static bool IsStaleEpoch(uint age) => age >= StaleEpochThreshold;
 
         private static int[] ValidatePrefixes(IReadOnlyList<int> prefixes, int maximum, string parameterName)
         {
