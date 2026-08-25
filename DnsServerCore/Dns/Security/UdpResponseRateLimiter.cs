@@ -65,7 +65,8 @@ namespace DnsServerCore.Dns.Security
             internal ulong Fingerprint;
             internal long LastTimestamp;
             internal long WindowStart;
-            internal double Load;
+            internal long Tokens;
+            internal long RefillRemainder;
             internal int InstantCount;
             internal uint LimitedCount;
             internal bool Occupied;
@@ -76,8 +77,10 @@ namespace DnsServerCore.Dns.Security
         private readonly int[] _ipv6PrefixLengths;
         private readonly ulong _hashKey0;
         private readonly ulong _hashKey1;
-        private readonly double _sustainedCapacity;
-        private readonly double _decayTimestampUnits;
+        private const long TokenScale = 1_000_000;
+        private readonly long _tokenCapacity;
+        private readonly long _tokensPerSecond;
+        private readonly long _timestampFrequency;
         private readonly long _instantWindowTimestampUnits;
         private readonly int _instantLimit;
         private readonly int _slipEvery;
@@ -105,9 +108,10 @@ namespace DnsServerCore.Dns.Security
                 throw new ArgumentException("The limiter hash key must be 16 bytes.", nameof(hashKey));
 
             _timeProvider = timeProvider ?? TimeProvider.System;
-            _decayTimestampUnits = options.DecayTime.TotalSeconds * _timeProvider.TimestampFrequency;
+            _timestampFrequency = _timeProvider.TimestampFrequency;
             _instantWindowTimestampUnits = checked((long)(options.InstantWindow.TotalSeconds * _timeProvider.TimestampFrequency));
-            _sustainedCapacity = options.SustainedRate * options.DecayTime.TotalSeconds;
+            _tokenCapacity = checked((long)Math.Ceiling(options.SustainedRate * options.DecayTime.TotalSeconds * TokenScale));
+            _tokensPerSecond = checked((long)Math.Ceiling(options.SustainedRate * TokenScale));
             _instantLimit = options.InstantLimit;
             _slipEvery = options.SlipEvery;
             _hashKey0 = BinaryPrimitives.ReadUInt64LittleEndian(hashKey);
@@ -218,10 +222,41 @@ namespace DnsServerCore.Dns.Security
             {
                 ref Entry entry = ref SelectEntry(shard.Entries, first, second, fingerprint);
                 if (!entry.Occupied || entry.Fingerprint != fingerprint)
-                    entry = new Entry { Occupied = true, Fingerprint = fingerprint, LastTimestamp = now, WindowStart = now };
+                    entry = new Entry
+                    {
+                        Occupied = true,
+                        Fingerprint = fingerprint,
+                        LastTimestamp = now,
+                        WindowStart = now,
+                        Tokens = _tokenCapacity
+                    };
 
                 long elapsed = Math.Max(0, now - entry.LastTimestamp);
-                entry.Load = entry.Load * Math.Exp(-elapsed / _decayTimestampUnits) + 1;
+                if (elapsed > 0)
+                {
+                    // Saturate before multiplying so long-idle entries cannot overflow.
+                    long refillHorizon = _tokenCapacity / _tokensPerSecond + 1;
+                    long maximumElapsed = refillHorizon >= long.MaxValue / _timestampFrequency
+                        ? long.MaxValue
+                        : refillHorizon * _timestampFrequency;
+                    long boundedElapsed = Math.Min(elapsed, maximumElapsed);
+                    UInt128 refillNumerator = (UInt128)(ulong)boundedElapsed * (ulong)_tokensPerSecond +
+                        (ulong)entry.RefillRemainder;
+                    UInt128 refillValue = refillNumerator / (ulong)_timestampFrequency;
+                    long refill = refillValue >= (UInt128)(ulong)_tokenCapacity
+                        ? _tokenCapacity
+                        : (long)refillValue;
+                    if (refill >= _tokenCapacity - entry.Tokens)
+                    {
+                        entry.Tokens = _tokenCapacity;
+                        entry.RefillRemainder = 0;
+                    }
+                    else
+                    {
+                        entry.Tokens += refill;
+                        entry.RefillRemainder = (long)(refillNumerator % (ulong)_timestampFrequency);
+                    }
+                }
                 entry.LastTimestamp = now;
                 if (now - entry.WindowStart >= _instantWindowTimestampUnits)
                 {
@@ -230,7 +265,11 @@ namespace DnsServerCore.Dns.Security
                 }
                 entry.InstantCount++;
 
-                if (entry.Load <= _sustainedCapacity && entry.InstantCount <= _instantLimit)
+                bool sustainedAllowed = entry.Tokens >= TokenScale;
+                if (sustainedAllowed)
+                    entry.Tokens -= TokenScale;
+
+                if (sustainedAllowed && entry.InstantCount <= _instantLimit)
                     return UdpResponseRateLimitResult.Allowed;
 
                 entry.LimitedCount++;
@@ -247,8 +286,13 @@ namespace DnsServerCore.Dns.Security
             int shardIndex = (int)(firstHash % (uint)_shards.Length);
             int length = _shards[shardIndex].Entries.Length;
             int first = (int)((firstHash >> 32) % (uint)length);
-            ulong secondHash = SipHash24(key, _hashKey0 ^ 0xa5a5a5a5a5a5a5a5UL, _hashKey1 ^ firstHash);
-            int second = (int)(secondHash % (uint)length);
+            // One keyed PRF supplies the attacker-resistant fingerprint and first
+            // placement. SplitMix-style finalization cheaply derives a second choice.
+            ulong mixed = firstHash + 0x9e3779b97f4a7c15UL;
+            mixed = (mixed ^ (mixed >> 30)) * 0xbf58476d1ce4e5b9UL;
+            mixed = (mixed ^ (mixed >> 27)) * 0x94d049bb133111ebUL;
+            mixed ^= mixed >> 31;
+            int second = (int)(mixed % (uint)length);
             return (shardIndex, first, second);
         }
 
