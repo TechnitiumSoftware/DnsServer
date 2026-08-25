@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { apiRequest } from '../api/client'
+import { getStatus } from '../api/status'
 import { Alert, type AlertType } from '../ui/Alert'
 import { Button } from '../ui/Button'
 import { LabeledInput } from '../ui/Field'
@@ -42,6 +43,9 @@ export function Login({
   const [otpVisible, setOtpVisible] = useState(false)
   const [busy, setBusy] = useState(false)
   const [alert, setAlert] = useState<AlertState | null>(initialAlert ?? null)
+  // El botón de SSO sólo se pinta si el servidor dice que está habilitado
+  // (main.js:48-56). Por defecto NO: no se asume que hay SSO.
+  const [ssoEnabled, setSsoEnabled] = useState(false)
 
   const userRef = useRef<HTMLInputElement>(null)
   const passRef = useRef<HTMLInputElement>(null)
@@ -66,16 +70,41 @@ export function Login({
 
   useEffect(() => clearOtpTimer, [])
 
-  async function submit(totpOverride?: string) {
-    const totpValue = totpOverride ?? totp
+  /*
+  main.js:48-60 — al mostrar el login se consulta `api/status`, que decide dos
+  cosas: si se ve el botón de SSO, y si la instalación todavía tiene las
+  credenciales de fábrica, en cuyo caso **entra sola** con admin/admin.
+  Un auto-login fallido no deja alerta: se cae al formulario en silencio.
+  */
+  useEffect(() => {
+    let cancelado = false
+    void (async () => {
+      const st = await getStatus()
+      if (cancelado || !st) return
+      setSsoEnabled(st.ssoEnabled)
+      if (st.hasDefaultCredentials) void submit(undefined, { user: 'admin', pass: 'admin', auto: true })
+    })()
+    return () => {
+      cancelado = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-    if (user === '') {
+  async function submit(
+    totpOverride?: string,
+    auto?: { user: string; pass: string; auto: true },
+  ) {
+    const totpValue = totpOverride ?? totp
+    const usuario = auto ? auto.user : user
+    const clave = auto ? auto.pass : pass
+
+    if (usuario === '') {
       setAlert({ type: 'warning', title: 'Missing!', text: 'Please enter an username.' })
       userRef.current?.focus()
       return
     }
 
-    if (pass === '') {
+    if (clave === '') {
       setAlert({ type: 'warning', title: 'Missing!', text: 'Please enter a password.' })
       passRef.current?.focus()
       return
@@ -96,8 +125,8 @@ export function Login({
     const outcome = await apiRequest<Session & { status: string }>('user/login', {
       method: 'POST',
       body: {
-        user: user.toLowerCase(),
-        pass,
+        user: usuario.toLowerCase(),
+        pass: clave,
         totp: totpValue,
         includeInfo: 'true',
       },
@@ -118,8 +147,15 @@ export function Login({
       // auth.js:263 — entrar con las credenciales de fábrica y sin 2FA obliga a
       // cambiar la contraseña antes de seguir.
       const forcePasswordChange =
-        !session.totpEnabled && user.toLowerCase() === 'admin' && pass === 'admin'
+        !session.totpEnabled && usuario.toLowerCase() === 'admin' && clave === 'admin'
       onSuccess(session, { forcePasswordChange })
+      return
+    }
+
+    // auth.js:281 — si el intento era automático, el fallo se traga: se deja el
+    // formulario limpio en vez de una alerta que el usuario no ha provocado.
+    if (auto) {
+      userRef.current?.focus()
       return
     }
 
@@ -200,11 +236,13 @@ export function Login({
           </Button>
         </form>
 
-        <div className={styles.sso}>
-          <a className={styles.ssoLink} href="sso/login">
-            Sign in with SSO
-          </a>
-        </div>
+        {ssoEnabled && (
+          <div className={styles.sso}>
+            <a className={styles.ssoLink} href="sso/login">
+              Sign in with SSO
+            </a>
+          </div>
+        )}
       </div>
     </div>
   )

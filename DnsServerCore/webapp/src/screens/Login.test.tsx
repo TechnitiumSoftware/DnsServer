@@ -4,6 +4,13 @@ import userEvent from '@testing-library/user-event'
 import { Login } from './Login'
 import * as client from '../api/client'
 
+/** Busca la llamada al login sin asumir que es la primera: antes va `api/status`. */
+function llamadaLogin(spy: { mock: { calls: unknown[][] } }) {
+  return spy.mock.calls.find((c) => c[0] === 'user/login') as
+    | [string, { method?: string; body?: Record<string, string> }]
+    | undefined
+}
+
 beforeEach(() => vi.restoreAllMocks())
 afterEach(() => vi.restoreAllMocks())
 
@@ -32,7 +39,7 @@ describe('Login', () => {
     await userEvent.type(screen.getByLabelText('Username'), 'ADMIN')
     await userEvent.type(screen.getByLabelText('Password'), 'secreto')
     await userEvent.click(screen.getByRole('button', { name: 'Login' }))
-    expect(spy.mock.calls[0][1]?.body?.user).toBe('admin')
+    expect(llamadaLogin(spy)?.[1]?.body?.user).toBe('admin')
   })
 
   it('envía includeInfo=true y por POST', async () => {
@@ -41,9 +48,10 @@ describe('Login', () => {
     await userEvent.type(screen.getByLabelText('Username'), 'admin')
     await userEvent.type(screen.getByLabelText('Password'), 'secreto')
     await userEvent.click(screen.getByRole('button', { name: 'Login' }))
-    expect(spy.mock.calls[0][0]).toBe('user/login')
-    expect(spy.mock.calls[0][1]?.method).toBe('POST')
-    expect(spy.mock.calls[0][1]?.body?.includeInfo).toBe('true')
+    const llamada = llamadaLogin(spy)
+    expect(llamada).toBeDefined()
+    expect(llamada?.[1]?.method).toBe('POST')
+    expect(llamada?.[1]?.body?.includeInfo).toBe('true')
   })
 
   it('avisa con el mensaje del servidor cuando las credenciales fallan', async () => {
