@@ -22,6 +22,7 @@ using System.Buffers.Binary;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
+using System.Threading;
 namespace DnsServerCore.Dns.Security
 {
     public enum DnsCookieValidationResult
@@ -61,14 +62,16 @@ namespace DnsServerCore.Dns.Security
         #region variables
 
         readonly DnsCookieSecretManager _secretManager;
+        readonly TimeProvider _timeProvider;
 
         #endregion
 
         #region constructor
 
-        public DnsCookieValidator(DnsCookieSecretManager secretManager)
+        public DnsCookieValidator(DnsCookieSecretManager secretManager, TimeProvider timeProvider = null)
         {
             _secretManager = secretManager ?? throw new ArgumentNullException(nameof(secretManager));
+            _timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         #endregion
@@ -99,7 +102,28 @@ namespace DnsServerCore.Dns.Security
                 throw new ArgumentException($"Secret must be at least {MinSecretLen} bytes.", nameof(secret));
         }
 
-        private static byte[] ComputeServerCookie(IPAddress clientAddress, ReadOnlySpan<byte> clientCookie, ReadOnlySpan<byte> secret)
+        private uint GetCurrentUnixTimeSeconds()
+        {
+            long unixTimeSeconds = ReferenceEquals(_timeProvider, TimeProvider.System)
+                ? CachedSystemTime.UnixTimeSeconds
+                : _timeProvider.GetUtcNow().ToUnixTimeSeconds();
+
+            return unchecked((uint)unixTimeSeconds);
+        }
+
+        private static class CachedSystemTime
+        {
+            private static long s_unixTimeSeconds = TimeProvider.System.GetUtcNow().ToUnixTimeSeconds();
+            private static readonly Timer s_refreshTimer = new Timer(
+                static _ => Interlocked.Exchange(ref s_unixTimeSeconds, TimeProvider.System.GetUtcNow().ToUnixTimeSeconds()),
+                null,
+                TimeSpan.FromMilliseconds(10),
+                TimeSpan.FromMilliseconds(10));
+
+            public static long UnixTimeSeconds => Interlocked.Read(ref s_unixTimeSeconds);
+        }
+
+        private byte[] ComputeServerCookie(IPAddress clientAddress, ReadOnlySpan<byte> clientCookie, ReadOnlySpan<byte> secret)
         {
             clientAddress = CanonicalizeClientAddress(clientAddress);
             ValidateSecret(secret);
@@ -114,7 +138,7 @@ namespace DnsServerCore.Dns.Security
             // Reserved MUST be set to zero on construction (RFC 9018)
             cookie.AsSpan(ReservedOffset, ReservedLen).Clear();
 
-            uint ts = unchecked((uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+            uint ts = GetCurrentUnixTimeSeconds();
             BinaryPrimitives.WriteUInt32BigEndian(cookie.AsSpan(TimestampOffset, TimestampLen), ts);
 
             // SipHash input: clientCookie(8) | version(1) | reserved(3) | timestamp(4) | clientIP(4/16)
@@ -138,7 +162,7 @@ namespace DnsServerCore.Dns.Security
             return cookie;
         }
 
-        private static bool ValidateServerCookieWithSecret(
+        private bool ValidateServerCookieWithSecret(
              IPAddress clientAddress,
              ReadOnlySpan<byte> clientCookie,
              ReadOnlySpan<byte> serverCookie,
@@ -168,7 +192,7 @@ namespace DnsServerCore.Dns.Security
             // Include received reserved bytes in the MAC input.
 
             uint cookieTs = BinaryPrimitives.ReadUInt32BigEndian(serverCookie.Slice(TimestampOffset, TimestampLen));
-            uint nowTs = unchecked((uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+            uint nowTs = GetCurrentUnixTimeSeconds();
 
             // RFC 1982 serial arithmetic
             static bool SerialLessThan(uint a, uint b) => a != b && (uint)(b - a) < 0x8000_0000u;
