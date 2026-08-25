@@ -6835,6 +6835,77 @@ namespace DnsServerCore.Dns
 
         public readonly record struct ResponseRateLimitingOptions(bool Enabled, int SustainedRate, int InstantLimit, int SlipEvery, int TableSize, IReadOnlyCollection<NetworkAddress> BypassList);
 
+        private readonly record struct RrlPolicySettings(bool Enabled, ImmutableArray<NetworkAddress> BypassList, RrlBypassMatcher BypassMatcher);
+
+        [Flags]
+        private enum RrlLimiterSemanticChanges
+        {
+            None = 0,
+            Capacity = 1 << 0,
+            ShardCount = 1 << 1,
+            SustainedRate = 1 << 2,
+            DecayTime = 1 << 3,
+            InstantLimit = 1 << 4,
+            InstantWindow = 1 << 5,
+            SlipEvery = 1 << 6,
+            IPv4Prefixes = 1 << 7,
+            IPv6Prefixes = 1 << 8,
+            KeyInterpretation = 1 << 9
+        }
+
+        private enum RrlKeyInterpretation
+        {
+            ResponseIdentityV1
+        }
+
+        private readonly record struct RrlLimiterSemanticSettings(
+            int Capacity,
+            int ShardCount,
+            double SustainedRate,
+            TimeSpan DecayTime,
+            int InstantLimit,
+            TimeSpan InstantWindow,
+            int SlipEvery,
+            ImmutableArray<int> IPv4PrefixLengths,
+            ImmutableArray<int> IPv6PrefixLengths,
+            RrlKeyInterpretation KeyInterpretation)
+        {
+            /// <summary>
+            /// Identifies changes that alter the table layout, token/window accounting, slip
+            /// counters, address aggregation, or response-identity keys stored in limiter history.
+            /// </summary>
+            public RrlLimiterSemanticChanges GetHistoryAffectingChanges(in RrlLimiterSemanticSettings other)
+            {
+                RrlLimiterSemanticChanges changes = RrlLimiterSemanticChanges.None;
+                if (Capacity != other.Capacity) changes |= RrlLimiterSemanticChanges.Capacity;
+                if (ShardCount != other.ShardCount) changes |= RrlLimiterSemanticChanges.ShardCount;
+                if (SustainedRate != other.SustainedRate) changes |= RrlLimiterSemanticChanges.SustainedRate;
+                if (DecayTime != other.DecayTime) changes |= RrlLimiterSemanticChanges.DecayTime;
+                if (InstantLimit != other.InstantLimit) changes |= RrlLimiterSemanticChanges.InstantLimit;
+                if (InstantWindow != other.InstantWindow) changes |= RrlLimiterSemanticChanges.InstantWindow;
+                if (SlipEvery != other.SlipEvery) changes |= RrlLimiterSemanticChanges.SlipEvery;
+                if (!IPv4PrefixLengths.AsSpan().SequenceEqual(other.IPv4PrefixLengths.AsSpan())) changes |= RrlLimiterSemanticChanges.IPv4Prefixes;
+                if (!IPv6PrefixLengths.AsSpan().SequenceEqual(other.IPv6PrefixLengths.AsSpan())) changes |= RrlLimiterSemanticChanges.IPv6Prefixes;
+                if (KeyInterpretation != other.KeyInterpretation) changes |= RrlLimiterSemanticChanges.KeyInterpretation;
+                return changes;
+            }
+
+            public Security.UdpResponseRateLimiterOptions ToLimiterOptions() => new Security.UdpResponseRateLimiterOptions
+            {
+                Capacity = Capacity,
+                ShardCount = ShardCount,
+                SustainedRate = SustainedRate,
+                DecayTime = DecayTime,
+                InstantLimit = InstantLimit,
+                InstantWindow = InstantWindow,
+                SlipEvery = SlipEvery,
+                IPv4PrefixLengths = IPv4PrefixLengths,
+                IPv6PrefixLengths = IPv6PrefixLengths
+            };
+        }
+
+        private readonly record struct NormalizedRrlSettings(RrlPolicySettings Policy, RrlLimiterSemanticSettings Limiter);
+
         /// <summary>
         /// An immutable RRL policy generation. Instances are completely constructed before a
         /// single atomic publication and neither their options nor bypass matcher are mutated
@@ -6843,9 +6914,10 @@ namespace DnsServerCore.Dns
         /// </summary>
         private sealed class RrlRuntimeState
         {
-            public RrlRuntimeState(ResponseRateLimitingOptions options, Security.UdpResponseRateLimiter limiter, RrlBypassMatcher bypassMatcher, ulong generation)
+            public RrlRuntimeState(ResponseRateLimitingOptions options, RrlLimiterSemanticSettings limiterSettings, Security.UdpResponseRateLimiter limiter, RrlBypassMatcher bypassMatcher, ulong generation)
             {
                 Options = options;
+                LimiterSettings = limiterSettings;
                 Limiter = limiter ?? throw new ArgumentNullException(nameof(limiter));
                 BypassMatcher = bypassMatcher ?? throw new ArgumentNullException(nameof(bypassMatcher));
                 Generation = generation;
@@ -6853,6 +6925,7 @@ namespace DnsServerCore.Dns
 
             public bool Enabled => Options.Enabled;
             public Security.UdpResponseRateLimiter Limiter { get; }
+            public RrlLimiterSemanticSettings LimiterSettings { get; }
             public RrlBypassMatcher BypassMatcher { get; }
             public ResponseRateLimitingOptions Options { get; }
             public ulong Generation { get; }
@@ -7047,18 +7120,9 @@ namespace DnsServerCore.Dns
 
         private static RrlRuntimeState CreateRrlRuntimeState(ResponseRateLimitingOptions options, ulong generation)
         {
-            ValidateResponseRateLimitingOptions(options);
-
-            RrlBypassMatcher bypassMatcher = RrlBypassMatcher.Create(options.BypassList, out ImmutableArray<NetworkAddress> bypassNetworks);
-            ResponseRateLimitingOptions normalizedOptions = options with { BypassList = bypassNetworks };
-            Security.UdpResponseRateLimiter limiter = new Security.UdpResponseRateLimiter(new Security.UdpResponseRateLimiterOptions
-            {
-                Capacity = normalizedOptions.TableSize,
-                SustainedRate = normalizedOptions.SustainedRate,
-                InstantLimit = normalizedOptions.InstantLimit,
-                SlipEvery = normalizedOptions.SlipEvery
-            });
-            return new RrlRuntimeState(normalizedOptions, limiter, bypassMatcher, generation);
+            NormalizedRrlSettings settings = NormalizeRrlSettings(options);
+            Security.UdpResponseRateLimiter limiter = new Security.UdpResponseRateLimiter(settings.Limiter.ToLimiterOptions());
+            return CreateRrlRuntimeState(settings, limiter, generation);
         }
 
         public void ApplyResponseRateLimitingOptions(ResponseRateLimitingOptions options)
@@ -7066,12 +7130,38 @@ namespace DnsServerCore.Dns
             lock (_reflectionRrlLock)
             {
                 RrlRuntimeState current = Volatile.Read(ref _rrlRuntimeState);
-                RrlRuntimeState replacement = CreateRrlRuntimeState(options, GetNextRrlGeneration(current.Generation));
+                NormalizedRrlSettings settings = NormalizeRrlSettings(options);
+                bool rebuild = current.LimiterSettings.GetHistoryAffectingChanges(settings.Limiter) != RrlLimiterSemanticChanges.None;
+                Security.UdpResponseRateLimiter limiter = rebuild
+                    ? new Security.UdpResponseRateLimiter(settings.Limiter.ToLimiterOptions())
+                    : current.Limiter;
+                RrlRuntimeState replacement = CreateRrlRuntimeState(settings, limiter, GetNextRrlGeneration(current.Generation));
 
                 // The previous generation remains published if any construction step above fails.
                 Volatile.Write(ref _rrlRuntimeState, replacement);
-                Interlocked.Increment(ref _responseRateLimiterRebuildCount);
+                if (rebuild)
+                    Interlocked.Increment(ref _responseRateLimiterRebuildCount);
             }
+        }
+
+        private static NormalizedRrlSettings NormalizeRrlSettings(ResponseRateLimitingOptions options)
+        {
+            ValidateResponseRateLimitingOptions(options);
+            RrlBypassMatcher bypassMatcher = RrlBypassMatcher.Create(options.BypassList, out ImmutableArray<NetworkAddress> bypassNetworks);
+            RrlPolicySettings policy = new RrlPolicySettings(options.Enabled, bypassNetworks, bypassMatcher);
+            RrlLimiterSemanticSettings limiter = new RrlLimiterSemanticSettings(
+                options.TableSize, 16, options.SustainedRate, TimeSpan.FromSeconds(1), options.InstantLimit,
+                TimeSpan.FromSeconds(1), options.SlipEvery, ImmutableArray.Create(32, 24),
+                ImmutableArray.Create(128, 64, 56), RrlKeyInterpretation.ResponseIdentityV1);
+            return new NormalizedRrlSettings(policy, limiter);
+        }
+
+        private static RrlRuntimeState CreateRrlRuntimeState(NormalizedRrlSettings settings, Security.UdpResponseRateLimiter limiter, ulong generation)
+        {
+            ResponseRateLimitingOptions options = new ResponseRateLimitingOptions(
+                settings.Policy.Enabled, (int)settings.Limiter.SustainedRate, settings.Limiter.InstantLimit,
+                settings.Limiter.SlipEvery, settings.Limiter.Capacity, settings.Policy.BypassList);
+            return new RrlRuntimeState(options, settings.Limiter, limiter, settings.Policy.BypassMatcher, generation);
         }
 
         private static void ValidateResponseRateLimitingOptions(ResponseRateLimitingOptions options)
