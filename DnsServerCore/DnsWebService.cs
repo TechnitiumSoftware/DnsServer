@@ -690,7 +690,11 @@ namespace DnsServerCore
                     // validate cookies issued by any other node.
                     string dnsCookieStateFile = Path.Combine(_configFolder, "dns.cookies.state");
                     if (File.Exists(dnsCookieStateFile) && (File.GetLastWriteTimeUtc(dnsCookieStateFile) > ifModifiedSince))
-                        backupZip.CreateEntryFromFile(dnsCookieStateFile, "dns.cookies.state");
+                    {
+                        ZipArchiveEntry dnsCookieStateEntry = backupZip.CreateEntry("dns.cookies.state");
+                        using Stream stream = dnsCookieStateEntry.Open();
+                        _dnsServer.ExportDnsCookieSecretState(stream);
+                    }
 
                     //backup optional protocols cert
                     if (!isConfigTransfer && !string.IsNullOrEmpty(_dnsServer.DnsTlsCertificatePath))

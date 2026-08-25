@@ -224,15 +224,24 @@ namespace DnsServerCore.Dns.Security
 
         #region public
 
-        public void Rotate()
+        // Automatic state transition:
+        //   active-only -> new active + old active as staging
+        //   active + staging -> unchanged (manual staging always wins)
+        // The return value lets the timer distinguish a completed rotation from a
+        // deliberate skip. Persistence happens before the new snapshot is published.
+        public bool Rotate()
         {
             lock (_lock)
             {
                 Snapshot current = Volatile.Read(ref _snapshot);
+                if (current.Staging is not null)
+                    return false;
+
                 Snapshot nextSnapshot = new Snapshot(GenerateSecret(), current.Active, DateTime.UtcNow);
 
                 SaveLocked(nextSnapshot);
                 Volatile.Write(ref _snapshot, nextSnapshot);
+                return true;
             }
         }
 
@@ -276,6 +285,10 @@ namespace DnsServerCore.Dns.Security
             lock (_lock)
             {
                 Snapshot current = Volatile.Read(ref _snapshot);
+                if (current.Staging is not null)
+                    throw new InvalidOperationException("There is already a staging secret.");
+
+                // Manual transition: active-only -> same active + new staging.
                 Snapshot next = new Snapshot(current.Active, GenerateSecret(), current.ActiveCreatedUtc);
                 SaveLocked(next);
                 Volatile.Write(ref _snapshot, next);
@@ -290,6 +303,7 @@ namespace DnsServerCore.Dns.Security
                 if (current.Staging is null)
                     throw new InvalidOperationException("There is no staging secret to activate.");
 
+                // Manual transition: active + staging -> staging active + old active staging.
                 Snapshot next = new Snapshot(current.Staging, current.Active, DateTime.UtcNow);
                 SaveLocked(next);
                 Volatile.Write(ref _snapshot, next);
@@ -304,6 +318,7 @@ namespace DnsServerCore.Dns.Security
                 if (current.Staging is null)
                     return;
 
+                // Manual transition: active + staging -> same active only.
                 Snapshot next = new Snapshot(current.Active, null, current.ActiveCreatedUtc);
                 SaveLocked(next);
                 Volatile.Write(ref _snapshot, next);
@@ -335,6 +350,20 @@ namespace DnsServerCore.Dns.Security
 
                 RestrictSecretFilePermissions(_secretFilePath);
                 Volatile.Write(ref _snapshot, imported);
+            }
+        }
+
+        // Cluster export takes the same lock as every transition so the bytes always
+        // describe one complete, persisted state.
+        internal void Export(Stream stream)
+        {
+            if (stream is null)
+                throw new ArgumentNullException(nameof(stream));
+
+            lock (_lock)
+            {
+                using FileStream file = new FileStream(_secretFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                file.CopyTo(stream);
             }
         }
 

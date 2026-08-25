@@ -1794,7 +1794,11 @@ namespace DnsServerCore.Dns
                     _cookieRotationTimer = new Timer(
                         _ =>
                         {
-                            try { _cookieSecrets.Rotate(); }
+                            try
+                            {
+                                if (!_cookieSecrets.Rotate())
+                                    _log.Write("Skipped automatic DNS Cookie secret rotation since a manually staged secret is pending activation or removal.");
+                            }
                             catch (Exception ex) { _log.Write(ex); }
                         },
                         null,
@@ -8402,6 +8406,8 @@ namespace DnsServerCore.Dns
         public void DropDnsCookieSecret() => GetOrCreateDnsCookieSecrets().DropStaging();
 
         internal void ImportDnsCookieSecretState(Stream stream) => GetOrCreateDnsCookieSecrets().Import(stream);
+
+        internal void ExportDnsCookieSecretState(Stream stream) => GetOrCreateDnsCookieSecrets().Export(stream);
 
         public IReadOnlyCollection<NetworkAccessControl> ReverseProxyNetworkACL
         {
