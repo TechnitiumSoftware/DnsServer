@@ -1785,8 +1785,20 @@ namespace DnsServerCore.Dns
                     ? _dnsCookiesSecretFile
                     : Path.Combine(_configFolder, _dnsCookiesSecretFile);
 
-                _cookieSecrets = new Security.DnsCookieSecretManager(secretPath);
-                _cookieValidator = new Security.DnsCookieValidator(_cookieSecrets);
+                try
+                {
+                    _cookieSecrets = new Security.DnsCookieSecretManager(secretPath);
+                    _cookieValidator = new Security.DnsCookieValidator(_cookieSecrets);
+                }
+                catch (Exception ex) when (ex is InvalidDataException || ex is IOException || ex is UnauthorizedAccessException)
+                {
+                    _cookieSecrets = null;
+                    _cookieValidator = null;
+                    _cookieRotationTimer?.Dispose();
+                    _cookieRotationTimer = null;
+                    _log.Write(new InvalidOperationException("DNS Cookie protection is degraded because its secret state could not be loaded. The existing state file was not overwritten.", ex));
+                    return;
+                }
 
                 _cookieRotationTimer?.Dispose();
                 if (_dnsCookiesRotationPeriodHours > 0)

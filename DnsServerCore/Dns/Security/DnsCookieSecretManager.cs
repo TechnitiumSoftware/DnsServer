@@ -62,9 +62,11 @@ namespace DnsServerCore.Dns.Security
             {
                 Snapshot loaded = LoadLocked();
                 if (loaded is null)
+                {
                     loaded = new Snapshot(GenerateSecret(), staging: null, DateTime.UtcNow);
+                    SaveLocked(loaded);
+                }
 
-                SaveLocked(loaded);
                 Volatile.Write(ref _snapshot, loaded);
             }
         }
@@ -81,20 +83,20 @@ namespace DnsServerCore.Dns.Security
 
         private static Snapshot LoadFileLocked(string path)
         {
-            if (!File.Exists(path))
-                return null;
-
             try
             {
-                byte[] data = File.ReadAllBytes(path);
-                using MemoryStream ms = new MemoryStream(data, writable: false);
-                using BinaryReader br = new BinaryReader(ms);
+                using FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                using BinaryReader br = new BinaryReader(stream);
 
                 int version = br.ReadInt32();
                 if (version != FileVersion)
-                    throw new InvalidDataException("Unsupported secret file version.");
+                    throw new InvalidDataException($"Unsupported DNS Cookie secret state version: {version}.");
 
-                DateTime createdUtc = new DateTime(br.ReadInt64(), DateTimeKind.Utc);
+                long createdUtcTicks = br.ReadInt64();
+                if (createdUtcTicks < DateTime.MinValue.Ticks || createdUtcTicks > DateTime.MaxValue.Ticks)
+                    throw new InvalidDataException("Invalid DNS Cookie secret creation timestamp.");
+
+                DateTime createdUtc = new DateTime(createdUtcTicks, DateTimeKind.Utc);
 
                 int currentLen = br.ReadInt32();
                 if (currentLen < MinSecretLen || currentLen > MaxSecretLen)
@@ -117,11 +119,34 @@ namespace DnsServerCore.Dns.Security
                         throw new EndOfStreamException("Unexpected end of secret file (staging secret).");
                 }
 
+                if (stream.Position != stream.Length)
+                    throw new InvalidDataException("Unexpected trailing data in DNS Cookie secret state.");
+
                 return new Snapshot(active, staging, createdUtc);
             }
-            catch
+            catch (FileNotFoundException)
             {
                 return null;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return null;
+            }
+            catch (InvalidDataException ex)
+            {
+                throw new InvalidDataException($"DNS Cookie secret state file '{path}' is malformed; the existing file was preserved.", ex);
+            }
+            catch (EndOfStreamException ex)
+            {
+                throw new InvalidDataException($"DNS Cookie secret state file '{path}' is truncated; the existing file was preserved.", ex);
+            }
+            catch (IOException ex)
+            {
+                throw new IOException($"Failed to read existing DNS Cookie secret state file '{path}'; the existing file was preserved.", ex);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                throw new UnauthorizedAccessException($"Permission denied reading existing DNS Cookie secret state file '{path}'; the existing file was preserved.", ex);
             }
         }
 
@@ -335,18 +360,25 @@ namespace DnsServerCore.Dns.Security
 
             lock (_lock)
             {
-                WriteSecretFile(_secretFilePath + ".tmp", buffer.ToArray());
-                Snapshot imported = LoadFileLocked(_secretFilePath + ".tmp");
-                if (imported is null)
+                string tmpPath = _secretFilePath + ".tmp";
+                WriteSecretFile(tmpPath, buffer.ToArray());
+                Snapshot imported;
+                try
                 {
-                    File.Delete(_secretFilePath + ".tmp");
-                    throw new InvalidDataException("Invalid DNS Cookie secret state.");
+                    imported = LoadFileLocked(tmpPath);
+                    if (imported is null)
+                        throw new InvalidDataException("Imported DNS Cookie secret state is missing.");
+                }
+                catch
+                {
+                    File.Delete(tmpPath);
+                    throw;
                 }
 
                 if (File.Exists(_secretFilePath))
-                    File.Replace(_secretFilePath + ".tmp", _secretFilePath, destinationBackupFileName: null);
+                    File.Replace(tmpPath, _secretFilePath, destinationBackupFileName: null);
                 else
-                    File.Move(_secretFilePath + ".tmp", _secretFilePath);
+                    File.Move(tmpPath, _secretFilePath);
 
                 RestrictSecretFilePermissions(_secretFilePath);
                 Volatile.Write(ref _snapshot, imported);
