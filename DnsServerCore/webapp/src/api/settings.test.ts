@@ -10,8 +10,7 @@ import {
   seleccionInicialBackup,
   setSettings,
   temporaryDisableBlocking,
-  type DnsSettings,
-} from './settings'
+  type DnsSettings, getTsigKeyNames } from './settings'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -126,3 +125,17 @@ describe('api/settings', () => {
 // El tipo tiene que aceptar la respuesta real sin las claves nulas ausentes.
 const _forma: Partial<DnsSettings> = { temporaryDisableBlockingTill: undefined }
 void _forma
+
+describe('getTsigKeyNames', () => {
+  it('lo consume Zones, no Settings: devuelve la lista de nombres', async () => {
+    vi.spyOn(client, 'apiRequest').mockResolvedValue({
+      kind: 'ok', data: { status: 'ok', response: { tsigKeyNames: ['transfer-key'] } },
+    } as never)
+    expect(await getTsigKeyNames('t')).toEqual(['transfer-key'])
+  })
+
+  it('devuelve lista vacía si falla, sin romper el modal de opciones de zona', async () => {
+    vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'invalid-token' })
+    expect(await getTsigKeyNames('t')).toEqual([])
+  })
+})

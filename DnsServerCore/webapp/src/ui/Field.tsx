@@ -1,4 +1,4 @@
-import { useId, type InputHTMLAttributes, type ReactNode, type Ref, type TextareaHTMLAttributes } from 'react'
+import { useId, type InputHTMLAttributes, type ReactNode, type Ref, type TextareaHTMLAttributes, type SelectHTMLAttributes } from 'react'
 import styles from './Field.module.css'
 
 export function Field({ label, children }: { label: string; children: (id: string) => ReactNode }) {
@@ -51,4 +51,15 @@ export function Textarea({ mono, className, ...rest }: TextareaProps) {
 /** Área de texto con etiqueta asociada, para poder consultarla por su nombre. */
 export function LabeledTextarea({ label, mono, ...rest }: TextareaProps & { label: string }) {
   return <Field label={label}>{(id) => <Textarea id={id} mono={mono} {...rest} />}</Field>
+}
+
+export type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & { ref?: Ref<HTMLSelectElement> }
+
+export function Select({ className, ...rest }: SelectProps) {
+  return <select className={[styles.input, className].filter(Boolean).join(' ')} {...rest} />
+}
+
+/** Desplegable con etiqueta asociada. Lo pidieron las fases 6 y 7. */
+export function LabeledSelect({ label, ...rest }: SelectProps & { label: string }) {
+  return <Field label={label}>{(id) => <Select id={id} {...rest} />}</Field>
 }

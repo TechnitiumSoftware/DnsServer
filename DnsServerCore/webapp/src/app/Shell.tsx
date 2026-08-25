@@ -9,6 +9,7 @@ import { DnsClient } from '../screens/dnsclient/DnsClient'
 import { About } from '../screens/about/About'
 import { Apps } from '../screens/apps/Apps'
 import { Cache, Allowed, Blocked } from '../screens/listas/Listas'
+import { Settings } from '../screens/settings/Settings'
 import styles from './Shell.module.css'
 
 type ModalId = 'profile' | 'password' | 'twofa' | 'token'
@@ -35,7 +36,8 @@ export interface ShellSession {
 }
 
 export function Shell({ session, onLogout }: { session: ShellSession; onLogout: () => void }) {
-  const sections = visibleSections(session.info?.permissions)
+  const permisos = session.info?.permissions
+  const sections = visibleSections(permisos)
   const [active, setActive] = useState(() => sections[0]?.id ?? 'about')
   const [menuOpen, setMenuOpen] = useState(false)
   const [modal, setModal] = useState<ModalId | null>(null)
@@ -147,6 +149,18 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
           <Allowed token={session.token} />
         ) : current?.id === 'blocked' ? (
           <Blocked token={session.token} />
+        ) : current?.id === 'settings' ? (
+          /* main.js:906-930 — tres permisos distintos en una sola barra:
+             guardar exige Settings.canModify, vaciar caché Cache.canDelete y
+             copia/restauración Settings.canDelete. */
+          <Settings
+            token={session.token}
+            sub={sub ?? 'General'}
+            onSubChange={setSub}
+            canModify={permisos?.Settings?.canModify !== false}
+            canFlushCache={permisos?.Cache?.canDelete !== false}
+            canBackup={permisos?.Settings?.canDelete !== false}
+          />
         ) : (
           <div className={styles.placeholder}>
             <b>{current?.label}</b>

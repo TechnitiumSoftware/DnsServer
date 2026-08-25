@@ -94,6 +94,25 @@ Anota aquí lo que encuentres. Lo que ya se sabe:
 - **Ojo con replicar la intención en vez del comportamiento.** En `other-zones.js`
   hay tres `domain.toLowerCase();` **sin asignar el resultado**: no hacen nada.
   Se replica lo que el código hace, no lo que parece querer hacer.
+- **`settings/get` OMITE las claves nulas**, no las manda como `null`: campos
+  como `temporaryDisableBlockingTill` o `blockListNextUpdatedOn` simplemente no
+  aparecen en un servidor recién instalado. Otras sí llegan como `null`
+  explícito. Declararlas obligatorias falla contra una instalación nueva.
+- **Cuidado con `\r\n` al replicar un textarea de lista.** Upstream monta sus
+  textareas con `\r\n`, pero el navegador normaliza a `\n` al leer el valor de
+  un `<textarea>` del DOM, y su limpieza sólo sustituye `\n`. En React no hay
+  DOM intermedio que normalice: copiar el `\r\n` literal manda
+  `forwarders=1.1.1.1%0D,8.8.8.8%0D` al servidor. **Muerde a cualquier pantalla
+  con listas en textarea.**
+- **Una lista vacía viaja como la cadena `"false"`**, no se omite: sale de
+  concatenar un booleano a la query. Con tres excepciones que caen a su valor
+  por defecto.
+- **Una pantalla con sub-pestañas puede ser UN SOLO formulario.** En Settings,
+  «Save» manda los campos de las nueve sub-pestañas estés donde estés.
+  Trocearlo por pestaña cambiaría lo que se guarda.
+- **Una barra de acciones puede mezclar permisos distintos**: en Settings,
+  guardar exige `Settings.canModify`, vaciar caché `Cache.canDelete` y la copia
+  de seguridad `Settings.canDelete`.
 - **Permisos asimétricos**: algunas acciones piden `Delete` donde esperarías
   `Modify`, y `apps/list` se permite con permiso de lectura sobre Apps, Zones
   **o** Logs. No deduzcas el permiso: míralo.
@@ -128,6 +147,20 @@ Anota aquí lo que encuentres. Lo que ya se sabe:
   `spy.mock.calls.find(c => c[0] === 'zones/list')`.
 - Con relojes falsos, `findBy*` no funciona: usa
   `vi.useFakeTimers({ shouldAdvanceTime: true })` y `userEvent.setup({ delay: null })`.
+
+## Desviaciones deliberadas del comportamiento de upstream
+
+La regla es «cero funcionalidad», pero hay tres excepciones **decididas y
+anotadas**. Si encuentras una cuarta, no la introduzcas por tu cuenta: repórtala.
+
+1. **Un solo tema, el oscuro** (decisión de Adrián). Desaparece el modal
+   «Change Theme» y su entrada de menú. Es la única que *quita* algo.
+2. **Settings salta a la sub-pestaña del campo inválido.** Upstream da el foco a
+   un input oculto y el usuario no ve nada; con un solo panel montado a la vez,
+   sin ese salto el aviso sería imposible de resolver.
+3. **La casilla «Enable DNS-over-HTTP/3» se rehabilita sola.** En upstream se
+   queda muerta hasta recargar la página porque nada re-evalúa su estado: es un
+   bug suyo, y replicarlo exigiría introducir el fallo a propósito.
 
 ## Cierre
 
