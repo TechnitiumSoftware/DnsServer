@@ -193,9 +193,9 @@ namespace DnsServerCore.Dns.Security
                 addressBytes[..addressLength].CopyTo(key[2..]);
                 MaskHostBits(key.Slice(2, addressLength), prefixLength);
                 UdpResponseRateLimitResult levelResult = Update(key[..(addressLength + 2)], now);
-                if (levelResult == UdpResponseRateLimitResult.LimitedSlip)
+                if (levelResult == UdpResponseRateLimitResult.LimitedDrop)
                     result = levelResult;
-                else if (levelResult == UdpResponseRateLimitResult.LimitedDrop && result == UdpResponseRateLimitResult.Allowed)
+                else if (levelResult == UdpResponseRateLimitResult.LimitedSlip && result == UdpResponseRateLimitResult.Allowed)
                     result = levelResult;
             }
             return result;
