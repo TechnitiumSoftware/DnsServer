@@ -4,6 +4,8 @@ import { Alert, type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { LabeledInput } from '../../ui/Field'
+import { deleteSession, type SessionRow } from '../../api/user'
+import styles from './MyProfile.module.css'
 
 /*
 Réplica de `showMyProfileModal` / `saveMyProfile` (auth.js:642-794).
@@ -17,6 +19,7 @@ interface Profile {
   username: string
   isSsoUser: boolean
   sessionTimeoutSeconds: number
+  sessions: SessionRow[]
 }
 
 export function MyProfile({
@@ -35,10 +38,16 @@ export function MyProfile({
   const [timeout, setTimeoutSeconds] = useState('')
   const [alert, setAlert] = useState<{ type: AlertType; title: string; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
+
+  // Limpiar el aviso SÓLO al abrir. Si se limpiara también al recargar, el
+  // mensaje de «sesión borrada» se perdería, porque borrar dispara una recarga.
+  useEffect(() => {
+    if (open) setAlert(null)
+  }, [open])
 
   useEffect(() => {
     if (!open) return
-    setAlert(null)
     void (async () => {
       const outcome = await apiRequest<{ response: Profile }>('user/profile/get', { token })
       if (outcome.kind === 'ok') {
@@ -47,7 +56,30 @@ export function MyProfile({
         setTimeoutSeconds(String(outcome.data.response.sessionTimeoutSeconds))
       }
     })()
-  }, [open, token])
+  }, [open, token, reloadKey])
+
+  /*
+  auth.js:795-838 — antes de borrar una sesión upstream pide confirmación con
+  este texto exacto, y el mensaje de éxito también es literal.
+  */
+  async function borrarSesion(row: SessionRow) {
+    if (!window.confirm(`Are you sure you want to delete the session [${row.partialToken}] ?`)) return
+    const outcome = await deleteSession(token, row.partialToken)
+    if (outcome.kind === 'ok') {
+      setAlert({
+        type: 'success',
+        title: 'Session Deleted!',
+        text: 'The user session was deleted successfully.',
+      })
+      setReloadKey((k) => k + 1)
+      return
+    }
+    setAlert({
+      type: 'danger',
+      title: 'Error!',
+      text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
+    })
+  }
 
   async function save() {
     if (!profile) return
@@ -107,6 +139,43 @@ export function MyProfile({
         value={timeout}
         onChange={(e) => setTimeoutSeconds(e.target.value)}
       />
+
+      <div>
+        <div className={styles.caption}>Active Sessions</div>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Last Seen</th>
+              <th>Address</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {(profile?.sessions ?? []).map((row) => (
+              <tr key={row.partialToken}>
+                <td>
+                  {row.type}
+                  {row.tokenName ? ` (${row.tokenName})` : ''}
+                  {row.isCurrentSession && <span className={styles.current}>current</span>}
+                </td>
+                <td className={styles.mono}>{row.lastSeen}</td>
+                <td className={styles.mono}>{row.lastSeenRemoteAddress}</td>
+                <td>
+                  <Button
+                    variant="danger"
+                    onClick={() => void borrarSesion(row)}
+                    aria-label={`Delete session ${row.partialToken}`}
+                  >
+                    Delete Session
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className={styles.total}>Total Sessions: {profile?.sessions?.length ?? 0}</div>
+      </div>
     </Dialog>
   )
 }

@@ -166,3 +166,49 @@ describe('My Profile', () => {
     expect(llamada?.[1]?.body).toEqual({ sessionTimeoutSeconds: '1800' })
   })
 })
+
+describe('My Profile — sesiones activas', () => {
+  const conSesiones = ok({
+    status: 'ok',
+    response: {
+      displayName: 'Administrator',
+      username: 'admin',
+      isSsoUser: false,
+      sessionTimeoutSeconds: 1800,
+      sessions: [
+        { username: 'admin', isCurrentSession: true, partialToken: 'aaa111', type: 'Standard', tokenName: null, lastSeen: '2026-08-25T14:33:26Z', lastSeenRemoteAddress: '10.0.1.42', lastSeenUserAgent: 'Chrome' },
+        { username: 'admin', isCurrentSession: false, partialToken: 'bbb222', type: 'ApiToken', tokenName: 'orbiter', lastSeen: '2026-08-24T09:00:00Z', lastSeenRemoteAddress: '10.0.70.11', lastSeenUserAgent: 'curl' },
+      ],
+    },
+  })
+
+  it('lista las sesiones y su total', async () => {
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(conSesiones)
+    render(<MyProfile open onOpenChange={() => {}} token="t" />)
+    expect(await screen.findByText('Total Sessions: 2')).toBeInTheDocument()
+    expect(screen.getByText('10.0.1.42')).toBeInTheDocument()
+    expect(screen.getByText('current')).toBeInTheDocument()
+  })
+
+  it('pide confirmación con el texto literal antes de borrar', async () => {
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(conSesiones)
+    const confirmar = vi.fn().mockReturnValue(false)
+    vi.stubGlobal('confirm', confirmar)
+    render(<MyProfile open onOpenChange={() => {}} token="t" />)
+    await screen.findByText('Total Sessions: 2')
+    await userEvent.click(screen.getByLabelText('Delete session bbb222'))
+    expect(confirmar).toHaveBeenCalledWith('Are you sure you want to delete the session [bbb222] ?')
+    vi.unstubAllGlobals()
+  })
+
+  it('si se confirma, borra y avisa con el texto literal', async () => {
+    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(conSesiones)
+    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
+    render(<MyProfile open onOpenChange={() => {}} token="t" />)
+    await screen.findByText('Total Sessions: 2')
+    await userEvent.click(screen.getByLabelText('Delete session bbb222'))
+    expect(spy.mock.calls.some((c) => c[0] === 'user/session/delete')).toBe(true)
+    expect(await screen.findByText('The user session was deleted successfully.')).toBeInTheDocument()
+    vi.unstubAllGlobals()
+  })
+})
