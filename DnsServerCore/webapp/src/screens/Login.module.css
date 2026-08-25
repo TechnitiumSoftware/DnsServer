@@ -1,0 +1,30 @@
+.page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  padding: 24px;
+}
+.card {
+  width: 340px;
+  background: var(--pan);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 26px 24px;
+}
+.brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+.mark {
+  width: 26px; height: 26px; border-radius: 7px;
+  background: var(--acc); color: var(--on-acc);
+  display: grid; place-items: center;
+  font: 700 12px/1 system-ui;
+}
+.name { font-weight: 700; letter-spacing: -0.01em; color: var(--ink); font-size: 15px; }
+.form { display: flex; flex-direction: column; gap: 14px; }
+.alertSlot { margin-bottom: 14px; }
+.sso { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.ssoLink {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 12.5px; color: var(--mute); text-decoration: none;
+  border: 1px solid var(--line); border-radius: 7px; padding: 8px;
+}
