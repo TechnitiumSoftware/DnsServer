@@ -297,7 +297,6 @@ namespace DnsServerCore.Dns
         // DNS Cookies (RFC 7873)
         readonly string _dnsCookiesSecretFile = "dns.cookies.state";
         const int DNS_COOKIE_ROTATION_PERIOD_HOURS = 1;
-        const int DNS_COOKIE_ROTATION_INITIAL_DELAY_MINUTES = 5;
         const int DNS_COOKIE_CLIENT_LENGTH = 8;
         const int DNS_COOKIE_SERVER_MIN_LENGTH = 8;
         const int DNS_COOKIE_SERVER_MAX_LENGTH = 32;
@@ -1824,17 +1823,10 @@ namespace DnsServerCore.Dns
                 {
                     Security.DnsCookieSecretManager secretManager = new Security.DnsCookieSecretManager(GetDnsCookieSecretPath());
                     var nextState = new DnsCookieEnabledState(NextDnsCookieGeneration(), secretManager);
-                    Timer nextTimer = DNS_COOKIE_ROTATION_PERIOD_HOURS > 0
-                        ? new Timer(
-                            _ => RotateDnsCookieSecrets(secretManager),
-                            null,
-                            dueTime: TimeSpan.FromMinutes(DNS_COOKIE_ROTATION_INITIAL_DELAY_MINUTES),
-                            period: TimeSpan.FromHours(DNS_COOKIE_ROTATION_PERIOD_HOURS))
-                        : null;
-
                     Volatile.Write(ref _cookieRuntimeState, nextState);
-                    _cookieRotationTimer = nextTimer;
                     previousTimer?.Dispose();
+                    if (DNS_COOKIE_ROTATION_PERIOD_HOURS > 0)
+                        ScheduleDnsCookieSecretTransition(secretManager);
                 }
                 catch (Exception ex) when (ex is InvalidDataException || ex is IOException || ex is UnauthorizedAccessException)
                 {
@@ -1856,16 +1848,27 @@ namespace DnsServerCore.Dns
                 try
                 {
                     if (!secretManager.Rotate())
-                    {
-                        _log.Write("Skipped automatic DNS Cookie secret rotation since a manually staged secret is pending activation or removal.");
-                        return;
-                    }
+                        _log.Write("DNS Cookie secret transition was not yet due.");
 
                     Volatile.Write(ref _cookieRuntimeState,
                         new DnsCookieEnabledState(NextDnsCookieGeneration(), secretManager));
                 }
                 catch (Exception ex) { _log.Write(ex); }
+
+                ScheduleDnsCookieSecretTransition(secretManager);
             }
+        }
+
+        private void ScheduleDnsCookieSecretTransition(Security.DnsCookieSecretManager secretManager)
+        {
+            TimeSpan rotationPeriod = TimeSpan.FromHours(DNS_COOKIE_ROTATION_PERIOD_HOURS);
+            TimeSpan dueTime = secretManager.GetNextTransitionUtc(rotationPeriod) - DateTime.UtcNow;
+            if (dueTime < TimeSpan.Zero)
+                dueTime = TimeSpan.Zero;
+
+            _cookieRotationTimer?.Dispose();
+            _cookieRotationTimer = new Timer(
+                _ => RotateDnsCookieSecrets(secretManager), null, dueTime, Timeout.InfiniteTimeSpan);
         }
 
         private string GetDnsCookieSecretPath()
@@ -1896,6 +1899,8 @@ namespace DnsServerCore.Dns
                 {
                     Volatile.Write(ref _cookieRuntimeState,
                         new DnsCookieEnabledState(NextDnsCookieGeneration(), secretManager));
+                    if (DNS_COOKIE_ROTATION_PERIOD_HOURS > 0)
+                        ScheduleDnsCookieSecretTransition(secretManager);
                 }
             }
         }

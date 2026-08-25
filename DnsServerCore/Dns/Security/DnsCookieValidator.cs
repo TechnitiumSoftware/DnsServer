@@ -63,6 +63,7 @@ namespace DnsServerCore.Dns.Security
 
         readonly byte[] _activeSecret;
         readonly byte[] _stagingSecret;
+        readonly byte[] _previousSecret;
         readonly TimeProvider _timeProvider;
 
         #endregion
@@ -72,7 +73,7 @@ namespace DnsServerCore.Dns.Security
         public DnsCookieValidator(DnsCookieSecretManager secretManager, TimeProvider timeProvider = null)
         {
             ArgumentNullException.ThrowIfNull(secretManager);
-            secretManager.GetSecrets(out _activeSecret, out _stagingSecret);
+            secretManager.GetSecrets(out _activeSecret, out _stagingSecret, out _previousSecret);
             _timeProvider = timeProvider ?? TimeProvider.System;
         }
 
@@ -292,6 +293,11 @@ namespace DnsServerCore.Dns.Security
             byte[] staging = _stagingSecret;
             if (staging != null && staging.Length > 0 &&
                 ValidateServerCookieWithSecret(clientAddress, clientCookie, serverCookie, staging))
+                return DnsCookieValidationResult.ValidRenew;
+
+            byte[] previous = _previousSecret;
+            if (previous != null && previous.Length > 0 &&
+                ValidateServerCookieWithSecret(clientAddress, clientCookie, serverCookie, previous))
                 return DnsCookieValidationResult.ValidRenew;
 
             return DnsCookieValidationResult.Invalid;

@@ -28,16 +28,20 @@ namespace DnsServerCore.Dns.Security
     {
         #region constants
 
-        private const int FileVersion = 1;
+        private const int LegacyFileVersion = 1;
+        private const int CurrentFileVersion = 2;
 
         // Operational bounds; keep aligned with validator policy.
         private const int MinSecretLen = 16;
         private const int MaxSecretLen = 256;
 
-        // Serialized state contains fixed metadata followed by at most two secrets:
-        // version, creation ticks, active length, and staging length.
-        private const int SerializedMetadataSize = sizeof(int) + sizeof(long) + sizeof(int) + sizeof(int);
-        internal const int MaxSerializedStateSize = SerializedMetadataSize + (2 * MaxSecretLen);
+        // Serialized state contains versioned timestamps and length fields for the
+        // active, previous-validation, and manually staged secrets.
+        private const int SerializedMetadataSize = sizeof(int) + (2 * sizeof(long)) + (3 * sizeof(int));
+        internal const int MaxSerializedStateSize = SerializedMetadataSize + (3 * MaxSecretLen);
+
+        private static readonly TimeSpan PreviousKeyValidationOverlap =
+            TimeSpan.FromHours(1) + TimeSpan.FromMinutes(5) + TimeSpan.FromMinutes(5);
 
         // Default secret size (256-bit)
         private const int DefaultSecretLen = 32;
@@ -68,7 +72,13 @@ namespace DnsServerCore.Dns.Security
                 Snapshot loaded = LoadLocked();
                 if (loaded is null)
                 {
-                    loaded = new Snapshot(GenerateSecret(), staging: null, DateTime.UtcNow);
+                    loaded = new Snapshot(CurrentFileVersion, GenerateSecret(), DateTime.UtcNow, null, null, null);
+                    SaveLocked(loaded);
+                }
+                else if (loaded.FormatVersion != CurrentFileVersion)
+                {
+                    loaded = new Snapshot(CurrentFileVersion, loaded.Active, loaded.ActiveCreatedUtc,
+                        null, null, loaded.StagedNext);
                     SaveLocked(loaded);
                 }
 
@@ -91,10 +101,12 @@ namespace DnsServerCore.Dns.Security
             try
             {
                 using FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                if (stream.Length > MaxSerializedStateSize)
+                    throw new InvalidDataException($"DNS Cookie secret state exceeds the maximum size of {MaxSerializedStateSize} bytes.");
                 using BinaryReader br = new BinaryReader(stream);
 
                 int version = br.ReadInt32();
-                if (version != FileVersion)
+                if (version < LegacyFileVersion || version > CurrentFileVersion)
                     throw new InvalidDataException($"Unsupported DNS Cookie secret state version: {version}.");
 
                 long createdUtcTicks = br.ReadInt64();
@@ -111,23 +123,31 @@ namespace DnsServerCore.Dns.Security
                 if (active.Length != currentLen)
                     throw new EndOfStreamException("Unexpected end of secret file (active secret).");
 
-                int previousLen = br.ReadInt32();
-                byte[] staging = null;
-
-                if (previousLen != 0)
+                if (version == LegacyFileVersion)
                 {
-                    if (previousLen < MinSecretLen || previousLen > MaxSecretLen)
-                        throw new InvalidDataException("Invalid previous secret length.");
-
-                    staging = br.ReadBytes(previousLen);
-                    if (staging.Length != previousLen)
-                        throw new EndOfStreamException("Unexpected end of secret file (staging secret).");
+                    byte[] staging = ReadOptionalSecret(br, "staging");
+                    EnsureEndOfFile(stream);
+                    return new Snapshot(version, active, createdUtc, null, null, staging);
                 }
 
-                if (stream.Position != stream.Length)
-                    throw new InvalidDataException("Unexpected trailing data in DNS Cookie secret state.");
+                long retirementTicks = br.ReadInt64();
+                byte[] previous = ReadOptionalSecret(br, "previous");
+                DateTime? previousRetireUtc = null;
+                if (previous is not null)
+                {
+                    if (retirementTicks < DateTime.MinValue.Ticks || retirementTicks > DateTime.MaxValue.Ticks)
+                        throw new InvalidDataException("Invalid previous secret retirement timestamp.");
+                    previousRetireUtc = new DateTime(retirementTicks, DateTimeKind.Utc);
+                    if (createdUtc.Ticks > DateTime.MaxValue.Ticks - PreviousKeyValidationOverlap.Ticks ||
+                        previousRetireUtc != createdUtc + PreviousKeyValidationOverlap)
+                        throw new InvalidDataException("Previous secret retirement timestamp does not match the validation horizon.");
+                }
+                else if (retirementTicks != 0)
+                    throw new InvalidDataException("A retirement timestamp exists without a previous secret.");
 
-                return new Snapshot(active, staging, createdUtc);
+                byte[] stagedNext = ReadOptionalSecret(br, "staged next");
+                EnsureEndOfFile(stream);
+                return new Snapshot(version, active, createdUtc, previous, previousRetireUtc, stagedNext);
             }
             catch (FileNotFoundException)
             {
@@ -155,6 +175,25 @@ namespace DnsServerCore.Dns.Security
             }
         }
 
+        private static byte[] ReadOptionalSecret(BinaryReader reader, string name)
+        {
+            int length = reader.ReadInt32();
+            if (length == 0)
+                return null;
+            if (length < MinSecretLen || length > MaxSecretLen)
+                throw new InvalidDataException($"Invalid {name} secret length.");
+            byte[] value = reader.ReadBytes(length);
+            if (value.Length != length)
+                throw new EndOfStreamException($"Unexpected end of secret file ({name} secret).");
+            return value;
+        }
+
+        private static void EnsureEndOfFile(Stream stream)
+        {
+            if (stream.Position != stream.Length)
+                throw new InvalidDataException("Unexpected trailing data in DNS Cookie secret state.");
+        }
+
         internal static bool TryGetStatus(string path, out string activeId, out string stagingId, out DateTime activeCreatedUtc)
         {
             Snapshot snapshot = LoadFileLocked(path);
@@ -173,7 +212,7 @@ namespace DnsServerCore.Dns.Security
         private static void GetStatus(Snapshot snapshot, out string activeId, out string stagingId, out DateTime activeCreatedUtc)
         {
             activeId = Convert.ToHexString(SHA256.HashData(snapshot.Active));
-            stagingId = snapshot.Staging is null ? null : Convert.ToHexString(SHA256.HashData(snapshot.Staging));
+            stagingId = snapshot.StagedNext is null ? null : Convert.ToHexString(SHA256.HashData(snapshot.StagedNext));
             activeCreatedUtc = snapshot.ActiveCreatedUtc;
         }
 
@@ -189,22 +228,19 @@ namespace DnsServerCore.Dns.Security
             using MemoryStream ms = new MemoryStream();
             using (BinaryWriter bw = new BinaryWriter(ms))
             {
-                bw.Write(FileVersion);
+                bw.Write(CurrentFileVersion);
                 bw.Write(snapshot.ActiveCreatedUtc.Ticks);
 
                 bw.Write(snapshot.Active.Length);
                 bw.Write(snapshot.Active);
 
-                if (snapshot.Staging is { Length: >= MinSecretLen and <= MaxSecretLen })
-                {
-                    bw.Write(snapshot.Staging.Length);
-                    bw.Write(snapshot.Staging);
-                }
-                else
-                {
-                    bw.Write(0);
-                }
+                bw.Write(snapshot.PreviousRetireUtc?.Ticks ?? 0);
+                WriteOptionalSecret(bw, snapshot.Previous, "previous");
+                WriteOptionalSecret(bw, snapshot.StagedNext, "staged next");
             }
+
+            if (ms.Length > MaxSerializedStateSize)
+                throw new InvalidOperationException("DNS Cookie secret state exceeds its maximum serialized size.");
 
             string directory = Path.GetDirectoryName(_secretFilePath);
             if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
@@ -220,6 +256,19 @@ namespace DnsServerCore.Dns.Security
                 File.Move(tmpPath, _secretFilePath);
 
             RestrictSecretFilePermissions(_secretFilePath);
+        }
+
+        private static void WriteOptionalSecret(BinaryWriter writer, byte[] secret, string name)
+        {
+            if (secret is null)
+            {
+                writer.Write(0);
+                return;
+            }
+            if (secret.Length < MinSecretLen || secret.Length > MaxSecretLen)
+                throw new InvalidOperationException($"The {name} secret has an invalid length.");
+            writer.Write(secret.Length);
+            writer.Write(secret);
         }
 
         private static void WriteSecretFile(string path, byte[] contents)
@@ -254,20 +303,28 @@ namespace DnsServerCore.Dns.Security
 
         #region public
 
-        // Automatic state transition:
-        //   active-only -> new active + old active as staging
-        //   active + staging -> unchanged (manual staging always wins)
-        // The return value lets the timer distinguish a completed rotation from a
-        // deliberate skip. Persistence happens before the new snapshot is published.
+        // Retire an expired validation-only key before starting the next rotation.
+        // Manual staging is independent and survives either automatic transition.
         public bool Rotate()
         {
             lock (_lock)
             {
                 Snapshot current = Volatile.Read(ref _snapshot);
-                if (current.Staging is not null)
-                    return false;
+                DateTime now = DateTime.UtcNow;
+                Snapshot nextSnapshot;
 
-                Snapshot nextSnapshot = new Snapshot(GenerateSecret(), current.Active, DateTime.UtcNow);
+                if (current.Previous is not null)
+                {
+                    if (now < current.PreviousRetireUtc.Value)
+                        return false;
+                    nextSnapshot = new Snapshot(CurrentFileVersion, current.Active, current.ActiveCreatedUtc,
+                        null, null, current.StagedNext);
+                }
+                else
+                {
+                    nextSnapshot = new Snapshot(CurrentFileVersion, GenerateSecret(), now,
+                        current.Active, now + PreviousKeyValidationOverlap, current.StagedNext);
+                }
 
                 SaveLocked(nextSnapshot);
                 Volatile.Write(ref _snapshot, nextSnapshot);
@@ -289,7 +346,7 @@ namespace DnsServerCore.Dns.Security
         {
             get
             {
-                byte[] staging = Volatile.Read(ref _snapshot)?.Staging;
+                byte[] staging = Volatile.Read(ref _snapshot)?.StagedNext;
                 return staging is null ? null : (byte[])staging.Clone();
             }
         }
@@ -308,7 +365,7 @@ namespace DnsServerCore.Dns.Security
         {
             get
             {
-                byte[] staging = Volatile.Read(ref _snapshot).Staging;
+                byte[] staging = Volatile.Read(ref _snapshot).StagedNext;
                 return staging is null ? null : Convert.ToHexString(SHA256.HashData(staging));
             }
         }
@@ -318,11 +375,18 @@ namespace DnsServerCore.Dns.Security
             GetStatus(Volatile.Read(ref _snapshot), out activeId, out stagingId, out activeCreatedUtc);
         }
 
-        internal void GetSecrets(out byte[] active, out byte[] staging)
+        internal DateTime GetNextTransitionUtc(TimeSpan rotationPeriod)
+        {
+            Snapshot snapshot = Volatile.Read(ref _snapshot);
+            return snapshot.PreviousRetireUtc ?? snapshot.ActiveCreatedUtc + rotationPeriod;
+        }
+
+        internal void GetSecrets(out byte[] active, out byte[] staging, out byte[] previous)
         {
             Snapshot snapshot = Volatile.Read(ref _snapshot);
             active = snapshot.Active;
-            staging = snapshot.Staging;
+            staging = snapshot.StagedNext;
+            previous = snapshot.Previous;
         }
 
         public void AddStaging()
@@ -330,11 +394,12 @@ namespace DnsServerCore.Dns.Security
             lock (_lock)
             {
                 Snapshot current = Volatile.Read(ref _snapshot);
-                if (current.Staging is not null)
+                if (current.StagedNext is not null)
                     throw new InvalidOperationException("There is already a staging secret.");
 
                 // Manual transition: active-only -> same active + new staging.
-                Snapshot next = new Snapshot(current.Active, GenerateSecret(), current.ActiveCreatedUtc);
+                Snapshot next = new Snapshot(CurrentFileVersion, current.Active, current.ActiveCreatedUtc,
+                    current.Previous, current.PreviousRetireUtc, GenerateSecret());
                 SaveLocked(next);
                 Volatile.Write(ref _snapshot, next);
             }
@@ -345,11 +410,12 @@ namespace DnsServerCore.Dns.Security
             lock (_lock)
             {
                 Snapshot current = Volatile.Read(ref _snapshot);
-                if (current.Staging is null)
+                if (current.StagedNext is null)
                     throw new InvalidOperationException("There is no staging secret to activate.");
 
-                // Manual transition: active + staging -> staging active + old active staging.
-                Snapshot next = new Snapshot(current.Staging, current.Active, DateTime.UtcNow);
+                DateTime now = DateTime.UtcNow;
+                Snapshot next = new Snapshot(CurrentFileVersion, current.StagedNext, now,
+                    current.Active, now + PreviousKeyValidationOverlap, null);
                 SaveLocked(next);
                 Volatile.Write(ref _snapshot, next);
             }
@@ -360,11 +426,12 @@ namespace DnsServerCore.Dns.Security
             lock (_lock)
             {
                 Snapshot current = Volatile.Read(ref _snapshot);
-                if (current.Staging is null)
+                if (current.StagedNext is null)
                     return;
 
                 // Manual transition: active + staging -> same active only.
-                Snapshot next = new Snapshot(current.Active, null, current.ActiveCreatedUtc);
+                Snapshot next = new Snapshot(CurrentFileVersion, current.Active, current.ActiveCreatedUtc,
+                    current.Previous, current.PreviousRetireUtc, null);
                 SaveLocked(next);
                 Volatile.Write(ref _snapshot, next);
             }
@@ -437,15 +504,25 @@ namespace DnsServerCore.Dns.Security
         #endregion
         private sealed class Snapshot
         {
+            internal readonly int FormatVersion;
             internal readonly byte[] Active;
-            internal readonly byte[] Staging; // may be null
             internal readonly DateTime ActiveCreatedUtc;
+            internal readonly byte[] Previous;
+            internal readonly DateTime? PreviousRetireUtc;
+            internal readonly byte[] StagedNext;
 
-            internal Snapshot(byte[] active, byte[] staging, DateTime activeCreatedUtc)
+            internal Snapshot(int formatVersion, byte[] active, DateTime activeCreatedUtc,
+                byte[] previous, DateTime? previousRetireUtc, byte[] stagedNext)
             {
+                if ((previous is null) != (previousRetireUtc is null))
+                    throw new ArgumentException("Previous secret and retirement deadline must be specified together.");
+
+                FormatVersion = formatVersion;
                 Active = active;
-                Staging = staging;
                 ActiveCreatedUtc = activeCreatedUtc;
+                Previous = previous;
+                PreviousRetireUtc = previousRetireUtc;
+                StagedNext = stagedNext;
             }
         }
     }
