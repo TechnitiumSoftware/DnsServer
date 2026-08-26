@@ -31,7 +31,11 @@
 .val { font:var(--t-4)/1.45 var(--font-mono); color:var(--ink); word-break:break-word; }
 /* La clave pública larga rompe por caracteres; el botón que la sigue, NO. */
 .clave { word-break:break-all; color:var(--mute); }
-.verlo { border:0; background:transparent; padding: 0; font:inherit; font-size: var(--t-3); color:var(--acc); cursor:pointer; white-space:nowrap; }
+/* «show full»: 62×17 y 44×18 según dónde estuviera, o sea dos tamaños para el
+   mismo control y los dos por debajo del mínimo de 24. `.golpe` amplía el
+   objetivo sin mover el dibujo, que es justo lo que hace falta en un enlace
+   metido dentro de una clave truncada. */
+.verlo { composes: golpe from '../../ui/interaccion.module.css'; border:0; background:transparent; padding: 0; font:inherit; font-size: var(--t-3); color:var(--acc); cursor:pointer; white-space:nowrap; }
 .meta { margin-top: var(--s-4); font-size: var(--t-2); color:var(--faint); }
 
 /* Menú desplegable de acciones de fila y de cabecera */
@@ -44,7 +48,9 @@
 .campos { display:flex; flex-direction:column; gap: var(--s-8); }
 .enLinea { display:flex; gap: var(--s-6); align-items:center; flex-wrap:wrap; }
 .sufijo { font-size: var(--t-3); color:var(--faint); }
-.chk { display:flex; align-items:center; gap: var(--s-4); font-size: var(--t-4); color:var(--mute); cursor:pointer; }
+/* La misma fila que `ui/Check.module.css`, que es donde vive el alto mínimo:
+   sin él, los radios de «Add Zone», «Import» y «Convert» medían 19 px. */
+.chk { composes: check from '../../ui/Check.module.css'; color: var(--mute); }
 /* Mismo papel que `.help` de Settings, DHCP y Administration: mismo color y
    mismo interlineado. Con `--faint` se leía a 4.64:1 y las otras a 5.90:1. */
 .ayuda { font-size: var(--t-3); color:var(--mute); line-height:1.55; }

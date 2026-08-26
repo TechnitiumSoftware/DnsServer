@@ -75,6 +75,21 @@ tiene, y por una razón: sus confirmaciones son `confirm()` del navegador.
   display: flex; flex-direction: column; gap: var(--s-8);
   overflow-y: auto; min-height: 0;
 }
+
+/*
+Y sus hijos NO se encogen.
+
+Al pasar el scroll al cuerpo, éste dejó de crecer con su contenido y pasó a
+repartir un alto fijo entre sus hijos. Un hijo con `overflow` propio —el
+envoltorio de una tabla— tiene por regla `min-height: 0`, así que el reparto se
+lo puede llevar entero: la tabla de sesiones de «User Details» medía 814×298 y su
+contenedor **831×2**. Se veía el rótulo «Active Sessions», una línea y «Total
+Sessions: 3», y ni una fila.
+
+En una columna que rueda, cada hijo vale lo que mide. Es el precio de haber
+movido el scroll, y va aquí para que no lo pague el siguiente.
+*/
+.body > * { flex-shrink: 0; }
 .foot {
   flex: none;
   display: flex; justify-content: flex-end; gap: var(--s-5);
