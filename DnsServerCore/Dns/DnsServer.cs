@@ -1270,6 +1270,8 @@ namespace DnsServerCore.Dns
                 ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { Enabled = false });
             }
 
+            _enableUdpReflectionLimiting = s.Position < s.Length && bR.ReadBoolean();
+
             _cookieCoordinator.Configure(_useDnsCookies);
         }
 
@@ -1571,8 +1573,8 @@ namespace DnsServerCore.Dns
             bW.Write(rrlOptions.SlipEvery);
             bW.Write(rrlOptions.TableSize);
             AuthZoneInfo.WriteNetworkAddressesTo(rrlOptions.BypassList, bW);
+            bW.Write(_enableUdpReflectionLimiting);
         }
-
         #endregion
 
         #region tls
@@ -7955,9 +7957,19 @@ namespace DnsServerCore.Dns
 
         public DateTime? ActiveDnsCookieSecretCreatedUtc => TryGetDnsCookieSecretStatus(out _, out _, out DateTime activeCreatedUtc) ? activeCreatedUtc : null;
 
-        public void AddDnsCookieSecret() => _cookieCoordinator.UpdateSecrets(_useDnsCookies, static secrets => secrets.AddStaging());
+        public void AddDnsCookieSecret() => GenerateDnsCookieStagedSecret();
+
+        public void GenerateDnsCookieStagedSecret() => _cookieCoordinator.UpdateSecrets(_useDnsCookies, static secrets => secrets.GenerateStagedSecret());
+
+        public void StageDnsCookieSecret(ReadOnlySpan<byte> secret)
+        {
+            byte[] secretCopy = secret.ToArray();
+            _cookieCoordinator.UpdateSecrets(_useDnsCookies, secrets => secrets.StageSecret(secretCopy));
+        }
 
         public void ActivateDnsCookieSecret() => _cookieCoordinator.UpdateSecrets(_useDnsCookies, static secrets => secrets.ActivateStaging());
+
+        public void RetirePreviousDnsCookieSecret() => _cookieCoordinator.UpdateSecrets(_useDnsCookies, static secrets => secrets.RetirePrevious());
 
         public void DropDnsCookieSecret() => _cookieCoordinator.UpdateSecrets(_useDnsCookies, static secrets => secrets.DropStaging());
 

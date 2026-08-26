@@ -154,6 +154,7 @@ namespace DnsServerCore
 
                 jsonWriter.WriteEndArray();
 
+                jsonWriter.WriteBoolean("enableUdpReflectionLimiting", _dnsWebService._dnsServer.EnableUdpReflectionLimiting);
                 jsonWriter.WriteBoolean("enableResponseRateLimiting", _dnsWebService._dnsServer.EnableResponseRateLimiting);
                 jsonWriter.WriteNumber("responseRateLimit", _dnsWebService._dnsServer.ResponseRateLimit);
                 jsonWriter.WriteNumber("responseRateLimitInstant", _dnsWebService._dnsServer.ResponseRateLimitInstant);
@@ -248,9 +249,11 @@ namespace DnsServerCore
                 jsonWriter.WriteBoolean("dnsCookieStatusAvailable", dnsCookieStatusAvailable);
                 jsonWriter.WriteString("dnsCookieActiveSecretFingerprint", activeDnsCookieSecretId);
                 jsonWriter.WriteString("dnsCookieStagingSecretFingerprint", stagingDnsCookieSecretId);
-                jsonWriter.WriteBoolean("dnsCookiesAntiReflectionProtectionComplete", !_dnsWebService._dnsServer.UseDnsCookies || _dnsWebService._dnsServer.EnableResponseRateLimiting);
-                if (_dnsWebService._dnsServer.UseDnsCookies && !_dnsWebService._dnsServer.EnableResponseRateLimiting)
-                    jsonWriter.WriteString("dnsCookiesWarning", "DNS Cookies are enabled without UDP Response Rate Limiting. Valid cookies can establish client return-routability, but unverified spoofable UDP traffic is not protected by the DNS Cookie/RRL anti-reflection policy.");
+                bool dnsCookieProtectionComplete = !_dnsWebService._dnsServer.UseDnsCookies ||
+                    _dnsWebService._dnsServer.EnableUdpReflectionLimiting || _dnsWebService._dnsServer.EnableResponseRateLimiting;
+                jsonWriter.WriteBoolean("dnsCookiesAntiReflectionProtectionComplete", dnsCookieProtectionComplete);
+                if (!dnsCookieProtectionComplete)
+                    jsonWriter.WriteString("dnsCookiesWarning", "DNS Cookies are enabled without either UDP reflection limiting or DNS response rate limiting. Valid cookies establish return-routability, but unverified spoofable UDP traffic has no dedicated reflection protection.");
                 jsonWriter.WriteBoolean("enableDnsOverHttpHelpRedirect", _dnsWebService._dnsServer.EnableDnsOverHttpHelpRedirect);
                 jsonWriter.WriteNumber("dnsOverUdpProxyPort", _dnsWebService._dnsServer.DnsOverUdpProxyPort);
                 jsonWriter.WriteNumber("dnsOverTcpProxyPort", _dnsWebService._dnsServer.DnsOverTcpProxyPort);
@@ -507,11 +510,13 @@ namespace DnsServerCore
                     jsonWriter.WriteNull("activeSecretCreatedUtc");
                 jsonWriter.WriteString("stagingSecretId", stagingSecretId);
                 jsonWriter.WriteBoolean("useDnsCookies", _dnsWebService._dnsServer.UseDnsCookies);
+                jsonWriter.WriteBoolean("enableUdpReflectionLimiting", _dnsWebService._dnsServer.EnableUdpReflectionLimiting);
                 jsonWriter.WriteBoolean("enableResponseRateLimiting", _dnsWebService._dnsServer.EnableResponseRateLimiting);
-                bool protectionComplete = !_dnsWebService._dnsServer.UseDnsCookies || _dnsWebService._dnsServer.EnableResponseRateLimiting;
+                bool protectionComplete = !_dnsWebService._dnsServer.UseDnsCookies ||
+                    _dnsWebService._dnsServer.EnableUdpReflectionLimiting || _dnsWebService._dnsServer.EnableResponseRateLimiting;
                 jsonWriter.WriteBoolean("antiReflectionProtectionComplete", protectionComplete);
                 if (!protectionComplete)
-                    jsonWriter.WriteString("warning", "DNS Cookies are enabled without UDP Response Rate Limiting. Valid cookies can establish client return-routability, but unverified spoofable UDP traffic is not protected by the DNS Cookie/RRL anti-reflection policy.");
+                    jsonWriter.WriteString("warning", "DNS Cookies are enabled without either UDP reflection limiting or DNS response rate limiting. Valid cookies establish return-routability, but unverified spoofable UDP traffic has no dedicated reflection protection.");
             }
 
             // RFC 9018 §9: per-outcome counters that let an operator detect attack patterns
@@ -538,6 +543,11 @@ namespace DnsServerCore
                 User sessionUser = _dnsWebService.GetSessionUser(context);
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
+                if (_dnsWebService._clusterManager.ClusterInitialized &&
+                    _dnsWebService._clusterManager.GetSelfNode().Type != ClusterNodeType.Primary)
+                {
+                    throw new DnsWebServiceException("DNS Cookie secret changes must be made on the cluster primary node.");
+                }
 
                 action();
                 if (_dnsWebService._clusterManager.ClusterInitialized &&
@@ -551,9 +561,41 @@ namespace DnsServerCore
 
             public void AddDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context, _dnsWebService._dnsServer.AddDnsCookieSecret, "staging secret addition");
 
+            public void GenerateDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context, _dnsWebService._dnsServer.GenerateDnsCookieStagedSecret, "generated staging secret addition");
+
+            public void StageDnsCookieSecret(HttpContext context)
+            {
+                byte[] secret = ReadExactDnsCookieSecret(context);
+                ChangeDnsCookieSecret(context, () => _dnsWebService._dnsServer.StageDnsCookieSecret(secret), "staging secret addition");
+            }
+
             public void ActivateDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context, _dnsWebService._dnsServer.ActivateDnsCookieSecret, "staging secret activation");
 
+            public void RetirePreviousDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context, _dnsWebService._dnsServer.RetirePreviousDnsCookieSecret, "previous secret retirement");
+
             public void DropDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context, _dnsWebService._dnsServer.DropDnsCookieSecret, "staging secret removal");
+
+            private static byte[] ReadExactDnsCookieSecret(HttpContext context)
+            {
+                const int SecretLength = 16;
+                if (context.Request.ContentLength.HasValue && context.Request.ContentLength.Value != SecretLength)
+                    throw new DnsWebServiceException("DNS Cookie secret body must be exactly 16 bytes.");
+
+                byte[] secret = new byte[SecretLength];
+                int offset = 0;
+                while (offset < secret.Length)
+                {
+                    int read = context.Request.Body.Read(secret, offset, secret.Length - offset);
+                    if (read == 0)
+                        throw new DnsWebServiceException("DNS Cookie secret body must be exactly 16 bytes.");
+                    offset += read;
+                }
+
+                if (context.Request.Body.ReadByte() != -1)
+                    throw new DnsWebServiceException("DNS Cookie secret body must be exactly 16 bytes.");
+
+                return secret;
+            }
 
             public async Task SetDnsSettingsAsync(HttpContext context)
             {
@@ -868,6 +910,12 @@ namespace DnsServerCore
                             }
 
                             clusterParameters.Add("qpmPrefixLimitsIPv6", strQpmPrefixLimitsIPv6);
+                        }
+
+                        if (request.TryGetQueryOrForm("enableUdpReflectionLimiting", bool.Parse, out bool enableUdpReflectionLimiting))
+                        {
+                            _dnsWebService._dnsServer.EnableUdpReflectionLimiting = enableUdpReflectionLimiting;
+                            clusterParameters.Add("enableUdpReflectionLimiting", enableUdpReflectionLimiting.ToString());
                         }
 
                         Dns.Security.ResponseRateLimitingOptions rrlOptions = _dnsWebService._dnsServer.CurrentResponseRateLimitingOptions;

@@ -2217,7 +2217,10 @@ namespace DnsServerCore
             _webService.MapGetAndPost("/api/settings/set", _settingsApi.SetDnsSettingsAsync);
             _webService.MapGetAndPost("/api/settings/dnsCookies/get", _settingsApi.GetDnsCookieSecrets);
             _webService.MapGetAndPost("/api/settings/dnsCookies/addSecret", _settingsApi.AddDnsCookieSecret);
+            _webService.MapGetAndPost("/api/settings/dnsCookies/generateStagedSecret", _settingsApi.GenerateDnsCookieSecret);
+            _webService.MapPost("/api/settings/dnsCookies/stageSecret", _settingsApi.StageDnsCookieSecret);
             _webService.MapGetAndPost("/api/settings/dnsCookies/activateSecret", _settingsApi.ActivateDnsCookieSecret);
+            _webService.MapGetAndPost("/api/settings/dnsCookies/retirePreviousSecret", _settingsApi.RetirePreviousDnsCookieSecret);
             _webService.MapGetAndPost("/api/settings/dnsCookies/dropSecret", _settingsApi.DropDnsCookieSecret);
             _webService.MapGetAndPost("/api/settings/dnsCookies/stats", _settingsApi.GetDnsCookieStatistics);
             _webService.MapGetAndPost("/api/settings/getTsigKeyNames", _settingsApi.GetTsigKeyNames);
