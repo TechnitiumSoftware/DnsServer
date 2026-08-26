@@ -1,0 +1,97 @@
+/* Logs. Dos sub-pantallas muy distintas: un visor de ficheros a dos columnas y
+   una tabla con quince filtros. Las clases de tabla son las mismas que en
+   Cache, Allowed y Blocked. */
+
+.wrap { display: flex; flex-direction: column; gap: 14px; }
+
+.hrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 4px; }
+.zt { margin: 0; font-size: 22px; letter-spacing: -0.02em; font-weight: 700; color: var(--ink); }
+.tags { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.tag {
+  font-size: 10.5px; padding: 2.5px 8px; border-radius: 999px; font-weight: 700;
+  border: 1px solid var(--line); letter-spacing: 0.03em; color: var(--mute);
+  background: var(--pan2); white-space: nowrap;
+}
+.acts { display: flex; gap: 7px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+
+/* ---- View Logs ---- */
+
+.dos { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 16px; align-items: start; }
+.panel { background: var(--pan); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.ph { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+.ph h2 { margin: 0; font-size: 12.5px; font-weight: 650; color: var(--ink); }
+.pb { padding: 14px; }
+.pbLista { padding: 8px; }
+
+.logfiles { display: flex; flex-direction: column; gap: 1px; }
+.logfile {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 10px; border: 0; border-radius: 7px; background: transparent;
+  font: 12.5px/1.3 var(--font-ui); color: var(--mute); cursor: pointer;
+  text-align: left; width: 100%;
+}
+.logfile:hover { background: var(--hover); color: var(--ink); }
+.logfile[aria-current='true'] { background: var(--pan2); color: var(--acc); font-weight: 650; }
+.logfile .nombre { font-family: var(--font-mono); }
+.sz { font-family: var(--font-mono); font-size: 11px; color: var(--faint); }
+.sinLogs { font-size: 12.5px; color: var(--mute); padding: 8px 10px; }
+
+.out {
+  margin: 0; padding: 13px; background: var(--field); border: 1px solid var(--line);
+  border-radius: 8px; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink);
+  overflow: auto; line-height: 1.55; max-height: 60vh; white-space: pre-wrap; word-break: break-word;
+}
+
+/* ---- Query Logs ---- */
+
+.fs { border: 1px solid var(--line); border-radius: 10px; background: var(--pan); margin-bottom: 14px; }
+.fsTitle {
+  display: block; width: 100%; padding: 11px 15px; margin: 0;
+  border-bottom: 1px solid var(--line); font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--mute);
+}
+.fsIn { padding: 6px 15px 14px; }
+.frow { display: grid; grid-template-columns: 110px 1fr; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--line2); align-items: start; }
+.frow:last-child { border-bottom: 0; }
+.frowLabel { font-size: 12.5px; color: var(--ink); font-weight: 600; padding-top: 7px; }
+.frowCtl { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.campo { display: flex; flex-direction: column; gap: 5px; }
+.campo label { font-size: 11px; color: var(--mute); font-weight: 650; }
+.campo input, .campo select { width: 100%; }
+
+.count { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--mute); margin-bottom: 9px; flex-wrap: wrap; }
+.pg { display: flex; gap: 4px; flex-wrap: wrap; }
+.pgb {
+  min-width: 24px; height: 24px; padding: 0 6px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--pan2); color: var(--mute); font-size: 11.5px; cursor: pointer;
+}
+.pgb:hover { color: var(--ink); }
+.pgb[aria-current='true'] { background: var(--acc); border-color: var(--acc); color: var(--on-acc); font-weight: 700; }
+
+.tablaWrap { overflow-x: auto; }
+.tabla { border-collapse: collapse; width: 100%; }
+.tabla thead th {
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--mute); font-weight: 700; padding: 0 10px 8px; border-bottom: 1px solid var(--line);
+}
+.tabla td { padding: 9px 10px; border-bottom: 1px solid var(--line2); vertical-align: top; color: var(--ink); }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.nowrap { white-space: nowrap; }
+.romper { word-break: break-all; }
+.rtt { font-size: 11px; color: var(--faint); }
+
+/* Los cinco fondos de fila de upstream (logs.js:452-508), tal cual. */
+.rServerFailure { background: rgba(217, 83, 79, 0.1); }
+.rBlocked { background: rgba(255, 165, 0, 0.1); }
+.rNxDomain { background: rgba(120, 120, 120, 0.1); }
+.rRefused { background: rgba(91, 192, 222, 0.1); }
+.rAuthoritative { background: rgba(150, 150, 0, 0.1); }
+.rRecursive { background: rgba(23, 162, 184, 0.1); }
+.rCached { background: rgba(111, 84, 153, 0.1); }
+
+.check { display: flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer; color: var(--ink); }
+.check input { width: 15px; height: 15px; accent-color: var(--acc); flex: none; }
+
+.loading, .fail { padding: 28px; text-align: center; color: var(--faint); font-size: 12.5px; }
+.parrafo { margin: 0 0 10px; font-size: 12.5px; color: var(--mute); line-height: 1.6; }
+.vacio { border: 1px dashed var(--line); border-radius: 10px; padding: 34px; text-align: center; color: var(--mute); font-size: 12.5px; }
