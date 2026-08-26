@@ -2069,6 +2069,7 @@ namespace DnsServerCore.Dns
                 }
 
                 bool isUdpReflectionRecovery = reflectionLimitResult == Security.UdpReflectionLimitResult.LimitedSlip;
+                bool isSyntheticRecoveryResponse = isUdpReflectionRecovery || sendTruncationResponse;
                 if (isUdpReflectionRecovery)
                 {
                     response = _cookieCoordinator.CreateUdpReflectionLimiterSlipResponse(
@@ -2097,7 +2098,7 @@ namespace DnsServerCore.Dns
                 Security.DnsResponseRrlRequestTrust rrlTrust = cookieClassification.State == Security.CookieRequestState.ValidServerCookie
                     ? Security.DnsResponseRrlRequestTrust.ValidServerCookie
                     : Security.DnsResponseRrlRequestTrust.Unverified;
-                if (!isUdpReflectionRecovery && response.Question.Count > 0 && Security.DnsResponseRrlPolicy.ShouldEvaluate(_dnsResponseRrlRuntime.Enabled, isUdp: true, rrlTrust))
+                if (!isSyntheticRecoveryResponse && response.Question.Count > 0 && Security.DnsResponseRrlPolicy.ShouldEvaluate(_dnsResponseRrlRuntime.Enabled, isUdp: true, rrlTrust))
                 {
                     DnsQuestionRecord question = response.Question[0];
                     Security.DnsResponseRateLimitIdentity responseIdentity = Security.DnsResponseRateLimiterRuntime.BuildResponseIdentity(response, question);
