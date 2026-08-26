@@ -366,21 +366,25 @@ namespace DnsServerCore.Dns.Security
 
         #region public
 
-        // One manual rotation step advances the persisted lifecycle without ever holding
-        // both a staged and a validation-only secret at the same time.
+        // A standalone automatic rotation can safely stage and activate a new secret, but it
+        // cannot determine the longest TTL served by every configured zone. RFC 9018 §5
+        // recommends retaining the previous secret for at least that TTL plus one hour, so
+        // automatic rotation deliberately stops after activation and leaves retirement to an
+        // explicit, TTL-aware operator action.
         public bool Rotate()
         {
             lock (_lock)
             {
                 Snapshot current = Volatile.Read(ref _snapshot);
+                if (current.RolloverState == DnsCookieSecretRolloverState.Activated)
+                    return false;
+
                 Snapshot nextSnapshot = current.RolloverState switch
                 {
                     DnsCookieSecretRolloverState.None => new Snapshot(CurrentFileVersion, NextGeneration(current),
                         DnsCookieSecretRolloverState.Staged, current.Active, current.ActiveCreatedUtc, GenerateSecret()),
                     DnsCookieSecretRolloverState.Staged => new Snapshot(CurrentFileVersion, NextGeneration(current),
                         DnsCookieSecretRolloverState.Activated, current.Secondary, DateTime.UtcNow, current.Active),
-                    DnsCookieSecretRolloverState.Activated => new Snapshot(CurrentFileVersion, NextGeneration(current),
-                        DnsCookieSecretRolloverState.None, current.Active, current.ActiveCreatedUtc, null),
                     _ => throw new InvalidOperationException("The DNS Cookie rollover state is invalid.")
                 };
 

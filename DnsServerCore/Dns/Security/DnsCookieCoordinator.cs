@@ -209,7 +209,15 @@ namespace DnsServerCore.Dns.Security
 
                 try
                 {
-                    secretManager.Rotate();
+                    if (!secretManager.Rotate())
+                    {
+                        // Retiring the previous secret requires a TTL-aware operator decision;
+                        // see DnsCookieSecretManager.Rotate and RFC 9018 §5.
+                        _standaloneRotationTimer?.Dispose();
+                        _standaloneRotationTimer = null;
+                        return;
+                    }
+
                     Volatile.Write(ref _state, new EnabledState(NextGeneration(), secretManager));
                 }
                 catch (Exception ex)
