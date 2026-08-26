@@ -174,8 +174,9 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
 
   const desde = useRef<HTMLInputElement>(null)
   const hasta = useRef<HTMLInputElement>(null)
-  const appRef = useRef<HTMLSelectElement>(null)
-  const claseRef = useRef<HTMLSelectElement>(null)
+  // El desplegable es `ui/Select`, así que lo que se enfoca es su disparador.
+  const appRef = useRef<HTMLButtonElement>(null)
+  const claseRef = useRef<HTMLButtonElement>(null)
   /* El bucle de «Live Update» y las validaciones leen SIEMPRE los filtros
      vigentes, pero re-armar el temporizador cada vez que se teclea en un campo
      lo reiniciaría. De ahí la referencia, sincronizada tras cada commit. */

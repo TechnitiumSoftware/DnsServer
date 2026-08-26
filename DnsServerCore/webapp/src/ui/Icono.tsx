@@ -28,7 +28,7 @@ export type NombreIcono =
   | 'dashboard' | 'zones' | 'cache' | 'allowed' | 'blocked' | 'apps'
   | 'dnsclient' | 'settings' | 'dhcp' | 'admin' | 'logs' | 'about'
   | 'chevronAbajo' | 'chevronDerecha' | 'chevronIzquierda'
-  | 'primera' | 'ultima' | 'cerrar' | 'menu' | 'mas' | 'orden' | 'atras'
+  | 'primera' | 'ultima' | 'cerrar' | 'menu' | 'mas' | 'orden' | 'atras' | 'check'
 
 const TRAZADOS: Record<NombreIcono, ReactElement> = {
   // ── Secciones ─────────────────────────────────────────────────────────
@@ -156,6 +156,7 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
     </>
   ),
   cerrar: <path d="m6 6 12 12M18 6 6 18" />,
+  check: <path d="m20 6-11 11-5-5" />,
   menu: (
     <>
       <path d="M4 7h16" />

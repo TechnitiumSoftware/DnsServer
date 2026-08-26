@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { Settings } from './Settings'
 import { AJUSTES } from './ajustes.fixture'
 import * as client from '../../api/client'
+import { valorDe } from '../../test/desplegable'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -312,7 +313,7 @@ describe('Settings — reglas de habilitado del resto de sub-pestañas', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Add' }))
     expect(screen.getByLabelText('Key Name 1')).toBeInTheDocument()
     // El algoritmo por defecto de una fila nueva es hmac-sha256.
-    expect(screen.getByLabelText('Algorithm 1')).toHaveValue('hmac-sha256')
+    expect(valorDe(screen.getByLabelText('Algorithm 1'))).toBe('HMAC-SHA256 (recommended)')
     await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
     expect(screen.queryByLabelText('Key Name 1')).not.toBeInTheDocument()
   })

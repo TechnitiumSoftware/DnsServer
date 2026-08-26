@@ -15,6 +15,7 @@ import { anadirALaTabla, OPCION_BLANK, OPCION_NONE, serializarTabla, type Celda 
 import { avisoDeFallo, MRow, adminStyles as styles, type Aviso } from './partes'
 import tbl from '../../ui/Table.module.css'
 import { Th, useOrden, type Claves } from '../../ui/Table'
+import { Select } from '../../ui/Select'
 
 /*
 `refreshAdminPermissions`, `showEditSectionPermissionsModal` y
@@ -305,7 +306,7 @@ function EditarPermisos({
           />
           <MRow label="Add User">
             {(id) => (
-              <select
+              <Select
                 id={id}
                 className={styles.select}
                 value={addUser}
@@ -321,7 +322,7 @@ function EditarPermisos({
                     {n}
                   </option>
                 ))}
-              </select>
+              </Select>
             )}
           </MRow>
 
@@ -333,7 +334,7 @@ function EditarPermisos({
           />
           <MRow label="Add Group">
             {(id) => (
-              <select
+              <Select
                 id={id}
                 className={styles.select}
                 value={addGroup}
@@ -349,7 +350,7 @@ function EditarPermisos({
                     {n}
                   </option>
                 ))}
-              </select>
+              </Select>
             )}
           </MRow>
         </>

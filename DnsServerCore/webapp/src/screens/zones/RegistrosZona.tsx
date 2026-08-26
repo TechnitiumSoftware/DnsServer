@@ -578,7 +578,7 @@ export function RegistrosZona(p: RegistrosZonaProps) {
                     </td>
                     <td>
                       {!acciones.ocultas && (
-                        <div className={styles.rowacts}>
+                        <div className={tbl.acciones}>
                           <Button
                             size="sm"
                             disabled={!p.canModify || ocupado}

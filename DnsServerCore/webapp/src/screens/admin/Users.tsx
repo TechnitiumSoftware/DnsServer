@@ -189,7 +189,7 @@ export function Users({ token, cluster, onAviso }: Props) {
                       {`${fechaHora(u.previousSessionLoggedOn)} from ${u.previousSessionRemoteAddress}`}
                     </td>
                     <td>
-                      <div className={styles.rowacts}>
+                      <div className={tbl.acciones}>
                         <Button size="sm" onClick={() => setDetalle(u.username)}>
                           View Details
                         </Button>

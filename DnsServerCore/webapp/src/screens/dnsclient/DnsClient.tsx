@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { PROTOCOLOS, TIPOS, prepararServidor, resolve } from '../../api/dnsclient'
 import { Alert, type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
-import { LabeledInput } from '../../ui/Field'
+import { LabeledInput, Select } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty } from '../../ui/Empty'
 import styles from './DnsClient.module.css'
@@ -97,15 +97,15 @@ export function DnsClient({ token }: { token: string | null }) {
         </div>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 5, width: 120 }}>
           <span style={{ fontSize: 11, color: 'var(--mute)', fontWeight: 650 }}>Type</span>
-          <select value={type} onChange={(e) => setType(e.target.value)}>
+          <Select value={type} onChange={(e) => setType(e.target.value)}>
             {TIPOS.map((t) => <option key={t}>{t}</option>)}
-          </select>
+          </Select>
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 5, width: 120 }}>
           <span style={{ fontSize: 11, color: 'var(--mute)', fontWeight: 650 }}>DNS-over-</span>
-          <select value={protocol} onChange={(e) => setProtocol(e.target.value)}>
+          <Select value={protocol} onChange={(e) => setProtocol(e.target.value)}>
             {PROTOCOLOS.map((t) => <option key={t}>{t}</option>)}
-          </select>
+          </Select>
         </label>
         <div style={{ width: 165 }}>
           <LabeledInput label="EDNS Client Subnet" mono value={ecs} onChange={(e) => setEcs(e.target.value)} />

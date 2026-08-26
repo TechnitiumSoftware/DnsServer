@@ -8,6 +8,7 @@ import * as apps from '../../api/apps'
 import type { InstalledApp } from '../../api/apps'
 import type { QueryLogEntry, QueryLogPage } from '../../api/logs'
 import { claseFila, rangoPaginas, textoEstado } from './QueryLogs'
+import { elegir, opcionesDe, valorDe } from '../../test/desplegable'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -198,12 +199,11 @@ describe('Logs › Query Logs — el formulario', () => {
     conApps([SIN_QUERY_LOGS, APP])
     render(<Logs token="t" sub="Query Logs" />)
 
-    const appName = (await screen.findByLabelText('App Name')) as HTMLSelectElement
-    expect(within(appName).getAllByRole('option').map((o) => o.textContent)).toEqual([
-      'Query Logs (Sqlite)',
-    ])
-    expect(appName).toHaveValue('Query Logs (Sqlite)')
-    expect(screen.getByLabelText('Class Path')).toHaveValue('QueryLogsSqlite.App')
+    const user = userEvent.setup()
+    const appName = await screen.findByLabelText('App Name')
+    expect(await opcionesDe(user, appName)).toEqual(['Query Logs (Sqlite)'])
+    expect(valorDe(appName)).toBe('Query Logs (Sqlite)')
+    expect(valorDe(screen.getByLabelText('Class Path'))).toBe('QueryLogsSqlite.App')
   })
 
   it('los valores por defecto son los del formulario de upstream, no los del servidor', async () => {
@@ -212,8 +212,8 @@ describe('Logs › Query Logs — el formulario', () => {
     await screen.findByLabelText('App Name')
 
     expect(screen.getByLabelText('Page Number')).toHaveValue(1)
-    expect(screen.getByLabelText('Logs Per Page')).toHaveValue('10')
-    expect(screen.getByLabelText('Order')).toHaveValue('true')
+    expect(valorDe(screen.getByLabelText('Logs Per Page'))).toBe('10')
+    expect(valorDe(screen.getByLabelText('Order'))).toBe('Descending')
     expect(screen.getByLabelText('From')).toHaveValue('')
     expect(screen.getByLabelText('Domain')).toHaveValue('')
   })
@@ -224,7 +224,7 @@ describe('Logs › Query Logs — el formulario', () => {
     render(<Logs token="t" sub="Query Logs" />)
     await screen.findByLabelText('App Name')
 
-    await user.selectOptions(screen.getByLabelText('Logs Per Page'), '100')
+    await elegir(user, screen.getByLabelText('Logs Per Page'), '100')
 
     expect(localStorage.getItem('optQueryLogsEntriesPerPage')).toBe('100')
     localStorage.removeItem('optQueryLogsEntriesPerPage')
@@ -240,7 +240,7 @@ describe('Logs › Query Logs — el formulario', () => {
     await screen.findByLabelText('App Name')
 
     await user.type(screen.getByLabelText('Domain'), 'casa.test')
-    await user.selectOptions(screen.getByLabelText('Protocol'), 'Udp')
+    await elegir(user, screen.getByLabelText('Protocol'), 'UDP')
     await user.click(screen.getByRole('button', { name: 'Query' }))
 
     expect(spy.mock.calls[0][1]).toEqual({
@@ -319,11 +319,11 @@ describe('Logs › Query Logs — el formulario', () => {
     await screen.findByLabelText('App Name')
 
     await user.type(screen.getByLabelText('Domain'), 'casa.test')
-    await user.selectOptions(screen.getByLabelText('Order'), 'false')
+    await elegir(user, screen.getByLabelText('Order'), 'Ascending')
     await user.click(screen.getByRole('button', { name: 'Reset' }))
 
     expect(screen.getByLabelText('Domain')).toHaveValue('')
-    expect(screen.getByLabelText('Order')).toHaveValue('true')
+    expect(valorDe(screen.getByLabelText('Order'))).toBe('Descending')
   })
 
   it('«Live Update» fija página y orden, vacía el rango y deshabilita esos cuatro controles', async () => {
@@ -336,11 +336,11 @@ describe('Logs › Query Logs — el formulario', () => {
     render(<Logs token="t" sub="Query Logs" />)
     await screen.findByLabelText('App Name')
 
-    await user.selectOptions(screen.getByLabelText('Order'), 'false')
+    await elegir(user, screen.getByLabelText('Order'), 'Ascending')
     await user.type(screen.getByLabelText('From'), '2026-08-25T00:00')
     await user.click(screen.getByLabelText('Live Update'))
 
-    expect(screen.getByLabelText('Order')).toHaveValue('true')
+    expect(valorDe(screen.getByLabelText('Order'))).toBe('Descending')
     expect(screen.getByLabelText('From')).toHaveValue('')
     expect(screen.getByLabelText('Page Number')).toBeDisabled()
     expect(screen.getByLabelText('Order')).toBeDisabled()

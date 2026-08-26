@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { Groups } from './Groups'
 import * as client from '../../api/client'
 import { GRUPOS } from './admin.fixture'
+import { elegir } from '../../test/desplegable'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -151,10 +152,10 @@ describe('Groups — el modal de detalles', () => {
     await user.click((await screen.findAllByRole('button', { name: 'View Details' }))[0])
     const add = await screen.findByLabelText('Add User')
 
-    await user.selectOptions(add, 'testuser')
+    await elegir(user, add, 'testuser')
     expect(screen.getByLabelText('Members')).toHaveValue('admin\ntestuser\n')
 
-    await user.selectOptions(add, 'none')
+    await elegir(user, add, 'None')
     expect(screen.getByLabelText('Members')).toHaveValue('')
   })
 

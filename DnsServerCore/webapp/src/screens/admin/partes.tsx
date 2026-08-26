@@ -6,6 +6,7 @@ import { Tag } from '../../ui/Tag'
 import type { ClusterState } from '../../api/admin-cluster'
 import styles from './Admin.module.css'
 import frm from '../../ui/Form.module.css'
+import { Select } from '../../ui/Select'
 export { Check } from '../../ui/Check'
 
 /* Las piezas que comparten las seis sub-pestañas de Administration. */
@@ -134,7 +135,7 @@ export function SelectorNodo({
   if (!cluster?.clusterInitialized) return null
   const nodos = cluster.clusterNodes ?? []
   return (
-    <select
+    <Select
       className={styles.nodo}
       aria-label={label}
       value={value}
@@ -145,7 +146,7 @@ export function SelectorNodo({
           {`${n.name} (${n.type.toLowerCase()})`}
         </option>
       ))}
-    </select>
+    </Select>
   )
 }
 

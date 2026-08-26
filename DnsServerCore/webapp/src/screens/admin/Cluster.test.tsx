@@ -5,6 +5,7 @@ import { Cluster } from './Cluster'
 import * as client from '../../api/client'
 import { CLUSTER_PRIMARIO, CLUSTER_SECUNDARIO, CLUSTER_SIN_INICIAR } from './admin.fixture'
 import type { ClusterState } from '../../api/admin-cluster'
+import { elegir, opcionesDe } from '../../test/desplegable'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -83,18 +84,18 @@ describe('Cluster — inicializar uno nuevo', () => {
 
   it('«Quick Add» añade la IP elegida al final de la lista', async () => {
     const { user } = await abrir()
-    await user.selectOptions(screen.getByLabelText('Quick Add'), '10.0.0.1')
+    await elegir(user, screen.getByLabelText('Quick Add'), '10.0.0.1')
     expect(screen.getByLabelText('Primary Node IP Addresses')).toHaveValue('10.0.0.1\n')
   })
 
   it('«Quick Add» compara por SUBCADENA, que es el bug de upstream que se replica', async () => {
     const { user } = await abrir()
     const area = screen.getByLabelText('Primary Node IP Addresses')
-    await user.selectOptions(screen.getByLabelText('Quick Add'), '10.0.0.10')
+    await elegir(user, screen.getByLabelText('Quick Add'), '10.0.0.10')
     // Con `10.0.0.10` ya en la lista, `indexOf('10.0.0.1')` la encuentra dentro
     // y upstream da la IP por añadida: `10.0.0.1` NO entra. Se replica el
     // comportamiento, no la intención.
-    await user.selectOptions(screen.getByLabelText('Quick Add'), '10.0.0.1')
+    await elegir(user, screen.getByLabelText('Quick Add'), '10.0.0.1')
     expect(area).toHaveValue('10.0.0.10\n')
   })
 
@@ -221,9 +222,11 @@ describe('Cluster — visto desde el nodo PRIMARIO', () => {
     servidor(CLUSTER_PRIMARIO)
     render(<Cluster {...props} />)
     await screen.findByText('Total Nodes: 2')
-    const selector = screen.getByLabelText('Cluster Node')
-    expect(selector).toHaveTextContent('ns1.micluster.test (primary)')
-    expect(selector).toHaveTextContent('ns2.micluster.test (secondary)')
+    const user = userEvent.setup()
+    expect(await opcionesDe(user, screen.getByLabelText('Cluster Node'))).toEqual([
+      'ns1.micluster.test (primary)',
+      'ns2.micluster.test (secondary)',
+    ])
   })
 
   it('puede editarse a sí mismo y quitar el secundario, y nada más', async () => {

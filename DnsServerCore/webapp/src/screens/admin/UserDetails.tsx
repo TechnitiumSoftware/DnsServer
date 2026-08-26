@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
-import { Input } from '../../ui/Field'
+import { Input, Select } from '../../ui/Field'
 import { Loading } from '../../ui/Empty'
 import {
   deleteAdminSession,
@@ -268,7 +268,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
 
             <MRow label="Add Group">
               {(id) => (
-                <select
+                <Select
                   id={id}
                   className={styles.select}
                   disabled={gruposBloqueados}
@@ -285,7 +285,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
                       {g}
                     </option>
                   ))}
-                </select>
+                </Select>
               )}
             </MRow>
 
@@ -316,7 +316,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
                         <span className={styles.ua}>{s.lastSeenUserAgent}</span>
                       </td>
                       <td>
-                        <div className={styles.rowacts}>
+                        <div className={tbl.acciones}>
                           <Button
                             size="sm"
                             variant="danger"

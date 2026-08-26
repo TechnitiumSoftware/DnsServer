@@ -241,7 +241,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
                   </Tag>
                 </td>
                 <td>
-                  <div className={styles.rowacts}>
+                  <div className={tbl.acciones}>
                     <Button size="sm" disabled={ocupado} onClick={() => void editar(s.name)}>
                       Edit
                     </Button>

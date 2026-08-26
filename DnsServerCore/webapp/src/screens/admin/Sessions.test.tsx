@@ -11,6 +11,7 @@ import {
   USUARIO_ADMIN,
   USUARIO_NUEVO,
 } from './admin.fixture'
+import { elegir } from '../../test/desplegable'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -120,7 +121,7 @@ describe('Sessions — «Create Token»', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Create Token' }))
     await user.type(await screen.findByLabelText('Token Name'), 'orbiter')
-    await user.selectOptions(screen.getByLabelText('Username'), 'testuser')
+    await elegir(user, screen.getByLabelText('Username'), 'testuser')
     await user.click(screen.getByRole('button', { name: 'Create' }))
 
     const llamada = spy.mock.calls.find((c) => c[0] === 'admin/sessions/createToken')

@@ -1,4 +1,4 @@
-import { useId, type InputHTMLAttributes, type ReactNode, type Ref, type TextareaHTMLAttributes, type SelectHTMLAttributes } from 'react'
+import { useId, type ComponentProps, type InputHTMLAttributes, type ReactNode, type Ref, type TextareaHTMLAttributes } from 'react'
 import styles from './Field.module.css'
 
 export function Field({ label, children }: { label: string; children: (id: string) => ReactNode }) {
@@ -53,13 +53,19 @@ export function LabeledTextarea({ label, mono, ...rest }: TextareaProps & { labe
   return <Field label={label}>{(id) => <Textarea id={id} mono={mono} {...rest} />}</Field>
 }
 
-export type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & { ref?: Ref<HTMLSelectElement> }
+/*
+El desplegable vive en `ui/Select`: ya no es un `<select>` nativo, así que no
+toma `SelectHTMLAttributes` sino su lista de opciones. Se re-exporta desde aquí
+porque las pantallas lo piden junto al resto de campos.
+*/
+import { Select, type Opcion } from './Select'
 
-export function Select({ className, ...rest }: SelectProps) {
-  return <select className={[styles.input, className].filter(Boolean).join(' ')} {...rest} />
-}
+export { Select, type Opcion }
 
 /** Desplegable con etiqueta asociada. Lo pidieron las fases 6 y 7. */
-export function LabeledSelect({ label, ...rest }: SelectProps & { label: string }) {
+export function LabeledSelect({
+  label,
+  ...rest
+}: Omit<ComponentProps<typeof Select>, 'id'> & { label: string }) {
   return <Field label={label}>{(id) => <Select id={id} {...rest} />}</Field>
 }

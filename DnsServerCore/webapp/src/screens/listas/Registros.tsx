@@ -85,7 +85,7 @@ function Fila({ r, conDnssec, nodo }: { r: RegistroDns; conDnssec: boolean; nodo
         </td>
       )}
       <td>
-        <div className={styles.rowacts}>
+        <div className={tbl.acciones}>
           {r.glueRecords && (
             <Button
               size="sm"

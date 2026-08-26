@@ -73,3 +73,51 @@ más ancha de todas y la que más falta le hace para no perder el renglón.
 .orden:hover .flecha,
 [aria-sort='ascending'] .flecha,
 [aria-sort='descending'] .flecha { color: var(--acc); }
+
+/*
+Las acciones de una fila, como UN grupo y no como cuatro fichas sueltas.
+
+Sueltas no se leían: su fondo quedaba a 1.25:1 de la fila y su borde a 1.57:1,
+o sea que el control no se separaba de la fila que lo contiene, y el `⋮` acababa
+siendo una tira estrecha al lado de «Delete» que parecía un fallo de maquetación.
+
+Agrupadas en un segmentado con un solo borde y divisiones dentro, la fila tiene
+UN sitio donde se actúa, y ese sitio sí se ve. Además ocupa menos y aguanta que
+una fila tenga tres acciones y la de al lado cinco.
+*/
+.acciones {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  overflow: hidden;
+  background: var(--pan2);
+  box-shadow: var(--filo);
+}
+
+.acciones > * {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  min-height: 30px;
+  color: var(--ink);
+  font-weight: 500;
+  font-size: var(--t-4);
+}
+
+.acciones > * + * { border-left: 1px solid var(--line) !important; }
+
+.acciones > *:hover:not(:disabled) { background: var(--hover) !important; }
+.acciones > *:disabled { color: var(--faint); }
+
+/* El de borrar mantiene su color, pero dentro del grupo: no se rellena de rojo
+   porque una fila con un bloque rojo convierte la tabla en una alarma. */
+.acciones > [data-variant='danger'] { color: var(--dan); font-weight: 500; }
+.acciones > [data-variant='danger']:hover:not(:disabled) {
+  background: var(--dan-fill) !important;
+  color: var(--on-dan);
+}
+
+/* El de «más acciones» es cuadrado: sin rótulo, la anchura la da el icono. */
+.acciones > [data-icono='true'] { padding-left: var(--s-6); padding-right: var(--s-6); }

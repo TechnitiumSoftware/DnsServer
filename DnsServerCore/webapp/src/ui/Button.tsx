@@ -11,14 +11,19 @@ tres módulos y no existía en DHCP, que usaba el botón grande: la misma acció
 export function Button({
   variant = 'secondary',
   size = 'md',
+  icono = false,
   className,
   ...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant
   size?: 'md' | 'sm'
+  /** Sin rótulo: sólo un icono. El ancho lo da el icono, no el texto. */
+  icono?: boolean
 }) {
   return (
     <button
+      data-variant={variant}
+      data-icono={icono || undefined}
       className={[styles.btn, size === 'sm' && styles.sm, variant !== 'secondary' && styles[variant], className]
         .filter(Boolean)
         .join(' ')}

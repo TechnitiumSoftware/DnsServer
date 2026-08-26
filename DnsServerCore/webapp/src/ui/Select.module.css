@@ -1,0 +1,90 @@
+/*
+El disparador es el mismo hueco que un campo de texto: en un formulario, elegir
+y escribir tienen que pesar lo mismo. Lo que cambia es que éste se abre.
+*/
+
+.disparador {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-6);
+  width: 100%;
+  min-height: var(--campo-alto);
+  padding: var(--s-5) var(--s-7);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  background-color: var(--field);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--t-4);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--hundido);
+  transition: border-color var(--t-rapido), box-shadow var(--t-rapido);
+}
+
+.disparador:hover:not(:disabled) { border-color: #3a465b; }
+
+.disparador:focus-visible,
+.disparador[aria-expanded='true'] {
+  outline: none;
+  border-color: var(--acc);
+  box-shadow: var(--hundido), var(--halo-foco);
+}
+
+.disparador:disabled { opacity: 0.45; cursor: default; }
+
+.valor { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vacio { color: var(--faint); }
+
+.chevron { color: var(--mute); flex: none; transition: transform var(--t-rapido); }
+.disparador[aria-expanded='true'] .chevron { transform: rotate(180deg); }
+
+/*
+La lista. Va elevada de verdad —dos escalones por encima del campo— porque
+flota sobre el formulario y tiene que leerse como algo que está por delante.
+*/
+.lista {
+  position: fixed;
+  scrollbar-width: thin;
+  z-index: 60;
+  overflow-y: auto;
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  background: var(--pan2);
+  box-shadow: var(--e-2), var(--filo);
+}
+
+.opcion {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-2);
+  font-size: var(--t-4);
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.opcion[data-activa='true'] { background: var(--hover); }
+.opcion[aria-selected='true'] { color: var(--acc); font-weight: 600; }
+.opcion[aria-disabled='true'] { color: var(--faint); cursor: default; }
+.opcion[aria-disabled='true'][data-activa='true'] { background: none; }
+
+/* Hueco fijo para la marca: sin él, elegir movería el texto de sitio. */
+.marca {
+  display: inline-flex;
+  justify-content: center;
+  width: 14px;
+  flex: none;
+  color: var(--acc);
+}
+
+.vacia { color: var(--faint); }
+
+@media (prefers-reduced-motion: reduce) {
+  .disparador,
+  .chevron { transition: none; }
+}

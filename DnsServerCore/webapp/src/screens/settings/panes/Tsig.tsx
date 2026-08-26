@@ -1,4 +1,4 @@
-import { Input } from '../../../ui/Field'
+import { Input, Select } from '../../../ui/Field'
 import { Avisos, Block, EditableTable, Note, settingsStyles as styles } from '../parts'
 import type { PaneProps } from './tipos'
 
@@ -41,7 +41,7 @@ export function Tsig({ f, set }: PaneProps) {
             value={fila.sharedSecret}
             onChange={(e) => setFila({ sharedSecret: e.target.value })}
           />,
-          <select
+          <Select
             key="a"
             className={styles.select}
             aria-label={`Algorithm ${i + 1}`}
@@ -53,7 +53,7 @@ export function Tsig({ f, set }: PaneProps) {
                 {a.label}
               </option>
             ))}
-          </select>,
+          </Select>,
         ]}
         help="The shared secret can be a base64 string or a literal string. Keep the shared secret empty if you want to auto generate a strong key."
       />

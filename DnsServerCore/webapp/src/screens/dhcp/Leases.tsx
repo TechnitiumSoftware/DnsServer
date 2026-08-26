@@ -182,7 +182,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
                 <td className={styles.fecha}>{fechaMinuto(l.leaseObtained)}</td>
                 <td className={styles.fecha}>{fechaMinuto(l.leaseExpires)}</td>
                 <td>
-                  <div className={styles.rowacts}>
+                  <div className={tbl.acciones}>
                     {/* dhcp.js:63-64 — cuál de las dos conversiones se ofrece
                         depende del tipo actual de la concesión. */}
                     {canModify && l.type === 'Dynamic' && (

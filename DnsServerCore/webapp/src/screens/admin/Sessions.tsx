@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
-import { Input } from '../../ui/Field'
+import { Input, Select } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Loading } from '../../ui/Empty'
 import {
@@ -166,7 +166,7 @@ export function Sessions({ token, cluster, onAviso }: Props) {
                       <span className={styles.ua}>{s.lastSeenUserAgent}</span>
                     </td>
                     <td>
-                      <div className={styles.rowacts}>
+                      <div className={tbl.acciones}>
                         <Button
                           size="sm"
                           onClick={() => setVerUsuario(s.username)}
@@ -338,7 +338,7 @@ function CrearApiToken({
         <>
           <MRow label="Username">
             {(id) => (
-              <select
+              <Select
                 id={id}
                 className={styles.select}
                 value={usuario}
@@ -349,7 +349,7 @@ function CrearApiToken({
                     {u}
                   </option>
                 ))}
-              </select>
+              </Select>
             )}
           </MRow>
           <MRow label="Token Name">

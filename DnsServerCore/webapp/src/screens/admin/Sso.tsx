@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useState } from 'react'
 import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
-import { Input } from '../../ui/Field'
+import { Input, Select } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Loading } from '../../ui/Empty'
 import { getSsoConfig, setSsoConfig, type SsoConfig } from '../../api/admin'
@@ -337,7 +337,7 @@ export function Sso({ token, onAviso }: Props) {
                       />
                     </td>
                     <td>
-                      <select
+                      <Select
                         className={styles.select}
                         aria-label={`Local Group ${i + 1}`}
                         value={f.localGroup}
@@ -352,7 +352,7 @@ export function Sso({ token, onAviso }: Props) {
                             {g}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </td>
                     <td className={styles.tdel}>
                       <Button

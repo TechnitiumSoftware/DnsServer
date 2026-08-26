@@ -605,7 +605,7 @@ function FilaZona(p: FilaProps) {
         {fecha(z.lastModified)}
       </td>
       <td>
-        <div className={styles.rowacts}>
+        <div className={tbl.acciones}>
           <Button
             size="sm"
             disabled={!p.canModify || p.ocupado || !CON_OPCIONES.includes(z.type)}

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { Permissions } from './Permissions'
 import * as client from '../../api/client'
 import { CLUSTER_PRIMARIO, PERMISOS } from './admin.fixture'
+import { elegir } from '../../test/desplegable'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -121,7 +122,7 @@ describe('Permissions — el modal de edición', () => {
 
   it('«Add User» añade la fila con los tres permisos a falso', async () => {
     const { user, spy } = await abrir()
-    await user.selectOptions(screen.getByLabelText('Add User'), 'testuser')
+    await elegir(user, screen.getByLabelText('Add User'), 'testuser')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     const body = spy.mock.calls.find((c) => c[0] === 'admin/permissions/set')?.[1]?.body as Record<string, string>
@@ -130,7 +131,7 @@ describe('Permissions — el modal de edición', () => {
 
   it('«None» vacía la tabla entera', async () => {
     const { user, spy } = await abrir()
-    await user.selectOptions(screen.getByLabelText('Add Group'), 'none')
+    await elegir(user, screen.getByLabelText('Add Group'), 'None')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     const body = spy.mock.calls.find((c) => c[0] === 'admin/permissions/set')?.[1]?.body as Record<string, string>

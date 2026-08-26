@@ -8,7 +8,6 @@
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .nombre { font-weight: 650; color: var(--ink); white-space: nowrap; }
 .fecha { white-space: nowrap; font-family: var(--font-mono); font-size: var(--t-3); }
-.rowacts { display: flex; gap: var(--s-3); justify-content: flex-end; flex-wrap: wrap; }
 .total { font-size: var(--t-4); color: var(--mute); margin-top: var(--s-8); }
 .kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--s-1) var(--s-8); margin: 0; }
 .kv dt { font-size: var(--t-3); color: var(--mute); white-space: nowrap; }

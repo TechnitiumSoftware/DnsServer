@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { Users } from './Users'
 import * as client from '../../api/client'
 import { DETALLE_USUARIO, USUARIO_ADMIN, USUARIO_NUEVO, USUARIO_SSO } from './admin.fixture'
+import { elegir } from '../../test/desplegable'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -285,10 +286,10 @@ describe('Users — el modal de detalles', () => {
     await user.click(await screen.findByRole('button', { name: 'View Details' }))
     const add = await screen.findByLabelText('Add Group')
 
-    await user.selectOptions(add, 'Administrators')
+    await elegir(user, add, 'Administrators')
     expect(screen.getByLabelText('Member Of')).toHaveValue('Administrators\n')
 
-    await user.selectOptions(add, 'DNS Administrators')
+    await elegir(user, add, 'DNS Administrators')
     expect(screen.getByLabelText('Member Of')).toHaveValue('Administrators\nDNS Administrators\n')
 
     await user.click(screen.getByRole('button', { name: 'Save' }))

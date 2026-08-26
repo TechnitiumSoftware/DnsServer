@@ -33,7 +33,6 @@
 .verlo { border:0; background:transparent; padding: 0; font:inherit; font-size: var(--t-3); color:var(--acc); cursor:pointer; white-space:nowrap; }
 .meta { margin-top: var(--s-4); font-size: var(--t-2); color:var(--faint); }
 
-.rowacts { display:flex; gap: var(--s-3); justify-content:flex-end; flex-wrap:nowrap; align-items:flex-start; }
 /* Menú desplegable de acciones de fila y de cabecera */
 .menu { position:relative; display:inline-block; }
 .menuLista { position:absolute; right:0; top:calc(100% + 4px); z-index:20; min-width:170px; padding: var(--s-3); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); box-shadow: var(--e-2), var(--filo); display:flex; flex-direction:column; }

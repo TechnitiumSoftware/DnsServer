@@ -48,6 +48,7 @@ export function Menu({
     <div className={styles.menu} ref={caja}>
       <Button
         size="sm"
+        icono={rotulo == null}
         aria-haspopup="menu"
         aria-expanded={abierto}
         aria-label={etiqueta}

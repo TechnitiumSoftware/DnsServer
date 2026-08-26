@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Sso } from './Sso'
 import * as client from '../../api/client'
 import { SSO } from './admin.fixture'
+import { opcionesDe } from '../../test/desplegable'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -193,8 +194,7 @@ describe('SSO — el envío', () => {
     await screen.findByLabelText('Remote Group 1')
     await user.click(screen.getByRole('button', { name: 'Save Config' }))
 
-    const select = await screen.findByLabelText('Local Group 1')
-    expect(within(select).queryAllByRole('option')).toHaveLength(3)
+    expect(await opcionesDe(user, await screen.findByLabelText('Local Group 1'))).toHaveLength(3)
   })
 })
 

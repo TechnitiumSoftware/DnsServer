@@ -15,7 +15,6 @@
 
 .count { display:flex; align-items:center; justify-content:space-between; gap: var(--s-7); font-size: var(--t-4); color:var(--mute); margin-top: var(--s-8); }
 
-.rowacts { display:flex; gap: var(--s-3); justify-content:flex-end; flex-wrap:wrap; }
 /* El nombre de usuario / grupo / sección de la primera columna abre su ficha. */
 .link { border:0; background:transparent; padding: 0; font:inherit; color:var(--acc); cursor:pointer; text-align:left; word-break:break-all; }
 .link:hover { text-decoration:underline; }

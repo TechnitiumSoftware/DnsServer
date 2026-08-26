@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useState } from 'react'
 import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
-import { Input } from '../../ui/Field'
+import { Input, Select } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty, Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
@@ -249,7 +249,7 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
                       )}
                     </td>
                     <td>
-                      <div className={styles.rowacts}>
+                      <div className={tbl.acciones}>
                         {esPrimario && n.state === 'Self' && (
                           <Button
                             size="sm"
@@ -509,7 +509,7 @@ function QuickAdd({
       <label className={styles.suffix} htmlFor={id}>
         {label}
       </label>
-      <select
+      <Select
         id={id}
         className={styles.select}
         value={valor}
@@ -524,7 +524,7 @@ function QuickAdd({
             {ip}
           </option>
         ))}
-      </select>
+      </Select>
     </div>
   )
 }
