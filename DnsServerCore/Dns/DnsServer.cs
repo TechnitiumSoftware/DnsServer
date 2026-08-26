@@ -2062,7 +2062,7 @@ namespace DnsServerCore.Dns
                 Security.ReflectionRrlRequestTrust rrlTrust = cookieClassification.State == Security.CookieRequestState.ValidServerCookie
                     ? Security.ReflectionRrlRequestTrust.ValidServerCookie
                     : Security.ReflectionRrlRequestTrust.Unverified;
-                if (Security.ReflectionRrlPolicy.ShouldEvaluate(_rrlRuntime.Enabled, isUdp: true, rrlTrust))
+                if (response.Question.Count > 0 && Security.ReflectionRrlPolicy.ShouldEvaluate(_rrlRuntime.Enabled, isUdp: true, rrlTrust))
                 {
                     DnsQuestionRecord question = response.Question[0];
                     Security.UdpResponseRateLimitResult rrlResult = _rrlRuntime.Evaluate(remoteEP.Address, responseCategory,
