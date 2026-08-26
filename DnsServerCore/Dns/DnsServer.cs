@@ -208,8 +208,12 @@ namespace DnsServerCore.Dns
         bool _enableDnsOverHttps;
         bool _enableDnsOverHttp3;
         bool _enableDnsOverQuic;
+        const int DNS_COOKIE_STANDALONE_ROTATION_MINIMUM_PERIOD_HOURS = 24;
+        const int DNS_COOKIE_STANDALONE_ROTATION_DEFAULT_PERIOD_HOURS = 30 * 24;
+        const int DNS_COOKIE_STANDALONE_ROTATION_MAXIMUM_PERIOD_HOURS = 366 * 24;
         bool _useDnsCookies;
         bool _enableDnsCookieStandaloneAutomaticRotation;
+        int _dnsCookieStandaloneAutomaticRotationPeriodHours = DNS_COOKIE_STANDALONE_ROTATION_DEFAULT_PERIOD_HOURS;
         bool _dnsCookieClusterManaged;
         IReadOnlyCollection<NetworkAccessControl> _reverseProxyNetworkACL;
         bool _enableDnsOverHttpHelpRedirect = true;
@@ -1279,9 +1283,17 @@ namespace DnsServerCore.Dns
 
             _enableUdpReflectionLimiting = s.Position < s.Length && bR.ReadBoolean();
             _enableDnsCookieStandaloneAutomaticRotation = s.Position < s.Length && bR.ReadBoolean();
+            _dnsCookieStandaloneAutomaticRotationPeriodHours = DNS_COOKIE_STANDALONE_ROTATION_DEFAULT_PERIOD_HOURS;
+            if (s.Position < s.Length)
+            {
+                int persistedRotationPeriodHours = bR.ReadInt32();
+                ValidateDnsCookieStandaloneRotationPeriod(persistedRotationPeriodHours);
+                _dnsCookieStandaloneAutomaticRotationPeriodHours = persistedRotationPeriodHours;
+            }
 
             _cookieCoordinator.Configure(_useDnsCookies);
-            _cookieCoordinator.ConfigureStandaloneAutomaticRotation(_enableDnsCookieStandaloneAutomaticRotation && !_dnsCookieClusterManaged);
+            _cookieCoordinator.ConfigureStandaloneAutomaticRotation(_enableDnsCookieStandaloneAutomaticRotation && !_dnsCookieClusterManaged,
+                TimeSpan.FromHours(_dnsCookieStandaloneAutomaticRotationPeriodHours));
         }
 
         private void WriteConfigTo(Stream s)
@@ -1584,6 +1596,7 @@ namespace DnsServerCore.Dns
             AuthZoneInfo.WriteNetworkAddressesTo(rrlOptions.BypassList, bW);
             bW.Write(_enableUdpReflectionLimiting);
             bW.Write(_enableDnsCookieStandaloneAutomaticRotation);
+            bW.Write(_dnsCookieStandaloneAutomaticRotationPeriodHours);
         }
         #endregion
 
@@ -7972,7 +7985,33 @@ namespace DnsServerCore.Dns
                     return;
 
                 _enableDnsCookieStandaloneAutomaticRotation = value;
-                _cookieCoordinator.ConfigureStandaloneAutomaticRotation(value);
+                _cookieCoordinator.ConfigureStandaloneAutomaticRotation(value,
+                    TimeSpan.FromHours(_dnsCookieStandaloneAutomaticRotationPeriodHours));
+            }
+        }
+
+        public int DnsCookieStandaloneAutomaticRotationPeriodHours
+        {
+            get => _dnsCookieStandaloneAutomaticRotationPeriodHours;
+            set
+            {
+                ValidateDnsCookieStandaloneRotationPeriod(value);
+                if (_dnsCookieStandaloneAutomaticRotationPeriodHours == value)
+                    return;
+
+                _dnsCookieStandaloneAutomaticRotationPeriodHours = value;
+                _cookieCoordinator.ConfigureStandaloneAutomaticRotation(_enableDnsCookieStandaloneAutomaticRotation && !_dnsCookieClusterManaged,
+                    TimeSpan.FromHours(value));
+            }
+        }
+
+        private static void ValidateDnsCookieStandaloneRotationPeriod(int periodHours)
+        {
+            if (periodHours < DNS_COOKIE_STANDALONE_ROTATION_MINIMUM_PERIOD_HOURS ||
+                periodHours > DNS_COOKIE_STANDALONE_ROTATION_MAXIMUM_PERIOD_HOURS)
+            {
+                throw new ArgumentOutOfRangeException(nameof(periodHours),
+                    $"DNS Cookie standalone rotation period must be between {DNS_COOKIE_STANDALONE_ROTATION_MINIMUM_PERIOD_HOURS} and {DNS_COOKIE_STANDALONE_ROTATION_MAXIMUM_PERIOD_HOURS} hours.");
             }
         }
 
@@ -7982,7 +8021,8 @@ namespace DnsServerCore.Dns
                 return;
 
             _dnsCookieClusterManaged = clusterManaged;
-            _cookieCoordinator.ConfigureStandaloneAutomaticRotation(_enableDnsCookieStandaloneAutomaticRotation && !clusterManaged);
+            _cookieCoordinator.ConfigureStandaloneAutomaticRotation(_enableDnsCookieStandaloneAutomaticRotation && !clusterManaged,
+                TimeSpan.FromHours(_dnsCookieStandaloneAutomaticRotationPeriodHours));
         }
 
         // Monotonic instrumentation for transport-path tests and operational diagnostics.

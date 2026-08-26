@@ -1252,6 +1252,7 @@ function loadDnsSettings(responseJSON) {
     $("#chkEnableUdpReflectionLimiting").prop("checked", responseJSON.response.enableUdpReflectionLimiting);
     $("#chkEnableResponseRateLimiting").prop("checked", responseJSON.response.enableResponseRateLimiting);
     $("#chkEnableDnsCookieStandaloneAutomaticRotation").prop("checked", responseJSON.response.enableDnsCookieStandaloneAutomaticRotation);
+    $("#txtDnsCookieStandaloneAutomaticRotationPeriodHours").val(responseJSON.response.dnsCookieStandaloneAutomaticRotationPeriodHours);
     $("#txtResponseRateLimit").val(responseJSON.response.responseRateLimit);
     $("#txtResponseRateLimitInstant").val(responseJSON.response.responseRateLimitInstant);
     $("#txtResponseRateLimitSlip").val(responseJSON.response.responseRateLimitSlip);
@@ -1929,6 +1930,14 @@ function saveDnsSettings(objBtn) {
         var enableDnsOverQuic = $("#chkEnableDnsOverQuic").prop("checked");
         var useDnsCookies = $("#chkUseDnsCookies").prop("checked");
         var enableDnsCookieStandaloneAutomaticRotation = $("#chkEnableDnsCookieStandaloneAutomaticRotation").prop("checked");
+        var dnsCookieStandaloneAutomaticRotationPeriodHours = $("#txtDnsCookieStandaloneAutomaticRotationPeriodHours").val();
+        if (!/^\d+$/.test(dnsCookieStandaloneAutomaticRotationPeriodHours) ||
+            parseInt(dnsCookieStandaloneAutomaticRotationPeriodHours, 10) < 24 ||
+            parseInt(dnsCookieStandaloneAutomaticRotationPeriodHours, 10) > 8784) {
+            showAlert("warning", "Invalid DNS Cookie rotation period", "Enter a whole number between 24 and 8784 hours.");
+            $("#txtDnsCookieStandaloneAutomaticRotationPeriodHours").trigger("focus");
+            return;
+        }
 
         var enableDnsOverHttpHelpRedirect = $("#chkEnableDnsOverHttpHelpRedirect").prop("checked");
 
@@ -1989,7 +1998,7 @@ function saveDnsSettings(objBtn) {
         var dnsTlsCertificatePath = $("#txtDnsTlsCertificatePath").val();
         var dnsTlsCertificatePassword = $("#txtDnsTlsCertificatePassword").val();
 
-        formData += "&enableEDnsClientSubnetSourceAddress=" + enableEDnsClientSubnetSourceAddress + "&enableDnsOverUdpProxy=" + enableDnsOverUdpProxy + "&enableDnsOverTcpProxy=" + enableDnsOverTcpProxy + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverHttpUnixSocket=" + enableDnsOverHttpUnixSocket + "&enableDnsOverHttpsUnixSocket=" + enableDnsOverHttpsUnixSocket + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&enableDnsOverHttp3=" + enableDnsOverHttp3 + "&enableDnsOverQuic=" + enableDnsOverQuic + "&enableDnsOverHttpHelpRedirect=" + enableDnsOverHttpHelpRedirect + "&dnsOverUdpProxyPort=" + dnsOverUdpProxyPort + "&dnsOverTcpProxyPort=" + dnsOverTcpProxyPort + "&dnsOverHttpPort=" + dnsOverHttpPort + "&dnsOverHttpUnixSocket=" + encodeURIComponent(dnsOverHttpUnixSocket) + "&dnsOverHttpsUnixSocket=" + encodeURIComponent(dnsOverHttpsUnixSocket) + "&dnsOverTlsPort=" + dnsOverTlsPort + "&dnsOverHttpsPort=" + dnsOverHttpsPort + "&dnsOverQuicPort=" + dnsOverQuicPort + "&dnsReverseProxyNetworkACL=" + encodeURIComponent(dnsReverseProxyNetworkACL) + "&dnsOverHttpRealIpHeader=" + encodeURIComponent(dnsOverHttpRealIpHeader) + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword) + "&useDnsCookies=" + useDnsCookies + "&enableDnsCookieStandaloneAutomaticRotation=" + enableDnsCookieStandaloneAutomaticRotation;
+        formData += "&enableEDnsClientSubnetSourceAddress=" + enableEDnsClientSubnetSourceAddress + "&enableDnsOverUdpProxy=" + enableDnsOverUdpProxy + "&enableDnsOverTcpProxy=" + enableDnsOverTcpProxy + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverHttpUnixSocket=" + enableDnsOverHttpUnixSocket + "&enableDnsOverHttpsUnixSocket=" + enableDnsOverHttpsUnixSocket + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&enableDnsOverHttp3=" + enableDnsOverHttp3 + "&enableDnsOverQuic=" + enableDnsOverQuic + "&enableDnsOverHttpHelpRedirect=" + enableDnsOverHttpHelpRedirect + "&dnsOverUdpProxyPort=" + dnsOverUdpProxyPort + "&dnsOverTcpProxyPort=" + dnsOverTcpProxyPort + "&dnsOverHttpPort=" + dnsOverHttpPort + "&dnsOverHttpUnixSocket=" + encodeURIComponent(dnsOverHttpUnixSocket) + "&dnsOverHttpsUnixSocket=" + encodeURIComponent(dnsOverHttpsUnixSocket) + "&dnsOverTlsPort=" + dnsOverTlsPort + "&dnsOverHttpsPort=" + dnsOverHttpsPort + "&dnsOverQuicPort=" + dnsOverQuicPort + "&dnsReverseProxyNetworkACL=" + encodeURIComponent(dnsReverseProxyNetworkACL) + "&dnsOverHttpRealIpHeader=" + encodeURIComponent(dnsOverHttpRealIpHeader) + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword) + "&useDnsCookies=" + useDnsCookies + "&enableDnsCookieStandaloneAutomaticRotation=" + enableDnsCookieStandaloneAutomaticRotation + "&dnsCookieStandaloneAutomaticRotationPeriodHours=" + dnsCookieStandaloneAutomaticRotationPeriodHours;
     }
 
     //tsig

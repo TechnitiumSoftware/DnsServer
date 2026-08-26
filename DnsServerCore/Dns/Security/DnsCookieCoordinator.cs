@@ -97,7 +97,7 @@ namespace DnsServerCore.Dns.Security
     public sealed class DnsCookieCoordinator
     {
         private const string SecretFileName = "dns.cookies.state";
-        private static readonly TimeSpan StandaloneAutomaticRotationPeriod = TimeSpan.FromHours(1);
+        private static readonly TimeSpan DefaultStandaloneAutomaticRotationPeriod = TimeSpan.FromDays(30);
 
         private const int ClientCookieLength = 8;
         private const int ServerCookieMinLength = 8;
@@ -112,6 +112,7 @@ namespace DnsServerCore.Dns.Security
         RuntimeState _state = DisabledState.Instance;
         long _generation;
         bool _enableStandaloneAutomaticRotation;
+        TimeSpan _standaloneAutomaticRotationPeriod = DefaultStandaloneAutomaticRotationPeriod;
         Timer _standaloneRotationTimer;
 
         // Optional observability counters (not currently exposed; see ValidationInvocations for
@@ -181,11 +182,15 @@ namespace DnsServerCore.Dns.Security
             }
         }
 
-        public void ConfigureStandaloneAutomaticRotation(bool enabled)
+        public void ConfigureStandaloneAutomaticRotation(bool enabled, TimeSpan rotationPeriod)
         {
+            if (rotationPeriod <= TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(rotationPeriod));
+
             lock (_lock)
             {
                 _enableStandaloneAutomaticRotation = enabled;
+                _standaloneAutomaticRotationPeriod = rotationPeriod;
                 _standaloneRotationTimer?.Dispose();
                 _standaloneRotationTimer = null;
 
@@ -233,8 +238,17 @@ namespace DnsServerCore.Dns.Security
         private void ScheduleStandaloneTransition(DnsCookieSecretManager secretManager)
         {
             _standaloneRotationTimer?.Dispose();
+            _standaloneRotationTimer = null;
+
+            if (secretManager.RolloverState == DnsCookieSecretRolloverState.Activated)
+                return; //Retirement is manual so the RFC 9018 TTL-aware hold is never bypassed.
+
+            TimeSpan dueTime = secretManager.GetNextTransitionUtc(_standaloneAutomaticRotationPeriod) - DateTime.UtcNow;
+            if (dueTime < TimeSpan.Zero)
+                dueTime = TimeSpan.Zero;
+
             _standaloneRotationTimer = new Timer(_ => RotateStandaloneSecrets(secretManager), null,
-                StandaloneAutomaticRotationPeriod, Timeout.InfiniteTimeSpan);
+                dueTime, Timeout.InfiniteTimeSpan);
         }
 
         private string GetSecretPath()

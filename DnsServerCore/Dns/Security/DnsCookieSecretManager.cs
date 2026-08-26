@@ -455,8 +455,17 @@ namespace DnsServerCore.Dns.Security
 
         internal DateTime GetNextTransitionUtc(TimeSpan rotationPeriod)
         {
+            if (rotationPeriod <= TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(rotationPeriod));
+
             Snapshot snapshot = Volatile.Read(ref _snapshot);
-            return snapshot.ActiveCreatedUtc + rotationPeriod;
+            return snapshot.RolloverState switch
+            {
+                DnsCookieSecretRolloverState.None => snapshot.ActiveCreatedUtc + rotationPeriod,
+                DnsCookieSecretRolloverState.Staged => DateTime.UtcNow,
+                DnsCookieSecretRolloverState.Activated => DateTime.MaxValue,
+                _ => throw new InvalidOperationException("The DNS Cookie rollover state is invalid.")
+            };
         }
 
         internal void GetSecrets(out byte[] active, out byte[] staging, out byte[] previous)

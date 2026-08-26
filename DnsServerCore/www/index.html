@@ -1305,6 +1305,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-8 checkbox"><label><input id="chkEnableDnsCookieStandaloneAutomaticRotation" type="checkbox"> Enable automatic rotation (standalone only)</label></div>
                                                         </div>
                                                         <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Rotation period</label>
+                                                            <div class="col-sm-4 input-group"><input id="txtDnsCookieStandaloneAutomaticRotationPeriodHours" type="number" min="24" max="8784" step="1" class="form-control" value="720"><span class="input-group-addon">hours</span></div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Default: 720 hours (30 days). Available only for standalone rotation. Automatic rotation stages and activates a secret, then retains the previous secret for manual, TTL-aware retirement.</div>
+                                                        </div>
+                                                        <div class="form-group">
                                                             <label class="col-sm-3 control-label">Active secret fingerprint</label>
                                                             <div class="col-sm-8"><p id="lblDnsCookieActiveSecretFingerprint" class="form-control-static"><code>Unavailable</code></p></div>
                                                         </div>
