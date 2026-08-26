@@ -532,7 +532,10 @@ namespace DnsServerCore
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 jsonWriter.WriteNumber("validationInvocations", statistics.ValidationInvocations);
                 jsonWriter.WriteNumber("validCount", statistics.ValidCount);
+                jsonWriter.WriteNumber("validCurrentCount", statistics.ValidCurrentCount);
+                jsonWriter.WriteNumber("validRenewCount", statistics.ValidRenewCount);
                 jsonWriter.WriteNumber("invalidCount", statistics.InvalidCount);
+                jsonWriter.WriteNumber("malformedCount", statistics.MalformedCount);
                 jsonWriter.WriteNumber("missingCount", statistics.MissingCount);
                 jsonWriter.WriteNumber("badCookieSentCount", statistics.BadCookieSentCount);
                 jsonWriter.WriteNumber("clientOnlyCount", statistics.ClientOnlyCount);

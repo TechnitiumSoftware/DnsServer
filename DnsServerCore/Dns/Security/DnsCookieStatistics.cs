@@ -29,11 +29,15 @@ namespace DnsServerCore.Dns.Security
     {
         #region constructor
 
-        public DnsCookieStatistics(long validationInvocations, long validCount, long invalidCount, long missingCount, long badCookieSentCount, long clientOnlyCount)
+        public DnsCookieStatistics(long validationInvocations, long validCount, long validCurrentCount, long validRenewCount,
+            long invalidCount, long malformedCount, long missingCount, long badCookieSentCount, long clientOnlyCount)
         {
             ValidationInvocations = validationInvocations;
             ValidCount = validCount;
+            ValidCurrentCount = validCurrentCount;
+            ValidRenewCount = validRenewCount;
             InvalidCount = invalidCount;
+            MalformedCount = malformedCount;
             MissingCount = missingCount;
             BadCookieSentCount = badCookieSentCount;
             ClientOnlyCount = clientOnlyCount;
@@ -54,11 +58,20 @@ namespace DnsServerCore.Dns.Security
         /// </summary>
         public long ValidCount { get; }
 
+        /// <summary>Number of requests validated by the current Active secret.</summary>
+        public long ValidCurrentCount { get; }
+
+        /// <summary>Number of requests accepted with a prior secret and renewed with Active.</summary>
+        public long ValidRenewCount { get; }
+
         /// <summary>
         /// Number of requests with invalid (rejected) server cookies.
         /// Can indicate: (1) forged cookies, (2) expired keys, (3) anycast clock skew, (4) truncation/corruption.
         /// </summary>
         public long InvalidCount { get; }
+
+        /// <summary>Number of structurally malformed COOKIE options that received FORMERR.</summary>
+        public long MalformedCount { get; }
 
         /// <summary>
         /// Number of requests with no server cookie (client cookie only, or neither).

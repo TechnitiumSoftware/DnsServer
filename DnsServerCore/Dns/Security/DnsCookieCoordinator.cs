@@ -114,7 +114,10 @@ namespace DnsServerCore.Dns.Security
         // Optional observability counters (not currently exposed; see ValidationInvocations for
         // the one counter DnsServer does expose publicly).
         long _validCount;
+        long _validCurrentCount;
+        long _validRenewCount;
         long _invalidCount;
+        long _malformedCount;
         long _missingCount;
         long _badCookieSentCount;
         long _clientOnlyCount;
@@ -236,7 +239,10 @@ namespace DnsServerCore.Dns.Security
             return new DnsCookieStatistics(
                 Interlocked.Read(ref _validationInvocations),
                 Interlocked.Read(ref _validCount),
+                Interlocked.Read(ref _validCurrentCount),
+                Interlocked.Read(ref _validRenewCount),
                 Interlocked.Read(ref _invalidCount),
+                Interlocked.Read(ref _malformedCount),
                 Interlocked.Read(ref _missingCount),
                 Interlocked.Read(ref _badCookieSentCount),
                 Interlocked.Read(ref _clientOnlyCount));
@@ -329,6 +335,7 @@ namespace DnsServerCore.Dns.Security
                 {
                     // Malformed COOKIE option => FORMERR
                     Interlocked.Increment(ref _invalidCount);
+                    Interlocked.Increment(ref _malformedCount);
                     ushort udpPayload = request.EDNS?.UdpPayloadSize ?? udpPayloadSizeFallback;
                     EDnsHeaderFlags flags = request.EDNS?.Flags ?? EDnsHeaderFlags.None;
 
@@ -375,6 +382,10 @@ namespace DnsServerCore.Dns.Security
                 else
                 {
                     Interlocked.Increment(ref _validCount);
+                    if (classification.ValidationResult == DnsCookieValidationResult.ValidRenew)
+                        Interlocked.Increment(ref _validRenewCount);
+                    else
+                        Interlocked.Increment(ref _validCurrentCount);
                 }
             }
 
