@@ -461,6 +461,57 @@ namespace DnsServerCore.Dns.Security
         }
 
         /// <summary>
+        /// Creates the recovery response used only when the early UDP reflection limiter elects
+        /// to slip an otherwise unverified request. A usable Client Cookie receives BADCOOKIE
+        /// plus an Active-secret Server Cookie; requests without usable Cookie material leave
+        /// truncation construction to the transport path.
+        /// </summary>
+        internal DnsDatagram CreateUdpReflectionLimiterSlipResponse(DnsDatagram request, IPAddress cookieClientAddress,
+            bool isRecursionAllowed, in CookieRequestClassification classification)
+        {
+            if (classification.RuntimeState is not EnabledState cookieRuntimeState ||
+                classification.Cookie is not EDnsCookieOptionData requestCookie ||
+                requestCookie.ClientCookie.Length != ClientCookieLength)
+            {
+                return null;
+            }
+
+            if (classification.State == CookieRequestState.ClientOnly && IsCookieAcquisitionRequest(request, classification.State))
+            {
+                DnsDatagram acquisition = new DnsDatagram(
+                    request.Identifier,
+                    true,
+                    DnsOpcode.StandardQuery,
+                    false,
+                    false,
+                    request.RecursionDesired,
+                    isRecursionAllowed,
+                    false,
+                    request.CheckingDisabled,
+                    DnsResponseCode.NoError,
+                    request.Question,
+                    null,
+                    null,
+                    null,
+                    request.EDNS.UdpPayloadSize,
+                    request.EDNS.Flags)
+                { Tag = DnsServerResponseType.Authoritative };
+
+                return AttachToResponse(request, acquisition, cookieClientAddress, DnsTransportProtocol.Udp, classification);
+            }
+
+            if (classification.State != CookieRequestState.ClientOnly &&
+                classification.State != CookieRequestState.InvalidServerCookie)
+            {
+                return null;
+            }
+
+            byte[] serverCookie = cookieRuntimeState.Validator.CreateResponseCookie(cookieClientAddress, requestCookie.ClientCookie);
+            EDnsCookieOptionData responseCookie = new EDnsCookieOptionData(requestCookie.ClientCookie.ToArray(), serverCookie);
+            return BuildBadCookieResponse(request, isRecursionAllowed, responseCookie);
+        }
+
+        /// <summary>
         /// Attaches a Server Cookie to an already-built response when the request warrants one.
         /// Returns the original response unchanged when there is nothing to attach.
         /// </summary>

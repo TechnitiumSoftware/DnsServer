@@ -178,6 +178,10 @@ namespace DnsServerCore.Dns
         int _qpmLimitUdpTruncationPercentage = 50; //percentage of requests that are responded with TC when QPM limit exceeds for UDP (Slip)
         IReadOnlyCollection<NetworkAddress> _qpmLimitBypassList;
 
+        // Early source-prefix admission control remains separate from the post-response
+        // DNS response-rate limiter configured through _rrlRuntime.
+        bool _enableUdpReflectionLimiting;
+        readonly Security.UdpReflectionLimiter _udpReflectionLimiter = new Security.UdpReflectionLimiter();
         readonly Security.UdpResponseRateLimiterRuntime _rrlRuntime = new Security.UdpResponseRateLimiterRuntime();
 
         int _clientTimeout = 2000;
@@ -1919,6 +1923,12 @@ namespace DnsServerCore.Dns
                             // and for response processing.
                             Security.CookieRequestClassification cookieClassification =
                                 _cookieCoordinator.Classify(request, cookieClientAddress, protocol);
+                            Security.UdpReflectionLimitResult reflectionLimitResult =
+                                !sendTruncationResponse &&
+                                _enableUdpReflectionLimiting &&
+                                cookieClassification.State != Security.CookieRequestState.ValidServerCookie
+                                    ? _udpReflectionLimiter.Evaluate(remoteEP.Address)
+                                    : Security.UdpReflectionLimitResult.Allowed;
                             if (enableSocketBindingToSourceEP)
                             {
                                 Socket newUdpListener = null;
@@ -1988,14 +1998,14 @@ namespace DnsServerCore.Dns
                                 if (newUdpListener is not null)
                                 {
                                     //respond via new socket
-                                    _ = ProcessUdpRequestAsync(newUdpListener, remoteEP, returnEP, protocol, request, sendTruncationResponse, cookieClassification);
+                                    _ = ProcessUdpRequestAsync(newUdpListener, remoteEP, returnEP, protocol, request, sendTruncationResponse, reflectionLimitResult, cookieClassification);
 
                                     //continue reading next request
                                     continue;
                                 }
                             }
 
-                            _ = ProcessUdpRequestAsync(udpListener, remoteEP, returnEP, protocol, request, sendTruncationResponse, cookieClassification);
+                            _ = ProcessUdpRequestAsync(udpListener, remoteEP, returnEP, protocol, request, sendTruncationResponse, reflectionLimitResult, cookieClassification);
                         }
                         catch (EndOfStreamException)
                         {
@@ -2037,7 +2047,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task ProcessUdpRequestAsync(Socket udpListener, IPEndPoint remoteEP, IPEndPoint returnEP, DnsTransportProtocol protocol, DnsDatagram request, bool sendTruncationResponse, Security.CookieRequestClassification cookieClassification)
+        private async Task ProcessUdpRequestAsync(Socket udpListener, IPEndPoint remoteEP, IPEndPoint returnEP, DnsTransportProtocol protocol, DnsDatagram request, bool sendTruncationResponse, Security.UdpReflectionLimitResult reflectionLimitResult, Security.CookieRequestClassification cookieClassification)
         {
             byte[] sendBuffer = null;
 
@@ -2046,7 +2056,23 @@ namespace DnsServerCore.Dns
                 bool recursionAllowed = IsRecursionAllowed(remoteEP.Address);
                 DnsDatagram response;
 
-                if (sendTruncationResponse)
+                if (reflectionLimitResult == Security.UdpReflectionLimitResult.LimitedDrop)
+                {
+                    _statsManager.QueueUpdate(null, remoteEP, protocol, null, true);
+                    return; //drop before request processing
+                }
+
+                bool isUdpReflectionRecovery = reflectionLimitResult == Security.UdpReflectionLimitResult.LimitedSlip;
+                if (isUdpReflectionRecovery)
+                {
+                    response = _cookieCoordinator.CreateUdpReflectionLimiterSlipResponse(
+                        request, cookieClassification.CookieClientAddress, recursionAllowed, cookieClassification);
+                    if (response is null)
+                    {
+                        response = new DnsDatagram(request.Identifier, true, request.OPCODE, false, true, request.RecursionDesired, recursionAllowed, false, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, null, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, _dnssecValidation && request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative };
+                    }
+                }
+                else if (sendTruncationResponse)
                 {
                     response = new DnsDatagram(request.Identifier, true, request.OPCODE, false, true, request.RecursionDesired, recursionAllowed, false, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, null, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, _dnssecValidation && request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative };
                 }
@@ -2066,7 +2092,7 @@ namespace DnsServerCore.Dns
                 Security.ReflectionRrlRequestTrust rrlTrust = cookieClassification.State == Security.CookieRequestState.ValidServerCookie
                     ? Security.ReflectionRrlRequestTrust.ValidServerCookie
                     : Security.ReflectionRrlRequestTrust.Unverified;
-                if (response.Question.Count > 0 && Security.ReflectionRrlPolicy.ShouldEvaluate(_rrlRuntime.Enabled, isUdp: true, rrlTrust))
+                if (!isUdpReflectionRecovery && response.Question.Count > 0 && Security.ReflectionRrlPolicy.ShouldEvaluate(_rrlRuntime.Enabled, isUdp: true, rrlTrust))
                 {
                     DnsQuestionRecord question = response.Question[0];
                     Security.UdpResponseRateLimitResult rrlResult = _rrlRuntime.Evaluate(remoteEP.Address, responseCategory,
@@ -7644,6 +7670,14 @@ namespace DnsServerCore.Dns
                 else
                     _qpmLimitBypassList = value;
             }
+        }
+
+        // The early limiter is intentionally distinct from response-aware RRL. Its
+        // persisted settings and management naming are introduced in the API phase.
+        public bool EnableUdpReflectionLimiting
+        {
+            get => _enableUdpReflectionLimiting;
+            set => _enableUdpReflectionLimiting = value;
         }
 
         public Security.ResponseRateLimitingOptions CurrentResponseRateLimitingOptions => _rrlRuntime.CurrentOptions;
