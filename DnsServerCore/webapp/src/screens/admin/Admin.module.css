@@ -1,0 +1,109 @@
+/* Administration. Seis sub-pestañas: cuatro tablas, un formulario y el cluster.
+   La cabecera, la tabla y las etiquetas repiten las de Listas para que las
+   cuatro tablas de la consola se lean igual; el formulario de SSO repite las
+   filas `210px 1fr` de Settings por el mismo motivo. */
+
+.hrow { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; margin-bottom:18px; }
+.zt { margin:0; font-size:22px; letter-spacing:-.02em; font-weight:700; color:var(--ink); }
+.tags { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+.tag { font-size:10.5px; padding:2.5px 8px; border-radius:999px; font-weight:700; border:1px solid var(--line); letter-spacing:.03em; color:var(--mute); background:var(--pan2); white-space:nowrap; display:inline-block; }
+.tagOk { color:var(--ok); border-color:#065f46; background:#052e26; }
+.tagInfo { color:var(--acc); border-color:var(--acc); background:var(--pan2); }
+.tagWarn { color:#fcd34d; border-color:#4a3609; background:#2a1e05; }
+.acts { display:flex; gap:7px; flex-wrap:wrap; justify-content:flex-end; align-items:center; }
+
+.avisoHueco { margin-bottom:14px; }
+.loading, .fail { padding:28px; text-align:center; color:var(--faint); font-size:12.5px; }
+
+.mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+.meta { margin-top:2px; font-size:11px; color:var(--faint); }
+.ua { font-family:var(--font-mono); font-size:11px; color:var(--faint); word-break:break-all; }
+.nowrap { white-space:nowrap; }
+
+.tablaWrap { overflow-x:auto; }
+.tabla { border-collapse:collapse; width:100%; }
+.tabla thead th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--mute); font-weight:700; padding:0 10px 8px; border-bottom:1px solid var(--line); white-space:nowrap; }
+.tabla td { padding:11px 10px; border-bottom:1px solid var(--line2); vertical-align:top; color:var(--ink); }
+.tabla tbody tr:hover { background:var(--hover); }
+.vacia { text-align:center; color:var(--faint); }
+
+.count { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:12px; color:var(--mute); margin-top:12px; }
+
+.rowacts { display:flex; gap:5px; justify-content:flex-end; flex-wrap:wrap; }
+.ib { font:400 11.5px/1.2 inherit; padding:5px 9px; border-radius:6px; border:1px solid var(--line); background:var(--pan2); color:var(--mute); cursor:pointer; white-space:nowrap; }
+.ib:hover { color:var(--ink); }
+.ib:disabled { opacity:.5; cursor:default; }
+.ibDanger:hover { color:var(--dang, #f87171); }
+
+/* El nombre de usuario / grupo / sección de la primera columna abre su ficha. */
+.link { border:0; background:transparent; padding:0; font:inherit; color:var(--acc); cursor:pointer; text-align:left; word-break:break-all; }
+.link:hover { text-decoration:underline; }
+
+.nodo { font-size:12.5px; padding:6px 9px; border:1px solid var(--line); border-radius:6px; background:var(--field); color:var(--ink); }
+
+/* Permissions: una tarjeta por sección, con las dos tablas en dos columnas. */
+.perm { border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:12px; background:var(--pan); }
+.permHead { margin:0; padding:10px 14px; font-size:12.5px; font-weight:650; color:var(--ink); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.permCols { display:grid; grid-template-columns:1fr 1fr; }
+.permCol { padding:10px 14px; min-width:0; }
+.permCol + .permCol { border-left:1px solid var(--line); }
+.permTitle { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--faint); font-weight:700; margin-bottom:7px; }
+.prow { display:grid; grid-template-columns:1fr 46px 46px 46px; align-items:center; gap:6px; padding:5px 0; border-bottom:1px solid var(--line2); font-size:12.5px; }
+.prow:last-child { border-bottom:0; }
+.who { color:var(--ink); font-family:var(--font-mono); font-size:12px; word-break:break-all; }
+.phd { font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--faint); text-align:center; font-weight:700; }
+.pmark { text-align:center; color:var(--ok); }
+.pnone { color:var(--faint); grid-column:1 / -1; }
+.pchk { width:15px; height:15px; accent-color:var(--acc); margin:0 auto; display:block; }
+
+@media (max-width: 860px) {
+  .permCols { grid-template-columns:1fr; }
+  .permCol + .permCol { border-left:0; border-top:1px solid var(--line); }
+}
+
+/* SSO y los modales de Cluster: filas etiqueta + control, como en Settings. */
+.block { border:1px solid var(--line); border-radius:10px; background:var(--pan); margin:0 0 14px 0; padding:0 0 14px 0; min-width:0; }
+.blockTitle { display:block; width:100%; padding:10px 14px; margin:0 0 12px 0; border-bottom:1px solid var(--line); font-size:10.5px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--mute); }
+.row { display:grid; grid-template-columns:210px 1fr; gap:12px; padding:7px 14px; align-items:start; }
+.rowLabel { font-size:12px; color:var(--ink); font-weight:600; padding-top:8px; line-height:1.35; }
+.rowCtl { min-width:0; display:flex; flex-direction:column; gap:6px; }
+.ctlLine { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+.suffix { font-size:11.5px; color:var(--mute); }
+.help { font-size:11.5px; color:var(--mute); line-height:1.55; max-width:720px; }
+.help code, .plain code { font-family:var(--font-mono); font-size:11px; background:var(--field); border:1px solid var(--line); border-radius:4px; padding:0 4px; }
+.plain { font-size:11.5px; color:var(--mute); line-height:1.55; padding:0 14px; max-width:860px; }
+.notas { margin:6px 14px 0 14px; display:flex; flex-direction:column; gap:7px; }
+.check { display:flex; align-items:flex-start; gap:8px; font-size:12.5px; cursor:pointer; }
+.check input { width:15px; height:15px; accent-color:var(--acc); margin-top:2px; flex:none; }
+.checkHelp { font-size:11.5px; color:var(--mute); padding-left:23px; line-height:1.55; max-width:720px; }
+.group { display:flex; flex-direction:column; gap:9px; }
+.area { font-family:var(--font-mono); font-size:11.5px; padding:7px 9px; border:1px solid var(--line); border-radius:6px; background:var(--field); color:var(--ink); resize:vertical; width:100%; max-width:560px; line-height:1.5; }
+.area:focus { outline:2px solid var(--acc); outline-offset:-1px; border-color:var(--acc); }
+.area:disabled { opacity:.5; }
+.select { font-size:12.5px; padding:7px 9px; border:1px solid var(--line); border-radius:6px; background:var(--field); color:var(--ink); max-width:420px; }
+.select:disabled { opacity:.5; }
+
+/* Tabla editable dentro de un formulario: scopes y mapa de grupos de SSO. */
+.edit { width:100%; max-width:620px; border-collapse:collapse; }
+.edit th { text-align:left; font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--mute); padding:0 8px 7px 0; border-bottom:1px solid var(--line); }
+.edit td { padding:5px 8px 5px 0; vertical-align:middle; }
+.edit input, .edit select { width:100%; }
+.tdel { width:84px; }
+.sinFilas { font-size:11.5px; color:var(--faint); padding:9px 0; }
+
+.bar { display:flex; align-items:center; gap:8px; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:var(--pan); }
+
+.empty { border:1px dashed var(--line); border-radius:10px; padding:34px; text-align:center; color:var(--mute); font-size:12.5px; }
+.empty b { display:block; color:var(--ink); font-size:14px; margin-bottom:6px; }
+.emptyActs { margin-top:14px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+
+/* Cuerpo de modal: mismas filas, pero con la etiqueta más estrecha. */
+.mrow { display:grid; grid-template-columns:170px 1fr; gap:12px; padding:6px 0; align-items:start; }
+.mrowLabel { font-size:12px; color:var(--ink); font-weight:600; padding-top:8px; line-height:1.35; }
+.mval { font-size:12.5px; font-weight:700; color:var(--ink); padding-top:8px; }
+.parrafo { margin:0 0 10px; font-size:12.5px; color:var(--mute); line-height:1.6; }
+.parrafo code { font-family:var(--font-mono); font-size:11px; background:var(--field); border:1px solid var(--line); border-radius:4px; padding:0 4px; }
+.sub { margin:16px 0 8px; font-size:13px; font-weight:650; color:var(--ink); }
+.salida { display:flex; flex-direction:column; gap:8px; }
+.enlace { font-size:11.5px; }
+.enlace a { color:var(--acc); }
