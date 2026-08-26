@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import {
   ETIQUETA_RANGO, RANGOS, getDashboardStats,
-  type DashboardStats, type Rango, type Stats, type TopEntry,
+  type DashboardStats, type Rango, type Stats, type TipoTop, type TopEntry,
 } from '../../api/dashboard'
 import { Chart } from './Chart'
+import { TopStats } from './TopStats'
 import type { ChartData } from '../../api/dashboard'
 import styles from './Dashboard.module.css'
 
@@ -64,7 +65,18 @@ function Reparto({ titulo, data }: { titulo: string; data: ChartData }) {
   )
 }
 
-function Top({ titulo, filas, onMore }: { titulo: string; filas: TopEntry[]; onMore: () => void }) {
+function Top({
+  titulo,
+  filas,
+  esCliente = false,
+  onMore,
+}: {
+  titulo: string
+  filas: TopEntry[]
+  /** Un cliente enseña además el dominio que resolvió y si estaba limitado. */
+  esCliente?: boolean
+  onMore: () => void
+}) {
   return (
     <div className={styles.panel}>
       <div className={styles.ph}>
@@ -73,9 +85,20 @@ function Top({ titulo, filas, onMore }: { titulo: string; filas: TopEntry[]; onM
       </div>
       <div className={styles.pb} style={{ paddingTop: 4 }}>
         {filas.length === 0 && <div className={styles.vacio}>No data for this period.</div>}
-        {filas.slice(0, 5).map((f) => (
-          <div className={styles.toprow} key={f.name}>
-            <span className={styles.n}>{f.name}</span>
+        {filas.slice(0, 5).map((f, i) => (
+          <div
+            className={`${styles.toprow}${f.rateLimited ? ` ${styles.limitada}` : ''}`}
+            key={`${f.name}|${i}`}
+          >
+            <span className={styles.n}>
+              {f.name}
+              {f.rateLimited ? ' (rate limited)' : ''}
+              {esCliente && (
+                <span className={styles.topDominio}>
+                  {f.domain === '' || f.domain == null ? '.' : f.domain}
+                </span>
+              )}
+            </span>
             <span className={styles.c}>{num(f.hits)}</span>
           </div>
         ))}
@@ -88,6 +111,7 @@ export function Dashboard({ token }: { token: string | null }) {
   const [rango, setRango] = useState<Rango>('LastHour')
   const [datos, setDatos] = useState<DashboardStats | null>(null)
   const [cargando, setCargando] = useState(true)
+  const [top, setTop] = useState<TipoTop | null>(null)
 
   useEffect(() => {
     let cancelado = false
@@ -142,8 +166,16 @@ export function Dashboard({ token }: { token: string | null }) {
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <Top titulo="Top Domains" filas={datos?.topDomains ?? []} onMore={() => {}} />
-            <Top titulo="Top Blocked Domains" filas={datos?.topBlockedDomains ?? []} onMore={() => {}} />
+            <Top
+              titulo="Top Domains"
+              filas={datos?.topDomains ?? []}
+              onMore={() => setTop('TopDomains')}
+            />
+            <Top
+              titulo="Top Blocked Domains"
+              filas={datos?.topBlockedDomains ?? []}
+              onMore={() => setTop('TopBlockedDomains')}
+            />
           </div>
         </div>
 
@@ -168,9 +200,16 @@ export function Dashboard({ token }: { token: string | null }) {
               <Reparto titulo="Protocol Types" data={datos.protocolTypeChartData} />
             </>
           )}
-          <Top titulo="Top Clients" filas={datos?.topClients ?? []} onMore={() => {}} />
+          <Top
+            titulo="Top Clients"
+            filas={datos?.topClients ?? []}
+            esCliente
+            onMore={() => setTop('TopClients')}
+          />
         </div>
       </div>
+
+      <TopStats tipo={top} rango={rango} token={token} onCerrar={() => setTop(null)} />
     </>
   )
 }

@@ -48,7 +48,20 @@ export interface ChartData {
   datasets: { label: string; data: number[]; backgroundColor?: string | string[] }[]
 }
 
-export interface TopEntry { name: string; hits: number }
+/*
+Un top NO es sólo nombre y aciertos. Un cliente trae además el dominio que
+resolvió y si el servidor lo estaba limitando, y upstream pinta las dos cosas:
+el dominio debajo del nombre, y la fila en naranja con «(rate limited)» detrás.
+Los dos campos sólo existen en `TopClients`. Comprobado contra v15.4.
+*/
+export interface TopEntry {
+  name: string
+  hits: number
+  /** Sólo en clientes: el dominio que resolvió. Vacío se pinta como «.». */
+  domain?: string
+  /** Sólo en clientes. */
+  rateLimited?: boolean
+}
 
 export interface DashboardStats {
   stats: Stats

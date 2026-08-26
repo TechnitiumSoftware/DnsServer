@@ -28,3 +28,12 @@
   font-size: 12.5px; color: var(--mute); text-decoration: none;
   border: 1px solid var(--line); border-radius: 7px; padding: 8px;
 }
+/* «Forgot Password?» es un enlace pelado, no un botón con caja: en upstream va
+   suelto encima del bloque de SSO (index.html:119). */
+.enlace {
+  display: block; width: 100%; text-align: center;
+  background: none; border: 0; padding: 0;
+  font: inherit; font-size: 12.5px; color: var(--mute); cursor: pointer;
+}
+.enlace:hover { color: var(--acc); }
+.oLogin { margin: 12px 0 10px; text-align: center; font-size: 11.5px; color: var(--faint); }

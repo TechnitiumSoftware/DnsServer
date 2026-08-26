@@ -1,8 +1,9 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Login } from './Login'
 import * as client from '../api/client'
+import * as status from '../api/status'
 
 /** Busca la llamada al login sin asumir que es la primera: antes va `api/status`. */
 function llamadaLogin(spy: { mock: { calls: unknown[][] } }) {
@@ -121,5 +122,34 @@ describe('Login', () => {
       expect.anything(),
       expect.objectContaining({ forcePasswordChange: true }),
     )
+  })
+})
+
+describe('Forgot Password?', () => {
+  it('el enlace abre el modal, que explica el único procedimiento que existe', async () => {
+    // Faltaba entero hasta el barrido de inventario de la fase 10: era el único
+    // de los 40 modales de upstream sin contraparte.
+    const usuario = userEvent.setup()
+    vi.spyOn(status, 'getStatus').mockResolvedValue(null as never)
+    render(<Login onSuccess={() => {}} />)
+
+    await usuario.click(screen.getByRole('button', { name: 'Forgot Password?' }))
+
+    const dialogo = await screen.findByRole('dialog')
+    expect(
+      within(dialogo).getByText('To reset your password, you need to contact the DNS Server administrator.'),
+    ).toBeTruthy()
+    expect(within(dialogo).getByText('resetadmin.config')).toBeTruthy()
+  })
+
+  it('no llama a ningún endpoint: es sólo texto', async () => {
+    const usuario = userEvent.setup()
+    vi.spyOn(status, 'getStatus').mockResolvedValue(null as never)
+    const spy = vi.spyOn(client, 'apiRequest')
+    render(<Login onSuccess={() => {}} />)
+
+    await usuario.click(screen.getByRole('button', { name: 'Forgot Password?' }))
+    await screen.findByRole('dialog')
+    expect(spy).not.toHaveBeenCalled()
   })
 })

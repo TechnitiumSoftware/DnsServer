@@ -4,6 +4,7 @@ import { getStatus } from '../api/status'
 import { Alert, type AlertType } from '../ui/Alert'
 import { Button } from '../ui/Button'
 import { LabeledInput } from '../ui/Field'
+import { ForgotPassword } from './modals/ForgotPassword'
 import styles from './Login.module.css'
 
 /*
@@ -42,6 +43,7 @@ export function Login({
   const [totp, setTotp] = useState('')
   const [otpVisible, setOtpVisible] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [olvido, setOlvido] = useState(false)
   const [alert, setAlert] = useState<AlertState | null>(initialAlert ?? null)
   // El botón de SSO sólo se pinta si el servidor dice que está habilitado
   // (main.js:48-56). Por defecto NO: no se asume que hay SSO.
@@ -236,14 +238,25 @@ export function Login({
           </Button>
         </form>
 
-        {ssoEnabled && (
-          <div className={styles.sso}>
-            <a className={styles.ssoLink} href="sso/login">
-              Sign in with SSO
-            </a>
-          </div>
-        )}
+        {/* En upstream el enlace va ANTES del bloque de SSO, y el «or login
+            with» sólo aparece si hay SSO (index.html:119-124). */}
+        <div className={styles.sso}>
+          <button type="button" className={styles.enlace} onClick={() => setOlvido(true)}>
+            Forgot Password?
+          </button>
+
+          {ssoEnabled && (
+            <>
+              <div className={styles.oLogin}>or login with</div>
+              <a className={styles.ssoLink} href="sso/login">
+                Sign in with SSO
+              </a>
+            </>
+          )}
+        </div>
       </div>
+
+      <ForgotPassword open={olvido} onOpenChange={setOlvido} />
     </div>
   )
 }

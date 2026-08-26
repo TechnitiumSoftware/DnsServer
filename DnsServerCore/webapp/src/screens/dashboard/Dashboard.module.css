@@ -21,3 +21,20 @@
 .toprow .n { color:var(--ink); font-family:var(--font-mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .toprow .c { color:var(--mute); font-family:var(--font-mono); flex:none; }
 .vacio { color:var(--faint); font-size:12px; padding:10px 0; }
+
+/* Modal «Top Stats»: la lista larga detrás de los botones «More». */
+.topTablaWrap { overflow-x: auto; max-height: 460px; overflow-y: auto; }
+.topTabla { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.topTabla thead th {
+  position: sticky; top: 0; background: var(--pan); text-align: left;
+  font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--mute); font-weight: 700; padding: 0 10px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.topTabla td { padding: 9px 10px; border-bottom: 1px solid var(--line2); color: var(--ink); vertical-align: top; }
+.topTabla tfoot th { padding: 9px 10px; text-align: left; font-size: 11.5px; color: var(--mute); font-weight: 650; }
+/* Upstream pinta la fila entera en naranja cuando el cliente está limitado. */
+.limitada td { color: var(--warn); }
+.topNombre { display: block; font-family: var(--font-mono); word-break: break-all; }
+.topDominio { display: block; margin-top: 3px; font: 11px var(--font-mono); color: var(--faint); word-break: break-all; }
+.topConteo { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }

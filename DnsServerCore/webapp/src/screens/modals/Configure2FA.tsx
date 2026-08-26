@@ -98,7 +98,9 @@ export function Configure2FA({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Configure 2FA"
+      // El título del modal es la forma LARGA; «Configure 2FA» es sólo la
+      // entrada del menú de usuario (index.html:3761). No son la misma cadena.
+      title="Configure Two-factor Authentication (2FA)"
       footer={
         <>
           <Button onClick={() => onOpenChange(false)}>Close</Button>
