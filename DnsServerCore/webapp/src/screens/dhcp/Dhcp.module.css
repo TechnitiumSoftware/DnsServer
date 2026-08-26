@@ -6,7 +6,7 @@
 .wrap { display: flex; flex-direction: column; gap: var(--s-9); }
 
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.nombre { font-weight: 650; color: var(--ink); white-space: nowrap; }
+.nombre { font-weight: 550; color: var(--ink); white-space: nowrap; }
 .fecha { white-space: nowrap; font-family: var(--font-mono); font-size: var(--t-3); }
 .total { font-size: var(--t-4); color: var(--mute); margin-top: var(--s-8); }
 .kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--s-1) var(--s-8); margin: 0; }
@@ -26,7 +26,7 @@
 }
 .blockTitle {
   display: block; width: 100%; padding: var(--s-7) var(--s-9); margin: 0 0 var(--s-8) 0;
-  border-bottom: 1px solid var(--line); font-size: var(--t-1); font-weight: 700;
+  border-bottom: 1px solid var(--line); font-size: var(--t-1); font-weight: 600;
   letter-spacing: 0.09em; text-transform: uppercase; color: var(--mute);
 }
 .ctlLine { display: flex; align-items: center; gap: var(--s-6); flex-wrap: wrap; }
@@ -54,7 +54,7 @@
 
 .editable { width: 100%; max-width: 760px; border-collapse: collapse; }
 .editable th {
-  text-align: left; font-size: var(--t-1); font-weight: 700; letter-spacing: 0.07em;
+  text-align: left; font-size: var(--t-1); font-weight: 600; letter-spacing: 0.07em;
   text-transform: uppercase; color: var(--mute); padding: 0 var(--s-5) var(--s-4) 0;
   border-bottom: 1px solid var(--line);
 }

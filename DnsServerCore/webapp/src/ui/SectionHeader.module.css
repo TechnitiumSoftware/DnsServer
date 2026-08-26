@@ -28,8 +28,8 @@ como un antetítulo de revista, que es adorno, y esto es navegación.
 .titulo {
   margin: 0;
   font-size: var(--t-7);
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  letter-spacing: -0.025em;
   color: var(--ink);
   word-break: break-word;
 }

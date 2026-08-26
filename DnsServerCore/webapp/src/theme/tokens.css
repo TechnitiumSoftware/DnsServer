@@ -24,9 +24,9 @@ que no sea uno de estos tokens.** Un valor suelto es deriva futura.
 
 :root {
   /* ── Color ──────────────────────────────────────────────────────────── */
-  --bg: #0b0e14;
-  --pan: #161c27;
-  --pan2: #1d2531;
+  --bg: #111315;
+  --pan: #191c1f;
+  --pan2: #212529;
   /*
   LA RAMPA DE SUPERFICIE. En una interfaz oscura la elevación NO la cuenta la
   sombra —negro sobre casi-negro no se ve— sino que la superficie SUBA de luz.
@@ -36,25 +36,33 @@ que no sea uno de estos tokens.** Un valor suelto es deriva futura.
   sombra que se le echara encima; la sombra estaba tratando el síntoma.
 
   Medida contra las consolas oscuras que sí tienen material —GitHub, Linear,
-  Vercel separan panel de elevado en 1.09-1.14—, la rampa nueva:
+  Vercel separan panel de elevado en 1.09-1.14—, la rampa:
 
-    lienzo → panel            1.13   (antes 1.07)
+    lienzo → panel            1.09
     panel  → elevado          1.11   (antes 1.04)
-    panel  → hover de fila    1.20   (antes 1.03)
-    panel  → campo hundido    1.12   (antes 1.11)
-    panel  → borde            1.39   (antes 1.22)
+    panel  → hover de fila    1.23   (antes 1.03)
+    panel  → campo hundido    1.12
+    panel  → borde            1.49   (antes 1.22)
+
+  Y es CARBÓN NEUTRO, no azul casi negro. El lienzo era `#0b0e14`: nueve puntos
+  más de azul que de rojo, con una luminancia de 0.0044. Eso se lee como
+  terminal, no como producto. `#111315` deja la diferencia en cuatro puntos y
+  sube a 0.0064, que es el registro de las consolas que se leen profesionales.
+
+  El ámbar de Technitium se queda tal cual: es SU marca, no nuestra, y sobre
+  este carbón da 8.38:1.
   */
-  --ink: #e6e9ef;
-  --mute: #8b95a7;
+  --ink: #e8eaec;
+  --mute: #9aa1a8;
   /*
   `--faint` era `#5d6779` y daba 2.70-3.34:1: no cumplía el 4.5:1 de texto normal
   en ninguna superficie, y se estaba usando para los `(4h)` de TTL, los «hace 2
   horas» y los marcadores de campo. Subido, da 4.41-5.45:1 y cumple en todas.
   Sigue siendo el escalón más apagado de los tres, sólo que ahora legible.
   */
-  --faint: #7d8a9e;
-  --line: #2c3546;
-  --line2: #202836;
+  --faint: #868e96;
+  --line: #333a41;
+  --line2: #24282d;
   --acc: #f5a524;
   --on-acc: #1a1205;
   --ok: #34d399;
@@ -78,8 +86,8 @@ que no sea uno de estos tokens.** Un valor suelto es deriva futura.
   /* El botón destructivo: relleno propio y texto legible sobre él. */
   --dan-fill: #3a1214; --on-dan: #fecaca;
   --info-bg: #0d1730;  --info-bd: #1e3a8a;
-  --field: #0c1017;
-  --hover: #222b3a;
+  --field: #0d0f11;
+  --hover: #282d32;
 
   /* ── Tipografía ─────────────────────────────────────────────────────── */
   --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;

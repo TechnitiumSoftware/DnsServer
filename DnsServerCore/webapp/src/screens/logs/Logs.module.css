@@ -11,7 +11,7 @@
 .dos { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: var(--s-10); align-items: start; }
 .panel { background: var(--pan); border: 1px solid var(--line); border-radius: var(--r-4); overflow: hidden; }
 .ph { display: flex; align-items: center; justify-content: space-between; gap: var(--s-7); padding: var(--s-8) var(--s-9); border-bottom: 1px solid var(--line); }
-.ph h2 { margin: 0; font-size: var(--t-4); font-weight: 650; color: var(--ink); }
+.ph h2 { margin: 0; font-size: var(--t-4); font-weight: 550; color: var(--ink); }
 .pb { padding: var(--s-9); }
 .pbLista { padding: var(--s-5); }
 
@@ -23,7 +23,7 @@
   text-align: left; width: 100%;
 }
 .logfile:hover { background: var(--hover); color: var(--ink); }
-.logfile[aria-current='true'] { background: var(--pan2); color: var(--acc); font-weight: 650; }
+.logfile[aria-current='true'] { background: var(--pan2); color: var(--acc); font-weight: 550; }
 .logfile .nombre { font-family: var(--font-mono); }
 .sz { font-family: var(--font-mono); font-size: var(--t-2); color: var(--faint); }
 .out {
@@ -37,7 +37,7 @@
 .fs { border: 1px solid var(--line); border-radius: var(--r-4); background: var(--pan); margin-bottom: var(--s-9); }
 .fsTitle {
   display: block; width: 100%; padding: var(--s-8) var(--s-10); margin: 0;
-  border-bottom: 1px solid var(--line); font-size: var(--t-1); font-weight: 700;
+  border-bottom: 1px solid var(--line); font-size: var(--t-1); font-weight: 600;
   letter-spacing: 0.09em; text-transform: uppercase; color: var(--mute);
 }
 .fsIn { padding: var(--s-3) var(--s-10) var(--s-9); }
@@ -46,7 +46,7 @@
 .frowLabel { font-size: var(--t-4); color: var(--ink); font-weight: 600; padding-top: var(--s-4); }
 .frowCtl { display: flex; align-items: flex-end; gap: var(--s-8); flex-wrap: wrap; }
 .campo { display: flex; flex-direction: column; gap: var(--s-3); }
-.campo label { font-size: var(--t-2); color: var(--mute); font-weight: 650; }
+.campo label { font-size: var(--t-2); color: var(--mute); font-weight: 550; }
 .campo input, .campo select { width: 100%; }
 
 .count { display: flex; align-items: center; justify-content: space-between; gap: var(--s-7); font-size: var(--t-4); color: var(--mute); margin-bottom: var(--s-6); flex-wrap: wrap; }

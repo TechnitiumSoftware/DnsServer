@@ -17,7 +17,7 @@ import {
 import { Button } from '../../ui/Button'
 import { Field, Input, Select } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
-import { Chip, Tag, type TagTone } from '../../ui/Tag'
+import { Tag, type TagTone } from '../../ui/Tag'
 import { Menu } from './Menu'
 import { fechaMinuto as fecha } from '../../lib/fechas'
 import { textoDeEstado, ventanaDePaginas } from './paginacion'
@@ -435,7 +435,14 @@ export function ListaZonas({
               <Th campo="type" orden={orden} onOrdenar={alternar} style={{ width: 120 }}>Type</Th>
               <Th campo="dnssec" orden={orden} onOrdenar={alternar} style={{ width: 90 }}>DNSSEC</Th>
               <Th campo="status" orden={orden} onOrdenar={alternar} style={{ width: 120 }}>Status</Th>
-              <Th campo="serial" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>Serial</Th>
+              <Th
+                campo="serial"
+                orden={orden}
+                onOrdenar={alternar}
+                style={{ width: 110, textAlign: 'right' }}
+              >
+                Serial
+              </Th>
               <Th campo="expiry" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>Expiry</Th>
               <Th campo="modified" orden={orden} onOrdenar={alternar} style={{ width: 150 }}>
                 Last Modified
@@ -563,9 +570,13 @@ function FilaZona(p: FilaProps) {
           onChange={(e) => p.onMarcar(e.target.checked)}
         />
       </td>
-      <td className={styles.num}>{p.indice}</td>
-      <td>
-        <button type="button" className={styles.enlaceZona} onClick={() => p.onAbrir(nombre)}>
+      <td className={`${styles.num} ${tbl.numero}`}>{p.indice}</td>
+      <td className={tbl.apilada}>
+        <button
+          type="button"
+          className={`${styles.enlaceZona} ${tbl.entidad}`}
+          onClick={() => p.onAbrir(nombre)}
+        >
           {nombreDeZona(z)}
         </button>
         {etiquetaCatalogo && (
@@ -574,9 +585,10 @@ function FilaZona(p: FilaProps) {
           </div>
         )}
       </td>
-      <td>
-        <Chip>{etiquetaTipo(z.type)}</Chip>
-      </td>
+      {/* El tipo va en texto y no en cápsula: con Type, DNSSEC y Status en
+          cápsula, tres columnas seguidas de píldoras se leían como una sola
+          mancha y ninguna de las tres destacaba. */}
+      <td className={tbl.meta}>{etiquetaTipo(z.type)}</td>
       <td>
         {/*
         Upstream deja la celda VACÍA cuando la zona no está firmada
@@ -601,9 +613,7 @@ function FilaZona(p: FilaProps) {
       </td>
       <td className={styles.mono}>{z.soaSerial ?? ' '}</td>
       <td className={styles.mono}>{fecha(z.expiry)}</td>
-      <td className={styles.mono} style={{ fontSize: 11.5 }}>
-        {fecha(z.lastModified)}
-      </td>
+      <td className={`${styles.mono} ${tbl.meta}`}>{fecha(z.lastModified)}</td>
       <td>
         <div className={tbl.acciones}>
           <Button

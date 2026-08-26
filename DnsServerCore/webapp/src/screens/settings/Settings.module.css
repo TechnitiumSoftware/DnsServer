@@ -23,7 +23,7 @@
   background: var(--pan2);
   border-radius: var(--r-4) var(--r-4) 0 0;
   font-size: var(--t-1);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--mute);
@@ -98,7 +98,7 @@ Es lo que hacen el dibujo y la tabla de Logs; aquí se había perdido.
    con su botón «Delete», y un «Add» debajo. */
 .table { width: 100%; max-width: 620px; border-collapse: collapse; }
 .table th {
-  text-align: left; font-size: var(--t-1); font-weight: 700; letter-spacing: 0.07em;
+  text-align: left; font-size: var(--t-1); font-weight: 600; letter-spacing: 0.07em;
   text-transform: uppercase; color: var(--mute); padding: 0 var(--s-5) var(--s-4) 0; border-bottom: 1px solid var(--line);
 }
 .table td { padding: var(--s-3) var(--s-5) var(--s-3) 0; vertical-align: middle; }
@@ -114,7 +114,7 @@ Es lo que hacen el dibujo y la tabla de Logs; aquí se había perdido.
 
 .fail { padding: var(--s-12); text-align: center; color: var(--faint); font-size: var(--t-4); }
 .head { display: flex; align-items: baseline; gap: var(--s-7); margin-bottom: var(--s-2); }
-.head h1 { margin: 0; font-size: var(--t-5); font-weight: 650; color: var(--ink); }
+.head h1 { margin: 0; font-size: var(--t-5); font-weight: 550; color: var(--ink); }
 .head span { font-size: var(--t-3); color: var(--faint); }
 .stack { display: flex; flex-direction: column; gap: var(--s-6); }
 .inline { display: flex; align-items: center; gap: var(--s-7); flex-wrap: wrap; }

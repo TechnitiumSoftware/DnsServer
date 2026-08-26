@@ -5,7 +5,18 @@ en Logs y Dashboard) y sin hover de fila justo en Query Logs, que es la tabla
 más ancha de todas y la que más falta le hace para no perder el renglón.
 */
 
-.wrap { overflow-x: auto; }
+/*
+La tabla es UN objeto, no un montón de filas sueltas sobre el fondo. En una
+consola de DNS la tabla es el producto: es donde se pasa el 90 % del tiempo, así
+que se le da cuerpo —panel, borde y esquinas— en vez de dejarla flotando.
+*/
+.wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-4);
+  background: var(--pan);
+  box-shadow: var(--e-1), var(--filo);
+}
 
 .tabla { border-collapse: collapse; width: 100%; }
 
@@ -18,24 +29,53 @@ más ancha de todas y la que más falta le hace para no perder el renglón.
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--mute);
-  font-weight: 700;
+  font-weight: 600;
   padding: var(--s-5) var(--s-7);
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
 }
 
-.tabla thead th:first-child { border-top-left-radius: var(--r-3); }
-.tabla thead th:last-child { border-top-right-radius: var(--r-3); }
-
 .tabla td {
-  padding: var(--s-8) var(--s-7);
+  padding: var(--s-6) var(--s-7);
   border-bottom: 1px solid var(--line2);
-  vertical-align: top;
+  vertical-align: middle;
   color: var(--ink);
 }
 
+/* La última fila no lleva línea: la cierra el borde del panel. */
+.tabla tbody tr:last-child td { border-bottom: 0; }
+
 .tabla tbody tr { transition: background var(--t-rapido); }
 .tabla tbody tr:hover { background: var(--hover); }
+
+/*
+Las columnas tienen ley, y hasta ahora no la tenían: las diez iban alineadas a
+la izquierda, incluida `Serial`, que es un número. Un número alineado a la
+izquierda no se puede comparar con el de la fila de abajo, que es justo para lo
+que está en una columna.
+*/
+
+/* La ENTIDAD de la fila: el nombre de la zona, del scope, del usuario. Es lo
+   que se busca al escanear, así que pesa más que el resto del renglón. */
+.entidad {
+  font-size: var(--t-5);
+  font-weight: 550;
+  color: var(--ink);
+}
+
+/* Números: a la derecha y con cifras de ancho fijo, para que las unidades
+   caigan unas encima de otras. */
+.numero {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Metadatos: la fecha, el «hace tanto», el contador. Acompañan, no compiten. */
+.meta { color: var(--mute); font-size: var(--t-3); }
+
+/* Una celda con varias líneas dentro se alinea arriba; el resto, al centro. */
+.apilada { vertical-align: top; }
 
 /* La fila de «no hay nada». Estaba escrita con `style={{textAlign:'center'}}`
    en cuatro sitios y con dos nombres de clase más para la misma regla. */

@@ -3,8 +3,8 @@
    desaparece la segunda fila de pestañas apiladas. */
 .shell { min-height:100vh; background:var(--bg); color:var(--ink); display:grid; grid-template-columns:216px 1fr; align-items:start; }
 .side { background:var(--pan); border-right:1px solid var(--line); align-self:stretch; position:sticky; top:0; height:100vh; overflow:auto; }
-.sbrand { display:flex; align-items:center; gap: var(--s-6); padding: 0 var(--s-10); height:52px; border-bottom:1px solid var(--line); font-weight:700; letter-spacing:-.01em; color:var(--ink); }
-.mark { width:22px; height:22px; border-radius: var(--r-2); background:var(--acc); color:var(--on-acc); display:grid; place-items:center; font:700 var(--t-2)/1 var(--font-ui); flex:none; }
+.sbrand { display:flex; align-items:center; gap: var(--s-6); padding: 0 var(--s-10); height:52px; border-bottom:1px solid var(--line); font-weight: 600; letter-spacing:-.01em; color:var(--ink); }
+.mark { width:22px; height:22px; border-radius: var(--r-2); background:var(--acc); color:var(--on-acc); display:grid; place-items:center; font:600 var(--t-2)/1 var(--font-ui); flex:none; }
 /*
 Los elementos estaban a 1 px unos de otros y con 7 px de padding vertical: la
 lista se leía como un bloque de texto, no como doce destinos. Y no había ninguna
@@ -19,13 +19,13 @@ Administration) y lo que se consulta (Logs, About).
 .grupo + .grupo { margin-top: var(--s-9); }
 .s { display:flex; align-items:center; gap: var(--s-7); padding: var(--s-6) var(--s-7); border-radius: var(--r-2); font:400 var(--t-4)/1.3 var(--font-ui); color:var(--mute); background:none; border:0; cursor:pointer; text-align:left; white-space:nowrap; width:100%; transition: background var(--t-rapido), color var(--t-rapido); }
 .s:hover { background:var(--hover); color:var(--ink); }
-.s[aria-selected='true'] { background:var(--acc); color:var(--on-acc); font-weight:650; box-shadow: var(--filo-fuerte); }
+.s[aria-selected='true'] { background:var(--acc); color:var(--on-acc); font-weight: 550; box-shadow: var(--filo-fuerte); }
 .s[aria-selected='true'] .ico { opacity:1; }
 .ico { display:inline-flex; flex:none; opacity:.85; }
 .sub { display:flex; flex-direction:column; gap: var(--s-1); margin: var(--s-3) 0 var(--s-5) var(--s-11); padding-left: var(--s-7); border-left:1px solid var(--line); }
 .s2 { padding: var(--s-4) var(--s-7); border-radius: var(--r-2); font:400 var(--t-4)/1.3 var(--font-ui); color:var(--mute); background:none; border:0; cursor:pointer; text-align:left; white-space:nowrap; transition: background var(--t-rapido), color var(--t-rapido); }
 .s2:hover { color:var(--ink); }
-.s2[aria-current='true'] { color:var(--acc); font-weight:650; background:var(--pan2); box-shadow: var(--filo); }
+.s2[aria-current='true'] { color:var(--acc); font-weight: 550; background:var(--pan2); box-shadow: var(--filo); }
 .main { min-width:0; }
 .rtop { display:flex; align-items:center; justify-content:flex-end; gap: var(--s-6); padding: 0 var(--s-11); height:52px; border-bottom:1px solid var(--line); background:var(--pan); box-shadow: var(--filo); font-size: var(--t-4); color:var(--mute); position:sticky; top:0; z-index:5; }
 .host { font-family:var(--font-mono); font-size: var(--t-3); color:var(--faint); border-right:1px solid var(--line); padding-right: var(--s-6); }
@@ -100,7 +100,7 @@ mirarlo desde el móvil cuando algo ha dejado de resolver.
     display: flex;
     align-items: center;
     gap: var(--s-5);
-    font-weight: 700;
+    font-weight: 600;
     color: var(--ink);
   }
 

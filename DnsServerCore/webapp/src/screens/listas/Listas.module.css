@@ -9,7 +9,7 @@
 
 .node { display:flex; align-items:center; gap: var(--s-4); width:100%; padding: var(--s-3) var(--s-4); border:0; border-radius: var(--r-2); background:transparent; font:var(--t-4)/1.3 var(--font-mono); color:var(--mute); cursor:pointer; text-align:left; }
 .node:hover { background:var(--hover); color:var(--ink); }
-.node[aria-current='true'] { background:var(--pan2); color:var(--acc); font-weight:650; }
+.node[aria-current='true'] { background:var(--pan2); color:var(--acc); font-weight: 550; }
 .car { display:inline-flex; color:var(--mute); flex:none; }
 .etiqueta { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .lvl { margin-left: var(--s-9); border-left:1px solid var(--line); padding-left: var(--s-3); }

@@ -1,7 +1,7 @@
 .filt { display:flex; align-items:flex-end; gap: var(--s-8); padding: var(--s-8) var(--s-9); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); margin-bottom: var(--s-9); flex-wrap:wrap; }
 .panel { background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); overflow:hidden; margin-bottom: var(--s-9); }
 .ph { display:flex; align-items:center; justify-content:space-between; padding: var(--s-8) var(--s-9); border-bottom:1px solid var(--line); }
-.ph h2 { margin: 0; font-size: var(--t-4); font-weight:650; color:var(--ink); }
+.ph h2 { margin: 0; font-size: var(--t-4); font-weight: 550; color:var(--ink); }
 .meta { font-family:var(--font-mono); font-size: var(--t-2); color:var(--faint); }
 .pb { padding: var(--s-9); }
 .out { margin: 0; padding: var(--s-8); background:var(--field); border:1px solid var(--line); border-radius: var(--r-3); font-family:var(--font-mono); font-size: var(--t-3); color:var(--ink); overflow:auto; line-height:1.55; max-height:460px; white-space:pre-wrap; word-break:break-word; }

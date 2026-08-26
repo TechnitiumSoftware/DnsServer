@@ -18,7 +18,7 @@ caracteres.
   padding: var(--s-9) var(--s-10); border-bottom: 1px solid var(--line);
   background: var(--pan2);
 }
-.title { margin: 0; font-size: var(--t-5); font-weight: 650; color: var(--ink); }
+.title { margin: 0; font-size: var(--t-5); font-weight: 550; color: var(--ink); }
 .close { background: none; border: 0; color: var(--faint); font-size: var(--t-6); cursor: pointer; }
 .body { padding: var(--s-3) var(--s-10) var(--s-9); display: flex; flex-direction: column; gap: var(--s-8); }
 .foot {

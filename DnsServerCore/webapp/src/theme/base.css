@@ -1,21 +1,67 @@
-/* Estilo base de la consola. Las fuentes son las del sistema: la CSP del
-   servidor no declara `font-src` (DnsWebService.cs:1969-1975), así que las
-   fuentes heredan `default-src 'self'` y no puede haber ni CDN ni `data:` URIs.
-   Una tipografía propia tendría que ir como fichero dentro de `www/`. */
+/*
+La tipografía de la consola.
+
+Era la del sistema operativo, y ésa es la razón de fondo por la que se leía
+correcta pero anónima: la misma letra que cualquier otra cosa, distinta en cada
+máquina. La CSP del servidor es `default-src 'self'` sin `font-src`
+(DnsWebService.cs:1969-1974), así que un CDN queda descartado y la fuente tiene
+que viajar dentro de `www/`. Van en `public/fonts/`, con su licencia al lado.
+
+**Archivo** para el texto y **IBM Plex Mono** para el dato, 65 KB entre las tres.
+Se descartaron Inter y Geist a propósito: las dos son excelentes y las dos están
+en todas partes —Inter es la de NetBird, Geist la de Vercel—, así que habrían
+sido cambiar una fuente prestada por otra.
+
+La monoespaciada no es un adorno: dominios, direcciones, seriales y TTL son la
+mitad de lo que enseña esta consola, y ahí lo que importa es que las cifras no se
+confundan. Plex Mono da cero barrado, uno con base y ele inconfundible.
+*/
+@font-face {
+  font-family: 'Archivo';
+  src: url('../fonts/archivo-latin.woff2') format('woff2-variations');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Plex Mono';
+  src: url('../fonts/plex-mono-400-latin.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Plex Mono';
+  src: url('../fonts/plex-mono-600-latin.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-ui: 'Archivo', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'Plex Mono', ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
 * { box-sizing: border-box; }
 
 html, body, #root { height: 100%; }
 
+/*
+El cuerpo va en 400 con el interletraje algo abierto. Iba en pesos de 650 y 700
+por casi todo, y eso —más que ninguna otra cosa— es lo que hacía que la consola
+se leyera densa y utilitaria en vez de tranquila. La jerarquía la dan el tamaño
+y el color, que es lo que se lee de reojo; el peso se reserva para lo que manda
+de verdad en su renglón.
+*/
 body {
   margin: 0;
   font-family: var(--font-ui);
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.55;
+  letter-spacing: 0.005em;
   background: var(--bg);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;

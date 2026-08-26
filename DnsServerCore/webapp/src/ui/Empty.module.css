@@ -19,7 +19,7 @@ paddings distintos, una `<b>` que a veces estaba) y tres del cargando.
   display: block;
   color: var(--ink);
   font-size: var(--t-5);
-  font-weight: 650;
+  font-weight: 550;
   margin-bottom: var(--s-3);
 }
 

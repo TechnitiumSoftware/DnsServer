@@ -25,5 +25,5 @@ sólido, que es lo dibujado y lo que se distingue de un vistazo.
   background: var(--acc);
   border-color: var(--acc);
   color: var(--on-acc);
-  font-weight: 700;
+  font-weight: 600;
 }

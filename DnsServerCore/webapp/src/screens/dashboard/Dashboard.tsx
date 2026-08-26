@@ -161,9 +161,9 @@ export function Dashboard({ token }: { token: string | null }) {
       <div className={styles.tiles} data-testid="metricas">
         {METRICAS.map((m) => (
           <div className={styles.tile} key={m.k} style={{ ['--tc' as string]: m.color }}>
-            <div className="v">{s ? num(s[m.k]) : '—'}</div>
-            <div className="p">{m.pct && s ? porcentaje(s[m.k], total) : ' '}</div>
-            <div className="k">{m.label}</div>
+            <div className={styles.v}>{s ? num(s[m.k]) : '—'}</div>
+            <div className={styles.p}>{m.pct && s ? porcentaje(s[m.k], total) : ' '}</div>
+            <div className={styles.k}>{m.label}</div>
           </div>
         ))}
       </div>
@@ -203,8 +203,8 @@ export function Dashboard({ token }: { token: string | null }) {
               <div className={styles.counters} data-testid="contadores">
                 {CONTADORES.map((c) => (
                   <div className={styles.cnt} key={c.k}>
-                    <div className="v">{s ? num(s[c.k]) : '—'}</div>
-                    <div className="k">{c.label}</div>
+                    <div className={styles.v}>{s ? num(s[c.k]) : '—'}</div>
+                    <div className={styles.k}>{c.label}</div>
                   </div>
                 ))}
               </div>

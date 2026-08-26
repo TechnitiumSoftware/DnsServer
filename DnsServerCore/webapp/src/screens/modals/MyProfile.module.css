@@ -1,8 +1,8 @@
-.caption { font-size: var(--t-2); color: var(--mute); font-weight: 650; margin-bottom: var(--s-3); }
+.caption { font-size: var(--t-2); color: var(--mute); font-weight: 550; margin-bottom: var(--s-3); }
 .table { width: 100%; border-collapse: collapse; font-size: var(--t-4); }
 .table th {
   text-align: left; font-size: var(--t-1); text-transform: uppercase; letter-spacing: 0.05em;
-  color: var(--mute); font-weight: 700; padding: 0 var(--s-5) var(--s-3); border-bottom: 1px solid var(--line);
+  color: var(--mute); font-weight: 600; padding: 0 var(--s-5) var(--s-3); border-bottom: 1px solid var(--line);
 }
 .table td { padding: var(--s-4) var(--s-5); border-bottom: 1px solid var(--line2); color: var(--ink); vertical-align: middle; }
 .mono { font-family: var(--font-mono); font-size: var(--t-3); }

@@ -1,6 +1,6 @@
 .seg { display:inline-flex; padding: var(--s-1); background:var(--pan2); border:1px solid var(--line); border-radius: var(--r-3); gap: var(--s-1); }
 .seg button { font:500 var(--t-4)/1 inherit; padding: var(--s-4) var(--s-8); border:0; border-radius: var(--r-2); background:transparent; color:var(--mute); cursor:pointer; }
-.seg button[aria-pressed='true'] { background:var(--acc); color:var(--on-acc); font-weight:650; }
+.seg button[aria-pressed='true'] { background:var(--acc); color:var(--on-acc); font-weight: 550; }
 .tiles { display:grid; grid-template-columns:repeat(auto-fill, minmax(148px, 1fr)); gap: var(--s-7); margin-bottom: var(--s-10); }
 /*
 El color de la métrica es el de SU SERIE en la gráfica de abajo: la relación es
@@ -10,19 +10,26 @@ la gráfica. Se dice con la misma muestra que usa una leyenda, que es de donde
 viene la relación.
 */
 .tile { padding: var(--s-8) var(--s-8); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); box-shadow: var(--e-1), var(--filo); }
-.tile .v { font:700 var(--t-7)/1.1 var(--font-mono); letter-spacing:-.02em; color:var(--ink); }
+.tile .v { font:600 var(--t-7)/1.1 var(--font-mono); letter-spacing:-.02em; color:var(--ink); }
 .tile .p { font-size: var(--t-2); color:var(--faint); margin-top: 1px; font-family:var(--font-mono); }
-.tile .k { display:flex; align-items:center; gap: var(--s-4); font-size: var(--t-1); color:var(--mute); margin-top: var(--s-3); text-transform:uppercase; letter-spacing:.05em; font-weight:650; }
+.tile .k { display:flex; align-items:center; gap: var(--s-4); font-size: var(--t-1); color:var(--mute); margin-top: var(--s-3); text-transform:uppercase; letter-spacing:.05em; font-weight: 550; }
+/*
+La muestra de color sólo la llevan las once métricas, que SON series de la
+gráfica de abajo. Los seis contadores del servidor comparten estilo de rótulo
+pero no son series de nada, así que no la llevan: una muestra de color que no
+remite a ninguna línea es decoración.
+*/
 .tile .k::before { content:''; width:7px; height:7px; border-radius: var(--r-full); background:var(--tc); flex:none; }
+.counters .k::before { display:none; }
 .grid { display:grid; grid-template-columns:1fr 310px; gap: var(--s-9); align-items:start; }
 .col { display:flex; flex-direction:column; gap: var(--s-9); }
 .panel { background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); overflow:hidden; box-shadow: var(--e-1), var(--filo); }
 .ph { display:flex; align-items:center; justify-content:space-between; padding: var(--s-8) var(--s-9); border-bottom:1px solid var(--line); background:var(--pan2); }
-.ph h2 { margin: 0; font-size: var(--t-4); font-weight:650; color:var(--ink); }
+.ph h2 { margin: 0; font-size: var(--t-4); font-weight: 550; color:var(--ink); }
 .pb { padding: var(--s-9); }
 .counters { display:grid; grid-template-columns:repeat(auto-fill, minmax(92px, 1fr)); gap: var(--s-6); }
 .cnt { padding: var(--s-8); background:var(--pan2); border:1px solid var(--line2); border-radius: var(--r-3); }
-.cnt .v { font:700 var(--t-6)/1 var(--font-mono); color:var(--ink); }
+.cnt .v { font:600 var(--t-6)/1 var(--font-mono); color:var(--ink); }
 .cnt .k { font-size: var(--t-1); color:var(--mute); margin-top: var(--s-3); text-transform:uppercase; letter-spacing:.05em; }
 .toprow { display:flex; align-items:center; justify-content:space-between; gap: var(--s-8); padding: var(--s-4) 0; border-bottom:1px solid var(--line2); font-size: var(--t-4); }
 .toprow:last-child { border-bottom:0; }
@@ -34,11 +41,11 @@ viene la relación.
 .topTabla thead th {
   position: sticky; top: 0; background: var(--pan); text-align: left;
   font-size: var(--t-2); text-transform: uppercase; letter-spacing: .05em;
-  color: var(--mute); font-weight: 700; padding: 0 var(--s-7) var(--s-5);
+  color: var(--mute); font-weight: 600; padding: 0 var(--s-7) var(--s-5);
   border-bottom: 1px solid var(--line);
 }
 .topTabla td { padding: var(--s-6) var(--s-7); border-bottom: 1px solid var(--line2); color: var(--ink); vertical-align: top; }
-.topTabla tfoot th { padding: var(--s-6) var(--s-7); text-align: left; font-size: var(--t-3); color: var(--mute); font-weight: 650; }
+.topTabla tfoot th { padding: var(--s-6) var(--s-7); text-align: left; font-size: var(--t-3); color: var(--mute); font-weight: 550; }
 /* Upstream pinta la fila entera en naranja cuando el cliente está limitado. */
 .limitada td { color: var(--warn); }
 .topNombre { display: block; font-family: var(--font-mono); word-break: break-all; }

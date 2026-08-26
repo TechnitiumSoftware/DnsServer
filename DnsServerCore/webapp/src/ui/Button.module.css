@@ -51,7 +51,7 @@ de dos maneras según la tabla.
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 65%), var(--acc);
   border-color: var(--acc);
   color: var(--on-acc);
-  font-weight: 650;
+  font-weight: 550;
   box-shadow: var(--filo-fuerte);
 }
 
@@ -67,7 +67,7 @@ era el más callado, y en esta consola no hay deshacer en ninguna parte.
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 65%), var(--dan-fill);
   border-color: var(--dan);
   color: var(--on-dan);
-  font-weight: 650;
+  font-weight: 550;
 }
 
 /*

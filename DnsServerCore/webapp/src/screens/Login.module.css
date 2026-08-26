@@ -17,9 +17,9 @@
   width: 26px; height: 26px; border-radius: var(--r-2);
   background: var(--acc); color: var(--on-acc);
   display: grid; place-items: center;
-  font: 700 var(--t-4)/1 system-ui;
+  font:600 var(--t-4)/1 system-ui;
 }
-.name { font-weight: 700; letter-spacing: -0.01em; color: var(--ink); font-size: var(--t-5); }
+.name { font-weight: 600; letter-spacing: -0.01em; color: var(--ink); font-size: var(--t-5); }
 .form { display: flex; flex-direction: column; gap: var(--s-9); }
 .alertSlot { margin-bottom: var(--s-9); }
 .sso { margin-top: var(--s-10); padding-top: var(--s-10); border-top: 1px solid var(--line); }

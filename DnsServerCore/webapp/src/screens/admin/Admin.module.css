@@ -23,15 +23,15 @@
 
 /* Permissions: una tarjeta por sección, con las dos tablas en dos columnas. */
 .perm { border:1px solid var(--line); border-radius: var(--r-4); overflow:hidden; margin-bottom: var(--s-8); background:var(--pan); }
-.permHead { margin: 0; padding: var(--s-7) var(--s-9); font-size: var(--t-4); font-weight:650; color:var(--ink); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap: var(--s-7); }
+.permHead { margin: 0; padding: var(--s-7) var(--s-9); font-size: var(--t-4); font-weight: 550; color:var(--ink); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap: var(--s-7); }
 .permCols { display:grid; grid-template-columns:1fr 1fr; }
 .permCol { padding: var(--s-7) var(--s-9); min-width:0; }
 .permCol + .permCol { border-left:1px solid var(--line); }
-.permTitle { font-size: var(--t-1); text-transform:uppercase; letter-spacing:.05em; color:var(--faint); font-weight:700; margin-bottom: var(--s-4); }
+.permTitle { font-size: var(--t-1); text-transform:uppercase; letter-spacing:.05em; color:var(--faint); font-weight: 600; margin-bottom: var(--s-4); }
 .prow { display:grid; grid-template-columns:1fr 46px 46px 46px; align-items:center; gap: var(--s-3); padding: var(--s-3) 0; border-bottom:1px solid var(--line2); font-size: var(--t-4); }
 .prow:last-child { border-bottom:0; }
 .who { color:var(--ink); font-family:var(--font-mono); font-size: var(--t-4); word-break:break-all; }
-.phd { font-size: var(--t-1); text-transform:uppercase; letter-spacing:.04em; color:var(--faint); text-align:center; font-weight:700; }
+.phd { font-size: var(--t-1); text-transform:uppercase; letter-spacing:.04em; color:var(--faint); text-align:center; font-weight: 600; }
 .pmark { text-align:center; color:var(--ok); }
 .pnone { color:var(--faint); grid-column:1 / -1; }
 .pchk { margin: 0 auto; display:block; }
@@ -43,7 +43,7 @@
 
 /* SSO y los modales de Cluster: filas etiqueta + control, como en Settings. */
 .block { border:1px solid var(--line); border-radius: var(--r-4); background:var(--pan); margin: 0 0 var(--s-9) 0; padding: 0 0 var(--s-9) 0; min-width:0; }
-.blockTitle { display:block; width:100%; padding: var(--s-7) var(--s-9); margin: 0 0 var(--s-8) 0; border-bottom:1px solid var(--line); font-size: var(--t-1); font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--mute); }
+.blockTitle { display:block; width:100%; padding: var(--s-7) var(--s-9); margin: 0 0 var(--s-8) 0; border-bottom:1px solid var(--line); font-size: var(--t-1); font-weight: 600; letter-spacing:.09em; text-transform:uppercase; color:var(--mute); }
 .ctlLine { display:flex; align-items:center; gap: var(--s-6); flex-wrap:wrap; }
 .suffix { font-size: var(--t-3); color:var(--mute); }
 .help { font-size: var(--t-3); color:var(--mute); line-height:1.55; max-width:720px; }
@@ -62,17 +62,17 @@
 
 /* Tabla editable dentro de un formulario: scopes y mapa de grupos de SSO. */
 .edit { width:100%; max-width:620px; border-collapse:collapse; }
-.edit th { text-align:left; font-size: var(--t-1); font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--mute); padding: 0 var(--s-5) var(--s-4) 0; border-bottom:1px solid var(--line); }
+.edit th { text-align:left; font-size: var(--t-1); font-weight: 600; letter-spacing:.07em; text-transform:uppercase; color:var(--mute); padding: 0 var(--s-5) var(--s-4) 0; border-bottom:1px solid var(--line); }
 .edit td { padding: var(--s-3) var(--s-5) var(--s-3) 0; vertical-align:middle; }
 .edit input, .edit select { width:100%; }
 .tdel { width:84px; }
 .bar { display:flex; align-items:center; gap: var(--s-5); padding: var(--s-8) var(--s-9); border:1px solid var(--line); border-radius: var(--r-4); background:var(--pan); }
 
 /* Cuerpo de modal: mismas filas, pero con la etiqueta más estrecha. */
-.mval { font-size: var(--t-4); font-weight:700; color:var(--ink); padding-top: var(--s-5); }
+.mval { font-size: var(--t-4); font-weight: 600; color:var(--ink); padding-top: var(--s-5); }
 .parrafo { margin: 0 0 var(--s-7); font-size: var(--t-4); color:var(--mute); line-height:1.6; }
 .parrafo code { font-family:var(--font-mono); font-size: var(--t-2); background:var(--field); border:1px solid var(--line); border-radius: var(--r-1); padding: 0 var(--s-2); }
-.sub { margin: var(--s-10) 0 var(--s-5); font-size: var(--t-4); font-weight:650; color:var(--ink); }
+.sub { margin: var(--s-10) 0 var(--s-5); font-size: var(--t-4); font-weight: 550; color:var(--ink); }
 .salida { display:flex; flex-direction:column; gap: var(--s-5); }
 .enlace { font-size: var(--t-3); }
 .enlace a { color:var(--acc); }

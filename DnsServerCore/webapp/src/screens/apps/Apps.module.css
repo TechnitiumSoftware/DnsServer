@@ -2,7 +2,7 @@
 @media (max-width: 1040px) { .apps { grid-template-columns:1fr; } }
 .app { background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); padding: var(--s-9); display:flex; flex-direction:column; }
 .ah { display:flex; align-items:flex-start; justify-content:space-between; gap: var(--s-8); margin-bottom: var(--s-5); }
-.ah h2 { margin: 0; font-size: var(--t-4); font-weight:650; color:var(--ink); }
+.ah h2 { margin: 0; font-size: var(--t-4); font-weight: 550; color:var(--ink); }
 .ver { font-family:var(--font-mono); font-size: var(--t-2); color:var(--faint); margin-top: var(--s-1); }
 .nueva { color:var(--acc); }
 .desc { margin: 0 0 var(--s-7); font-size: var(--t-4); line-height:1.55; color:var(--mute); white-space:pre-line; }
@@ -16,19 +16,19 @@
 .caps { display:flex; gap: var(--s-3); flex-wrap:wrap; margin: var(--s-3) 0; }
 .claseDesc { font-size: var(--t-3); line-height:1.5; color:var(--mute); margin: 0; white-space:pre-line; }
 .plantilla { margin: var(--s-3) 0 0; padding: var(--s-6); background:var(--field); border:1px solid var(--line); border-radius: var(--r-2); font-family:var(--font-mono); font-size: var(--t-2); color:var(--ink); overflow:auto; }
-.plantillaK { font-size: var(--t-2); color:var(--mute); font-weight:650; margin-top: var(--s-4); }
+.plantillaK { font-size: var(--t-2); color:var(--mute); font-weight: 550; margin-top: var(--s-4); }
 
 /* --- Tienda --- */
 .store { list-style:none; margin: 0; padding: 0; display:flex; flex-direction:column; }
 .srow { display:flex; align-items:flex-start; justify-content:space-between; gap: var(--s-9); padding: var(--s-8) 0; border-bottom:1px solid var(--line2); }
 .srow:last-child { border-bottom:0; }
-.sname { font-size: var(--t-4); font-weight:650; color:var(--ink); }
+.sname { font-size: var(--t-4); font-weight: 550; color:var(--ink); }
 .slabels { display:flex; gap: var(--s-3); margin: var(--s-3) 0 var(--s-5); flex-wrap:wrap; }
 .sdesc { margin: 0 0 var(--s-5); font-size: var(--t-4); line-height:1.55; color:var(--mute); white-space:pre-line; }
 .smeta { font-size: var(--t-3); color:var(--faint); font-family:var(--font-mono); word-break:break-all; }
 .smeta b { color:var(--mute); font-family:var(--font-ui); }
 .sacts { display:flex; flex-direction:column; gap: var(--s-3); flex:none; }
-.total { font-size: var(--t-4); color:var(--mute); font-weight:650; padding-top: var(--s-7); }
+.total { font-size: var(--t-4); color:var(--mute); font-weight: 550; padding-top: var(--s-7); }
 /* --- Config --- */
 .nota { font-size: var(--t-3); line-height:1.6; color:var(--mute); margin: 0 0 var(--s-7); }
 .nota code { font-family:var(--font-mono); color:var(--acc); }

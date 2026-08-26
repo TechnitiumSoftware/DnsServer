@@ -7,7 +7,7 @@ misma píldora significaba una cosa en una pantalla y otra en la de al lado.
 .tag {
   display: inline-block;
   font-size: var(--t-1);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.03em;
   padding: var(--s-1) var(--s-5);
   border-radius: var(--r-full);
@@ -29,7 +29,7 @@ una píldora de estado —no juzga nada—, así que ni es redonda ni lleva colo
 .chip {
   display: inline-block;
   font-size: var(--t-1);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.03em;
   padding: var(--s-1) var(--s-4);
   border-radius: var(--r-1);
