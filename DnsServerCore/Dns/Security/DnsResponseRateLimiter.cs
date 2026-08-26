@@ -405,8 +405,12 @@ namespace DnsServerCore.Dns.Security
                         WindowStart = now,
                         LastEpoch = epoch,
                         ObservationCount = 1,
-                        // Collision admissions deliberately receive only a fraction of a burst.
-                        Tokens = _tokenCapacity / ProbationInitialTokenDivisor
+                        // Collision admissions deliberately receive only a fraction of a burst,
+                        // but a configured rate of at least one response must retain one initial
+                        // response credit. BIND initializes a new account with its full configured
+                        // rate before debiting it; without this floor, rate=1 drops every first
+                        // response for a new identity.
+                        Tokens = Math.Min(_tokenCapacity, Math.Max(TokenScale, _tokenCapacity / ProbationInitialTokenDivisor))
                     };
                 else
                 {
