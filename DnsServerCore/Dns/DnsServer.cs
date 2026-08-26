@@ -8019,11 +8019,28 @@ namespace DnsServerCore.Dns
             _cookieCoordinator.UpdateSecrets(_useDnsCookies, secrets => secrets.StageSecret(secretCopy, expectedGeneration));
         }
 
-        public void ActivateDnsCookieSecret(long? expectedGeneration = null) =>
+        public void ActivateDnsCookieSecret(long? expectedGeneration = null)
+        {
+            EnsureClusterCookieTransitionIsSafe();
             _cookieCoordinator.UpdateSecrets(_useDnsCookies, secrets => secrets.ActivateStaging(expectedGeneration));
+        }
 
-        public void RetirePreviousDnsCookieSecret(long? expectedGeneration = null) =>
+        public void RetirePreviousDnsCookieSecret(long? expectedGeneration = null)
+        {
+            EnsureClusterCookieTransitionIsSafe();
             _cookieCoordinator.UpdateSecrets(_useDnsCookies, secrets => secrets.RetirePrevious(expectedGeneration));
+        }
+
+        private void EnsureClusterCookieTransitionIsSafe()
+        {
+            if (_dnsCookieClusterManaged)
+            {
+                throw new InvalidOperationException(
+                    "DNS Cookie activation and previous-secret retirement are disabled while the server is cluster managed. " +
+                    "The current cluster configuration propagation does not acknowledge that every member has persisted the staged generation; " +
+                    "activating without that barrier can violate RFC 9018 anycast interoperability.");
+            }
+        }
 
         public void DropDnsCookieSecret(long? expectedGeneration = null) =>
             _cookieCoordinator.UpdateSecrets(_useDnsCookies, secrets => secrets.DropStaging(expectedGeneration));
