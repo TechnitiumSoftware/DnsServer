@@ -54,8 +54,8 @@ namespace DnsServerCore.Dns.Security
         const uint MaxPastSeconds = 3600;
         const uint MaxFutureSeconds = 300;
 
-        // Operational minimum; adjust to your key-management policy.
-        const int MinSecretLen = 16;
+        // RFC 9018 Version 1 uses SipHash-2-4 with one canonical 128-bit key.
+        const int SecretLength = 16;
 
         #endregion
 
@@ -101,8 +101,8 @@ namespace DnsServerCore.Dns.Security
             if (secret.IsEmpty)
                 throw new ArgumentException("Secret must not be empty.", nameof(secret));
 
-            if (secret.Length < MinSecretLen)
-                throw new ArgumentException($"Secret must be at least {MinSecretLen} bytes.", nameof(secret));
+            if (secret.Length != SecretLength)
+                throw new ArgumentException($"Secret must be exactly {SecretLength} bytes.", nameof(secret));
         }
 
         private uint GetCurrentUnixTimeSeconds()
@@ -156,8 +156,7 @@ namespace DnsServerCore.Dns.Security
             cookie.AsSpan(TimestampOffset, TimestampLen).CopyTo(input.Slice(o, TimestampLen)); o += TimestampLen;
             ipBytes.AsSpan().CopyTo(input.Slice(o, ipBytes.Length));
 
-            ReadOnlySpan<byte> key16 = secret.Slice(0, 16); // acceptable if secret is uniformly random
-            ulong tag = SipHash24.Compute(key16, input);
+            ulong tag = SipHash24.Compute(secret, input);
 
             // SipHash's octet output is the little-endian serialization of the ulong result.
             BinaryPrimitives.WriteUInt64LittleEndian(cookie.AsSpan(MacOffset, MacLen), tag);
@@ -174,7 +173,7 @@ namespace DnsServerCore.Dns.Security
             if (clientAddress is null || secret.IsEmpty)
                 return false;
 
-            if (secret.Length < MinSecretLen)
+            if (secret.Length != SecretLength)
                 return false;
 
             if (clientCookie.Length != ClientCookieLen)
@@ -258,8 +257,7 @@ namespace DnsServerCore.Dns.Security
             serverCookie.Slice(TimestampOffset, TimestampLen).CopyTo(input.Slice(o, TimestampLen)); o += TimestampLen;
             ip.Slice(0, ipLen).CopyTo(input.Slice(o, ipLen));
 
-            ReadOnlySpan<byte> key16 = secret.Slice(0, 16);
-            ulong expectedTag = SipHash24.Compute(key16, input);
+            ulong expectedTag = SipHash24.Compute(secret, input);
 
             // Constant-time compare without allocating:
             // compare tags by bytes, not by ulong equality (avoids timing artifacts)

@@ -31,20 +31,22 @@ namespace DnsServerCore.Dns.Security
         private const int LegacyFileVersion = 1;
         private const int CurrentFileVersion = 2;
 
-        // Operational bounds; keep aligned with validator policy.
-        private const int MinSecretLen = 16;
-        private const int MaxSecretLen = 256;
+        // RFC 9018 Version 1 uses SipHash-2-4, which has a 128-bit key. New state
+        // is always exactly this size; a larger persisted legacy secret is read using
+        // its historical first-16-byte effective key and normalized on the next write.
+        internal const int EffectiveSecretLength = 16;
+        private const int LegacySecretMaxLength = 256;
 
         // Serialized state contains versioned timestamps and length fields for the
-        // active, previous-validation, and manually staged secrets.
+        // active, previous-validation, and manually staged secrets. The read limit
+        // permits legacy storage until it is legitimately rewritten.
         private const int SerializedMetadataSize = sizeof(int) + (2 * sizeof(long)) + (3 * sizeof(int));
-        internal const int MaxSerializedStateSize = SerializedMetadataSize + (3 * MaxSecretLen);
+        internal const int MaxSerializedStateSize = SerializedMetadataSize + (3 * LegacySecretMaxLength);
 
         private static readonly TimeSpan PreviousKeyValidationOverlap =
             TimeSpan.FromHours(1) + TimeSpan.FromMinutes(5) + TimeSpan.FromMinutes(5);
 
-        // Default secret size (256-bit)
-        private const int DefaultSecretLen = 32;
+        private const int DefaultSecretLen = EffectiveSecretLength;
 
         #endregion
 
@@ -75,12 +77,9 @@ namespace DnsServerCore.Dns.Security
                     loaded = new Snapshot(CurrentFileVersion, GenerateSecret(), DateTime.UtcNow, null, null, null);
                     SaveLocked(loaded);
                 }
-                else if (loaded.FormatVersion != CurrentFileVersion)
-                {
-                    loaded = new Snapshot(CurrentFileVersion, loaded.Active, loaded.ActiveCreatedUtc,
-                        null, null, loaded.StagedNext);
-                    SaveLocked(loaded);
-                }
+                // Legacy storage remains untouched at startup. It is read through the
+                // first-16-byte effective key and becomes canonical only when a later
+                // lifecycle operation legitimately persists a replacement snapshot.
 
                 Volatile.Write(ref _snapshot, loaded);
             }
@@ -116,12 +115,13 @@ namespace DnsServerCore.Dns.Security
                 DateTime createdUtc = new DateTime(createdUtcTicks, DateTimeKind.Utc);
 
                 int currentLen = br.ReadInt32();
-                if (currentLen < MinSecretLen || currentLen > MaxSecretLen)
+                if (currentLen < EffectiveSecretLength || currentLen > LegacySecretMaxLength)
                     throw new InvalidDataException("Invalid current secret length.");
 
                 byte[] active = br.ReadBytes(currentLen);
                 if (active.Length != currentLen)
                     throw new EndOfStreamException("Unexpected end of secret file (active secret).");
+                active = ToEffectiveSecret(active);
 
                 if (version == LegacyFileVersion)
                 {
@@ -180,12 +180,12 @@ namespace DnsServerCore.Dns.Security
             int length = reader.ReadInt32();
             if (length == 0)
                 return null;
-            if (length < MinSecretLen || length > MaxSecretLen)
+            if (length < EffectiveSecretLength || length > LegacySecretMaxLength)
                 throw new InvalidDataException($"Invalid {name} secret length.");
             byte[] value = reader.ReadBytes(length);
             if (value.Length != length)
                 throw new EndOfStreamException($"Unexpected end of secret file ({name} secret).");
-            return value;
+            return ToEffectiveSecret(value);
         }
 
         private static void EnsureEndOfFile(Stream stream)
@@ -222,8 +222,8 @@ namespace DnsServerCore.Dns.Security
             if (snapshot is null)
                 throw new ArgumentNullException(nameof(snapshot));
 
-            if (snapshot.Active is null || snapshot.Active.Length < MinSecretLen)
-                throw new InvalidOperationException("Active secret is missing or too short.");
+            if (snapshot.Active is null || snapshot.Active.Length != EffectiveSecretLength)
+                throw new InvalidOperationException("Active secret is missing or has an invalid length.");
 
             string tmpPath = _secretFilePath + ".tmp";
             using (MemoryStream ms = new MemoryStream())
@@ -267,7 +267,7 @@ namespace DnsServerCore.Dns.Security
                 writer.Write(0);
                 return;
             }
-            if (secret.Length < MinSecretLen || secret.Length > MaxSecretLen)
+            if (secret.Length != EffectiveSecretLength)
                 throw new InvalidOperationException($"The {name} secret has an invalid length.");
             writer.Write(secret.Length);
             writer.Write(secret);
@@ -299,6 +299,14 @@ namespace DnsServerCore.Dns.Security
         private static byte[] GenerateSecret()
         {
             return RandomNumberGenerator.GetBytes(DefaultSecretLen);
+        }
+
+        private static byte[] ToEffectiveSecret(ReadOnlySpan<byte> secret)
+        {
+            if (secret.Length < EffectiveSecretLength)
+                throw new ArgumentException($"Secret must contain at least {EffectiveSecretLength} bytes.", nameof(secret));
+
+            return secret[..EffectiveSecretLength].ToArray();
         }
 
         #endregion
@@ -386,9 +394,9 @@ namespace DnsServerCore.Dns.Security
         internal void GetSecrets(out byte[] active, out byte[] staging, out byte[] previous)
         {
             Snapshot snapshot = Volatile.Read(ref _snapshot);
-            active = snapshot.Active;
-            staging = snapshot.StagedNext;
-            previous = snapshot.Previous;
+            active = (byte[])snapshot.Active.Clone();
+            staging = snapshot.StagedNext is null ? null : (byte[])snapshot.StagedNext.Clone();
+            previous = snapshot.Previous is null ? null : (byte[])snapshot.Previous.Clone();
         }
 
         /// <summary>
@@ -402,17 +410,27 @@ namespace DnsServerCore.Dns.Security
         /// Throws InvalidOperationException if a staging secret already exists.
         /// See RFC 9018 §5 and APIDOCS.md DNS Cookie section for operational guidance.
         /// </summary>
-        public void AddStaging()
+        public void AddStaging() => GenerateStagedSecret();
+
+        public void GenerateStagedSecret() => StageSecret(GenerateSecret());
+
+        public void StageSecret(ReadOnlySpan<byte> secret)
         {
+            if (secret.Length != EffectiveSecretLength)
+                throw new ArgumentException($"Secret must be exactly {EffectiveSecretLength} bytes.", nameof(secret));
+
+            // Copy before publication so a caller cannot mutate the staged key after this
+            // operation returns, even when the source span wraps a mutable byte array.
+            byte[] stagedSecret = secret.ToArray();
+
             lock (_lock)
             {
                 Snapshot current = Volatile.Read(ref _snapshot);
                 if (current.StagedNext is not null)
                     throw new InvalidOperationException("There is already a staging secret.");
 
-                // Manual transition: active-only -> same active + new staging.
                 Snapshot next = new Snapshot(CurrentFileVersion, current.Active, current.ActiveCreatedUtc,
-                    current.Previous, current.PreviousRetireUtc, GenerateSecret());
+                    current.Previous, current.PreviousRetireUtc, stagedSecret);
                 SaveLocked(next);
                 Volatile.Write(ref _snapshot, next);
             }
@@ -555,12 +573,15 @@ namespace DnsServerCore.Dns.Security
                 if ((previous is null) != (previousRetireUtc is null))
                     throw new ArgumentException("Previous secret and retirement deadline must be specified together.");
 
+                if (active is null)
+                    throw new ArgumentNullException(nameof(active));
+
                 FormatVersion = formatVersion;
-                Active = active;
+                Active = ToEffectiveSecret(active);
                 ActiveCreatedUtc = activeCreatedUtc;
-                Previous = previous;
+                Previous = previous is null ? null : ToEffectiveSecret(previous);
                 PreviousRetireUtc = previousRetireUtc;
-                StagedNext = stagedNext;
+                StagedNext = stagedNext is null ? null : ToEffectiveSecret(stagedNext);
             }
         }
     }
