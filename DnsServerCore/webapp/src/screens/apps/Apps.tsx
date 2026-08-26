@@ -162,12 +162,12 @@ export function Apps({ token }: { token: string | null }) {
       </div>
 
       {apps === null ? (
-        <div className={styles.cargando}>Cargando…</div>
+        <div className={styles.cargando}>Loading…</div>
       ) : apps.length === 0 ? (
         <div className={styles.empty}>
-          <b>No hay apps instaladas</b>
-          Las DNS Apps añaden comportamiento al servidor —registro de consultas, bloqueo avanzado,
-          split horizon— sin tocar la configuración base. Abre la tienda para ver las disponibles.
+          <b>No apps installed</b>
+          DNS Apps add behaviour to the server — query logging, advanced blocking, split horizon —
+          without touching the base configuration. Open the store to see what is available.
           <div className={styles.emptyActs}>
             <Button variant="primary" onClick={() => setModal({ kind: 'store' })}>
               Abrir App Store

@@ -91,14 +91,14 @@ describe('Dashboard', () => {
       queryTypeChartData: vacia, protocolTypeChartData: vacia,
     } as never)
     render(<Dashboard token="t" />)
-    expect(await screen.findByText('Sin consultas en este periodo.')).toBeInTheDocument()
+    expect(await screen.findByText('No queries for this period.')).toBeInTheDocument()
     expect(screen.queryByLabelText('Query Types')).not.toBeInTheDocument()
   })
 
   it('una lista Top vacía lo dice en vez de quedarse en blanco', async () => {
     vi.spyOn(api, 'getDashboardStats').mockResolvedValue(datos as never)
     render(<Dashboard token="t" />)
-    expect(await screen.findByText('Sin datos en este periodo.')).toBeInTheDocument()
+    expect(await screen.findByText('No data for this period.')).toBeInTheDocument()
   })
 
   it('si la llamada falla, la pantalla no revienta', async () => {

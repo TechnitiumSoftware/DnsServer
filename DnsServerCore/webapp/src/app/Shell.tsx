@@ -10,6 +10,10 @@ import { About } from '../screens/about/About'
 import { Apps } from '../screens/apps/Apps'
 import { Cache, Allowed, Blocked } from '../screens/listas/Listas'
 import { Settings } from '../screens/settings/Settings'
+import { Zones } from '../screens/zones/Zones'
+import { Dhcp } from '../screens/dhcp/Dhcp'
+import { Logs } from '../screens/logs/Logs'
+import { Admin } from '../screens/admin/Admin'
 import styles from './Shell.module.css'
 
 type ModalId = 'profile' | 'password' | 'twofa' | 'token'
@@ -149,6 +153,34 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
           <Allowed token={session.token} />
         ) : current?.id === 'blocked' ? (
           <Blocked token={session.token} />
+        ) : current?.id === 'zones' ? (
+          <Zones
+            token={session.token}
+            canModify={permisos?.Zones?.canModify !== false}
+            canDelete={permisos?.Zones?.canDelete !== false}
+          />
+        ) : current?.id === 'dhcp' ? (
+          <Dhcp
+            token={session.token}
+            sub={sub ?? 'Leases'}
+            onSubChange={setSub}
+            canModify={permisos?.DhcpServer?.canModify !== false}
+            canDelete={permisos?.DhcpServer?.canDelete !== false}
+          />
+        ) : current?.id === 'logs' ? (
+          /* «Delete All Stats» vive en la pantalla de Logs pero pide permiso
+             del Dashboard (WebServiceLogsApi.cs:135). No es un despiste. */
+          <Logs
+            token={session.token}
+            sub={sub ?? 'View Logs'}
+            onSubChange={setSub}
+            canDeleteLogs={permisos?.Logs?.canDelete !== false}
+            canDeleteStats={permisos?.Dashboard?.canDelete !== false}
+          />
+        ) : current?.id === 'admin' ? (
+          /* Sin props de permiso a propósito: upstream no oculta ni deshabilita
+             nada dentro de Administration, sólo la sección entera (main.js:165). */
+          <Admin token={session.token} sub={sub ?? 'Sessions'} onSubChange={setSub} />
         ) : current?.id === 'settings' ? (
           /* main.js:906-930 — tres permisos distintos en una sola barra:
              guardar exige Settings.canModify, vaciar caché Cache.canDelete y

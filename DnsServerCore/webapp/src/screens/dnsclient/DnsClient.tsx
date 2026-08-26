@@ -124,7 +124,7 @@ export function DnsClient({ token }: { token: string | null }) {
       </div>
 
       {salida === null ? (
-        <div className={styles.vacio}>Lanza una consulta para ver la respuesta.</div>
+        <div className={styles.vacio}>Run a query to see the response.</div>
       ) : (
         <div className={styles.panel}>
           <div className={styles.ph}>

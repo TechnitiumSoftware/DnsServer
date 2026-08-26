@@ -124,7 +124,7 @@ describe('Apps — lista de instaladas', () => {
     conTienda([])
     render(<Apps token="t" />)
 
-    expect(await screen.findByText('No hay apps instaladas')).toBeInTheDocument()
+    expect(await screen.findByText('No apps installed')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Abrir App Store' })).toBeInTheDocument()
     expect(screen.queryByText('0 instaladas')).not.toBeInTheDocument()
   })
@@ -250,7 +250,7 @@ describe('Apps — instalar desde fichero', () => {
     conApps([])
     conTienda([])
     render(<Apps token="t" />)
-    await screen.findByText('No hay apps instaladas')
+    await screen.findByText('No apps installed')
 
     await userEvent.click(screen.getByRole('button', { name: 'Install from file' }))
     await userEvent.click(await screen.findByRole('button', { name: 'Install' }))
@@ -268,7 +268,7 @@ describe('Apps — instalar desde fichero', () => {
     conTienda([])
     const spy = vi.spyOn(api, 'installApp')
     render(<Apps token="t" />)
-    await screen.findByText('No hay apps instaladas')
+    await screen.findByText('No apps installed')
 
     await userEvent.click(screen.getByRole('button', { name: 'Install from file' }))
     await userEvent.type(await screen.findByLabelText('App Name'), 'Mía')
@@ -365,7 +365,7 @@ describe('Apps — tienda', () => {
       .spyOn(api, 'downloadAndInstall')
       .mockResolvedValue({ kind: 'ok', data: { status: 'ok' } } as never)
     render(<Apps token="t" />)
-    await screen.findByText('No hay apps instaladas')
+    await screen.findByText('No apps installed')
     await abrirTienda()
 
     const fila = within(await screen.findByRole('listitem', { name: 'Advanced Blocking' }))
@@ -401,7 +401,7 @@ describe('Apps — tienda', () => {
     conApps([])
     conTienda([])
     render(<Apps token="t" />)
-    await screen.findByText('No hay apps instaladas')
+    await screen.findByText('No apps installed')
     await abrirTienda()
 
     expect(await screen.findByText('No Apps Found')).toBeInTheDocument()

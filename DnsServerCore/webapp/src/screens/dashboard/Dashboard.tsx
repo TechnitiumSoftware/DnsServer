@@ -57,7 +57,7 @@ function Reparto({ titulo, data }: { titulo: string; data: ChartData }) {
         {tieneDatos(data) ? (
           <Chart tipo="doughnut" data={data} alto={190} aria={titulo} />
         ) : (
-          <div className={styles.vacio}>Sin datos en este periodo.</div>
+          <div className={styles.vacio}>No data for this period.</div>
         )}
       </div>
     </div>
@@ -72,7 +72,7 @@ function Top({ titulo, filas, onMore }: { titulo: string; filas: TopEntry[]; onM
         <button type="button" onClick={onMore}>More</button>
       </div>
       <div className={styles.pb} style={{ paddingTop: 4 }}>
-        {filas.length === 0 && <div className={styles.vacio}>Sin datos en este periodo.</div>}
+        {filas.length === 0 && <div className={styles.vacio}>No data for this period.</div>}
         {filas.slice(0, 5).map((f) => (
           <div className={styles.toprow} key={f.name}>
             <span className={styles.n}>{f.name}</span>
@@ -132,12 +132,12 @@ export function Dashboard({ token }: { token: string | null }) {
           <div className={styles.panel}>
             <div className={styles.ph}><h2>Queries</h2></div>
             <div className={styles.pb}>
-              {cargando && <div className={styles.vacio}>Cargando…</div>}
+              {cargando && <div className={styles.vacio}>Loading…</div>}
               {!cargando && datos && tieneDatos(datos.mainChartData) && (
                 <Chart tipo="line" data={datos.mainChartData} aria="Consultas por periodo" />
               )}
               {!cargando && (!datos || !tieneDatos(datos.mainChartData)) && (
-                <div className={styles.vacio}>Sin consultas en este periodo.</div>
+                <div className={styles.vacio}>No queries for this period.</div>
               )}
             </div>
           </div>

@@ -121,7 +121,7 @@ export function StoreApps({
       )}
 
       {storeApps === null ? (
-        <div className={styles.cargando}>Cargando…</div>
+        <div className={styles.cargando}>Loading…</div>
       ) : storeApps.length === 0 ? (
         <div className={styles.vacioStore}>No Apps Found</div>
       ) : (

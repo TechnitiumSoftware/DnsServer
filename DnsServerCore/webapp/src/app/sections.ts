@@ -5,8 +5,9 @@ Las 12 secciones de la consola, en el orden de upstream.
 coincide con la etiqueta: la pestaña «DNS Client» se gobierna con `DnsClient` y
 «DHCP» con `DhcpServer`. `About` no tiene permiso: se ve siempre.
 
-Cada sección se oculta si su `canView` es falso (main.js:119-250), y la fase que
-la implementa está anotada para que quede claro qué falta.
+Cada sección se oculta si su `canView` es falso (main.js:119-250). `phase` deja
+anotado de qué fase salió cada una; con las fases 4, 8 y 9 cerradas ya no queda
+ninguna sin implementar.
 */
 export interface Section {
   id: string

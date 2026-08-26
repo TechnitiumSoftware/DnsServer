@@ -414,8 +414,8 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
         <div>
           <h1 className={styles.zt}>{TITULO[lista]}</h1>
           <div className={styles.tags}>
-            <span className={styles.tag}>{zones.length} zonas</span>
-            <span className={styles.tag}>{records.length} registros</span>
+            <span className={styles.tag}>{zones.length} zones</span>
+            <span className={styles.tag}>{records.length} records</span>
           </div>
         </div>
         <div className={styles.acts}>
@@ -508,10 +508,10 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
             <Registros records={records} conDnssec={esCache} nodo={domain} />
           ) : (
             <div className={styles.empty}>
-              <b>Sin registros en este nodo</b>
+              <b>No records at this node</b>
               {zones.length > 0
-                ? 'Este nodo sólo contiene sub-dominios. Abre uno en el árbol para ver los suyos.'
-                : 'Este nodo no tiene registros ni sub-dominios.'}
+                ? 'This node only contains sub-domains. Open one in the tree to see its records.'
+                : 'This node has no records and no sub-domains.'}
             </div>
           )}
         </div>

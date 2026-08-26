@@ -146,7 +146,7 @@ describe('tabla de registros', () => {
   it('explica el nodo vacío en vez de dejar un [] suelto', async () => {
     conNodo(nodo({ zones: ['com', 'net'] }))
     render(<Blocked token="t" />)
-    expect(await screen.findByText('Sin registros en este nodo')).toBeInTheDocument()
+    expect(await screen.findByText('No records at this node')).toBeInTheDocument()
   })
 })
 
