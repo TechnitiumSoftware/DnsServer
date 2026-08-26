@@ -40,7 +40,7 @@ namespace DnsServerCore.Dns.Security
     /// calling <see cref="IsMatch"/> -- a plain field write is not guaranteed visible to other
     /// threads under a weak memory model, and reading the field twice during one decision can
     /// observe two different published instances if a concurrent rebuild lands in between.
-    /// <see cref="UdpResponseRateLimiterRuntime.Evaluate"/> is the current example of this
+    /// <see cref="DnsResponseRateLimiterRuntime.Evaluate"/> is the current example of this
     /// contract.
     /// </remarks>
     public sealed class NetworkPrefixMatcher

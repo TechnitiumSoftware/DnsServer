@@ -90,7 +90,7 @@ namespace DnsServerCore.Dns.Security
             return changes;
         }
 
-        public NormalizedUdpResponseRateLimiterOptions ToLimiterOptions() => new NormalizedUdpResponseRateLimiterOptions(
+        public NormalizedDnsResponseRateLimiterOptions ToLimiterOptions() => new NormalizedDnsResponseRateLimiterOptions(
             Capacity, ShardCount, ScaledTokenCapacity, ScaledTokensPerSecond, TimeProvider.System.TimestampFrequency,
             InstantWindowTimestampUnits, InstantLimit, SlipEvery, IPv4PrefixLengths, IPv6PrefixLengths);
     }
@@ -105,7 +105,7 @@ namespace DnsServerCore.Dns.Security
     /// </summary>
     sealed class RrlRuntimeState
     {
-        public RrlRuntimeState(ResponseRateLimitingOptions options, RrlLimiterSemanticSettings limiterSettings, UdpResponseRateLimiter limiter, NetworkPrefixMatcher bypassMatcher, ulong generation)
+        public RrlRuntimeState(ResponseRateLimitingOptions options, RrlLimiterSemanticSettings limiterSettings, DnsResponseRateLimiter limiter, NetworkPrefixMatcher bypassMatcher, ulong generation)
         {
             Options = options;
             LimiterSettings = limiterSettings;
@@ -115,7 +115,7 @@ namespace DnsServerCore.Dns.Security
         }
 
         public bool Enabled => Options.Enabled;
-        public UdpResponseRateLimiter Limiter { get; }
+        public DnsResponseRateLimiter Limiter { get; }
         public RrlLimiterSemanticSettings LimiterSettings { get; }
         public NetworkPrefixMatcher BypassMatcher { get; }
         public ResponseRateLimitingOptions Options { get; }
@@ -128,7 +128,7 @@ namespace DnsServerCore.Dns.Security
     /// individual responses against the currently published generation. <see cref="DnsServer"/>
     /// holds one instance and only ever talks to it through this surface.
     /// </summary>
-    public sealed class UdpResponseRateLimiterRuntime
+    public sealed class DnsResponseRateLimiterRuntime
     {
         const ulong INITIAL_GENERATION = 0;
 
@@ -138,13 +138,13 @@ namespace DnsServerCore.Dns.Security
         // allowing deployments to scale to the same order of magnitude as Knot Resolver.
         public const int TableSizeMaximum = 524288;
 
-        public static readonly int SustainedRateMaximum = (int)Math.Min(int.MaxValue, UdpResponseRateLimiter.MaximumSupportedRate);
+        public static readonly int SustainedRateMaximum = (int)Math.Min(int.MaxValue, DnsResponseRateLimiter.MaximumSupportedRate);
 
         readonly Lock _lock = new Lock();
         RrlRuntimeState _state;
         long _rebuildCount;
 
-        public UdpResponseRateLimiterRuntime()
+        public DnsResponseRateLimiterRuntime()
         {
             ResponseRateLimitingOptions initialOptions = new ResponseRateLimitingOptions(false, 100, 200, 2, 65536, ImmutableArray<NetworkAddress>.Empty);
             _state = CreateRuntimeState(initialOptions, INITIAL_GENERATION);
@@ -164,8 +164,8 @@ namespace DnsServerCore.Dns.Security
                 RrlRuntimeState current = Volatile.Read(ref _state);
                 NormalizedRrlSettings settings = NormalizeSettings(options);
                 bool rebuild = current.LimiterSettings.GetHistoryAffectingChanges(settings.Limiter) != RrlLimiterSemanticChanges.None;
-                UdpResponseRateLimiter limiter = rebuild
-                    ? new UdpResponseRateLimiter(settings.Limiter.ToLimiterOptions())
+                DnsResponseRateLimiter limiter = rebuild
+                    ? new DnsResponseRateLimiter(settings.Limiter.ToLimiterOptions())
                     : current.Limiter;
                 RrlRuntimeState replacement = CreateRuntimeState(settings, limiter, GetNextGeneration(current.Generation));
 
@@ -178,38 +178,38 @@ namespace DnsServerCore.Dns.Security
 
         /// <summary>
         /// Captures the currently published generation once and evaluates a single response
-        /// against it. Callers that need <see cref="ReflectionRrlPolicy.ShouldEvaluate"/> first
+        /// against it. Callers that need <see cref="DnsResponseRrlPolicy.ShouldEvaluate"/> first
         /// should read <see cref="Enabled"/> for that check and then call this method - both
         /// observe the same generation only if no concurrent <see cref="Apply"/> lands between
         /// the two reads, which is acceptable since a policy update racing a single request is
         /// not a correctness issue here.
         /// </summary>
-        public UdpResponseRateLimitResult Evaluate(IPAddress remoteIP, ResponseRateLimitCategory category, ushort queryType, ushort queryClass, string canonicalName)
+        public DnsResponseRateLimitResult Evaluate(IPAddress remoteIP, DnsResponseRateLimitCategory category, ushort queryType, ushort queryClass, string canonicalName)
         {
             RrlRuntimeState state = Volatile.Read(ref _state);
             if (state.BypassMatcher.IsMatch(remoteIP))
-                return UdpResponseRateLimitResult.Allowed;
+                return DnsResponseRateLimitResult.Allowed;
 
             return state.Limiter.Evaluate(remoteIP, category, queryType, queryClass, canonicalName);
         }
 
-        public static ResponseRateLimitCategory ClassifyResponse(DnsDatagram response)
+        public static DnsResponseRateLimitCategory ClassifyResponse(DnsDatagram response)
         {
             if (response.RCODE == DnsResponseCode.NxDomain)
-                return ResponseRateLimitCategory.NxDomain;
+                return DnsResponseRateLimitCategory.NxDomain;
             if (response.RCODE != DnsResponseCode.NoError)
-                return ResponseRateLimitCategory.ServerError;
+                return DnsResponseRateLimitCategory.ServerError;
             if (response.Answer.Count == 0)
             {
                 for (int i = 0; i < response.Authority.Count; i++)
                     if (response.Authority[i].Type == DnsResourceRecordType.NS)
-                        return ResponseRateLimitCategory.Referral;
-                return ResponseRateLimitCategory.NoData;
+                        return DnsResponseRateLimitCategory.Referral;
+                return DnsResponseRateLimitCategory.NoData;
             }
             for (int i = 0; i < response.Answer.Count; i++)
                 if (response.Answer[i].Type == DnsResourceRecordType.RRSIG && DnsRRSIGRecordData.IsWildcard(response.Answer[i]))
-                    return ResponseRateLimitCategory.Wildcard;
-            return ResponseRateLimitCategory.Positive;
+                    return DnsResponseRateLimitCategory.Wildcard;
+            return DnsResponseRateLimitCategory.Positive;
         }
 
         private static ulong GetNextGeneration(ulong generation) => generation == ulong.MaxValue ? INITIAL_GENERATION + 1UL : generation + 1UL;
@@ -217,11 +217,11 @@ namespace DnsServerCore.Dns.Security
         private static RrlRuntimeState CreateRuntimeState(ResponseRateLimitingOptions options, ulong generation)
         {
             NormalizedRrlSettings settings = NormalizeSettings(options);
-            UdpResponseRateLimiter limiter = new UdpResponseRateLimiter(settings.Limiter.ToLimiterOptions());
+            DnsResponseRateLimiter limiter = new DnsResponseRateLimiter(settings.Limiter.ToLimiterOptions());
             return CreateRuntimeState(settings, limiter, generation);
         }
 
-        private static RrlRuntimeState CreateRuntimeState(NormalizedRrlSettings settings, UdpResponseRateLimiter limiter, ulong generation)
+        private static RrlRuntimeState CreateRuntimeState(NormalizedRrlSettings settings, DnsResponseRateLimiter limiter, ulong generation)
         {
             ResponseRateLimitingOptions options = new ResponseRateLimitingOptions(
                 settings.Policy.Enabled, settings.Limiter.SustainedRatePerSecond, settings.Limiter.InstantLimit,
@@ -236,7 +236,7 @@ namespace DnsServerCore.Dns.Security
             RrlPolicySettings policy = new RrlPolicySettings(options.Enabled, bypassNetworks, bypassMatcher);
             ImmutableArray<int> ipv4PrefixLengths = ImmutableArray.Create(32, 24);
             ImmutableArray<int> ipv6PrefixLengths = ImmutableArray.Create(128, 64, 56);
-            NormalizedUdpResponseRateLimiterOptions normalizedLimiter = new UdpResponseRateLimiterOptions
+            NormalizedDnsResponseRateLimiterOptions normalizedLimiter = new DnsResponseRateLimiterOptions
             {
                 Capacity = options.TableSize,
                 ShardCount = 16,

@@ -179,10 +179,10 @@ namespace DnsServerCore.Dns
         IReadOnlyCollection<NetworkAddress> _qpmLimitBypassList;
 
         // Early source-prefix admission control remains separate from the post-response
-        // DNS response-rate limiter configured through _rrlRuntime.
+        // DNS response-rate limiter configured through _dnsResponseRrlRuntime.
         bool _enableUdpReflectionLimiting;
         readonly Security.UdpReflectionLimiter _udpReflectionLimiter = new Security.UdpReflectionLimiter();
-        readonly Security.UdpResponseRateLimiterRuntime _rrlRuntime = new Security.UdpResponseRateLimiterRuntime();
+        readonly Security.DnsResponseRateLimiterRuntime _dnsResponseRrlRuntime = new Security.DnsResponseRateLimiterRuntime();
 
         int _clientTimeout = 2000;
         int _tcpSendTimeout = 10000;
@@ -1564,7 +1564,7 @@ namespace DnsServerCore.Dns
             bW.Write(_statsManager.EnableInMemoryStats);
             bW.Write(_statsManager.MaxStatFileDays);
             bW.Write(_useDnsCookies);
-            Security.ResponseRateLimitingOptions rrlOptions = _rrlRuntime.CurrentOptions;
+            Security.ResponseRateLimitingOptions rrlOptions = _dnsResponseRrlRuntime.CurrentOptions;
             bW.Write(rrlOptions.Enabled);
             bW.Write(rrlOptions.SustainedRate);
             bW.Write(rrlOptions.InstantLimit);
@@ -2088,22 +2088,22 @@ namespace DnsServerCore.Dns
 
                 // RRL is response policy: classify and limit only after resolution has
                 // produced the response, immediately before the UDP emission path.
-                Security.ResponseRateLimitCategory responseCategory = Security.UdpResponseRateLimiterRuntime.ClassifyResponse(response);
-                Security.ReflectionRrlRequestTrust rrlTrust = cookieClassification.State == Security.CookieRequestState.ValidServerCookie
-                    ? Security.ReflectionRrlRequestTrust.ValidServerCookie
-                    : Security.ReflectionRrlRequestTrust.Unverified;
-                if (!isUdpReflectionRecovery && response.Question.Count > 0 && Security.ReflectionRrlPolicy.ShouldEvaluate(_rrlRuntime.Enabled, isUdp: true, rrlTrust))
+                Security.DnsResponseRateLimitCategory responseCategory = Security.DnsResponseRateLimiterRuntime.ClassifyResponse(response);
+                Security.DnsResponseRrlRequestTrust rrlTrust = cookieClassification.State == Security.CookieRequestState.ValidServerCookie
+                    ? Security.DnsResponseRrlRequestTrust.ValidServerCookie
+                    : Security.DnsResponseRrlRequestTrust.Unverified;
+                if (!isUdpReflectionRecovery && response.Question.Count > 0 && Security.DnsResponseRrlPolicy.ShouldEvaluate(_dnsResponseRrlRuntime.Enabled, isUdp: true, rrlTrust))
                 {
                     DnsQuestionRecord question = response.Question[0];
-                    Security.UdpResponseRateLimitResult rrlResult = _rrlRuntime.Evaluate(remoteEP.Address, responseCategory,
+                    Security.DnsResponseRateLimitResult rrlResult = _dnsResponseRrlRuntime.Evaluate(remoteEP.Address, responseCategory,
                         (ushort)question.Type, (ushort)question.Class, question.Name);
-                    if (rrlResult == Security.UdpResponseRateLimitResult.LimitedDrop ||
-                        (rrlResult == Security.UdpResponseRateLimitResult.LimitedSlip && !Security.ResponseRateLimitSlipPolicy.IsEligible(responseCategory)))
+                    if (rrlResult == Security.DnsResponseRateLimitResult.LimitedDrop ||
+                        (rrlResult == Security.DnsResponseRateLimitResult.LimitedSlip && !Security.DnsResponseRateLimitSlipPolicy.IsEligible(responseCategory)))
                     {
                         _statsManager.QueueUpdate(null, remoteEP, protocol, null, true);
                         return;
                     }
-                    if (rrlResult == Security.UdpResponseRateLimitResult.LimitedSlip)
+                    if (rrlResult == Security.DnsResponseRateLimitResult.LimitedSlip)
                     {
                         response = new DnsDatagram(request.Identifier, true, request.OPCODE, false, true,
                             request.RecursionDesired, recursionAllowed, false, request.CheckingDisabled,
@@ -7680,47 +7680,47 @@ namespace DnsServerCore.Dns
             set => _enableUdpReflectionLimiting = value;
         }
 
-        public Security.ResponseRateLimitingOptions CurrentResponseRateLimitingOptions => _rrlRuntime.CurrentOptions;
+        public Security.ResponseRateLimitingOptions CurrentResponseRateLimitingOptions => _dnsResponseRrlRuntime.CurrentOptions;
 
-        public void ApplyResponseRateLimitingOptions(Security.ResponseRateLimitingOptions options) => _rrlRuntime.Apply(options);
+        public void ApplyResponseRateLimitingOptions(Security.ResponseRateLimitingOptions options) => _dnsResponseRrlRuntime.Apply(options);
 
         // Diagnostic hook: callers can compare this value around a settings update.
-        public long ResponseRateLimiterRebuildCount => _rrlRuntime.RebuildCount;
+        public long ResponseRateLimiterRebuildCount => _dnsResponseRrlRuntime.RebuildCount;
 
-        public bool EnableResponseRateLimiting { get => _rrlRuntime.Enabled; set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { Enabled = value }); }
+        public bool EnableResponseRateLimiting { get => _dnsResponseRrlRuntime.Enabled; set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { Enabled = value }); }
 
         public int ResponseRateLimit
         {
-            get => _rrlRuntime.CurrentOptions.SustainedRate;
+            get => _dnsResponseRrlRuntime.CurrentOptions.SustainedRate;
             set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { SustainedRate = value });
         }
 
-        public static readonly int ResponseRateLimitMaximum = Security.UdpResponseRateLimiterRuntime.SustainedRateMaximum;
+        public static readonly int ResponseRateLimitMaximum = Security.DnsResponseRateLimiterRuntime.SustainedRateMaximum;
 
         public int ResponseRateLimitInstant
         {
-            get => _rrlRuntime.CurrentOptions.InstantLimit;
+            get => _dnsResponseRrlRuntime.CurrentOptions.InstantLimit;
             set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { InstantLimit = value });
         }
 
         public int ResponseRateLimitSlip
         {
-            get => _rrlRuntime.CurrentOptions.SlipEvery;
+            get => _dnsResponseRrlRuntime.CurrentOptions.SlipEvery;
             set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { SlipEvery = value });
         }
 
-        public const int ResponseRateLimitTableSizeMinimum = Security.UdpResponseRateLimiterRuntime.TableSizeMinimum;
-        public const int ResponseRateLimitTableSizeMaximum = Security.UdpResponseRateLimiterRuntime.TableSizeMaximum;
+        public const int ResponseRateLimitTableSizeMinimum = Security.DnsResponseRateLimiterRuntime.TableSizeMinimum;
+        public const int ResponseRateLimitTableSizeMaximum = Security.DnsResponseRateLimiterRuntime.TableSizeMaximum;
 
         public int ResponseRateLimitTableSize
         {
-            get => _rrlRuntime.CurrentOptions.TableSize;
+            get => _dnsResponseRrlRuntime.CurrentOptions.TableSize;
             set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { TableSize = value });
         }
 
         public IReadOnlyCollection<NetworkAddress> ResponseRateLimitBypassList
         {
-            get => _rrlRuntime.CurrentOptions.BypassList;
+            get => _dnsResponseRrlRuntime.CurrentOptions.BypassList;
             set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { BypassList = value });
         }
 

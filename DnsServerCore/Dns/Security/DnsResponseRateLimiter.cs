@@ -9,7 +9,7 @@ using System.Security.Cryptography;
 
 namespace DnsServerCore.Dns.Security
 {
-    public enum ReflectionRrlRequestTrust
+    public enum DnsResponseRrlRequestTrust
     {
         Unverified,
         ValidServerCookie
@@ -19,13 +19,13 @@ namespace DnsServerCore.Dns.Security
     /// Defines the narrow DNS Cookie exemption from UDP reflection RRL.
     /// Other admission and resource limits are intentionally outside this policy.
     /// </summary>
-    public static class ReflectionRrlPolicy
+    public static class DnsResponseRrlPolicy
     {
-        public static bool ShouldEvaluate(bool enabled, bool isUdp, ReflectionRrlRequestTrust trust) =>
-            enabled && isUdp && trust != ReflectionRrlRequestTrust.ValidServerCookie;
+        public static bool ShouldEvaluate(bool enabled, bool isUdp, DnsResponseRrlRequestTrust trust) =>
+            enabled && isUdp && trust != DnsResponseRrlRequestTrust.ValidServerCookie;
     }
 
-    public enum UdpResponseRateLimitResult
+    public enum DnsResponseRateLimitResult
     {
         Allowed,
         LimitedDrop,
@@ -37,7 +37,7 @@ namespace DnsServerCore.Dns.Security
     /// Values are flags so policy can name sets of responses without numeric literals.
     /// </summary>
     [Flags]
-    public enum ResponseRateLimitCategory : byte
+    public enum DnsResponseRateLimitCategory : byte
     {
         Positive = 1 << 0,
         NxDomain = 1 << 1,
@@ -53,20 +53,20 @@ namespace DnsServerCore.Dns.Security
     /// <see cref="ResponseIdentity"/> is a process-keyed hash of the canonical question identity.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
-    public readonly struct ResponseRateLimitKey
+    public readonly struct DnsResponseRateLimitKey
     {
         public readonly ulong NetworkHigh;
         public readonly ulong NetworkLow;
         public readonly ulong ResponseIdentity;
         public readonly ushort QueryType;
         public readonly ushort QueryClass;
-        public readonly ResponseRateLimitCategory Category;
+        public readonly DnsResponseRateLimitCategory Category;
         public readonly byte AddressFamily;
         public readonly byte PrefixLength;
         private readonly byte _reserved;
 
-        internal ResponseRateLimitKey(ulong networkHigh, ulong networkLow, ulong responseIdentity,
-            ushort queryType, ushort queryClass, ResponseRateLimitCategory category, byte addressFamily, byte prefixLength)
+        internal DnsResponseRateLimitKey(ulong networkHigh, ulong networkLow, ulong responseIdentity,
+            ushort queryType, ushort queryClass, DnsResponseRateLimitCategory category, byte addressFamily, byte prefixLength)
         {
             NetworkHigh = networkHigh;
             NetworkLow = networkLow;
@@ -81,17 +81,17 @@ namespace DnsServerCore.Dns.Security
     }
 
     /// <summary>Defines which limited response categories may be replaced by a truncated slip response.</summary>
-    public static class ResponseRateLimitSlipPolicy
+    public static class DnsResponseRateLimitSlipPolicy
     {
-        private const ResponseRateLimitCategory EligibleCategories =
-            ResponseRateLimitCategory.Positive | ResponseRateLimitCategory.NxDomain |
-            ResponseRateLimitCategory.NoData | ResponseRateLimitCategory.Referral |
-            ResponseRateLimitCategory.Wildcard;
+        private const DnsResponseRateLimitCategory EligibleCategories =
+            DnsResponseRateLimitCategory.Positive | DnsResponseRateLimitCategory.NxDomain |
+            DnsResponseRateLimitCategory.NoData | DnsResponseRateLimitCategory.Referral |
+            DnsResponseRateLimitCategory.Wildcard;
 
-        public static bool IsEligible(ResponseRateLimitCategory category) => (EligibleCategories & category) != 0;
+        public static bool IsEligible(DnsResponseRateLimitCategory category) => (EligibleCategories & category) != 0;
     }
 
-    public sealed class UdpResponseRateLimiterOptions
+    public sealed class DnsResponseRateLimiterOptions
     {
         public int Capacity { get; init; } = 65536;
         public int ShardCount { get; init; } = 16;
@@ -103,34 +103,34 @@ namespace DnsServerCore.Dns.Security
         public IReadOnlyList<int> IPv4PrefixLengths { get; init; } = new[] { 32, 24 };
         public IReadOnlyList<int> IPv6PrefixLengths { get; init; } = new[] { 128, 64, 56 };
 
-        internal NormalizedUdpResponseRateLimiterOptions Normalize(long timestampFrequency) =>
-            NormalizedUdpResponseRateLimiterOptions.Create(this, timestampFrequency);
+        internal NormalizedDnsResponseRateLimiterOptions Normalize(long timestampFrequency) =>
+            NormalizedDnsResponseRateLimiterOptions.Create(this, timestampFrequency);
     }
 
-    internal sealed record NormalizedUdpResponseRateLimiterOptions(
+    internal sealed record NormalizedDnsResponseRateLimiterOptions(
         int Capacity, int ShardCount, long ScaledTokenCapacity, long ScaledTokensPerSecond,
         long TimestampFrequency, long InstantWindowTimestampUnits, int InstantLimit, int SlipEvery,
         IReadOnlyList<int> IPv4PrefixLengths, IReadOnlyList<int> IPv6PrefixLengths)
     {
-        internal static NormalizedUdpResponseRateLimiterOptions Create(UdpResponseRateLimiterOptions options, long timestampFrequency)
+        internal static NormalizedDnsResponseRateLimiterOptions Create(DnsResponseRateLimiterOptions options, long timestampFrequency)
         {
             ArgumentNullException.ThrowIfNull(options);
             if (options.Capacity < 1)
                 throw new ArgumentOutOfRangeException(nameof(options.Capacity));
             if (options.ShardCount < 1 || options.ShardCount > options.Capacity)
                 throw new ArgumentOutOfRangeException(nameof(options.ShardCount));
-            if (!UdpResponseRateLimiter.TryScalePositiveRate(options.SustainedRate, out long scaledTokensPerSecond))
-                throw new ArgumentOutOfRangeException(nameof(options.SustainedRate), $"Value must be greater than zero and no more than {UdpResponseRateLimiter.MaximumSupportedRate} responses per second.");
-            if (!UdpResponseRateLimiter.TryCalculateScaledTokenCapacity(options.SustainedRate, options.DecayTime, out long scaledTokenCapacity))
+            if (!DnsResponseRateLimiter.TryScalePositiveRate(options.SustainedRate, out long scaledTokensPerSecond))
+                throw new ArgumentOutOfRangeException(nameof(options.SustainedRate), $"Value must be greater than zero and no more than {DnsResponseRateLimiter.MaximumSupportedRate} responses per second.");
+            if (!DnsResponseRateLimiter.TryCalculateScaledTokenCapacity(options.SustainedRate, options.DecayTime, out long scaledTokenCapacity))
                 throw new ArgumentOutOfRangeException(nameof(options.DecayTime), "The rate and decay time exceed the scaled token capacity.");
             if (options.InstantLimit < 1)
                 throw new ArgumentOutOfRangeException(nameof(options.InstantLimit));
-            if (!UdpResponseRateLimiter.TryConvertDurationToTimestampUnits(options.InstantWindow, timestampFrequency, out long instantWindowTimestampUnits))
+            if (!DnsResponseRateLimiter.TryConvertDurationToTimestampUnits(options.InstantWindow, timestampFrequency, out long instantWindowTimestampUnits))
                 throw new ArgumentOutOfRangeException(nameof(options.InstantWindow), "The instant window cannot be represented by the timestamp provider.");
             if (options.SlipEvery < 0)
                 throw new ArgumentOutOfRangeException(nameof(options.SlipEvery));
 
-            return new NormalizedUdpResponseRateLimiterOptions(options.Capacity, options.ShardCount,
+            return new NormalizedDnsResponseRateLimiterOptions(options.Capacity, options.ShardCount,
                 scaledTokenCapacity, scaledTokensPerSecond, timestampFrequency, instantWindowTimestampUnits,
                 options.InstantLimit, options.SlipEvery, options.IPv4PrefixLengths, options.IPv6PrefixLengths);
         }
@@ -141,7 +141,7 @@ namespace DnsServerCore.Dns.Security
     /// New identities must survive probation before their history is protected from active collisions.
     /// This class is deliberately independent of query-per-minute and DNS Cookie state.
     /// </summary>
-    public sealed class UdpResponseRateLimiter
+    public sealed class DnsResponseRateLimiter
     {
         private sealed class Shard
         {
@@ -197,17 +197,17 @@ namespace DnsServerCore.Dns.Security
         private const byte IPv4AddressFamilyCode = 4;
         private const byte IPv6AddressFamilyCode = 6;
 
-        public UdpResponseRateLimiter(UdpResponseRateLimiterOptions options, TimeProvider? timeProvider = null)
+        public DnsResponseRateLimiter(DnsResponseRateLimiterOptions options, TimeProvider? timeProvider = null)
             : this(options, RandomNumberGenerator.GetBytes(HashKeyWidthBytes), timeProvider)
         {
         }
 
-        internal UdpResponseRateLimiter(UdpResponseRateLimiterOptions options, ReadOnlySpan<byte> hashKey, TimeProvider? timeProvider = null)
-            : this(NormalizedUdpResponseRateLimiterOptions.Create(options, (timeProvider ?? TimeProvider.System).TimestampFrequency), hashKey, timeProvider)
+        internal DnsResponseRateLimiter(DnsResponseRateLimiterOptions options, ReadOnlySpan<byte> hashKey, TimeProvider? timeProvider = null)
+            : this(NormalizedDnsResponseRateLimiterOptions.Create(options, (timeProvider ?? TimeProvider.System).TimestampFrequency), hashKey, timeProvider)
         {
         }
 
-        internal UdpResponseRateLimiter(NormalizedUdpResponseRateLimiterOptions options, ReadOnlySpan<byte> hashKey, TimeProvider? timeProvider = null)
+        internal DnsResponseRateLimiter(NormalizedDnsResponseRateLimiterOptions options, ReadOnlySpan<byte> hashKey, TimeProvider? timeProvider = null)
         {
             ArgumentNullException.ThrowIfNull(options);
             if (hashKey.Length != HashKeyWidthBytes)
@@ -233,7 +233,7 @@ namespace DnsServerCore.Dns.Security
                 _shards[i] = new Shard(baseCapacity + (i < remainder ? 1 : 0));
         }
 
-        internal UdpResponseRateLimiter(NormalizedUdpResponseRateLimiterOptions options, TimeProvider? timeProvider = null)
+        internal DnsResponseRateLimiter(NormalizedDnsResponseRateLimiterOptions options, TimeProvider? timeProvider = null)
             : this(options, RandomNumberGenerator.GetBytes(HashKeyWidthBytes), timeProvider) { }
 
         internal static bool TryScalePositiveRate(double responsesPerSecond, out long scaledTokensPerSecond)
@@ -305,7 +305,7 @@ namespace DnsServerCore.Dns.Security
 
         public int MaximumEntriesExaminedPerRequest => CandidateCount * Math.Max(_ipv4PrefixLengths.Length, _ipv6PrefixLengths.Length);
 
-        public UdpResponseRateLimitResult Evaluate(IPAddress sourceAddress, ResponseRateLimitCategory category,
+        public DnsResponseRateLimitResult Evaluate(IPAddress sourceAddress, DnsResponseRateLimitCategory category,
             ushort queryType, ushort queryClass, string canonicalName)
         {
             ArgumentNullException.ThrowIfNull(sourceAddress);
@@ -333,26 +333,26 @@ namespace DnsServerCore.Dns.Security
             sourceAddress.TryWriteBytes(addressBytes, out _);
             ulong responseIdentity = ComputeResponseIdentity(category, queryType, queryClass, canonicalName);
             long now = _timeProvider.GetTimestamp();
-            UdpResponseRateLimitResult result = UdpResponseRateLimitResult.Allowed;
+            DnsResponseRateLimitResult result = DnsResponseRateLimitResult.Allowed;
             Span<byte> network = stackalloc byte[16];
             foreach (int prefixLength in prefixLengths)
             {
                 network.Clear();
                 addressBytes[..addressLength].CopyTo(network);
                 MaskHostBits(network[..addressLength], prefixLength);
-                ResponseRateLimitKey key = new ResponseRateLimitKey(
+                DnsResponseRateLimitKey key = new DnsResponseRateLimitKey(
                     MemoryMarshal.Read<ulong>(network), MemoryMarshal.Read<ulong>(network[8..]), responseIdentity,
                     queryType, queryClass, category, family, (byte)prefixLength);
-                UdpResponseRateLimitResult levelResult = Update(MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref key, 1)), now);
-                if (levelResult == UdpResponseRateLimitResult.LimitedDrop)
+                DnsResponseRateLimitResult levelResult = Update(MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(ref key, 1)), now);
+                if (levelResult == DnsResponseRateLimitResult.LimitedDrop)
                     result = levelResult;
-                else if (levelResult == UdpResponseRateLimitResult.LimitedSlip && result == UdpResponseRateLimitResult.Allowed)
+                else if (levelResult == DnsResponseRateLimitResult.LimitedSlip && result == DnsResponseRateLimitResult.Allowed)
                     result = levelResult;
             }
             return result;
         }
 
-        private ulong ComputeResponseIdentity(ResponseRateLimitCategory category, ushort queryType, ushort queryClass, string canonicalName)
+        private ulong ComputeResponseIdentity(DnsResponseRateLimitCategory category, ushort queryType, ushort queryClass, string canonicalName)
         {
             // DNS wire names are at most 255 octets. Domain names in DnsDatagram are
             // already canonical ASCII/punycode, so encoding them directly avoids a
@@ -384,7 +384,7 @@ namespace DnsServerCore.Dns.Security
             return Locate(key[..(length + 2)]);
         }
 
-        private UdpResponseRateLimitResult Update(ReadOnlySpan<byte> key, long now)
+        private DnsResponseRateLimitResult Update(ReadOnlySpan<byte> key, long now)
         {
             ulong fingerprint = SipHash24.Compute(_hashKey, key);
             (int shardIndex, int first, int second) = Locate(key, fingerprint);
@@ -394,7 +394,7 @@ namespace DnsServerCore.Dns.Security
                 uint epoch = unchecked(++shard.Epoch);
                 int entryIndex = SelectEntry(shard.Entries, first, second, fingerprint, epoch);
                 if (entryIndex < 0)
-                    return UdpResponseRateLimitResult.LimitedDrop;
+                    return DnsResponseRateLimitResult.LimitedDrop;
 
                 ref Entry entry = ref shard.Entries[entryIndex];
                 if (entry.State == EntryState.Empty || entry.Fingerprint != fingerprint)
@@ -462,13 +462,13 @@ namespace DnsServerCore.Dns.Security
                     entry.Tokens -= TokenScale;
 
                 if (sustainedAllowed && entry.InstantCount <= (uint)_instantLimit)
-                    return UdpResponseRateLimitResult.Allowed;
+                    return DnsResponseRateLimitResult.Allowed;
 
                 if (entry.LimitedCount < uint.MaxValue)
                     entry.LimitedCount++;
                 return _slipEvery > 0 && entry.LimitedCount % _slipEvery == 0
-                    ? UdpResponseRateLimitResult.LimitedSlip
-                    : UdpResponseRateLimitResult.LimitedDrop;
+                    ? DnsResponseRateLimitResult.LimitedSlip
+                    : DnsResponseRateLimitResult.LimitedDrop;
             }
         }
 
