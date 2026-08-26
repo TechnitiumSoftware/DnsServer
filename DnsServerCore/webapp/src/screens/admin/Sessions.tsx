@@ -26,7 +26,8 @@ import {
   type Aviso,
 } from './partes'
 import tbl from '../../ui/Table.module.css'
-import { Th, useOrden, type Claves } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Claves } from '../../ui/Table'
+import { Menu } from '../../ui/Menu'
 
 /*
 `refreshAdminSessions`, `showCreateApiTokenModal`, `createApiToken` y
@@ -167,19 +168,18 @@ export function Sessions({ token, cluster, onAviso }: Props) {
                     </td>
                     <td>
                       <div className={tbl.acciones}>
-                        <Button
-                          size="sm"
+                        <AccionFila
+                          icono="ficha"
+                          nombre="View Details"
                           onClick={() => setVerUsuario(s.username)}
-                        >
-                          View Details
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          onClick={() => setPorBorrar(s)}
-                        >
-                          Delete Session
-                        </Button>
+                        />
+                        <Menu etiqueta={`Actions for ${s.partialToken}`}>
+                          {(cerrar) => (
+                            <button type="button" onClick={() => { cerrar(); setPorBorrar(s) }}>
+                              Delete Session
+                            </button>
+                          )}
+                        </Menu>
                       </div>
                     </td>
                   </tr>

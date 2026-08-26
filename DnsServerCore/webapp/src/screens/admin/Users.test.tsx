@@ -55,12 +55,14 @@ describe('Users — la tabla', () => {
     render(<Users {...props} />)
     await screen.findByText('Remote/SSO')
     expect(screen.queryByRole('button', { name: 'Reset Password' })).not.toBeInTheDocument()
+    await userEvent.click((await screen.findAllByRole('button', { name: /^Actions for / }))[0])
     expect(screen.queryByRole('button', { name: 'Disable 2FA' })).not.toBeInTheDocument()
   })
 
   it('«Disable 2FA» sólo aparece si el usuario lo tiene puesto', async () => {
     servidor([{ ...USUARIO_NUEVO, totpEnabled: true }])
     render(<Users {...props} />)
+    await userEvent.click((await screen.findAllByRole('button', { name: /^Actions for / }))[0])
     expect(await screen.findByRole('button', { name: 'Disable 2FA' })).toBeInTheDocument()
   })
 
@@ -78,7 +80,7 @@ describe('Users — activar y desactivar', () => {
     const user = userEvent.setup()
     render(<Users {...props} onAviso={onAviso} />)
 
-    await user.click(await screen.findByRole('button', { name: 'Enable' }))
+    await user.click(await screen.findByRole('button', { name: 'Enable User' }))
 
     expect(spy.mock.calls.find((c) => c[0] === 'admin/users/set')?.[1]).toEqual({
       token: 'tok',
@@ -96,7 +98,7 @@ describe('Users — activar y desactivar', () => {
     const user = userEvent.setup()
     render(<Users {...props} />)
 
-    await user.click(await screen.findByRole('button', { name: 'Disable' }))
+    await user.click(await screen.findByRole('button', { name: 'Disable User' }))
     expect(
       screen.getByText('Are you sure you want to disable the user [testuser] account?'),
     ).toBeInTheDocument()
@@ -109,6 +111,7 @@ describe('Users — activar y desactivar', () => {
     const user = userEvent.setup()
     render(<Users {...props} onAviso={onAviso} />)
 
+    await user.click((await screen.findAllByRole('button', { name: /^Actions for / }))[0])
     await user.click(await screen.findByRole('button', { name: 'Disable 2FA' }))
     expect(
       screen.getByText(
@@ -134,7 +137,8 @@ describe('Users — activar y desactivar', () => {
     const user = userEvent.setup()
     render(<Users {...props} onAviso={onAviso} />)
 
-    await user.click((await screen.findAllByRole('button', { name: 'Delete User' }))[1])
+    await user.click((await screen.findAllByRole('button', { name: /^Actions for / }))[1])
+    await user.click(await screen.findByRole('button', { name: 'Delete User' }))
     expect(
       screen.getByText('Are you sure you want to delete the user [testuser] account?'),
     ).toBeInTheDocument()
@@ -206,6 +210,7 @@ describe('Users — «Reset Password»', () => {
     const user = userEvent.setup()
     render(<Users {...props} onAviso={onAviso} />)
 
+    await user.click((await screen.findAllByRole('button', { name: /^Actions for / }))[0])
     await user.click(await screen.findByRole('button', { name: 'Reset Password' }))
     const reset = screen.getByRole('button', { name: 'Reset' })
 

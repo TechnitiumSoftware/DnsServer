@@ -110,7 +110,7 @@ describe('lista de zonas', () => {
     pintar()
     await screen.findByRole('button', { name: 'casa.test' })
 
-    await usuario.click(screen.getByRole('button', { name: 'Disable' }))
+    await usuario.click(screen.getByRole('button', { name: 'Disable Zone' }))
     expect(
       await screen.findByText("Are you sure you want to disable the zone 'casa.test'?"),
     ).toBeTruthy()
@@ -121,15 +121,18 @@ describe('lista de zonas', () => {
     expect(await screen.findByText("Zone 'casa.test' was disabled successfully.")).toBeTruthy()
   })
 
-  it('borrar desde la fila pregunta antes y no está escondido en el menú', async () => {
+  it('borrar vive en el menú de la fila, no suelto al lado de «Disable»', async () => {
     const usuario = userEvent.setup()
     const spy = servidor()
     pintar()
     await screen.findByRole('button', { name: 'casa.test' })
 
-    // Vive en la fila, como en la pantalla de la zona: la misma acción no puede
-    // costar un clic en un sitio y dos en el de al lado.
-    await usuario.click(screen.getByRole('button', { name: 'Delete' }))
+    // En una fila —una de doscientas cuarenta, con «Disable» al lado y sin
+    // deshacer en ninguna parte— borrar no puede estar a un clic despistado.
+    expect(screen.queryByRole('button', { name: 'Delete Zone' })).toBeNull()
+
+    await usuario.click(screen.getByRole('button', { name: 'Actions for casa.test' }))
+    await usuario.click(await screen.findByRole('button', { name: 'Delete Zone' }))
     expect(
       await screen.findByText(
         "Are you sure you want to permanently delete the zone 'casa.test' and all its records?",
@@ -178,7 +181,7 @@ describe('lista de zonas', () => {
     await screen.findByRole('button', { name: 'casa.test' })
 
     expect(screen.getByRole('button', { name: 'Add Zone' })).toHaveProperty('disabled', true)
-    expect(screen.getByRole('button', { name: 'Disable' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Disable Zone' })).toHaveProperty('disabled', true)
   })
 })
 
@@ -218,7 +221,8 @@ describe('registros de una zona', () => {
   it('borrar un registro pregunta y manda su identidad', async () => {
     const { usuario, spy } = await abrirZona()
 
-    await usuario.click(screen.getByRole('button', { name: 'Delete' }))
+    await usuario.click(screen.getByRole('button', { name: 'Actions for www A' }))
+    await usuario.click(await screen.findByRole('button', { name: 'Delete Record' }))
     expect(await screen.findByText("Are you sure to permanently delete the A record 'www.casa.test'?")).toBeTruthy()
 
     await usuario.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
@@ -237,7 +241,7 @@ describe('registros de una zona', () => {
   it('deshabilitar un registro es un records/update con disable=true', async () => {
     const { usuario, spy } = await abrirZona()
 
-    await usuario.click(screen.getByRole('button', { name: 'Disable' }))
+    await usuario.click(screen.getByRole('button', { name: 'Disable Record' }))
     await usuario.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Disable' }))
 
     await waitFor(() => {

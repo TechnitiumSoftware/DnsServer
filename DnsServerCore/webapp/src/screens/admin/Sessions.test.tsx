@@ -137,7 +137,8 @@ describe('Sessions — borrar una sesión', () => {
     const user = userEvent.setup()
     render(<Sessions {...props} />)
 
-    await user.click((await screen.findAllByRole('button', { name: 'Delete Session' }))[0])
+    await user.click((await screen.findAllByRole('button', { name: /^Actions for / }))[0])
+    await user.click(await screen.findByRole('button', { name: 'Delete Session' }))
     expect(
       screen.getByText('Are you sure you want to delete the session [5fc1a6bc90cc1d9a] ?'),
     ).toBeInTheDocument()
@@ -149,7 +150,8 @@ describe('Sessions — borrar una sesión', () => {
     const user = userEvent.setup()
     render(<Sessions {...props} cluster={CLUSTER_SIN_INICIAR} />)
 
-    await user.click((await screen.findAllByRole('button', { name: 'Delete Session' }))[0])
+    await user.click((await screen.findAllByRole('button', { name: /^Actions for / }))[0])
+    await user.click(await screen.findByRole('button', { name: 'Delete Session' }))
     await user.click(screen.getByRole('button', { name: 'Delete' }))
 
     expect(spy.mock.calls.find((c) => c[0] === 'admin/sessions/delete')?.[1]).toEqual({
@@ -163,7 +165,8 @@ describe('Sessions — borrar una sesión', () => {
     const user = userEvent.setup()
     render(<Sessions {...props} cluster={CLUSTER_PRIMARIO} />)
 
-    await user.click((await screen.findAllByRole('button', { name: 'Delete Session' }))[1])
+    await user.click((await screen.findAllByRole('button', { name: /^Actions for / }))[1])
+    await user.click(await screen.findByRole('button', { name: 'Delete Session' }))
     await user.click(screen.getByRole('button', { name: 'Delete' }))
 
     expect(spy.mock.calls.find((c) => c[0] === 'admin/sessions/delete')?.[1]).toEqual({
@@ -178,7 +181,8 @@ describe('Sessions — borrar una sesión', () => {
     const user = userEvent.setup()
     render(<Sessions {...props} onAviso={onAviso} />)
 
-    await user.click((await screen.findAllByRole('button', { name: 'Delete Session' }))[0])
+    await user.click((await screen.findAllByRole('button', { name: /^Actions for / }))[0])
+    await user.click(await screen.findByRole('button', { name: 'Delete Session' }))
     await user.click(screen.getByRole('button', { name: 'Delete' }))
 
     expect(onAviso).toHaveBeenCalledWith({

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
-import { Icono } from './Icono'
+import { Button } from './Button'
+import { Icono, type NombreIcono } from './Icono'
 import styles from './Table.module.css'
 
 /*
@@ -84,5 +85,27 @@ export function Th({
         </span>
       </button>
     </th>
+  )
+}
+
+/*
+El botón de una acción de fila. Lleva icono y no rótulo —ver el porqué medido en
+`Table.module.css`— pero conserva su nombre en `aria-label` y en `title`, así que
+el teclado, el lector de pantalla y el globo de ayuda dicen lo mismo que decía el
+texto que ocupaba la columna.
+*/
+export function AccionFila({
+  icono,
+  nombre,
+  ...rest
+}: {
+  icono: NombreIcono
+  /** Lo que hace, en el idioma de upstream: «Options», «Disable», «Edit». */
+  nombre: string
+} & Omit<React.ComponentProps<typeof Button>, 'children' | 'size' | 'icono'>) {
+  return (
+    <Button size="sm" icono aria-label={nombre} title={nombre} {...rest}>
+      <Icono nombre={icono} tam={15} />
+    </Button>
   )
 }

@@ -29,6 +29,7 @@ export type NombreIcono =
   | 'dnsclient' | 'settings' | 'dhcp' | 'admin' | 'logs' | 'about'
   | 'chevronAbajo' | 'chevronDerecha' | 'chevronIzquierda'
   | 'primera' | 'ultima' | 'cerrar' | 'menu' | 'mas' | 'orden' | 'atras' | 'check'
+  | 'editar' | 'energia' | 'ficha' | 'convertir'
 
 const TRAZADOS: Record<NombreIcono, ReactElement> = {
   // ── Secciones ─────────────────────────────────────────────────────────
@@ -157,6 +158,40 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
   ),
   cerrar: <path d="m6 6 12 12M18 6 6 18" />,
   check: <path d="m20 6-11 11-5-5" />,
+
+  // ── Acciones de fila ──────────────────────────────────────────────────
+  editar: (
+    <>
+      <path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" />
+      <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z" />
+    </>
+  ),
+  /* Encender y apagar: el mismo símbolo para los dos estados, porque la
+     columna «Status» ya dice en cuál está. */
+  energia: (
+    <>
+      <path d="M12 3v9" />
+      <path d="M18.4 6.6a9 9 0 1 1-12.8 0" />
+    </>
+  ),
+  /* La ficha de alguien: «View Details». */
+  ficha: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <circle cx="9" cy="10" r="2" />
+      <path d="M5.5 17c.7-1.8 2-2.5 3.5-2.5s2.8.7 3.5 2.5" />
+      <path d="M15 9.5h3.5" />
+      <path d="M15 13h3.5" />
+    </>
+  ),
+  convertir: (
+    <>
+      <path d="M4 8h13" />
+      <path d="m14 5 3 3-3 3" />
+      <path d="M20 16H7" />
+      <path d="m10 13-3 3 3 3" />
+    </>
+  ),
   menu: (
     <>
       <path d="M4 7h16" />

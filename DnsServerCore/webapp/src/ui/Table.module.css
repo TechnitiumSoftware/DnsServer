@@ -103,7 +103,23 @@ que está en una columna.
 
 .orden:hover { color: var(--ink); }
 
-.flecha { display: inline-flex; color: var(--faint); }
+/*
+La flecha de ordenar sólo se ve cuando hace falta: en la columna activa, al
+pasar por encima y al llegar con el teclado. Con las nueve cabeceras llevando su
+flechita a la vez, la fila de rótulos era una hilera de signos que competía con
+los datos y no decía nada, porque «se puede ordenar» es igual en todas.
+*/
+.flecha {
+  display: inline-flex;
+  color: var(--faint);
+  opacity: 0;
+  transition: opacity var(--t-rapido);
+}
+
+.orden:hover .flecha,
+.orden:focus-visible .flecha,
+[aria-sort='ascending'] .flecha,
+[aria-sort='descending'] .flecha { opacity: 1; }
 
 /* Ascendente y descendente son el MISMO chevron girado, no dos caracteres
    distintos: así la flecha rota al pulsar en vez de saltar. */
@@ -159,5 +175,17 @@ una fila tenga tres acciones y la de al lado cinco.
   color: var(--on-dan);
 }
 
-/* El de «más acciones» es cuadrado: sin rótulo, la anchura la da el icono. */
+/*
+Los botones de fila van con ICONO y no con rótulo, y el motivo es una medida: la
+columna de acciones era 239 px —la más ancha de la tabla, por delante del nombre
+de la zona, que mide 163— y su contenido era el mismo texto repetido en cada
+fila. «Options», «Disable», «Delete», doscientas cuarenta veces. Eso no es
+información: es algo que hay que filtrar para poder leer el dato.
+
+Con icono la columna baja a ~100 px y los 140 que sobran se los queda la tabla.
+El nombre de cada acción no se pierde: va en `aria-label` —así que el teclado y
+el lector de pantalla lo anuncian igual— y en `title`, que es el globo al pasar
+por encima. Y el menú `⋮` lleva TODAS las acciones con su texto, incluida la de
+borrar, así que ningún nombre vive sólo dentro de un dibujo.
+*/
 .acciones > [data-icono='true'] { padding-left: var(--s-6); padding-right: var(--s-6); }

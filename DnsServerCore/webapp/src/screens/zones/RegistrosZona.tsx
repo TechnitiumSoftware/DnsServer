@@ -23,7 +23,7 @@ import { Button } from '../../ui/Button'
 import { Field, Input, Select } from '../../ui/Field'
 import { CeldaDatos } from './CeldaDatos'
 import { fechaMinuto as fecha } from '../../lib/fechas'
-import { Menu, Separador } from './Menu'
+import { Menu, Separador } from '../../ui/Menu'
 import { filtrar } from './filtro'
 import { textoDeEstado, ventanaDePaginas } from './paginacion'
 import { accionesDeFila, celdasDeRegistro, nombreRelativo, ocultarDnssec, type Celda } from './registro-vista'
@@ -33,7 +33,7 @@ import { Empty, Loading } from '../../ui/Empty'
 import { Chip, Tag } from '../../ui/Tag'
 import pag from '../../ui/Pagination.module.css'
 import tbl from '../../ui/Table.module.css'
-import { Th, useOrden, type Claves } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Claves } from '../../ui/Table'
 import styles from './Zones.module.css'
 import { Icono } from '../../ui/Icono'
 import type { Aviso, Confirmacion } from './tipos'
@@ -545,7 +545,10 @@ export function RegistrosZona(p: RegistrosZonaProps) {
               <Th campo="type" orden={orden} onOrdenar={alternar} style={{ width: 80 }}>Type</Th>
               <Th campo="ttl" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>TTL</Th>
               <Th campo="data" orden={orden} onOrdenar={alternar}>Data</Th>
-              <th style={{ width: 230 }} />
+              {/* La columna de acciones reservaba 230 px con tres rótulos
+                  dentro; con iconos le bastan 120 y los 110 que sobran se los
+                  queda el dato, que es de lo que va la tabla. */}
+              <th style={{ width: 120 }} />
             </tr>
           </thead>
           <tbody>
@@ -579,37 +582,31 @@ export function RegistrosZona(p: RegistrosZonaProps) {
                     <td>
                       {!acciones.ocultas && (
                         <div className={tbl.acciones}>
-                          <Button
-                            size="sm"
+                          <AccionFila
+                            icono="editar"
+                            nombre="Edit Record"
                             disabled={!p.canModify || ocupado}
                             onClick={() => p.onEditarRegistro(zona, r, registros)}
-                          >
-                            Edit
-                          </Button>
-                          {r.disabled ? (
-                            <Button
-                              size="sm"
-                              disabled={acciones.soloEdicion || !p.canModify || ocupado}
-                              onClick={() => cambiarEstado(r, false)}
-                            >
-                              Enable
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              disabled={acciones.soloEdicion || !p.canModify || ocupado}
-                              onClick={() => cambiarEstado(r, true)}
-                            >
-                              Disable
-                            </Button>
-                          )}
-                          <Button
-                            size="sm"
-                            disabled={acciones.soloEdicion || !p.canDelete || ocupado}
-                            onClick={() => borrarRegistro(r)}
-                          >
-                            Delete
-                          </Button>
+                          />
+                          <AccionFila
+                            icono="energia"
+                            nombre={r.disabled ? 'Enable Record' : 'Disable Record'}
+                            disabled={acciones.soloEdicion || !p.canModify || ocupado}
+                            onClick={() => cambiarEstado(r, !r.disabled)}
+                          />
+                          {/* Borrar, dentro del menú: la misma regla que en la
+                              lista de zonas. */}
+                          <Menu etiqueta={`Actions for ${nombreRelativo(r.name, zone)} ${r.type}`}>
+                            {(cerrar) => (
+                              <button
+                                type="button"
+                                disabled={acciones.soloEdicion || !p.canDelete || ocupado}
+                                onClick={() => { cerrar(); borrarRegistro(r) }}
+                              >
+                                Delete Record
+                              </button>
+                            )}
+                          </Menu>
                         </div>
                       )}
                     </td>

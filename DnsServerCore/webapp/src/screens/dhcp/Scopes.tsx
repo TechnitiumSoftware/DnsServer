@@ -19,7 +19,8 @@ import { Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import tbl from '../../ui/Table.module.css'
 import styles from './Dhcp.module.css'
-import { Th, useOrden, type Claves } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Claves } from '../../ui/Table'
+import { Menu } from '../../ui/Menu'
 
 /*
 DHCP › Scopes (dhcp.js:201-684).
@@ -242,33 +243,37 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
                 </td>
                 <td>
                   <div className={tbl.acciones}>
-                    <Button size="sm" disabled={ocupado} onClick={() => void editar(s.name)}>
-                      Edit
-                    </Button>
-                    {canModify &&
-                      (s.enabled ? (
-                        <Button
-                          size="sm"
-                          disabled={ocupado}
-                          onClick={() => setConfirmar({ accion: 'disable', nombre: s.name })}
-                        >
-                          Disable
-                        </Button>
-                      ) : (
-                        /* dhcp.js:615 — habilitar no pregunta nada. */
-                        <Button size="sm" disabled={ocupado} onClick={() => void habilitar(s.name)}>
-                          Enable
-                        </Button>
-                      ))}
-                    {canDelete && (
-                      <Button
-                        size="sm"
-                        variant="danger"
+                    <AccionFila
+                      icono="editar"
+                      nombre="Edit Scope"
+                      disabled={ocupado}
+                      onClick={() => void editar(s.name)}
+                    />
+                    {canModify && (
+                      /* dhcp.js:615 — habilitar no pregunta nada; deshabilitar sí. */
+                      <AccionFila
+                        icono="energia"
+                        nombre={s.enabled ? 'Disable Scope' : 'Enable Scope'}
                         disabled={ocupado}
-                        onClick={() => setConfirmar({ accion: 'delete', nombre: s.name })}
-                      >
-                        Delete
-                      </Button>
+                        onClick={() =>
+                          s.enabled
+                            ? setConfirmar({ accion: 'disable', nombre: s.name })
+                            : void habilitar(s.name)
+                        }
+                      />
+                    )}
+                    {canDelete && (
+                      <Menu etiqueta={`Actions for ${s.name}`}>
+                        {(cerrar) => (
+                          <button
+                            type="button"
+                            disabled={ocupado}
+                            onClick={() => { cerrar(); setConfirmar({ accion: 'delete', nombre: s.name }) }}
+                          >
+                            Delete Scope
+                          </button>
+                        )}
+                      </Menu>
                     )}
                   </div>
                 </td>

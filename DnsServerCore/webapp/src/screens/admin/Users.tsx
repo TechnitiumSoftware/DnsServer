@@ -25,7 +25,8 @@ import {
   type Aviso,
 } from './partes'
 import tbl from '../../ui/Table.module.css'
-import { Th, useOrden, type Claves } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Claves } from '../../ui/Table'
+import { Menu, Separador } from '../../ui/Menu'
 
 /*
 `refreshAdminUsers` y las siete acciones de la fila (auth.js:1083-1698).
@@ -190,53 +191,44 @@ export function Users({ token, cluster, onAviso }: Props) {
                     </td>
                     <td>
                       <div className={tbl.acciones}>
-                        <Button size="sm" onClick={() => setDetalle(u.username)}>
-                          View Details
-                        </Button>
-                        {u.disabled ? (
-                          <Button
-                            size="sm"
-                            onClick={() =>
-                              void cambiar(u, { disabled: 'false' }, {
-                                type: 'success',
-                                title: 'User Enabled!',
-                                text: `User [${u.username}] account was enabled successfully.`,
-                              })
-                            }
-                          >
-                            Enable
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            onClick={() => setAccion({ tipo: 'disable', user: u })}
-                          >
-                            Disable
-                          </Button>
-                        )}
-                        {!u.isSsoUser && (
-                          <Button
-                            size="sm"
-                            onClick={() => setReset(u.username)}
-                          >
-                            Reset Password
-                          </Button>
-                        )}
-                        {!u.isSsoUser && u.totpEnabled && (
-                          <Button
-                            size="sm"
-                            onClick={() => setAccion({ tipo: '2fa', user: u })}
-                          >
-                            Disable 2FA
-                          </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          onClick={() => setAccion({ tipo: 'delete', user: u })}
-                        >
-                          Delete User
-                        </Button>
+                        <AccionFila
+                          icono="ficha"
+                          nombre="View Details"
+                          onClick={() => setDetalle(u.username)}
+                        />
+                        <AccionFila
+                          icono="energia"
+                          nombre={u.disabled ? 'Enable User' : 'Disable User'}
+                          onClick={() =>
+                            u.disabled
+                              ? void cambiar(u, { disabled: 'false' }, {
+                                  type: 'success',
+                                  title: 'User Enabled!',
+                                  text: `User [${u.username}] account was enabled successfully.`,
+                                })
+                              : setAccion({ tipo: 'disable', user: u })
+                          }
+                        />
+                        <Menu etiqueta={`Actions for ${u.username}`}>
+                          {(cerrar) => (
+                            <>
+                              {!u.isSsoUser && (
+                                <button type="button" onClick={() => { cerrar(); setReset(u.username) }}>
+                                  Reset Password
+                                </button>
+                              )}
+                              {!u.isSsoUser && u.totpEnabled && (
+                                <button type="button" onClick={() => { cerrar(); setAccion({ tipo: '2fa', user: u }) }}>
+                                  Disable 2FA
+                                </button>
+                              )}
+                              <Separador />
+                              <button type="button" onClick={() => { cerrar(); setAccion({ tipo: 'delete', user: u }) }}>
+                                Delete User
+                              </button>
+                            </>
+                          )}
+                        </Menu>
                       </div>
                     </td>
                   </tr>

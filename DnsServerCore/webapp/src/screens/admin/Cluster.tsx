@@ -35,7 +35,8 @@ import {
 } from './partes'
 import tbl from '../../ui/Table.module.css'
 import frm from '../../ui/Form.module.css'
-import { Th, useOrden, type Claves } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Claves } from '../../ui/Table'
+import { Menu, Separador } from '../../ui/Menu'
 
 /*
 La sub-pestaña Cluster (`cluster.js` entera, 1.055 líneas). Doce endpoints y
@@ -250,45 +251,43 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
                     </td>
                     <td>
                       <div className={tbl.acciones}>
-                        {esPrimario && n.state === 'Self' && (
-                          <Button
-                            size="sm"
-                            onClick={() => setModal({ tipo: 'editSelf', nodo: n })}
-                          >
-                            Edit Node
-                          </Button>
+                        {/* Qué se puede hacer con un nodo depende de si esta
+                            consola habla con el primario o con un secundario
+                            (cluster.js:248-264). Editar es lo frecuente y va en
+                            la fila; quitar y promocionar, dentro del menú. */}
+                        {(esPrimario ? n.state === 'Self' : n.state === 'Self' || n.type === 'Primary') && (
+                          <AccionFila
+                            icono="editar"
+                            nombre="Edit Node"
+                            onClick={() =>
+                              setModal({
+                                tipo: n.state === 'Self' ? 'editSelf' : 'editPrimary',
+                                nodo: n,
+                              })
+                            }
+                          />
                         )}
-                        {esPrimario && n.type === 'Secondary' && (
-                          <Button
-                            size="sm"
-                            onClick={() => setModal({ tipo: 'remove', nodo: n })}
-                          >
-                            Remove Node
-                          </Button>
-                        )}
-                        {tipoPropio === 'Secondary' && n.state === 'Self' && (
-                          <>
-                            <Button
-                              size="sm"
-                              onClick={() => setModal({ tipo: 'editSelf', nodo: n })}
-                            >
-                              Edit Node
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => setModal({ tipo: 'promote', nodo: n })}
-                            >
-                              Promote To Primary
-                            </Button>
-                          </>
-                        )}
-                        {tipoPropio === 'Secondary' && n.state !== 'Self' && n.type === 'Primary' && (
-                          <Button
-                            size="sm"
-                            onClick={() => setModal({ tipo: 'editPrimary', nodo: n })}
-                          >
-                            Edit Node
-                          </Button>
+                        {((esPrimario && n.type === 'Secondary') ||
+                          (tipoPropio === 'Secondary' && n.state === 'Self')) && (
+                          <Menu etiqueta={`Actions for ${n.name}`}>
+                            {(cerrar) => (
+                              <>
+                                {tipoPropio === 'Secondary' && n.state === 'Self' && (
+                                  <button type="button" onClick={() => { cerrar(); setModal({ tipo: 'promote', nodo: n }) }}>
+                                    Promote To Primary
+                                  </button>
+                                )}
+                                {esPrimario && n.type === 'Secondary' && (
+                                  <>
+                                    <Separador />
+                                    <button type="button" onClick={() => { cerrar(); setModal({ tipo: 'remove', nodo: n }) }}>
+                                      Remove Node
+                                    </button>
+                                  </>
+                                )}
+                              </>
+                            )}
+                          </Menu>
                         )}
                       </div>
                     </td>

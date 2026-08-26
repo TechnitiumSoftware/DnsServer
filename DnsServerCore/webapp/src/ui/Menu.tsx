@@ -1,11 +1,18 @@
-import { Button } from '../../ui/Button'
+import { Button } from './Button'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import styles from './Zones.module.css'
-import { Icono } from '../../ui/Icono'
+import styles from './Menu.module.css'
+import { Icono } from './Icono'
 
 /*
 El menú «⋮» de cada fila. Upstream lo resuelve con el dropdown de Bootstrap 3;
 aquí es un botón con una lista que se cierra al pulsar fuera o con Escape.
+
+Vivía dentro de Zones y ahora es de todos, porque la regla que ordena las
+acciones de fila lo necesita en todas las tablas: **lo destructivo va aquí
+dentro**. En una fila no puede haber un «Delete» suelto al lado de un
+«Disable» —son doscientas cuarenta filas y esta consola no tiene deshacer en
+ninguna parte—, así que borrar cuesta abrir el menú. En una pantalla de detalle
+sí va fuera: allí actúas sobre un objeto que estás mirando.
 
 No usa Radix a propósito: `DropdownMenu` traería una dependencia nueva a
 `package.json` para un componente de veinte líneas, y las primitivas del

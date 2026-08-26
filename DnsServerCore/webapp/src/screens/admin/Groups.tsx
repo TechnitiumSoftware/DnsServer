@@ -23,7 +23,8 @@ import {
   type Aviso,
 } from './partes'
 import tbl from '../../ui/Table.module.css'
-import { Th, useOrden, type Claves } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Claves } from '../../ui/Table'
+import { Menu } from '../../ui/Menu'
 
 /*
 `refreshAdminGroups`, `addGroup`, `showGroupDetailsModal`, `saveGroupDetails` y
@@ -128,19 +129,18 @@ export function Groups({ token, onAviso }: Props) {
                     </td>
                     <td>
                       <div className={tbl.acciones}>
-                        <Button
-                          size="sm"
+                        <AccionFila
+                          icono="ficha"
+                          nombre="View Details"
                           onClick={() => setDetalle(g.name)}
-                        >
-                          View Details
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          onClick={() => setPorBorrar(g)}
-                        >
-                          Delete Group
-                        </Button>
+                        />
+                        <Menu etiqueta={`Actions for ${g.name}`}>
+                          {(cerrar) => (
+                            <button type="button" onClick={() => { cerrar(); setPorBorrar(g) }}>
+                              Delete Group
+                            </button>
+                          )}
+                        </Menu>
                       </div>
                     </td>
                   </tr>

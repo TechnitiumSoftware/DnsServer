@@ -235,7 +235,8 @@ describe('Cluster — visto desde el nodo PRIMARIO', () => {
     await screen.findByText('Total Nodes: 2')
 
     expect(screen.getAllByRole('button', { name: 'Edit Node' })).toHaveLength(1)
-    expect(screen.getByRole('button', { name: 'Remove Node' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Actions for ns2.micluster.test' }))
+    expect(await screen.findByRole('button', { name: 'Remove Node' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Promote To Primary' })).not.toBeInTheDocument()
   })
 
@@ -245,13 +246,15 @@ describe('Cluster — visto desde el nodo PRIMARIO', () => {
     render(<Cluster {...props} />)
 
     await screen.findByText('Total Nodes: 2')
-    await user.click(screen.getByRole('button', { name: 'Remove Node' }))
+    await user.click(screen.getByRole('button', { name: 'Actions for ns2.micluster.test' }))
+    await user.click(await screen.findByRole('button', { name: 'Remove Node' }))
     await user.click(screen.getByRole('button', { name: 'Remove' }))
     expect(spy.mock.calls.find((c) => c[0] === 'admin/cluster/primary/removeSecondary')?.[1]).toEqual(
       { token: 'tok', body: { secondaryNodeId: '2', node: '' } },
     )
 
-    await user.click(screen.getByRole('button', { name: 'Remove Node' }))
+    await user.click(screen.getByRole('button', { name: 'Actions for ns2.micluster.test' }))
+    await user.click(await screen.findByRole('button', { name: 'Remove Node' }))
     await user.click(screen.getByLabelText('Force Remove Node'))
     await user.click(screen.getByRole('button', { name: 'Remove' }))
     expect(spy.mock.calls.find((c) => c[0] === 'admin/cluster/primary/deleteSecondary')?.[1]).toEqual(
@@ -321,8 +324,9 @@ describe('Cluster — visto desde un nodo SECUNDARIO', () => {
     render(<Cluster {...props} />)
     await screen.findByText('Total Nodes: 2')
 
-    expect(screen.getByRole('button', { name: 'Promote To Primary' })).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Edit Node' })).toHaveLength(2)
+    await userEvent.click(screen.getByRole('button', { name: /^Actions for / }))
+    expect(await screen.findByRole('button', { name: 'Promote To Primary' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Remove Node' })).not.toBeInTheDocument()
   })
 
@@ -373,7 +377,8 @@ describe('Cluster — visto desde un nodo SECUNDARIO', () => {
     render(<Cluster {...props} onAviso={onAviso} />)
 
     await screen.findByText('Total Nodes: 2')
-    await user.click(screen.getByRole('button', { name: 'Promote To Primary' }))
+    await user.click(screen.getByRole('button', { name: /^Actions for / }))
+    await user.click(await screen.findByRole('button', { name: 'Promote To Primary' }))
     await user.click(screen.getByLabelText('Force Delete Current Primary Node'))
     await user.click(screen.getByRole('button', { name: 'Promote' }))
 

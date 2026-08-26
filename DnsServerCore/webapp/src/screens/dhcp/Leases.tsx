@@ -16,7 +16,8 @@ import { Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import tbl from '../../ui/Table.module.css'
 import styles from './Dhcp.module.css'
-import { Th, useOrden, type Claves } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Claves } from '../../ui/Table'
+import { Menu } from '../../ui/Menu'
 
 /*
 DHCP › Leases (dhcp.js:37-199).
@@ -185,36 +186,32 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
                   <div className={tbl.acciones}>
                     {/* dhcp.js:63-64 — cuál de las dos conversiones se ofrece
                         depende del tipo actual de la concesión. */}
-                    {canModify && l.type === 'Dynamic' && (
-                      <Button
-                        size="sm"
+                    {canModify && (
+                      <AccionFila
+                        icono="convertir"
+                        nombre={
+                          l.type === 'Dynamic'
+                            ? 'Convert To Reserved Lease'
+                            : 'Convert To Dynamic Lease'
+                        }
                         disabled={ocupado}
-                        onClick={() => setConfirmar({ tipo: 'reserve', i })}
-                      >
-                        Convert To Reserved Lease
-                      </Button>
-                    )}
-                    {canModify && l.type !== 'Dynamic' && (
-                      <Button
-                        size="sm"
-                        disabled={ocupado}
-                        onClick={() => setConfirmar({ tipo: 'dynamic', i })}
-                      >
-                        Convert To Dynamic Lease
-                      </Button>
+                        onClick={() =>
+                          setConfirmar({ tipo: l.type === 'Dynamic' ? 'reserve' : 'dynamic', i })
+                        }
+                      />
                     )}
                     {canDelete && (
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        disabled={ocupado}
-                        onClick={() => {
-                          setAvisoModal(null)
-                          setQuitar(i)
-                        }}
-                      >
-                        Remove Lease
-                      </Button>
+                      <Menu etiqueta={`Actions for ${l.address}`}>
+                        {(cerrar) => (
+                          <button
+                            type="button"
+                            disabled={ocupado}
+                            onClick={() => { cerrar(); setAvisoModal(null); setQuitar(i) }}
+                          >
+                            Remove Lease
+                          </button>
+                        )}
+                      </Menu>
                     )}
                   </div>
                 </td>

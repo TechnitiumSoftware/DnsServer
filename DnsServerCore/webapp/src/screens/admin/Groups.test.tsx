@@ -165,7 +165,8 @@ describe('Groups — el modal de detalles', () => {
     const user = userEvent.setup()
     render(<Groups {...props} onAviso={onAviso} />)
 
-    await user.click((await screen.findAllByRole('button', { name: 'Delete Group' }))[0])
+    await user.click((await screen.findAllByRole('button', { name: /^Actions for / }))[0])
+    await user.click(await screen.findByRole('button', { name: 'Delete Group' }))
     expect(
       screen.getByText('Are you sure you want to delete the group [Administrators] ?'),
     ).toBeInTheDocument()

@@ -18,12 +18,12 @@ import { Button } from '../../ui/Button'
 import { Field, Input, Select } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Tag, type TagTone } from '../../ui/Tag'
-import { Menu } from './Menu'
+import { Menu, Separador } from '../../ui/Menu'
 import { fechaMinuto as fecha } from '../../lib/fechas'
 import { textoDeEstado, ventanaDePaginas } from './paginacion'
 import pag from '../../ui/Pagination.module.css'
 import tbl from '../../ui/Table.module.css'
-import { Th, useOrden, type Claves } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Claves } from '../../ui/Table'
 import styles from './Zones.module.css'
 import { Icono } from '../../ui/Icono'
 import type { Aviso, Confirmacion } from './tipos'
@@ -447,7 +447,10 @@ export function ListaZonas({
               <Th campo="modified" orden={orden} onOrdenar={alternar} style={{ width: 150 }}>
                 Last Modified
               </Th>
-              <th style={{ width: 230 }} />
+              {/* La columna de acciones reservaba 230 px con tres rótulos
+                  dentro; con iconos le bastan 120 y los 110 que sobran se los
+                  queda el dato, que es de lo que va la tabla. */}
+              <th style={{ width: 120 }} />
             </tr>
           </thead>
           <tbody>
@@ -616,41 +619,20 @@ function FilaZona(p: FilaProps) {
       <td className={`${styles.mono} ${tbl.meta}`}>{fecha(z.lastModified)}</td>
       <td>
         <div className={tbl.acciones}>
-          <Button
-            size="sm"
+          <AccionFila
+            icono="settings"
+            nombre="Zone Options"
             disabled={!p.canModify || p.ocupado || !CON_OPCIONES.includes(z.type)}
             onClick={() => p.onOpciones(nombre)}
-          >
-            Options
-          </Button>
-          {z.disabled ? (
-            <Button
-              size="sm"
-              disabled={!p.canModify || p.ocupado}
-              onClick={() => p.onHabilitar(z)}
-            >
-              Enable
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              disabled={!p.canModify || p.ocupado}
-              onClick={() => p.onDeshabilitar(z)}
-            >
-              Disable
-            </Button>
-          )}
-          {/* Borrar está en la fila, no dentro del menú: en la pantalla de la
-              zona —a un clic de aquí— también lo está, y la misma acción no
-              puede costar un clic en un sitio y dos en el de al lado. */}
-          <Button
-            size="sm"
-            variant="danger"
-            disabled={!p.canDelete || p.ocupado}
-            onClick={() => p.onBorrar(z)}
-          >
-            Delete
-          </Button>
+          />
+          {/* El mismo icono para los dos estados: cuál toca lo dice la columna
+              «Status», que está tres columnas a la izquierda. */}
+          <AccionFila
+            icono="energia"
+            nombre={z.disabled ? 'Enable Zone' : 'Disable Zone'}
+            disabled={!p.canModify || p.ocupado}
+            onClick={() => (z.disabled ? p.onHabilitar(z) : p.onDeshabilitar(z))}
+          />
           <Menu etiqueta={`Actions for ${nombre}`}>
             {(cerrar) => (
               <>
@@ -684,6 +666,18 @@ function FilaZona(p: FilaProps) {
                 )}
                 <button type="button" onClick={() => { cerrar(); p.onPermisos(nombre) }}>
                   Permissions
+                </button>
+                {/*
+                Borrar vuelve al menú, y esta vez con motivo. Estaba en la fila
+                para que costara un clic igual que en la pantalla de la zona,
+                pero una pantalla de detalle no es una fila: allí actúas sobre
+                UN objeto que estás mirando, y aquí sobre uno de doscientos
+                cuarenta, con «Disable» pegado al lado y sin deshacer en ninguna
+                parte de esta consola.
+                */}
+                <Separador />
+                <button type="button" disabled={!p.canDelete} onClick={() => { cerrar(); p.onBorrar(z) }}>
+                  Delete Zone
                 </button>
               </>
             )}
