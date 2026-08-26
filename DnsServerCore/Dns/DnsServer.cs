@@ -7899,6 +7899,9 @@ namespace DnsServerCore.Dns
         // of client-only, malformed, or otherwise structurally invalid COOKIE options.
         public long DnsCookieValidationInvocations => _cookieCoordinator.ValidationInvocations;
 
+        // Per-outcome DNS Cookie counters (RFC 9018 §9) for attack detection and rotation tuning.
+        public Security.DnsCookieStatistics DnsCookieStatistics => _cookieCoordinator.GetStatistics();
+
         // Status lookup is deliberately non-creating. When cookies are disabled and no
         // persisted state exists, false is returned and all output values are unavailable.
         public bool TryGetDnsCookieSecretStatus(out string activeId, out string stagingId, out DateTime activeCreatedUtc) =>

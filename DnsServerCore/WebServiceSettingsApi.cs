@@ -514,6 +514,25 @@ namespace DnsServerCore
                     jsonWriter.WriteString("warning", "DNS Cookies are enabled without UDP Response Rate Limiting. Valid cookies can establish client return-routability, but unverified spoofable UDP traffic is not protected by the DNS Cookie/RRL anti-reflection policy.");
             }
 
+            // RFC 9018 §9: per-outcome counters that let an operator detect attack patterns
+            // (e.g. a spike in badCookieSentCount) and tune secret rotation frequency accordingly.
+            public void GetDnsCookieStatistics(HttpContext context)
+            {
+                User sessionUser = _dnsWebService.GetSessionUser(context);
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, sessionUser, PermissionFlag.View))
+                    throw new DnsWebServiceException("Access was denied.");
+
+                Dns.Security.DnsCookieStatistics statistics = _dnsWebService._dnsServer.DnsCookieStatistics;
+
+                Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+                jsonWriter.WriteNumber("validationInvocations", statistics.ValidationInvocations);
+                jsonWriter.WriteNumber("validCount", statistics.ValidCount);
+                jsonWriter.WriteNumber("invalidCount", statistics.InvalidCount);
+                jsonWriter.WriteNumber("missingCount", statistics.MissingCount);
+                jsonWriter.WriteNumber("badCookieSentCount", statistics.BadCookieSentCount);
+                jsonWriter.WriteNumber("clientOnlyCount", statistics.ClientOnlyCount);
+            }
+
             private void ChangeDnsCookieSecret(HttpContext context, Action action, string operation)
             {
                 User sessionUser = _dnsWebService.GetSessionUser(context);

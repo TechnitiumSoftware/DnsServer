@@ -22,6 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Security.Cryptography;
 using System.Threading;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.EDnsOptions;
@@ -211,6 +212,11 @@ namespace DnsServerCore.Dns.Security
             if (dueTime < TimeSpan.Zero)
                 dueTime = TimeSpan.Zero;
 
+            // RFC 7873 §7: Apply pseudorandom jitter (0 to 40% reduction) to prevent synchronized rotations in anycast deployments
+            // This reduces the risk of all replicas rotating keys at the same time
+            double jitterFraction = RandomNumberGenerator.GetInt32(0, 41) / 100.0; // 0-40%
+            dueTime = dueTime.Subtract(TimeSpan.FromMilliseconds(dueTime.TotalMilliseconds * jitterFraction));
+
             _rotationTimer?.Dispose();
             _rotationTimer = new Timer(
                 _ => RotateSecrets(secretManager), null, dueTime, Timeout.InfiniteTimeSpan);
@@ -273,6 +279,21 @@ namespace DnsServerCore.Dns.Security
         public void Import(Stream stream) => UpdateSecrets(true, secrets => secrets.Import(stream));
 
         public void Export(Stream stream) => GetOrCreateSecrets().Export(stream);
+
+        /// <summary>
+        /// Gets comprehensive DNS Cookie statistics for monitoring and attack detection.
+        /// RFC 9018 §9 recommends tracking these to detect when a server is under attack.
+        /// </summary>
+        public DnsCookieStatistics GetStatistics()
+        {
+            return new DnsCookieStatistics(
+                Interlocked.Read(ref _validationInvocations),
+                Interlocked.Read(ref _validCount),
+                Interlocked.Read(ref _invalidCount),
+                Interlocked.Read(ref _missingCount),
+                Interlocked.Read(ref _badCookieSentCount),
+                Interlocked.Read(ref _clientOnlyCount));
+        }
 
         #endregion
 

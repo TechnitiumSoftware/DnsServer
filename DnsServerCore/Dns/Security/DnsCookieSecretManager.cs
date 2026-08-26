@@ -389,6 +389,17 @@ namespace DnsServerCore.Dns.Security
             previous = snapshot.Previous;
         }
 
+        /// <summary>
+        /// Stages a new secret for activation. Part of RFC 9018 §5 three-stage anycast rollout.
+        ///
+        /// Three-stage rotation ensures zero-downtime secret transition in anycast clusters:
+        /// 1. Stage (add staging secret) - new key exists but is not yet used for validation
+        /// 2. Wait - clients and caches expire with old key (wait ≥ longest zone TTL + 1 hour)
+        /// 3. Activate (promote staging to active) - all replicas now validate against new key
+        ///
+        /// Throws InvalidOperationException if a staging secret already exists.
+        /// See RFC 9018 §5 and APIDOCS.md DNS Cookie section for operational guidance.
+        /// </summary>
         public void AddStaging()
         {
             lock (_lock)
@@ -405,6 +416,21 @@ namespace DnsServerCore.Dns.Security
             }
         }
 
+        /// <summary>
+        /// Activates the staged secret and makes it the new active secret (stage 3 of RFC 9018 §5).
+        ///
+        /// Prevents activation until the previous secret's validation window has expired.
+        /// This ensures all clients that were validated against the old key have their
+        /// cached server cookies expire (timestamp window closes) before the old secret is retired.
+        ///
+        /// After activation, the old active secret becomes the staging secret (retained for ~70 minutes).
+        /// Throws InvalidOperationException if:
+        /// - No staging secret exists, or
+        /// - Previous secret's validation window has not yet expired (too soon)
+        ///
+        /// See RFC 9018 §4.3 (timestamp validation window), §5 (anycast coordination), and
+        /// APIDOCS.md DNS Cookie section for complete operational guidance.
+        /// </summary>
         public void ActivateStaging()
         {
             lock (_lock)
@@ -424,6 +450,13 @@ namespace DnsServerCore.Dns.Security
             }
         }
 
+        /// <summary>
+        /// Drops the staged secret without activating it. Call this to abort a staged transition.
+        ///
+        /// This is used when a staged secret transition is no longer needed (e.g., if key rotation
+        /// was postponed or cancelled). Operators should consult RFC 9018 §5 and APIDOCS.md
+        /// DNS Cookie section when making manual secret management decisions.
+        /// </summary>
         public void DropStaging()
         {
             lock (_lock)
