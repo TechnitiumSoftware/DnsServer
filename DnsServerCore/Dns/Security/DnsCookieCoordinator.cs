@@ -89,15 +89,13 @@ namespace DnsServerCore.Dns.Security
     }
 
     /// <summary>
-    /// Owns the DNS Cookie (RFC 7873 / RFC 9018) subsystem end to end: secret lifecycle and
-    /// rotation scheduling, request classification, and the FORMERR/BADCOOKIE/response-cookie
+    /// Owns the DNS Cookie (RFC 7873 / RFC 9018) subsystem end to end: explicit secret
+    /// lifecycle, request classification, and the FORMERR/BADCOOKIE/response-cookie
     /// decisions that used to live inline in DnsServer's request pipeline. DnsServer holds one
     /// instance and only ever talks to it through this surface.
     /// </summary>
     public sealed class DnsCookieCoordinator
     {
-        // RFC 9018 rotation cadence; not currently configurable.
-        private const int RotationPeriodHours = 1;
         private const string SecretFileName = "dns.cookies.state";
 
         private const int ClientCookieLength = 8;
@@ -112,7 +110,6 @@ namespace DnsServerCore.Dns.Security
 
         RuntimeState _state = DisabledState.Instance;
         long _generation;
-        Timer _rotationTimer;
 
         // Optional observability counters (not currently exposed; see ValidationInvocations for
         // the one counter DnsServer does expose publicly).
@@ -145,13 +142,9 @@ namespace DnsServerCore.Dns.Security
         {
             lock (_lock)
             {
-                Timer previousTimer = _rotationTimer;
-                _rotationTimer = null;
-
                 if (!enabled)
                 {
                     Volatile.Write(ref _state, DisabledState.Instance);
-                    previousTimer?.Dispose();
                     return;
                 }
 
@@ -160,69 +153,23 @@ namespace DnsServerCore.Dns.Security
                     DnsCookieSecretManager secretManager = new DnsCookieSecretManager(GetSecretPath());
                     EnabledState nextState = new EnabledState(NextGeneration(), secretManager);
                     Volatile.Write(ref _state, nextState);
-                    previousTimer?.Dispose();
-                    if (RotationPeriodHours > 0)
-                        ScheduleTransition(secretManager);
                 }
                 catch (Exception ex) when (ex is InvalidDataException || ex is IOException || ex is UnauthorizedAccessException)
                 {
                     Volatile.Write(ref _state, new DegradedState(NextGeneration()));
-                    previousTimer?.Dispose();
                     _log.Write(new InvalidOperationException("DNS Cookie protection is degraded because its secret state could not be loaded. The existing state file was not overwritten.", ex));
                 }
             }
         }
 
-        /// <summary>Forces the subsystem disabled and stops rotation. Used on server shutdown.</summary>
+        /// <summary>Forces the subsystem disabled. Used on server shutdown.</summary>
         public void Stop()
         {
             lock (_lock)
-            {
-                _rotationTimer?.Dispose();
-                _rotationTimer = null;
                 Volatile.Write(ref _state, DisabledState.Instance);
-            }
         }
 
         private long NextGeneration() => Interlocked.Increment(ref _generation);
-
-        private void RotateSecrets(DnsCookieSecretManager secretManager)
-        {
-            lock (_lock)
-            {
-                if (Volatile.Read(ref _state) is not EnabledState current ||
-                    !ReferenceEquals(current.SecretManager, secretManager))
-                    return;
-
-                try
-                {
-                    if (!secretManager.Rotate())
-                        _log.Write("DNS Cookie secret transition was not yet due.");
-
-                    Volatile.Write(ref _state, new EnabledState(NextGeneration(), secretManager));
-                }
-                catch (Exception ex) { _log.Write(ex); }
-
-                ScheduleTransition(secretManager);
-            }
-        }
-
-        private void ScheduleTransition(DnsCookieSecretManager secretManager)
-        {
-            TimeSpan rotationPeriod = TimeSpan.FromHours(RotationPeriodHours);
-            TimeSpan dueTime = secretManager.GetNextTransitionUtc(rotationPeriod) - DateTime.UtcNow;
-            if (dueTime < TimeSpan.Zero)
-                dueTime = TimeSpan.Zero;
-
-            // RFC 7873 §7: Apply pseudorandom jitter (0 to 40% reduction) to prevent synchronized rotations in anycast deployments
-            // This reduces the risk of all replicas rotating keys at the same time
-            double jitterFraction = RandomNumberGenerator.GetInt32(0, 41) / 100.0; // 0-40%
-            dueTime = dueTime.Subtract(TimeSpan.FromMilliseconds(dueTime.TotalMilliseconds * jitterFraction));
-
-            _rotationTimer?.Dispose();
-            _rotationTimer = new Timer(
-                _ => RotateSecrets(secretManager), null, dueTime, Timeout.InfiniteTimeSpan);
-        }
 
         private string GetSecretPath()
         {
@@ -256,8 +203,6 @@ namespace DnsServerCore.Dns.Security
                     ReferenceEquals(current.SecretManager, secretManager))
                 {
                     Volatile.Write(ref _state, new EnabledState(NextGeneration(), secretManager));
-                    if (RotationPeriodHours > 0)
-                        ScheduleTransition(secretManager);
                 }
             }
         }
