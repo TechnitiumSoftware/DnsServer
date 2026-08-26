@@ -4,6 +4,8 @@ import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { error, type AlertState } from './Apps'
+import { Empty, Loading } from '../../ui/Empty'
+import { Tag } from '../../ui/Tag'
 import styles from './Apps.module.css'
 
 /*
@@ -112,7 +114,6 @@ export function StoreApps({
       open={open}
       onOpenChange={onOpenChange}
       title="DNS App Store"
-      footer={<Button onClick={() => onOpenChange(false)}>Close</Button>}
     >
       {alert && (
         <Alert type={alert.type} title={alert.title} onDismiss={() => setAlert(null)}>
@@ -121,9 +122,9 @@ export function StoreApps({
       )}
 
       {storeApps === null ? (
-        <div className={styles.cargando}>Loading…</div>
+        <Loading />
       ) : storeApps.length === 0 ? (
-        <div className={styles.vacioStore}>No Apps Found</div>
+        <Empty>No Apps Found</Empty>
       ) : (
         <>
           <ul className={styles.store}>
@@ -136,11 +137,11 @@ export function StoreApps({
                   <div>
                     <div className={styles.sname}>{app.name}</div>
                     <div className={styles.slabels}>
-                      <span className={styles.tag}>Version {version}</span>
+                      <Tag>Version {version}</Tag>
                       {hayUpdate && (
-                        <span className={`${styles.tag} ${styles.tagUpd}`}>
+                        <Tag tone="warn">
                           Update {app.version}
-                        </span>
+                        </Tag>
                       )}
                     </div>
                     <p className={styles.sdesc}>{app.description}</p>

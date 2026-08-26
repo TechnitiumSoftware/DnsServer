@@ -4,6 +4,7 @@ import { Alert } from '../../../ui/Alert'
 import { Button } from '../../../ui/Button'
 import { Dialog } from '../../../ui/Dialog'
 import { Field, Input, Select, Textarea } from '../../../ui/Field'
+import { Loading } from '../../../ui/Empty'
 import {
   ACCESOS_CONSULTA,
   ACTUALIZACIONES,
@@ -116,9 +117,8 @@ export function OpcionesZona({
       onOpenChange={(o) => !o && onCerrar()}
       ancho
       title={`Zone Options - ${zone === '.' ? '<root>' : zone}`}
-      footer={
+      acciones={
         <>
-          <Button onClick={onCerrar}>Close</Button>
           <Button variant="primary" disabled={ocupado || f == null} onClick={() => void guardar()}>
             Save
           </Button>
@@ -134,7 +134,7 @@ export function OpcionesZona({
       )}
 
       {cargando || f == null || e == null ? (
-        <div className={styles.cargando}>Loading zone options…</div>
+        <Loading>Loading zone options…</Loading>
       ) : (
         <>
           <div className={styles.filt} role="tablist">
@@ -474,9 +474,8 @@ export function OpcionesZona({
                             )
                           }
                         />
-                        <button
-                          type="button"
-                          className={styles.ib}
+                        <Button
+                          size="sm"
                           onClick={() =>
                             set(
                               'updateSecurityPolicies',
@@ -485,7 +484,7 @@ export function OpcionesZona({
                           }
                         >
                           Remove
-                        </button>
+                        </Button>
                       </div>
                     ))}
                     <div>

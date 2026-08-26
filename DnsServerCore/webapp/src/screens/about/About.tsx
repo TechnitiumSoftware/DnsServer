@@ -3,6 +3,7 @@ import { checkForUpdate } from '../../api/user'
 import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { SectionHeader } from '../../ui/SectionHeader'
+import { Empty } from '../../ui/Empty'
 import styles from './About.module.css'
 
 interface Info { version: string; uptimestamp: string; dnsServerDomain: string }
@@ -95,7 +96,7 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
           <div className={styles.pb}>
             {update === 'al-dia' && <Alert type="info" title="Note:">No update available. You are running the latest version.</Alert>}
             {update === 'hay' && <Alert type="success" title="New Update Available!">Se puede actualizar a una versión más reciente.</Alert>}
-            {update === 'sin-mirar' && <div className={styles.vacio}>El aviso de actualización está silenciado.</div>}
+            {update === 'sin-mirar' && <Empty compacto>Update notifications are turned off for this server.</Empty>}
             <div style={{ marginTop: 10 }}>
               <Button disabled={update === 'mirando'} onClick={() => void mirar()}>Check for Update</Button>
             </div>

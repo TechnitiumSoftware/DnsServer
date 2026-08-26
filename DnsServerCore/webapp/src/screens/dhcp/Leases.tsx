@@ -12,6 +12,8 @@ import { Dialog } from '../../ui/Dialog'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { fechaMinuto } from './fechas'
 import type { Aviso } from './avisos'
+import { Loading } from '../../ui/Empty'
+import { Tag } from '../../ui/Tag'
 import styles from './Dhcp.module.css'
 
 /*
@@ -118,7 +120,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
     })
   }
 
-  if (leases == null) return <div className={styles.loading}>Loading…</div>
+  if (leases == null) return <Loading />
 
   return (
     <div className={styles.wrap}>
@@ -155,9 +157,9 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
                 <td className={styles.mono}>{l.hardwareAddress}</td>
                 <td className={styles.mono}>{l.address}</td>
                 <td>
-                  <span className={l.type === 'Reserved' ? styles.tag : `${styles.tag} ${styles.tagOk}`}>
+                  <Tag tone={l.type === 'Reserved' ? 'neutral' : 'ok'}>
                     {l.type}
-                  </span>
+                  </Tag>
                 </td>
                 <td className={styles.mono}>{l.hostName}</td>
                 <td className={styles.fecha}>{fechaMinuto(l.leaseObtained)}</td>
@@ -168,6 +170,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
                         depende del tipo actual de la concesión. */}
                     {canModify && l.type === 'Dynamic' && (
                       <Button
+                        size="sm"
                         disabled={ocupado}
                         onClick={() => setConfirmar({ tipo: 'reserve', i })}
                       >
@@ -176,6 +179,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
                     )}
                     {canModify && l.type !== 'Dynamic' && (
                       <Button
+                        size="sm"
                         disabled={ocupado}
                         onClick={() => setConfirmar({ tipo: 'dynamic', i })}
                       >
@@ -184,6 +188,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
                     )}
                     {canDelete && (
                       <Button
+                        size="sm"
                         variant="danger"
                         disabled={ocupado}
                         onClick={() => {
@@ -210,9 +215,8 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
         open={confirmar !== null}
         onOpenChange={(o) => !o && setConfirmar(null)}
         title={confirmar?.tipo === 'dynamic' ? 'Convert To Dynamic Lease' : 'Convert To Reserved Lease'}
-        footer={
+        acciones={
           <>
-            <Button onClick={() => setConfirmar(null)}>Cancel</Button>
             <Button
               variant="primary"
               disabled={ocupado}
@@ -222,6 +226,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
             </Button>
           </>
         }
+        cerrar="Cancel"
       >
         <p className={styles.parrafo}>
           {confirmar?.tipo === 'dynamic'
@@ -236,12 +241,11 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
         open={quitar !== null}
         onOpenChange={(o) => !o && setQuitar(null)}
         title="Remove Lease?"
-        footer={
+        acciones={
           <>
             <Button variant="danger" disabled={ocupado} onClick={() => void quitarLease()}>
               Remove
             </Button>
-            <Button onClick={() => setQuitar(null)}>Close</Button>
           </>
         }
       >

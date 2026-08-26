@@ -3,6 +3,7 @@ import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Input } from '../../ui/Field'
+import { Loading } from '../../ui/Empty'
 import {
   deleteAdminSession,
   getUser,
@@ -158,12 +159,11 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
         open={abierto}
         onOpenChange={(o) => !o && onCerrar()}
         title="User Details"
-        footer={
+        acciones={
           <>
             <Button variant="primary" disabled={ocupado || cargando} onClick={() => void guardar()}>
               Save
             </Button>
-            <Button onClick={onCerrar}>Close</Button>
           </>
         }
       >
@@ -174,7 +174,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
         )}
 
         {cargando || detalle == null ? (
-          <div className={styles.loading}>Loading…</div>
+          <Loading />
         ) : (
           <>
             <MRow label="Display Name">
@@ -300,13 +300,13 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
                       </td>
                       <td>
                         <div className={styles.rowacts}>
-                          <button
-                            type="button"
-                            className={`${styles.ib} ${styles.ibDanger}`}
+                          <Button
+                            size="sm"
+                            variant="danger"
                             onClick={() => setPorBorrar(s)}
                           >
                             Delete Session
-                          </button>
+                          </Button>
                         </div>
                       </td>
                     </tr>

@@ -4,6 +4,7 @@ import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Input } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
+import { Loading } from '../../ui/Empty'
 import {
   createApiToken,
   deleteAdminSession,
@@ -109,7 +110,7 @@ export function Sessions({ token, cluster, onAviso }: Props) {
       />
 
       {cargando ? (
-        <div className={styles.loading}>Loading…</div>
+        <Loading />
       ) : (
         <>
           <div className={styles.tablaWrap}>
@@ -149,20 +150,19 @@ export function Sessions({ token, cluster, onAviso }: Props) {
                     </td>
                     <td>
                       <div className={styles.rowacts}>
-                        <button
-                          type="button"
-                          className={styles.ib}
+                        <Button
+                          size="sm"
                           onClick={() => setVerUsuario(s.username)}
                         >
-                          View User Details
-                        </button>
-                        <button
-                          type="button"
-                          className={`${styles.ib} ${styles.ibDanger}`}
+                          View Details
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
                           onClick={() => setPorBorrar(s)}
                         >
                           Delete Session
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -291,14 +291,13 @@ function CrearApiToken({
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
       title="Create API Token"
-      footer={
+      acciones={
         <>
           {creado == null && (
             <Button variant="primary" disabled={ocupado || cargando} onClick={() => void crear()}>
               Create
             </Button>
           )}
-          <Button onClick={onCerrar}>Close</Button>
         </>
       }
     >
@@ -317,7 +316,7 @@ function CrearApiToken({
           <MRow label="Token">{(id) => <Input id={id} mono value={creado.token} readOnly />}</MRow>
         </div>
       ) : cargando ? (
-        <div className={styles.loading}>Loading…</div>
+        <Loading />
       ) : (
         <>
           <MRow label="Username">

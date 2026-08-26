@@ -4,6 +4,8 @@ import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Input } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
+import { Empty, Loading } from '../../ui/Empty'
+import { Tag } from '../../ui/Tag'
 import {
   deleteCluster,
   deleteSecondaryNode,
@@ -26,7 +28,6 @@ import {
   avisoDeFallo,
   Check,
   Confirmar,
-  Etiqueta,
   MRow,
   SelectorNodo,
   adminStyles as styles,
@@ -156,17 +157,21 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
       />
 
       {cargando ? (
-        <div className={styles.loading}>Loading…</div>
+        <Loading />
       ) : !inicializado ? (
-        <div className={styles.empty}>
-          <b>Cluster Not Initialized</b>
-          <div className={styles.emptyActs}>
-            <Button variant="primary" onClick={() => setModal({ tipo: 'new' })}>
-              New Cluster
-            </Button>
-            <Button onClick={() => setModal({ tipo: 'join' })}>Join Cluster</Button>
-          </div>
-        </div>
+        <Empty
+          titulo="Cluster Not Initialized"
+          acciones={
+            <>
+              <Button variant="primary" onClick={() => setModal({ tipo: 'new' })}>
+                New Cluster
+              </Button>
+              <Button onClick={() => setModal({ tipo: 'join' })}>Join Cluster</Button>
+            </>
+          }
+        >
+          This server is not part of a cluster. Create one, or join an existing cluster.
+        </Empty>
       ) : (
         <>
           <div className={styles.tablaWrap}>
@@ -196,20 +201,20 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
                     <td className={styles.mono}>{n.url}</td>
                     <td>
                       {n.type === 'Primary' || n.type === 'Secondary' ? (
-                        <Etiqueta tipo="primary">{n.type}</Etiqueta>
+                        <Tag tone="info">{n.type}</Tag>
                       ) : (
-                        <Etiqueta tipo="warning">Unknown</Etiqueta>
+                        <Tag tone="warn">Unknown</Tag>
                       )}
                     </td>
                     <td>
                       {n.state === 'Self' ? (
-                        <Etiqueta tipo="default">Self</Etiqueta>
+                        <Tag>Self</Tag>
                       ) : n.state === 'Connected' ? (
-                        <Etiqueta tipo="success">Connected</Etiqueta>
+                        <Tag tone="ok">Connected</Tag>
                       ) : n.state === 'Unreachable' ? (
-                        <Etiqueta tipo="warning">Unreachable</Etiqueta>
+                        <Tag tone="warn">Unreachable</Tag>
                       ) : (
-                        <Etiqueta tipo="warning">Unknown</Etiqueta>
+                        <Tag tone="warn">Unknown</Tag>
                       )}
                     </td>
                     <td className={styles.nowrap}>
@@ -228,49 +233,44 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
                     <td>
                       <div className={styles.rowacts}>
                         {esPrimario && n.state === 'Self' && (
-                          <button
-                            type="button"
-                            className={styles.ib}
+                          <Button
+                            size="sm"
                             onClick={() => setModal({ tipo: 'editSelf', nodo: n })}
                           >
                             Edit Node
-                          </button>
+                          </Button>
                         )}
                         {esPrimario && n.type === 'Secondary' && (
-                          <button
-                            type="button"
-                            className={styles.ib}
+                          <Button
+                            size="sm"
                             onClick={() => setModal({ tipo: 'remove', nodo: n })}
                           >
                             Remove Node
-                          </button>
+                          </Button>
                         )}
                         {tipoPropio === 'Secondary' && n.state === 'Self' && (
                           <>
-                            <button
-                              type="button"
-                              className={styles.ib}
+                            <Button
+                              size="sm"
                               onClick={() => setModal({ tipo: 'editSelf', nodo: n })}
                             >
                               Edit Node
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.ib}
+                            </Button>
+                            <Button
+                              size="sm"
                               onClick={() => setModal({ tipo: 'promote', nodo: n })}
                             >
                               Promote To Primary
-                            </button>
+                            </Button>
                           </>
                         )}
                         {tipoPropio === 'Secondary' && n.state !== 'Self' && n.type === 'Primary' && (
-                          <button
-                            type="button"
-                            className={styles.ib}
+                          <Button
+                            size="sm"
                             onClick={() => setModal({ tipo: 'editPrimary', nodo: n })}
                           >
                             Edit Node
-                          </button>
+                          </Button>
                         )}
                       </div>
                     </td>
@@ -585,12 +585,11 @@ function NuevoCluster({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title="Initialize New Cluster"
-      footer={
+      acciones={
         <>
           <Button variant="primary" disabled={ocupado || cargando || yaEsta} onClick={() => void inicializar()}>
             Initialize
           </Button>
-          <Button onClick={onCerrar}>Close</Button>
         </>
       }
     >
@@ -600,7 +599,7 @@ function NuevoCluster({
         </Alert>
       )}
       {cargando ? (
-        <div className={styles.loading}>Loading…</div>
+        <Loading />
       ) : yaEsta ? null : (
         <>
           <p className={styles.parrafo}>
@@ -805,12 +804,11 @@ function UnirseCluster({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title="Join Cluster"
-      footer={
+      acciones={
         <>
           <Button variant="primary" disabled={ocupado || cargando || yaEsta} onClick={() => void unirse()}>
             Join
           </Button>
-          <Button onClick={onCerrar}>Close</Button>
         </>
       }
     >
@@ -820,7 +818,7 @@ function UnirseCluster({
         </Alert>
       )}
       {cargando ? (
-        <div className={styles.loading}>Loading…</div>
+        <Loading />
       ) : yaEsta ? null : (
         <>
           <p className={styles.parrafo}>
@@ -1126,14 +1124,13 @@ function OpcionesCluster({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title="Cluster Options"
-      footer={
+      acciones={
         <>
           {esPrimario && (
             <Button variant="primary" disabled={ocupado || cargando} onClick={() => void guardar()}>
               Save
             </Button>
           )}
-          <Button onClick={onCerrar}>Close</Button>
         </>
       }
     >
@@ -1143,7 +1140,7 @@ function OpcionesCluster({
         </Alert>
       )}
       {cargando ? (
-        <div className={styles.loading}>Loading…</div>
+        <Loading />
       ) : (
         <>
           <MRow label="Cluster Domain" help="The fully qualified domain name of the Cluster.">
@@ -1232,12 +1229,11 @@ function EditarNodoPropio({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title={`Edit Node - ${objetivo.name}`}
-      footer={
+      acciones={
         <>
           <Button variant="primary" disabled={ocupado || cargando} onClick={() => void guardar()}>
             Save
           </Button>
-          <Button onClick={onCerrar}>Close</Button>
         </>
       }
     >
@@ -1247,7 +1243,7 @@ function EditarNodoPropio({
         </Alert>
       )}
       {cargando ? (
-        <div className={styles.loading}>Loading…</div>
+        <Loading />
       ) : (
         <MRow
           label="Node IP Addresses"
@@ -1318,12 +1314,11 @@ function EditarNodoPrimario({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title={`Edit Node - ${objetivo.name}`}
-      footer={
+      acciones={
         <>
           <Button variant="primary" disabled={ocupado} onClick={() => void guardar()}>
             Save
           </Button>
-          <Button onClick={onCerrar}>Close</Button>
         </>
       }
     >
@@ -1401,12 +1396,11 @@ function QuitarNodo({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title={`Remove Node - ${objetivo.name}`}
-      footer={
+      acciones={
         <>
           <Button variant="danger" disabled={ocupado} onClick={() => void quitar()}>
             Remove
           </Button>
-          <Button onClick={onCerrar}>Close</Button>
         </>
       }
     >
@@ -1473,12 +1467,11 @@ function PromocionarNodo({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title={`Promote To Primary Node - ${objetivo.name}`}
-      footer={
+      acciones={
         <>
           <Button variant="danger" disabled={ocupado} onClick={() => void promocionar()}>
             Promote
           </Button>
-          <Button onClick={onCerrar}>Close</Button>
         </>
       }
     >
@@ -1550,12 +1543,11 @@ function DejarCluster({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title="Leave Cluster"
-      footer={
+      acciones={
         <>
           <Button variant="danger" disabled={ocupado} onClick={() => void salir()}>
             Leave
           </Button>
-          <Button onClick={onCerrar}>Close</Button>
         </>
       }
     >
@@ -1618,12 +1610,11 @@ function BorrarCluster({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title="Delete Cluster"
-      footer={
+      acciones={
         <>
           <Button variant="danger" disabled={ocupado} onClick={() => void borrar()}>
             Delete
           </Button>
-          <Button onClick={onCerrar}>Close</Button>
         </>
       }
     >

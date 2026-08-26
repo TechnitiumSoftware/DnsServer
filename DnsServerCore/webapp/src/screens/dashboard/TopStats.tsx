@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getTop, type Rango, type TipoTop, type TopEntry } from '../../api/dashboard'
-import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
+import { Loading } from '../../ui/Empty'
 import styles from './Dashboard.module.css'
 
 /*
@@ -73,10 +73,9 @@ export function TopStats({
       onOpenChange={(o) => !o && onCerrar()}
       ancho
       title={tipo == null ? 'Top Stats' : `Top ${LIMITE} ${TITULOS[tipo]}`}
-      footer={<Button variant="primary" onClick={onCerrar}>Close</Button>}
     >
       {cargando ? (
-        <div className={styles.vacio}>Loading…</div>
+        <Loading compacto />
       ) : (
         <div className={styles.topTablaWrap}>
           <table className={styles.topTabla}>

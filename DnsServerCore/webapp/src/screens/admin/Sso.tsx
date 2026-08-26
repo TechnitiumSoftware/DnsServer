@@ -3,6 +3,7 @@ import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Input } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
+import { Loading } from '../../ui/Empty'
 import { getSsoConfig, setSsoConfig, type SsoConfig } from '../../api/admin'
 import { serializarTabla, type Celda } from './tabla'
 import {
@@ -174,7 +175,7 @@ export function Sso({ token, onAviso }: Props) {
     })
   }
 
-  if (cargando) return <div className={styles.loading}>Loading…</div>
+  if (cargando) return <Loading />
 
   return (
     <>

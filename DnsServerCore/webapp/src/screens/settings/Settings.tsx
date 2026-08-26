@@ -25,6 +25,7 @@ import { Blocking } from './panes/Blocking'
 import { ProxyForwarders } from './panes/ProxyForwarders'
 import { Logging } from './panes/Logging'
 import { BackupDialog, Confirm, RestoreDialog } from './dialogs'
+import { Loading } from '../../ui/Empty'
 import styles from './Settings.module.css'
 
 /*
@@ -124,7 +125,7 @@ export function Settings({
     setForm((f) => (f ? { ...f, ...parcial } : f))
   }, [])
 
-  if (cargando) return <div className={styles.loading}>Loading…</div>
+  if (cargando) return <Loading />
   if (form == null || ajustes == null) {
     return <div className={styles.fail}>Unable to load the DNS Server settings.</div>
   }

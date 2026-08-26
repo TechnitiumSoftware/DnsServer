@@ -121,6 +121,23 @@ describe('lista de zonas', () => {
     expect(await screen.findByText("Zone 'casa.test' was disabled successfully.")).toBeTruthy()
   })
 
+  it('borrar desde la fila pregunta antes y no está escondido en el menú', async () => {
+    const usuario = userEvent.setup()
+    const spy = servidor()
+    pintar()
+    await screen.findByRole('button', { name: 'casa.test' })
+
+    // Vive en la fila, como en la pantalla de la zona: la misma acción no puede
+    // costar un clic en un sitio y dos en el de al lado.
+    await usuario.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(
+      await screen.findByText(
+        "Are you sure you want to permanently delete the zone 'casa.test' and all its records?",
+      ),
+    ).toBeTruthy()
+    expect(spy.mock.calls.find((c) => String(c[0]).startsWith('zones/delete'))).toBeUndefined()
+  })
+
   it('el borrado en bloque manda `zones` en plural, separadas por coma', async () => {
     const usuario = userEvent.setup()
     const spy = servidor({ 'zones/delete': { deleted: ['casa.test'], failed: {} } })

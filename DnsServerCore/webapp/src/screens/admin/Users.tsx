@@ -4,6 +4,8 @@ import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Input } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
+import { Loading } from '../../ui/Empty'
+import { Tag } from '../../ui/Tag'
 import {
   createUser,
   deleteUser,
@@ -18,7 +20,6 @@ import { fechaHora } from './fechas'
 import {
   avisoDeFallo,
   Confirmar,
-  Etiqueta,
   MRow,
   adminStyles as styles,
   type Aviso,
@@ -119,7 +120,7 @@ export function Users({ token, cluster, onAviso }: Props) {
       />
 
       {cargando ? (
-        <div className={styles.loading}>Loading…</div>
+        <Loading />
       ) : (
         <>
           <div className={styles.tablaWrap}>
@@ -152,18 +153,18 @@ export function Users({ token, cluster, onAviso }: Props) {
                     <td>{u.isSsoUser ? 'Remote/SSO' : 'Local'}</td>
                     <td>
                       {u.isSsoUser ? (
-                        <Etiqueta tipo="info">SSO Managed</Etiqueta>
+                        <Tag tone="info">SSO Managed</Tag>
                       ) : u.totpEnabled ? (
-                        <Etiqueta tipo="success">Enabled</Etiqueta>
+                        <Tag tone="ok">Enabled</Tag>
                       ) : (
-                        <Etiqueta tipo="default">Disabled</Etiqueta>
+                        <Tag>Disabled</Tag>
                       )}
                     </td>
                     <td>
                       {u.disabled ? (
-                        <Etiqueta tipo="default">Disabled</Etiqueta>
+                        <Tag>Disabled</Tag>
                       ) : (
-                        <Etiqueta tipo="success">Enabled</Etiqueta>
+                        <Tag tone="ok">Enabled</Tag>
                       )}
                     </td>
                     <td className={styles.mono}>
@@ -174,13 +175,12 @@ export function Users({ token, cluster, onAviso }: Props) {
                     </td>
                     <td>
                       <div className={styles.rowacts}>
-                        <button type="button" className={styles.ib} onClick={() => setDetalle(u.username)}>
+                        <Button size="sm" onClick={() => setDetalle(u.username)}>
                           View Details
-                        </button>
+                        </Button>
                         {u.disabled ? (
-                          <button
-                            type="button"
-                            className={styles.ib}
+                          <Button
+                            size="sm"
                             onClick={() =>
                               void cambiar(u, { disabled: 'false' }, {
                                 type: 'success',
@@ -190,41 +190,38 @@ export function Users({ token, cluster, onAviso }: Props) {
                             }
                           >
                             Enable
-                          </button>
+                          </Button>
                         ) : (
-                          <button
-                            type="button"
-                            className={styles.ib}
+                          <Button
+                            size="sm"
                             onClick={() => setAccion({ tipo: 'disable', user: u })}
                           >
                             Disable
-                          </button>
+                          </Button>
                         )}
                         {!u.isSsoUser && (
-                          <button
-                            type="button"
-                            className={styles.ib}
+                          <Button
+                            size="sm"
                             onClick={() => setReset(u.username)}
                           >
                             Reset Password
-                          </button>
+                          </Button>
                         )}
                         {!u.isSsoUser && u.totpEnabled && (
-                          <button
-                            type="button"
-                            className={styles.ib}
+                          <Button
+                            size="sm"
                             onClick={() => setAccion({ tipo: '2fa', user: u })}
                           >
                             Disable 2FA
-                          </button>
+                          </Button>
                         )}
-                        <button
-                          type="button"
-                          className={`${styles.ib} ${styles.ibDanger}`}
+                        <Button
+                          size="sm"
+                          variant="danger"
                           onClick={() => setAccion({ tipo: 'delete', user: u })}
                         >
                           Delete User
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -380,12 +377,11 @@ function AnadirUsuario({
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
       title="Add User"
-      footer={
+      acciones={
         <>
           <Button variant="primary" disabled={ocupado} onClick={() => void anadir()}>
             Add
           </Button>
-          <Button onClick={onCerrar}>Close</Button>
         </>
       }
     >
@@ -501,12 +497,11 @@ function ResetearContrasena({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title="Reset Password"
-      footer={
+      acciones={
         <>
           <Button variant="primary" disabled={ocupado} onClick={() => void guardar()}>
             Reset
           </Button>
-          <Button onClick={onCerrar}>Close</Button>
         </>
       }
     >

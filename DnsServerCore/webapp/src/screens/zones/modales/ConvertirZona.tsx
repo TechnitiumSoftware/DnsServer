@@ -100,9 +100,8 @@ export function ConvertirZona({
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
       title={`Convert Zone - ${zone === '.' ? '<root>' : zone}`}
-      footer={
+      acciones={
         <>
-          <Button onClick={onCerrar}>Close</Button>
           <Button variant="primary" disabled={ocupado || destino == null} onClick={() => void convertir()}>
             Convert Zone
           </Button>

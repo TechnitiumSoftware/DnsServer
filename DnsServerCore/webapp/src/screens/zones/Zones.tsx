@@ -300,9 +300,8 @@ function Confirmar({ c, onCerrar }: { c: Confirmacion | null; onCerrar: () => vo
       open={c !== null}
       onOpenChange={(o) => !o && onCerrar()}
       title={c?.titulo ?? ''}
-      footer={
+      acciones={
         <>
-          <Button onClick={onCerrar}>Cancel</Button>
           <Button
             variant={c?.peligro ? 'danger' : 'primary'}
             disabled={ocupado}
@@ -319,6 +318,7 @@ function Confirmar({ c, onCerrar }: { c: Confirmacion | null; onCerrar: () => vo
           </Button>
         </>
       }
+      cerrar="Cancel"
     >
       <p className={styles.parrafo} style={{ whiteSpace: 'pre-wrap' }}>
         {c?.texto}

@@ -47,6 +47,17 @@ que no sea uno de estos tokens.** Un valor suelto es deriva futura.
      los necesitan para no volver a los `rgba()` sueltos heredados de upstream. */
   --viol: #a78bfa;
   --cyan: #2dd4bf;
+
+  /* Fondo y borde de cada estado. Estaban escritos a mano en seis módulos, con
+     dos lecturas distintas de `.tagInfo`: azul en Zones, ámbar en Apps. */
+  /* El chip de código —el tipo de registro, la clase de un app— repetía estos
+     dos valores en tres módulos con el nombre `.ty` en dos y `.cap` en otro. */
+  --chip-bg: #1b2230;  --chip-fg: #b6c2d6;
+
+  --ok-bg: #052e26;    --ok-bd: #065f46;
+  --warn-bg: #2a1e05;  --warn-bd: #4a3609;
+  --dan-bg: #2a1113;   --dan-bd: #7f1d1d;
+  --info-bg: #0d1730;  --info-bd: #1e3a8a;
   --field: #0a0d12;
   --hover: #161c27;
 

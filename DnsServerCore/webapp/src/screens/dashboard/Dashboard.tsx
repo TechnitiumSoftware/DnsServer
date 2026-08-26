@@ -7,6 +7,7 @@ import { Chart } from './Chart'
 import { TopStats } from './TopStats'
 import type { ChartData } from '../../api/dashboard'
 import { SectionHeader } from '../../ui/SectionHeader'
+import {Empty, Loading} from '../../ui/Empty'
 import styles from './Dashboard.module.css'
 
 /*
@@ -59,7 +60,7 @@ function Reparto({ titulo, data }: { titulo: string; data: ChartData }) {
         {tieneDatos(data) ? (
           <Chart tipo="doughnut" data={data} alto={190} aria={titulo} />
         ) : (
-          <div className={styles.vacio}>No data for this period.</div>
+          <Empty compacto>No data for this period.</Empty>
         )}
       </div>
     </div>
@@ -85,7 +86,7 @@ function Top({
         <button type="button" onClick={onMore}>More</button>
       </div>
       <div className={styles.pb} style={{ paddingTop: 4 }}>
-        {filas.length === 0 && <div className={styles.vacio}>No data for this period.</div>}
+        {filas.length === 0 && <Empty compacto>No data for this period.</Empty>}
         {filas.slice(0, 5).map((f, i) => (
           <div
             className={`${styles.toprow}${f.rateLimited ? ` ${styles.limitada}` : ''}`}
@@ -162,12 +163,12 @@ export function Dashboard({ token }: { token: string | null }) {
           <div className={styles.panel}>
             <div className={styles.ph}><h2>Queries</h2></div>
             <div className={styles.pb}>
-              {cargando && <div className={styles.vacio}>Loading…</div>}
+              {cargando && <Loading compacto />}
               {!cargando && datos && tieneDatos(datos.mainChartData) && (
                 <Chart tipo="line" data={datos.mainChartData} aria="Consultas por periodo" />
               )}
               {!cargando && (!datos || !tieneDatos(datos.mainChartData)) && (
-                <div className={styles.vacio}>No queries for this period.</div>
+                <Empty compacto>No queries for this period.</Empty>
               )}
             </div>
           </div>

@@ -23,6 +23,7 @@ import { Alert } from '../../../ui/Alert'
 import { Button } from '../../../ui/Button'
 import { Dialog } from '../../../ui/Dialog'
 import { Field, Input, Select, Textarea } from '../../../ui/Field'
+import { Loading } from '../../../ui/Empty'
 import { fechaMinuto as fechaCorta } from '../../../lib/fechas'
 import {
   ALGORITMOS,
@@ -311,7 +312,6 @@ export function PropiedadesDnssec({
       onOpenChange={(o) => !o && onCerrar()}
       ancho
       title={`DNSSEC Properties - ${zone === '.' ? '<root>' : zone}`}
-      footer={<Button variant="primary" onClick={onCerrar}>Close</Button>}
     >
       {aviso && (
         <div className={styles.avisoHueco}>
@@ -322,7 +322,7 @@ export function PropiedadesDnssec({
       )}
 
       {cargando && props == null ? (
-        <div className={styles.cargando}>Loading DNSSEC properties…</div>
+        <Loading>Loading DNSSEC properties…</Loading>
       ) : (
         <div className={styles.campos}>
           <div className={styles.tablaWrap}>
@@ -726,35 +726,35 @@ function FilaClave({
               value={rollover}
               onChange={(e) => onRollover(e.target.value)}
             />
-            <button type="button" className={styles.ib} disabled={ocupado} onClick={onGuardarRollover}>
+            <Button size="sm" disabled={ocupado} onClick={onGuardarRollover}>
               Save
-            </button>
+            </Button>
           </div>
         ) : (
-          '-'
+          '—'
         )}
       </td>
       <td>
         <div className={styles.rowacts}>
           {a.borrar && (
-            <button type="button" className={styles.ib} disabled={ocupado} onClick={onBorrar}>
+            <Button size="sm" disabled={ocupado} onClick={onBorrar}>
               Delete
-            </button>
+            </Button>
           )}
           {a.activar && (
-            <button type="button" className={styles.ib} disabled={ocupado} onClick={onActivar}>
+            <Button size="sm" disabled={ocupado} onClick={onActivar}>
               Activate
-            </button>
+            </Button>
           )}
           {a.rollover && (
-            <button type="button" className={styles.ib} disabled={ocupado} onClick={onRolloverAhora}>
+            <Button size="sm" disabled={ocupado} onClick={onRolloverAhora}>
               Rollover
-            </button>
+            </Button>
           )}
           {a.retirar && (
-            <button type="button" className={styles.ib} disabled={ocupado} onClick={onRetirar}>
+            <Button size="sm" disabled={ocupado} onClick={onRetirar}>
               Retire
-            </button>
+            </Button>
           )}
         </div>
       </td>

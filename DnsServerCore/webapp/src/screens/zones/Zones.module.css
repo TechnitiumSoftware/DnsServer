@@ -1,10 +1,5 @@
 /* Cabecera de sección */
 .tags { display:flex; gap: var(--s-3); margin-top: var(--s-5); flex-wrap:wrap; }
-.tag { font-size: var(--t-1); padding: var(--s-1) var(--s-5); border-radius: var(--r-full); font-weight:700; border:1px solid var(--line); letter-spacing:.03em; color:var(--mute); background:var(--pan2); white-space:nowrap; }
-.tagOk { color:var(--ok); border-color:#065f46; background:#052e26; }
-.tagDan { color:var(--dan); border-color:#7f1d1d; background:#2a1113; }
-.tagWarn { color:var(--warn); border-color:#4a3609; background:#2a1e05; }
-.tagInfo { color:var(--info); border-color:#1e3a8a; background:#0d1730; }
 .acts { display:flex; gap: var(--s-4); flex-wrap:wrap; justify-content:flex-end; }
 
 /* Migas de pan: volver a la lista desde una zona */
@@ -37,7 +32,6 @@
 .enlaceZona { border:0; background:transparent; padding: 0; font:inherit; font-weight:700; font-family:var(--font-mono); color:var(--ink); cursor:pointer; text-align:left; word-break:break-word; }
 .enlaceZona:hover { color:var(--acc); }
 
-.ty { font-size: var(--t-1); font-weight:700; padding: var(--s-1) var(--s-4); border-radius: var(--r-1); background:#1b2230; color:#b6c2d6; letter-spacing:.03em; white-space:nowrap; }
 .ttl { white-space:nowrap; font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
 .ttl small { color:var(--faint); }
 
@@ -51,10 +45,6 @@
 .meta { margin-top: var(--s-4); font-size: var(--t-2); color:var(--faint); }
 
 .rowacts { display:flex; gap: var(--s-3); justify-content:flex-end; flex-wrap:nowrap; align-items:flex-start; }
-.ib { font:400 var(--t-3)/1.2 inherit; padding: var(--s-3) var(--s-6); border-radius: var(--r-2); border:1px solid var(--line); background:var(--pan2); color:var(--mute); cursor:pointer; white-space:nowrap; }
-.ib:hover { color:var(--ink); }
-.ib:disabled { opacity:.35; cursor:default; }
-
 /* Menú desplegable de acciones de fila y de cabecera */
 .menu { position:relative; display:inline-block; }
 .menuLista { position:absolute; right:0; top:calc(100% + 4px); z-index:20; min-width:170px; padding: var(--s-3); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); box-shadow:0 12px 30px rgba(0,0,0,.45); display:flex; flex-direction:column; }
@@ -62,9 +52,6 @@
 .menuLista button:hover { background:var(--hover); color:var(--ink); }
 .menuLista button:disabled { opacity:.4; cursor:default; }
 .sep { height:1px; margin: var(--s-2) var(--s-3); background:var(--line); }
-
-.empty { border:1px dashed var(--line); border-radius: var(--r-4); padding: var(--s-12); text-align:center; color:var(--mute); font-size: var(--t-4); }
-.empty b { display:block; color:var(--ink); font-size: var(--t-5); margin-bottom: var(--s-3); }
 
 .avisoHueco { margin-bottom: var(--s-9); }
 .parrafo { margin: 0 0 var(--s-7); font-size: var(--t-4); color:var(--mute); line-height:1.6; }
@@ -89,4 +76,3 @@
 .medio { width:190px; }
 .area { min-height:110px; resize:vertical; }
 .areaAlta { min-height:180px; resize:vertical; }
-.cargando { padding: var(--s-11); text-align:center; color:var(--mute); font-size: var(--t-4); }

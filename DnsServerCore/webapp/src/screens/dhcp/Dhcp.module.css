@@ -5,13 +5,6 @@
 
 .wrap { display: flex; flex-direction: column; gap: var(--s-9); }
 
-.tag {
-  font-size: var(--t-1); padding: var(--s-1) var(--s-5); border-radius: var(--r-full); font-weight: 700;
-  border: 1px solid var(--line); letter-spacing: 0.03em; color: var(--mute);
-  background: var(--pan2); white-space: nowrap;
-}
-.tagOk { color: var(--ok); border-color: #065f46; background: #052e26; }
-
 .tablaWrap { overflow-x: auto; }
 .tabla { border-collapse: collapse; width: 100%; }
 .tabla thead th {
@@ -25,13 +18,11 @@
 .fecha { white-space: nowrap; font-family: var(--font-mono); font-size: var(--t-3); }
 .rowacts { display: flex; gap: var(--s-3); justify-content: flex-end; flex-wrap: wrap; }
 .total { font-size: var(--t-4); color: var(--mute); margin-top: var(--s-8); }
-.vacio { text-align: center; color: var(--mute); font-size: var(--t-4); padding: var(--s-11) 0; }
-
 .kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--s-1) var(--s-8); margin: 0; }
 .kv dt { font-size: var(--t-3); color: var(--mute); white-space: nowrap; }
 .kv dd { margin: 0; font: var(--t-4)/1.45 var(--font-mono); color: var(--ink); min-width: 0; }
 
-.loading, .fail { padding: var(--s-12); text-align: center; color: var(--faint); font-size: var(--t-4); }
+.fail { padding: var(--s-12); text-align: center; color: var(--faint); font-size: var(--t-4); }
 .parrafo { margin: 0 0 var(--s-7); font-size: var(--t-4); color: var(--mute); line-height: 1.6; }
 .parrafo b { color: var(--ink); }
 .lista { margin: 0 0 var(--s-7); padding-left: var(--s-10); font-size: var(--t-4); color: var(--mute); line-height: 1.6; }

@@ -17,7 +17,8 @@ import {
 import { Button } from '../../ui/Button'
 import { Field, Input, Select } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
-import { Menu, Separador } from './Menu'
+import { Chip, Tag, type TagTone } from '../../ui/Tag'
+import { Menu } from './Menu'
 import { fechaMinuto as fecha } from '../../lib/fechas'
 import { textoDeEstado, ventanaDePaginas } from './paginacion'
 import styles from './Zones.module.css'
@@ -508,21 +509,21 @@ function FilaZona(p: FilaProps) {
   const estado = estadoDeZona(z)
   const firmada = z.dnssecStatus === 'SignedWithNSEC' || z.dnssecStatus === 'SignedWithNSEC3'
 
-  const claseEstado =
+  const tonoEstado: TagTone =
     estado === 'Enabled'
-      ? styles.tagOk
+      ? 'ok'
       : estado === 'Expired' || estado === 'Validation Failed'
-        ? styles.tagDan
+        ? 'dan'
         : estado === 'Sync Failed' || estado === 'Notify Failed'
-          ? styles.tagWarn
-          : ''
+          ? 'warn'
+          : 'neutral'
 
   // El catálogo del que es miembro; y si ELLA es un catálogo, su propio nombre.
   const etiquetaCatalogo =
     z.catalog != null
-      ? { texto: z.catalog, clase: '' }
+      ? { texto: z.catalog, tono: 'neutral' as TagTone }
       : z.type === 'Catalog' || z.type === 'SecondaryCatalog'
-        ? { texto: nombre, clase: styles.tagInfo }
+        ? { texto: nombre, tono: 'info' as TagTone }
         : null
 
   return (
@@ -543,22 +544,22 @@ function FilaZona(p: FilaProps) {
         </button>
         {etiquetaCatalogo && (
           <div className={styles.tags}>
-            <span className={`${styles.tag} ${etiquetaCatalogo.clase}`}>{etiquetaCatalogo.texto}</span>
+            <Tag tone={etiquetaCatalogo.tono}>{etiquetaCatalogo.texto}</Tag>
           </div>
         )}
       </td>
       <td>
-        <span className={styles.ty}>{etiquetaTipo(z.type)}</span>
+        <Chip>{etiquetaTipo(z.type)}</Chip>
       </td>
       <td>
         {/* Sin claves privadas la etiqueta se apaga: la zona está firmada pero
             este servidor no puede re-firmarla (zone.js:721-731). */}
         {firmada && (
-          <span className={`${styles.tag} ${z.hasDnssecPrivateKeys ? styles.tagInfo : ''}`}>DNSSEC</span>
+          <Tag tone={z.hasDnssecPrivateKeys ? 'info' : 'neutral'}>DNSSEC</Tag>
         )}
       </td>
       <td>
-        <span className={`${styles.tag} ${claseEstado}`}>{estado}</span>
+        <Tag tone={tonoEstado}>{estado}</Tag>
       </td>
       <td className={styles.mono}>{z.soaSerial ?? ' '}</td>
       <td className={styles.mono}>{fecha(z.expiry)}</td>
@@ -567,33 +568,41 @@ function FilaZona(p: FilaProps) {
       </td>
       <td>
         <div className={styles.rowacts}>
-          <button
-            type="button"
-            className={styles.ib}
+          <Button
+            size="sm"
             disabled={!p.canModify || p.ocupado || !CON_OPCIONES.includes(z.type)}
             onClick={() => p.onOpciones(nombre)}
           >
             Options
-          </button>
+          </Button>
           {z.disabled ? (
-            <button
-              type="button"
-              className={styles.ib}
+            <Button
+              size="sm"
               disabled={!p.canModify || p.ocupado}
               onClick={() => p.onHabilitar(z)}
             >
               Enable
-            </button>
+            </Button>
           ) : (
-            <button
-              type="button"
-              className={styles.ib}
+            <Button
+              size="sm"
               disabled={!p.canModify || p.ocupado}
               onClick={() => p.onDeshabilitar(z)}
             >
               Disable
-            </button>
+            </Button>
           )}
+          {/* Borrar está en la fila, no dentro del menú: en la pantalla de la
+              zona —a un clic de aquí— también lo está, y la misma acción no
+              puede costar un clic en un sitio y dos en el de al lado. */}
+          <Button
+            size="sm"
+            variant="danger"
+            disabled={!p.canDelete || p.ocupado}
+            onClick={() => p.onBorrar(z)}
+          >
+            Delete
+          </Button>
           <Menu etiqueta={`Actions for ${nombre}`}>
             {(cerrar) => (
               <>
@@ -627,10 +636,6 @@ function FilaZona(p: FilaProps) {
                 )}
                 <button type="button" onClick={() => { cerrar(); p.onPermisos(nombre) }}>
                   Permissions
-                </button>
-                <Separador />
-                <button type="button" disabled={!p.canDelete} onClick={() => { cerrar(); p.onBorrar(z) }}>
-                  Delete Zone
                 </button>
               </>
             )}

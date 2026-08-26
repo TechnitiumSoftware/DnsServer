@@ -57,9 +57,8 @@ export function DesfirmarZona({
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
       title={`Unsign Zone - ${zone === '.' ? '<root>' : zone}`}
-      footer={
+      acciones={
         <>
-          <Button onClick={onCerrar}>Close</Button>
           <Button variant="danger" disabled={ocupado} onClick={() => void desfirmar()}>
             Unsign Zone
           </Button>

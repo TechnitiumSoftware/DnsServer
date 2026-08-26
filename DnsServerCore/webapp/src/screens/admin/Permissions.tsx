@@ -3,6 +3,7 @@ import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { SectionHeader } from '../../ui/SectionHeader'
+import { Loading } from '../../ui/Empty'
 import {
   getPermission,
   listPermissions,
@@ -66,7 +67,7 @@ export function Permissions({ token, cluster, onAviso }: Props) {
       />
 
       {cargando ? (
-        <div className={styles.loading}>Loading…</div>
+        <Loading />
       ) : (
         <>
           {secciones.map((s) => (
@@ -75,9 +76,9 @@ export function Permissions({ token, cluster, onAviso }: Props) {
                 <button type="button" className={styles.link} onClick={() => setEditar(s.section)}>
                   {s.section}
                 </button>
-                <button type="button" className={styles.ib} onClick={() => setEditar(s.section)}>
+                <Button size="sm" onClick={() => setEditar(s.section)}>
                   Edit Permissions
-                </button>
+                </Button>
               </h4>
               <div className={styles.permCols}>
                 <div className={styles.permCol}>
@@ -277,12 +278,11 @@ function EditarPermisos({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title={`Edit Permissions - ${seccion}`}
-      footer={
+      acciones={
         <>
           <Button variant="primary" disabled={ocupado || cargando} onClick={() => void guardar()}>
             Save
           </Button>
-          <Button onClick={onCerrar}>Close</Button>
         </>
       }
     >
@@ -292,7 +292,7 @@ function EditarPermisos({
         </Alert>
       )}
       {cargando ? (
-        <div className={styles.loading}>Loading…</div>
+        <Loading />
       ) : (
         <>
           <TablaPermisos

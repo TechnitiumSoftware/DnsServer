@@ -4,11 +4,6 @@
 
 .wrap { display: flex; flex-direction: column; gap: var(--s-9); }
 
-.tag {
-  font-size: var(--t-1); padding: var(--s-1) var(--s-5); border-radius: var(--r-full); font-weight: 700;
-  border: 1px solid var(--line); letter-spacing: 0.03em; color: var(--mute);
-  background: var(--pan2); white-space: nowrap;
-}
 .acts { display: flex; gap: var(--s-4); flex-wrap: wrap; justify-content: flex-end; align-items: center; }
 
 /* ---- View Logs ---- */
@@ -31,8 +26,6 @@
 .logfile[aria-current='true'] { background: var(--pan2); color: var(--acc); font-weight: 650; }
 .logfile .nombre { font-family: var(--font-mono); }
 .sz { font-family: var(--font-mono); font-size: var(--t-2); color: var(--faint); }
-.sinLogs { font-size: var(--t-4); color: var(--mute); padding: var(--s-5) var(--s-7); }
-
 .out {
   margin: 0; padding: var(--s-8); background: var(--field); border: 1px solid var(--line);
   border-radius: var(--r-3); font-family: var(--font-mono); font-size: var(--t-3); color: var(--ink);
@@ -89,6 +82,5 @@
 .check { display: flex; align-items: center; gap: var(--s-5); font-size: var(--t-4); cursor: pointer; color: var(--ink); }
 .check input { width: 15px; height: 15px; accent-color: var(--acc); flex: none; }
 
-.loading, .fail { padding: var(--s-12); text-align: center; color: var(--faint); font-size: var(--t-4); }
+.fail { padding: var(--s-12); text-align: center; color: var(--faint); font-size: var(--t-4); }
 .parrafo { margin: 0 0 var(--s-7); font-size: var(--t-4); color: var(--mute); line-height: 1.6; }
-.vacio { border: 1px dashed var(--line); border-radius: var(--r-4); padding: var(--s-12); text-align: center; color: var(--mute); font-size: var(--t-4); }

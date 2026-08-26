@@ -19,6 +19,7 @@ import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Field, Input, LabeledTextarea } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
+import { Empty } from '../../ui/Empty'
 import { Arbol } from './Arbol'
 import { Registros } from './Registros'
 import styles from './Listas.module.css'
@@ -64,9 +65,8 @@ function Confirmar({
       open={c !== null}
       onOpenChange={(o) => !o && onCerrar()}
       title={c?.titulo ?? ''}
-      footer={
+      acciones={
         <>
-          <Button onClick={onCerrar}>Cancel</Button>
           <Button
             variant="danger"
             disabled={ocupado}
@@ -83,6 +83,7 @@ function Confirmar({
           </Button>
         </>
       }
+      cerrar="Cancel"
     >
       <p className={styles.parrafo}>{c?.texto}</p>
     </Dialog>
@@ -171,9 +172,8 @@ function Importar({
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
       title={titulo}
-      footer={
+      acciones={
         <>
-          <Button onClick={onCerrar}>Close</Button>
           <Button variant="primary" disabled={ocupado} onClick={() => void importar()}>
             Import
           </Button>
@@ -413,8 +413,6 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
     <>
       <SectionHeader
         titulo={TITULO[lista]}
-        etiquetas={<><span className={styles.tag}>{zones.length} zones</span>
-            <span className={styles.tag}>{records.length} records</span></>}
         acciones={<>{esCache ? (
             <Button variant="danger" disabled={ocupado} onClick={pedirFlushCache}>
               Flush Cache
@@ -469,6 +467,11 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
               </Button>
             </div>
           </div>
+          {/* El recuento vive en la barra de recuento, como el de registros: en
+              la cabecera tenía el mismo aspecto que una píldora de estado. */}
+          <div className={styles.count}>
+            <span>{zones.length === 1 ? '1 zone' : `${zones.length} zones`}</span>
+          </div>
           <Arbol
             domain={domain}
             domainIdn={nodo?.domainIdn}
@@ -483,18 +486,17 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
               {records.length} records at <span className={styles.mono}>{tituloNodo}</span>
             </span>
             <div className={styles.countActs}>
-              <button type="button" className={styles.ib} onClick={() => navegar(domain)}>
+              <Button size="sm" onClick={() => navegar(domain)}>
                 Refresh
-              </button>
+              </Button>
               {puedeBorrar && (
-                <button
-                  type="button"
-                  className={styles.ib}
+                <Button
+                  size="sm"
                   disabled={ocupado}
                   onClick={esCache ? pedirBorrarNodoCache : pedirBorrarDominio}
                 >
                   Delete
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -502,12 +504,11 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
           {records.length > 0 ? (
             <Registros records={records} conDnssec={esCache} nodo={domain} />
           ) : (
-            <div className={styles.empty}>
-              <b>No records at this node</b>
+            <Empty titulo="No records at this node">
               {zones.length > 0
                 ? 'This node only contains sub-domains. Open one in the tree to see its records.'
                 : 'This node has no records and no sub-domains.'}
-            </div>
+            </Empty>
           )}
         </div>
       </div>

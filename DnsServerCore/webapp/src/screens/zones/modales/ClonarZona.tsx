@@ -65,9 +65,8 @@ export function ClonarZona({
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
       title={`Clone Zone - ${zone === '.' ? '<root>' : zone}`}
-      footer={
+      acciones={
         <>
-          <Button onClick={onCerrar}>Close</Button>
           <Button variant="primary" disabled={ocupado} onClick={() => void clonar()}>
             Clone Zone
           </Button>

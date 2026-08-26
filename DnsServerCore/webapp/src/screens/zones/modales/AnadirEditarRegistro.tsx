@@ -165,9 +165,8 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
       open={p.abierto}
       onOpenChange={(o) => !o && p.onCerrar()}
       title={edicion ? 'Edit Record' : 'Add Record'}
-      footer={
+      acciones={
         <>
-          <Button onClick={p.onCerrar}>Close</Button>
           <Button variant="primary" disabled={ocupado} onClick={() => void guardar()}>
             Save
           </Button>
@@ -530,13 +529,12 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
                     )
                   }
                 />
-                <button
-                  type="button"
-                  className={styles.ib}
+                <Button
+                  size="sm"
                   onClick={() => set('svcbParams', f.svcbParams.filter((_, j) => j !== i))}
                 >
                   Remove
-                </button>
+                </Button>
               </div>
             ))}
             <div>

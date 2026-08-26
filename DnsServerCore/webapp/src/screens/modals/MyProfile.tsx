@@ -111,9 +111,8 @@ export function MyProfile({
       open={open}
       onOpenChange={onOpenChange}
       title="My Profile"
-      footer={
+      acciones={
         <>
-          <Button onClick={() => onOpenChange(false)}>Close</Button>
           <Button variant="primary" disabled={busy} onClick={() => void save()}>
             Save
           </Button>

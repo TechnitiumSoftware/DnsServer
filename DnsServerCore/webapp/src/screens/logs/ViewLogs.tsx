@@ -12,6 +12,7 @@ import { Alert, type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { SectionHeader } from '../../ui/SectionHeader'
+import {Empty, Loading} from '../../ui/Empty'
 import styles from './Logs.module.css'
 
 /*
@@ -133,7 +134,7 @@ export function ViewLogs({
     })
   }
 
-  if (ficheros == null) return <div className={styles.loading}>Loading…</div>
+  if (ficheros == null) return <Loading />
 
   const TEXTO_CONFIRM: Record<Confirmacion, { titulo: string; texto: string; etiqueta: string }> = {
     log: {
@@ -185,7 +186,7 @@ export function ViewLogs({
           </div>
           <div className={styles.pbLista}>
             {ficheros.length === 0 ? (
-              <div className={styles.sinLogs}>No Log File Was Found</div>
+              <Empty>No Log File Was Found</Empty>
             ) : (
               <div className={styles.logfiles}>
                 {ficheros.map((f) => (
@@ -224,7 +225,7 @@ export function ViewLogs({
             </div>
             <div className={styles.pb}>
               {cargandoCuerpo ? (
-                <div className={styles.loading}>Loading…</div>
+                <Loading />
               ) : (
                 <pre className={styles.out}>{cuerpo ?? ''}</pre>
               )}
@@ -237,9 +238,8 @@ export function ViewLogs({
         open={confirmar !== null}
         onOpenChange={(o) => !o && setConfirmar(null)}
         title={confirmar ? TEXTO_CONFIRM[confirmar].titulo : ''}
-        footer={
+        acciones={
           <>
-            <Button onClick={() => setConfirmar(null)}>Cancel</Button>
             <Button
               variant="danger"
               disabled={ocupado}
@@ -253,6 +253,7 @@ export function ViewLogs({
             </Button>
           </>
         }
+        cerrar="Cancel"
       >
         <p className={styles.parrafo}>{confirmar ? TEXTO_CONFIRM[confirmar].texto : ''}</p>
       </Dialog>

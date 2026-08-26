@@ -111,8 +111,6 @@
 .table td { padding: var(--s-3) var(--s-5) var(--s-3) 0; vertical-align: middle; }
 .table input, .table select { width: 100%; }
 .tdel { width: 74px; }
-.empty { font-size: var(--t-3); color: var(--faint); padding: var(--s-6) 0; }
-
 .bar {
   display: flex; align-items: center; gap: var(--s-5);
   padding: var(--s-8) var(--s-9); border: 1px solid var(--line); border-radius: var(--r-4);
@@ -120,7 +118,7 @@
 }
 .spacer { flex: 1; }
 
-.loading, .fail { padding: var(--s-12); text-align: center; color: var(--faint); font-size: var(--t-4); }
+.fail { padding: var(--s-12); text-align: center; color: var(--faint); font-size: var(--t-4); }
 .head { display: flex; align-items: baseline; gap: var(--s-7); margin-bottom: var(--s-2); }
 .head h1 { margin: 0; font-size: var(--t-5); font-weight: 650; color: var(--ink); }
 .head span { font-size: var(--t-3); color: var(--faint); }

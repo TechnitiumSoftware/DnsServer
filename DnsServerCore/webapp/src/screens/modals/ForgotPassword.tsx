@@ -1,4 +1,3 @@
-import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import styles from './ForgotPassword.module.css'
 
@@ -28,7 +27,6 @@ export function ForgotPassword({
       onOpenChange={onOpenChange}
       ancho
       title="Forgot Password?"
-      footer={<Button onClick={() => onOpenChange(false)}>Close</Button>}
     >
       <p className={styles.parrafo}>
         To reset your password, you need to contact the DNS Server administrator.

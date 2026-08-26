@@ -15,4 +15,3 @@
 .kv { display:grid; grid-template-columns:auto 1fr; gap: var(--s-2) var(--s-8); margin: 0; }
 .kv dt { font-size: var(--t-3); color:var(--mute); }
 .kv dd { margin: 0; font-size: var(--t-4); color:var(--ink); font-family:var(--font-mono); }
-.vacio { font-size: var(--t-4); color:var(--faint); }

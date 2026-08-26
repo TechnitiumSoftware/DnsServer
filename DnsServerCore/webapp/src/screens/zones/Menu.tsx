@@ -1,3 +1,4 @@
+import { Button } from '../../ui/Button'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import styles from './Zones.module.css'
 
@@ -44,16 +45,15 @@ export function Menu({
 
   return (
     <div className={styles.menu} ref={caja}>
-      <button
-        type="button"
-        className={styles.ib}
+      <Button
+        size="sm"
         aria-haspopup="menu"
         aria-expanded={abierto}
         aria-label={etiqueta}
         onClick={() => setAbierto((v) => !v)}
       >
         {rotulo == null ? '⋮' : `${rotulo} ▾`}
-      </button>
+      </Button>
       {abierto && (
         <div className={styles.menuLista} role="menu">
           {children(() => setAbierto(false))}

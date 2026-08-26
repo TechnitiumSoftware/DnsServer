@@ -26,7 +26,7 @@ describe('About', () => {
   it('respeta el aviso silenciado: no dice que estés al día si no lo ha mirado', async () => {
     vi.spyOn(userApi, 'checkForUpdate').mockResolvedValue({ kind: 'skipped' })
     render(<About token="t" info={info} />)
-    expect(await screen.findByText('El aviso de actualización está silenciado.')).toBeInTheDocument()
+    expect(await screen.findByText('Update notifications are turned off for this server.')).toBeInTheDocument()
   })
 
   it('dice que estás al día cuando el servidor lo confirma', async () => {

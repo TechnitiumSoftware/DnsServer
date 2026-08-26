@@ -56,9 +56,8 @@ export function CreateApiToken({
       open={open}
       onOpenChange={onOpenChange}
       title="Create API Token"
-      footer={
+      acciones={
         <>
-          <Button onClick={() => onOpenChange(false)}>Close</Button>
           <Button variant="primary" disabled={busy} onClick={() => void create()}>
             Create
           </Button>

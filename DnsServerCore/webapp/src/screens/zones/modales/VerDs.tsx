@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { verDs, type InfoDs } from '../../../api/dnssec'
 import { Alert } from '../../../ui/Alert'
-import { Button } from '../../../ui/Button'
 import { Dialog } from '../../../ui/Dialog'
+import { Empty, Loading } from '../../../ui/Empty'
 import { fechaMinuto as fechaCorta } from '../../../lib/fechas'
 import type { Aviso } from '../tipos'
 import styles from '../Zones.module.css'
@@ -71,7 +71,6 @@ export function VerDs({
       onOpenChange={(o) => !o && onCerrar()}
       ancho
       title={`View DS Info - ${zone === '.' ? '<root>' : zone}`}
-      footer={<Button variant="primary" onClick={onCerrar}>Close</Button>}
     >
       {aviso && (
         <div className={styles.avisoHueco}>
@@ -104,12 +103,9 @@ export function VerDs({
       </ul>
 
       {cargando ? (
-        <div className={styles.cargando}>Loading DS records…</div>
+        <Loading>Loading DS records…</Loading>
       ) : (info?.dsRecords ?? []).length === 0 ? (
-        <div className={styles.empty}>
-          <b>No DS records</b>
-          This zone has no published keys yet.
-        </div>
+        <Empty titulo="No DS records">This zone has no published keys yet.</Empty>
       ) : (
         (info?.dsRecords ?? []).map((ds) => (
           <div key={ds.keyTag} className={styles.grupo}>

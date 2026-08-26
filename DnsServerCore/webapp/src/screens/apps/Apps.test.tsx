@@ -127,7 +127,7 @@ describe('Apps — lista de instaladas', () => {
     render(<Apps token="t" />)
 
     expect(await screen.findByText('No apps installed')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Abrir App Store' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open App Store' })).toBeInTheDocument()
     expect(screen.queryByText('0 instaladas')).not.toBeInTheDocument()
   })
 

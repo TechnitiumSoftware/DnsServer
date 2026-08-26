@@ -89,9 +89,8 @@ export function ImportarZona({
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
       title={`Import - ${zone}`}
-      footer={
+      acciones={
         <>
-          <Button onClick={onCerrar}>Close</Button>
           <Button variant="primary" disabled={ocupado} onClick={() => void importar()}>
             Import
           </Button>

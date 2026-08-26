@@ -1,7 +1,4 @@
 /* Cabecera de sección */
-.tag { font-size: var(--t-1); padding: var(--s-1) var(--s-5); border-radius: var(--r-full); font-weight:700; border:1px solid var(--line); letter-spacing:.03em; color:var(--mute); background:var(--pan2); white-space:nowrap; }
-.tagOk { color:var(--ok); border-color:#065f46; background:#052e26; }
-
 /* Las dos columnas: árbol a la izquierda, registros a la derecha */
 .brow { display:grid; grid-template-columns:270px minmax(0,1fr); gap: var(--s-10); align-items:start; }
 
@@ -28,7 +25,6 @@
 .tabla td { padding: var(--s-8) var(--s-7); border-bottom:1px solid var(--line2); vertical-align:top; color:var(--ink); }
 .tabla tbody tr:hover { background:var(--hover); }
 
-.ty { font-size: var(--t-1); font-weight:700; padding: var(--s-1) var(--s-4); border-radius: var(--r-1); background:#1b2230; color:#b6c2d6; letter-spacing:.03em; white-space:nowrap; }
 .nombre { display:block; margin-top: var(--s-3); font:var(--t-2) var(--font-mono); color:var(--faint); }
 .ttl { white-space:nowrap; font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
 .ttl small { color:var(--faint); }
@@ -44,14 +40,6 @@
 .firmas { margin: var(--s-5) 0 0; padding: var(--s-6) var(--s-8); background:var(--field); border:1px solid var(--line); border-radius: var(--r-2); font:var(--t-2)/1.6 var(--font-mono); color:var(--mute); white-space:pre-wrap; word-break:break-all; }
 
 .rowacts { display:flex; gap: var(--s-3); justify-content:flex-end; }
-.ib { font:400 var(--t-3)/1.2 var(--font-ui, inherit); padding: var(--s-3) var(--s-6); border-radius: var(--r-2); border:1px solid var(--line); background:var(--pan2); color:var(--mute); cursor:pointer; white-space:nowrap; }
-.ib:hover { color:var(--ink); }
-.ib[aria-pressed='true'] { color:var(--acc); border-color:var(--acc); }
-.ib:disabled { opacity:.5; cursor:default; }
-
-.empty { border:1px dashed var(--line); border-radius: var(--r-4); padding: var(--s-12); text-align:center; color:var(--mute); font-size: var(--t-4); }
-.empty b { display:block; color:var(--ink); font-size: var(--t-5); margin-bottom: var(--s-3); }
-
 .avisoHueco { margin-bottom: var(--s-9); }
 .parrafo { margin: 0 0 var(--s-7); font-size: var(--t-4); color:var(--mute); line-height:1.6; }
 .area { min-height:260px; resize:vertical; }

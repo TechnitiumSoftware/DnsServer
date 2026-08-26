@@ -1,3 +1,10 @@
+/*
+Dos tamaños y tres variantes, y nada más. Antes las acciones de fila usaban
+`.ib` —definida tres veces, con tres opacidades distintas al deshabilitar— en
+nueve pantallas y el `Button` normal en DHCP, así que la misma acción se veía
+de dos maneras según la tabla.
+*/
+
 .btn {
   font-size: var(--t-4);
   padding: var(--s-4) var(--s-8);
@@ -10,7 +17,25 @@
   font-family: inherit;
   white-space: nowrap;
 }
+
 .btn:disabled { opacity: 0.5; cursor: default; }
-.btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 1px; }
+.btn:focus-visible { outline: var(--focus); outline-offset: var(--focus-offset); }
+
+/* El de una fila de tabla: no compite con el dato de la fila. */
+.sm {
+  font-size: var(--t-3);
+  font-weight: 400;
+  padding: var(--s-3) var(--s-6);
+  color: var(--mute);
+}
+
+.sm:hover:not(:disabled) { color: var(--ink); }
+
+/* Un botón que se queda pulsado —los filtros «Glue» y «RRSIG»— lo dice con el
+   color de acento, no sólo con `aria-pressed`. */
+.btn[aria-pressed='true'] { color: var(--acc); border-color: var(--acc); }
+
 .primary { background: var(--acc); border-color: var(--acc); color: var(--on-acc); font-weight: 650; }
 .danger { color: var(--dan); border-color: var(--dan); }
+.sm.danger { border-color: var(--line); }
+.sm.danger:hover:not(:disabled) { color: var(--dan); border-color: var(--dan); }

@@ -4,6 +4,7 @@ import { Alert, type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { LabeledInput } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
+import { Empty } from '../../ui/Empty'
 import styles from './DnsClient.module.css'
 
 /*
@@ -127,7 +128,7 @@ export function DnsClient({ token }: { token: string | null }) {
       </div>
 
       {salida === null ? (
-        <div className={styles.vacio}>Run a query to see the response.</div>
+        <Empty>Run a query to see the response.</Empty>
       ) : (
         <div className={styles.panel}>
           <div className={styles.ph}>

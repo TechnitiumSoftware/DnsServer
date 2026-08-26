@@ -1,6 +1,3 @@
-.tag { font-size: var(--t-1); padding: var(--s-1) var(--s-5); border-radius: var(--r-full); font-weight:700; border:1px solid var(--line); letter-spacing:.03em; color:var(--mute); background:var(--pan2); white-space:nowrap; }
-.tagUpd { color:var(--acc); border-color:#4a3609; background:#2a1e05; }
-
 .apps { display:grid; grid-template-columns:repeat(2,1fr); gap: var(--s-8); list-style:none; margin: 0; padding: 0; }
 @media (max-width: 1040px) { .apps { grid-template-columns:1fr; } }
 .app { background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); padding: var(--s-9); display:flex; flex-direction:column; }
@@ -17,16 +14,9 @@
 .clase:first-of-type { border-top:0; }
 .clasePath { font-family:var(--font-mono); font-size: var(--t-3); color:var(--ink); }
 .caps { display:flex; gap: var(--s-3); flex-wrap:wrap; margin: var(--s-3) 0; }
-.cap { font-size: var(--t-1); padding: var(--s-1) var(--s-4); border-radius: var(--r-1); background:#1b2230; color:#b6c2d6; letter-spacing:.03em; font-weight:700; }
 .claseDesc { font-size: var(--t-3); line-height:1.5; color:var(--mute); margin: 0; white-space:pre-line; }
 .plantilla { margin: var(--s-3) 0 0; padding: var(--s-6); background:var(--field); border:1px solid var(--line); border-radius: var(--r-2); font-family:var(--font-mono); font-size: var(--t-2); color:var(--ink); overflow:auto; }
 .plantillaK { font-size: var(--t-2); color:var(--mute); font-weight:650; margin-top: var(--s-4); }
-
-.empty { border:1px dashed var(--line); border-radius: var(--r-4); padding: var(--s-12); text-align:center; color:var(--mute); font-size: var(--t-4); line-height:1.6; }
-.empty b { display:block; color:var(--ink); font-size: var(--t-5); margin-bottom: var(--s-3); }
-.emptyActs { margin-top: var(--s-9); }
-
-.cargando { color:var(--faint); font-size: var(--t-4); padding: var(--s-7) 0; }
 
 /* --- Tienda --- */
 .store { list-style:none; margin: 0; padding: 0; display:flex; flex-direction:column; }
@@ -39,8 +29,6 @@
 .smeta b { color:var(--mute); font-family:var(--font-ui); }
 .sacts { display:flex; flex-direction:column; gap: var(--s-3); flex:none; }
 .total { font-size: var(--t-4); color:var(--mute); font-weight:650; padding-top: var(--s-7); }
-.vacioStore { text-align:center; color:var(--mute); font-size: var(--t-4); padding: var(--s-11) 0; }
-
 /* --- Config --- */
 .nota { font-size: var(--t-3); line-height:1.6; color:var(--mute); margin: 0 0 var(--s-7); }
 .nota code { font-family:var(--font-mono); color:var(--acc); }

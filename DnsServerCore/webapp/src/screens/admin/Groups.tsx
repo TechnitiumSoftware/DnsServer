@@ -4,6 +4,7 @@ import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Input } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
+import { Loading } from '../../ui/Empty'
 import {
   createGroup,
   deleteGroup,
@@ -85,7 +86,7 @@ export function Groups({ token, onAviso }: Props) {
       />
 
       {cargando ? (
-        <div className={styles.loading}>Loading…</div>
+        <Loading />
       ) : (
         <>
           <div className={styles.tablaWrap}>
@@ -117,20 +118,19 @@ export function Groups({ token, onAviso }: Props) {
                     </td>
                     <td>
                       <div className={styles.rowacts}>
-                        <button
-                          type="button"
-                          className={styles.ib}
+                        <Button
+                          size="sm"
                           onClick={() => setDetalle(g.name)}
                         >
                           View Details
-                        </button>
-                        <button
-                          type="button"
-                          className={`${styles.ib} ${styles.ibDanger}`}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
                           onClick={() => setPorBorrar(g)}
                         >
                           Delete Group
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -229,12 +229,11 @@ function AnadirGrupo({
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
       title="Add Group"
-      footer={
+      acciones={
         <>
           <Button variant="primary" disabled={ocupado} onClick={() => void anadir()}>
             Add
           </Button>
-          <Button onClick={onCerrar}>Close</Button>
         </>
       }
     >
@@ -336,12 +335,11 @@ function DetalleGrupo({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title="Group Details"
-      footer={
+      acciones={
         <>
           <Button variant="primary" disabled={ocupado || cargando} onClick={() => void guardar()}>
             Save
           </Button>
-          <Button onClick={onCerrar}>Close</Button>
         </>
       }
     >
@@ -351,7 +349,7 @@ function DetalleGrupo({
         </Alert>
       )}
       {cargando ? (
-        <div className={styles.loading}>Loading…</div>
+        <Loading />
       ) : (
         <>
           <MRow label="Name">

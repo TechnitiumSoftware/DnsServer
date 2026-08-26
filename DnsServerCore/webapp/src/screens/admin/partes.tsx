@@ -2,6 +2,7 @@ import { useId, type ReactNode } from 'react'
 import { Alert, type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
+import { Tag } from '../../ui/Tag'
 import type { ClusterState } from '../../api/admin-cluster'
 import styles from './Admin.module.css'
 
@@ -62,14 +63,14 @@ export function Confirmar({
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
       title={titulo}
-      footer={
+      acciones={
         <>
-          <Button onClick={onCerrar}>Cancel</Button>
           <Button variant={variante} disabled={ocupado} onClick={onConfirmar}>
             {etiqueta}
           </Button>
         </>
       }
+      cerrar="Cancel"
     >
       <div className={styles.parrafo}>{texto}</div>
     </Dialog>
@@ -174,13 +175,6 @@ export function SelectorNodo({
   )
 }
 
-/** Etiqueta de color de las tablas: `label label-*` de upstream. */
-export function Etiqueta({ tipo, children }: { tipo: 'default' | 'success' | 'info' | 'primary' | 'warning'; children: ReactNode }) {
-  const clase =
-    tipo === 'success' ? styles.tagOk : tipo === 'warning' ? styles.tagWarn : tipo === 'default' ? '' : styles.tagInfo
-  return <span className={[styles.tag, clase].filter(Boolean).join(' ')}>{children}</span>
-}
-
 /*
 La celda «Session», que sale idéntica en la pestaña Sessions y en el modal de
 detalles del usuario (auth.js:876-899 y 1310-1333): el nombre del token si lo
@@ -191,13 +185,13 @@ sale como «Unknown» en ámbar.
 export function CeldaSesion({ sesion }: { sesion: { partialToken: string; tokenName: string | null; isCurrentSession: boolean; type: string } }) {
   const etiqueta =
     sesion.type === 'Standard' ? (
-      <Etiqueta tipo="default">Standard</Etiqueta>
+      <Tag>Standard</Tag>
     ) : sesion.type === 'ApiToken' ? (
-      <Etiqueta tipo="info">API Token</Etiqueta>
+      <Tag tone="info">API Token</Tag>
     ) : sesion.type === 'ClusterApiToken' ? (
-      <Etiqueta tipo="primary">Cluster API Token</Etiqueta>
+      <Tag tone="info">Cluster API Token</Tag>
     ) : (
-      <Etiqueta tipo="warning">Unknown</Etiqueta>
+      <Tag tone="warn">Unknown</Tag>
     )
 
   return (

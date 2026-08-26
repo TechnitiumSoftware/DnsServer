@@ -22,3 +22,40 @@ body {
 }
 
 button, input, select, textarea { font-family: inherit; }
+
+/* Las casillas y los radios los pinta el navegador; sólo hay que decirle el
+   color. Estaba declarado en tres módulos y faltaba en el resto. */
+:root { accent-color: var(--acc); }
+
+/*
+`select` y el botón de `input[type=file]` los pintaba el sistema: cajas blancas
+en una consola oscura, y en el modal «Add Zone» convivían tres controles con
+tres aspectos distintos. Se les da aquí el mismo aspecto que a `ui/Field`,
+porque son elementos nativos y no pasan por ningún componente.
+*/
+select,
+input[type='file'] {
+  font-size: var(--t-4);
+  padding: var(--s-4) var(--s-6);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  background: var(--field);
+  color: var(--ink);
+  min-width: 0;
+}
+
+select:disabled,
+input[type='file']:disabled { opacity: 0.5; }
+
+input[type='file']::file-selector-button {
+  font: inherit;
+  margin-right: var(--s-6);
+  padding: var(--s-2) var(--s-6);
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  background: var(--pan2);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+input[type='file']::file-selector-button:hover { border-color: var(--acc); }

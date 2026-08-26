@@ -15,6 +15,8 @@ import { SectionHeader } from '../../ui/SectionHeader'
 import { errorAviso, type Aviso } from './avisos'
 import { formularioDesdeScope, formularioNuevo, type ScopeForm as Form } from './model'
 import { ScopeForm } from './ScopeForm'
+import { Loading } from '../../ui/Empty'
+import { Tag } from '../../ui/Tag'
 import styles from './Dhcp.module.css'
 
 /*
@@ -155,7 +157,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
     )
   }
 
-  if (scopes == null) return <div className={styles.loading}>Loading…</div>
+  if (scopes == null) return <Loading />
 
   return (
     <div className={styles.wrap}>
@@ -219,18 +221,19 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
                     una celda vacía (dhcp.js:228). */}
                 <td className={styles.mono}>{s.interfaceAddress ?? ''}</td>
                 <td>
-                  <span className={s.enabled ? `${styles.tag} ${styles.tagOk}` : styles.tag}>
+                  <Tag tone={s.enabled ? 'ok' : 'neutral'}>
                     {s.enabled ? 'Enabled' : 'Disabled'}
-                  </span>
+                  </Tag>
                 </td>
                 <td>
                   <div className={styles.rowacts}>
-                    <Button disabled={ocupado} onClick={() => void editar(s.name)}>
+                    <Button size="sm" disabled={ocupado} onClick={() => void editar(s.name)}>
                       Edit
                     </Button>
                     {canModify &&
                       (s.enabled ? (
                         <Button
+                          size="sm"
                           disabled={ocupado}
                           onClick={() => setConfirmar({ accion: 'disable', nombre: s.name })}
                         >
@@ -238,12 +241,13 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
                         </Button>
                       ) : (
                         /* dhcp.js:615 — habilitar no pregunta nada. */
-                        <Button disabled={ocupado} onClick={() => void habilitar(s.name)}>
+                        <Button size="sm" disabled={ocupado} onClick={() => void habilitar(s.name)}>
                           Enable
                         </Button>
                       ))}
                     {canDelete && (
                       <Button
+                        size="sm"
                         variant="danger"
                         disabled={ocupado}
                         onClick={() => setConfirmar({ accion: 'delete', nombre: s.name })}
@@ -267,9 +271,8 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
         open={confirmar !== null}
         onOpenChange={(o) => !o && setConfirmar(null)}
         title={confirmar?.accion === 'delete' ? 'Delete Scope' : 'Disable Scope'}
-        footer={
+        acciones={
           <>
-            <Button onClick={() => setConfirmar(null)}>Cancel</Button>
             <Button
               variant="danger"
               disabled={ocupado}
@@ -283,6 +286,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
             </Button>
           </>
         }
+        cerrar="Cancel"
       >
         <p className={styles.parrafo}>
           {confirmar?.accion === 'delete'

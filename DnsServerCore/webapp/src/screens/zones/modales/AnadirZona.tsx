@@ -119,9 +119,8 @@ export function AnadirZona({
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
       title="Add Zone"
-      footer={
+      acciones={
         <>
-          <Button onClick={onCerrar}>Close</Button>
           <Button variant="primary" disabled={ocupado} onClick={() => void crear()}>
             Add
           </Button>

@@ -20,8 +20,6 @@
 .toprow:last-child { border-bottom:0; }
 .toprow .n { color:var(--ink); font-family:var(--font-mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .toprow .c { color:var(--mute); font-family:var(--font-mono); flex:none; }
-.vacio { color:var(--faint); font-size: var(--t-4); padding: var(--s-7) 0; }
-
 /* Modal «Top Stats»: la lista larga detrás de los botones «More». */
 .topTablaWrap { overflow-x: auto; max-height: 460px; overflow-y: auto; }
 .topTabla { width: 100%; border-collapse: collapse; font-size: var(--t-4); }

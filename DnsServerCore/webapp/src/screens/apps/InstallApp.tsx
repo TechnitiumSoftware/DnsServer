@@ -68,12 +68,11 @@ export function InstallApp({
       open={open}
       onOpenChange={onOpenChange}
       title="Install App"
-      footer={
+      acciones={
         <>
           <Button variant="primary" disabled={busy} onClick={() => void instalar()}>
             Install
           </Button>
-          <Button onClick={() => onOpenChange(false)}>Close</Button>
         </>
       }
     >

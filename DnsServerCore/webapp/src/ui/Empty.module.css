@@ -1,0 +1,52 @@
+/*
+Los dos estados de «aquí no hay nada» y el de «todavía no ha llegado». Antes
+había cinco tratamientos del vacío (caja de puntos, texto apagado suelto, dos
+paddings distintos, una `<b>` que a veces estaba) y tres del cargando.
+*/
+
+/* Vacío de región: sustituye a una tabla, una lista o una rejilla entera. */
+.caja {
+  border: 1px dashed var(--line);
+  border-radius: var(--r-4);
+  padding: var(--s-12);
+  text-align: center;
+  color: var(--mute);
+  font-size: var(--t-4);
+  line-height: 1.6;
+}
+
+.titulo {
+  display: block;
+  color: var(--ink);
+  font-size: var(--t-5);
+  font-weight: 650;
+  margin-bottom: var(--s-3);
+}
+
+.acciones {
+  margin-top: var(--s-9);
+  display: flex;
+  gap: var(--s-5);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Vacío de dentro de un panel: una línea, sin caja, que no compita con él. */
+.linea {
+  color: var(--faint);
+  font-size: var(--t-4);
+  padding: var(--s-7) 0;
+}
+
+/* Cargando: mismo sitio y mismo peso que el vacío al que va a sustituir. */
+.cargando {
+  padding: var(--s-12);
+  text-align: center;
+  color: var(--faint);
+  font-size: var(--t-4);
+}
+
+.cargando.linea {
+  padding: var(--s-7) 0;
+  text-align: left;
+}

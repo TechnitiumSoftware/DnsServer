@@ -17,6 +17,8 @@ import { Button } from '../../ui/Button'
 import { Input, Select } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { aIso, fechaHora } from './fechas'
+import { Loading } from '../../ui/Empty'
+import { Tag } from '../../ui/Tag'
 import styles from './Logs.module.css'
 
 /*
@@ -371,7 +373,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
     }
   }
 
-  if (apps == null) return <div className={styles.loading}>Loading…</div>
+  if (apps == null) return <Loading />
 
   const paginacion = pagina != null ? rangoPaginas(pagina.pageNumber, pagina.totalPages) : []
 
@@ -380,7 +382,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
       <SectionHeader
         seccion="Logs"
         titulo="Query Logs"
-        etiquetas={f.appName !== '' ? <span className={styles.tag}>app: {f.appName}</span> : undefined}
+        etiquetas={f.appName !== '' ? <Tag>app: {f.appName}</Tag> : undefined}
         acciones={<>
           <label className={styles.check}>
             <input

@@ -33,14 +33,14 @@ export function Confirm({
       open={open}
       onOpenChange={onOpenChange}
       title={title}
-      footer={
+      acciones={
         <>
           <Button variant="primary" disabled={ocupado} onClick={onConfirm}>
             OK
           </Button>
-          <Button onClick={() => onOpenChange(false)}>Cancel</Button>
         </>
       }
+      cerrar="Cancel"
     >
       {texto}
     </Dialog>
@@ -94,12 +94,11 @@ export function BackupDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Backup Settings"
-      footer={
+      acciones={
         <>
           <Button variant="primary" disabled={ocupado} onClick={onBackup}>
             Backup
           </Button>
-          <Button onClick={() => onOpenChange(false)}>Close</Button>
         </>
       }
     >
@@ -144,12 +143,11 @@ export function RestoreDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Restore Settings"
-      footer={
+      acciones={
         <>
           <Button variant="primary" disabled={ocupado} onClick={() => onRestore(fichero, borrar)}>
             Restore
           </Button>
-          <Button onClick={() => onOpenChange(false)}>Close</Button>
         </>
       }
     >

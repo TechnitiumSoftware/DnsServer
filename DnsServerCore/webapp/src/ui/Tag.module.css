@@ -1,0 +1,39 @@
+/*
+La píldora de estado. Había seis copias de `.tag` idénticas y cuatro juegos de
+modificadores distintos, con `.tagInfo` en azul en Zones y en ámbar en Apps: la
+misma píldora significaba una cosa en una pantalla y otra en la de al lado.
+*/
+
+.tag {
+  display: inline-block;
+  font-size: var(--t-1);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: var(--s-1) var(--s-5);
+  border-radius: var(--r-full);
+  border: 1px solid var(--line);
+  background: var(--pan2);
+  color: var(--mute);
+  white-space: nowrap;
+}
+
+.ok   { color: var(--ok);   border-color: var(--ok-bd);   background: var(--ok-bg); }
+.warn { color: var(--warn); border-color: var(--warn-bd); background: var(--warn-bg); }
+.dan  { color: var(--dan);  border-color: var(--dan-bd);  background: var(--dan-bg); }
+.info { color: var(--info); border-color: var(--info-bd); background: var(--info-bg); }
+
+/*
+El chip de código: un tipo de registro (`A`, `SOA`), la clase de un app. No es
+una píldora de estado —no juzga nada—, así que ni es redonda ni lleva color.
+*/
+.chip {
+  display: inline-block;
+  font-size: var(--t-1);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: var(--s-1) var(--s-4);
+  border-radius: var(--r-1);
+  background: var(--chip-bg);
+  color: var(--chip-fg);
+  white-space: nowrap;
+}

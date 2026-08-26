@@ -29,6 +29,8 @@ import { textoDeEstado, ventanaDePaginas } from './paginacion'
 import { accionesDeFila, nombreRelativo, ocultarDnssec } from './registro-vista'
 import { cabeceraDeZona, estaFirmada, guardarOcultarDnssec, leerOcultarDnssec } from './vista-zona'
 import { SectionHeader } from '../../ui/SectionHeader'
+import { Empty, Loading } from '../../ui/Empty'
+import { Chip, Tag } from '../../ui/Tag'
 import styles from './Zones.module.css'
 import type { Aviso, Confirmacion } from './tipos'
 
@@ -281,15 +283,12 @@ export function RegistrosZona(p: RegistrosZonaProps) {
   }
 
   if (cargando && zona == null) {
-    return <div className={styles.cargando}>Loading zone…</div>
+    return <Loading>Loading zone…</Loading>
   }
 
   if (zona == null) {
     return (
-      <div className={styles.empty}>
-        <b>Unable to open the zone</b>
-        Go back to the list and try again.
-      </div>
+      <Empty titulo="Unable to open the zone">Go back to the list and try again.</Empty>
     )
   }
 
@@ -342,12 +341,12 @@ export function RegistrosZona(p: RegistrosZonaProps) {
         titulo={zone === '.' ? '<root>' : zone}
         etiquetas={
           <>
-            <span className={styles.tag}>{etiquetaTipo(zona.type)}</span>
-            <span className={`${styles.tag} ${estado === 'Enabled' ? styles.tagOk : ''}`}>{estado}</span>
+            <Tag>{etiquetaTipo(zona.type)}</Tag>
+            <Tag tone={estado === 'Enabled' ? 'ok' : 'neutral'}>{estado}</Tag>
             {firmada && (
-              <span className={`${styles.tag} ${styles.tagInfo}`}>DNSSEC</span>
+              <Tag tone="info">DNSSEC</Tag>
             )}
-            {zona.catalog != null && <span className={styles.tag}>{zona.catalog}</span>}
+            {zona.catalog != null && <Tag>{zona.catalog}</Tag>}
           </>
         }
         acciones={
@@ -531,10 +530,10 @@ export function RegistrosZona(p: RegistrosZonaProps) {
                     <td className={styles.num}>{inicio + i + 1}</td>
                     <td className={`${styles.mono}`}>{nombreRelativo(r.name, zone)}</td>
                     <td>
-                      <span className={styles.ty}>{r.type}</span>
+                      <Chip>{r.type}</Chip>
                       {r.disabled && (
                         <div className={styles.tags}>
-                          <span className={styles.tag}>Disabled</span>
+                          <Tag>Disabled</Tag>
                         </div>
                       )}
                     </td>
@@ -547,41 +546,37 @@ export function RegistrosZona(p: RegistrosZonaProps) {
                     <td>
                       {!acciones.ocultas && (
                         <div className={styles.rowacts}>
-                          <button
-                            type="button"
-                            className={styles.ib}
+                          <Button
+                            size="sm"
                             disabled={!p.canModify || ocupado}
                             onClick={() => p.onEditarRegistro(zona, r, registros)}
                           >
                             Edit
-                          </button>
+                          </Button>
                           {r.disabled ? (
-                            <button
-                              type="button"
-                              className={styles.ib}
+                            <Button
+                              size="sm"
                               disabled={acciones.soloEdicion || !p.canModify || ocupado}
                               onClick={() => cambiarEstado(r, false)}
                             >
                               Enable
-                            </button>
+                            </Button>
                           ) : (
-                            <button
-                              type="button"
-                              className={styles.ib}
+                            <Button
+                              size="sm"
                               disabled={acciones.soloEdicion || !p.canModify || ocupado}
                               onClick={() => cambiarEstado(r, true)}
                             >
                               Disable
-                            </button>
+                            </Button>
                           )}
-                          <button
-                            type="button"
-                            className={styles.ib}
+                          <Button
+                            size="sm"
                             disabled={acciones.soloEdicion || !p.canDelete || ocupado}
                             onClick={() => borrarRegistro(r)}
                           >
                             Delete
-                          </button>
+                          </Button>
                         </div>
                       )}
                     </td>

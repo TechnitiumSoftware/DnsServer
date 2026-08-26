@@ -64,12 +64,11 @@ export function UpdateApp({
       open={open}
       onOpenChange={onOpenChange}
       title="Update App"
-      footer={
+      acciones={
         <>
           <Button variant="primary" disabled={busy} onClick={() => void actualizar()}>
             Update
           </Button>
-          <Button onClick={() => onOpenChange(false)}>Close</Button>
         </>
       }
     >

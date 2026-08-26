@@ -1,3 +1,4 @@
+import { Tag } from '../../ui/Tag'
 import { useState } from 'react'
 import type { Registro } from '../../api/registros'
 import { celdasDeRegistro, pieDeRegistro, type Celda } from './registro-vista'
@@ -123,7 +124,7 @@ export function CeldaDatos({
 
       {notifyFallido && (
         <div className={styles.tags}>
-          <span className={`${styles.tag} ${styles.tagWarn}`}>Notify Failed</span>
+          <Tag tone="warn">Notify Failed</Tag>
         </div>
       )}
 

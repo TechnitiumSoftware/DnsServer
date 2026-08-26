@@ -4,6 +4,7 @@ import { Alert } from '../../../ui/Alert'
 import { Button } from '../../../ui/Button'
 import { Dialog } from '../../../ui/Dialog'
 import { Field, Select } from '../../../ui/Field'
+import { Loading } from '../../../ui/Empty'
 import type { Aviso } from '../tipos'
 import styles from '../Zones.module.css'
 
@@ -114,9 +115,8 @@ export function PermisosZona({
       onOpenChange={(o) => !o && onCerrar()}
       ancho
       title={titulo}
-      footer={
+      acciones={
         <>
-          <Button onClick={onCerrar}>Close</Button>
           {canModify && (
             <Button variant="primary" disabled={ocupado || cargando} onClick={() => void guardar()}>
               Save
@@ -134,7 +134,7 @@ export function PermisosZona({
       )}
 
       {cargando ? (
-        <div className={styles.cargando}>Loading permissions…</div>
+        <Loading>Loading permissions…</Loading>
       ) : (
         <div className={styles.campos}>
           <TablaPermisos
@@ -209,13 +209,12 @@ function TablaPermisos({
                     </td>
                   ))}
                   <td>
-                    <button
-                      type="button"
-                      className={styles.ib}
+                    <Button
+                      size="sm"
                       onClick={() => onCambiar(filas.filter((_, j) => j !== i))}
                     >
                       Remove
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}

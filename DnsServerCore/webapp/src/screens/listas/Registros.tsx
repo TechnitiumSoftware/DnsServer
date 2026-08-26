@@ -1,3 +1,5 @@
+import { Chip, Tag } from '../../ui/Tag'
+import { Button } from '../../ui/Button'
 import { useState } from 'react'
 import type { RegistroDns } from '../../api/zonelists'
 import { entradasRData, extras, meta, ttlPartido, type Entrada } from './registro'
@@ -57,7 +59,7 @@ function Fila({ r, conDnssec, nodo }: { r: RegistroDns; conDnssec: boolean; nodo
   return (
     <tr>
       <td>
-        <span className={styles.ty}>{r.type}</span>
+        <Chip>{r.type}</Chip>
         {nombreDistinto && <span className={styles.nombre}>{nombre === '' ? '<ROOT>' : nombre}</span>}
       </td>
       <td className={styles.ttl}>
@@ -75,32 +77,30 @@ function Fila({ r, conDnssec, nodo }: { r: RegistroDns; conDnssec: boolean; nodo
       </td>
       {conDnssec && (
         <td>
-          <span className={`${styles.tag} ${r.dnssecStatus === 'Secure' ? styles.tagOk : ''}`}>
+          <Tag tone={r.dnssecStatus === 'Secure' ? 'ok' : 'neutral'}>
             {r.dnssecStatus ?? '—'}
-          </span>
+          </Tag>
         </td>
       )}
       <td>
         <div className={styles.rowacts}>
           {r.glueRecords && (
-            <button
-              type="button"
-              className={styles.ib}
+            <Button
+              size="sm"
               aria-pressed={glue}
               onClick={() => setGlue((v) => !v)}
             >
               Glue
-            </button>
+            </Button>
           )}
           {r.dnssecRecords && (
-            <button
-              type="button"
-              className={styles.ib}
+            <Button
+              size="sm"
               aria-pressed={firmas}
               onClick={() => setFirmas((v) => !v)}
             >
               RRSIG
-            </button>
+            </Button>
           )}
         </div>
       </td>

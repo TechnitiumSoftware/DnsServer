@@ -14,6 +14,8 @@ import { AppCard } from './AppCard'
 import { InstallApp } from './InstallApp'
 import { StoreApps } from './StoreApps'
 import { UpdateApp } from './UpdateApp'
+import { Empty, Loading } from '../../ui/Empty'
+import { Tag } from '../../ui/Tag'
 import styles from './Apps.module.css'
 
 /*
@@ -144,9 +146,9 @@ export function Apps({ token }: { token: string | null }) {
         titulo="Apps"
         etiquetas={
           conUpdate > 0 ? (
-            <span className={`${styles.tag} ${styles.tagUpd}`}>
+            <Tag tone="warn">
               {conUpdate === 1 ? '1 update available' : `${conUpdate} updates available`}
-            </span>
+            </Tag>
           ) : undefined
         }
         acciones={
@@ -160,18 +162,19 @@ export function Apps({ token }: { token: string | null }) {
       />
 
       {apps === null ? (
-        <div className={styles.cargando}>Loading…</div>
+        <Loading />
       ) : apps.length === 0 ? (
-        <div className={styles.empty}>
-          <b>No apps installed</b>
+        <Empty
+          titulo="No apps installed"
+          acciones={
+            <Button variant="primary" onClick={() => setModal({ kind: 'store' })}>
+              Open App Store
+            </Button>
+          }
+        >
           DNS Apps add behaviour to the server — query logging, advanced blocking, split horizon —
           without touching the base configuration. Open the store to see what is available.
-          <div className={styles.emptyActs}>
-            <Button variant="primary" onClick={() => setModal({ kind: 'store' })}>
-              Abrir App Store
-            </Button>
-          </div>
-        </div>
+        </Empty>
       ) : (
         <ul className={styles.apps}>
           {apps.map((app) => (

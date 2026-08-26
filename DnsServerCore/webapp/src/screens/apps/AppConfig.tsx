@@ -63,12 +63,11 @@ export function AppConfig({
       open={open}
       onOpenChange={onOpenChange}
       title={`App Config - ${name}`}
-      footer={
+      acciones={
         <>
           <Button variant="primary" disabled={busy} onClick={() => void guardar()}>
             Save
           </Button>
-          <Button onClick={() => onOpenChange(false)}>Close</Button>
         </>
       }
     >

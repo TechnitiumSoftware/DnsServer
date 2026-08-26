@@ -140,9 +140,8 @@ export function FirmarZona({
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
       title={`Sign Zone - ${zone === '.' ? '<root>' : zone}`}
-      footer={
+      acciones={
         <>
-          <Button onClick={onCerrar}>Close</Button>
           <Button variant="primary" disabled={ocupado} onClick={() => void firmar()}>
             Sign Zone
           </Button>
