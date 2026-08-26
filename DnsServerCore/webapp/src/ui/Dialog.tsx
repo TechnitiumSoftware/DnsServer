@@ -1,6 +1,7 @@
 import * as RadixDialog from '@radix-ui/react-dialog'
 import type { ReactNode } from 'react'
 import { Button } from './Button'
+import { Icono } from './Icono'
 import styles from './Dialog.module.css'
 
 /*
@@ -45,7 +46,7 @@ export function Dialog({
           <div className={styles.head}>
             <RadixDialog.Title className={styles.title}>{title}</RadixDialog.Title>
             <RadixDialog.Close className={styles.close} aria-label="Close">
-              ✕
+              <Icono nombre="cerrar" tam={16} />
             </RadixDialog.Close>
           </div>
           <div className={styles.body}>{children}</div>

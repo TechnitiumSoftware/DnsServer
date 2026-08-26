@@ -95,6 +95,7 @@ export function Recursion({ f, set, en }: PaneProps) {
       <Block title="Recursive Resolver">
         <GroupRow label="Recursive Resolver">
           <Check
+            conmutador
             label="Randomize Name"
             checked={f.randomizeName}
             onChange={(v) => set({ randomizeName: v })}
@@ -113,6 +114,7 @@ export function Recursion({ f, set, en }: PaneProps) {
             }
           />
           <Check
+            conmutador
             label="QNAME Minimization"
             checked={f.qnameMinimization}
             onChange={(v) => set({ qnameMinimization: v })}
@@ -127,6 +129,7 @@ export function Recursion({ f, set, en }: PaneProps) {
             }
           />
           <Check
+            conmutador
             label="Locally Served DNS Zones"
             checked={f.locallyServedDnsZones}
             onChange={(v) => set({ locallyServedDnsZones: v })}

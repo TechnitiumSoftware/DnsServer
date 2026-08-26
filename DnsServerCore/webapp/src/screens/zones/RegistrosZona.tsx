@@ -35,6 +35,7 @@ import pag from '../../ui/Pagination.module.css'
 import tbl from '../../ui/Table.module.css'
 import { Th, useOrden, type Claves } from '../../ui/Table'
 import styles from './Zones.module.css'
+import { Icono } from '../../ui/Icono'
 import type { Aviso, Confirmacion } from './tipos'
 
 /*
@@ -333,12 +334,12 @@ export function RegistrosZona(p: RegistrosZonaProps) {
     <span className={pag.pg}>
       {pg.primera && (
         <button type="button" className={pag.pgb} aria-label="First" onClick={() => setPagina(1)}>
-          «
+          <Icono nombre="primera" tam={14} />
         </button>
       )}
       {pg.anterior != null && (
         <button type="button" className={pag.pgb} aria-label="Previous" onClick={() => setPagina(pg.anterior!)}>
-          ‹
+          <Icono nombre="chevronIzquierda" tam={14} />
         </button>
       )}
       {pg.paginas.map((n) => (
@@ -354,12 +355,12 @@ export function RegistrosZona(p: RegistrosZonaProps) {
       ))}
       {pg.siguiente != null && (
         <button type="button" className={pag.pgb} aria-label="Next" onClick={() => setPagina(pg.siguiente!)}>
-          ›
+          <Icono nombre="chevronDerecha" tam={14} />
         </button>
       )}
       {pg.ultima && (
         <button type="button" className={pag.pgb} aria-label="Last" onClick={() => setPagina(totalPages)}>
-          »
+          <Icono nombre="ultima" tam={14} />
         </button>
       )}
     </span>

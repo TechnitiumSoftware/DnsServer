@@ -12,6 +12,7 @@
   margin: 0 0 var(--s-9) 0;
   padding: 0 0 var(--s-9) 0;
   min-width: 0;
+  box-shadow: var(--e-1), var(--filo);
 }
 .blockTitle {
   display: block;
@@ -71,7 +72,7 @@ Es lo que hacen el dibujo y la tabla de Logs; aquí se había perdido.
 .select:disabled { opacity: 0.5; }
 
 .check { display: flex; align-items: flex-start; gap: var(--s-5); font-size: var(--t-4); cursor: pointer; }
-.check input { width: 15px; height: 15px; accent-color: var(--acc); margin-top: var(--s-1); flex: none; }
+.check input { margin-top: var(--s-1); flex: none; }
 .check input:disabled { opacity: 0.5; }
 .checkHelp { font-size: var(--t-3); color: var(--mute); padding-left: var(--s-11); line-height: 1.55; max-width: 720px; }
 .checkHelp a { color: var(--acc); }
@@ -105,6 +106,7 @@ Es lo que hacen el dibujo y la tabla de Logs; aquí se había perdido.
   display: flex; align-items: center; gap: var(--s-5); flex-wrap: wrap;
   padding: var(--s-8) var(--s-9); border: 1px solid var(--line); border-radius: var(--r-4);
   background: var(--pan); position: sticky; bottom: 0;
+  box-shadow: var(--e-2), var(--filo);
 }
 .spacer { flex: 1; }
 

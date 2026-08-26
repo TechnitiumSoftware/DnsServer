@@ -228,6 +228,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
             <div className={frm.mrow}>
               <div />
               <Check
+                conmutador
                 label="Disable User Account"
                 checked={deshabilitado}
                 onChange={setDeshabilitado}

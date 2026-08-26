@@ -116,6 +116,7 @@ export function General({ f, set, en }: PaneProps) {
         />
         <GroupRow label="Zone Defaults">
           <Check
+            conmutador
             label="Use SOA Serial Date Scheme"
             checked={f.useSoaSerialDateScheme}
             onChange={(v) => set({ useSoaSerialDateScheme: v })}
@@ -155,12 +156,14 @@ export function General({ f, set, en }: PaneProps) {
       <Block title="Software Update">
         <GroupRow label="Software Update">
           <Check
+            conmutador
             label="Enable Check For Update"
             checked={f.dnsServerEnableCheckForUpdate}
             onChange={(v) => set({ dnsServerEnableCheckForUpdate: v })}
             help="Enables the DNS Server to check if an update is available when the Check For Update API is called which usually occurs after a user logs into the Web Console."
           />
           <Check
+            conmutador
             label="Enable Automatic Update"
             checked={f.dnsAppsEnableAutomaticUpdate}
             onChange={(v) => set({ dnsAppsEnableAutomaticUpdate: v })}
@@ -208,6 +211,7 @@ export function General({ f, set, en }: PaneProps) {
       <Block title="UDP Socket Pool">
         <GroupRow label="UDP Socket Pool">
           <Check
+            conmutador
             label="Enable UDP Socket Pool"
             checked={f.enableUdpSocketPool}
             onChange={(v) => set({ enableUdpSocketPool: v })}
@@ -248,6 +252,7 @@ export function General({ f, set, en }: PaneProps) {
       <Block title="DNSSEC">
         <GroupRow label="DNSSEC">
           <Check
+            conmutador
             label="Enable DNSSEC Validation"
             checked={f.dnssecValidation}
             onChange={(v) => set({ dnssecValidation: v })}
@@ -279,6 +284,7 @@ export function General({ f, set, en }: PaneProps) {
       <Block title="EDNS Client Subnet">
         <GroupRow label="EDNS Client Subnet (ECS)">
           <Check
+            conmutador
             label="Enable EDNS Client Subnet"
             checked={f.eDnsClientSubnet}
             onChange={(v) => set({ eDnsClientSubnet: v })}

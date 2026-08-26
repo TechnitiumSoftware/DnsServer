@@ -15,14 +15,29 @@ import { Dhcp } from '../screens/dhcp/Dhcp'
 import { Logs } from '../screens/logs/Logs'
 import { Admin } from '../screens/admin/Admin'
 import styles from './Shell.module.css'
+import { Icono, type NombreIcono } from '../ui/Icono'
 
 type ModalId = 'profile' | 'password' | 'twofa' | 'token'
 
 /** Un glifo por sección. Sin dependencia de iconos: la CSP del servidor no
  *  permite CDN y una fuente de iconos tendría que ir como fichero en www/. */
-const ICONOS: Record<string, string> = {
-  dashboard: '▣', zones: '◆', cache: '○', allowed: '✓', blocked: '⊘', apps: '⊞',
-  dnsclient: '⌕', settings: '⚙', dhcp: '▤', admin: '☺', logs: '≡', about: 'ⓘ',
+/* Los doce iconos de sección viven en `ui/Icono`, dibujados; aquí sólo se dice
+   cuál lleva cada una. */
+/*
+Los tres grupos del panel. No es una taxonomía nueva: es el mismo orden de
+upstream, con hueco donde ya cambiaba el tipo de tarea. Lo que se opera a
+diario, lo que se configura y lo que se consulta.
+*/
+const GRUPOS: string[][] = [
+  ['dashboard', 'zones', 'cache', 'allowed', 'blocked', 'apps', 'dnsclient'],
+  ['settings', 'dhcp', 'admin'],
+  ['logs', 'about'],
+]
+
+const ICONOS: Record<string, NombreIcono> = {
+  dashboard: 'dashboard', zones: 'zones', cache: 'cache', allowed: 'allowed',
+  blocked: 'blocked', apps: 'apps', dnsclient: 'dnsclient', settings: 'settings',
+  dhcp: 'dhcp', admin: 'admin', logs: 'logs', about: 'about',
 }
 
 export interface ShellSession {
@@ -81,7 +96,9 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
         </div>
         <nav className={styles.slist} role="navigation" aria-label="Sections">
           <div role="tablist" aria-orientation="vertical">
-            {sections.map((sec) => (
+            {GRUPOS.map((grupo, g) => (
+              <div className={styles.grupo} key={g}>
+            {sections.filter((sec) => grupo.includes(sec.id)).map((sec) => (
               <div key={sec.id}>
                 <button
                   role="tab"
@@ -89,7 +106,9 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
                   aria-selected={sec.id === current?.id}
                   onClick={() => { setActive(sec.id); setSub(null); setCajon(false) }}
                 >
-                  <span className={styles.ico} aria-hidden="true">{ICONOS[sec.id] ?? '•'}</span>
+                  <span className={styles.ico}>
+                    <Icono nombre={ICONOS[sec.id] ?? 'about'} tam={16} />
+                  </span>
                   {sec.label}
                 </button>
                 {/* main.js — los sub-items sólo se ven cuando su sección está
@@ -110,6 +129,8 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
                 )}
               </div>
             ))}
+              </div>
+            ))}
           </div>
         </nav>
       </aside>
@@ -125,7 +146,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
             aria-expanded={cajon}
             onClick={() => setCajon((v) => !v)}
           >
-            ☰
+            <Icono nombre="menu" tam={18} />
           </button>
           <span className={styles.marcaTop}>
             <span className={styles.mark}>T</span> Technitium
@@ -133,7 +154,8 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
           {session.info && <span className={styles.host}>{session.info.dnsServerDomain}</span>}
           <div className={styles.menu}>
             <button className={styles.menuBtn} onClick={() => setMenuOpen((v) => !v)}>
-              {displayName} ▾
+              {displayName}
+              <Icono nombre="chevronAbajo" tam={12} />
             </button>
             {menuOpen && (
               <div className={styles.menuList}>

@@ -6,17 +6,26 @@ de dos maneras según la tabla.
 */
 
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
   font-size: var(--t-4);
   padding: var(--s-4) var(--s-8);
   border-radius: var(--r-2);
   border: 1px solid var(--line);
-  background: var(--pan2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 60%), var(--pan2);
   color: var(--ink);
   cursor: pointer;
   font-weight: 500;
   font-family: inherit;
   white-space: nowrap;
+  box-shadow: var(--filo);
+  transition: border-color var(--t-rapido), background var(--t-rapido);
 }
+
+.btn:hover:not(:disabled) { border-color: #2f3846; }
+.btn:active:not(:disabled) { box-shadow: var(--hundido); }
 
 .btn:disabled { opacity: 0.5; cursor: default; }
 .btn:focus-visible { outline: var(--focus); outline-offset: var(--focus-offset); }
@@ -35,7 +44,18 @@ de dos maneras según la tabla.
    color de acento, no sólo con `aria-pressed`. */
 .btn[aria-pressed='true'] { color: var(--acc); border-color: var(--acc); }
 
-.primary { background: var(--acc); border-color: var(--acc); color: var(--on-acc); font-weight: 650; }
+/* El primario lleva su propio filo, más marcado porque el ámbar aguanta más luz.
+   El texto es oscuro y no blanco por una razón medida: blanco sobre `#f5a524`
+   da 2.04:1 y no llega ni al mínimo de texto grande; el oscuro da 9.09:1. */
+.primary {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 65%), var(--acc);
+  border-color: var(--acc);
+  color: var(--on-acc);
+  font-weight: 650;
+  box-shadow: var(--filo-fuerte);
+}
+
+.primary:hover:not(:disabled) { border-color: var(--acc); filter: brightness(1.06); }
 
 /*
 El destructivo va RELLENO. Sólo teñía el borde, así que el «Delete» de «Delete
@@ -44,7 +64,7 @@ modal inocuo era un bloque ámbar sólido: el botón más consecuente de la pant
 era el más callado, y en esta consola no hay deshacer en ninguna parte.
 */
 .danger {
-  background: var(--dan-fill);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 65%), var(--dan-fill);
   border-color: var(--dan);
   color: var(--on-dan);
   font-weight: 650;

@@ -65,7 +65,7 @@
 .rCached { background: rgba(111, 84, 153, 0.1); }
 
 .check { display: flex; align-items: center; gap: var(--s-5); font-size: var(--t-4); cursor: pointer; color: var(--ink); }
-.check input { width: 15px; height: 15px; accent-color: var(--acc); flex: none; }
+.check input { flex: none; }
 
 .fail { padding: var(--s-12); text-align: center; color: var(--faint); font-size: var(--t-4); }
 .parrafo { margin: 0 0 var(--s-7); font-size: var(--t-4); color: var(--mute); line-height: 1.6; }

@@ -23,6 +23,7 @@ export function OptionalProtocols({ f, set, en }: PaneProps) {
       <Block title="Optional DNS Server Protocols">
         <GroupRow label="Optional DNS Server Protocols">
           <Check
+            conmutador
             label="Enable EDNS Client Subnet (ECS) Source Address"
             checked={f.enableEDnsClientSubnetSourceAddress}
             onChange={(v) => set({ enableEDnsClientSubnetSourceAddress: v })}
@@ -38,6 +39,7 @@ export function OptionalProtocols({ f, set, en }: PaneProps) {
             }
           />
           <Check
+            conmutador
             label="Enable DNS-over-UDP-PROXY"
             checked={f.enableDnsOverUdpProxy}
             onChange={(v) => set({ enableDnsOverUdpProxy: v })}
@@ -51,6 +53,7 @@ export function OptionalProtocols({ f, set, en }: PaneProps) {
             }
           />
           <Check
+            conmutador
             label="Enable DNS-over-TCP-PROXY"
             checked={f.enableDnsOverTcpProxy}
             onChange={(v) => set({ enableDnsOverTcpProxy: v })}
@@ -64,6 +67,7 @@ export function OptionalProtocols({ f, set, en }: PaneProps) {
             }
           />
           <Check
+            conmutador
             label="Enable DNS-over-HTTP"
             checked={f.enableDnsOverHttp}
             onChange={(v) => set({ enableDnsOverHttp: v })}
@@ -79,30 +83,35 @@ export function OptionalProtocols({ f, set, en }: PaneProps) {
             }
           />
           <Check
+            conmutador
             label="Enable DNS-over-HTTP Unix Domain Sockets (UDS)"
             checked={f.enableDnsOverHttpUnixSocket}
             onChange={(v) => set({ enableDnsOverHttpUnixSocket: v })}
             help="Enable this option to accept DNS-over-HTTP requests over Unix Domain Sockets (UDS)."
           />
           <Check
+            conmutador
             label="Enable DNS-over-HTTPS Unix Domain Sockets (UDS)"
             checked={f.enableDnsOverHttpsUnixSocket}
             onChange={(v) => set({ enableDnsOverHttpsUnixSocket: v })}
             help="Enable this option to accept DNS-over-HTTPS requests over Unix Domain Sockets (UDS)."
           />
           <Check
+            conmutador
             label="Enable DNS-over-TLS"
             checked={f.enableDnsOverTls}
             onChange={(v) => set({ enableDnsOverTls: v })}
             help="Enable this option to accept DNS-over-TLS requests."
           />
           <Check
+            conmutador
             label="Enable DNS-over-HTTPS"
             checked={f.enableDnsOverHttps}
             onChange={(v) => set({ enableDnsOverHttps: v })}
             help="Enable this option to accept DNS-over-HTTPS requests."
           />
           <Check
+            conmutador
             label="Enable DNS-over-HTTP/3"
             checked={f.enableDnsOverHttp3}
             onChange={(v) => set({ enableDnsOverHttp3: v })}
@@ -110,6 +119,7 @@ export function OptionalProtocols({ f, set, en }: PaneProps) {
             help="Enable this option to accept DNS-over-HTTP/3 requests."
           />
           <Check
+            conmutador
             label="Enable DNS-over-QUIC"
             checked={f.enableDnsOverQuic}
             onChange={(v) => set({ enableDnsOverQuic: v })}
@@ -119,6 +129,7 @@ export function OptionalProtocols({ f, set, en }: PaneProps) {
 
         <GroupRow label="DNS-over-HTTP(s) Option">
           <Check
+            conmutador
             label="Enable Redirect To Help Page"
             checked={f.enableDnsOverHttpHelpRedirect}
             onChange={(v) => set({ enableDnsOverHttpHelpRedirect: v })}

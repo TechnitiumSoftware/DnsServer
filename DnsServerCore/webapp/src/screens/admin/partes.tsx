@@ -6,6 +6,7 @@ import { Tag } from '../../ui/Tag'
 import type { ClusterState } from '../../api/admin-cluster'
 import styles from './Admin.module.css'
 import frm from '../../ui/Form.module.css'
+export { Check } from '../../ui/Check'
 
 /* Las piezas que comparten las seis sub-pestañas de Administration. */
 
@@ -113,34 +114,6 @@ export function MValue({ label, value }: { label: string; value: string }) {
   )
 }
 
-export function Check({
-  label,
-  checked,
-  onChange,
-  help,
-  disabled,
-}: {
-  label: string
-  checked: boolean
-  onChange: (v: boolean) => void
-  help?: ReactNode
-  disabled?: boolean
-}) {
-  return (
-    <div>
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={checked}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.checked)}
-        />
-        <span>{label}</span>
-      </label>
-      {help && <div className={styles.checkHelp}>{help}</div>}
-    </div>
-  )
-}
 
 /*
 `updateClusterNodeDropDown` (cluster.js:1026): el desplegable de nodos SÓLO

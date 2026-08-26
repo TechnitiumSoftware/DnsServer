@@ -113,6 +113,7 @@ export function ProxyForwarders({ f, set, en }: PaneProps) {
         </GroupRow>
         <GroupRow label="Concurrent Forwarding">
           <Check
+            conmutador
             label="Enable Concurrent Forwarding"
             checked={f.concurrentForwarding}
             onChange={(v) => set({ concurrentForwarding: v })}

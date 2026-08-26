@@ -2,13 +2,21 @@
 .seg button { font:500 var(--t-4)/1 inherit; padding: var(--s-4) var(--s-8); border:0; border-radius: var(--r-2); background:transparent; color:var(--mute); cursor:pointer; }
 .seg button[aria-pressed='true'] { background:var(--acc); color:var(--on-acc); font-weight:650; }
 .tiles { display:grid; grid-template-columns:repeat(auto-fill, minmax(148px, 1fr)); gap: var(--s-7); margin-bottom: var(--s-10); }
-.tile { padding: var(--s-8) var(--s-8); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); border-left:3px solid var(--tc); }
+/*
+El color de la métrica es el de SU SERIE en la gráfica de abajo: la relación es
+la que hace útil el tile. Estaba dicho con un filo de 3 px a la izquierda, que
+es la marca de fábrica de una interfaz generada y además no se parece a nada de
+la gráfica. Se dice con la misma muestra que usa una leyenda, que es de donde
+viene la relación.
+*/
+.tile { padding: var(--s-8) var(--s-8); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); box-shadow: var(--e-1), var(--filo); }
 .tile .v { font:700 var(--t-7)/1.1 var(--font-mono); letter-spacing:-.02em; color:var(--ink); }
 .tile .p { font-size: var(--t-2); color:var(--faint); margin-top: 1px; font-family:var(--font-mono); }
-.tile .k { font-size: var(--t-1); color:var(--mute); margin-top: var(--s-3); text-transform:uppercase; letter-spacing:.05em; font-weight:650; }
+.tile .k { display:flex; align-items:center; gap: var(--s-4); font-size: var(--t-1); color:var(--mute); margin-top: var(--s-3); text-transform:uppercase; letter-spacing:.05em; font-weight:650; }
+.tile .k::before { content:''; width:7px; height:7px; border-radius: var(--r-full); background:var(--tc); flex:none; }
 .grid { display:grid; grid-template-columns:1fr 310px; gap: var(--s-9); align-items:start; }
 .col { display:flex; flex-direction:column; gap: var(--s-9); }
-.panel { background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); overflow:hidden; }
+.panel { background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); overflow:hidden; box-shadow: var(--e-1), var(--filo); }
 .ph { display:flex; align-items:center; justify-content:space-between; padding: var(--s-8) var(--s-9); border-bottom:1px solid var(--line); }
 .ph h2 { margin: 0; font-size: var(--t-4); font-weight:650; color:var(--ink); }
 .pb { padding: var(--s-9); }

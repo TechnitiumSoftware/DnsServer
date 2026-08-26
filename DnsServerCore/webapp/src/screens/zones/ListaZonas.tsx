@@ -25,6 +25,7 @@ import pag from '../../ui/Pagination.module.css'
 import tbl from '../../ui/Table.module.css'
 import { Th, useOrden, type Claves } from '../../ui/Table'
 import styles from './Zones.module.css'
+import { Icono } from '../../ui/Icono'
 import type { Aviso, Confirmacion } from './tipos'
 
 /*
@@ -307,12 +308,12 @@ export function ListaZonas({
     <span className={pag.pg}>
       {pg.primera && (
         <button type="button" className={pag.pgb} aria-label="First" onClick={() => irA(1)}>
-          «
+          <Icono nombre="primera" tam={14} />
         </button>
       )}
       {pg.anterior != null && (
         <button type="button" className={pag.pgb} aria-label="Previous" onClick={() => irA(pg.anterior!)}>
-          ‹
+          <Icono nombre="chevronIzquierda" tam={14} />
         </button>
       )}
       {pg.paginas.map((p) => (
@@ -328,13 +329,13 @@ export function ListaZonas({
       ))}
       {pg.siguiente != null && (
         <button type="button" className={pag.pgb} aria-label="Next" onClick={() => irA(pg.siguiente!)}>
-          ›
+          <Icono nombre="chevronDerecha" tam={14} />
         </button>
       )}
       {/* La última página se pide con -1: el servidor la resuelve él. */}
       {pg.ultima && (
         <button type="button" className={pag.pgb} aria-label="Last" onClick={() => irA(-1)}>
-          »
+          <Icono nombre="ultima" tam={14} />
         </button>
       )}
     </span>
@@ -424,7 +425,6 @@ export function ListaZonas({
               <th style={{ width: 30 }}>
                 <input
                   type="checkbox"
-                  className={styles.check}
                   aria-label="Select all zones"
                   checked={todasMarcadas}
                   onChange={(e) => setMarcadas(e.target.checked ? zonas.map((z) => z.name) : [])}
@@ -558,7 +558,6 @@ function FilaZona(p: FilaProps) {
       <td>
         <input
           type="checkbox"
-          className={styles.check}
           aria-label={`Select ${nombre}`}
           checked={p.marcada}
           onChange={(e) => p.onMarcar(e.target.checked)}

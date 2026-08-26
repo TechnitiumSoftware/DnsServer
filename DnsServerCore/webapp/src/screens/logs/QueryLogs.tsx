@@ -22,6 +22,7 @@ import { Tag } from '../../ui/Tag'
 import pag from '../../ui/Pagination.module.css'
 import tbl from '../../ui/Table.module.css'
 import styles from './Logs.module.css'
+import { Icono } from '../../ui/Icono'
 
 /*
 Logs › Query Logs (logs.js:20-101 y 270-710).
@@ -628,7 +629,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                     aria-label="First"
                     onClick={() => void consultar('1', false)}
                   >
-                    «
+                    <Icono nombre="primera" tam={14} />
                   </button>
                   <button
                     type="button"
@@ -636,7 +637,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                     aria-label="Previous"
                     onClick={() => void consultar(String(pagina.pageNumber - 1), false)}
                   >
-                    ‹
+                    <Icono nombre="chevronIzquierda" tam={14} />
                   </button>
                 </>
               )}
@@ -659,7 +660,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                     aria-label="Next"
                     onClick={() => void consultar(String(pagina.pageNumber + 1), false)}
                   >
-                    ›
+                    <Icono nombre="chevronDerecha" tam={14} />
                   </button>
                   {/* logs.js:589 — «Last» se pide con -1; lo resuelve el servidor. */}
                   <button
@@ -668,7 +669,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                     aria-label="Last"
                     onClick={() => void consultar('-1', false)}
                   >
-                    »
+                    <Icono nombre="ultima" tam={14} />
                   </button>
                 </>
               )}

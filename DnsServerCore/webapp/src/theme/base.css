@@ -23,9 +23,35 @@ body {
 
 button, input, select, textarea { font-family: inherit; }
 
-/* Las casillas y los radios los pinta el navegador; sólo hay que decirle el
-   color. Estaba declarado en tres módulos y faltaba en el resto. */
-:root { accent-color: var(--acc); }
+/*
+Las superficies que no dibuja nadie. La selección de texto, el cursor de
+escritura, la barra de scroll y el anillo de foco vienen con los valores del
+navegador, que no pertenecen a ningún sistema de diseño: son lo que delata que
+una interfaz está montada y no construida.
+*/
+
+::selection { background: rgba(245, 165, 36, 0.28); color: var(--ink); }
+
+:root {
+  accent-color: var(--acc);
+  caret-color: var(--acc);
+  color-scheme: dark;
+  scrollbar-color: var(--line) transparent;
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: var(--r-full);
+}
+
+::-webkit-scrollbar-thumb:hover { background: #2f3846; background-clip: padding-box; }
+::-webkit-scrollbar-corner { background: transparent; }
 
 /*
 `select` y el botón de `input[type=file]` los pintaba el sistema: cajas blancas
@@ -41,11 +67,28 @@ input[type='file'] {
   border-radius: var(--r-2);
   background: var(--field);
   color: var(--ink);
+  box-shadow: var(--hundido);
   min-width: 0;
 }
 
+/*
+El desplegable llevaba la flecha del sistema operativo, que es de otro sistema
+de diseño. Se dibuja la nuestra: el mismo chevron que el resto de la consola,
+como fondo SVG en línea porque la CSP no deja traer nada de fuera.
+*/
+select {
+  appearance: none;
+  padding-right: var(--s-11);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238b95a7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--s-6) center;
+  cursor: pointer;
+}
+
+select:hover { border-color: #2f3846; }
+
 select:disabled,
-input[type='file']:disabled { opacity: 0.5; }
+input[type='file']:disabled { opacity: 0.5; cursor: default; }
 
 input[type='file']::file-selector-button {
   font: inherit;
@@ -59,3 +102,80 @@ input[type='file']::file-selector-button {
 }
 
 input[type='file']::file-selector-button:hover { border-color: var(--acc); }
+
+/*
+La casilla y el radio, dibujados aquí y no por el sistema operativo. Eran los
+del navegador con `accent-color`, o sea que la consola cambiaba de aspecto según
+en qué máquina la abrieras. Son 51 controles: se hacen en un sitio, sobre el
+elemento nativo, y así siguen siendo casillas de verdad para el teclado y para
+quien lea la página con un lector.
+*/
+
+input[type='checkbox'],
+input[type='radio'] {
+  appearance: none;
+  flex: none;
+  width: var(--ctrl);
+  height: var(--ctrl);
+  margin: 0;
+  border: 1px solid #2f3846;
+  background: var(--field);
+  box-shadow: var(--hundido);
+  cursor: pointer;
+  transition:
+    background var(--t-rapido),
+    border-color var(--t-rapido),
+    box-shadow var(--t-rapido);
+}
+
+input[type='checkbox'] { border-radius: var(--r-1); }
+input[type='radio'] { border-radius: var(--r-full); }
+
+input[type='checkbox']:hover:not(:disabled),
+input[type='radio']:hover:not(:disabled) { border-color: var(--acc); }
+
+input[type='checkbox']:checked,
+input[type='radio']:checked {
+  background-color: var(--acc);
+  border-color: var(--acc);
+  box-shadow: var(--filo-fuerte);
+}
+
+/* La marca se dibuja, no se escribe con un carácter. */
+input[type='checkbox']:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a1205' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m20 6-11 11-5-5'/%3E%3C/svg%3E");
+  background-size: 12px 12px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+input[type='radio']:checked {
+  background-image: radial-gradient(circle at center, var(--on-acc) 0 3px, transparent 3.5px);
+}
+
+input[type='checkbox']:indeterminate {
+  background-color: var(--acc);
+  border-color: var(--acc);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a1205' stroke-width='3.5' stroke-linecap='round'%3E%3Cpath d='M6 12h12'/%3E%3C/svg%3E");
+  background-size: 12px 12px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+input[type='checkbox']:disabled,
+input[type='radio']:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
+
+/* El campo es un HUECO en la superficie, no una pegatina encima. */
+input[type='text'],
+input[type='password'],
+input[type='number'],
+input[type='email'],
+input[type='search'],
+textarea {
+  box-shadow: var(--hundido);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  input[type='checkbox'],
+  input[type='radio'] { transition: none; }
+}

@@ -3,7 +3,7 @@
   position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
   width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 64px); overflow: auto;
   background: var(--pan); border: 1px solid var(--line); border-radius: var(--r-4);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--e-3), var(--filo);
 }
 /*
 Los que llevan tabla dentro. El dibujo daba 760 px, pero ninguno de sus modales

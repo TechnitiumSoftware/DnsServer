@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Icono } from './Icono'
 import styles from './SectionHeader.module.css'
 
 /*
@@ -16,15 +17,19 @@ que el título no servía ni para saber dónde estabas ni para buscar con Ctrl+F
 
 ## La composición
 
-`seccion` es un ANTETÍTULO y sólo aparece cuando la sección tiene sub-pestañas:
+Encima del título va un CAMINO, no un antetítulo:
 
-    DHCP                 ← antetítulo, pequeño y apagado
-    Leases               ← título, 22 px
+    DHCP ›
+    Leases
 
-Sin sub-pestañas no hay antetítulo y el título es el nombre de la sección a
-secas. Así el título es siempre **el nombre más específico**, que es lo que hace
-el dibujo en Administration y en Logs, y el antetítulo aporta el contexto que
-allí faltaba sin caer en un «Logs Query Logs» redundante.
+La diferencia no es de sitio, es de qué es cada cosa. Un antetítulo es adorno
+editorial —versalitas apretadas y apagadas— y no aporta nada; un camino es
+navegación, y aquí hace falta porque hay nombres que chocan: «Cache» es una
+sección de primer nivel Y una sub-pestaña de Settings, y «General» o «Logging»
+no dicen nada por su cuenta. Por eso va en un `nav`, en caja normal, y el `h1`
+sigue siendo exactamente el nombre de la pantalla.
+
+Sin sub-pestañas no hay camino: el título es el nombre de la sección a secas.
 
 ## Las etiquetas son ESTADO, no recuento
 
@@ -57,14 +62,18 @@ export function SectionHeader({
   return (
     <div className={styles.hrow}>
       <div className={styles.izq}>
-        {seccion != null &&
-          (onVolver != null ? (
-            <button type="button" className={styles.volver} onClick={onVolver}>
-              ← {seccion}
-            </button>
-          ) : (
-            <div className={styles.antetitulo}>{seccion}</div>
-          ))}
+        {seccion != null && (
+          <nav className={styles.camino} aria-label="Breadcrumb">
+            {onVolver != null ? (
+              <button type="button" className={styles.ctx} onClick={onVolver}>
+                {seccion}
+              </button>
+            ) : (
+              <span className={styles.ctx}>{seccion}</span>
+            )}
+            <Icono nombre="chevronDerecha" tam={12} className={styles.sep} />
+          </nav>
+        )}
         <h1 className={styles.titulo}>{titulo}</h1>
         {etiquetas != null && <div className={styles.tags}>{etiquetas}</div>}
       </div>

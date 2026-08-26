@@ -38,6 +38,7 @@ export function Logging({ f, set, en }: PaneProps) {
 
         <GroupRow label="Logging Options">
           <Check
+            conmutador
             label="Ignore Resolver Error Logs"
             checked={f.ignoreResolverLogs}
             onChange={(v) => set({ ignoreResolverLogs: v })}
@@ -45,6 +46,7 @@ export function Logging({ f, set, en }: PaneProps) {
             help="Enable this option to stop logging domain name resolution errors."
           />
           <Check
+            conmutador
             label="No Stack Trace"
             checked={f.noStackTrace}
             onChange={(v) => set({ noStackTrace: v })}
@@ -52,6 +54,7 @@ export function Logging({ f, set, en }: PaneProps) {
             help="Enable to log only short error messages instead of full exception stack trace."
           />
           <Check
+            conmutador
             label="Log All Queries"
             checked={f.logQueries}
             onChange={(v) => set({ logQueries: v })}
@@ -59,6 +62,7 @@ export function Logging({ f, set, en }: PaneProps) {
             help="Enable this option to log every query received by this DNS Server and the corresponding response answers into the log file."
           />
           <Check
+            conmutador
             label="Use Local Time"
             checked={f.useLocalTime}
             onChange={(v) => set({ useLocalTime: v })}
@@ -97,6 +101,7 @@ export function Logging({ f, set, en }: PaneProps) {
       <Block title="Stats">
         <GroupRow label="Stats">
           <Check
+            conmutador
             label="Enable In-Memory Stats"
             checked={f.enableInMemoryStats}
             onChange={(v) => set({ enableInMemoryStats: v })}

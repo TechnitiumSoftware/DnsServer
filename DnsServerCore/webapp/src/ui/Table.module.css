@@ -56,7 +56,12 @@ más ancha de todas y la que más falta le hace para no perder el renglón.
 
 .orden:hover { color: var(--ink); }
 
-.flecha { color: var(--faint); font-size: var(--t-1); }
+.flecha { display: inline-flex; color: var(--faint); }
+
+/* Ascendente y descendente son el MISMO chevron girado, no dos caracteres
+   distintos: así la flecha rota al pulsar en vez de saltar. */
+.flecha svg { transition: transform var(--t-rapido), color var(--t-rapido); }
+.flecha svg[data-desc='true'] { transform: rotate(180deg); }
 
 .orden:hover .flecha,
 [aria-sort='ascending'] .flecha,

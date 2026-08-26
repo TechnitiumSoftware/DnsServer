@@ -54,12 +54,14 @@ export function Blocking({ f, set, en, extra }: PaneProps & { extra: BlockingExt
     <Block title="Blocking">
       <GroupRow label="Blocking">
         <Check
+          conmutador
           label="Enable Blocking"
           checked={f.enableBlocking}
           onChange={(v) => set({ enableBlocking: v })}
           help="Sets the DNS Server to block domain names using Blocked Zone and Block List Zone."
         />
         <Check
+          conmutador
           label="Allow TXT Blocking Report"
           checked={f.allowTxtBlockingReport}
           onChange={(v) => set({ allowTxtBlockingReport: v })}

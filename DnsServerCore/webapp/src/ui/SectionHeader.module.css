@@ -14,27 +14,16 @@ módulo de sección se había hecho por su cuenta. Todos los valores salen de
 
 .izq { min-width: 0; }
 
-/* El antetítulo no compite con el título: es contexto, no contenido. */
-.antetitulo {
-  font-size: var(--t-1);
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--mute);
-  margin-bottom: var(--s-1);
+/*
+El camino. En caja normal y a tamaño de cuerpo: en versalitas apretadas se leería
+como un antetítulo de revista, que es adorno, y esto es navegación.
+*/
+.camino {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-bottom: var(--s-2);
 }
-
-.volver {
-  composes: antetitulo;
-  display: block;
-  background: none;
-  border: 0;
-  padding: 0;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.volver:hover { color: var(--ink); }
 
 .titulo {
   margin: 0;
@@ -44,6 +33,21 @@ módulo de sección se había hecho por su cuenta. Todos los valores salen de
   color: var(--ink);
   word-break: break-word;
 }
+
+/* Cuando la pantalla es un detalle, el tramo es además el camino de vuelta. */
+.ctx {
+  font-family: inherit;
+  font-size: var(--t-4);
+  color: var(--mute);
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+button.ctx { cursor: pointer; }
+button.ctx:hover { color: var(--acc); }
+
+.sep { color: var(--faint); flex: none; }
 
 .tags {
   display: flex;

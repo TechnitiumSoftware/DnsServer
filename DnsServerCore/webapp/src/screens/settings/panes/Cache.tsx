@@ -8,6 +8,7 @@ export function Cache({ f, set, en }: PaneProps) {
       <Block title="DNS Cache">
         <GroupRow label="DNS Cache">
           <Check
+            conmutador
             label="Save Cache To Disk"
             checked={f.saveCache}
             onChange={(v) => set({ saveCache: v })}
@@ -27,6 +28,7 @@ export function Cache({ f, set, en }: PaneProps) {
       <Block title="Serve Stale">
         <GroupRow label="Serve Stale">
           <Check
+            conmutador
             label="Enable Serve Stale"
             checked={f.serveStale}
             onChange={(v) => set({ serveStale: v })}

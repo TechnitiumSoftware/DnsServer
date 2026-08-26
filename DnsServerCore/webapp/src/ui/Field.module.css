@@ -5,12 +5,16 @@
   padding: var(--s-4) var(--s-6);
   border: 1px solid var(--line);
   border-radius: var(--r-2);
-  background: var(--field);
+  /* `background-color` y no `background`: el atajo borraría el chevron que
+     `theme/base.css` le pone al desplegable. */
+  background-color: var(--field);
   color: var(--ink);
   font-family: inherit;
   min-width: 0;
 }
 .input::placeholder { color: var(--faint); }
+.input { box-shadow: var(--hundido); transition: border-color var(--t-rapido); }
+.input:hover:not(:disabled) { border-color: #2f3846; }
 .input:focus { outline: 2px solid var(--acc); outline-offset: -1px; border-color: var(--acc); }
 .input:disabled { opacity: 0.5; }
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }

@@ -150,6 +150,7 @@ export function ScopeForm({
       <Block title="Ping Check">
         <GroupRow label="Ping Check">
           <Check
+            conmutador
             label="Enable Ping Check"
             checked={f.pingCheckEnabled}
             onChange={(v) => set({ pingCheckEnabled: v })}
@@ -201,12 +202,14 @@ export function ScopeForm({
         />
         <GroupRow label="DNS Updates">
           <Check
+            conmutador
             label="Enable DNS Updates"
             checked={f.dnsUpdates}
             onChange={(v) => set({ dnsUpdates: v })}
             help="Enable this option to allow the DHCP server to automatically update forward and reverse DNS entries for clients."
           />
           <Check
+            conmutador
             label="Enable DNS Overwrite For Dynamic Lease"
             checked={f.dnsOverwriteForDynamicLease}
             disabled={!f.dnsUpdates}
@@ -239,6 +242,7 @@ export function ScopeForm({
           {(id) => (
             <>
               <Check
+                conmutador
                 label="Use This DNS Server"
                 checked={f.useThisDnsServer}
                 onChange={(v) => set({ useThisDnsServer: v })}
@@ -414,12 +418,14 @@ export function ScopeForm({
       <Block title="Advanced Options">
         <GroupRow label="Advanced Options">
           <Check
+            conmutador
             label="Allow Only Reserved Lease Allocations"
             checked={f.allowOnlyReservedLeases}
             onChange={(v) => set({ allowOnlyReservedLeases: v })}
             help="Enable this option to stop dynamic IP address allocation and allocate only reserved IP addresses."
           />
           <Check
+            conmutador
             label="Block Locally Administered MAC Addresses"
             checked={f.blockLocallyAdministeredMacAddresses}
             onChange={(v) => set({ blockLocallyAdministeredMacAddresses: v })}
@@ -441,6 +447,7 @@ export function ScopeForm({
             }
           />
           <Check
+            conmutador
             label="Ignore Client Identifier (Option 61)"
             checked={f.ignoreClientIdentifierOption}
             onChange={(v) => set({ ignoreClientIdentifierOption: v })}

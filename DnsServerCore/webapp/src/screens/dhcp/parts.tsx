@@ -5,6 +5,7 @@ import { Input } from '../../ui/Field'
 import styles from './Dhcp.module.css'
 import { Empty } from '../../ui/Empty'
 import frm from '../../ui/Form.module.css'
+export { Check } from '../../ui/Check'
 
 /*
 Las piezas del formulario de scope. Son las mismas que usa Settings —bloque con
@@ -146,34 +147,6 @@ export function AreaRow({
   )
 }
 
-export function Check({
-  label,
-  checked,
-  onChange,
-  help,
-  disabled,
-}: {
-  label: string
-  checked: boolean
-  onChange: (v: boolean) => void
-  help?: ReactNode
-  disabled?: boolean
-}) {
-  return (
-    <div>
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={checked}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.checked)}
-        />
-        <span>{label}</span>
-      </label>
-      {help && <div className={styles.checkHelp}>{help}</div>}
-    </div>
-  )
-}
 
 export function Warning({ children }: { children: ReactNode }) {
   return (

@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { Icono } from './Icono'
 import styles from './Table.module.css'
 
 /*
@@ -78,8 +79,8 @@ export function Th({
     <th aria-sort={activa ? (orden!.desc ? 'descending' : 'ascending') : 'none'} {...rest}>
       <button type="button" className={styles.orden} onClick={() => onOrdenar(campo)}>
         {children}
-        <span className={styles.flecha} aria-hidden="true">
-          {activa ? (orden!.desc ? '▼' : '▲') : '↕'}
+        <span className={styles.flecha}>
+          <Icono nombre={activa ? 'chevronAbajo' : 'orden'} tam={12} data-desc={activa && !orden!.desc} />
         </span>
       </button>
     </th>

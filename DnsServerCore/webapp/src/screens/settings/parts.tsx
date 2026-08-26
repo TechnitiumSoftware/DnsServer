@@ -4,6 +4,7 @@ import { Button } from '../../ui/Button'
 import { Input } from '../../ui/Field'
 import styles from './Settings.module.css'
 import frm from '../../ui/Form.module.css'
+export { Check } from '../../ui/Check'
 
 /*
 Las piezas con las que se dibujan las nueve sub-pestañas.
@@ -149,34 +150,6 @@ export function AreaRow({
   )
 }
 
-export function Check({
-  label,
-  checked,
-  onChange,
-  help,
-  disabled,
-}: {
-  label: string
-  checked: boolean
-  onChange: (v: boolean) => void
-  help?: ReactNode
-  disabled?: boolean
-}) {
-  return (
-    <div>
-      <label className={styles.check}>
-        <input
-          type="checkbox"
-          checked={checked}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.checked)}
-        />
-        <span>{label}</span>
-      </label>
-      {help && <div className={styles.checkHelp}>{help}</div>}
-    </div>
-  )
-}
 
 export interface OpcionRadio {
   value: string

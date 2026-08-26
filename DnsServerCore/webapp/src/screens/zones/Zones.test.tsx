@@ -259,9 +259,11 @@ describe('registros de una zona', () => {
     expect(screen.queryByRole('button', { name: 'DNSSEC Properties' })).toBeNull()
   })
 
-  it('«← Zones» vuelve a la lista', async () => {
+  it('el camino de vuelta lleva a la lista', async () => {
     const { usuario } = await abrirZona()
-    await usuario.click(screen.getByRole('button', { name: '← Zones' }))
+    // El tramo «Zones» del camino ES el botón de vuelta: antes había además un
+    // «← Zones» suelto encima diciendo lo mismo.
+    await usuario.click(within(screen.getByLabelText('Breadcrumb')).getByRole('button'))
     expect(await screen.findByRole('heading', { name: 'Zones' })).toBeTruthy()
   })
 })

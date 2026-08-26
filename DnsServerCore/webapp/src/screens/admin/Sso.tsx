@@ -192,6 +192,7 @@ export function Sso({ token, onAviso }: Props) {
           <div className={frm.rowLabel}>Single Sign-On (SSO)</div>
           <div className={frm.rowCtl}>
             <Check
+              conmutador
               label="Enable Single Sign-On (SSO)"
               checked={enabled}
               onChange={setEnabled}
@@ -282,12 +283,14 @@ export function Sso({ token, onAviso }: Props) {
           <div className={frm.rowCtl}>
             <div className={styles.group}>
               <Check
+                conmutador
                 label="Allow New User Sign Up"
                 checked={allowSignup}
                 onChange={setAllowSignup}
                 help="Enable to allow automatically provisioning of user accounts for new users signing in via Single Sign-On (SSO). Keep this option disabled if you do not expect new SSO users to sign up."
               />
               <Check
+                conmutador
                 label="Allow Sign Up Only For Mapped Users"
                 checked={onlyMapped}
                 onChange={setOnlyMapped}

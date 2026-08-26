@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { Icono } from './Icono'
 import styles from './Alert.module.css'
 
 /*
@@ -48,7 +49,7 @@ export function Alert({
     <div className={`${styles.alert} ${styles[type]}`} role="alert">
       {onDismiss && (
         <button type="button" className={styles.close} aria-label="Close" onClick={onDismiss}>
-          ×
+          <Icono nombre="cerrar" tam={14} />
         </button>
       )}
       <b>{title}</b> {children}

@@ -17,7 +17,6 @@
 
 /* Tabla */
 .num { color:var(--faint); font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
-.check { width:14px; height:14px; padding: 0; accent-color:var(--acc); }
 
 .enlaceZona { border:0; background:transparent; padding: 0; font:inherit; font-weight:700; font-family:var(--font-mono); color:var(--ink); cursor:pointer; text-align:left; word-break:break-word; }
 .enlaceZona:hover { color:var(--acc); }
@@ -37,7 +36,7 @@
 .rowacts { display:flex; gap: var(--s-3); justify-content:flex-end; flex-wrap:nowrap; align-items:flex-start; }
 /* Menú desplegable de acciones de fila y de cabecera */
 .menu { position:relative; display:inline-block; }
-.menuLista { position:absolute; right:0; top:calc(100% + 4px); z-index:20; min-width:170px; padding: var(--s-3); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); box-shadow:0 12px 30px rgba(0,0,0,.45); display:flex; flex-direction:column; }
+.menuLista { position:absolute; right:0; top:calc(100% + 4px); z-index:20; min-width:170px; padding: var(--s-3); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); box-shadow: var(--e-2), var(--filo); display:flex; flex-direction:column; }
 .menuLista button { text-align:left; border:0; background:transparent; color:var(--mute); font:400 var(--t-4)/1.2 inherit; padding: var(--s-4) var(--s-6); border-radius: var(--r-2); cursor:pointer; }
 .menuLista button:hover { background:var(--hover); color:var(--ink); }
 .menuLista button:disabled { opacity:.4; cursor:default; }
@@ -52,7 +51,6 @@
 .enLinea { display:flex; gap: var(--s-6); align-items:center; flex-wrap:wrap; }
 .sufijo { font-size: var(--t-3); color:var(--faint); }
 .chk { display:flex; align-items:center; gap: var(--s-4); font-size: var(--t-4); color:var(--mute); cursor:pointer; }
-.chk input { width:14px; height:14px; padding: 0; accent-color:var(--acc); }
 .ayuda { font-size: var(--t-3); color:var(--faint); line-height:1.6; }
 .grupo { border:1px solid var(--line); border-radius: var(--r-3); padding: var(--s-8); display:flex; flex-direction:column; gap: var(--s-7); }
 .grupoTit { font-size: var(--t-2); text-transform:uppercase; letter-spacing:.05em; color:var(--faint); font-weight:700; }

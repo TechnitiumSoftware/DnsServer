@@ -1433,6 +1433,7 @@ function QuitarNodo({
         performed on that node itself.
       </p>
       <Check
+        conmutador
         label="Force Remove Node"
         checked={forzar}
         onChange={setForzar}
@@ -1506,6 +1507,7 @@ function PromocionarNodo({
         other data loss.
       </p>
       <Check
+        conmutador
         label="Force Delete Current Primary Node"
         checked={forzar}
         onChange={setForzar}
@@ -1581,6 +1583,7 @@ function DejarCluster({
         Secondary node.
       </p>
       <Check
+        conmutador
         label="Force Leave Cluster"
         checked={forzar}
         onChange={setForzar}
@@ -1647,6 +1650,7 @@ function BorrarCluster({
         re-initialize the Cluster again to use clustering features on this DNS Server.
       </p>
       <Check
+        conmutador
         label="Force Delete Cluster"
         checked={forzar}
         onChange={setForzar}

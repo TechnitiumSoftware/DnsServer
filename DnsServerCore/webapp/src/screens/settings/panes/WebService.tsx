@@ -31,12 +31,14 @@ export function WebService({ f, set, en }: PaneProps) {
       <Block title="Unix Domain Sockets">
         <GroupRow label="Unix Domain Sockets (UDS)">
           <Check
+            conmutador
             label="Enable HTTP Unix Domain Sockets (UDS)"
             checked={f.webServiceEnableHttpUnixSocket}
             onChange={(v) => set({ webServiceEnableHttpUnixSocket: v })}
             help="Enables Web Service HTTP over Unix Domain Sockets (UDS)."
           />
           <Check
+            conmutador
             label="Enable HTTPS Unix Domain Sockets (UDS)"
             checked={f.webServiceEnableTlsUnixSocket}
             onChange={(v) => set({ webServiceEnableTlsUnixSocket: v })}
@@ -66,23 +68,27 @@ export function WebService({ f, set, en }: PaneProps) {
       <Block title="HTTPS Options">
         <GroupRow label="HTTPS Options">
           <Check
+            conmutador
             label="Enable HTTPS"
             checked={f.webServiceEnableTls}
             onChange={(v) => set({ webServiceEnableTls: v })}
           />
           <Check
+            conmutador
             label="Enable HTTP/3"
             checked={f.webServiceEnableHttp3}
             onChange={(v) => set({ webServiceEnableHttp3: v })}
             disabled={!en.webServiceEnableHttp3}
           />
           <Check
+            conmutador
             label="Enable HTTP to HTTPS Redirection"
             checked={f.webServiceHttpToTlsRedirect}
             onChange={(v) => set({ webServiceHttpToTlsRedirect: v })}
             disabled={!en.webServiceHttpToTlsRedirect}
           />
           <Check
+            conmutador
             label="Use A Self Signed TLS Certificate When TLS Certificate File Path Is Unspecified"
             checked={f.webServiceUseSelfSignedTlsCertificate}
             onChange={(v) => set({ webServiceUseSelfSignedTlsCertificate: v })}

@@ -1,6 +1,7 @@
 import { Button } from '../../ui/Button'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import styles from './Zones.module.css'
+import { Icono } from '../../ui/Icono'
 
 /*
 El menú «⋮» de cada fila. Upstream lo resuelve con el dropdown de Bootstrap 3;
@@ -52,7 +53,14 @@ export function Menu({
         aria-label={etiqueta}
         onClick={() => setAbierto((v) => !v)}
       >
-        {rotulo == null ? '⋮' : `${rotulo} ▾`}
+        {rotulo == null ? (
+          <Icono nombre="mas" tam={16} />
+        ) : (
+          <>
+            {rotulo}
+            <Icono nombre="chevronAbajo" tam={12} />
+          </>
+        )}
       </Button>
       {abierto && (
         <div className={styles.menuLista} role="menu">

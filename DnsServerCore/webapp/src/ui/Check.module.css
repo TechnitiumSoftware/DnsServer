@@ -1,0 +1,73 @@
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-6);
+  font-size: var(--t-4);
+  cursor: pointer;
+}
+
+.check input { margin-top: 1px; }
+.check input:disabled { cursor: default; }
+.texto { min-width: 0; }
+
+.ayuda {
+  font-size: var(--t-3);
+  color: var(--mute);
+  line-height: 1.55;
+  margin-top: var(--s-3);
+  margin-left: calc(var(--ctrl) + var(--s-6));
+  max-width: 720px;
+}
+
+/*
+El conmutador. Es el mismo `input[type=checkbox]`, redibujado: el carril es la
+caja del propio input y el botón es su sombra interior desplazada, así que no
+hace falta ni un elemento de más ni un pseudo-elemento que el navegador pinte a
+su manera.
+*/
+.conmutador input {
+  width: var(--ctrl-track-w);
+  height: var(--ctrl-track-h);
+  border-radius: var(--r-full);
+  background: var(--field);
+  background-image: none;
+  box-shadow:
+    var(--hundido),
+    inset calc(var(--ctrl-track-w) - var(--ctrl-track-h)) 0 0 -1px transparent;
+  position: relative;
+  transition:
+    background-color var(--t-rapido),
+    border-color var(--t-rapido);
+}
+
+/* El botón: un círculo que viaja de un extremo al otro del carril. */
+.conmutador input::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: calc(var(--ctrl-track-h) - 6px);
+  height: calc(var(--ctrl-track-h) - 6px);
+  border-radius: var(--r-full);
+  background: var(--mute);
+  transition: transform var(--t-rapido), background var(--t-rapido);
+}
+
+.conmutador input:checked {
+  background-color: var(--acc);
+  background-image: none;
+  border-color: var(--acc);
+  box-shadow: var(--filo-fuerte);
+}
+
+.conmutador input:checked::after {
+  background: var(--on-acc);
+  transform: translateX(calc(var(--ctrl-track-w) - var(--ctrl-track-h)));
+}
+
+.conmutador .ayuda { margin-left: calc(var(--ctrl-track-w) + var(--s-6)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .conmutador input,
+  .conmutador input::after { transition: none; }
+}

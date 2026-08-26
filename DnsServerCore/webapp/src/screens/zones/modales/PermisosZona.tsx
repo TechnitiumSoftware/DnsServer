@@ -202,7 +202,6 @@ function TablaPermisos({
                     <td key={clave}>
                       <input
                         type="checkbox"
-                        className={styles.check}
                         aria-label={`${clave} for ${f.nombre}`}
                         checked={f[clave]}
                         onChange={(e) => cambiar(i, clave, e.target.checked)}

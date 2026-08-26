@@ -35,7 +35,7 @@
 .phd { font-size: var(--t-1); text-transform:uppercase; letter-spacing:.04em; color:var(--faint); text-align:center; font-weight:700; }
 .pmark { text-align:center; color:var(--ok); }
 .pnone { color:var(--faint); grid-column:1 / -1; }
-.pchk { width:15px; height:15px; accent-color:var(--acc); margin: 0 auto; display:block; }
+.pchk { margin: 0 auto; display:block; }
 
 @media (max-width: 860px) {
   .permCols { grid-template-columns:1fr; }
@@ -52,7 +52,7 @@
 .plain { font-size: var(--t-3); color:var(--mute); line-height:1.55; padding: 0 var(--s-9); max-width:860px; }
 .notas { margin: var(--s-3) var(--s-9) 0 var(--s-9); display:flex; flex-direction:column; gap: var(--s-4); }
 .check { display:flex; align-items:flex-start; gap: var(--s-5); font-size: var(--t-4); cursor:pointer; }
-.check input { width:15px; height:15px; accent-color:var(--acc); margin-top: var(--s-1); flex:none; }
+.check input { margin-top: var(--s-1); flex:none; }
 .checkHelp { font-size: var(--t-3); color:var(--mute); padding-left: var(--s-11); line-height:1.55; max-width:720px; }
 .group { display:flex; flex-direction:column; gap: var(--s-6); }
 .area { font-family:var(--font-mono); font-size: var(--t-3); padding: var(--s-4) var(--s-6); border:1px solid var(--line); border-radius: var(--r-2); background:var(--field); color:var(--ink); resize:vertical; width:100%; max-width:560px; line-height:1.5; }

@@ -1,6 +1,6 @@
 .grid { display:grid; grid-template-columns:1fr 300px; gap: var(--s-10); align-items:start; }
 .col { display:flex; flex-direction:column; gap: var(--s-9); }
-.panel { background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); overflow:hidden; }
+.panel { box-shadow: var(--e-1), var(--filo); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); overflow:hidden; }
 .ph { display:flex; align-items:center; justify-content:space-between; padding: var(--s-8) var(--s-9); border-bottom:1px solid var(--line); }
 .ph h2 { margin: 0; font-size: var(--t-4); font-weight:650; color:var(--ink); }
 .pb { padding: var(--s-9); }
