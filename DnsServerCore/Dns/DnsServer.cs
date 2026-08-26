@@ -7998,6 +7998,10 @@ namespace DnsServerCore.Dns
         public bool TryGetDnsCookieSecretStatus(out string activeId, out string stagingId, out DateTime activeCreatedUtc) =>
             _cookieCoordinator.TryGetStatus(out activeId, out stagingId, out activeCreatedUtc);
 
+        public bool TryGetDnsCookieSecretCoordinationStatus(out long generation, out Security.DnsCookieSecretRolloverState rolloverState,
+            out string activeId, out string stagingId, out DateTime activeCreatedUtc) =>
+            _cookieCoordinator.TryGetCoordinationStatus(out generation, out rolloverState, out activeId, out stagingId, out activeCreatedUtc);
+
         public string ActiveDnsCookieSecretId => TryGetDnsCookieSecretStatus(out string activeId, out _, out _) ? activeId : null;
 
         public string StagingDnsCookieSecretId => TryGetDnsCookieSecretStatus(out _, out string stagingId, out _) ? stagingId : null;
@@ -8006,19 +8010,23 @@ namespace DnsServerCore.Dns
 
         public void AddDnsCookieSecret() => GenerateDnsCookieStagedSecret();
 
-        public void GenerateDnsCookieStagedSecret() => _cookieCoordinator.UpdateSecrets(_useDnsCookies, static secrets => secrets.GenerateStagedSecret());
+        public void GenerateDnsCookieStagedSecret(long? expectedGeneration = null) =>
+            _cookieCoordinator.UpdateSecrets(_useDnsCookies, secrets => secrets.GenerateStagedSecret(expectedGeneration));
 
-        public void StageDnsCookieSecret(ReadOnlySpan<byte> secret)
+        public void StageDnsCookieSecret(ReadOnlySpan<byte> secret, long? expectedGeneration = null)
         {
             byte[] secretCopy = secret.ToArray();
-            _cookieCoordinator.UpdateSecrets(_useDnsCookies, secrets => secrets.StageSecret(secretCopy));
+            _cookieCoordinator.UpdateSecrets(_useDnsCookies, secrets => secrets.StageSecret(secretCopy, expectedGeneration));
         }
 
-        public void ActivateDnsCookieSecret() => _cookieCoordinator.UpdateSecrets(_useDnsCookies, static secrets => secrets.ActivateStaging());
+        public void ActivateDnsCookieSecret(long? expectedGeneration = null) =>
+            _cookieCoordinator.UpdateSecrets(_useDnsCookies, secrets => secrets.ActivateStaging(expectedGeneration));
 
-        public void RetirePreviousDnsCookieSecret() => _cookieCoordinator.UpdateSecrets(_useDnsCookies, static secrets => secrets.RetirePrevious());
+        public void RetirePreviousDnsCookieSecret(long? expectedGeneration = null) =>
+            _cookieCoordinator.UpdateSecrets(_useDnsCookies, secrets => secrets.RetirePrevious(expectedGeneration));
 
-        public void DropDnsCookieSecret() => _cookieCoordinator.UpdateSecrets(_useDnsCookies, static secrets => secrets.DropStaging());
+        public void DropDnsCookieSecret(long? expectedGeneration = null) =>
+            _cookieCoordinator.UpdateSecrets(_useDnsCookies, secrets => secrets.DropStaging(expectedGeneration));
 
         internal void ImportDnsCookieSecretState(Stream stream) => _cookieCoordinator.Import(stream);
 

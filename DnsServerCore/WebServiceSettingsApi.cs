@@ -507,8 +507,12 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Access was denied.");
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
-                bool statusAvailable = _dnsWebService._dnsServer.TryGetDnsCookieSecretStatus(out string activeSecretId, out string stagingSecretId, out DateTime activeSecretCreatedUtc);
+                bool statusAvailable = _dnsWebService._dnsServer.TryGetDnsCookieSecretCoordinationStatus(out long dnsCookieGeneration,
+                    out Dns.Security.DnsCookieSecretRolloverState dnsCookieRolloverState, out string activeSecretId,
+                    out string stagingSecretId, out DateTime activeSecretCreatedUtc);
                 jsonWriter.WriteBoolean("statusAvailable", statusAvailable);
+                jsonWriter.WriteNumber("generation", dnsCookieGeneration);
+                jsonWriter.WriteString("rolloverState", dnsCookieRolloverState.ToString());
                 jsonWriter.WriteString("activeSecretId", activeSecretId);
                 if (statusAvailable)
                     jsonWriter.WriteString("activeSecretCreatedUtc", activeSecretCreatedUtc);
@@ -548,7 +552,7 @@ namespace DnsServerCore
                 jsonWriter.WriteNumber("clientOnlyCount", statistics.ClientOnlyCount);
             }
 
-            private void ChangeDnsCookieSecret(HttpContext context, Action action, string operation)
+            private void ChangeDnsCookieSecret(HttpContext context, Action<long?> action, string operation)
             {
                 User sessionUser = _dnsWebService.GetSessionUser(context);
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, sessionUser, PermissionFlag.Modify))
@@ -559,7 +563,10 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("DNS Cookie secret changes must be made on the cluster primary node.");
                 }
 
-                action();
+                long? expectedGeneration = context.Request.TryGetQueryOrForm("expectedGeneration", long.Parse, out long requestedGeneration)
+                    ? requestedGeneration
+                    : null;
+                action(expectedGeneration);
                 if (_dnsWebService._clusterManager.ClusterInitialized &&
                     _dnsWebService._clusterManager.GetSelfNode().Type == ClusterNodeType.Primary)
                 {
@@ -569,21 +576,26 @@ namespace DnsServerCore
                 GetDnsCookieSecrets(context);
             }
 
-            public void AddDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context, _dnsWebService._dnsServer.AddDnsCookieSecret, "staging secret addition");
+            public void AddDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context,
+                expectedGeneration => _dnsWebService._dnsServer.GenerateDnsCookieStagedSecret(expectedGeneration), "staging secret addition");
 
-            public void GenerateDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context, _dnsWebService._dnsServer.GenerateDnsCookieStagedSecret, "generated staging secret addition");
+            public void GenerateDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context,
+                expectedGeneration => _dnsWebService._dnsServer.GenerateDnsCookieStagedSecret(expectedGeneration), "generated staging secret addition");
 
             public void StageDnsCookieSecret(HttpContext context)
             {
                 byte[] secret = ReadExactDnsCookieSecret(context);
-                ChangeDnsCookieSecret(context, () => _dnsWebService._dnsServer.StageDnsCookieSecret(secret), "staging secret addition");
+                ChangeDnsCookieSecret(context, expectedGeneration => _dnsWebService._dnsServer.StageDnsCookieSecret(secret, expectedGeneration), "staging secret addition");
             }
 
-            public void ActivateDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context, _dnsWebService._dnsServer.ActivateDnsCookieSecret, "staging secret activation");
+            public void ActivateDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context,
+                expectedGeneration => _dnsWebService._dnsServer.ActivateDnsCookieSecret(expectedGeneration), "staging secret activation");
 
-            public void RetirePreviousDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context, _dnsWebService._dnsServer.RetirePreviousDnsCookieSecret, "previous secret retirement");
+            public void RetirePreviousDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context,
+                expectedGeneration => _dnsWebService._dnsServer.RetirePreviousDnsCookieSecret(expectedGeneration), "previous secret retirement");
 
-            public void DropDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context, _dnsWebService._dnsServer.DropDnsCookieSecret, "staging secret removal");
+            public void DropDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context,
+                expectedGeneration => _dnsWebService._dnsServer.DropDnsCookieSecret(expectedGeneration), "staging secret removal");
 
             private static byte[] ReadExactDnsCookieSecret(HttpContext context)
             {

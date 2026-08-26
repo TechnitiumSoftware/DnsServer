@@ -271,14 +271,24 @@ namespace DnsServerCore.Dns.Security
         // persisted state exists, false is returned and all output values are unavailable.
         public bool TryGetStatus(out string activeId, out string stagingId, out DateTime activeCreatedUtc)
         {
+            return TryGetCoordinationStatus(out _, out _, out activeId, out stagingId, out activeCreatedUtc);
+        }
+
+        public bool TryGetCoordinationStatus(out long generation, out DnsCookieSecretRolloverState rolloverState,
+            out string activeId, out string stagingId, out DateTime activeCreatedUtc)
+        {
             lock (_lock)
             {
                 if (Volatile.Read(ref _state) is EnabledState enabled)
                 {
+                    generation = enabled.SecretManager.Generation;
+                    rolloverState = enabled.SecretManager.RolloverState;
                     enabled.SecretManager.GetStatus(out activeId, out stagingId, out activeCreatedUtc);
                     return true;
                 }
 
+                generation = 0;
+                rolloverState = DnsCookieSecretRolloverState.None;
                 return DnsCookieSecretManager.TryGetStatus(GetSecretPath(), out activeId, out stagingId, out activeCreatedUtc);
             }
         }
