@@ -44,8 +44,23 @@ aunque funcione en desarrollo.
 - **`public/` guarda los activos heredados** que `www/` tenía y que el servidor
   o la consola siguen necesitando: `favicon.ico`, `robots.txt`, `img/`
   (incluido `oidc.png`, que usa el login) y `json/*-builtin.json`. El build los
-  vuelve a emitir. Ver `public/json/LEEME-custom.md` para el aviso sobre los
-  ficheros `*-custom.json` del administrador.
+  vuelve a emitir.
+
+## Aviso: el build borra los `*-custom.json` del administrador
+
+La consola lee tres ficheros opcionales que **no** están en el repositorio
+porque los crea el administrador a mano en `www/json/`:
+`quick-block-lists-custom.json`, `quick-forwarders-list-custom.json` y
+`dnsclient-server-list-custom.json`. Cuando falta el `-custom`, se usa el
+`-builtin` correspondiente. Está documentado en `www/json/readme.txt`.
+
+**`npm run build` vacía `www/` antes de escribir**, así que cualquier
+`*-custom.json` que hubiera allí se pierde. Desplegando sobre una instalación
+existente hay que copiarlos fuera antes y devolverlos después. En las instancias
+desechables de `dev/` no existen, así que allí da igual.
+
+Esto vivía en un fichero dentro de `public/json/`, o sea que se enviaba a todos
+los usuarios; es un aviso para quien construye, no para quien instala.
 
 ## Construir la solución completa
 
