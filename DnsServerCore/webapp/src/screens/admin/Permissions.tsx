@@ -14,6 +14,7 @@ import { primaryNodeName, type ClusterState } from '../../api/admin-cluster'
 import { anadirALaTabla, OPCION_BLANK, OPCION_NONE, serializarTabla, type Celda } from './tabla'
 import { avisoDeFallo, MRow, adminStyles as styles, type Aviso } from './partes'
 import tbl from '../../ui/Table.module.css'
+import { Th, useOrden, type Claves } from '../../ui/Table'
 
 /*
 `refreshAdminPermissions`, `showEditSectionPermissionsModal` y
@@ -364,6 +365,9 @@ const nuevaFila = (nombre: string): Fila => ({
   canDelete: false,
 })
 
+/* `sortTable('tbodyEditPermissionsUser'|'Group', 0)`. */
+const CLAVES_PERMISO: Claves<Fila> = { nombre: (f) => f.nombre }
+
 function TablaPermisos({
   titulo,
   cabecera,
@@ -375,8 +379,12 @@ function TablaPermisos({
   filas: readonly Fila[]
   onChange: (f: readonly Fila[]) => void
 }) {
-  function set(i: number, parcial: Partial<Fila>) {
-    onChange(filas.map((f, j) => (j === i ? { ...f, ...parcial } : f)))
+  const { filas: visibles, orden, alternar } = useOrden(CLAVES_PERMISO, filas as Fila[])
+
+  // La casilla escribe sobre la lista ORIGINAL: la ordenación sólo cambia el
+  // orden en que se pinta, no el de los datos.
+  function set(fila: Fila, parcial: Partial<Fila>) {
+    onChange(filas.map((f) => (f.nombre === fila.nombre ? { ...f, ...parcial } : f)))
   }
 
   return (
@@ -386,7 +394,7 @@ function TablaPermisos({
         <table className={styles.edit}>
           <thead>
             <tr>
-              <th>{cabecera}</th>
+              <Th campo="nombre" orden={orden} onOrdenar={alternar}>{cabecera}</Th>
               <th>View</th>
               <th>Modify</th>
               <th>Delete</th>
@@ -394,7 +402,7 @@ function TablaPermisos({
             </tr>
           </thead>
           <tbody>
-            {filas.map((f, i) => (
+            {visibles.map((f) => (
               <tr key={f.nombre}>
                 <td className={styles.who}>{f.nombre}</td>
                 <td>
@@ -402,7 +410,7 @@ function TablaPermisos({
                     type="checkbox"
                     aria-label={`${f.nombre} View`}
                     checked={f.canView}
-                    onChange={(e) => set(i, { canView: e.target.checked })}
+                    onChange={(e) => set(f, { canView: e.target.checked })}
                   />
                 </td>
                 <td>
@@ -410,7 +418,7 @@ function TablaPermisos({
                     type="checkbox"
                     aria-label={`${f.nombre} Modify`}
                     checked={f.canModify}
-                    onChange={(e) => set(i, { canModify: e.target.checked })}
+                    onChange={(e) => set(f, { canModify: e.target.checked })}
                   />
                 </td>
                 <td>
@@ -418,11 +426,11 @@ function TablaPermisos({
                     type="checkbox"
                     aria-label={`${f.nombre} Delete`}
                     checked={f.canDelete}
-                    onChange={(e) => set(i, { canDelete: e.target.checked })}
+                    onChange={(e) => set(f, { canDelete: e.target.checked })}
                   />
                 </td>
                 <td className={styles.tdel}>
-                  <Button onClick={() => onChange(filas.filter((_, j) => j !== i))}>Remove</Button>
+                  <Button onClick={() => onChange(filas.filter((x) => x.nombre !== f.nombre))}>Remove</Button>
                 </td>
               </tr>
             ))}

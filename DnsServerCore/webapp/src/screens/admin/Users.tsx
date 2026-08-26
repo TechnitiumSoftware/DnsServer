@@ -25,6 +25,7 @@ import {
   type Aviso,
 } from './partes'
 import tbl from '../../ui/Table.module.css'
+import { Th, useOrden, type Claves } from '../../ui/Table'
 
 /*
 `refreshAdminUsers` y las siete acciones de la fila (auth.js:1083-1698).
@@ -52,6 +53,17 @@ type Accion =
   | { tipo: '2fa'; user: AdminUser }
   | { tipo: 'delete'; user: AdminUser }
 
+/* `sortTable('tbodyAdminUsers', 0..6)`. */
+const CLAVES: Claves<AdminUser> = {
+  username: (u) => u.username,
+  display: (u) => u.displayName,
+  type: (u) => (u.isSsoUser ? 'Remote/SSO' : 'Local'),
+  totp: (u) => (u.isSsoUser ? 'SSO Managed' : u.totpEnabled ? 'Enabled' : 'Disabled'),
+  status: (u) => (u.disabled ? 'Disabled' : 'Enabled'),
+  recent: (u) => `${fechaHora(u.recentSessionLoggedOn)} from ${u.recentSessionRemoteAddress}`,
+  previous: (u) => `${fechaHora(u.previousSessionLoggedOn)} from ${u.previousSessionRemoteAddress}`,
+}
+
 export function Users({ token, cluster, onAviso }: Props) {
   const [usuarios, setUsuarios] = useState<AdminUser[]>([])
   const [cargando, setCargando] = useState(true)
@@ -76,6 +88,8 @@ export function Users({ token, cluster, onAviso }: Props) {
   useEffect(() => {
     void cargar()
   }, [cargar])
+
+  const { filas: usuariosVisibles, orden, alternar } = useOrden(CLAVES, usuarios)
 
   function reemplazar(u: AdminUser) {
     setUsuarios((lista) => lista.map((x) => (x.username === u.username ? u : x)))
@@ -128,18 +142,18 @@ export function Users({ token, cluster, onAviso }: Props) {
             <table className={tbl.tabla}>
               <thead>
                 <tr>
-                  <th>Username</th>
-                  <th>Display Name</th>
-                  <th>Type</th>
-                  <th>2FA Status</th>
-                  <th>Status</th>
-                  <th>Recent Login</th>
-                  <th>Previous Login</th>
+                  <Th campo="username" orden={orden} onOrdenar={alternar}>Username</Th>
+                  <Th campo="display" orden={orden} onOrdenar={alternar}>Display Name</Th>
+                  <Th campo="type" orden={orden} onOrdenar={alternar}>Type</Th>
+                  <Th campo="totp" orden={orden} onOrdenar={alternar}>2FA Status</Th>
+                  <Th campo="status" orden={orden} onOrdenar={alternar}>Status</Th>
+                  <Th campo="recent" orden={orden} onOrdenar={alternar}>Recent Login</Th>
+                  <Th campo="previous" orden={orden} onOrdenar={alternar}>Previous Login</Th>
                   <th />
                 </tr>
               </thead>
               <tbody>
-                {usuarios.map((u) => (
+                {usuariosVisibles.map((u) => (
                   <tr key={u.username}>
                     <td>
                       <button

@@ -35,6 +35,7 @@ import {
 } from './partes'
 import tbl from '../../ui/Table.module.css'
 import frm from '../../ui/Form.module.css'
+import { Th, useOrden, type Claves } from '../../ui/Table'
 
 /*
 La sub-pestaña Cluster (`cluster.js` entera, 1.055 líneas). Doce endpoints y
@@ -85,6 +86,19 @@ type Modal =
   | { tipo: 'delete' }
   | { tipo: 'resync' }
 
+/* `sortTable('tbodyAdminCluster', 0..7)`. Las tres fechas se leen por su ISO:
+   la celda pinta la fecha y el «hace tanto», y las dos ordenan igual. */
+const CLAVES: Claves<ClusterNode> = {
+  name: (n) => n.name,
+  ip: (n) => n.ipAddresses.join(' '),
+  url: (n) => n.url,
+  type: (n) => (n.type === 'Primary' || n.type === 'Secondary' ? n.type : 'Unknown'),
+  state: (n) => n.state,
+  upSince: (n) => n.upSince ?? '',
+  lastSeen: (n) => (n.state !== 'Self' ? (n.lastSeen ?? '') : ''),
+  synced: (n) => (n.state === 'Self' && n.type === 'Secondary' ? (n.configLastSynced ?? '') : ''),
+}
+
 export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
   const [nodo, setNodo] = useState('')
   const [estado, setEstado] = useState<ClusterState | null>(cluster)
@@ -108,12 +122,14 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
     void cargar()
   }, [cargar])
 
+
   function recargarCon(s: ClusterState) {
     setEstado(s)
     onCluster(s)
   }
 
   const nodos = estado?.clusterNodes ?? []
+  const { filas: nodosVisibles, orden, alternar } = useOrden(CLAVES, nodos)
   const tipoPropio = nodos.find((n) => n.state === 'Self')?.type
   const inicializado = estado?.clusterInitialized === true
   const esPrimario = tipoPropio === 'Primary'
@@ -180,19 +196,19 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
             <table className={tbl.tabla}>
               <thead>
                 <tr>
-                  <th>Node Name</th>
-                  <th>IP Address</th>
-                  <th>URL</th>
-                  <th>Type</th>
-                  <th>State</th>
-                  <th>Up Since</th>
-                  <th>Last Seen</th>
-                  <th>Last Synced</th>
+                  <Th campo="name" orden={orden} onOrdenar={alternar}>Node Name</Th>
+                  <Th campo="ip" orden={orden} onOrdenar={alternar}>IP Address</Th>
+                  <Th campo="url" orden={orden} onOrdenar={alternar}>URL</Th>
+                  <Th campo="type" orden={orden} onOrdenar={alternar}>Type</Th>
+                  <Th campo="state" orden={orden} onOrdenar={alternar}>State</Th>
+                  <Th campo="upSince" orden={orden} onOrdenar={alternar}>Up Since</Th>
+                  <Th campo="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
+                  <Th campo="synced" orden={orden} onOrdenar={alternar}>Last Synced</Th>
                   <th />
                 </tr>
               </thead>
               <tbody>
-                {nodos.map((n) => (
+                {nodosVisibles.map((n) => (
                   <tr key={n.id}>
                     <td>{n.name}</td>
                     <td className={styles.mono}>

@@ -141,7 +141,14 @@ describe('My Profile', () => {
   const perfil = (isSsoUser: boolean) =>
     ok({
       status: 'ok',
-      response: { displayName: 'Administrator', username: 'admin', isSsoUser, sessionTimeoutSeconds: 1800 },
+      response: {
+        displayName: 'Administrator',
+        username: 'admin',
+        isSsoUser,
+        totpEnabled: false,
+        memberOfGroups: ['Everyone', 'Administrators'],
+        sessionTimeoutSeconds: 1800,
+      },
     })
 
   it('a un usuario local le deja editar el nombre y lo manda', async () => {
@@ -150,6 +157,10 @@ describe('My Profile', () => {
     await screen.findByDisplayValue('Administrator')
     expect(screen.getByLabelText('User Type')).toHaveValue('Local')
     expect(screen.getByLabelText('Display Name')).toBeEnabled()
+    // auth.js:678-687 — la ficha lista los grupos y su total; se había perdido.
+    expect(screen.getByLabelText('2FA Status')).toHaveValue('Disabled')
+    expect(screen.getByText('Total Groups: 2')).toBeInTheDocument()
+    expect(screen.getByText('Administrators')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     const llamada = spy.mock.calls.find((c) => c[0] === 'user/profile/set')
     expect(llamada?.[1]?.body).toEqual({ sessionTimeoutSeconds: '1800', displayName: 'Administrator' })
@@ -161,6 +172,7 @@ describe('My Profile', () => {
     await screen.findByDisplayValue('Administrator')
     expect(screen.getByLabelText('User Type')).toHaveValue('Remote/SSO')
     expect(screen.getByLabelText('Display Name')).toBeDisabled()
+    expect(screen.getByLabelText('2FA Status')).toHaveValue('SSO Managed')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     const llamada = spy.mock.calls.find((c) => c[0] === 'user/profile/set')
     expect(llamada?.[1]?.body).toEqual({ sessionTimeoutSeconds: '1800' })
@@ -174,6 +186,8 @@ describe('My Profile — sesiones activas', () => {
       displayName: 'Administrator',
       username: 'admin',
       isSsoUser: false,
+      totpEnabled: true,
+      memberOfGroups: ['Everyone'],
       sessionTimeoutSeconds: 1800,
       sessions: [
         { username: 'admin', isCurrentSession: true, partialToken: 'aaa111', type: 'Standard', tokenName: null, lastSeen: '2026-08-25T14:33:26Z', lastSeenRemoteAddress: '10.0.1.42', lastSeenUserAgent: 'Chrome' },

@@ -40,6 +40,7 @@ import type { Aviso, Confirmacion } from '../tipos'
 import tbl from '../../../ui/Table.module.css'
 import styles from '../Zones.module.css'
 import frm from '../../../ui/Form.module.css'
+import { Th, useOrden, type Claves } from '../../../ui/Table'
 
 /*
 `modalDnssecProperties` (zone.js:6799-7400). Es la pantalla más viva del
@@ -56,6 +57,17 @@ Dos cosas que se replican y sorprenden:
     y aun así pinta el aviso de éxito. La tabla de decisión está en
     `api/dnssec.ts::planNxProof`, probada aparte.
 */
+
+
+/* `sortTable('tableDnssecPropertiesPrivateKeysBody', 0..5)`. */
+const CLAVES: Claves<ClavePrivada> = {
+  keyTag: (k) => k.keyTag,
+  keyType: (k) => k.keyType,
+  algorithm: (k) => `${k.algorithm} (${k.algorithmNumber})`,
+  state: (k) => k.state,
+  changed: (k) => k.stateChangedOn,
+  rollover: (k) => k.rolloverDays,
+}
 
 export function PropiedadesDnssec({
   zone,
@@ -305,6 +317,7 @@ export function PropiedadesDnssec({
   }
 
   const claves = props?.dnssecPrivateKeys ?? []
+  const { filas: clavesVisibles, orden, alternar } = useOrden(CLAVES, claves)
   const hayGeneradas = claves.some((k) => k.state === 'Generated')
   const notas = notasDeEstado(claves)
 
@@ -331,24 +344,28 @@ export function PropiedadesDnssec({
             <table className={tbl.tabla}>
               <thead>
                 <tr>
-                  <th style={{ width: 80 }}>Key Tag</th>
-                  <th style={{ width: 130 }}>Key Type</th>
-                  <th style={{ width: 150 }}>Algorithm</th>
-                  <th style={{ width: 110 }}>State</th>
-                  <th style={{ width: 150 }}>State Changed</th>
-                  <th style={{ width: 150 }}>Rollover (days)</th>
+                  <Th campo="keyTag" orden={orden} onOrdenar={alternar} style={{ width: 80 }}>Key Tag</Th>
+                  <Th campo="keyType" orden={orden} onOrdenar={alternar} style={{ width: 130 }}>Key Type</Th>
+                  <Th campo="algorithm" orden={orden} onOrdenar={alternar} style={{ width: 150 }}>Algorithm</Th>
+                  <Th campo="state" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>State</Th>
+                  <Th campo="changed" orden={orden} onOrdenar={alternar} style={{ width: 150 }}>
+                    State Changed
+                  </Th>
+                  <Th campo="rollover" orden={orden} onOrdenar={alternar} style={{ width: 150 }}>
+                    Rollover (days)
+                  </Th>
                   <th style={{ width: 190 }} />
                 </tr>
               </thead>
               <tbody>
-                {claves.length === 0 ? (
+                {clavesVisibles.length === 0 ? (
                   <tr>
                     <td colSpan={7} className={tbl.sinFilas}>
                       No Key Found
                     </td>
                   </tr>
                 ) : (
-                  claves.map((k) => (
+                  clavesVisibles.map((k) => (
                     <FilaClave
                       key={k.keyTag}
                       clave={k}

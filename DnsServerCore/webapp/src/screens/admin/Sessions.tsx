@@ -26,6 +26,7 @@ import {
   type Aviso,
 } from './partes'
 import tbl from '../../ui/Table.module.css'
+import { Th, useOrden, type Claves } from '../../ui/Table'
 
 /*
 `refreshAdminSessions`, `showCreateApiTokenModal`, `createApiToken` y
@@ -48,6 +49,19 @@ interface Props {
   token: string | null
   cluster: ClusterState | null
   onAviso: (a: Aviso) => void
+}
+
+/* `sortTable('tbodyAdminSessions', 0..4)`. La celda «Session» se lee como se
+   pinta: nombre del token si lo tiene, el token parcial y su tipo. */
+const CLAVES: Claves<AdminSession> = {
+  username: (s) => s.username,
+  session: (s) =>
+    [s.tokenName ?? '', `[${s.partialToken}]`, s.isCurrentSession ? '(current)' : '', s.type]
+      .filter(Boolean)
+      .join(' '),
+  lastSeen: (s) => fechaHora(s.lastSeen),
+  address: (s) => s.lastSeenRemoteAddress,
+  agent: (s) => s.lastSeenUserAgent,
 }
 
 export function Sessions({ token, cluster, onAviso }: Props) {
@@ -76,6 +90,8 @@ export function Sessions({ token, cluster, onAviso }: Props) {
   useEffect(() => {
     void cargar()
   }, [cargar])
+
+  const { filas: sesionesVisibles, orden, alternar } = useOrden(CLAVES, sesiones)
 
   const primario = primaryNodeName(cluster)
   const puedeCrearToken = primario === '' || primario === servidor
@@ -118,16 +134,16 @@ export function Sessions({ token, cluster, onAviso }: Props) {
             <table className={tbl.tabla}>
               <thead>
                 <tr>
-                  <th>Username</th>
-                  <th>Session</th>
-                  <th>Last Seen</th>
-                  <th>Remote Address</th>
-                  <th>User Agent</th>
+                  <Th campo="username" orden={orden} onOrdenar={alternar}>Username</Th>
+                  <Th campo="session" orden={orden} onOrdenar={alternar}>Session</Th>
+                  <Th campo="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
+                  <Th campo="address" orden={orden} onOrdenar={alternar}>Remote Address</Th>
+                  <Th campo="agent" orden={orden} onOrdenar={alternar}>User Agent</Th>
                   <th />
                 </tr>
               </thead>
               <tbody>
-                {sesiones.map((s) => (
+                {sesionesVisibles.map((s) => (
                   <tr key={s.partialToken}>
                     <td>
                       <button

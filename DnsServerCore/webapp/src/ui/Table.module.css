@@ -37,3 +37,27 @@ más ancha de todas y la que más falta le hace para no perder el renglón.
   color: var(--faint);
   padding: var(--s-11) var(--s-7);
 }
+
+/* La cabecera ordenable es un botón, no un `th` con `onclick`: así se llega con
+   el tabulador y se anuncia como lo que es. */
+.orden {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.orden:hover { color: var(--ink); }
+
+.flecha { color: var(--faint); font-size: var(--t-1); }
+
+.orden:hover .flecha,
+[aria-sort='ascending'] .flecha,
+[aria-sort='descending'] .flecha { color: var(--acc); }

@@ -19,6 +19,7 @@ import { Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import tbl from '../../ui/Table.module.css'
 import styles from './Dhcp.module.css'
+import { Th, useOrden, type Claves } from '../../ui/Table'
 
 /*
 DHCP › Scopes (dhcp.js:201-684).
@@ -47,6 +48,15 @@ export interface ScopesProps {
 
 type Edicion = { titulo: 'Add Scope' | 'Edit Scope'; form: Form }
 
+/* `sortTable('tableDhcpScopesBody', 0..3)`. Se ordena por el texto de la celda,
+   que en las dos columnas compuestas son sus dos pares rótulo/valor. */
+const CLAVES: Claves<DhcpScopeRow> = {
+  name: (s) => s.name,
+  range: (s) => `Range ${s.startingAddress} - ${s.endingAddress} Mask ${s.subnetMask}`,
+  network: (s) => `Network ${s.networkAddress} Broadcast ${s.broadcastAddress}`,
+  interfaz: (s) => s.interfaceAddress ?? '',
+}
+
 export function Scopes({ token, node = '', canModify = true, canDelete = true }: ScopesProps) {
   const [scopes, setScopes] = useState<DhcpScopeRow[] | null>(null)
   const [aviso, setAviso] = useState<Aviso | null>(null)
@@ -64,6 +74,10 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
   useEffect(() => {
     void cargar()
   }, [cargar])
+
+  // El hook va ANTES de cualquier return: si no, dejaría de llamarse en cuanto
+  // la tabla está cargando.
+  const { filas: scopesVisibles, orden, alternar } = useOrden(CLAVES, scopes ?? [])
 
   async function editar(nombre: string) {
     setOcupado(true)
@@ -188,16 +202,16 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
         <table className={tbl.tabla}>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Scope Range/Subnet Mask</th>
-              <th>Network/Broadcast</th>
-              <th>Interface</th>
+              <Th campo="name" orden={orden} onOrdenar={alternar}>Name</Th>
+              <Th campo="range" orden={orden} onOrdenar={alternar}>Scope Range/Subnet Mask</Th>
+              <Th campo="network" orden={orden} onOrdenar={alternar}>Network/Broadcast</Th>
+              <Th campo="interfaz" orden={orden} onOrdenar={alternar}>Interface</Th>
               <th>Status</th>
               <th />
             </tr>
           </thead>
           <tbody>
-            {scopes.map((s) => (
+            {scopesVisibles.map((s) => (
               <tr key={s.name}>
                 <td className={styles.nombre}>{s.name}</td>
                 <td>

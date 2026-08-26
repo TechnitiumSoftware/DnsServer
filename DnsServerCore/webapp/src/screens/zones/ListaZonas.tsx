@@ -23,6 +23,7 @@ import { fechaMinuto as fecha } from '../../lib/fechas'
 import { textoDeEstado, ventanaDePaginas } from './paginacion'
 import pag from '../../ui/Pagination.module.css'
 import tbl from '../../ui/Table.module.css'
+import { Th, useOrden, type Claves } from '../../ui/Table'
 import styles from './Zones.module.css'
 import type { Aviso, Confirmacion } from './tipos'
 
@@ -298,6 +299,8 @@ export function ListaZonas({
   const primeraFila = (pageNumber - 1) * porPagina + 1
   const estado = textoDeEstado(primeraFila, zonas.length, totalZones, pageNumber, totalPages, 'zones')
   const pg = ventanaDePaginas(pageNumber, totalPages)
+  const { filas: zonasVisibles, orden, alternar } = useOrden(CLAVES, zonas)
+
   const todasMarcadas = zonas.length > 0 && marcadas.length === zonas.length
 
   const paginacion = (
@@ -428,25 +431,27 @@ export function ListaZonas({
                 />
               </th>
               <th style={{ width: 34 }}>#</th>
-              <th>Zone</th>
-              <th style={{ width: 120 }}>Type</th>
-              <th style={{ width: 90 }}>DNSSEC</th>
-              <th style={{ width: 120 }}>Status</th>
-              <th style={{ width: 110 }}>Serial</th>
-              <th style={{ width: 110 }}>Expiry</th>
-              <th style={{ width: 150 }}>Last Modified</th>
+              <Th campo="zone" orden={orden} onOrdenar={alternar}>Zone</Th>
+              <Th campo="type" orden={orden} onOrdenar={alternar} style={{ width: 120 }}>Type</Th>
+              <Th campo="dnssec" orden={orden} onOrdenar={alternar} style={{ width: 90 }}>DNSSEC</Th>
+              <Th campo="status" orden={orden} onOrdenar={alternar} style={{ width: 120 }}>Status</Th>
+              <Th campo="serial" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>Serial</Th>
+              <Th campo="expiry" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>Expiry</Th>
+              <Th campo="modified" orden={orden} onOrdenar={alternar} style={{ width: 150 }}>
+                Last Modified
+              </Th>
               <th style={{ width: 230 }} />
             </tr>
           </thead>
           <tbody>
-            {zonas.length === 0 ? (
+            {zonasVisibles.length === 0 ? (
               <tr>
                 <td colSpan={10} className={tbl.sinFilas}>
                   No Zone Found
                 </td>
               </tr>
             ) : (
-              zonas.map((z, i) => (
+              zonasVisibles.map((z, i) => (
                 <FilaZona
                   key={z.name}
                   zona={z}
@@ -503,6 +508,26 @@ interface FilaProps {
   onClonar: (zone: string) => void
   onPermisos: (zone: string) => void
   onOpciones: (zone: string) => void
+}
+
+/*
+Lo que se ordena en cada columna es EL TEXTO QUE SE VE, igual que upstream
+(`sortTable('tableZonesBody', 1..8)`). Por eso `Serial` se lee como cadena y no
+como número: así el orden coincide con el de la consola vieja.
+*/
+const CLAVES: Claves<Zone> = {
+  zone: (z) => nombreDeZona(z),
+  type: (z) => etiquetaTipo(z.type),
+  dnssec: (z) =>
+    z.dnssecStatus === 'SignedWithNSEC' || z.dnssecStatus === 'SignedWithNSEC3'
+      ? z.hasDnssecPrivateKeys
+        ? 'Signed'
+        : 'Signed, no keys'
+      : 'Unsigned',
+  status: (z) => estadoDeZona(z),
+  serial: (z) => z.soaSerial,
+  expiry: (z) => fecha(z.expiry),
+  modified: (z) => fecha(z.lastModified),
 }
 
 function FilaZona(p: FilaProps) {

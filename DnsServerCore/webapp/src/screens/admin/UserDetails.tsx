@@ -27,6 +27,7 @@ import {
 } from './partes'
 import tbl from '../../ui/Table.module.css'
 import frm from '../../ui/Form.module.css'
+import { Th, useOrden, type Claves } from '../../ui/Table'
 
 /*
 `showUserDetailsModal` / `saveUserDetails` / `deleteUserSession`
@@ -58,6 +59,18 @@ interface Props {
   onAviso: (a: Aviso) => void
 }
 
+
+/* `sortTable('tbodyUserDetailsActiveSessions', 0..3)`. */
+const CLAVES: Claves<AdminSession> = {
+  session: (s) =>
+    [s.tokenName ?? '', `[${s.partialToken}]`, s.isCurrentSession ? '(current)' : '', s.type]
+      .filter(Boolean)
+      .join(' '),
+  lastSeen: (s) => s.lastSeen,
+  address: (s) => s.lastSeenRemoteAddress,
+  agent: (s) => s.lastSeenUserAgent,
+}
+
 export function UserDetails({ abierto, username, token, cluster, onCerrar, alGuardar, onAviso }: Props) {
   const [detalle, setDetalle] = useState<AdminUserDetails | null>(null)
   const [cargando, setCargando] = useState(true)
@@ -70,6 +83,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
   const [timeout, setTimeoutSeconds] = useState('')
   const [memberOf, setMemberOf] = useState('')
   const [sesiones, setSesiones] = useState<AdminSession[]>([])
+  const { filas: sesionesVisibles, orden, alternar } = useOrden(CLAVES, sesiones)
   const [porBorrar, setPorBorrar] = useState<AdminSession | null>(null)
   const [addGroup, setAddGroup] = useState(OPCION_BLANK)
 
@@ -279,15 +293,15 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
               <table className={tbl.tabla}>
                 <thead>
                   <tr>
-                    <th>Session</th>
-                    <th>Last Seen</th>
-                    <th>Remote Address</th>
-                    <th>User Agent</th>
+                    <Th campo="session" orden={orden} onOrdenar={alternar}>Session</Th>
+                    <Th campo="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
+                    <Th campo="address" orden={orden} onOrdenar={alternar}>Remote Address</Th>
+                    <Th campo="agent" orden={orden} onOrdenar={alternar}>User Agent</Th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
-                  {sesiones.map((s) => (
+                  {sesionesVisibles.map((s) => (
                     <tr key={s.partialToken}>
                       <td>
                         <CeldaSesion sesion={s} />

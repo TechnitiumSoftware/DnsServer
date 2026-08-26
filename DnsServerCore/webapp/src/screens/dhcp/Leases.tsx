@@ -16,6 +16,7 @@ import { Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import tbl from '../../ui/Table.module.css'
 import styles from './Dhcp.module.css'
+import { Th, useOrden, type Claves } from '../../ui/Table'
 
 /*
 DHCP › Leases (dhcp.js:37-199).
@@ -45,6 +46,17 @@ export interface LeasesProps {
   canDelete?: boolean
 }
 
+/* `sortTable('tableDhcpLeasesBody', 0..6)`. */
+const CLAVES: Claves<DhcpLease> = {
+  scope: (l) => l.scope,
+  mac: (l) => l.hardwareAddress,
+  address: (l) => l.address,
+  type: (l) => l.type,
+  host: (l) => l.hostName,
+  obtained: (l) => fechaMinuto(l.leaseObtained),
+  expires: (l) => fechaMinuto(l.leaseExpires),
+}
+
 export function Leases({ token, node = '', canModify = true, canDelete = true }: LeasesProps) {
   const [leases, setLeases] = useState<DhcpLease[] | null>(null)
   const [aviso, setAviso] = useState<Aviso | null>(null)
@@ -61,6 +73,10 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
   useEffect(() => {
     void cargar()
   }, [cargar])
+
+  // El hook va ANTES de cualquier return: si no, dejaría de llamarse en cuanto
+  // la tabla está cargando.
+  const { filas: leasesVisibles, orden, alternar } = useOrden(CLAVES, leases ?? [])
 
   async function convertir(i: number, tipo: 'reserve' | 'dynamic') {
     const lease = leases?.[i]
@@ -141,18 +157,18 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
         <table className={tbl.tabla}>
           <thead>
             <tr>
-              <th>Scope</th>
-              <th>MAC Address</th>
-              <th>IP Address</th>
-              <th />
-              <th>Host Name</th>
-              <th>Lease Obtained</th>
-              <th>Lease Expires</th>
+              <Th campo="scope" orden={orden} onOrdenar={alternar}>Scope</Th>
+              <Th campo="mac" orden={orden} onOrdenar={alternar}>MAC Address</Th>
+              <Th campo="address" orden={orden} onOrdenar={alternar}>IP Address</Th>
+              <Th campo="type" orden={orden} onOrdenar={alternar} />
+              <Th campo="host" orden={orden} onOrdenar={alternar}>Host Name</Th>
+              <Th campo="obtained" orden={orden} onOrdenar={alternar}>Lease Obtained</Th>
+              <Th campo="expires" orden={orden} onOrdenar={alternar}>Lease Expires</Th>
               <th />
             </tr>
           </thead>
           <tbody>
-            {leases.map((l, i) => (
+            {leasesVisibles.map((l, i) => (
               <tr key={`${l.scope}/${l.clientIdentifier}`}>
                 <td className={styles.mono}>{l.scope}</td>
                 <td className={styles.mono}>{l.hardwareAddress}</td>

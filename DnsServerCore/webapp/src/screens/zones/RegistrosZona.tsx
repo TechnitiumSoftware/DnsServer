@@ -26,13 +26,14 @@ import { fechaMinuto as fecha } from '../../lib/fechas'
 import { Menu, Separador } from './Menu'
 import { filtrar } from './filtro'
 import { textoDeEstado, ventanaDePaginas } from './paginacion'
-import { accionesDeFila, nombreRelativo, ocultarDnssec } from './registro-vista'
+import { accionesDeFila, celdasDeRegistro, nombreRelativo, ocultarDnssec, type Celda } from './registro-vista'
 import { cabeceraDeZona, estaFirmada, guardarOcultarDnssec, leerOcultarDnssec } from './vista-zona'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty, Loading } from '../../ui/Empty'
 import { Chip, Tag } from '../../ui/Tag'
 import pag from '../../ui/Pagination.module.css'
 import tbl from '../../ui/Table.module.css'
+import { Th, useOrden, type Claves } from '../../ui/Table'
 import styles from './Zones.module.css'
 import type { Aviso, Confirmacion } from './tipos'
 
@@ -81,6 +82,33 @@ export interface RegistrosZonaProps {
   expiryTtlDelModal: string
 }
 
+/*
+`sortTable('tableEditZoneBody', 0..4)` en upstream, que ordena por el texto de
+la celda. «Data» se lee por sus celdas ya formateadas, que es lo que se ve.
+
+La columna `#` de upstream también es ordenable y aquí no: ordenar por el número
+de fila que la propia ordenación acaba de repartir no lleva a ningún sitio.
+*/
+function textoDeCelda(c: Celda): string {
+  switch (c.clase) {
+    case 'valor':
+      return c.texto
+    case 'pares':
+      return c.pares.map((p) => `${p.etiqueta} ${p.valor}`).join(' ')
+    case 'lineas':
+      return c.lineas.join(' ')
+    case 'tabla':
+      return [c.cabeceras, ...c.filas].map((f) => f.join(' ')).join(' ')
+  }
+}
+
+const CLAVES: Claves<Registro> = {
+  name: (r) => r.name,
+  type: (r) => r.type,
+  ttl: (r) => r.ttl,
+  data: (r) => celdasDeRegistro(r).map(textoDeCelda).join(' '),
+}
+
 export function RegistrosZona(p: RegistrosZonaProps) {
   const { zone, token, node = '', onAviso } = p
 
@@ -120,10 +148,12 @@ export function RegistrosZona(p: RegistrosZonaProps) {
     return filtrar(base, { nombre: filtroNombre, tipo: filtroTipo }, zone)
   }, [registros, ocultarDnssecRegs, zona, filtroNombre, filtroTipo, zone])
 
+  const { filas: ordenadas, orden, alternar } = useOrden(CLAVES, visibles)
+
   const totalPages = Math.max(1, Math.ceil(visibles.length / porPagina))
   const paginaActual = Math.min(Math.max(pagina, 1), totalPages)
   const inicio = (paginaActual - 1) * porPagina
-  const enPagina = visibles.slice(inicio, inicio + porPagina)
+  const enPagina = ordenadas.slice(inicio, inicio + porPagina)
 
   const cab = zona ? cabeceraDeZona(zona.type, zona.dnssecStatus) : null
 
@@ -510,10 +540,10 @@ export function RegistrosZona(p: RegistrosZonaProps) {
           <thead>
             <tr>
               <th style={{ width: 34 }}>#</th>
-              <th style={{ width: 110 }}>Name</th>
-              <th style={{ width: 80 }}>Type</th>
-              <th style={{ width: 110 }}>TTL</th>
-              <th>Data</th>
+              <Th campo="name" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>Name</Th>
+              <Th campo="type" orden={orden} onOrdenar={alternar} style={{ width: 80 }}>Type</Th>
+              <Th campo="ttl" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>TTL</Th>
+              <Th campo="data" orden={orden} onOrdenar={alternar}>Data</Th>
               <th style={{ width: 230 }} />
             </tr>
           </thead>

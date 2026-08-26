@@ -23,6 +23,7 @@ import {
   type Aviso,
 } from './partes'
 import tbl from '../../ui/Table.module.css'
+import { Th, useOrden, type Claves } from '../../ui/Table'
 
 /*
 `refreshAdminGroups`, `addGroup`, `showGroupDetailsModal`, `saveGroupDetails` y
@@ -39,6 +40,12 @@ haría que el servidor intentase renombrar el grupo a sí mismo.
 interface Props {
   token: string | null
   onAviso: (a: Aviso) => void
+}
+
+/* `sortTable('tbodyAdminGroups', 0..1)`. */
+const CLAVES: Claves<AdminGroup> = {
+  name: (g) => g.name,
+  description: (g) => g.description,
 }
 
 export function Groups({ token, onAviso }: Props) {
@@ -64,6 +71,8 @@ export function Groups({ token, onAviso }: Props) {
   useEffect(() => {
     void cargar()
   }, [cargar])
+
+  const { filas: gruposVisibles, orden, alternar } = useOrden(CLAVES, grupos)
 
   async function borrar(g: AdminGroup) {
     setPorBorrar(null)
@@ -94,13 +103,13 @@ export function Groups({ token, onAviso }: Props) {
             <table className={tbl.tabla}>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Description</th>
+                  <Th campo="name" orden={orden} onOrdenar={alternar}>Name</Th>
+                  <Th campo="description" orden={orden} onOrdenar={alternar}>Description</Th>
                   <th />
                 </tr>
               </thead>
               <tbody>
-                {grupos.map((g) => (
+                {gruposVisibles.map((g) => (
                   <tr key={g.name}>
                     <td>
                       <button

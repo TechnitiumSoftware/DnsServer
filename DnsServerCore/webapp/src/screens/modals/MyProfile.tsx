@@ -6,6 +6,7 @@ import { Dialog } from '../../ui/Dialog'
 import { LabeledInput } from '../../ui/Field'
 import { deleteSession, type SessionRow } from '../../api/user'
 import styles from './MyProfile.module.css'
+import { Th, useOrden, type Claves } from '../../ui/Table'
 
 /*
 Réplica de `showMyProfileModal` / `saveMyProfile` (auth.js:642-794).
@@ -18,8 +19,21 @@ interface Profile {
   displayName: string
   username: string
   isSsoUser: boolean
+  totpEnabled: boolean
+  /** Los grupos de los que el usuario es miembro (auth.js:678-687). */
+  memberOfGroups: string[]
   sessionTimeoutSeconds: number
   sessions: SessionRow[]
+}
+
+/* `sortTable('tbodyMyProfileMemberOf', 0)`. */
+const CLAVES_GRUPO: Claves<string> = { group: (g) => g }
+
+/* `sortTable('tbodyMyProfileActiveSessions', 0..3)`. */
+const CLAVES: Claves<Profile['sessions'][number]> = {
+  type: (r) => `${r.type}${r.tokenName ? ` (${r.tokenName})` : ''}${r.isCurrentSession ? ' current' : ''}`,
+  lastSeen: (r) => r.lastSeen,
+  address: (r) => r.lastSeenRemoteAddress,
 }
 
 export function MyProfile({
@@ -34,6 +48,8 @@ export function MyProfile({
   onSaved?: (displayName: string) => void
 }) {
   const [profile, setProfile] = useState<Profile | null>(null)
+  const { filas: sesionesVisibles, orden, alternar } = useOrden(CLAVES, profile?.sessions ?? [])
+  const grupos = useOrden(CLAVES_GRUPO, profile?.memberOfGroups ?? [])
   const [displayName, setDisplayName] = useState('')
   const [timeout, setTimeoutSeconds] = useState('')
   const [alert, setAlert] = useState<{ type: AlertType; title: string; text: string } | null>(null)
@@ -126,6 +142,20 @@ export function MyProfile({
       )}
       <LabeledInput label="Username" value={profile?.username ?? ''} readOnly />
       <LabeledInput label="User Type" value={profile?.isSsoUser ? 'Remote/SSO' : 'Local'} readOnly />
+      {/* auth.js:667-674 — en un usuario de SSO el 2FA no lo lleva esta consola. */}
+      <LabeledInput
+        label="2FA Status"
+        value={
+          profile == null
+            ? ''
+            : profile.isSsoUser
+              ? 'SSO Managed'
+              : profile.totpEnabled
+                ? 'Enabled'
+                : 'Disabled'
+        }
+        readOnly
+      />
       <LabeledInput
         label="Display Name"
         value={displayName}
@@ -140,18 +170,37 @@ export function MyProfile({
       />
 
       <div>
+        <div className={styles.caption}>Member Of</div>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <Th campo="group" orden={grupos.orden} onOrdenar={grupos.alternar}>Group</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {grupos.filas.map((g) => (
+              <tr key={g}>
+                <td>{g}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className={styles.total}>{`Total Groups: ${profile?.memberOfGroups?.length ?? 0}`}</div>
+      </div>
+
+      <div>
         <div className={styles.caption}>Active Sessions</div>
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Type</th>
-              <th>Last Seen</th>
-              <th>Address</th>
+              <Th campo="type" orden={orden} onOrdenar={alternar}>Type</Th>
+              <Th campo="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
+              <Th campo="address" orden={orden} onOrdenar={alternar}>Address</Th>
               <th />
             </tr>
           </thead>
           <tbody>
-            {(profile?.sessions ?? []).map((row) => (
+            {sesionesVisibles.map((row) => (
               <tr key={row.partialToken}>
                 <td>
                   {row.type}
