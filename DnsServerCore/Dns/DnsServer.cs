@@ -210,6 +210,7 @@ namespace DnsServerCore.Dns
         bool _enableDnsOverQuic;
         bool _useDnsCookies;
         bool _enableDnsCookieStandaloneAutomaticRotation;
+        bool _dnsCookieClusterManaged;
         IReadOnlyCollection<NetworkAccessControl> _reverseProxyNetworkACL;
         bool _enableDnsOverHttpHelpRedirect = true;
         int _dnsOverUdpProxyPort = 538;
@@ -1280,7 +1281,7 @@ namespace DnsServerCore.Dns
             _enableDnsCookieStandaloneAutomaticRotation = s.Position < s.Length && bR.ReadBoolean();
 
             _cookieCoordinator.Configure(_useDnsCookies);
-            _cookieCoordinator.ConfigureStandaloneAutomaticRotation(_enableDnsCookieStandaloneAutomaticRotation);
+            _cookieCoordinator.ConfigureStandaloneAutomaticRotation(_enableDnsCookieStandaloneAutomaticRotation && !_dnsCookieClusterManaged);
         }
 
         private void WriteConfigTo(Stream s)
@@ -7965,12 +7966,23 @@ namespace DnsServerCore.Dns
             get => _enableDnsCookieStandaloneAutomaticRotation;
             set
             {
+                if (value && _dnsCookieClusterManaged)
+                    throw new InvalidOperationException("Automatic DNS Cookie rotation is unavailable while the server is cluster managed.");
                 if (_enableDnsCookieStandaloneAutomaticRotation == value)
                     return;
 
                 _enableDnsCookieStandaloneAutomaticRotation = value;
                 _cookieCoordinator.ConfigureStandaloneAutomaticRotation(value);
             }
+        }
+
+        internal void SetDnsCookieClusterManaged(bool clusterManaged)
+        {
+            if (_dnsCookieClusterManaged == clusterManaged)
+                return;
+
+            _dnsCookieClusterManaged = clusterManaged;
+            _cookieCoordinator.ConfigureStandaloneAutomaticRotation(_enableDnsCookieStandaloneAutomaticRotation && !clusterManaged);
         }
 
         // Monotonic instrumentation for transport-path tests and operational diagnostics.

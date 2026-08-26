@@ -37,7 +37,10 @@ namespace DnsServerCore.Dns.Security
 
         private const int LegacyFileVersion = 1;
         private const int PreviousFileVersion = 2;
-        private const int CurrentFileVersion = 3;
+        // Version 3 was emitted with rollover state before the timestamp. Retain a
+        // dedicated reader for that layout so existing instances can migrate safely.
+        private const int BrokenCurrentFileVersion = 3;
+        private const int CurrentFileVersion = 4;
 
         // RFC 9018 Version 1 uses SipHash-2-4, which has a 128-bit key. New state
         // is always exactly this size; a larger persisted legacy secret is read using
@@ -114,6 +117,9 @@ namespace DnsServerCore.Dns.Security
                 if (version < LegacyFileVersion || version > CurrentFileVersion)
                     throw new InvalidDataException($"Unsupported DNS Cookie secret state version: {version}.");
 
+                if (version == BrokenCurrentFileVersion)
+                    return ReadBrokenVersion3(br, stream, version);
+
                 long createdUtcTicks = br.ReadInt64();
                 if (createdUtcTicks < DateTime.MinValue.Ticks || createdUtcTicks > DateTime.MaxValue.Ticks)
                     throw new InvalidDataException("Invalid DNS Cookie secret creation timestamp.");
@@ -131,7 +137,7 @@ namespace DnsServerCore.Dns.Security
 
                 if (version == CurrentFileVersion)
                 {
-                    DnsCookieSecretRolloverState rolloverState = (DnsCookieSecretRolloverState)br.ReadByte();
+                    DnsCookieSecretRolloverState rolloverState = ReadRolloverState(br);
                     byte[] secondary = ReadOptionalSecret(br, "secondary");
                     EnsureEndOfFile(stream);
                     return new Snapshot(version, rolloverState, active, createdUtc, secondary);
@@ -231,6 +237,34 @@ namespace DnsServerCore.Dns.Security
             activeCreatedUtc = snapshot.ActiveCreatedUtc;
         }
 
+        private static Snapshot ReadBrokenVersion3(BinaryReader br, Stream stream, int version)
+        {
+            DnsCookieSecretRolloverState rolloverState = ReadRolloverState(br);
+            long createdUtcTicks = br.ReadInt64();
+            if (createdUtcTicks < DateTime.MinValue.Ticks || createdUtcTicks > DateTime.MaxValue.Ticks)
+                throw new InvalidDataException("Invalid DNS Cookie secret creation timestamp.");
+
+            int currentLen = br.ReadInt32();
+            if (currentLen < EffectiveSecretLength || currentLen > LegacySecretMaxLength)
+                throw new InvalidDataException("Invalid current secret length.");
+
+            byte[] active = br.ReadBytes(currentLen);
+            if (active.Length != currentLen)
+                throw new EndOfStreamException("Unexpected end of secret file (active secret).");
+
+            byte[] secondary = ReadOptionalSecret(br, "secondary");
+            EnsureEndOfFile(stream);
+            return new Snapshot(version, rolloverState, ToEffectiveSecret(active), new DateTime(createdUtcTicks, DateTimeKind.Utc), secondary);
+        }
+
+        private static DnsCookieSecretRolloverState ReadRolloverState(BinaryReader br)
+        {
+            DnsCookieSecretRolloverState rolloverState = (DnsCookieSecretRolloverState)br.ReadByte();
+            if (!Enum.IsDefined(rolloverState))
+                throw new InvalidDataException("Invalid DNS Cookie secret rollover state.");
+            return rolloverState;
+        }
+
         private void SaveLocked(Snapshot snapshot)
         {
             // Caller must hold _lock
@@ -246,11 +280,11 @@ namespace DnsServerCore.Dns.Security
                 using (BinaryWriter bw = new BinaryWriter(ms))
                 {
                     bw.Write(CurrentFileVersion);
-                    bw.Write((byte)snapshot.RolloverState);
                     bw.Write(snapshot.ActiveCreatedUtc.Ticks);
 
                     bw.Write(snapshot.Active.Length);
                     bw.Write(snapshot.Active);
+                    bw.Write((byte)snapshot.RolloverState);
                     WriteOptionalSecret(bw, snapshot.Secondary, "secondary");
 
 
