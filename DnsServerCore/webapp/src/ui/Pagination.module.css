@@ -1,0 +1,29 @@
+/*
+La paginación, una sola. Había dos: en Zones el botón activo era transparente
+con borde ámbar y medía 26 px; en Logs era ámbar sólido y medía 24. Gana el
+sólido, que es lo dibujado y lo que se distingue de un vistazo.
+*/
+
+.pg { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+
+.pgb {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-2);
+  border: 1px solid var(--line);
+  background: var(--pan2);
+  color: var(--mute);
+  font-size: var(--t-3);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.pgb:hover { color: var(--ink); }
+
+.pgb[aria-current='true'] {
+  background: var(--acc);
+  border-color: var(--acc);
+  color: var(--on-acc);
+  font-weight: 700;
+}

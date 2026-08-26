@@ -13,6 +13,7 @@ import {
 import { primaryNodeName, type ClusterState } from '../../api/admin-cluster'
 import { anadirALaTabla, OPCION_BLANK, OPCION_NONE, serializarTabla, type Celda } from './tabla'
 import { avisoDeFallo, MRow, adminStyles as styles, type Aviso } from './partes'
+import tbl from '../../ui/Table.module.css'
 
 /*
 `refreshAdminPermissions`, `showEditSectionPermissionsModal` y
@@ -381,7 +382,7 @@ function TablaPermisos({
   return (
     <>
       <p className={styles.sub}>{titulo}</p>
-      <div className={styles.tablaWrap}>
+      <div className={tbl.wrap}>
         <table className={styles.edit}>
           <thead>
             <tr>

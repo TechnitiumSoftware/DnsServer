@@ -19,6 +19,8 @@ import { SectionHeader } from '../../ui/SectionHeader'
 import { aIso, fechaHora } from './fechas'
 import { Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
+import pag from '../../ui/Pagination.module.css'
+import tbl from '../../ui/Table.module.css'
 import styles from './Logs.module.css'
 
 /*
@@ -617,12 +619,12 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
         <>
           <div className={styles.count}>
             <span>{textoEstado(pagina)}</span>
-            <span className={styles.pg}>
+            <span className={pag.pg}>
               {pagina.pageNumber > 1 && (
                 <>
                   <button
                     type="button"
-                    className={styles.pgb}
+                    className={pag.pgb}
                     aria-label="First"
                     onClick={() => void consultar('1', false)}
                   >
@@ -630,7 +632,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                   </button>
                   <button
                     type="button"
-                    className={styles.pgb}
+                    className={pag.pgb}
                     aria-label="Previous"
                     onClick={() => void consultar(String(pagina.pageNumber - 1), false)}
                   >
@@ -642,7 +644,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                 <button
                   key={n}
                   type="button"
-                  className={styles.pgb}
+                  className={pag.pgb}
                   aria-current={n === pagina.pageNumber}
                   onClick={() => void consultar(String(n), false)}
                 >
@@ -653,7 +655,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                 <>
                   <button
                     type="button"
-                    className={styles.pgb}
+                    className={pag.pgb}
                     aria-label="Next"
                     onClick={() => void consultar(String(pagina.pageNumber + 1), false)}
                   >
@@ -662,7 +664,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                   {/* logs.js:589 — «Last» se pide con -1; lo resuelve el servidor. */}
                   <button
                     type="button"
-                    className={styles.pgb}
+                    className={pag.pgb}
                     aria-label="Last"
                     onClick={() => void consultar('-1', false)}
                   >
@@ -673,8 +675,8 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
             </span>
           </div>
 
-          <div className={styles.tablaWrap}>
-            <table className={styles.tabla}>
+          <div className={tbl.wrap}>
+            <table className={tbl.tabla}>
               <thead>
                 <tr>
                   <th>#</th>

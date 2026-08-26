@@ -2,6 +2,7 @@ import { Tag } from '../../ui/Tag'
 import { useState } from 'react'
 import type { Registro } from '../../api/registros'
 import { celdasDeRegistro, pieDeRegistro, type Celda } from './registro-vista'
+import tbl from '../../ui/Table.module.css'
 import styles from './Zones.module.css'
 
 /*
@@ -60,8 +61,8 @@ function Bloque({ celda }: { celda: Celda }) {
 
     case 'tabla':
       return (
-        <div className={styles.tablaWrap}>
-          <table className={styles.tabla}>
+        <div className={tbl.wrap}>
+          <table className={tbl.tabla}>
             <thead>
               <tr>
                 {celda.cabeceras.map((c) => (

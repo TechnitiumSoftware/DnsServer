@@ -31,6 +31,8 @@ import { cabeceraDeZona, estaFirmada, guardarOcultarDnssec, leerOcultarDnssec } 
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty, Loading } from '../../ui/Empty'
 import { Chip, Tag } from '../../ui/Tag'
+import pag from '../../ui/Pagination.module.css'
+import tbl from '../../ui/Table.module.css'
 import styles from './Zones.module.css'
 import type { Aviso, Confirmacion } from './tipos'
 
@@ -298,14 +300,14 @@ export function RegistrosZona(p: RegistrosZonaProps) {
   const pg = ventanaDePaginas(paginaActual, totalPages)
 
   const paginacion = (
-    <span className={styles.pg}>
+    <span className={pag.pg}>
       {pg.primera && (
-        <button type="button" className={styles.pgBtn} aria-label="First" onClick={() => setPagina(1)}>
+        <button type="button" className={pag.pgb} aria-label="First" onClick={() => setPagina(1)}>
           «
         </button>
       )}
       {pg.anterior != null && (
-        <button type="button" className={styles.pgBtn} aria-label="Previous" onClick={() => setPagina(pg.anterior!)}>
+        <button type="button" className={pag.pgb} aria-label="Previous" onClick={() => setPagina(pg.anterior!)}>
           ‹
         </button>
       )}
@@ -313,7 +315,7 @@ export function RegistrosZona(p: RegistrosZonaProps) {
         <button
           key={n}
           type="button"
-          className={styles.pgBtn}
+          className={pag.pgb}
           aria-current={n === paginaActual}
           onClick={() => setPagina(n)}
         >
@@ -321,12 +323,12 @@ export function RegistrosZona(p: RegistrosZonaProps) {
         </button>
       ))}
       {pg.siguiente != null && (
-        <button type="button" className={styles.pgBtn} aria-label="Next" onClick={() => setPagina(pg.siguiente!)}>
+        <button type="button" className={pag.pgb} aria-label="Next" onClick={() => setPagina(pg.siguiente!)}>
           ›
         </button>
       )}
       {pg.ultima && (
-        <button type="button" className={styles.pgBtn} aria-label="Last" onClick={() => setPagina(totalPages)}>
+        <button type="button" className={pag.pgb} aria-label="Last" onClick={() => setPagina(totalPages)}>
           »
         </button>
       )}
@@ -503,8 +505,8 @@ export function RegistrosZona(p: RegistrosZonaProps) {
         {paginacion}
       </div>
 
-      <div className={styles.tablaWrap}>
-        <table className={styles.tabla}>
+      <div className={tbl.wrap}>
+        <table className={tbl.tabla}>
           <thead>
             <tr>
               <th style={{ width: 34 }}>#</th>
@@ -518,7 +520,7 @@ export function RegistrosZona(p: RegistrosZonaProps) {
           <tbody>
             {enPagina.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center' }}>
+                <td colSpan={6} className={tbl.sinFilas}>
                   No Record Found
                 </td>
               </tr>

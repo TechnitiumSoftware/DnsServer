@@ -5,6 +5,7 @@ import { Button } from '../../../ui/Button'
 import { Dialog } from '../../../ui/Dialog'
 import type { Aviso } from '../tipos'
 import styles from '../Zones.module.css'
+import frm from '../../../ui/Form.module.css'
 
 /*
 `modalConvertZone` (zone.js:1387 y 1443).
@@ -117,9 +118,9 @@ export function ConvertirZona({
       )}
 
       <div className={styles.campos}>
-        <div className={styles.fila}>
-          <div className={styles.filaLab}>Convert To</div>
-          <div className={styles.filaCtl}>
+        <div className={frm.mrow}>
+          <div className={frm.mrowLabel}>Convert To</div>
+          <div className={frm.mrowCtl}>
             {(['Primary', 'Forwarder', 'Catalog'] as DestinoConversion[]).map((d) => (
               <label key={d} className={styles.chk}>
                 <input
@@ -135,12 +136,12 @@ export function ConvertirZona({
           </div>
         </div>
 
-        <div className={`${styles.nota} ${styles.notaInfo}`}>
-          <b>Note!</b> The conversion process may take a while depending on the number of records the zone
+        <Alert type="info" title="Note!">
+          The conversion process may take a while depending on the number of records the zone
           has. When converting a Secondary Catalog zone to a Catalog zone, all member zones too will be
           converted to either Primary or Conditional Forwarder zone depending on their existing zone type.
           Please be patient till the conversion process completes.
-        </div>
+        </Alert>
       </div>
     </Dialog>
   )

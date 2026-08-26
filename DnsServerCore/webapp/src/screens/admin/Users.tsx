@@ -24,6 +24,7 @@ import {
   adminStyles as styles,
   type Aviso,
 } from './partes'
+import tbl from '../../ui/Table.module.css'
 
 /*
 `refreshAdminUsers` y las siete acciones de la fila (auth.js:1083-1698).
@@ -123,8 +124,8 @@ export function Users({ token, cluster, onAviso }: Props) {
         <Loading />
       ) : (
         <>
-          <div className={styles.tablaWrap}>
-            <table className={styles.tabla}>
+          <div className={tbl.wrap}>
+            <table className={tbl.tabla}>
               <thead>
                 <tr>
                   <th>Username</th>

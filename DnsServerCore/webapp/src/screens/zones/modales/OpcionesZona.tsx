@@ -22,7 +22,9 @@ import {
   type PestanaOpciones,
 } from '../opciones'
 import type { Aviso } from '../tipos'
+import pag from '../../../ui/Pagination.module.css'
 import styles from '../Zones.module.css'
+import frm from '../../../ui/Form.module.css'
 
 /*
 `modalZoneOptions` (zone.js:1524 y 2380). Cinco pestañas y una matriz de
@@ -143,7 +145,7 @@ export function OpcionesZona({
                 key={t.id}
                 type="button"
                 role="tab"
-                className={styles.pgBtn}
+                className={pag.pgb}
                 aria-selected={pestana === t.id}
                 aria-current={pestana === t.id}
                 onClick={() => setPestana(t.id)}
@@ -242,9 +244,9 @@ export function OpcionesZona({
                     </div>
 
                     {e.protocoloXfr && (
-                      <div className={styles.fila}>
-                        <div className={styles.filaLab}>Zone Transfer Protocol</div>
-                        <div className={styles.filaCtl}>
+                      <div className={frm.mrow}>
+                        <div className={frm.mrowLabel}>Zone Transfer Protocol</div>
+                        <div className={frm.mrowCtl}>
                           {PROTOCOLOS_XFR.map((x) => (
                             <label key={x.valor} className={styles.chk}>
                               <input
@@ -401,9 +403,9 @@ export function OpcionesZona({
                   </Field>
                 )}
                 {respuesta?.notifyFailed === true && (
-                  <div className={`${styles.nota} ${styles.notaAviso}`}>
-                    <b>Notify Failed For:</b> {(respuesta.notifyFailedFor ?? []).join(', ')}
-                  </div>
+                  <Alert type="warning" title="Notify Failed For:">
+                    {(respuesta.notifyFailedFor ?? []).join(', ')}
+                  </Alert>
                 )}
               </>
             )}
@@ -537,7 +539,7 @@ function Criterio({
 }) {
   return (
     <>
-      <div className={styles.filaCtl}>
+      <div className={frm.mrowCtl}>
         {opciones.map((o) => (
           <label key={o.valor} className={styles.chk}>
             <input

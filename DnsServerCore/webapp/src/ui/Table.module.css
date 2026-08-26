@@ -1,0 +1,39 @@
+/*
+La tabla de la consola, una sola. Estaba copiada en cinco módulos: la misma
+regla cinco veces, con dos densidades de celda (12 px en cuatro secciones, 9 px
+en Logs y Dashboard) y sin hover de fila justo en Query Logs, que es la tabla
+más ancha de todas y la que más falta le hace para no perder el renglón.
+*/
+
+.wrap { overflow-x: auto; }
+
+.tabla { border-collapse: collapse; width: 100%; }
+
+.tabla thead th {
+  text-align: left;
+  font-size: var(--t-2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--mute);
+  font-weight: 700;
+  padding: 0 var(--s-7) var(--s-5);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.tabla td {
+  padding: var(--s-8) var(--s-7);
+  border-bottom: 1px solid var(--line2);
+  vertical-align: top;
+  color: var(--ink);
+}
+
+.tabla tbody tr:hover { background: var(--hover); }
+
+/* La fila de «no hay nada». Estaba escrita con `style={{textAlign:'center'}}`
+   en cuatro sitios y con dos nombres de clase más para la misma regla. */
+.sinFilas {
+  text-align: center;
+  color: var(--faint);
+  padding: var(--s-11) var(--s-7);
+}

@@ -22,6 +22,7 @@ import {
   adminStyles as styles,
   type Aviso,
 } from './partes'
+import tbl from '../../ui/Table.module.css'
 
 /*
 `refreshAdminGroups`, `addGroup`, `showGroupDetailsModal`, `saveGroupDetails` y
@@ -89,8 +90,8 @@ export function Groups({ token, onAviso }: Props) {
         <Loading />
       ) : (
         <>
-          <div className={styles.tablaWrap}>
-            <table className={styles.tabla}>
+          <div className={tbl.wrap}>
+            <table className={tbl.tabla}>
               <thead>
                 <tr>
                   <th>Name</th>

@@ -37,7 +37,9 @@ import {
   curvaPorDefecto,
 } from './dnssec-opciones'
 import type { Aviso, Confirmacion } from '../tipos'
+import tbl from '../../../ui/Table.module.css'
 import styles from '../Zones.module.css'
+import frm from '../../../ui/Form.module.css'
 
 /*
 `modalDnssecProperties` (zone.js:6799-7400). Es la pantalla más viva del
@@ -325,8 +327,8 @@ export function PropiedadesDnssec({
         <Loading>Loading DNSSEC properties…</Loading>
       ) : (
         <div className={styles.campos}>
-          <div className={styles.tablaWrap}>
-            <table className={styles.tabla}>
+          <div className={tbl.wrap}>
+            <table className={tbl.tabla}>
               <thead>
                 <tr>
                   <th style={{ width: 80 }}>Key Tag</th>
@@ -341,7 +343,7 @@ export function PropiedadesDnssec({
               <tbody>
                 {claves.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center' }}>
+                    <td colSpan={7} className={tbl.sinFilas}>
                       No Key Found
                     </td>
                   </tr>
@@ -366,9 +368,9 @@ export function PropiedadesDnssec({
           </div>
 
           {notas.map((n) => (
-            <div key={n} className={`${styles.nota} ${styles.notaInfo}`}>
+            <Alert key={n} type="info" title="Note!">
               {n}
-            </div>
+            </Alert>
           ))}
 
           <div className={styles.acts}>
@@ -453,7 +455,7 @@ export function PropiedadesDnssec({
                 </Field>
               )}
 
-              <div className={styles.filaCtl}>
+              <div className={frm.mrowCtl}>
                 {GENERACIONES.map((g) => (
                   <label key={g.valor} className={styles.chk}>
                     <input

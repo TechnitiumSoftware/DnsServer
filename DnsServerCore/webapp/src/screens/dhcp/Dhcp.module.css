@@ -5,14 +5,6 @@
 
 .wrap { display: flex; flex-direction: column; gap: var(--s-9); }
 
-.tablaWrap { overflow-x: auto; }
-.tabla { border-collapse: collapse; width: 100%; }
-.tabla thead th {
-  text-align: left; font-size: var(--t-2); text-transform: uppercase; letter-spacing: 0.05em;
-  color: var(--mute); font-weight: 700; padding: 0 var(--s-7) var(--s-5); border-bottom: 1px solid var(--line);
-}
-.tabla td { padding: var(--s-8) var(--s-7); border-bottom: 1px solid var(--line2); vertical-align: top; color: var(--ink); }
-.tabla tbody tr:hover { background: var(--hover); }
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .nombre { font-weight: 650; color: var(--ink); white-space: nowrap; }
 .fecha { white-space: nowrap; font-family: var(--font-mono); font-size: var(--t-3); }
@@ -38,9 +30,6 @@
   border-bottom: 1px solid var(--line); font-size: var(--t-1); font-weight: 700;
   letter-spacing: 0.09em; text-transform: uppercase; color: var(--mute);
 }
-.row { display: grid; grid-template-columns: 210px 1fr; gap: var(--s-8); padding: var(--s-4) var(--s-9); align-items: start; }
-.rowLabel { font-size: var(--t-4); color: var(--ink); font-weight: 600; padding-top: var(--s-5); line-height: 1.35; }
-.rowCtl { min-width: 0; display: flex; flex-direction: column; gap: var(--s-3); }
 .ctlLine { display: flex; align-items: center; gap: var(--s-6); flex-wrap: wrap; }
 .suffix { font-size: var(--t-3); color: var(--mute); }
 .help { font-size: var(--t-3); color: var(--mute); line-height: 1.55; max-width: 720px; }
@@ -73,8 +62,6 @@
 .editable td { padding: var(--s-3) var(--s-5) var(--s-3) 0; vertical-align: middle; }
 .editable input { width: 100%; }
 .tdel { width: 74px; }
-.vaciaTabla { font-size: var(--t-3); color: var(--faint); padding: var(--s-6) 0; }
-
 .bar {
   display: flex; align-items: center; gap: var(--s-5); padding: var(--s-8) var(--s-9);
   border: 1px solid var(--line); border-radius: var(--r-4); background: var(--pan);

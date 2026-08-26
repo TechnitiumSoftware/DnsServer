@@ -6,6 +6,7 @@ import { Dialog } from '../../../ui/Dialog'
 import { LabeledTextarea } from '../../../ui/Field'
 import type { Aviso } from '../tipos'
 import styles from '../Zones.module.css'
+import frm from '../../../ui/Form.module.css'
 
 /*
 `modalImportZone` (zone.js:1227 y 1251). Dos formas de dar el fichero —subirlo
@@ -106,9 +107,9 @@ export function ImportarZona({
       )}
 
       <div className={styles.campos}>
-        <div className={styles.fila}>
-          <div className={styles.filaLab}>Import Options</div>
-          <div className={styles.filaCtl}>
+        <div className={frm.mrow}>
+          <div className={frm.mrowLabel}>Import Options</div>
+          <div className={frm.mrowCtl}>
             <label className={styles.chk}>
               <input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} />
               Overwrite Existing Records
@@ -137,9 +138,9 @@ export function ImportarZona({
           </div>
         </div>
 
-        <div className={styles.fila}>
-          <div className={styles.filaLab}>Import Type</div>
-          <div className={styles.filaCtl}>
+        <div className={frm.mrow}>
+          <div className={frm.mrowLabel}>Import Type</div>
+          <div className={frm.mrowCtl}>
             <label className={styles.chk}>
               <input
                 type="radio"
@@ -162,11 +163,11 @@ export function ImportarZona({
         </div>
 
         {modo === 'File' ? (
-          <div className={styles.fila}>
-            <div className={styles.filaLab}>
+          <div className={frm.mrow}>
+            <div className={frm.mrowLabel}>
               <label htmlFor="fileImportZone">Zone File</label>
             </div>
-            <div className={styles.filaCtl}>
+            <div className={frm.mrowCtl}>
               <input
                 id="fileImportZone"
                 ref={fichero}
@@ -176,7 +177,7 @@ export function ImportarZona({
             </div>
           </div>
         ) : (
-          <div className={styles.filaCtl}>
+          <div className={frm.mrowCtl}>
             <LabeledTextarea
               label="Text Editor"
               mono
@@ -191,13 +192,13 @@ export function ImportarZona({
           </div>
         )}
 
-        <div className={`${styles.nota} ${styles.notaInfo}`}>
-          <b>Note!</b> The $ORIGIN and $TTL values will be automatically set if not specified.
-        </div>
-        <div className={`${styles.nota} ${styles.notaAviso}`}>
-          <b>Warning!</b> Overwrite SOA serial option when used to set a lower SOA serial value than the
+        <Alert type="info" title="Note!">
+          The $ORIGIN and $TTL values will be automatically set if not specified.
+        </Alert>
+        <Alert type="warning" title="Warning!">
+          Overwrite SOA serial option when used to set a lower SOA serial value than the
           current SOA serial will cause secondary zones to fail to sync.
-        </div>
+        </Alert>
       </div>
     </Dialog>
   )

@@ -3,6 +3,7 @@ import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Input } from '../../ui/Field'
 import styles from './Settings.module.css'
+import frm from '../../ui/Form.module.css'
 
 /*
 Las piezas con las que se dibujan las nueve sub-pestañas.
@@ -37,11 +38,11 @@ export function Row({
 }) {
   const id = useId()
   return (
-    <div className={styles.row}>
-      <label className={styles.rowLabel} htmlFor={id}>
+    <div className={frm.row}>
+      <label className={frm.rowLabel} htmlFor={id}>
         {label}
       </label>
-      <div className={styles.rowCtl}>
+      <div className={frm.rowCtl}>
         {children(id)}
         {help && <div className={styles.help}>{help}</div>}
       </div>
@@ -61,9 +62,9 @@ export function GroupRow({
   children: ReactNode
 }) {
   return (
-    <div className={styles.row}>
-      <div className={styles.rowLabel}>{label}</div>
-      <div className={styles.rowCtl}>
+    <div className={frm.row}>
+      <div className={frm.rowLabel}>{label}</div>
+      <div className={frm.rowCtl}>
         <div className={styles.group}>{children}</div>
         {help && <div className={styles.help}>{help}</div>}
       </div>
@@ -279,9 +280,9 @@ export function EditableTable<T>({
   disabled?: boolean
 }) {
   return (
-    <div className={styles.row}>
-      <div className={styles.rowLabel}>{label}</div>
-      <div className={styles.rowCtl}>
+    <div className={frm.row}>
+      <div className={frm.rowLabel}>{label}</div>
+      <div className={frm.rowCtl}>
         <table className={styles.table}>
           <thead>
             <tr>

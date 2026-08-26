@@ -5,7 +5,13 @@
   background: var(--pan); border: 1px solid var(--line); border-radius: var(--r-4);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
 }
-/* Los que llevan tabla dentro: con 560 px se ven obligados a scroll horizontal. */
+/*
+Los que llevan tabla dentro. El dibujo daba 760 px, pero ninguno de sus modales
+tenía la tabla de claves DNSSEC —siete columnas— ni la de permisos: a 760 px las
+dos vuelven al scroll horizontal, que es justo lo que este ancho evita. Se queda
+en 880 y NO se usa para texto: un diálogo de prosa a 880 px da renglones de 130
+caracteres.
+*/
 .ancho { width: min(880px, calc(100vw - 32px)); }
 .head {
   display: flex; align-items: center; justify-content: space-between;

@@ -5,6 +5,7 @@ import { Dialog } from '../../ui/Dialog'
 import { Tag } from '../../ui/Tag'
 import type { ClusterState } from '../../api/admin-cluster'
 import styles from './Admin.module.css'
+import frm from '../../ui/Form.module.css'
 
 /* Las piezas que comparten las seis sub-pestañas de Administration. */
 
@@ -90,11 +91,11 @@ export function MRow({
 }) {
   const id = useId()
   return (
-    <div className={styles.mrow}>
-      <label className={styles.mrowLabel} htmlFor={id}>
+    <div className={frm.mrow}>
+      <label className={frm.mrowLabel} htmlFor={id}>
         {label}
       </label>
-      <div className={styles.rowCtl}>
+      <div className={frm.rowCtl}>
         {children(id)}
         {help && <div className={styles.help}>{help}</div>}
       </div>
@@ -105,8 +106,8 @@ export function MRow({
 /** Fila de sólo lectura: «Type» y «2FA Status» del modal de detalles. */
 export function MValue({ label, value }: { label: string; value: string }) {
   return (
-    <div className={styles.mrow}>
-      <div className={styles.mrowLabel}>{label}</div>
+    <div className={frm.mrow}>
+      <div className={frm.mrowLabel}>{label}</div>
       <div className={styles.mval}>{value}</div>
     </div>
   )

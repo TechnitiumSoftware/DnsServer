@@ -28,6 +28,7 @@ import {
 import { tiposOcultosAlAnadir } from '../vista-zona'
 import type { Aviso } from '../tipos'
 import styles from '../Zones.module.css'
+import frm from '../../../ui/Form.module.css'
 
 /*
 `modalAddEditRecord` (zone.js:4395 alta, 5295 edición). Un solo formulario para
@@ -583,9 +584,9 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
     case 'FWD':
       return (
         <>
-          <div className={styles.fila}>
-            <div className={styles.filaLab}>Protocol</div>
-            <div className={styles.filaCtl}>
+          <div className={frm.mrow}>
+            <div className={frm.mrowLabel}>Protocol</div>
+            <div className={frm.mrowCtl}>
               {PROTOCOLOS_FORWARDER.map((x) => (
                 <label key={x.valor} className={styles.chk}>
                   <input
@@ -612,9 +613,9 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
             />
             Enable DNSSEC Validation
           </label>
-          <div className={styles.fila}>
-            <div className={styles.filaLab}>Network Proxy</div>
-            <div className={styles.filaCtl}>
+          <div className={frm.mrow}>
+            <div className={frm.mrowLabel}>Network Proxy</div>
+            <div className={frm.mrowCtl}>
               {TIPOS_PROXY.map((x) => (
                 <label key={x.valor} className={styles.chk}>
                   <input

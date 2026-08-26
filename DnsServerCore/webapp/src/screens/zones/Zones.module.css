@@ -13,19 +13,9 @@
 /* Cuenta y paginación */
 .count { display:flex; align-items:center; justify-content:space-between; gap: var(--s-7); font-size: var(--t-4); color:var(--mute); margin-bottom: var(--s-6); flex-wrap:wrap; }
 .countPie { margin-top: var(--s-8); margin-bottom: 0; }
-.pg { display:flex; gap: var(--s-2); flex-wrap:wrap; }
-.pgBtn { font:400 var(--t-3)/1.2 inherit; min-width:26px; padding: var(--s-2) var(--s-4); border-radius: var(--r-2); border:1px solid var(--line); background:var(--pan2); color:var(--mute); cursor:pointer; }
-.pgBtn:hover { color:var(--ink); }
-.pgBtn[aria-current='true'] { color:var(--acc); border-color:var(--acc); font-weight:700; }
-
 .mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
 
 /* Tabla */
-.tablaWrap { overflow-x:auto; }
-.tabla { border-collapse:collapse; width:100%; }
-.tabla thead th { text-align:left; font-size: var(--t-2); text-transform:uppercase; letter-spacing:.05em; color:var(--mute); font-weight:700; padding: 0 var(--s-7) var(--s-5); border-bottom:1px solid var(--line); white-space:nowrap; }
-.tabla td { padding: var(--s-8) var(--s-7); border-bottom:1px solid var(--line2); vertical-align:top; color:var(--ink); }
-.tabla tbody tr:hover { background:var(--hover); }
 .num { color:var(--faint); font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
 .check { width:14px; height:14px; padding: 0; accent-color:var(--acc); }
 
@@ -55,16 +45,10 @@
 
 .avisoHueco { margin-bottom: var(--s-9); }
 .parrafo { margin: 0 0 var(--s-7); font-size: var(--t-4); color:var(--mute); line-height:1.6; }
-.nota { margin: var(--s-8) 0 0; padding: var(--s-7) var(--s-8); border-radius: var(--r-3); font-size: var(--t-4); line-height:1.6; }
-.notaAviso { background:#2a1e05; border:1px solid #4a3609; color:#fcd34d; }
-.notaInfo { background:#0d1730; border:1px solid #1e3a8a; color:#bfdbfe; }
 .salida { margin: 0; padding: var(--s-8) var(--s-8); background:var(--field); border:1px solid var(--line); border-radius: var(--r-3); font:var(--t-3)/1.7 var(--font-mono); color:var(--mute); white-space:pre-wrap; word-break:break-all; max-height:320px; overflow:auto; }
 
 /* Formularios de modal */
 .campos { display:flex; flex-direction:column; gap: var(--s-8); }
-.fila { display:grid; grid-template-columns:180px minmax(0,1fr); gap: var(--s-8); align-items:start; }
-.filaLab { font-size: var(--t-4); color:var(--mute); padding-top: var(--s-4); }
-.filaCtl { display:flex; flex-direction:column; gap: var(--s-4); min-width:0; }
 .enLinea { display:flex; gap: var(--s-6); align-items:center; flex-wrap:wrap; }
 .sufijo { font-size: var(--t-3); color:var(--faint); }
 .chk { display:flex; align-items:center; gap: var(--s-4); font-size: var(--t-4); color:var(--mute); cursor:pointer; }

@@ -5,6 +5,7 @@ import { Dialog } from '../../../ui/Dialog'
 import { Empty, Loading } from '../../../ui/Empty'
 import { fechaMinuto as fechaCorta } from '../../../lib/fechas'
 import type { Aviso } from '../tipos'
+import tbl from '../../../ui/Table.module.css'
 import styles from '../Zones.module.css'
 
 /*
@@ -128,8 +129,8 @@ export function VerDs({
               </dd>
             </dl>
 
-            <div className={styles.tablaWrap}>
-              <table className={styles.tabla}>
+            <div className={tbl.wrap}>
+              <table className={tbl.tabla}>
                 <thead>
                   <tr>
                     <th style={{ width: 140 }}>Digest Type</th>

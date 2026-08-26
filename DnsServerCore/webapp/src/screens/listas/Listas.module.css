@@ -19,12 +19,6 @@
 .countActs { display:flex; gap: var(--s-3); }
 .mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
 
-.tablaWrap { overflow-x:auto; }
-.tabla { border-collapse:collapse; width:100%; }
-.tabla thead th { text-align:left; font-size: var(--t-2); text-transform:uppercase; letter-spacing:.05em; color:var(--mute); font-weight:700; padding: 0 var(--s-7) var(--s-5); border-bottom:1px solid var(--line); }
-.tabla td { padding: var(--s-8) var(--s-7); border-bottom:1px solid var(--line2); vertical-align:top; color:var(--ink); }
-.tabla tbody tr:hover { background:var(--hover); }
-
 .nombre { display:block; margin-top: var(--s-3); font:var(--t-2) var(--font-mono); color:var(--faint); }
 .ttl { white-space:nowrap; font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
 .ttl small { color:var(--faint); }

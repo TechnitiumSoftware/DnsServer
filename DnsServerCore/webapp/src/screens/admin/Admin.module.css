@@ -11,11 +11,6 @@
 .ua { font-family:var(--font-mono); font-size: var(--t-2); color:var(--faint); word-break:break-all; }
 .nowrap { white-space:nowrap; }
 
-.tablaWrap { overflow-x:auto; }
-.tabla { border-collapse:collapse; width:100%; }
-.tabla thead th { text-align:left; font-size: var(--t-2); text-transform:uppercase; letter-spacing:.05em; color:var(--mute); font-weight:700; padding: 0 var(--s-7) var(--s-5); border-bottom:1px solid var(--line); white-space:nowrap; }
-.tabla td { padding: var(--s-8) var(--s-7); border-bottom:1px solid var(--line2); vertical-align:top; color:var(--ink); }
-.tabla tbody tr:hover { background:var(--hover); }
 .vacia { text-align:center; color:var(--faint); }
 
 .count { display:flex; align-items:center; justify-content:space-between; gap: var(--s-7); font-size: var(--t-4); color:var(--mute); margin-top: var(--s-8); }
@@ -50,9 +45,6 @@
 /* SSO y los modales de Cluster: filas etiqueta + control, como en Settings. */
 .block { border:1px solid var(--line); border-radius: var(--r-4); background:var(--pan); margin: 0 0 var(--s-9) 0; padding: 0 0 var(--s-9) 0; min-width:0; }
 .blockTitle { display:block; width:100%; padding: var(--s-7) var(--s-9); margin: 0 0 var(--s-8) 0; border-bottom:1px solid var(--line); font-size: var(--t-1); font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--mute); }
-.row { display:grid; grid-template-columns:210px 1fr; gap: var(--s-8); padding: var(--s-4) var(--s-9); align-items:start; }
-.rowLabel { font-size: var(--t-4); color:var(--ink); font-weight:600; padding-top: var(--s-5); line-height:1.35; }
-.rowCtl { min-width:0; display:flex; flex-direction:column; gap: var(--s-3); }
 .ctlLine { display:flex; align-items:center; gap: var(--s-6); flex-wrap:wrap; }
 .suffix { font-size: var(--t-3); color:var(--mute); }
 .help { font-size: var(--t-3); color:var(--mute); line-height:1.55; max-width:720px; }
@@ -75,13 +67,9 @@
 .edit td { padding: var(--s-3) var(--s-5) var(--s-3) 0; vertical-align:middle; }
 .edit input, .edit select { width:100%; }
 .tdel { width:84px; }
-.sinFilas { font-size: var(--t-3); color:var(--faint); padding: var(--s-6) 0; }
-
 .bar { display:flex; align-items:center; gap: var(--s-5); padding: var(--s-8) var(--s-9); border:1px solid var(--line); border-radius: var(--r-4); background:var(--pan); }
 
 /* Cuerpo de modal: mismas filas, pero con la etiqueta más estrecha. */
-.mrow { display:grid; grid-template-columns:170px 1fr; gap: var(--s-8); padding: var(--s-3) 0; align-items:start; }
-.mrowLabel { font-size: var(--t-4); color:var(--ink); font-weight:600; padding-top: var(--s-5); line-height:1.35; }
 .mval { font-size: var(--t-4); font-weight:700; color:var(--ink); padding-top: var(--s-5); }
 .parrafo { margin: 0 0 var(--s-7); font-size: var(--t-4); color:var(--mute); line-height:1.6; }
 .parrafo code { font-family:var(--font-mono); font-size: var(--t-2); background:var(--field); border:1px solid var(--line); border-radius: var(--r-1); padding: 0 var(--s-2); }

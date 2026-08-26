@@ -21,6 +21,7 @@ import {
   type FormularioAlta,
   type TipoAlta,
 } from './anadir-zona'
+import frm from '../../../ui/Form.module.css'
 
 /*
 `modalAddZone` (zone.js:2726 y 2911). Ocho tipos de zona, cada uno con su
@@ -149,9 +150,9 @@ export function AnadirZona({
           )}
         </Field>
 
-        <div className={styles.fila}>
-          <div className={styles.filaLab}>Zone Type</div>
-          <div className={styles.filaCtl}>
+        <div className={frm.mrow}>
+          <div className={frm.mrowLabel}>Zone Type</div>
+          <div className={frm.mrowCtl}>
             {TIPOS_ALTA.map((t) => (
               <label key={t.valor} className={styles.chk}>
                 <input
@@ -167,11 +168,11 @@ export function AnadirZona({
         </div>
 
         {v.catalogo && catalogos.length > 0 && (
-          <div className={styles.fila}>
-            <div className={styles.filaLab}>
+          <div className={frm.mrow}>
+            <div className={frm.mrowLabel}>
               <label htmlFor="addZoneCatalog">Catalog Zone</label>
             </div>
-            <div className={styles.filaCtl}>
+            <div className={frm.mrowCtl}>
               <Select id="addZoneCatalog" value={f.catalog} onChange={(e) => set('catalog', e.target.value)}>
                 <option value="" />
                 {catalogos.map((c) => (
@@ -188,9 +189,9 @@ export function AnadirZona({
         )}
 
         {v.casillaInicializarForwarder && (
-          <div className={styles.fila}>
-            <div className={styles.filaLab}>Conditional Forwarder</div>
-            <div className={styles.filaCtl}>
+          <div className={frm.mrow}>
+            <div className={frm.mrowLabel}>Conditional Forwarder</div>
+            <div className={frm.mrowCtl}>
               <label className={styles.chk}>
                 <input
                   type="checkbox"
@@ -204,11 +205,11 @@ export function AnadirZona({
         )}
 
         {v.ficheroDeZona && (
-          <div className={styles.fila}>
-            <div className={styles.filaLab}>
+          <div className={frm.mrow}>
+            <div className={frm.mrowLabel}>
               <label htmlFor="addZoneFile">Import Zone File (Optional)</label>
             </div>
-            <div className={styles.filaCtl}>
+            <div className={frm.mrowCtl}>
               <input
                 id="addZoneFile"
                 type="file"
@@ -219,9 +220,9 @@ export function AnadirZona({
         )}
 
         {v.serieSoa && (
-          <div className={styles.fila}>
-            <div className={styles.filaLab}>Zone Serial</div>
-            <div className={styles.filaCtl}>
+          <div className={frm.mrow}>
+            <div className={frm.mrowLabel}>Zone Serial</div>
+            <div className={frm.mrowCtl}>
               <label className={styles.chk}>
                 <input
                   type="checkbox"
@@ -235,15 +236,15 @@ export function AnadirZona({
         )}
 
         {v.servidoresPrimarios && (
-          <div className={styles.fila}>
-            <div className={styles.filaLab}>
+          <div className={frm.mrow}>
+            <div className={frm.mrowLabel}>
               <label htmlFor="addZonePrimaries">
                 {v.servidoresPrimariosObligatorios
                   ? 'Primary Name Server Addresses'
                   : 'Primary Name Server Addresses (Optional)'}
               </label>
             </div>
-            <div className={styles.filaCtl}>
+            <div className={frm.mrowCtl}>
               <Textarea
                 id="addZonePrimaries"
                 mono
@@ -262,9 +263,9 @@ export function AnadirZona({
         )}
 
         {v.protocoloTransferencia && (
-          <div className={styles.fila}>
-            <div className={styles.filaLab}>Zone Transfer Protocol</div>
-            <div className={styles.filaCtl}>
+          <div className={frm.mrow}>
+            <div className={frm.mrowLabel}>Zone Transfer Protocol</div>
+            <div className={frm.mrowCtl}>
               {PROTOCOLOS_TRANSFERENCIA.map((p) => (
                 <label key={p.valor} className={styles.chk}>
                   <input
@@ -281,11 +282,11 @@ export function AnadirZona({
         )}
 
         {v.tsig && (
-          <div className={styles.fila}>
-            <div className={styles.filaLab}>
+          <div className={frm.mrow}>
+            <div className={frm.mrowLabel}>
               <label htmlFor="addZoneTsig">TSIG Key Name (Optional)</label>
             </div>
-            <div className={styles.filaCtl}>
+            <div className={frm.mrowCtl}>
               <Select id="addZoneTsig" value={f.tsigKeyName} onChange={(e) => set('tsigKeyName', e.target.value)}>
                 <option value="" />
                 {tsigKeys.map((k) => (
@@ -299,9 +300,9 @@ export function AnadirZona({
         )}
 
         {v.validarZona && (
-          <div className={styles.fila}>
-            <div className={styles.filaLab}>Zone Validation</div>
-            <div className={styles.filaCtl}>
+          <div className={frm.mrow}>
+            <div className={frm.mrowLabel}>Zone Validation</div>
+            <div className={frm.mrowCtl}>
               <label className={styles.chk}>
                 <input
                   type="checkbox"
@@ -321,9 +322,9 @@ export function AnadirZona({
 
         {v.camposDeForwarder && (
           <>
-            <div className={styles.fila}>
-              <div className={styles.filaLab}>Protocol</div>
-              <div className={styles.filaCtl}>
+            <div className={frm.mrow}>
+              <div className={frm.mrowLabel}>Protocol</div>
+              <div className={frm.mrowCtl}>
                 {PROTOCOLOS_FORWARDER.map((p) => (
                   <label key={p.valor} className={styles.chk}>
                     <input
@@ -339,11 +340,11 @@ export function AnadirZona({
               </div>
             </div>
 
-            <div className={styles.fila}>
-              <div className={styles.filaLab}>
+            <div className={frm.mrow}>
+              <div className={frm.mrowLabel}>
                 <label htmlFor="addZoneForwarder">Forwarder</label>
               </div>
-              <div className={styles.filaCtl}>
+              <div className={frm.mrowCtl}>
                 <Input
                   id="addZoneForwarder"
                   mono
@@ -372,9 +373,9 @@ export function AnadirZona({
               </div>
             </div>
 
-            <div className={styles.fila}>
-              <div className={styles.filaLab}>DNSSEC</div>
-              <div className={styles.filaCtl}>
+            <div className={frm.mrow}>
+              <div className={frm.mrowLabel}>DNSSEC</div>
+              <div className={frm.mrowCtl}>
                 <label className={styles.chk}>
                   <input
                     type="checkbox"
@@ -388,9 +389,9 @@ export function AnadirZona({
 
             {/* «this-server» no admite proxy: upstream esconde el bloque entero. */}
             {!f.usarEsteServidor && (
-              <div className={styles.fila}>
-                <div className={styles.filaLab}>Network Proxy</div>
-                <div className={styles.filaCtl}>
+              <div className={frm.mrow}>
+                <div className={frm.mrowLabel}>Network Proxy</div>
+                <div className={frm.mrowCtl}>
                   {TIPOS_PROXY.map((p) => (
                     <label key={p.valor} className={styles.chk}>
                       <input

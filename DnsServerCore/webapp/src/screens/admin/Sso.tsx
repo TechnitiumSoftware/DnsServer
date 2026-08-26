@@ -13,6 +13,7 @@ import {
   adminStyles as styles,
   type Aviso,
 } from './partes'
+import frm from '../../ui/Form.module.css'
 
 /*
 `refreshAdminSsoConfig`, `loadAdminSsoConfig` y `saveAdminSsoConfig`
@@ -187,9 +188,9 @@ export function Sso({ token, onAviso }: Props) {
       <fieldset className={styles.block}>
         <legend className={styles.blockTitle}>Single Sign-On (SSO)</legend>
 
-        <div className={styles.row}>
-          <div className={styles.rowLabel}>Single Sign-On (SSO)</div>
-          <div className={styles.rowCtl}>
+        <div className={frm.row}>
+          <div className={frm.rowLabel}>Single Sign-On (SSO)</div>
+          <div className={frm.rowCtl}>
             <Check
               label="Enable Single Sign-On (SSO)"
               checked={enabled}
@@ -229,9 +230,9 @@ export function Sso({ token, onAviso }: Props) {
           onChange={setMetadata}
         />
 
-        <div className={styles.row}>
-          <div className={styles.rowLabel}>Scopes</div>
-          <div className={styles.rowCtl}>
+        <div className={frm.row}>
+          <div className={frm.rowLabel}>Scopes</div>
+          <div className={frm.rowCtl}>
             <table className={styles.edit}>
               <thead>
                 <tr>
@@ -276,9 +277,9 @@ export function Sso({ token, onAviso }: Props) {
           </div>
         </div>
 
-        <div className={styles.row}>
-          <div className={styles.rowLabel}>SSO User Sign Up</div>
-          <div className={styles.rowCtl}>
+        <div className={frm.row}>
+          <div className={frm.rowLabel}>SSO User Sign Up</div>
+          <div className={frm.rowCtl}>
             <div className={styles.group}>
               <Check
                 label="Allow New User Sign Up"
@@ -304,9 +305,9 @@ export function Sso({ token, onAviso }: Props) {
           </div>
         </div>
 
-        <div className={styles.row}>
-          <div className={styles.rowLabel}>Group Map (Optional)</div>
-          <div className={styles.rowCtl}>
+        <div className={frm.row}>
+          <div className={frm.rowLabel}>Group Map (Optional)</div>
+          <div className={frm.rowCtl}>
             <table className={styles.edit}>
               <thead>
                 <tr>
@@ -504,11 +505,11 @@ function Fila({
 }) {
   const id = useId()
   return (
-    <div className={styles.row}>
-      <label className={styles.rowLabel} htmlFor={id}>
+    <div className={frm.row}>
+      <label className={frm.rowLabel} htmlFor={id}>
         {label}
       </label>
-      <div className={styles.rowCtl}>
+      <div className={frm.rowCtl}>
         <Input
           id={id}
           type={type}

@@ -3,6 +3,7 @@ import { getTop, type Rango, type TipoTop, type TopEntry } from '../../api/dashb
 import { Dialog } from '../../ui/Dialog'
 import { Loading } from '../../ui/Empty'
 import styles from './Dashboard.module.css'
+import tbl from '../../ui/Table.module.css'
 
 /*
 `modalTopStats` (main.js:2879). Es lo que hay detrás de los tres botones «More»
@@ -88,7 +89,7 @@ export function TopStats({
             <tbody>
               {filas.length === 0 ? (
                 <tr>
-                  <td colSpan={2} style={{ textAlign: 'center' }}>
+                  <td colSpan={2} className={tbl.sinFilas}>
                     No Data
                   </td>
                 </tr>

@@ -25,6 +25,8 @@ import {
   adminStyles as styles,
   type Aviso,
 } from './partes'
+import tbl from '../../ui/Table.module.css'
+import frm from '../../ui/Form.module.css'
 
 /*
 `showUserDetailsModal` / `saveUserDetails` / `deleteUserSession`
@@ -209,7 +211,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
               value={detalle.isSsoUser ? 'SSO Managed' : detalle.totpEnabled ? 'Enabled' : 'Disabled'}
             />
 
-            <div className={styles.mrow}>
+            <div className={frm.mrow}>
               <div />
               <Check
                 label="Disable User Account"
@@ -273,8 +275,8 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
             </MRow>
 
             <p className={styles.sub}>Active Sessions</p>
-            <div className={styles.tablaWrap}>
-              <table className={styles.tabla}>
+            <div className={tbl.wrap}>
+              <table className={tbl.tabla}>
                 <thead>
                   <tr>
                     <th>Session</th>

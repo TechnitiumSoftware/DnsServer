@@ -1,0 +1,47 @@
+/*
+La fila etiqueta + control, una sola. Había cuatro rejillas —210 px en página,
+180 px en los modales de Zones, 170 px en los de Administration, 110 px en el
+filtro de Logs— y dos etiquetas distintas: 600 y `--ink` en página, 400 y
+`--mute` en los modales de Zones. Con la apagada, en «Add Zone» la etiqueta se
+retiraba detrás del valor; con la fuerte, en «Add User» competía con él.
+
+Gana la fuerte: en un formulario largo la etiqueta es lo que se busca al
+escanear, no lo que se lee después.
+*/
+
+.row {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: var(--s-8);
+  padding: var(--s-7) var(--s-9);
+  align-items: start;
+  border-bottom: 1px solid var(--line);
+}
+
+.row:last-child { border-bottom: 0; }
+
+/* Dentro de un modal hay menos sitio y menos filas: ni separador ni 210 px. */
+.mrow {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: var(--s-8);
+  padding: var(--s-3) 0;
+  align-items: start;
+}
+
+.rowLabel,
+.mrowLabel {
+  font-size: var(--t-4);
+  color: var(--ink);
+  font-weight: 600;
+  padding-top: var(--s-5);
+  line-height: 1.35;
+}
+
+.rowCtl,
+.mrowCtl {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}

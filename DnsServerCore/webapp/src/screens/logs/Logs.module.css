@@ -50,21 +50,6 @@
 .campo input, .campo select { width: 100%; }
 
 .count { display: flex; align-items: center; justify-content: space-between; gap: var(--s-7); font-size: var(--t-4); color: var(--mute); margin-bottom: var(--s-6); flex-wrap: wrap; }
-.pg { display: flex; gap: var(--s-2); flex-wrap: wrap; }
-.pgb {
-  min-width: 24px; height: 24px; padding: 0 var(--s-3); border-radius: var(--r-2); border: 1px solid var(--line);
-  background: var(--pan2); color: var(--mute); font-size: var(--t-3); cursor: pointer;
-}
-.pgb:hover { color: var(--ink); }
-.pgb[aria-current='true'] { background: var(--acc); border-color: var(--acc); color: var(--on-acc); font-weight: 700; }
-
-.tablaWrap { overflow-x: auto; }
-.tabla { border-collapse: collapse; width: 100%; }
-.tabla thead th {
-  text-align: left; font-size: var(--t-2); text-transform: uppercase; letter-spacing: 0.05em;
-  color: var(--mute); font-weight: 700; padding: 0 var(--s-7) var(--s-5); border-bottom: 1px solid var(--line);
-}
-.tabla td { padding: var(--s-6) var(--s-7); border-bottom: 1px solid var(--line2); vertical-align: top; color: var(--ink); }
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .nowrap { white-space: nowrap; }
 .romper { word-break: break-all; }

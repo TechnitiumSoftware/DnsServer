@@ -1,13 +1,23 @@
+/*
+El aviso va RELLENO, no sólo con el borde teñido. Convivían dos tratamientos:
+este, que sólo pintaba el borde y el texto, y la copia local de Zones
+(`.nota` + `.notaAviso`), con fondo. El resultado era que el «Note!» de
+«Delete Cluster» pesaba menos que el mismo aviso dentro de un modal de zona.
+Gana el relleno, que es lo dibujado y lo que se ve a la primera pasada.
+*/
+
 .alert {
-  padding: var(--s-6) var(--s-8);
-  border-radius: var(--r-2);
+  padding: var(--s-7) var(--s-8);
+  border-radius: var(--r-3);
   font-size: var(--t-4);
-  line-height: 1.5;
+  line-height: 1.6;
   border: 1px solid var(--line);
-  background: var(--pan);
+  background: var(--pan2);
   color: var(--ink);
 }
+
 .alert b { display: inline; }
+
 .close {
   float: right;
   background: none;
@@ -19,8 +29,10 @@
   cursor: pointer;
   padding: 0 0 0 var(--s-5);
 }
+
 .close:hover { opacity: 1; }
-.success { border-color: var(--ok); color: var(--ok); }
-.info { border-color: var(--info); color: var(--info); }
-.warning { border-color: var(--warn); color: var(--warn); }
-.danger { border-color: var(--dan); color: var(--dan); }
+
+.success { background: var(--ok-bg);   border-color: var(--ok-bd);   color: var(--ok); }
+.info    { background: var(--info-bg); border-color: var(--info-bd); color: var(--info); }
+.warning { background: var(--warn-bg); border-color: var(--warn-bd); color: var(--warn); }
+.danger  { background: var(--dan-bg);  border-color: var(--dan-bd);  color: var(--dan); }

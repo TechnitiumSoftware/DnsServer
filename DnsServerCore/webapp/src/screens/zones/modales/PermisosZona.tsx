@@ -6,6 +6,7 @@ import { Dialog } from '../../../ui/Dialog'
 import { Field, Select } from '../../../ui/Field'
 import { Loading } from '../../../ui/Empty'
 import type { Aviso } from '../tipos'
+import tbl from '../../../ui/Table.module.css'
 import styles from '../Zones.module.css'
 
 /*
@@ -182,8 +183,8 @@ function TablaPermisos({
       {filas.length === 0 ? (
         <div className={styles.ayuda}>No permissions assigned.</div>
       ) : (
-        <div className={styles.tablaWrap}>
-          <table className={styles.tabla}>
+        <div className={tbl.wrap}>
+          <table className={tbl.tabla}>
             <thead>
               <tr>
                 <th>Name</th>

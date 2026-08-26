@@ -17,6 +17,7 @@ import { formularioDesdeScope, formularioNuevo, type ScopeForm as Form } from '.
 import { ScopeForm } from './ScopeForm'
 import { Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
+import tbl from '../../ui/Table.module.css'
 import styles from './Dhcp.module.css'
 
 /*
@@ -183,8 +184,8 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
         </Alert>
       )}
 
-      <div className={styles.tablaWrap}>
-        <table className={styles.tabla}>
+      <div className={tbl.wrap}>
+        <table className={tbl.tabla}>
           <thead>
             <tr>
               <th>Name</th>

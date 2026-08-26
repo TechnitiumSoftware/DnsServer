@@ -25,6 +25,7 @@ import {
   adminStyles as styles,
   type Aviso,
 } from './partes'
+import tbl from '../../ui/Table.module.css'
 
 /*
 `refreshAdminSessions`, `showCreateApiTokenModal`, `createApiToken` y
@@ -113,8 +114,8 @@ export function Sessions({ token, cluster, onAviso }: Props) {
         <Loading />
       ) : (
         <>
-          <div className={styles.tablaWrap}>
-            <table className={styles.tabla}>
+          <div className={tbl.wrap}>
+            <table className={tbl.tabla}>
               <thead>
                 <tr>
                   <th>Username</th>

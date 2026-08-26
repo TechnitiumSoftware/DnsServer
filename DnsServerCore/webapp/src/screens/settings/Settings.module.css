@@ -1,7 +1,7 @@
 /* Settings. La pantalla más grande de la consola: en upstream, la sub-pestaña
-   General mide 5.452 px de alto. El formulario se trocea en bloques con título
-   y cada fila es una rejilla `210px 1fr` para que la etiqueta y el control
-   queden alineados en vertical de arriba abajo de la página. */
+   General mide 5.452 px de alto. El formulario se trocea en bloques con título;
+   la fila etiqueta + control vive en `ui/Form.module.css`, compartida con
+   Administration y DHCP. */
 
 .wrap { display: flex; flex-direction: column; gap: var(--s-9); }
 
@@ -26,21 +26,11 @@
   color: var(--mute);
 }
 
-.row {
-  display: grid;
-  grid-template-columns: 210px 1fr;
-  gap: var(--s-8);
-  padding: var(--s-4) var(--s-9);
-  align-items: start;
-}
-.rowLabel {
-  font-size: var(--t-4);
-  color: var(--ink);
-  font-weight: 600;
-  padding-top: var(--s-5);
-  line-height: 1.35;
-}
-.rowCtl { min-width: 0; display: flex; flex-direction: column; gap: var(--s-3); }
+/*
+Cada fila lleva separador. Sin él, General es un muro de 5.400 px en el que la
+ayuda de un campo y la etiqueta del siguiente se leen como el mismo párrafo.
+Es lo que hacen el dibujo y la tabla de Logs; aquí se había perdido.
+*/
 .ctlLine { display: flex; align-items: center; gap: var(--s-6); flex-wrap: wrap; }
 .suffix { font-size: var(--t-3); color: var(--mute); }
 .help { font-size: var(--t-3); color: var(--mute); line-height: 1.55; max-width: 720px; }

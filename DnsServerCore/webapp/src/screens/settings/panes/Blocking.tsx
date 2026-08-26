@@ -14,6 +14,7 @@ import {
   Warning,
   settingsStyles as styles,
 } from '../parts'
+import frm from '../../../ui/Form.module.css'
 import type { PaneProps } from './tipos'
 
 /*
@@ -195,9 +196,9 @@ export function Blocking({ f, set, en, extra }: PaneProps & { extra: BlockingExt
         help="The interval in hours to automatically download and update the block lists."
       />
 
-      <div className={styles.row}>
-        <div className={styles.rowLabel}>Block List Next Update On</div>
-        <div className={styles.rowCtl}>
+      <div className={frm.row}>
+        <div className={frm.rowLabel}>Block List Next Update On</div>
+        <div className={frm.rowCtl}>
           <div className={styles.inline}>
             <span className={styles.val}>
               {textoProximaActualizacion(extra.blockListNextUpdatedOn)}

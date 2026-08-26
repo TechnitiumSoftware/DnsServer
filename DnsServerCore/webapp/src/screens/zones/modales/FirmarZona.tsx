@@ -16,6 +16,7 @@ import {
 } from './dnssec-opciones'
 import type { Aviso } from '../tipos'
 import styles from '../Zones.module.css'
+import frm from '../../../ui/Form.module.css'
 
 /*
 `modalDnssecSignZone` (zone.js:6539 y 6578).
@@ -157,9 +158,9 @@ export function FirmarZona({
       )}
 
       <div className={styles.campos}>
-        <div className={styles.fila}>
-          <div className={styles.filaLab}>DNSKEY Algorithm</div>
-          <div className={styles.filaCtl}>
+        <div className={frm.mrow}>
+          <div className={frm.mrowLabel}>DNSKEY Algorithm</div>
+          <div className={frm.mrowCtl}>
             {ALGORITMOS.map((a) => (
               <label key={a.valor} className={styles.chk}>
                 <input
@@ -230,9 +231,9 @@ export function FirmarZona({
           onPem={(v) => set('pemZskPrivateKey', v)}
         />
 
-        <div className={styles.fila}>
-          <div className={styles.filaLab}>Proof of Non-Existence</div>
-          <div className={styles.filaCtl}>
+        <div className={frm.mrow}>
+          <div className={frm.mrowLabel}>Proof of Non-Existence</div>
+          <div className={frm.mrowCtl}>
             {PRUEBAS_NX.map((n) => (
               <label key={n.valor} className={styles.chk}>
                 <input

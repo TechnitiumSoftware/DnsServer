@@ -33,6 +33,8 @@ import {
   adminStyles as styles,
   type Aviso,
 } from './partes'
+import tbl from '../../ui/Table.module.css'
+import frm from '../../ui/Form.module.css'
 
 /*
 La sub-pestaña Cluster (`cluster.js` entera, 1.055 líneas). Doce endpoints y
@@ -174,8 +176,8 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
         </Empty>
       ) : (
         <>
-          <div className={styles.tablaWrap}>
-            <table className={styles.tabla}>
+          <div className={tbl.wrap}>
+            <table className={tbl.tabla}>
               <thead>
                 <tr>
                   <th>Node Name</th>
@@ -881,9 +883,9 @@ function UnirseCluster({
             )}
           </MRow>
 
-          <div className={styles.mrow}>
-            <div className={styles.mrowLabel}>Certificate Validation</div>
-            <div className={styles.rowCtl}>
+          <div className={frm.mrow}>
+            <div className={frm.mrowLabel}>Certificate Validation</div>
+            <div className={frm.rowCtl}>
               <div className={styles.group}>
                 <div>
                   <label className={styles.check}>

@@ -3,6 +3,7 @@ import { Button } from '../../ui/Button'
 import { useState } from 'react'
 import type { RegistroDns } from '../../api/zonelists'
 import { entradasRData, extras, meta, ttlPartido, type Entrada } from './registro'
+import tbl from '../../ui/Table.module.css'
 import styles from './Listas.module.css'
 
 /*
@@ -119,8 +120,8 @@ export function Registros({
   nodo: string
 }) {
   return (
-    <div className={styles.tablaWrap}>
-      <table className={styles.tabla}>
+    <div className={tbl.wrap}>
+      <table className={tbl.tabla}>
         <thead>
           <tr>
             <th style={{ width: 110 }}>Type</th>

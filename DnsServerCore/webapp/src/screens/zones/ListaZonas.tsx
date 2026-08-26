@@ -21,6 +21,8 @@ import { Chip, Tag, type TagTone } from '../../ui/Tag'
 import { Menu } from './Menu'
 import { fechaMinuto as fecha } from '../../lib/fechas'
 import { textoDeEstado, ventanaDePaginas } from './paginacion'
+import pag from '../../ui/Pagination.module.css'
+import tbl from '../../ui/Table.module.css'
 import styles from './Zones.module.css'
 import type { Aviso, Confirmacion } from './tipos'
 
@@ -299,14 +301,14 @@ export function ListaZonas({
   const todasMarcadas = zonas.length > 0 && marcadas.length === zonas.length
 
   const paginacion = (
-    <span className={styles.pg}>
+    <span className={pag.pg}>
       {pg.primera && (
-        <button type="button" className={styles.pgBtn} aria-label="First" onClick={() => irA(1)}>
+        <button type="button" className={pag.pgb} aria-label="First" onClick={() => irA(1)}>
           «
         </button>
       )}
       {pg.anterior != null && (
-        <button type="button" className={styles.pgBtn} aria-label="Previous" onClick={() => irA(pg.anterior!)}>
+        <button type="button" className={pag.pgb} aria-label="Previous" onClick={() => irA(pg.anterior!)}>
           ‹
         </button>
       )}
@@ -314,7 +316,7 @@ export function ListaZonas({
         <button
           key={p}
           type="button"
-          className={styles.pgBtn}
+          className={pag.pgb}
           aria-current={p === pageNumber}
           onClick={() => irA(p)}
         >
@@ -322,13 +324,13 @@ export function ListaZonas({
         </button>
       ))}
       {pg.siguiente != null && (
-        <button type="button" className={styles.pgBtn} aria-label="Next" onClick={() => irA(pg.siguiente!)}>
+        <button type="button" className={pag.pgb} aria-label="Next" onClick={() => irA(pg.siguiente!)}>
           ›
         </button>
       )}
       {/* La última página se pide con -1: el servidor la resuelve él. */}
       {pg.ultima && (
-        <button type="button" className={styles.pgBtn} aria-label="Last" onClick={() => irA(-1)}>
+        <button type="button" className={pag.pgb} aria-label="Last" onClick={() => irA(-1)}>
           »
         </button>
       )}
@@ -412,8 +414,8 @@ export function ListaZonas({
         {paginacion}
       </div>
 
-      <div className={styles.tablaWrap}>
-        <table className={styles.tabla}>
+      <div className={tbl.wrap}>
+        <table className={tbl.tabla}>
           <thead>
             <tr>
               <th style={{ width: 30 }}>
@@ -439,7 +441,7 @@ export function ListaZonas({
           <tbody>
             {zonas.length === 0 ? (
               <tr>
-                <td colSpan={10} style={{ textAlign: 'center' }}>
+                <td colSpan={10} className={tbl.sinFilas}>
                   No Zone Found
                 </td>
               </tr>
@@ -552,10 +554,22 @@ function FilaZona(p: FilaProps) {
         <Chip>{etiquetaTipo(z.type)}</Chip>
       </td>
       <td>
-        {/* Sin claves privadas la etiqueta se apaga: la zona está firmada pero
-            este servidor no puede re-firmarla (zone.js:721-731). */}
-        {firmada && (
-          <Tag tone={z.hasDnssecPrivateKeys ? 'info' : 'neutral'}>DNSSEC</Tag>
+        {/*
+        Upstream deja la celda VACÍA cuando la zona no está firmada
+        (zone.js:721-731), y una celda en blanco no dice «sin firmar»: dice «no
+        lo sé» o «no ha cargado». Con 240 zonas paginadas de diez en diez,
+        «cuáles me faltan por firmar» sólo se podía contestar desde la API.
+
+        Los tres estados se dicen con tres textos distintos, no con el mismo
+        texto en dos colores: sin claves privadas la zona está firmada pero este
+        servidor no puede re-firmarla, que no es lo mismo que estar firmada.
+        */}
+        {!firmada ? (
+          <Tag>Unsigned</Tag>
+        ) : z.hasDnssecPrivateKeys ? (
+          <Tag tone="info">Signed</Tag>
+        ) : (
+          <Tag>Signed, no keys</Tag>
         )}
       </td>
       <td>
