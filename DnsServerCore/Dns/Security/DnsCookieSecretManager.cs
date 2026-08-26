@@ -225,30 +225,32 @@ namespace DnsServerCore.Dns.Security
             if (snapshot.Active is null || snapshot.Active.Length < MinSecretLen)
                 throw new InvalidOperationException("Active secret is missing or too short.");
 
-            using MemoryStream ms = new MemoryStream();
-            using (BinaryWriter bw = new BinaryWriter(ms))
-            {
-                bw.Write(CurrentFileVersion);
-                bw.Write(snapshot.ActiveCreatedUtc.Ticks);
-
-                bw.Write(snapshot.Active.Length);
-                bw.Write(snapshot.Active);
-
-                bw.Write(snapshot.PreviousRetireUtc?.Ticks ?? 0);
-                WriteOptionalSecret(bw, snapshot.Previous, "previous");
-                WriteOptionalSecret(bw, snapshot.StagedNext, "staged next");
-            }
-
-            if (ms.Length > MaxSerializedStateSize)
-                throw new InvalidOperationException("DNS Cookie secret state exceeds its maximum serialized size.");
-
-            string directory = Path.GetDirectoryName(_secretFilePath);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                Directory.CreateDirectory(directory);
-
             string tmpPath = _secretFilePath + ".tmp";
-            WriteSecretFile(tmpPath, ms.ToArray());
+            using (MemoryStream ms = new MemoryStream())
+            {
+                using (BinaryWriter bw = new BinaryWriter(ms))
+                {
+                    bw.Write(CurrentFileVersion);
+                    bw.Write(snapshot.ActiveCreatedUtc.Ticks);
 
+                    bw.Write(snapshot.Active.Length);
+                    bw.Write(snapshot.Active);
+
+                    bw.Write(snapshot.PreviousRetireUtc?.Ticks ?? 0);
+                    WriteOptionalSecret(bw, snapshot.Previous, "previous");
+                    WriteOptionalSecret(bw, snapshot.StagedNext, "staged next");
+
+
+                    if (ms.Length > MaxSerializedStateSize)
+                        throw new InvalidOperationException("DNS Cookie secret state exceeds its maximum serialized size.");
+
+                    string directory = Path.GetDirectoryName(_secretFilePath);
+                    if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                        Directory.CreateDirectory(directory);
+
+                    WriteSecretFile(tmpPath, ms.ToArray());
+                }
+            }
             // Atomic replace where supported
             if (File.Exists(_secretFilePath))
                 File.Replace(tmpPath, _secretFilePath, destinationBackupFileName: null);
