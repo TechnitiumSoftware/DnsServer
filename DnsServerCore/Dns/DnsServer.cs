@@ -182,7 +182,12 @@ namespace DnsServerCore.Dns
         // DNS response-rate limiter configured through _dnsResponseRrlRuntime.
         bool _enableUdpReflectionLimiting;
         readonly Security.UdpReflectionLimiter _udpReflectionLimiter = new Security.UdpReflectionLimiter();
+        long _udpReflectionLimiterDroppedCount;
+        long _udpReflectionLimiterSlippedCount;
         readonly Security.DnsResponseRateLimiterRuntime _dnsResponseRrlRuntime = new Security.DnsResponseRateLimiterRuntime();
+        long _dnsResponseRrlDroppedCount;
+        long _dnsResponseRrlSlippedCount;
+        long _dnsResponseRrlErrorLeakCount;
 
         int _clientTimeout = 2000;
         int _tcpSendTimeout = 10000;
@@ -2064,11 +2069,14 @@ namespace DnsServerCore.Dns
 
                 if (reflectionLimitResult == Security.UdpReflectionLimitResult.LimitedDrop)
                 {
+                    Interlocked.Increment(ref _udpReflectionLimiterDroppedCount);
                     _statsManager.QueueUpdate(null, remoteEP, protocol, null, true);
                     return; //drop before request processing
                 }
 
                 bool isUdpReflectionRecovery = reflectionLimitResult == Security.UdpReflectionLimitResult.LimitedSlip;
+                if (isUdpReflectionRecovery)
+                    Interlocked.Increment(ref _udpReflectionLimiterSlippedCount);
                 bool isSyntheticRecoveryResponse = isUdpReflectionRecovery || sendTruncationResponse;
                 if (isUdpReflectionRecovery)
                 {
@@ -2102,15 +2110,19 @@ namespace DnsServerCore.Dns
                 {
                     DnsQuestionRecord question = response.Question[0];
                     Security.DnsResponseRateLimitIdentity responseIdentity = Security.DnsResponseRateLimiterRuntime.BuildResponseIdentity(response, question);
-                    Security.DnsResponseRateLimitResult rrlResult = _dnsResponseRrlRuntime.Evaluate(remoteEP.Address, responseIdentity);
+                    Security.DnsResponseRateLimitResult rrlResult = _dnsResponseRrlRuntime.Evaluate(remoteEP.Address, responseIdentity, out bool errorLeakAllowed);
+                    if (errorLeakAllowed)
+                        Interlocked.Increment(ref _dnsResponseRrlErrorLeakCount);
                     if (rrlResult == Security.DnsResponseRateLimitResult.LimitedDrop ||
                         (rrlResult == Security.DnsResponseRateLimitResult.LimitedSlip && !Security.DnsResponseRateLimitSlipPolicy.IsEligible(responseIdentity.ResponseClass)))
                     {
+                        Interlocked.Increment(ref _dnsResponseRrlDroppedCount);
                         _statsManager.QueueUpdate(null, remoteEP, protocol, null, true);
                         return;
                     }
                     if (rrlResult == Security.DnsResponseRateLimitResult.LimitedSlip)
                     {
+                        Interlocked.Increment(ref _dnsResponseRrlSlippedCount);
                         response = new DnsDatagram(request.Identifier, true, request.OPCODE, false, true,
                             request.RecursionDesired, recursionAllowed, false, request.CheckingDisabled,
                             DnsResponseCode.NoError, request.Question, null, null, null,
@@ -7685,6 +7697,12 @@ namespace DnsServerCore.Dns
             get => _enableUdpReflectionLimiting;
             set => _enableUdpReflectionLimiting = value;
         }
+
+        public long UdpReflectionLimiterDroppedCount => Interlocked.Read(ref _udpReflectionLimiterDroppedCount);
+        public long UdpReflectionLimiterSlippedCount => Interlocked.Read(ref _udpReflectionLimiterSlippedCount);
+        public long DnsResponseRrlDroppedCount => Interlocked.Read(ref _dnsResponseRrlDroppedCount);
+        public long DnsResponseRrlSlippedCount => Interlocked.Read(ref _dnsResponseRrlSlippedCount);
+        public long DnsResponseRrlErrorLeakCount => Interlocked.Read(ref _dnsResponseRrlErrorLeakCount);
 
         public Security.ResponseRateLimitingOptions CurrentResponseRateLimitingOptions => _dnsResponseRrlRuntime.CurrentOptions;
 

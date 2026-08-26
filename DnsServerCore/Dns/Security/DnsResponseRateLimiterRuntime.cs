@@ -105,17 +105,20 @@ namespace DnsServerCore.Dns.Security
     /// </summary>
     sealed class RrlRuntimeState
     {
-        public RrlRuntimeState(ResponseRateLimitingOptions options, RrlLimiterSemanticSettings limiterSettings, DnsResponseRateLimiter limiter, NetworkPrefixMatcher bypassMatcher, ulong generation)
+        public RrlRuntimeState(ResponseRateLimitingOptions options, RrlLimiterSemanticSettings limiterSettings,
+            DnsResponseRateLimiter limiter, DnsResponseRateLimiter errorLeakLimiter, NetworkPrefixMatcher bypassMatcher, ulong generation)
         {
             Options = options;
             LimiterSettings = limiterSettings;
             Limiter = limiter ?? throw new ArgumentNullException(nameof(limiter));
+            ErrorLeakLimiter = errorLeakLimiter ?? throw new ArgumentNullException(nameof(errorLeakLimiter));
             BypassMatcher = bypassMatcher ?? throw new ArgumentNullException(nameof(bypassMatcher));
             Generation = generation;
         }
 
         public bool Enabled => Options.Enabled;
         public DnsResponseRateLimiter Limiter { get; }
+        public DnsResponseRateLimiter ErrorLeakLimiter { get; }
         public RrlLimiterSemanticSettings LimiterSettings { get; }
         public NetworkPrefixMatcher BypassMatcher { get; }
         public ResponseRateLimitingOptions Options { get; }
@@ -134,6 +137,9 @@ namespace DnsServerCore.Dns.Security
     public sealed class DnsResponseRateLimiterRuntime
     {
         const ulong INITIAL_GENERATION = 0;
+        private const int ErrorLeakTableSize = 4096;
+        private const int ErrorLeakRatePerSecond = 1;
+        private const int ErrorLeakInstantLimit = 2;
 
         public const int TableSizeMinimum = 16;
 
@@ -170,7 +176,10 @@ namespace DnsServerCore.Dns.Security
                 DnsResponseRateLimiter limiter = rebuild
                     ? new DnsResponseRateLimiter(settings.Limiter.ToLimiterOptions())
                     : current.Limiter;
-                RrlRuntimeState replacement = CreateRuntimeState(settings, limiter, GetNextGeneration(current.Generation));
+                DnsResponseRateLimiter errorLeakLimiter = rebuild
+                    ? CreateErrorLeakLimiter(settings)
+                    : current.ErrorLeakLimiter;
+                RrlRuntimeState replacement = CreateRuntimeState(settings, limiter, errorLeakLimiter, GetNextGeneration(current.Generation));
 
                 // The previous generation remains published if any construction step above fails.
                 Volatile.Write(ref _state, replacement);
@@ -187,8 +196,9 @@ namespace DnsServerCore.Dns.Security
         /// the two reads, which is acceptable since a policy update racing a single request is
         /// not a correctness issue here.
         /// </summary>
-        public DnsResponseRateLimitResult Evaluate(IPAddress remoteIP, in DnsResponseRateLimitIdentity identity)
+        public DnsResponseRateLimitResult Evaluate(IPAddress remoteIP, in DnsResponseRateLimitIdentity identity, out bool errorLeakAllowed)
         {
+            errorLeakAllowed = false;
             RrlRuntimeState state = Volatile.Read(ref _state);
             if (state.BypassMatcher.IsMatch(remoteIP))
                 return DnsResponseRateLimitResult.Allowed;
@@ -196,11 +206,20 @@ namespace DnsServerCore.Dns.Security
             DnsResponseRateLimitResult classResult = state.Limiter.Evaluate(remoteIP, identity.ResponseClass,
                 identity.QueryType, identity.QueryClass, identity.CanonicalName);
             DnsResponseRateLimitResult allResult = state.Limiter.Evaluate(remoteIP, DnsResponseRateLimitClass.All, 0, 0, string.Empty);
-            if (classResult == DnsResponseRateLimitResult.LimitedDrop || allResult == DnsResponseRateLimitResult.LimitedDrop)
-                return DnsResponseRateLimitResult.LimitedDrop;
-            if (classResult == DnsResponseRateLimitResult.LimitedSlip || allResult == DnsResponseRateLimitResult.LimitedSlip)
-                return DnsResponseRateLimitResult.LimitedSlip;
-            return DnsResponseRateLimitResult.Allowed;
+            DnsResponseRateLimitResult result = classResult == DnsResponseRateLimitResult.LimitedDrop || allResult == DnsResponseRateLimitResult.LimitedDrop
+                ? DnsResponseRateLimitResult.LimitedDrop
+                : classResult == DnsResponseRateLimitResult.LimitedSlip || allResult == DnsResponseRateLimitResult.LimitedSlip
+                    ? DnsResponseRateLimitResult.LimitedSlip
+                    : DnsResponseRateLimitResult.Allowed;
+
+            if (result == DnsResponseRateLimitResult.LimitedDrop && identity.ResponseClass == DnsResponseRateLimitClass.Error &&
+                state.ErrorLeakLimiter.Evaluate(remoteIP, DnsResponseRateLimitClass.Error, 0, identity.QueryClass, string.Empty) == DnsResponseRateLimitResult.Allowed)
+            {
+                errorLeakAllowed = true;
+                return DnsResponseRateLimitResult.Allowed;
+            }
+
+            return result;
         }
 
         public static DnsResponseRateLimitIdentity BuildResponseIdentity(DnsDatagram response, DnsQuestionRecord question)
@@ -246,15 +265,33 @@ namespace DnsServerCore.Dns.Security
         {
             NormalizedRrlSettings settings = NormalizeSettings(options);
             DnsResponseRateLimiter limiter = new DnsResponseRateLimiter(settings.Limiter.ToLimiterOptions());
-            return CreateRuntimeState(settings, limiter, generation);
+            return CreateRuntimeState(settings, limiter, CreateErrorLeakLimiter(settings), generation);
         }
 
-        private static RrlRuntimeState CreateRuntimeState(NormalizedRrlSettings settings, DnsResponseRateLimiter limiter, ulong generation)
+        private static RrlRuntimeState CreateRuntimeState(NormalizedRrlSettings settings, DnsResponseRateLimiter limiter,
+            DnsResponseRateLimiter errorLeakLimiter, ulong generation)
         {
             ResponseRateLimitingOptions options = new ResponseRateLimitingOptions(
                 settings.Policy.Enabled, settings.Limiter.SustainedRatePerSecond, settings.Limiter.InstantLimit,
                 settings.Limiter.SlipEvery, settings.Limiter.Capacity, settings.Policy.BypassList);
-            return new RrlRuntimeState(options, settings.Limiter, limiter, settings.Policy.BypassMatcher, generation);
+            return new RrlRuntimeState(options, settings.Limiter, limiter, errorLeakLimiter, settings.Policy.BypassMatcher, generation);
+        }
+
+        private static DnsResponseRateLimiter CreateErrorLeakLimiter(NormalizedRrlSettings settings)
+        {
+            DnsResponseRateLimiterOptions options = new DnsResponseRateLimiterOptions
+            {
+                Capacity = Math.Min(ErrorLeakTableSize, settings.Limiter.Capacity),
+                ShardCount = 1,
+                SustainedRate = ErrorLeakRatePerSecond,
+                DecayTime = TimeSpan.FromSeconds(1),
+                InstantLimit = ErrorLeakInstantLimit,
+                InstantWindow = TimeSpan.FromSeconds(1),
+                SlipEvery = 0,
+                IPv4PrefixLengths = settings.Limiter.IPv4PrefixLengths,
+                IPv6PrefixLengths = settings.Limiter.IPv6PrefixLengths
+            };
+            return new DnsResponseRateLimiter(options);
         }
 
         private static NormalizedRrlSettings NormalizeSettings(ResponseRateLimitingOptions options)
