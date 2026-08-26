@@ -24,19 +24,37 @@ que no sea uno de estos tokens.** Un valor suelto es deriva futura.
 
 :root {
   /* ── Color ──────────────────────────────────────────────────────────── */
-  --bg: #0e1116;
-  --pan: #141923;
-  --pan2: #11151d;
+  --bg: #0b0e14;
+  --pan: #161c27;
+  --pan2: #1d2531;
+  /*
+  LA RAMPA DE SUPERFICIE. En una interfaz oscura la elevación NO la cuenta la
+  sombra —negro sobre casi-negro no se ve— sino que la superficie SUBA de luz.
+  La rampa vieja vivía entera dentro de 1.03-1.10:1, o sea por debajo del umbral
+  al que el ojo separa dos planos: el hover de una fila estaba a 1.031 del panel
+  y un campo de texto a 1.029 de la página. Por eso se veía plano por mucha
+  sombra que se le echara encima; la sombra estaba tratando el síntoma.
+
+  Medida contra las consolas oscuras que sí tienen material —GitHub, Linear,
+  Vercel separan panel de elevado en 1.09-1.14—, la rampa nueva:
+
+    lienzo → panel            1.13   (antes 1.07)
+    panel  → elevado          1.11   (antes 1.04)
+    panel  → hover de fila    1.20   (antes 1.03)
+    panel  → campo hundido    1.12   (antes 1.11)
+    panel  → borde            1.39   (antes 1.22)
+  */
   --ink: #e6e9ef;
   --mute: #8b95a7;
   /*
-  OJO: `--faint` da 3.09-3.32:1 sobre los tres fondos y NO cumple el 4.5:1 de
-  texto normal. Sólo vale para texto decorativo o duplicado; para cualquier dato
-  que haya que leer, `--mute` (5.83-6.26:1).
+  `--faint` era `#5d6779` y daba 2.70-3.34:1: no cumplía el 4.5:1 de texto normal
+  en ninguna superficie, y se estaba usando para los `(4h)` de TTL, los «hace 2
+  horas» y los marcadores de campo. Subido, da 4.41-5.45:1 y cumple en todas.
+  Sigue siendo el escalón más apagado de los tres, sólo que ahora legible.
   */
-  --faint: #5d6779;
-  --line: #232a36;
-  --line2: #1a202b;
+  --faint: #7d8a9e;
+  --line: #2c3546;
+  --line2: #202836;
   --acc: #f5a524;
   --on-acc: #1a1205;
   --ok: #34d399;
@@ -60,8 +78,8 @@ que no sea uno de estos tokens.** Un valor suelto es deriva futura.
   /* El botón destructivo: relleno propio y texto legible sobre él. */
   --dan-fill: #3a1214; --on-dan: #fecaca;
   --info-bg: #0d1730;  --info-bd: #1e3a8a;
-  --field: #0a0d12;
-  --hover: #161c27;
+  --field: #0c1017;
+  --hover: #222b3a;
 
   /* ── Tipografía ─────────────────────────────────────────────────────── */
   --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -137,16 +155,20 @@ que no sea uno de estos tokens.** Un valor suelto es deriva futura.
   reflejo de 1 px es lo que la separa del fondo sin necesidad de subir la sombra.
   Va como `inset` para no ocupar sitio en la caja.
   */
-  --filo: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --filo-fuerte: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --filo: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  --filo-fuerte: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 
   /* Lo hundido: un campo es un hueco en la superficie, no una pegatina. */
-  --hundido: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+  --hundido: inset 0 1px 2px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+
+  /* El foco de un campo no es sólo un borde: es un halo que lo levanta. */
+  --halo-foco: 0 0 0 3px rgba(245, 165, 36, 0.18);
 
   /* ── Controles ──────────────────────────────────────────────────────── */
-  --ctrl: 16px;        /* lado de la casilla y del radio */
-  --ctrl-track-w: 30px;  /* carril del conmutador */
-  --ctrl-track-h: 17px;
+  --ctrl: 18px;          /* lado de la casilla y del radio */
+  --ctrl-track-w: 34px;  /* carril del conmutador */
+  --ctrl-track-h: 20px;
+  --campo-alto: 34px;    /* alto mínimo de campo, desplegable y botón */
 
   /* ── Movimiento ─────────────────────────────────────────────────────── */
   /* Un solo tiempo y una sola curva. Salida exponencial: arranca deprisa y se

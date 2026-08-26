@@ -9,17 +9,23 @@ más ancha de todas y la que más falta le hace para no perder el renglón.
 
 .tabla { border-collapse: collapse; width: 100%; }
 
+/* La cabecera va en el escalón elevado: separa los rótulos del dato sin
+   necesidad de una línea más. */
 .tabla thead th {
+  background: var(--pan2);
   text-align: left;
   font-size: var(--t-2);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--mute);
   font-weight: 700;
-  padding: 0 var(--s-7) var(--s-5);
+  padding: var(--s-5) var(--s-7);
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
 }
+
+.tabla thead th:first-child { border-top-left-radius: var(--r-3); }
+.tabla thead th:last-child { border-top-right-radius: var(--r-3); }
 
 .tabla td {
   padding: var(--s-8) var(--s-7);
@@ -28,6 +34,7 @@ más ancha de todas y la que más falta le hace para no perder el renglón.
   color: var(--ink);
 }
 
+.tabla tbody tr { transition: background var(--t-rapido); }
 .tabla tbody tr:hover { background: var(--hover); }
 
 /* La fila de «no hay nada». Estaba escrita con `style={{textAlign:'center'}}`

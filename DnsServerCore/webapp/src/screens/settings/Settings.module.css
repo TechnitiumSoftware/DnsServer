@@ -20,6 +20,8 @@
   padding: var(--s-7) var(--s-9);
   margin: 0 0 var(--s-8) 0;
   border-bottom: 1px solid var(--line);
+  background: var(--pan2);
+  border-radius: var(--r-4) var(--r-4) 0 0;
   font-size: var(--t-1);
   font-weight: 700;
   letter-spacing: 0.09em;

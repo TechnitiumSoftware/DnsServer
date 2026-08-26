@@ -44,13 +44,14 @@ su manera.
 .conmutador input::after {
   content: '';
   position: absolute;
-  top: 1px;
-  left: 1px;
+  top: 2px;
+  left: 2px;
   width: calc(var(--ctrl-track-h) - 6px);
   height: calc(var(--ctrl-track-h) - 6px);
   border-radius: var(--r-full);
   background: var(--mute);
-  transition: transform var(--t-rapido), background var(--t-rapido);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  transition: transform var(--t-medio), background var(--t-rapido);
 }
 
 .conmutador input:checked {
@@ -64,6 +65,8 @@ su manera.
   background: var(--on-acc);
   transform: translateX(calc(var(--ctrl-track-w) - var(--ctrl-track-h)));
 }
+
+.conmutador input:active:not(:disabled) { transform: none; }
 
 .conmutador .ayuda { margin-left: calc(var(--ctrl-track-w) + var(--s-6)); }
 

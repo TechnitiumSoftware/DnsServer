@@ -61,14 +61,23 @@ porque son elementos nativos y no pasan por ningún componente.
 */
 select,
 input[type='file'] {
+  min-height: var(--campo-alto);
   font-size: var(--t-4);
-  padding: var(--s-4) var(--s-6);
+  padding: var(--s-5) var(--s-7);
   border: 1px solid var(--line);
-  border-radius: var(--r-2);
-  background: var(--field);
+  border-radius: var(--r-3);
+  background-color: var(--field);
   color: var(--ink);
   box-shadow: var(--hundido);
   min-width: 0;
+  transition: border-color var(--t-rapido), box-shadow var(--t-rapido);
+}
+
+select:focus-visible,
+input[type='file']:focus-visible {
+  outline: none;
+  border-color: var(--acc);
+  box-shadow: var(--hundido), var(--halo-foco);
 }
 
 /*
@@ -85,7 +94,7 @@ select {
   cursor: pointer;
 }
 
-select:hover { border-color: #2f3846; }
+select:hover:not(:disabled) { border-color: #3a465b; }
 
 select:disabled,
 input[type='file']:disabled { opacity: 0.5; cursor: default; }
@@ -118,39 +127,53 @@ input[type='radio'] {
   width: var(--ctrl);
   height: var(--ctrl);
   margin: 0;
-  border: 1px solid #2f3846;
-  background: var(--field);
+  border: 1px solid #3a465b;
+  background-color: var(--field);
   box-shadow: var(--hundido);
   cursor: pointer;
   transition:
-    background var(--t-rapido),
+    background-color var(--t-rapido),
     border-color var(--t-rapido),
-    box-shadow var(--t-rapido);
+    box-shadow var(--t-rapido),
+    transform var(--t-rapido);
 }
+
+/* Al pulsar, el control se hunde un pelo. Es el único movimiento que hace, y
+   es el que dice que se ha registrado el clic antes de que llegue el dato. */
+input[type='checkbox']:active:not(:disabled),
+input[type='radio']:active:not(:disabled) { transform: scale(0.92); }
 
 input[type='checkbox'] { border-radius: var(--r-1); }
 input[type='radio'] { border-radius: var(--r-full); }
 
 input[type='checkbox']:hover:not(:disabled),
-input[type='radio']:hover:not(:disabled) { border-color: var(--acc); }
+input[type='radio']:hover:not(:disabled) {
+  border-color: var(--acc);
+  box-shadow: var(--hundido), 0 0 0 3px rgba(245, 165, 36, 0.12);
+}
 
 input[type='checkbox']:checked,
 input[type='radio']:checked {
   background-color: var(--acc);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 60%);
   border-color: var(--acc);
   box-shadow: var(--filo-fuerte);
 }
 
 /* La marca se dibuja, no se escribe con un carácter. */
 input[type='checkbox']:checked {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a1205' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m20 6-11 11-5-5'/%3E%3C/svg%3E");
-  background-size: 12px 12px;
-  background-position: center;
-  background-repeat: no-repeat;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a1205' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m20 6-11 11-5-5'/%3E%3C/svg%3E"),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 60%);
+  background-size: 13px 13px, 100% 100%;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
 }
 
 input[type='radio']:checked {
-  background-image: radial-gradient(circle at center, var(--on-acc) 0 3px, transparent 3.5px);
+  background-image:
+    radial-gradient(circle at center, var(--on-acc) 0 3.5px, transparent 4px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 60%);
 }
 
 input[type='checkbox']:indeterminate {
@@ -165,7 +188,11 @@ input[type='checkbox']:indeterminate {
 input[type='checkbox']:disabled,
 input[type='radio']:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
 
-/* El campo es un HUECO en la superficie, no una pegatina encima. */
+/*
+Los campos que no pasan por `ui/Field` —las áreas de texto de Settings, sobre
+todo— reciben el mismo hueco y el mismo levantarse al enfocar. Si no, en la
+misma pantalla convivirían dos ideas de qué es un campo.
+*/
 input[type='text'],
 input[type='password'],
 input[type='number'],
@@ -173,6 +200,18 @@ input[type='email'],
 input[type='search'],
 textarea {
   box-shadow: var(--hundido);
+  transition: border-color var(--t-rapido), box-shadow var(--t-rapido);
+}
+
+input[type='text']:focus,
+input[type='password']:focus,
+input[type='number']:focus,
+input[type='email']:focus,
+input[type='search']:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--acc);
+  box-shadow: var(--hundido), var(--halo-foco);
 }
 
 @media (prefers-reduced-motion: reduce) {

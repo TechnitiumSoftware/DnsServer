@@ -16,6 +16,7 @@ caracteres.
 .head {
   display: flex; align-items: center; justify-content: space-between;
   padding: var(--s-9) var(--s-10); border-bottom: 1px solid var(--line);
+  background: var(--pan2);
 }
 .title { margin: 0; font-size: var(--t-5); font-weight: 650; color: var(--ink); }
 .close { background: none; border: 0; color: var(--faint); font-size: var(--t-6); cursor: pointer; }
