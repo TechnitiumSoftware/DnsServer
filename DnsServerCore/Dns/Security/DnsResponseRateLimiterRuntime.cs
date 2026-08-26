@@ -128,6 +128,9 @@ namespace DnsServerCore.Dns.Security
     /// individual responses against the currently published generation. <see cref="DnsServer"/>
     /// holds one instance and only ever talks to it through this surface.
     /// </summary>
+    public readonly record struct DnsResponseRateLimitIdentity(
+        DnsResponseRateLimitClass ResponseClass, string CanonicalName, ushort QueryType, ushort QueryClass);
+
     public sealed class DnsResponseRateLimiterRuntime
     {
         const ulong INITIAL_GENERATION = 0;
@@ -184,13 +187,14 @@ namespace DnsServerCore.Dns.Security
         /// the two reads, which is acceptable since a policy update racing a single request is
         /// not a correctness issue here.
         /// </summary>
-        public DnsResponseRateLimitResult Evaluate(IPAddress remoteIP, DnsResponseRateLimitClass responseClass, ushort queryType, ushort queryClass, string canonicalName)
+        public DnsResponseRateLimitResult Evaluate(IPAddress remoteIP, in DnsResponseRateLimitIdentity identity)
         {
             RrlRuntimeState state = Volatile.Read(ref _state);
             if (state.BypassMatcher.IsMatch(remoteIP))
                 return DnsResponseRateLimitResult.Allowed;
 
-            DnsResponseRateLimitResult classResult = state.Limiter.Evaluate(remoteIP, responseClass, queryType, queryClass, canonicalName);
+            DnsResponseRateLimitResult classResult = state.Limiter.Evaluate(remoteIP, identity.ResponseClass,
+                identity.QueryType, identity.QueryClass, identity.CanonicalName);
             DnsResponseRateLimitResult allResult = state.Limiter.Evaluate(remoteIP, DnsResponseRateLimitClass.All, 0, 0, string.Empty);
             if (classResult == DnsResponseRateLimitResult.LimitedDrop || allResult == DnsResponseRateLimitResult.LimitedDrop)
                 return DnsResponseRateLimitResult.LimitedDrop;
@@ -199,20 +203,41 @@ namespace DnsServerCore.Dns.Security
             return DnsResponseRateLimitResult.Allowed;
         }
 
-        public static DnsResponseRateLimitClass ClassifyResponse(DnsDatagram response)
+        public static DnsResponseRateLimitIdentity BuildResponseIdentity(DnsDatagram response, DnsQuestionRecord question)
         {
             if (response.RCODE == DnsResponseCode.NxDomain)
-                return DnsResponseRateLimitClass.NxDomain;
+                return new DnsResponseRateLimitIdentity(DnsResponseRateLimitClass.NxDomain, question.Name, 0, (ushort)question.Class);
+
             if (response.RCODE != DnsResponseCode.NoError)
-                return DnsResponseRateLimitClass.Error;
+                return new DnsResponseRateLimitIdentity(DnsResponseRateLimitClass.Error, question.Name, (ushort)question.Type, (ushort)question.Class);
+
             if (response.Answer.Count == 0)
             {
                 for (int i = 0; i < response.Authority.Count; i++)
-                    if (response.Authority[i].Type == DnsResourceRecordType.NS)
-                        return DnsResponseRateLimitClass.Referral;
-                return DnsResponseRateLimitClass.NoData;
+                {
+                    DnsResourceRecord record = response.Authority[i];
+                    if (record.Type == DnsResourceRecordType.NS)
+                        return new DnsResponseRateLimitIdentity(DnsResponseRateLimitClass.Referral, record.Name, 0, (ushort)question.Class);
+                }
+
+                return new DnsResponseRateLimitIdentity(DnsResponseRateLimitClass.NoData, question.Name, 0, (ushort)question.Class);
             }
-            return DnsResponseRateLimitClass.Query;
+
+            for (int i = 0; i < response.Answer.Count; i++)
+            {
+                DnsResourceRecord record = response.Answer[i];
+                if (record.Type == DnsResourceRecordType.RRSIG &&
+                    DnsRRSIGRecordData.IsWildcard(record) &&
+                    record.RDATA is DnsRRSIGRecordData rrsig &&
+                    !string.IsNullOrEmpty(rrsig.SignersName))
+                {
+                    return new DnsResponseRateLimitIdentity(DnsResponseRateLimitClass.Query, rrsig.SignersName,
+                        (ushort)question.Type, (ushort)question.Class);
+                }
+            }
+
+            return new DnsResponseRateLimitIdentity(DnsResponseRateLimitClass.Query, question.Name,
+                (ushort)question.Type, (ushort)question.Class);
         }
 
         private static ulong GetNextGeneration(ulong generation) => generation == ulong.MaxValue ? INITIAL_GENERATION + 1UL : generation + 1UL;
