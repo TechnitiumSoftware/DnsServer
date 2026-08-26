@@ -1,5 +1,6 @@
 import { apiRequest, type ApiOutcome } from './client'
 import { openDownload } from './user'
+import { urlApi } from '../app/base'
 
 /*
 La familia `logs`: seis endpoints, todos en `logs.js` de upstream.
@@ -114,7 +115,7 @@ export async function downloadLogText(
 
   let texto: string
   try {
-    const res = await fetch(`api/logs/download?${query.toString()}`, { headers })
+    const res = await fetch(urlApi(`api/logs/download?${query.toString()}`), { headers })
     texto = await res.text()
   } catch {
     return null

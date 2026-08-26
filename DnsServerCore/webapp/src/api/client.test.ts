@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { apiRequest } from './client'
+import { olvidarRaiz } from '../app/base'
 
 function mockFetch(payload: unknown) {
   const spy = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => payload })
@@ -31,23 +32,47 @@ describe('apiRequest', () => {
     expect(spy.mock.calls[0][1].headers.Authorization).toBe('Bearer abc123')
   })
 
-  it('pide las rutas en relativo, sin barra inicial', async () => {
+  /*
+  Iban en relativo para sobrevivir a `X-Forwarded-Prefix`, y eso dejó de valer
+  cuando las rutas de la consola pasaron a ser reales: desde
+  `/settings/logging/`, un `api/status` relativo pide
+  `/settings/logging/api/status` y recibe un 404. Comprobado en el navegador.
+  Ahora cuelgan de la raíz de la aplicación, que sigue conociendo el prefijo.
+  */
+  it('cuelga las rutas de la raíz de la aplicación, no del directorio actual', async () => {
     const spy = mockFetch({ status: 'ok' })
     await apiRequest('user/login')
-    expect(spy.mock.calls[0][0]).toBe('api/user/login')
+    expect(spy.mock.calls[0][0]).toBe('/api/user/login')
+  })
+
+  it('y respeta el prefijo del proxy', async () => {
+    const meta = document.createElement('meta')
+    meta.setAttribute('name', 'ruta')
+    meta.setAttribute('content', 'settings/logging')
+    document.head.appendChild(meta)
+    window.history.replaceState(null, '', '/dns/settings/logging/')
+    olvidarRaiz()
+
+    const spy = mockFetch({ status: 'ok' })
+    await apiRequest('user/login')
+    expect(spy.mock.calls[0][0]).toBe('/dns/api/user/login')
+
+    meta.remove()
+    window.history.replaceState(null, '', '/')
+    olvidarRaiz()
   })
 
   it('pone el cuerpo en la query cuando es GET', async () => {
     const spy = mockFetch({ status: 'ok' })
     await apiRequest('zones/list', { body: { zone: 'casa.test' } })
-    expect(spy.mock.calls[0][0]).toBe('api/zones/list?zone=casa.test')
+    expect(spy.mock.calls[0][0]).toBe('/api/zones/list?zone=casa.test')
   })
 
   it('codifica el cuerpo como formulario cuando es POST', async () => {
     const spy = mockFetch({ status: 'ok' })
     await apiRequest('user/login', { method: 'POST', body: { user: 'admin', pass: 'a b&c' } })
     const [url, init] = spy.mock.calls[0]
-    expect(url).toBe('api/user/login')
+    expect(url).toBe('/api/user/login')
     expect(init.body).toBe('user=admin&pass=a+b%26c')
     expect(init.headers['Content-Type']).toBe('application/x-www-form-urlencoded')
   })
@@ -86,7 +111,7 @@ describe('subidas multipart', () => {
     const archivo = new File(['zona'], 'casa.test.zone', { type: 'text/plain' })
     await apiRequest('zones/import', { token: 't', body: { zone: 'casa.test' }, file: { campo: 'fileZone', archivo } })
     const [url, init] = spy.mock.calls[0]
-    expect(url).toBe('api/zones/import')
+    expect(url).toBe('/api/zones/import')
     expect(init.method).toBe('POST')
     expect(init.body).toBeInstanceOf(FormData)
     // El navegador pone el boundary; fijarlo a mano rompe la subida.

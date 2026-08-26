@@ -1,13 +1,22 @@
 import { describe, expect, it, afterEach } from 'vitest'
 import { SECTIONS } from './sections'
-import { aHash, aSlug, escribirRuta, leerRuta } from './ruta'
+import { aCamino, aSlug, escribirRuta, leerRuta, olvidarRaiz, raizDeLaApp } from './ruta'
 
-function conHash(h: string) {
-  window.history.replaceState(null, '', h === '' ? window.location.pathname : h)
+/** Sirve el documento como lo serviría el servidor: en su carpeta y con su meta. */
+function servidoEn(camino: string, ruta: string | null = null) {
+  document.head.querySelector('meta[name="ruta"]')?.remove()
+  if (ruta != null) {
+    const m = document.createElement('meta')
+    m.setAttribute('name', 'ruta')
+    m.setAttribute('content', ruta)
+    document.head.appendChild(m)
+  }
+  window.history.replaceState(null, '', camino)
+  olvidarRaiz()
 }
 
 afterEach(() => {
-  conHash('')
+  servidoEn('/')
 })
 
 describe('aSlug', () => {
@@ -29,77 +38,109 @@ describe('aSlug', () => {
   })
 })
 
+/*
+La consola puede colgar de cualquier prefijo: el servidor honra
+`X-Forwarded-Prefix` montando un `PathBase`. La raíz se deduce restando al
+`pathname` los segmentos que el propio documento declara en su `<meta>`.
+*/
+describe('raizDeLaApp', () => {
+  it('en la portada, la raíz es la portada', () => {
+    servidoEn('/')
+    expect(raizDeLaApp()).toBe('/')
+  })
+
+  it('en una ruta de un nivel', () => {
+    servidoEn('/zones/', 'zones')
+    expect(raizDeLaApp()).toBe('/')
+  })
+
+  it('en una ruta de dos niveles', () => {
+    servidoEn('/settings/logging/', 'settings/logging')
+    expect(raizDeLaApp()).toBe('/')
+  })
+
+  it('y detrás de un proxy con prefijo, que es de lo que va todo esto', () => {
+    servidoEn('/dns/settings/logging/', 'settings/logging')
+    expect(raizDeLaApp()).toBe('/dns/')
+  })
+
+  it('con prefijo de dos segmentos', () => {
+    servidoEn('/casa/dns/zones/', 'zones')
+    expect(raizDeLaApp()).toBe('/casa/dns/')
+  })
+})
+
 describe('leerRuta', () => {
-  it('sin hash no hay ruta, y se arranca por lo que diga el Shell', () => {
-    conHash('')
+  it('en la portada no hay ruta, y se arranca por lo que diga el Shell', () => {
+    servidoEn('/')
     expect(leerRuta(SECTIONS)).toBeNull()
   })
 
   it('lee sección y sub-sección', () => {
-    conHash('#/admin/cluster')
+    servidoEn('/admin/cluster/', 'admin/cluster')
     expect(leerRuta(SECTIONS)).toEqual({ seccion: 'admin', sub: 'Cluster' })
   })
 
   it('devuelve la etiqueta original, no el slug', () => {
-    conHash('#/settings/proxy-forwarders')
+    servidoEn('/settings/proxy-forwarders/', 'settings/proxy-forwarders')
     expect(leerRuta(SECTIONS)).toEqual({ seccion: 'settings', sub: 'Proxy & Forwarders' })
   })
 
+  it('la lee igual detrás de un prefijo', () => {
+    servidoEn('/dns/admin/cluster/', 'admin/cluster')
+    expect(leerRuta(SECTIONS)).toEqual({ seccion: 'admin', sub: 'Cluster' })
+  })
+
   it('una sección desconocida no resuelve', () => {
-    conHash('#/noexiste')
+    servidoEn('/noexiste/', 'noexiste')
     expect(leerRuta(SECTIONS)).toBeNull()
   })
 
   it('una sub desconocida NO tumba la sección: cae a la primera', () => {
-    conHash('#/settings/tampoco-existe')
+    servidoEn('/settings/tampoco-existe/', 'settings/tampoco-existe')
     expect(leerRuta(SECTIONS)).toEqual({ seccion: 'settings', sub: null })
   })
 
   it('una sección oculta por permisos no resuelve, aunque exista', () => {
-    const visibles = SECTIONS.filter((s) => s.id !== 'admin')
-    conHash('#/admin/cluster')
-    expect(leerRuta(visibles)).toBeNull()
-  })
-
-  /*
-  El motivo de que las rutas lleven `#/`: el proveedor de SSO devuelve al usuario
-  con `#token=…` o `#error=…`, y `session/boot.ts` tiene que poder distinguir lo
-  que hay que borrar de la barra de lo que hay que conservar.
-  */
-  it('el retorno de SSO no se confunde con una ruta', () => {
-    conHash('#token=abc123')
-    expect(leerRuta(SECTIONS)).toBeNull()
-    conHash('#error=Invalid%20request')
-    expect(leerRuta(SECTIONS)).toBeNull()
+    servidoEn('/admin/cluster/', 'admin/cluster')
+    expect(leerRuta(SECTIONS.filter((s) => s.id !== 'admin'))).toBeNull()
   })
 })
 
-describe('aHash', () => {
-  it('omite la sub cuando no la hay', () => {
-    expect(aHash({ seccion: 'zones', sub: null })).toBe('#/zones')
+describe('aCamino', () => {
+  it('omite la sub cuando no la hay, y siempre termina en barra', () => {
+    servidoEn('/')
+    expect(aCamino({ seccion: 'zones', sub: null })).toBe('/zones/')
   })
 
   it('y la pone en slug cuando la hay', () => {
-    expect(aHash({ seccion: 'logs', sub: 'Query Logs' })).toBe('#/logs/query-logs')
+    servidoEn('/')
+    expect(aCamino({ seccion: 'logs', sub: 'Query Logs' })).toBe('/logs/query-logs/')
+  })
+
+  it('respeta el prefijo del proxy', () => {
+    servidoEn('/dns/zones/', 'zones')
+    expect(aCamino({ seccion: 'settings', sub: 'TSIG' })).toBe('/dns/settings/tsig/')
   })
 })
 
 describe('escribirRuta', () => {
   it('deja la barra de direcciones en la ruta pedida', () => {
-    conHash('')
+    servidoEn('/')
     escribirRuta({ seccion: 'dhcp', sub: 'Leases' }, true)
-    expect(window.location.hash).toBe('#/dhcp/leases')
+    expect(window.location.pathname).toBe('/dhcp/leases/')
   })
 
   it('no toca el historial si la ruta ya es la que está', () => {
-    conHash('#/zones')
+    servidoEn('/zones/', 'zones')
     const antes = window.history.length
     escribirRuta({ seccion: 'zones', sub: null })
-    expect(window.location.hash).toBe('#/zones')
+    expect(window.location.pathname).toBe('/zones/')
     expect(window.history.length).toBe(antes)
   })
 
-  it('lo que se escribe se vuelve a leer igual', () => {
+  it('lo que se escribe se vuelve a leer igual, en las 31 rutas', () => {
+    servidoEn('/')
     for (const s of SECTIONS) {
       for (const sub of s.subs ?? [null]) {
         escribirRuta({ seccion: s.id, sub }, true)

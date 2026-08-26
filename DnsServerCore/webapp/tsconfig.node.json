@@ -17,7 +17,8 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "strict": true
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts", "src/app/rutas-estaticas.ts", "src/app/sections.ts", "src/app/slug.ts"]
 }

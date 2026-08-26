@@ -1,3 +1,4 @@
+import { urlApi } from '../app/base'
 /*
 Cliente HTTP de la consola. Réplica del helper `HTTPRequest` de la consola
 antigua (upstream/master:DnsServerCore/www/js/common.js:28).
@@ -59,7 +60,7 @@ export async function apiRequest<T = unknown>(
   const headers: Record<string, string> = {}
   if (token) headers.Authorization = `Bearer ${token}`
 
-  let url = `api/${path}`
+  let url = urlApi(`api/${path}`)
   const init: RequestInit & { headers: Record<string, string> } = { method, headers }
 
   if (opts.form) {

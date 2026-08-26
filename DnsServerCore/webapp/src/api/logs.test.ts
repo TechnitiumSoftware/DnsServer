@@ -79,7 +79,7 @@ describe('api/logs — descarga del visor', () => {
     const texto = await downloadLogText('tok', '2026-08-26')
 
     const [url, init] = fetchSpy.mock.calls[0]
-    expect(url).toBe('api/logs/download?fileName=2026-08-26&limit=2&node=')
+    expect(url).toBe('/api/logs/download?fileName=2026-08-26&limit=2&node=')
     expect(init.headers).toEqual({ Authorization: 'Bearer tok' })
     expect(texto).toBe('[2026] ok\n')
   })

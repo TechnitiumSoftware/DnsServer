@@ -97,6 +97,8 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
   */
   const pestanas = useRef<Record<string, HTMLButtonElement | null>>({})
   const focoPendiente = useRef<string | null>(null)
+  // La primera escritura normaliza la URL y no debe dejar entrada en el historial.
+  const primerRender = useRef(true)
 
   function porTeclado(e: React.KeyboardEvent) {
     const teclas = ['ArrowDown', 'ArrowUp', 'Home', 'End']
@@ -133,23 +135,24 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
   useEffect(() => {
     if (current == null) return
     activaRef.current = { seccion: current.id, sub }
-    escribirRuta({ seccion: current.id, sub }, window.location.hash === '')
+    escribirRuta({ seccion: current.id, sub }, primerRender.current)
+    primerRender.current = false
   }, [current, sub])
 
   useEffect(() => {
     function alCambiar() {
       const r = leerRuta(sections)
       if (r == null) {
-        // Un `#/loquesea` que no resuelve dejaba la barra y la pantalla diciendo
-        // cosas distintas. La pantalla manda: se corrige la URL.
+        // Una ruta que no resuelve dejaba la barra y la pantalla diciendo cosas
+        // distintas. La pantalla manda: se corrige la URL.
         escribirRuta({ seccion: activaRef.current.seccion, sub: activaRef.current.sub }, true)
         return
       }
       setActive((v) => (v === r.seccion ? v : r.seccion))
       setSub((v) => (v === r.sub ? v : r.sub))
     }
-    window.addEventListener('hashchange', alCambiar)
-    return () => window.removeEventListener('hashchange', alCambiar)
+    window.addEventListener('popstate', alCambiar)
+    return () => window.removeEventListener('popstate', alCambiar)
   }, [sections])
 
   return (

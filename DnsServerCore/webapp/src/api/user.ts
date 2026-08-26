@@ -1,4 +1,5 @@
 import { apiRequest, type ApiOutcome } from './client'
+import { urlApi } from '../app/base'
 
 /*
 Los endpoints de la familia `user`. Trece en total; ésta es la fase que los
@@ -69,7 +70,7 @@ export async function openDownload(
   if (opciones.ts === true) {
     query.set('ts', String(performance.timeOrigin + performance.now()))
   }
-  const url = `api/${path}?${query.toString()}`
+  const url = urlApi(`api/${path}?${query.toString()}`)
   window.open(url, '_blank')
   return { ok: true, url }
 }
