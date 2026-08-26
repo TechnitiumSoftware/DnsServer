@@ -3,10 +3,11 @@
 using System;
 using System.Buffers.Binary;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace DnsServerCore.Dns.Security
 {
-    /// <summary>Computes SipHash-2-4 message authentication tags.</summary>
+    /// <summary>Computes a 64-bit SipHash-2-4 keyed hash.</summary>
     internal static class SipHash24
     {
         public static ulong Compute(ReadOnlySpan<byte> key, ReadOnlySpan<byte> data)
@@ -26,8 +27,7 @@ namespace DnsServerCore.Dns.Security
             {
                 ulong word = BinaryPrimitives.ReadUInt64LittleEndian(data[offset..]);
                 v3 ^= word;
-                SipRound(ref v0, ref v1, ref v2, ref v3);
-                SipRound(ref v0, ref v1, ref v2, ref v3);
+                SipRound2(ref v0, ref v1, ref v2, ref v3);
                 v0 ^= word;
                 offset += 8;
             }
@@ -37,16 +37,31 @@ namespace DnsServerCore.Dns.Security
                 tail |= (ulong)data[offset + i] << (8 * i);
 
             v3 ^= tail;
-            SipRound(ref v0, ref v1, ref v2, ref v3);
-            SipRound(ref v0, ref v1, ref v2, ref v3);
+            SipRound2(ref v0, ref v1, ref v2, ref v3);
             v0 ^= tail;
             v2 ^= 0xff;
-            for (int i = 0; i < 4; i++)
-                SipRound(ref v0, ref v1, ref v2, ref v3);
+            SipRound4(ref v0, ref v1, ref v2, ref v3);
 
             return v0 ^ v1 ^ v2 ^ v3;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void SipRound2(ref ulong v0, ref ulong v1, ref ulong v2, ref ulong v3)
+        {
+            SipRound(ref v0, ref v1, ref v2, ref v3);
+            SipRound(ref v0, ref v1, ref v2, ref v3);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void SipRound4(ref ulong v0, ref ulong v1, ref ulong v2, ref ulong v3)
+        {
+            SipRound(ref v0, ref v1, ref v2, ref v3);
+            SipRound(ref v0, ref v1, ref v2, ref v3);
+            SipRound(ref v0, ref v1, ref v2, ref v3);
+            SipRound(ref v0, ref v1, ref v2, ref v3);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void SipRound(ref ulong v0, ref ulong v1, ref ulong v2, ref ulong v3)
         {
             v0 += v1; v1 = BitOperations.RotateLeft(v1, 13); v1 ^= v0; v0 = BitOperations.RotateLeft(v0, 32);
