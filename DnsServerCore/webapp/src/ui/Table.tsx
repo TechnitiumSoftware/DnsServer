@@ -66,19 +66,28 @@ export function Th({
   orden,
   onOrdenar,
   children,
+  nombre,
   ...rest
 }: {
   campo?: string
   orden?: Orden | null
   onOrdenar?: (campo: string) => void
   children?: ReactNode
+  /** Para una cabecera que upstream deja EN BLANCO y aun así se puede ordenar:
+   *  el botón necesita nombre aunque la celda no enseñe rótulo. */
+  nombre?: string
 } & React.ThHTMLAttributes<HTMLTableCellElement>) {
   if (campo == null || onOrdenar == null) return <th {...rest}>{children}</th>
 
   const activa = orden?.campo === campo
   return (
     <th aria-sort={activa ? (orden!.desc ? 'descending' : 'ascending') : 'none'} {...rest}>
-      <button type="button" className={styles.orden} onClick={() => onOrdenar(campo)}>
+      <button
+        type="button"
+        className={styles.orden}
+        aria-label={children == null ? nombre : undefined}
+        onClick={() => onOrdenar(campo)}
+      >
         {children}
         <span className={styles.flecha}>
           <Icono nombre={activa ? 'chevronAbajo' : 'orden'} tam={12} data-desc={activa && !orden!.desc} />

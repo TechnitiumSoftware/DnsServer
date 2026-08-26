@@ -161,7 +161,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
               <Th campo="scope" orden={orden} onOrdenar={alternar}>Scope</Th>
               <Th campo="mac" orden={orden} onOrdenar={alternar}>MAC Address</Th>
               <Th campo="address" orden={orden} onOrdenar={alternar}>IP Address</Th>
-              <Th campo="type" orden={orden} onOrdenar={alternar} />
+              <Th campo="type" orden={orden} onOrdenar={alternar} nombre="Type" />
               <Th campo="host" orden={orden} onOrdenar={alternar}>Host Name</Th>
               <Th campo="obtained" orden={orden} onOrdenar={alternar}>Lease Obtained</Th>
               <Th campo="expires" orden={orden} onOrdenar={alternar}>Lease Expires</Th>

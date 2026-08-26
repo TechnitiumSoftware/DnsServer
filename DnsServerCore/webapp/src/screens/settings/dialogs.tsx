@@ -13,12 +13,18 @@ Los tres diálogos de la barra de acciones.
 `Confirm` sustituye a los `confirm()` nativos de upstream (main.js:2347, 2382 y
 other-zones.js:21). El texto es el mismo y el paso es el mismo: sigue haciendo
 falta confirmar antes de que salga la petición.
+
+El botón lleva el VERBO, no «OK». Lo llevaba, y era el único sitio de la consola
+donde no: las otras siete confirmaciones —Zones, Listas, ViewLogs, DHCP y las de
+Administration— dicen «Flush», «Disable», «Delete». Contra upstream las dos formas
+valen, porque su `confirm()` nativo siempre dice OK; entre ellas, no.
 */
 export function Confirm({
   open,
   onOpenChange,
   title,
   texto,
+  etiqueta,
   onConfirm,
   ocupado,
 }: {
@@ -26,6 +32,8 @@ export function Confirm({
   onOpenChange: (o: boolean) => void
   title: string
   texto: string
+  /** El verbo de la acción. */
+  etiqueta: string
   onConfirm: () => void
   ocupado?: boolean
 }) {
@@ -37,7 +45,7 @@ export function Confirm({
       acciones={
         <>
           <Button variant="primary" disabled={ocupado} onClick={onConfirm}>
-            OK
+            {etiqueta}
           </Button>
         </>
       }

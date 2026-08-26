@@ -45,7 +45,13 @@ export function PermisosZona({
   onCerrar: () => void
   onHecho: (a: Aviso) => void
 }) {
-  const [titulo, setTitulo] = useState(`Zones / ${zone === '.' ? '<root>' : zone}`)
+  /* Upstream titula `Edit Permissions - <span>` (`index.html:6856`) y rellena ese
+     span con `"Zones / " + zone` (`zone.js:2549`). Sin el prefijo, el diálogo no
+     dice qué hace: es el único de los diez de Zones cuyo título no nombra la
+     acción, y el mismo diálogo abierto desde Administration sí lo lleva. */
+  const [titulo, setTitulo] = useState(
+    `Edit Permissions - Zones / ${zone === '.' ? '<root>' : zone}`,
+  )
   const [usuarios, setUsuarios] = useState<Fila[]>([])
   const [grupos, setGrupos] = useState<Fila[]>([])
   const [usuariosDisponibles, setUsuariosDisponibles] = useState<string[]>([])
@@ -64,7 +70,7 @@ export function PermisosZona({
         setAviso({ type: 'danger', title: 'Error!', text: 'Unable to reach the DNS server.' })
         return
       }
-      setTitulo(`${r.section} / ${r.subItem === '.' ? '<root>' : r.subItem}`)
+      setTitulo(`Edit Permissions - ${r.section} / ${r.subItem === '.' ? '<root>' : r.subItem}`)
       setUsuarios(
         r.userPermissions.map((p) => ({
           nombre: p.username,
@@ -202,6 +208,7 @@ function TablaPermisos({
                     <td key={clave}>
                       <input
                         type="checkbox"
+                        className={styles.chkPerm}
                         aria-label={`${clave} for ${f.nombre}`}
                         checked={f[clave]}
                         onChange={(e) => cambiar(i, clave, e.target.checked)}

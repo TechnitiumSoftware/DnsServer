@@ -45,10 +45,16 @@
 .enLinea { display:flex; gap: var(--s-6); align-items:center; flex-wrap:wrap; }
 .sufijo { font-size: var(--t-3); color:var(--faint); }
 .chk { display:flex; align-items:center; gap: var(--s-4); font-size: var(--t-4); color:var(--mute); cursor:pointer; }
-.ayuda { font-size: var(--t-3); color:var(--faint); line-height:1.6; }
+/* Mismo papel que `.help` de Settings, DHCP y Administration: mismo color y
+   mismo interlineado. Con `--faint` se leía a 4.64:1 y las otras a 5.90:1. */
+.ayuda { font-size: var(--t-3); color:var(--mute); line-height:1.55; }
 .grupo { border:1px solid var(--line); border-radius: var(--r-3); padding: var(--s-8); display:flex; flex-direction:column; gap: var(--s-7); }
 .grupoTit { font-size: var(--t-2); text-transform:uppercase; letter-spacing:.05em; color:var(--faint); font-weight: 600; }
 .corto { width:110px; }
 .medio { width:190px; }
 .area { min-height:110px; resize:vertical; }
 .areaAlta { min-height:180px; resize:vertical; }
+
+/* La casilla de la matriz de permisos mide 18 px de alto. `.golpe` amplía el
+   objetivo sin mover el dibujo, igual que en la matriz de Administration. */
+.chkPerm { composes: golpe from '../../ui/interaccion.module.css'; margin: 0 auto; display: block; }

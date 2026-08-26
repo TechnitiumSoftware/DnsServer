@@ -50,6 +50,16 @@ confundan. Plex Mono da cero barrado, uno con base y ele inconfundible.
 html, body, #root { height: 100%; }
 
 /*
+Un `<p>` sin reset se queda con el `margin: 1em 0` del navegador, que a 11,5 px de
+texto son 11,5 px: un hueco que no está en la escala de espaciado y que salía en
+los cuatro párrafos del cuerpo. El hueco lo pone quien compone, no el navegador.
+*/
+p { margin: 0; }
+/* Dos párrafos seguidos sí necesitan separarse —los hay en Blocking y en About—,
+   pero con la escala, no con el em del navegador. */
+p + p { margin-top: var(--s-7); }
+
+/*
 El cuerpo va en 400 con el interletraje algo abierto. Iba en pesos de 650 y 700
 por casi todo, y eso —más que ninguna otra cosa— es lo que hacía que la consola
 se leyera densa y utilitaria en vez de tranquila. La jerarquía la dan el tamaño

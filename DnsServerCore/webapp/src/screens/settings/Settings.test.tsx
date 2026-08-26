@@ -190,7 +190,7 @@ describe('Settings — Blocking', () => {
     expect(
       await screen.findByText('Are you sure to temporarily disable blocking for 15 minute(s)?'),
     ).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'OK' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Disable' }))
 
     const llamada = await waitFor(() => {
       const c = spy.mock.calls.find((c) => c[0] === 'settings/temporaryDisableBlocking')
@@ -214,7 +214,7 @@ describe('Settings — Blocking', () => {
     expect(
       await screen.findByText('Are you sure to force download and update the block lists?'),
     ).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'OK' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Update' }))
 
     await waitFor(() =>
       expect(spy.mock.calls.find((c) => c[0] === 'settings/forceUpdateBlockLists')).toBeDefined(),
@@ -231,7 +231,7 @@ describe('Settings — barra de acciones', () => {
     await montar()
     await userEvent.click(screen.getByRole('button', { name: 'Flush Cache' }))
     expect(await screen.findByText('Are you sure to flush the DNS Server cache?')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'OK' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Flush' }))
 
     await waitFor(() => expect(spy.mock.calls.find((c) => c[0] === 'cache/flush')).toBeDefined())
     expect(await screen.findByText('Flushed!')).toBeInTheDocument()

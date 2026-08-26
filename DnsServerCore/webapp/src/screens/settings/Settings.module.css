@@ -73,7 +73,9 @@ Es lo que hacen el dibujo y la tabla de Logs; aquí se había perdido.
 }
 .select:disabled { opacity: 0.5; }
 
-.check { display: flex; align-items: flex-start; gap: var(--s-5); font-size: var(--t-4); cursor: pointer; }
+/* La fila de casilla y de radio la define `ui/Check.module.css`, que es donde
+   vive el `min-height` que la sube de 20 a 26 px. Esta copia no lo tenía. */
+.check { composes: check from '../../ui/Check.module.css'; }
 .check input { margin-top: var(--s-1); flex: none; }
 .check input:disabled { opacity: 0.5; }
 .checkHelp { font-size: var(--t-3); color: var(--mute); padding-left: var(--s-11); line-height: 1.55; max-width: 720px; }

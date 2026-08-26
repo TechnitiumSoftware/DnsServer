@@ -7,6 +7,7 @@ import { LabeledInput } from '../../ui/Field'
 import { deleteSession, type SessionRow } from '../../api/user'
 import styles from './MyProfile.module.css'
 import { Th, useOrden, type Claves } from '../../ui/Table'
+import { desdeAhora, fechaHora } from '../../lib/fechas'
 
 /*
 Réplica de `showMyProfileModal` / `saveMyProfile` (auth.js:642-794).
@@ -32,7 +33,7 @@ const CLAVES_GRUPO: Claves<string> = { group: (g) => g }
 /* `sortTable('tbodyMyProfileActiveSessions', 0..3)`. */
 const CLAVES: Claves<Profile['sessions'][number]> = {
   type: (r) => `${r.type}${r.tokenName ? ` (${r.tokenName})` : ''}${r.isCurrentSession ? ' current' : ''}`,
-  lastSeen: (r) => r.lastSeen,
+  lastSeen: (r) => fechaHora(r.lastSeen),
   address: (r) => r.lastSeenRemoteAddress,
 }
 
@@ -207,7 +208,10 @@ export function MyProfile({
                   {row.tokenName ? ` (${row.tokenName})` : ''}
                   {row.isCurrentSession && <span className={styles.current}>current</span>}
                 </td>
-                <td className={styles.mono}>{row.lastSeen}</td>
+                <td>
+                  <div className={styles.mono}>{fechaHora(row.lastSeen)}</div>
+                  <div className={styles.meta}>{`(${desdeAhora(row.lastSeen)})`}</div>
+                </td>
                 <td className={styles.mono}>{row.lastSeenRemoteAddress}</td>
                 <td>
                   <Button

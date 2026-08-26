@@ -64,7 +64,9 @@
 .rRecursive { background: rgba(23, 162, 184, 0.1); }
 .rCached { background: rgba(111, 84, 153, 0.1); }
 
-.check { display: flex; align-items: center; gap: var(--s-5); font-size: var(--t-4); cursor: pointer; color: var(--ink); }
+/* Centrada a propósito: es un filtro de barra, no una fila de ajuste. Pero el
+   alto mínimo es el mismo que el de `ui/Check.module.css`. */
+.check { display: flex; align-items: center; gap: var(--s-5); font-size: var(--t-4); cursor: pointer; min-height: 26px; padding: var(--s-2) 0; color: var(--ink); }
 .check input { flex: none; }
 
 .fail { padding: var(--s-12); text-align: center; color: var(--faint); font-size: var(--t-4); }

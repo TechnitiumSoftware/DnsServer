@@ -1,5 +1,6 @@
 import { useId, type ReactNode } from 'react'
 import { Alert } from '../../ui/Alert'
+import { Empty } from '../../ui/Empty'
 import { Button } from '../../ui/Button'
 import { Input } from '../../ui/Field'
 import styles from './Settings.module.css'
@@ -290,6 +291,10 @@ export function EditableTable<T>({
             ))}
           </tbody>
         </table>
+        {/* Sin filas, la tabla enseñaba las cabeceras y nada debajo: en blanco no
+            dice «no hay ninguna», dice «no lo sé». La gemela de DHCP
+            (`screens/dhcp/parts.tsx:258`) ya lo decía; ésta no. */}
+        {rows.length === 0 && <Empty compacto>No entries.</Empty>}
         <div>
           <Button disabled={disabled} onClick={() => onChange([...rows, nueva()])}>
             Add

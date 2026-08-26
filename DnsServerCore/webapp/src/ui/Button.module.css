@@ -55,7 +55,15 @@ de dos maneras según la tabla.
   box-shadow: var(--filo-fuerte);
 }
 
-.primary:hover:not(:disabled) { border-color: var(--acc); filter: brightness(1.06); }
+/*
+El hover del primario ACLARABA un 6 %, y sobre `--acc` eso da 1.108:1 —por debajo
+del 1.20 que esta consola se fijó al arreglar `--hover`, y el mismo orden de
+magnitud que aquel defecto—. Aclarar más no cabe: el canal rojo de `#f5a524` ya
+está en 245 y satura antes de llegar al umbral. Se oscurece, que es lo único que
+alcanza. Y se quita el `border-color: var(--acc)`, que era lo que el botón ya
+valía en reposo: no hacía nada.
+*/
+.primary:hover:not(:disabled) { filter: brightness(0.90); }  /* 1.240:1 */
 
 /*
 El destructivo va RELLENO. Sólo teñía el borde, así que el «Delete» de «Delete

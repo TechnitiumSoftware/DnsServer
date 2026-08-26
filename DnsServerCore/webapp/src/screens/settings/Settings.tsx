@@ -354,6 +354,7 @@ export function Settings({
         open={confirmar === 'flush'}
         onOpenChange={(o) => setConfirmar(o ? 'flush' : null)}
         title="Flush Cache"
+        etiqueta="Flush"
         texto="Are you sure to flush the DNS Server cache?"
         ocupado={ocupado}
         onConfirm={() => void vaciarCache()}
@@ -362,6 +363,7 @@ export function Settings({
         open={confirmar === 'disable'}
         onOpenChange={(o) => setConfirmar(o ? 'disable' : null)}
         title="Temporary Disable Blocking"
+        etiqueta="Disable"
         texto={`Are you sure to temporarily disable blocking for ${form.temporaryDisableBlockingMinutes} minute(s)?`}
         ocupado={ocupado}
         onConfirm={() => void desactivarBloqueo()}
@@ -370,6 +372,7 @@ export function Settings({
         open={confirmar === 'update'}
         onOpenChange={(o) => setConfirmar(o ? 'update' : null)}
         title="Update Block Lists"
+        etiqueta="Update"
         texto="Are you sure to force download and update the block lists?"
         ocupado={ocupado}
         onConfirm={() => void actualizarListas()}

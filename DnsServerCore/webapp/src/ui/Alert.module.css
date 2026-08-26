@@ -18,7 +18,10 @@ Gana el relleno, que es lo dibujado y lo que se ve a la primera pasada.
 
 .alert b { display: inline; }
 
+/* Medía 22×17: por debajo del mínimo de 24 de objetivo. */
 .close {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 26px; min-height: 26px;
   float: right;
   background: none;
   border: 0;

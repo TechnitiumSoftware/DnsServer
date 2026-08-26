@@ -19,7 +19,12 @@ caracteres.
   background: var(--pan2);
 }
 .title { margin: 0; font-size: var(--t-5); font-weight: 550; color: var(--ink); }
-.close { background: none; border: 0; color: var(--faint); font-size: var(--t-6); cursor: pointer; }
+/* La ✕ medía 28×22 y el mínimo de objetivo son 24. Es la de los 48 diálogos. */
+.close {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 28px; min-height: 28px;
+  background: none; border: 0; color: var(--faint); font-size: var(--t-6); cursor: pointer;
+}
 .body { padding: var(--s-3) var(--s-10) var(--s-9); display: flex; flex-direction: column; gap: var(--s-8); }
 .foot {
   display: flex; justify-content: flex-end; gap: var(--s-5);

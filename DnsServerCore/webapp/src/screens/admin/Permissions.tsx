@@ -409,6 +409,7 @@ function TablaPermisos({
                 <td>
                   <input
                     type="checkbox"
+                    className={styles.chkPerm}
                     aria-label={`${f.nombre} View`}
                     checked={f.canView}
                     onChange={(e) => set(f, { canView: e.target.checked })}
@@ -417,6 +418,7 @@ function TablaPermisos({
                 <td>
                   <input
                     type="checkbox"
+                    className={styles.chkPerm}
                     aria-label={`${f.nombre} Modify`}
                     checked={f.canModify}
                     onChange={(e) => set(f, { canModify: e.target.checked })}
@@ -425,6 +427,7 @@ function TablaPermisos({
                 <td>
                   <input
                     type="checkbox"
+                    className={styles.chkPerm}
                     aria-label={`${f.nombre} Delete`}
                     checked={f.canDelete}
                     onChange={(e) => set(f, { canDelete: e.target.checked })}

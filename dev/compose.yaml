@@ -32,6 +32,25 @@ services:
       - ref-config:/etc/dns
     restart: unless-stopped
 
+  # Sólo para revisar los 9 diálogos de Cluster, que sin un segundo nodo no se
+  # pueden ni abrir. NO se usa `ref` para esto: unirlo a un cluster sincroniza su
+  # configuración con la del primario y lo inutiliza como referencia de upstream.
+  nodo2:
+    container_name: technitium-ui-nodo2
+    image: docker.io/technitium/dns-server:latest
+    ports:
+      - "127.0.0.1:5382:5380/tcp"
+    environment:
+      - DNS_SERVER_DOMAIN=nodo2.technitium-ui.test
+      - DNS_SERVER_ADMIN_PASSWORD=technitium-ui-dev
+    volumes:
+      # También con la consola nueva: los diálogos «Promote To Primary» y
+      # «Edit Node» del primario SÓLO existen desde la consola de un secundario.
+      - ../DnsServerCore/www:/opt/technitium/dns/www:ro
+      - nodo2-config:/etc/dns
+    restart: unless-stopped
+
 volumes:
   dev-config:
   ref-config:
+  nodo2-config:
