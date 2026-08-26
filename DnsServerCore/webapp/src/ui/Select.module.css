@@ -47,7 +47,7 @@ flota sobre el formulario y tiene que leerse como algo que está por delante.
 .lista {
   position: fixed;
   scrollbar-width: thin;
-  z-index: 60;
+  z-index: var(--capa-flotante);
   overflow-y: auto;
   padding: var(--s-3);
   border: 1px solid var(--line);

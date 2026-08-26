@@ -27,12 +27,12 @@ Administration) y lo que se consulta (Logs, About).
 .s2:hover { color:var(--ink); }
 .s2[aria-current='true'] { color:var(--acc); font-weight: 550; background:var(--pan2); box-shadow: var(--filo); }
 .main { min-width:0; }
-.rtop { display:flex; align-items:center; justify-content:flex-end; gap: var(--s-6); padding: 0 var(--s-11); height:52px; border-bottom:1px solid var(--line); background:var(--pan); box-shadow: var(--filo); font-size: var(--t-4); color:var(--mute); position:sticky; top:0; z-index:5; }
+.rtop { display:flex; align-items:center; justify-content:flex-end; gap: var(--s-6); padding: 0 var(--s-11); height:52px; border-bottom:1px solid var(--line); background:var(--pan); box-shadow: var(--filo); font-size: var(--t-4); color:var(--mute); position:sticky; top:0; z-index: var(--capa-pegajosa); }
 .host { font-family:var(--font-mono); font-size: var(--t-3); color:var(--faint); border-right:1px solid var(--line); padding-right: var(--s-6); }
 .menu { position:relative; }
 .menuBtn { display:inline-flex; align-items:center; gap: var(--s-3); padding: var(--s-3) var(--s-5); border-radius: var(--r-2); background:none; border:0; color:var(--mute); font:inherit; font-size: var(--t-4); cursor:pointer; }
 .menuBtn:hover { color:var(--ink); }
-.menuList { position:absolute; right:0; top:30px; min-width:190px; z-index:10; background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); padding: var(--s-3); display:flex; flex-direction:column; box-shadow: var(--e-2), var(--filo); }
+.menuList { position:absolute; right:0; top:30px; min-width:190px; z-index: var(--capa-flotante); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); padding: var(--s-3); display:flex; flex-direction:column; box-shadow: var(--e-2), var(--filo); }
 .menuList button { background:none; border:0; color:var(--ink); font:inherit; font-size: var(--t-4); text-align:left; padding: var(--s-4) var(--s-6); border-radius: var(--r-2); cursor:pointer; }
 .menuList button:hover,
 .menuList button:focus-visible { background:var(--hover-fuerte); }
@@ -64,7 +64,7 @@ mirarlo desde el móvil cuando algo ha dejado de resolver.
 
   .side {
     position: fixed;
-    z-index: 30;
+    z-index: var(--capa-cajon);
     top: 0;
     left: 0;
     width: 264px;
@@ -79,7 +79,7 @@ mirarlo desde el móvil cuando algo ha dejado de resolver.
   .velo {
     position: fixed;
     inset: 0;
-    z-index: 20;
+    z-index: var(--capa-velo);
     background: rgba(5, 7, 10, 0.6);
     border: 0;
   }

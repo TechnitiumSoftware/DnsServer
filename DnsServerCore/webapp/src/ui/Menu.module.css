@@ -1,7 +1,7 @@
 /* El menú «⋮» de una fila. Estaba dentro de Zones; lo usan todas las tablas. */
 
 .menu { position:relative; display:inline-block; }
-.menuLista { position:fixed; z-index:60; min-width:170px; padding: var(--s-3); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); box-shadow: var(--e-2), var(--filo); display:flex; flex-direction:column; }
+.menuLista { position:fixed; z-index: var(--capa-flotante); min-width:170px; padding: var(--s-3); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); box-shadow: var(--e-2), var(--filo); display:flex; flex-direction:column; }
 .sep { height:1px; margin: var(--s-2) var(--s-3); background:var(--line); }
 .menuLista button { text-align:left; border:0; background:transparent; color:var(--mute); font:400 var(--t-4)/1.2 inherit; padding: var(--s-4) var(--s-6); border-radius: var(--r-2); cursor:pointer; }
 .menuLista button:hover,

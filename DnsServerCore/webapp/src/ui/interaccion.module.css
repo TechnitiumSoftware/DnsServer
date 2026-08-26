@@ -20,5 +20,5 @@ midiera 36.
   position: absolute;
   inset: -8px -6px;
   /* Sólo amplía el blanco: no debe tapar lo que tenga al lado. */
-  z-index: 0;
+  z-index: var(--capa-golpe);
 }

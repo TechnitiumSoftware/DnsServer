@@ -1,6 +1,8 @@
-.overlay { position: fixed; inset: 0; background: rgba(5, 7, 10, 0.72); }
+/* El velo y el contenido van a la misma capa y se ordenan entre sí por el orden
+   del DOM. Sin esta declaración el cabecero pegajoso les pasaba por encima. */
+.overlay { position: fixed; inset: 0; z-index: var(--capa-dialogo); background: rgba(5, 7, 10, 0.72); }
 .content {
-  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  position: fixed; z-index: var(--capa-dialogo); left: 50%; top: 50%; transform: translate(-50%, -50%);
   width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 64px); overflow: auto;
   background: var(--pan); border: 1px solid var(--line); border-radius: var(--r-4);
   box-shadow: var(--e-3), var(--filo);

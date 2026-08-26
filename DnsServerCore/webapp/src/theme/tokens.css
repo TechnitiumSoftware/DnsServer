@@ -155,6 +155,25 @@ que no sea uno de estos tokens.** Un valor suelto es deriva futura.
   --hueco-pegado: var(--s-5);
 
   /* ── Radios ─────────────────────────────────────────────────────────── */
+  /*
+  Las capas.
+
+  Había seis `z-index` sueltos —0, 5, 10, 20, 30 y 60— repartidos por cuatro
+  módulos, sin ningún sitio donde constara el orden. Y el diálogo, que es lo
+  único que SIEMPRE tiene que estar encima de todo, no declaraba ninguno: por eso
+  el cabecero pegajoso, con su 5, le pasaba por encima al borde superior cuando el
+  diálogo era alto. Es el mismo patrón que la escala de espaciado o la de tipos:
+  mientras el orden no viva en un sitio, cada módulo se inventa el suyo.
+
+  De abajo arriba, y el porqué de cada salto:
+  */
+  --capa-golpe: 0;      /* el pseudo que agranda un objetivo, bajo su propio texto */
+  --capa-pegajosa: 10;  /* el cabecero, que acompaña al scroll */
+  --capa-velo: 20;      /* el velo del cajón lateral, en pantalla estrecha */
+  --capa-cajon: 30;     /* y el cajón, sobre su velo */
+  --capa-flotante: 40;  /* desplegables: menú de fila, Select, menú de usuario */
+  --capa-dialogo: 50;   /* el modal y su velo, sobre absolutamente todo */
+
   --r-1: 4px;   /* muestra de color, chip diminuto            (4,5) */
   --r-2: 6px;   /* botón de fila, item de menú                  (6,7) */
   --r-3: 8px;   /* campo, aviso, bloque interior                (8,9) */
