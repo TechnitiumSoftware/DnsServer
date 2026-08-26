@@ -88,6 +88,7 @@ que está en una columna.
 /* La cabecera ordenable es un botón, no un `th` con `onclick`: así se llega con
    el tabulador y se anuncia como lo que es. */
 .orden {
+  composes: golpe from '../ui/interaccion.module.css';
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);
@@ -164,7 +165,7 @@ una fila tenga tres acciones y la de al lado cinco.
 
 .acciones > * + * { border-left: 1px solid var(--line) !important; }
 
-.acciones > *:hover:not(:disabled) { background: var(--hover) !important; }
+.acciones > *:hover:not(:disabled) { background: var(--hover-fuerte) !important; }
 .acciones > *:disabled { color: var(--faint); }
 
 /* El de borrar mantiene su color, pero dentro del grupo: no se rellena de rojo
@@ -189,3 +190,17 @@ por encima. Y el menú `⋮` lleva TODAS las acciones con su texto, incluida la 
 borrar, así que ningún nombre vive sólo dentro de un dibujo.
 */
 .acciones > [data-icono='true'] { padding-left: var(--s-6); padding-right: var(--s-6); }
+
+/* La casilla de seleccionar fila mide 18 px: se pulsa desde toda su celda. */
+.celdaCheck {
+  padding: 0;
+}
+
+.celdaCheck label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 var(--s-7);
+  cursor: pointer;
+}

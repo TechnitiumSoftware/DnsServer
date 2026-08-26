@@ -68,7 +68,7 @@ flota sobre el formulario y tiene que leerse como algo que está por delante.
   white-space: nowrap;
 }
 
-.opcion[data-activa='true'] { background: var(--hover); }
+.opcion[data-activa='true'] { background: var(--hover-fuerte); }
 .opcion[aria-selected='true'] { color: var(--acc); font-weight: 600; }
 .opcion[aria-disabled='true'] { color: var(--faint); cursor: default; }
 .opcion[aria-disabled='true'][data-activa='true'] { background: none; }

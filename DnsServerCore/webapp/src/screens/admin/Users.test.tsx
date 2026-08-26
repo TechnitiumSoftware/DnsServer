@@ -38,9 +38,11 @@ describe('Users — la tabla', () => {
     expect(await screen.findByText('Administrator')).toBeInTheDocument()
     expect(screen.getAllByText('Local')).toHaveLength(2)
     expect(screen.getByText('Total Users: 2')).toBeInTheDocument()
-    // `0001-01-01T00:00:00` es el «nunca» de .NET: se pinta tal cual lo hace
-    // upstream, con su «from 0.0.0.0» detrás.
-    expect(screen.getAllByText(/from 0\.0\.0\.0$/)).toHaveLength(2)
+    // `0001-01-01T00:00:00` es el «nunca» de .NET. Upstream lo formatea sin
+    // mirarlo y saca «0000-12-31 23:45:16 from 0.0.0.0»; aquí se dice «Never»,
+    // que es lo que ese valor significa.
+    expect(screen.getAllByText('Never')).toHaveLength(2)
+    expect(screen.queryByText(/from 0\.0\.0\.0/)).toBeNull()
   })
 
   it('un usuario de SSO sale como Remote/SSO y con el 2FA gestionado fuera', async () => {

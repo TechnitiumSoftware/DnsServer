@@ -8,7 +8,7 @@
 .browseRow > div { flex:1; min-width:0; }
 
 .node { display:flex; align-items:center; gap: var(--s-4); width:100%; padding: var(--s-3) var(--s-4); border:0; border-radius: var(--r-2); background:transparent; font:var(--t-4)/1.3 var(--font-mono); color:var(--mute); cursor:pointer; text-align:left; }
-.node:hover { background:var(--hover); color:var(--ink); }
+.node:hover { background:var(--hover-fuerte); color:var(--ink); }
 .node[aria-current='true'] { background:var(--pan2); color:var(--acc); font-weight: 550; }
 .car { display:inline-flex; color:var(--mute); flex:none; }
 .etiqueta { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -28,7 +28,8 @@
 .kv dd { margin: 0; font:var(--t-4)/1.45 var(--font-mono); color:var(--ink); min-width:0; }
 /* El valor largo rompe por caracteres; el botón que lo sigue, NO. */
 .clave { word-break:break-all; color:var(--mute); }
-.verlo { border:0; background:transparent; padding: 0; font:inherit; font-size: var(--t-3); color:var(--acc); cursor:pointer; white-space:nowrap; }
+.verlo {
+  composes: golpe from '../../ui/interaccion.module.css'; border:0; background:transparent; padding: 0; font:inherit; font-size: var(--t-3); color:var(--acc); cursor:pointer; white-space:nowrap; }
 
 .meta { margin-top: var(--s-4); font-size: var(--t-2); color:var(--faint); }
 .firmas { margin: var(--s-5) 0 0; padding: var(--s-6) var(--s-8); background:var(--field); border:1px solid var(--line); border-radius: var(--r-2); font:var(--t-2)/1.6 var(--font-mono); color:var(--mute); white-space:pre-wrap; word-break:break-all; }

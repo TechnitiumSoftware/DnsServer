@@ -91,26 +91,26 @@ describe('entradasRData', () => {
 describe('meta', () => {
   it('pone en la línea gris los metadatos de respuesta de cache, enteros', () => {
     expect(meta(CACHE_DNSKEY)).toEqual([
-      'vía 1.1.1.1',
+      'via 1.1.1.1',
       'Udp',
       '1139 bytes',
       '2.58 ms',
-      'usado 2026-08-25 13:10',
+      'used 2026-08-25 13:10',
     ])
   })
 
   it('en allowed y blocked dice el estado DNSSEC y que nunca se ha usado', () => {
     expect(meta(ALLOWED_NS)).toContain('DNSSEC Unknown')
-    expect(meta(ALLOWED_NS)).toContain('nunca usado')
-    expect(meta(ALLOWED_NS)).toContain('sin caducidad')
+    expect(meta(ALLOWED_NS)).toContain('never used')
+    expect(meta(ALLOWED_NS)).toContain('no expiry')
   })
 
   it('un expiryTtl mayor que cero sí se cuenta', () => {
-    expect(meta({ ...ALLOWED_NS, expiryTtl: 3600, expiryTtlString: '1h' })).toContain('caduca en 1h')
+    expect(meta({ ...ALLOWED_NS, expiryTtl: 3600, expiryTtlString: '1h' })).toContain('expires in 1h')
   })
 
   it('un registro deshabilitado se dice', () => {
-    expect(meta({ ...ALLOWED_NS, disabled: true })).toContain('deshabilitado')
+    expect(meta({ ...ALLOWED_NS, disabled: true })).toContain('disabled')
   })
 })
 

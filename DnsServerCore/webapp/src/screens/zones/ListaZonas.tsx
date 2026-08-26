@@ -422,13 +422,16 @@ export function ListaZonas({
         <table className={tbl.tabla}>
           <thead>
             <tr>
-              <th style={{ width: 30 }}>
-                <input
-                  type="checkbox"
-                  aria-label="Select all zones"
-                  checked={todasMarcadas}
-                  onChange={(e) => setMarcadas(e.target.checked ? zonas.map((z) => z.name) : [])}
-                />
+              {/* La casilla mide 18 px; se pulsa desde toda su celda. */}
+              <th style={{ width: 38 }} className={tbl.celdaCheck}>
+                <label>
+                  <input
+                    type="checkbox"
+                    aria-label="Select all zones"
+                    checked={todasMarcadas}
+                    onChange={(e) => setMarcadas(e.target.checked ? zonas.map((z) => z.name) : [])}
+                  />
+                </label>
               </th>
               <th style={{ width: 34 }}>#</th>
               <Th campo="zone" orden={orden} onOrdenar={alternar}>Zone</Th>
@@ -565,13 +568,15 @@ function FilaZona(p: FilaProps) {
 
   return (
     <tr>
-      <td>
-        <input
-          type="checkbox"
-          aria-label={`Select ${nombre}`}
-          checked={p.marcada}
-          onChange={(e) => p.onMarcar(e.target.checked)}
-        />
+      <td className={tbl.celdaCheck}>
+        <label>
+          <input
+            type="checkbox"
+            aria-label={`Select ${nombre}`}
+            checked={p.marcada}
+            onChange={(e) => p.onMarcar(e.target.checked)}
+          />
+        </label>
       </td>
       <td className={`${styles.num} ${tbl.numero}`}>{p.indice}</td>
       <td className={tbl.apilada}>

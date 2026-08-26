@@ -123,10 +123,10 @@ describe('tabla de registros', () => {
   it('conserva los metadatos de respuesta en la línea gris', async () => {
     conNodo(nodo({ domain: 'example.com', records: [REG_CACHE] }))
     render(<Cache token="t" />)
-    const meta = await screen.findByText(/vía 8\.8\.8\.8/)
+    const meta = await screen.findByText(/via 8\.8\.8\.8/)
     expect(meta).toHaveTextContent('179 bytes')
     expect(meta).toHaveTextContent('43 ms')
-    expect(meta).toHaveTextContent('usado 2026-08-25 19:58')
+    expect(meta).toHaveTextContent('used 2026-08-25 19:58')
   })
 
   it('la columna DNSSEC es sólo de Cache', async () => {

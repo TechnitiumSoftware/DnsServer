@@ -1,0 +1,24 @@
+/*
+Agrandar el objetivo sin agrandar el dibujo.
+
+En una tabla densa, un enlace de 70×20 px es lo correcto visualmente y lo
+incorrecto para el dedo: la recomendación son 44 px y aquí hay seis controles
+entre 14 y 20 px de alto —el nombre de una zona, la cabecera ordenable, el
+enlace de un usuario—. Agrandarlos de verdad rompería la tabla, que es lo que
+esta consola hace mejor.
+
+`.golpe` extiende el ÁREA SENSIBLE con un pseudo-elemento invisible, sin mover
+un píxel de lo que se ve. El control sigue midiendo 20 px y se pulsa como si
+midiera 36.
+*/
+.golpe {
+  position: relative;
+}
+
+.golpe::after {
+  content: '';
+  position: absolute;
+  inset: -8px -6px;
+  /* Sólo amplía el blanco: no debe tapar lo que tenga al lado. */
+  z-index: 0;
+}

@@ -27,6 +27,7 @@ import {
 import tbl from '../../ui/Table.module.css'
 import { AccionFila, Th, useOrden, type Claves } from '../../ui/Table'
 import { Menu, Separador } from '../../ui/Menu'
+import { nuncaUsado } from '../../api/zones'
 
 /*
 `refreshAdminUsers` y las siete acciones de la fila (auth.js:1083-1698).
@@ -54,6 +55,11 @@ type Accion =
   | { tipo: '2fa'; user: AdminUser }
   | { tipo: 'delete'; user: AdminUser }
 
+/** La fecha de un acceso, o «Never» si es el centinela de .NET. */
+function acceso(iso: string, direccion: string): string {
+  return nuncaUsado(iso) ? 'Never' : `${fechaHora(iso)} from ${direccion}`
+}
+
 /* `sortTable('tbodyAdminUsers', 0..6)`. */
 const CLAVES: Claves<AdminUser> = {
   username: (u) => u.username,
@@ -61,8 +67,8 @@ const CLAVES: Claves<AdminUser> = {
   type: (u) => (u.isSsoUser ? 'Remote/SSO' : 'Local'),
   totp: (u) => (u.isSsoUser ? 'SSO Managed' : u.totpEnabled ? 'Enabled' : 'Disabled'),
   status: (u) => (u.disabled ? 'Disabled' : 'Enabled'),
-  recent: (u) => `${fechaHora(u.recentSessionLoggedOn)} from ${u.recentSessionRemoteAddress}`,
-  previous: (u) => `${fechaHora(u.previousSessionLoggedOn)} from ${u.previousSessionRemoteAddress}`,
+  recent: (u) => acceso(u.recentSessionLoggedOn, u.recentSessionRemoteAddress),
+  previous: (u) => acceso(u.previousSessionLoggedOn, u.previousSessionRemoteAddress),
 }
 
 export function Users({ token, cluster, onAviso }: Props) {
@@ -183,12 +189,17 @@ export function Users({ token, cluster, onAviso }: Props) {
                         <Tag tone="ok">Enabled</Tag>
                       )}
                     </td>
-                    <td className={styles.mono}>
-                      {`${fechaHora(u.recentSessionLoggedOn)} from ${u.recentSessionRemoteAddress}`}
-                    </td>
-                    <td className={styles.mono}>
-                      {`${fechaHora(u.previousSessionLoggedOn)} from ${u.previousSessionRemoteAddress}`}
-                    </td>
+                    {/*
+                    Upstream formatea la fecha sin mirar si es el mínimo de .NET
+                    (auth.js:1141), así que a un usuario que no ha entrado nunca
+                    le enseña «0000-12-31 23:45:16 from 0.0.0.0» —el año cero,
+                    porque convierte a hora local una fecha anterior a los husos—
+                    y una dirección que no existe. Eso no es un dato: es un valor
+                    centinela filtrándose a la pantalla. Se dice «Never», que es
+                    lo que significa, igual que se hizo con la columna DNSSEC.
+                    */}
+                    <td className={styles.mono}>{acceso(u.recentSessionLoggedOn, u.recentSessionRemoteAddress)}</td>
+                    <td className={styles.mono}>{acceso(u.previousSessionLoggedOn, u.previousSessionRemoteAddress)}</td>
                     <td>
                       <div className={tbl.acciones}>
                         <AccionFila

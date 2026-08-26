@@ -2,6 +2,10 @@
   display: flex;
   align-items: flex-start;
   gap: var(--s-6);
+  /* El rótulo ES el objetivo: se pulsa desde el texto, no sólo desde la casilla.
+     Con 22 px de alto se quedaba corto para el dedo. */
+  min-height: 26px;
+  padding: var(--s-2) 0;
   font-size: var(--t-4);
   cursor: pointer;
 }

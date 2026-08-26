@@ -136,11 +136,11 @@ allowed y blocked, el estado del registro en la zona.
 export function meta(r: RegistroDns): string[] {
   const partes: string[] = []
 
-  if (r.disabled) partes.push('deshabilitado')
+  if (r.disabled) partes.push('disabled')
 
   const rm = r.responseMetadata
   if (rm) {
-    partes.push(`vía ${rm.nameServer ?? '—'}`)
+    partes.push(`via ${rm.nameServer ?? '—'}`)
     if (rm.protocol) partes.push(rm.protocol)
     if (rm.datagramSize) partes.push(rm.datagramSize)
     if (rm.roundTripTime) partes.push(rm.roundTripTime)
@@ -149,14 +149,16 @@ export function meta(r: RegistroDns): string[] {
     partes.push(`DNSSEC ${r.dnssecStatus}`)
   }
 
+  // El vocabulario es el de upstream: «Last Modified», «Last Used» y «(never)»
+  // (zone.js:4179-4188), aquí en una sola línea en vez de en tres.
   const modificado = fechaCorta(r.lastModified)
-  if (modificado) partes.push(`modificado ${modificado}`)
+  if (modificado) partes.push(`modified ${modificado}`)
 
   const usado = fechaCorta(r.lastUsedOn)
-  partes.push(usado ? `usado ${usado}` : 'nunca usado')
+  partes.push(usado ? `used ${usado}` : 'never used')
 
   if (r.expiryTtl != null) {
-    partes.push(r.expiryTtl > 0 ? `caduca en ${r.expiryTtlString ?? r.expiryTtl}` : 'sin caducidad')
+    partes.push(r.expiryTtl > 0 ? `expires in ${r.expiryTtlString ?? r.expiryTtl}` : 'no expiry')
   }
 
   return partes

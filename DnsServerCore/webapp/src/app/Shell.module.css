@@ -34,10 +34,9 @@ Administration) y lo que se consulta (Logs, About).
 .menuBtn:hover { color:var(--ink); }
 .menuList { position:absolute; right:0; top:30px; min-width:190px; z-index:10; background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); padding: var(--s-3); display:flex; flex-direction:column; box-shadow: var(--e-2), var(--filo); }
 .menuList button { background:none; border:0; color:var(--ink); font:inherit; font-size: var(--t-4); text-align:left; padding: var(--s-4) var(--s-6); border-radius: var(--r-2); cursor:pointer; }
-.menuList button:hover { background:var(--hover); }
+.menuList button:hover,
+.menuList button:focus-visible { background:var(--hover-fuerte); }
 .body { padding: var(--s-11) var(--s-11) var(--s-11); min-width:0; }
-.placeholder { border:1px dashed var(--line); border-radius: var(--r-4); padding: var(--s-12); text-align:center; color:var(--mute); font-size: var(--t-4); }
-.placeholder b { display:block; color:var(--ink); font-size: var(--t-5); margin-bottom: var(--s-3); }
 
 /*
 Por debajo de 900 px el lateral deja de ocupar columna y pasa a cajón.

@@ -239,12 +239,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
             canFlushCache={permisos?.Cache?.canDelete !== false}
             canBackup={permisos?.Settings?.canDelete !== false}
           />
-        ) : (
-          <div className={styles.placeholder}>
-            <b>{current?.label}</b>
-            Esta sección llega en la {current?.phase}.
-          </div>
-        )}
+        ) : null}
         </main>
       </div>
 

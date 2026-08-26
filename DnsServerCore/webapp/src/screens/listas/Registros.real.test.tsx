@@ -111,18 +111,18 @@ describe('los tres campos que se dicen de otra forma', () => {
     expect(c.querySelector(`[title="${completa}"]`)).not.toBeNull()
   })
 
-  it('`expiryTtl: 0` se dice «sin caducidad», que es lo que significa', async () => {
+  it('`expiryTtl: 0` se dice «no expiry», que es lo que significa', async () => {
     const nodo = NODOS.allowed
     expect((nodo.records[0] as RegistroDns).expiryTtl).toBe(0)
     const c = await pintarTodo(nodo, false)
-    expect(c.textContent).toContain('sin caducidad')
+    expect(c.textContent).toContain('no expiry')
   })
 
   it('`disabled: false` no se dice: sólo se marca cuando es cierto', async () => {
     const nodo = NODOS.allowed
     expect((nodo.records[0] as RegistroDns).disabled).toBe(false)
     const c = await pintarTodo(nodo, false)
-    expect(c.textContent).not.toContain('deshabilitado')
+    expect(c.textContent).not.toContain('disabled')
   })
 })
 

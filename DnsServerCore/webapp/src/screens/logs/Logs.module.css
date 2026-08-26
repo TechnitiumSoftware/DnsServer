@@ -22,7 +22,7 @@
   font: var(--t-4)/1.3 var(--font-ui); color: var(--mute); cursor: pointer;
   text-align: left; width: 100%;
 }
-.logfile:hover { background: var(--hover); color: var(--ink); }
+.logfile:hover { background: var(--hover-fuerte); color: var(--ink); }
 .logfile[aria-current='true'] { background: var(--pan2); color: var(--acc); font-weight: 550; }
 .logfile .nombre { font-family: var(--font-mono); }
 .sz { font-family: var(--font-mono); font-size: var(--t-2); color: var(--faint); }

@@ -83,7 +83,12 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
           <div className={styles.ph}><h2>Update</h2></div>
           <div className={styles.pb}>
             {update === 'al-dia' && <Alert type="info" title="Note:">No update available. You are running the latest version.</Alert>}
-            {update === 'hay' && <Alert type="success" title="New Update Available!">Se puede actualizar a una versión más reciente.</Alert>}
+            {/*
+            main.js:751-767 — el título por defecto es «New Update Available!» y
+            el MENSAJE lo manda el servidor; si no viene, upstream no enseña
+            ninguno. La frase que había aquí estaba inventada, y en castellano.
+            */}
+            {update === 'hay' && <Alert type="success" title="New Update Available!" />}
             {update === 'sin-mirar' && <Empty compacto>Update notifications are turned off for this server.</Empty>}
             <div className={styles.accion}>
               <Button disabled={update === 'mirando'} onClick={() => void mirar()}>Check for Update</Button>

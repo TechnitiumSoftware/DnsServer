@@ -16,7 +16,8 @@
 .count { display:flex; align-items:center; justify-content:space-between; gap: var(--s-7); font-size: var(--t-4); color:var(--mute); margin-top: var(--s-8); }
 
 /* El nombre de usuario / grupo / sección de la primera columna abre su ficha. */
-.link { border:0; background:transparent; padding: 0; font:inherit; color:var(--acc); cursor:pointer; text-align:left; word-break:break-all; }
+.link {
+  composes: golpe from '../../ui/interaccion.module.css'; border:0; background:transparent; padding: 0; font:inherit; color:var(--acc); cursor:pointer; text-align:left; word-break:break-all; }
 .link:hover { text-decoration:underline; }
 
 .nodo { font-size: var(--t-4); padding: var(--s-3) var(--s-6); border:1px solid var(--line); border-radius: var(--r-2); background:var(--field); color:var(--ink); }

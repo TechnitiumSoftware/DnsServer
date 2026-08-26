@@ -225,8 +225,13 @@ export function Select({
         onClick={() => (abierto ? cerrar(false) : abrir())}
         onKeyDown={alTeclado}
       >
-        <span className={elegida ? styles.valor : styles.vacio}>
-          {elegida?.label ?? placeholder ?? ''}
+        {/*
+        Una opción sin rótulo —el «cualquiera» de un filtro— se dibuja con una
+        raya, igual que dentro de la lista. Vacío del todo, el control se lee
+        como una caja rota en vez de como «no hay nada elegido».
+        */}
+        <span className={elegida?.label ? styles.valor : styles.vacio}>
+          {elegida?.label || placeholder || '—'}
         </span>
         <Icono nombre="chevronAbajo" tam={14} className={styles.chevron} />
       </button>
