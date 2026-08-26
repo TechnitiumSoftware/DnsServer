@@ -17,8 +17,22 @@ Con el cuerpo como única zona que rueda, el título y las acciones no se mueven
 nunca. El `min-height: 0` no es adorno: sin él un hijo flexible se niega a
 encogerse por debajo de su contenido y el scroll no aparece.
 */
+/*
+Se centra con `inset: 0` y `margin: auto`, y NO con `transform`.
+
+Un `transform` crea bloque contenedor para sus descendientes con `position:
+fixed`, así que la lista de `ui/Select` y la de `ui/Menu` —que se colocan fijas,
+midiendo su disparador contra la ventana— aparecían corridas justo lo que medía
+el desplazamiento del centrado. Medido en «User Details»: el disparador terminaba
+en `x=489 y=594` y la lista salía en `x=770 y=308`, o sea **281 px a la derecha y
+287 por encima**. Y como el puntero nunca llegaba a ella, al mover el ratón se
+cerraba: parecía que «desaparecía al hacer hover».
+
+Centrar con márgenes automáticos da el mismo resultado sin crear ese bloque.
+*/
 .content {
-  position: fixed; z-index: var(--capa-dialogo); left: 50%; top: 50%; transform: translate(-50%, -50%);
+  position: fixed; z-index: var(--capa-dialogo);
+  inset: 0; margin: auto; height: fit-content;
   display: flex; flex-direction: column;
   max-height: calc(100vh - 64px); overflow: hidden;
   background: var(--pan); border: 1px solid var(--line); border-radius: var(--r-4);
