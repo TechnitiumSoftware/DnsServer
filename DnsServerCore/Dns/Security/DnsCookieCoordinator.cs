@@ -51,14 +51,16 @@ namespace DnsServerCore.Dns.Security
     {
         public DnsCookieCoordinator.RuntimeState RuntimeState { get; }
         public CookieRequestState State { get; }
+        public IPAddress CookieClientAddress { get; }
         public EDnsCookieOptionData Cookie { get; }
         public DnsCookieValidationResult ValidationResult { get; }
 
-        public CookieRequestClassification(DnsCookieCoordinator.RuntimeState runtimeState, CookieRequestState state, EDnsCookieOptionData cookie = null,
-            DnsCookieValidationResult validationResult = DnsCookieValidationResult.Invalid)
+        public CookieRequestClassification(DnsCookieCoordinator.RuntimeState runtimeState, CookieRequestState state, IPAddress cookieClientAddress,
+            EDnsCookieOptionData cookie = null, DnsCookieValidationResult validationResult = DnsCookieValidationResult.Invalid)
         {
             RuntimeState = runtimeState;
             State = state;
+            CookieClientAddress = cookieClientAddress;
             Cookie = cookie;
             ValidationResult = validationResult;
         }
@@ -306,7 +308,7 @@ namespace DnsServerCore.Dns.Security
         {
             RuntimeState runtimeState = Volatile.Read(ref _state);
             if (!SupportsDnsCookies(protocol) || runtimeState is not EnabledState enabledState)
-                return new CookieRequestClassification(runtimeState, CookieRequestState.NotEvaluated);
+                return new CookieRequestClassification(runtimeState, CookieRequestState.NotEvaluated, clientAddress);
 
             return ClassifyEnabled(request, clientAddress, enabledState);
         }
@@ -314,7 +316,7 @@ namespace DnsServerCore.Dns.Security
         private CookieRequestClassification ClassifyEnabled(DnsDatagram request, IPAddress clientAddress, EnabledState runtimeState)
         {
             if (request.EDNS is null)
-                return new CookieRequestClassification(runtimeState, CookieRequestState.NoCookie);
+                return new CookieRequestClassification(runtimeState, CookieRequestState.NoCookie, clientAddress);
 
             // RFC 7873 says to process only the first COOKIE option.  In particular,
             // never let a later valid option repair a malformed or invalid first one.
@@ -324,31 +326,31 @@ namespace DnsServerCore.Dns.Security
                     continue;
 
                 if (option.Data is not EDnsCookieOptionData cookieData)
-                    return new CookieRequestClassification(runtimeState, CookieRequestState.MalformedCookie);
+                    return new CookieRequestClassification(runtimeState, CookieRequestState.MalformedCookie, clientAddress);
 
                 int clientLength = cookieData.ClientCookie.Length;
                 int serverLength = cookieData.ServerCookie.Length;
                 if (clientLength != ClientCookieLength || (serverLength != 0 && (serverLength < ServerCookieMinLength || serverLength > ServerCookieMaxLength)))
-                    return new CookieRequestClassification(runtimeState, CookieRequestState.MalformedCookie, cookieData);
+                    return new CookieRequestClassification(runtimeState, CookieRequestState.MalformedCookie, clientAddress, cookieData);
 
                 if (serverLength == 0)
-                    return new CookieRequestClassification(runtimeState, CookieRequestState.ClientOnly, cookieData);
+                    return new CookieRequestClassification(runtimeState, CookieRequestState.ClientOnly, clientAddress, cookieData);
 
                 DnsCookieValidator validator = runtimeState.Validator;
                 if (serverLength != V1ServerCookieLength || cookieData.ServerCookie[0] != V1Version)
                 {
-                    return new CookieRequestClassification(runtimeState, CookieRequestState.InvalidServerCookie, cookieData);
+                    return new CookieRequestClassification(runtimeState, CookieRequestState.InvalidServerCookie, clientAddress, cookieData);
                 }
 
                 Interlocked.Increment(ref _validationInvocations);
                 DnsCookieValidationResult validationResult =
                     validator.Validate(clientAddress, cookieData.ClientCookie, cookieData.ServerCookie);
                 return validationResult == DnsCookieValidationResult.Invalid
-                    ? new CookieRequestClassification(runtimeState, CookieRequestState.InvalidServerCookie, cookieData)
-                    : new CookieRequestClassification(runtimeState, CookieRequestState.ValidServerCookie, cookieData, validationResult);
+                    ? new CookieRequestClassification(runtimeState, CookieRequestState.InvalidServerCookie, clientAddress, cookieData)
+                    : new CookieRequestClassification(runtimeState, CookieRequestState.ValidServerCookie, clientAddress, cookieData, validationResult);
             }
 
-            return new CookieRequestClassification(runtimeState, CookieRequestState.NoCookie);
+            return new CookieRequestClassification(runtimeState, CookieRequestState.NoCookie, clientAddress);
         }
 
         #endregion
@@ -363,7 +365,7 @@ namespace DnsServerCore.Dns.Security
         /// zero-question acquisition acknowledgement that should still flow through normal
         /// post-processing; a null response means the caller should process the query as usual.
         /// </summary>
-        internal CookiePreflightResult Preflight(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed,
+        internal CookiePreflightResult Preflight(DnsDatagram request, IPAddress cookieClientAddress, DnsTransportProtocol protocol, bool isRecursionAllowed,
             in CookieRequestClassification classification, ushort udpPayloadSizeFallback)
         {
             if (!SupportsDnsCookies(protocol) || request.EDNS is null || classification.RuntimeState is not EnabledState cookieRuntimeState)
@@ -420,7 +422,7 @@ namespace DnsServerCore.Dns.Security
                     if (IsUdpTransport(protocol) || isCookieAcquisitionRequest)
                     {
                         return CookiePreflightResult.Immediate(
-                            HandleInvalidCookieRequest(request, remoteEP, isRecursionAllowed, requestCookie, cookieRuntimeState));
+                            HandleInvalidCookieRequest(request, cookieClientAddress, isRecursionAllowed, requestCookie, cookieRuntimeState));
                     }
 
                     Interlocked.Increment(ref _invalidCount);
@@ -462,7 +464,7 @@ namespace DnsServerCore.Dns.Security
         /// Attaches a Server Cookie to an already-built response when the request warrants one.
         /// Returns the original response unchanged when there is nothing to attach.
         /// </summary>
-        internal DnsDatagram AttachToResponse(DnsDatagram request, DnsDatagram response, IPEndPoint remoteEP, DnsTransportProtocol protocol,
+        internal DnsDatagram AttachToResponse(DnsDatagram request, DnsDatagram response, IPAddress cookieClientAddress, DnsTransportProtocol protocol,
             in CookieRequestClassification classification)
         {
             if (!SupportsDnsCookies(protocol) || classification.RuntimeState is not EnabledState cookieRuntimeState || request.EDNS is null)
@@ -482,7 +484,7 @@ namespace DnsServerCore.Dns.Security
                 }
                 else
                 {
-                    byte[] serverCookie = cookieRuntimeState.Validator.CreateResponseCookie(remoteEP.Address, requestCookie.ClientCookie);
+                    byte[] serverCookie = cookieRuntimeState.Validator.CreateResponseCookie(cookieClientAddress, requestCookie.ClientCookie);
                     responseCookie = new EDnsCookieOptionData(requestCookie.ClientCookie.ToArray(), serverCookie);
                 }
 
@@ -503,12 +505,12 @@ namespace DnsServerCore.Dns.Security
             return response;
         }
 
-        private DnsDatagram HandleInvalidCookieRequest(DnsDatagram request, IPEndPoint remoteEP, bool isRecursionAllowed,
+        private DnsDatagram HandleInvalidCookieRequest(DnsDatagram request, IPAddress cookieClientAddress, bool isRecursionAllowed,
             EDnsCookieOptionData requestCookie, EnabledState runtimeState)
         {
             Interlocked.Increment(ref _invalidCount);
 
-            byte[] serverCookie = runtimeState.Validator.CreateResponseCookie(remoteEP.Address, requestCookie.ClientCookie);
+            byte[] serverCookie = runtimeState.Validator.CreateResponseCookie(cookieClientAddress, requestCookie.ClientCookie);
             EDnsCookieOptionData responseCookie = new EDnsCookieOptionData(requestCookie.ClientCookie.ToArray(), serverCookie);
 
             Interlocked.Increment(ref _badCookieSentCount);

@@ -1865,6 +1865,10 @@ namespace DnsServerCore.Dns
 
                             request.SetMetadata(new NameServerAddress(sourceEP, protocol));
 
+                            // Capture the trusted transport/PROXY source before ECS can alter
+                            // the effective address used by normal DNS processing.
+                            IPAddress cookieClientAddress = remoteEP.Address;
+
                             if ((protocol == DnsTransportProtocol.Udp) && _enableEDnsClientSubnetSourceAddress)
                             {
                                 if (NetworkAccessControl.IsAddressAllowed(remoteEP.Address, _dnsReverseProxyNetworkACL))
@@ -1910,11 +1914,11 @@ namespace DnsServerCore.Dns
                                 sendTruncationResponse = false;
                             }
 
-                            // Capture cookie state once while the parsed request and the final
-                            // client address are both available. The same immutable context is
-                            // used for the RRL decision and for response processing.
+                            // Classify once using the stable Cookie identity captured before
+                            // ECS processing. The classification is reused for the RRL decision
+                            // and for response processing.
                             Security.CookieRequestClassification cookieClassification =
-                                _cookieCoordinator.Classify(request, remoteEP.Address, protocol);
+                                _cookieCoordinator.Classify(request, cookieClientAddress, protocol);
                             if (enableSocketBindingToSourceEP)
                             {
                                 Socket newUdpListener = null;
@@ -2317,9 +2321,13 @@ namespace DnsServerCore.Dns
 
                         cancellationTokenSource.Cancel(); //cancel delay task
 
-                        request = await task;
-                        request.SetMetadata(dnsEP);
+                    request = await task;
+                    request.SetMetadata(dnsEP);
                     }
+
+                    // Capture the trusted transport/PROXY source before ECS can alter
+                    // the effective address used by normal DNS processing.
+                    IPAddress cookieClientAddress = remoteEP.Address;
 
                     if ((protocol == DnsTransportProtocol.Tcp) && _enableEDnsClientSubnetSourceAddress)
                     {
@@ -2354,7 +2362,7 @@ namespace DnsServerCore.Dns
                     }
 
                     Security.CookieRequestClassification cookieClassification =
-                        _cookieCoordinator.Classify(request, remoteEP.Address, protocol);
+                        _cookieCoordinator.Classify(request, cookieClientAddress, protocol);
 
                     //process request async
                     _ = ProcessStreamRequestAsync(stream, writeBuffer, writeSemaphore, remoteEP, request, protocol, cookieClassification);
@@ -2909,7 +2917,7 @@ namespace DnsServerCore.Dns
 
             // DNS Cookies (RFC 7873 / RFC 9018 v1)
             Security.CookiePreflightResult cookiePreflight = _cookieCoordinator.Preflight(
-                request, remoteEP, protocol, isRecursionAllowed, cookieClassification, _udpPayloadSize);
+                request, cookieClassification.CookieClientAddress, protocol, isRecursionAllowed, cookieClassification, _udpPayloadSize);
             if (cookiePreflight.ShortCircuit)
                 return cookiePreflight.Response;
 
@@ -2921,7 +2929,7 @@ namespace DnsServerCore.Dns
             if (response is null)
                 return null;
 
-            response = _cookieCoordinator.AttachToResponse(request, response, remoteEP, protocol, cookieClassification);
+            response = _cookieCoordinator.AttachToResponse(request, response, cookieClassification.CookieClientAddress, protocol, cookieClassification);
 
             return await PostProcessQueryAsync(request, remoteEP, protocol, response);
         }
