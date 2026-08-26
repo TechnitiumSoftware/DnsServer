@@ -55,11 +55,16 @@ notaba mientras todos los diálogos midieran 560. Al darle a «User Details» lo
 640 px. El tope son 420, que es el que ya usaban de hecho los formularios de
 página: medidos los 46 campos de la consola, la mediana es 174 px y el máximo 420.
 
-Se queda fuera el `textarea` —«Member Of», las listas de IP— que sí aprovecha el
-ancho, y las casillas, que tienen el suyo.
+El tope alcanza también a una tabla que sea el control de una fila: la de
+«Member Of» de My Profile es de UNA columna y medía 831 px para un nombre de
+grupo de 82. Upstream tampoco la estira: la mete en un `col-sm-7`. Lo que queda
+fuera es el `textarea` —listas de IP, que sí aprovechan el ancho— y las tablas
+que NO son control de una fila, como la de sesiones, que necesita todo lo que
+haya.
 */
 .mrow input:not([type='checkbox']):not([type='radio']),
-.mrow select {
+.mrow select,
+.mrow table {
   max-width: 420px;
 }
 

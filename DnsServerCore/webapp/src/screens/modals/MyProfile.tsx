@@ -174,7 +174,7 @@ export function MyProfile({
 
       <div>
         <div className={styles.caption}>Member Of</div>
-        <table className={styles.table}>
+        <table className={`${styles.table} ${styles.estrecha}`}>
           <thead>
             <tr>
               <Th campo="group" orden={grupos.orden} onOrdenar={grupos.alternar}>Group</Th>

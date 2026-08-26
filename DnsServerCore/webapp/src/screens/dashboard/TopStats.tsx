@@ -72,7 +72,10 @@ export function TopStats({
     <Dialog
       open={tipo !== null}
       onOpenChange={(o) => !o && onCerrar()}
-      tamano="ancho"
+      /* Upstream le da 600 px (`modalTopStats`), no los 940 de las tablas anchas, y
+         la medida le da la razón: la columna del dominio ocupaba 736 px para un
+         texto de 148. Es una lista de dos columnas, no una tabla ancha. */
+      tamano="formulario"
       title={tipo == null ? 'Top Stats' : `Top ${LIMITE} ${TITULOS[tipo]}`}
     >
       {cargando ? (
