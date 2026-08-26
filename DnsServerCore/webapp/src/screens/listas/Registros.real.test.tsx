@@ -37,7 +37,7 @@ async function pintarTodo(nodo: NodoLista, conDnssec: boolean) {
     <Registros records={nodo.records} conDnssec={conDnssec} nodo={nodo.domain} />,
   )
   // Los valores largos salen truncados: se despliegan todos antes de mirar.
-  for (const b of screen.queryAllByRole('button', { name: 'ver completa' })) {
+  for (const b of screen.queryAllByRole('button', { name: 'show full' })) {
     await userEvent.click(b)
   }
   // Y las firmas DNSSEC y los glue records viven tras su botón.

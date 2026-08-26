@@ -24,11 +24,12 @@ const datos = {
 }
 
 describe('porcentaje', () => {
-  it('redondea a un decimal como upstream', () => {
-    expect(porcentaje(41008, 48312)).toBe('84,9%')
-    expect(porcentaje(36, 48312)).toBe('0,1%')
+  // main.js:2652-2676 — `toFixed(2)`, con punto, sin locale y con dos decimales.
+  it('dos decimales y punto, como upstream', () => {
+    expect(porcentaje(41008, 48312)).toBe('84.88%')
+    expect(porcentaje(36, 48312)).toBe('0.07%')
   })
-  it('no divide por cero', () => {
+  it('sin consultas es «0%» literal, no «0.00%»', () => {
     expect(porcentaje(0, 0)).toBe('0%')
   })
 })
@@ -43,8 +44,10 @@ describe('Dashboard', () => {
     for (const l of ['Total Queries','No Error','Server Failure','NX Domain','Refused','Authoritative','Recursive','Cached','Blocked','Dropped','Clients']) {
       expect(tiles.getByText(l)).toBeInTheDocument()
     }
-    expect(tiles.getByText('48.312')).toBeInTheDocument()
-    expect(tiles.getByText('84,9%')).toBeInTheDocument()
+    // Los números van con la locale del navegador porque upstream tampoco fija
+    // ninguna (main.js:2632). Se afirma así para no clavar la prueba a una.
+    expect(tiles.getByText((48312).toLocaleString())).toBeInTheDocument()
+    expect(tiles.getByText('84.88%')).toBeInTheDocument()
   })
 
   it('pinta los seis contadores del servidor', async () => {
@@ -54,7 +57,7 @@ describe('Dashboard', () => {
     for (const l of ['Zones','Cache','Allowed','Blocked','Allow List','Block List']) {
       expect(c.getByText(l)).toBeInTheDocument()
     }
-    expect(c.getByText('184.302')).toBeInTheDocument()
+    expect(c.getByText((184302).toLocaleString())).toBeInTheDocument()
   })
 
   it('ofrece los seis rangos con sus etiquetas y arranca en Last Hour', async () => {
@@ -79,7 +82,7 @@ describe('Dashboard', () => {
   it('pinta las CUATRO gráficas, no dos', async () => {
     vi.spyOn(api, 'getDashboardStats').mockResolvedValue(datos as never)
     render(<Dashboard token="t" />)
-    expect(await screen.findByLabelText('Consultas por periodo')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Queries over time')).toBeInTheDocument()
     expect(screen.getByLabelText('Query Response Types')).toBeInTheDocument()
     expect(screen.getByLabelText('Query Types')).toBeInTheDocument()
     expect(screen.getByLabelText('Protocol Types')).toBeInTheDocument()

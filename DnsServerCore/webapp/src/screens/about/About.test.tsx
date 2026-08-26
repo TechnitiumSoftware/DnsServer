@@ -1,19 +1,11 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { About, desde } from './About'
+import { About } from './About'
 import * as userApi from '../../api/user'
 
 afterEach(() => vi.restoreAllMocks())
 
 const info = { version: '15.4', uptimestamp: '2026-08-25T13:07:31Z', dnsServerDomain: 'dns.shlab.app' }
-
-describe('desde', () => {
-  const ahora = new Date('2026-08-25T15:07:31Z').getTime()
-  it('cuenta horas', () => expect(desde('2026-08-25T13:07:31Z', ahora)).toBe('hace 2 horas'))
-  it('cuenta minutos', () => expect(desde('2026-08-25T15:00:31Z', ahora)).toBe('hace 7 minutos'))
-  it('cuenta días en singular', () => expect(desde('2026-08-24T15:07:31Z', ahora)).toBe('hace 1 día'))
-  it('no revienta con basura', () => expect(desde('no-es-fecha', ahora)).toBe('—'))
-})
 
 describe('About', () => {
   it('muestra versión, dominio y uptime', async () => {

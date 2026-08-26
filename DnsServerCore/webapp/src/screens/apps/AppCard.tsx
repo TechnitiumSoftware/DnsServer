@@ -37,9 +37,9 @@ export function AppCard({
           <div className={styles.ver}>
             v{app.version} ·{' '}
             {hayUpdate ? (
-              <span className={styles.nueva}>v{app.updateVersion} disponible</span>
+              <span className={styles.nueva}>Update v{app.updateVersion}</span>
             ) : (
-              'instalada'
+              'installed'
             )}
           </div>
         </div>

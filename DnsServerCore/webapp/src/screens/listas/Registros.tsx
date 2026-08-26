@@ -15,7 +15,8 @@ en el mismo JSON (`dnssecRecords` y `glueRecords`) y que en el volcado de
 upstream se leían igual de mal que el resto.
 */
 
-const CORTE = 48
+// El mismo corte que en Zones: era 48 aquí y 64 allí, para el mismo control.
+const CORTE = 64
 
 function Valor({ e }: { e: Entrada }) {
   const [abierto, setAbierto] = useState(false)
@@ -26,7 +27,7 @@ function Valor({ e }: { e: Entrada }) {
     <>
       <span className={styles.clave}>{e.valor.slice(0, CORTE)}…</span>{' '}
       <button type="button" className={styles.verlo} onClick={() => setAbierto(true)}>
-        ver completa
+        show full
       </button>
     </>
   )

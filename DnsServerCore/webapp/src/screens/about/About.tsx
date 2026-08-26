@@ -4,22 +4,10 @@ import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty } from '../../ui/Empty'
+import { desdeAhora, fechaHora } from '../../lib/fechas'
 import styles from './About.module.css'
 
 interface Info { version: string; uptimestamp: string; dnsServerDomain: string }
-
-/** «hace 2 horas» a partir de una marca ISO, sin librería de fechas. */
-export function desde(iso: string, ahora = Date.now()): string {
-  const ms = ahora - new Date(iso).getTime()
-  if (!Number.isFinite(ms) || ms < 0) return '—'
-  const min = Math.floor(ms / 60000)
-  if (min < 1) return 'hace unos segundos'
-  if (min < 60) return `hace ${min} ${min === 1 ? 'minuto' : 'minutos'}`
-  const h = Math.floor(min / 60)
-  if (h < 24) return `hace ${h} ${h === 1 ? 'hora' : 'horas'}`
-  const d = Math.floor(h / 24)
-  return `hace ${d} ${d === 1 ? 'día' : 'días'}`
-}
 
 export function About({ token, info }: { token: string | null; info?: Info }) {
   const [update, setUpdate] = useState<'sin-mirar' | 'mirando' | 'al-dia' | 'hay'>('sin-mirar')
@@ -86,8 +74,8 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
             <dl className={styles.kv}>
               <dt>Version</dt><dd>{info?.version ?? '—'}</dd>
               <dt>Domain</dt><dd>{info?.dnsServerDomain ?? '—'}</dd>
-              <dt>Up since</dt><dd>{info ? new Date(info.uptimestamp).toLocaleString('es-ES') : '—'}</dd>
-              <dt>Uptime</dt><dd>{info ? desde(info.uptimestamp) : '—'}</dd>
+              <dt>Up since</dt><dd>{info ? fechaHora(info.uptimestamp) : '—'}</dd>
+              <dt>Uptime</dt><dd>{info ? desdeAhora(info.uptimestamp) : '—'}</dd>
             </dl>
           </div>
         </div>

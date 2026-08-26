@@ -37,12 +37,22 @@ const CONTADORES: { k: keyof Stats; label: string }[] = [
   { k: 'blockListZones', label: 'Block List' },
 ]
 
-const num = (n: number) => n.toLocaleString('es-ES')
+/*
+Los números salen como en upstream, y upstream NO fija locale: usa
+`toLocaleString()` a secas (main.js:2632-2650), o sea la del navegador. Estaban
+clavados a `es-ES`, así que un servidor en inglés enseñaba «84.930» como
+«84.930» pero con el punto significando lo contrario.
+*/
+const num = (n: number) => n.toLocaleString()
 
-/** El porcentaje se calcula sobre el total, como en upstream. */
+/*
+El porcentaje NO lleva locale ni en upstream ni aquí: es `toFixed(2)`, que
+siempre escribe el punto (main.js:2652-2676). Y con cero consultas es «0%»
+literal, no «0,00%».
+*/
 export function porcentaje(valor: number, total: number): string {
   if (total === 0) return '0%'
-  return (Math.round((valor / total) * 1000) / 10).toLocaleString('es-ES') + '%'
+  return ((valor * 100) / total).toFixed(2) + '%'
 }
 
 /** Una gráfica sin ningún valor distinto de cero no se pinta: un canvas vacío
@@ -165,7 +175,7 @@ export function Dashboard({ token }: { token: string | null }) {
             <div className={styles.pb}>
               {cargando && <Loading compacto />}
               {!cargando && datos && tieneDatos(datos.mainChartData) && (
-                <Chart tipo="line" data={datos.mainChartData} aria="Consultas por periodo" />
+                <Chart tipo="line" data={datos.mainChartData} aria="Queries over time" />
               )}
               {!cargando && (!datos || !tieneDatos(datos.mainChartData)) && (
                 <Empty compacto>No queries for this period.</Empty>

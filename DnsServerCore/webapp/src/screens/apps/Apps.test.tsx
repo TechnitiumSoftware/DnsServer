@@ -91,7 +91,7 @@ describe('Apps — lista de instaladas', () => {
     render(<Apps token="t" />)
 
     await screen.findByRole('listitem', { name: 'NO DATA' })
-    expect(tarjeta('NO DATA').getByText('v6.0 disponible')).toBeInTheDocument()
+    expect(tarjeta('NO DATA').getByText('Update v6.0')).toBeInTheDocument()
     expect(tarjeta('NO DATA').getByRole('button', { name: 'Store Update' })).toBeInTheDocument()
     expect(
       tarjeta('What Is My Dns').queryByRole('button', { name: 'Store Update' }),
