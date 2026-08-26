@@ -40,11 +40,16 @@ export function Dialog({
    *
    * · `compacto` — una pregunta y dos botones. El literal de confirmación más
    *   largo de la consola mide 405 px con la tipografía real, así que en 440
-   *   caben todos en un renglón. A 560 sobraba caja por todos lados.
-   * · `formulario` — lo normal: campos con sus rótulos.
-   * · `ancho` — sólo si lleva tabla. Ver el porqué de los 880 en el módulo.
+   *   caben todos en un renglón. Upstream no tiene esta talla porque sus
+   *   confirmaciones son `confirm()` del navegador.
+   * · `formulario` — campos con sus rótulos. Los que upstream deja en 600.
+   * · `medio` — formularios largos y tablas estrechas. Los 750-800 de upstream.
+   * · `ancho` — tablas de verdad. Los 940 de upstream.
+   *
+   * Los escalones son los de upstream, que sí decidía modal por modal; las
+   * cifras son más bajas porque nuestra tipografía va más apretada.
    */
-  tamano?: 'compacto' | 'formulario' | 'ancho'
+  tamano?: 'compacto' | 'formulario' | 'medio' | 'ancho'
 }) {
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>

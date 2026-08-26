@@ -100,6 +100,7 @@ export function Configure2FA({
       onOpenChange={onOpenChange}
       // El título del modal es la forma LARGA; «Configure 2FA» es sólo la
       // entrada del menú de usuario (index.html:3761). No son la misma cadena.
+      tamano="medio"
       title="Configure Two-factor Authentication (2FA)"
       acciones={
         <>

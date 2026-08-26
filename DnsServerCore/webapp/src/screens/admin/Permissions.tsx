@@ -286,7 +286,7 @@ function EditarPermisos({
          encoge y cabe en las tres tallas, comprobado—, es que sus dos entradas
          tenían que verse igual. Va con el arreglo del título, que también se
          había desviado entre las dos. */
-      tamano="ancho"
+      tamano="medio"
       acciones={
         <>
           <Button variant="primary" disabled={ocupado || cargando} onClick={() => void guardar()}>

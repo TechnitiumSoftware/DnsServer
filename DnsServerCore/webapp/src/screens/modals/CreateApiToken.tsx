@@ -55,6 +55,7 @@ export function CreateApiToken({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
+      tamano="medio"
       title="Create API Token"
       acciones={
         <>

@@ -32,15 +32,30 @@ en 880 y NO se usa para texto: un diálogo de prosa a 880 px da renglones de 130
 caracteres.
 */
 /*
-Tres tallas, y la decide el contenido.
+Cuatro tallas, y la decide el contenido —no el gusto ni la comodidad.
 
-Todos medían 560 px: el mismo cajón para «Are you sure to flush the DNS Server
-cache?» que para las quince casillas de «Restore Settings». La pregunta más larga
-de toda la consola mide **405 px** con la tipografía real —medido, no estimado—,
-así que con los 32 px de aire del cuerpo caben todas en un renglón dentro de 440.
+Todos medían 560 px. Y resulta que **upstream no tiene un tamaño: tiene cinco**,
+declarados a mano modal por modal (`index.html`, `style="width: …"`):
+
+    940 px (4)   My Profile · View DS Info · DNSSEC Properties · User Details
+    800 px (1)   DNS App Store
+    780 px (13)  Add Zone · Add-Edit Record · Zone Options · Sign Zone ·
+                 App Config · Edit Permissions · Create API Token · 4 de Cluster…
+    750 px (1)   Configure 2FA
+    600 px (21)  el resto
+
+O sea que al aplanarlo a dos anchuras perdimos una decisión que upstream sí había
+tomado, y se notaba: «User Details» tiene una tabla de sesiones cuyas columnas
+piden **1395 px** —medido poniéndolas a `max-content`— y vivía en 560.
+
+Las cifras no son las de upstream porque nuestra tipografía y nuestro espaciado
+son más apretados —de ahí que el ancho de tabla sean 880 y no 940; ver abajo—,
+pero los escalones son los suyos. El `compacto` es el único que upstream no
+tiene, y por una razón: sus confirmaciones son `confirm()` del navegador.
 */
 .compacto { width: min(440px, calc(100vw - 32px)); }
 .formulario { width: min(560px, calc(100vw - 32px)); }
+.medio { width: min(720px, calc(100vw - 32px)); }
 .ancho { width: min(880px, calc(100vw - 32px)); }
 .head {
   flex: none;

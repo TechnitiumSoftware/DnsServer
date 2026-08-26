@@ -6,6 +6,8 @@
 }
 .table td { padding: var(--s-4) var(--s-5); border-bottom: 1px solid var(--line2); color: var(--ink); vertical-align: middle; }
 .mono { font-family: var(--font-mono); font-size: var(--t-3); }
+/* Igual que en User Details y Sessions: la cadena es larga y se parte. */
+.ua { font-family: var(--font-mono); font-size: var(--t-2); color: var(--faint); word-break: break-all; }
 /* La antigüedad bajo la fecha, como en Sessions y User Details. */
 .meta { margin-top: var(--s-1); font-size: var(--t-2); color: var(--faint); }
 .current {

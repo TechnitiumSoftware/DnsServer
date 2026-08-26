@@ -62,6 +62,7 @@ export function AppConfig({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
+      tamano="medio"
       title={`App Config - ${name}`}
       acciones={
         <>

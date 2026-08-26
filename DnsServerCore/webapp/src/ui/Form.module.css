@@ -47,6 +47,23 @@ escanear, no lo que se lee después.
 }
 
 /*
+Un campo de una línea no gana nada por medir 640 px.
+
+La columna del control es `1fr`, así que se come todo lo que sobre — y eso no se
+notaba mientras todos los diálogos midieran 560. Al darle a «User Details» los
+880 que pide su tabla de sesiones, el cuadro para escribir «admin» pasó a medir
+640 px. El tope son 420, que es el que ya usaban de hecho los formularios de
+página: medidos los 46 campos de la consola, la mediana es 174 px y el máximo 420.
+
+Se queda fuera el `textarea` —«Member Of», las listas de IP— que sí aprovecha el
+ancho, y las casillas, que tienen el suyo.
+*/
+.mrow input:not([type='checkbox']):not([type='radio']),
+.mrow select {
+  max-width: 420px;
+}
+
+/*
 Por debajo de 720 px la etiqueta se pone encima. A 390 px la rejilla de 210 px
 dejaba 20 px al campo: diecisiete campos de texto de Settings eran invisibles.
 */

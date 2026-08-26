@@ -119,6 +119,7 @@ export function AnadirZona({
     <Dialog
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
+      tamano="medio"
       title="Add Zone"
       acciones={
         <>

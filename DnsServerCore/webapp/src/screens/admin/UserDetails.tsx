@@ -174,6 +174,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
       <Dialog
         open={abierto}
         onOpenChange={(o) => !o && onCerrar()}
+        tamano="ancho"
         title="User Details"
         acciones={
           <>

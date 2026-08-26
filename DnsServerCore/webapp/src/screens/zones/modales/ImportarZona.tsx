@@ -89,6 +89,7 @@ export function ImportarZona({
     <Dialog
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
+      tamano="medio"
       title={`Import - ${zone}`}
       acciones={
         <>

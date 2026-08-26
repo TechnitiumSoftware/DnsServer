@@ -602,6 +602,7 @@ function NuevoCluster({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title="Initialize New Cluster"
+      tamano="medio"
       acciones={
         <>
           <Button variant="primary" disabled={ocupado || cargando || yaEsta} onClick={() => void inicializar()}>
@@ -821,6 +822,7 @@ function UnirseCluster({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title="Join Cluster"
+      tamano="medio"
       acciones={
         <>
           <Button variant="primary" disabled={ocupado || cargando || yaEsta} onClick={() => void unirse()}>
@@ -1141,6 +1143,7 @@ function OpcionesCluster({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title="Cluster Options"
+      tamano="medio"
       acciones={
         <>
           {esPrimario && (
@@ -1246,6 +1249,7 @@ function EditarNodoPropio({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title={`Edit Node - ${objetivo.name}`}
+      tamano="medio"
       acciones={
         <>
           <Button variant="primary" disabled={ocupado || cargando} onClick={() => void guardar()}>
@@ -1331,6 +1335,7 @@ function EditarNodoPrimario({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title={`Edit Node - ${objetivo.name}`}
+      tamano="medio"
       acciones={
         <>
           <Button variant="primary" disabled={ocupado} onClick={() => void guardar()}>

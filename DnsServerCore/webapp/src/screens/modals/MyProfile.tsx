@@ -35,6 +35,7 @@ const CLAVES: Claves<Profile['sessions'][number]> = {
   type: (r) => `${r.type}${r.tokenName ? ` (${r.tokenName})` : ''}${r.isCurrentSession ? ' current' : ''}`,
   lastSeen: (r) => fechaHora(r.lastSeen),
   address: (r) => r.lastSeenRemoteAddress,
+  agent: (r) => r.lastSeenUserAgent,
 }
 
 export function MyProfile({
@@ -127,6 +128,7 @@ export function MyProfile({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
+      tamano="ancho"
       title="My Profile"
       acciones={
         <>
@@ -197,6 +199,11 @@ export function MyProfile({
               <Th campo="type" orden={orden} onOrdenar={alternar}>Type</Th>
               <Th campo="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
               <Th campo="address" orden={orden} onOrdenar={alternar}>Address</Th>
+              {/* Upstream la tiene (`index.html`, tabla de `tbodyMyProfileActiveSessions`:
+                  Session · Last Seen · Remote Address · User Agent) y aquí se había
+                  perdido: era la única de las tres tablas de sesiones de la consola
+                  sin ella, y es la que dice DESDE DÓNDE está abierta cada sesión. */}
+              <Th campo="agent" orden={orden} onOrdenar={alternar}>User Agent</Th>
               <th />
             </tr>
           </thead>
@@ -213,6 +220,9 @@ export function MyProfile({
                   <div className={styles.meta}>{`(${desdeAhora(row.lastSeen)})`}</div>
                 </td>
                 <td className={styles.mono}>{row.lastSeenRemoteAddress}</td>
+                <td>
+                  <span className={styles.ua}>{row.lastSeenUserAgent}</span>
+                </td>
                 <td>
                   <Button
                     variant="danger"

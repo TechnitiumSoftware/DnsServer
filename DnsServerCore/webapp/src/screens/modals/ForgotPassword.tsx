@@ -25,6 +25,7 @@ export function ForgotPassword({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
+      tamano="medio"
       title="Forgot Password?"
     >
       <p className={styles.parrafo}>

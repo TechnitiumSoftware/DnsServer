@@ -113,6 +113,7 @@ export function StoreApps({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
+      tamano="medio"
       title="DNS App Store"
     >
       {alert && (

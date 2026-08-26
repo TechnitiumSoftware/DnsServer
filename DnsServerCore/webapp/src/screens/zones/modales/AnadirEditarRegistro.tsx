@@ -165,6 +165,7 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
     <Dialog
       open={p.abierto}
       onOpenChange={(o) => !o && p.onCerrar()}
+      tamano="medio"
       title={edicion ? 'Edit Record' : 'Add Record'}
       acciones={
         <>

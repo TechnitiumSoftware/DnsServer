@@ -117,6 +117,7 @@ export function OpcionesZona({
     <Dialog
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
+      tamano="medio"
       title={`Zone Options - ${zone === '.' ? '<root>' : zone}`}
       acciones={
         <>
