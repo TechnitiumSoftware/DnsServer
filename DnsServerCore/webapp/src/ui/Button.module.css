@@ -36,6 +36,35 @@ de dos maneras según la tabla.
 .btn[aria-pressed='true'] { color: var(--acc); border-color: var(--acc); }
 
 .primary { background: var(--acc); border-color: var(--acc); color: var(--on-acc); font-weight: 650; }
-.danger { color: var(--dan); border-color: var(--dan); }
-.sm.danger { border-color: var(--line); }
-.sm.danger:hover:not(:disabled) { color: var(--dan); border-color: var(--dan); }
+
+/*
+El destructivo va RELLENO. Sólo teñía el borde, así que el «Delete» de «Delete
+Cluster» pesaba lo mismo que el «Close» de al lado, mientras que el «Add» de un
+modal inocuo era un bloque ámbar sólido: el botón más consecuente de la pantalla
+era el más callado, y en esta consola no hay deshacer en ninguna parte.
+*/
+.danger {
+  background: var(--dan-fill);
+  border-color: var(--dan);
+  color: var(--on-dan);
+  font-weight: 650;
+}
+
+/*
+En una FILA de tabla no: ahí «Delete» se repite una vez por fila y un bloque
+rojo por fila convierte la tabla en una alarma. Se queda en texto rojo, y el
+relleno aparece al apuntarlo y al enfocarlo con el teclado.
+*/
+.sm.danger {
+  background: var(--pan2);
+  border-color: var(--line);
+  color: var(--dan);
+  font-weight: 400;
+}
+
+.sm.danger:hover:not(:disabled),
+.sm.danger:focus-visible {
+  background: var(--dan-fill);
+  border-color: var(--dan);
+  color: var(--on-dan);
+}

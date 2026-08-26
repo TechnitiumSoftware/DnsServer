@@ -25,3 +25,77 @@
 .body { padding: var(--s-11) var(--s-11) var(--s-11); min-width:0; }
 .placeholder { border:1px dashed var(--line); border-radius: var(--r-4); padding: var(--s-12); text-align:center; color:var(--mute); font-size: var(--t-4); }
 .placeholder b { display:block; color:var(--ink); font-size: var(--t-5); margin-bottom: var(--s-3); }
+
+/*
+Por debajo de 900 px el lateral deja de ocupar columna y pasa a cajón.
+
+Esto NO es paridad con upstream: upstream no declara `viewport`, así que en un
+móvil se pinta a ~980 px virtuales y se resuelve con zoom. Nosotros sí lo
+declaramos, o sea que prometemos adaptarnos; sin esto la promesa era falsa y las
+doce secciones desbordaban. Y el caso de uso más frecuente de un DNS de casa es
+mirarlo desde el móvil cuando algo ha dejado de resolver.
+*/
+
+/* El disparador del cajón y la marca del cabecero sólo existen en pantalla
+   estrecha; en ancha el lateral ya está a la vista. */
+.hamburguesa,
+.marcaTop {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .shell { grid-template-columns: 1fr; }
+
+  .side {
+    position: fixed;
+    z-index: 30;
+    top: 0;
+    left: 0;
+    width: 264px;
+    max-width: 84vw;
+    transform: translateX(-100%);
+    transition: transform 0.18s ease;
+    box-shadow: var(--shadow-modal);
+  }
+
+  .side[data-abierto='true'] { transform: none; }
+
+  .velo {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: rgba(5, 7, 10, 0.6);
+    border: 0;
+  }
+
+  .hamburguesa {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    margin-right: auto;
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: var(--r-2);
+    color: var(--ink);
+    font-size: var(--t-5);
+    cursor: pointer;
+  }
+
+  .marcaTop {
+    display: flex;
+    align-items: center;
+    gap: var(--s-5);
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .rtop { padding: 0 var(--s-9); gap: var(--s-7); }
+  .host { display: none; }
+  .body { padding: var(--s-9); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .side { transition: none; }
+}

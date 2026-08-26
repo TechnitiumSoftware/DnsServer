@@ -69,3 +69,8 @@
 
 .fail { padding: var(--s-12); text-align: center; color: var(--faint); font-size: var(--t-4); }
 .parrafo { margin: 0 0 var(--s-7); font-size: var(--t-4); color: var(--mute); line-height: 1.6; }
+
+@media (max-width: 720px) {
+  .frow { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
+  .frowLabel { padding-top: 0; }
+}

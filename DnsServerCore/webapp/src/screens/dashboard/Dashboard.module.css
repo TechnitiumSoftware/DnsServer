@@ -1,7 +1,7 @@
 .seg { display:inline-flex; padding: var(--s-1); background:var(--pan2); border:1px solid var(--line); border-radius: var(--r-3); gap: var(--s-1); }
 .seg button { font:500 var(--t-4)/1 inherit; padding: var(--s-4) var(--s-8); border:0; border-radius: var(--r-2); background:transparent; color:var(--mute); cursor:pointer; }
 .seg button[aria-pressed='true'] { background:var(--acc); color:var(--on-acc); font-weight:650; }
-.tiles { display:grid; grid-template-columns:repeat(6,1fr); gap: var(--s-7); margin-bottom: var(--s-10); }
+.tiles { display:grid; grid-template-columns:repeat(auto-fill, minmax(148px, 1fr)); gap: var(--s-7); margin-bottom: var(--s-10); }
 .tile { padding: var(--s-8) var(--s-8); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); border-left:3px solid var(--tc); }
 .tile .v { font:700 var(--t-7)/1.1 var(--font-mono); letter-spacing:-.02em; color:var(--ink); }
 .tile .p { font-size: var(--t-2); color:var(--faint); margin-top: 1px; font-family:var(--font-mono); }
@@ -12,7 +12,7 @@
 .ph { display:flex; align-items:center; justify-content:space-between; padding: var(--s-8) var(--s-9); border-bottom:1px solid var(--line); }
 .ph h2 { margin: 0; font-size: var(--t-4); font-weight:650; color:var(--ink); }
 .pb { padding: var(--s-9); }
-.counters { display:grid; grid-template-columns:repeat(3,1fr); gap: var(--s-6); }
+.counters { display:grid; grid-template-columns:repeat(auto-fill, minmax(92px, 1fr)); gap: var(--s-6); }
 .cnt { padding: var(--s-8); background:var(--pan2); border:1px solid var(--line2); border-radius: var(--r-3); }
 .cnt .v { font:700 var(--t-6)/1 var(--font-mono); color:var(--ink); }
 .cnt .k { font-size: var(--t-1); color:var(--mute); margin-top: var(--s-3); text-transform:uppercase; letter-spacing:.05em; }
@@ -36,3 +36,13 @@
 .topNombre { display: block; font-family: var(--font-mono); word-break: break-all; }
 .topDominio { display: block; margin-top: var(--s-1); font: var(--t-2) var(--font-mono); color: var(--faint); word-break: break-all; }
 .topConteo { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* El raíl derecho era `310px` fijos: a 1024 px estrujaba la gráfica a 425 px y
+   a 390 px la sacaba de la pantalla. */
+@media (max-width: 1080px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 720px) {
+  .seg { flex-wrap: wrap; }
+}

@@ -44,6 +44,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
   const sections = visibleSections(permisos)
   const [active, setActive] = useState(() => sections[0]?.id ?? 'about')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [cajon, setCajon] = useState(false)
   const [modal, setModal] = useState<ModalId | null>(null)
   const [sub, setSub] = useState<string | null>(null)
   const [displayName, setDisplayName] = useState(session.displayName)
@@ -65,7 +66,16 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
 
   return (
     <div className={styles.shell}>
-      <aside className={styles.side}>
+      {cajon && (
+        <button
+          type="button"
+          className={styles.velo}
+          aria-label="Close menu"
+          onClick={() => setCajon(false)}
+        />
+      )}
+
+      <aside className={styles.side} data-abierto={cajon}>
         <div className={styles.sbrand}>
           <span className={styles.mark}>T</span> Technitium
         </div>
@@ -77,7 +87,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
                   role="tab"
                   className={styles.s}
                   aria-selected={sec.id === current?.id}
-                  onClick={() => { setActive(sec.id); setSub(null) }}
+                  onClick={() => { setActive(sec.id); setSub(null); setCajon(false) }}
                 >
                   <span className={styles.ico} aria-hidden="true">{ICONOS[sec.id] ?? '•'}</span>
                   {sec.label}
@@ -91,7 +101,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
                         key={t}
                         className={styles.s2}
                         aria-current={(sub ?? sec.subs![0]) === t || (sub === null && i === 0)}
-                        onClick={() => setSub(t)}
+                        onClick={() => { setSub(t); setCajon(false) }}
                       >
                         {t}
                       </button>
@@ -106,6 +116,20 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
 
       <div className={styles.main}>
         <header className={styles.rtop}>
+          {/* En pantalla estrecha el lateral es un cajón, así que el cabecero
+              tiene que traer su disparador y la marca. */}
+          <button
+            type="button"
+            className={styles.hamburguesa}
+            aria-label="Menu"
+            aria-expanded={cajon}
+            onClick={() => setCajon((v) => !v)}
+          >
+            ☰
+          </button>
+          <span className={styles.marcaTop}>
+            <span className={styles.mark}>T</span> Technitium
+          </span>
           {session.info && <span className={styles.host}>{session.info.dnsServerDomain}</span>}
           <div className={styles.menu}>
             <button className={styles.menuBtn} onClick={() => setMenuOpen((v) => !v)}>

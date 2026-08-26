@@ -77,3 +77,7 @@
 .salida { display:flex; flex-direction:column; gap: var(--s-5); }
 .enlace { font-size: var(--t-3); }
 .enlace a { color:var(--acc); }
+
+@media (max-width: 720px) {
+  .prow { grid-template-columns: minmax(0, 1fr) 40px 40px 40px; }
+}

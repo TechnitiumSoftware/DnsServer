@@ -102,7 +102,7 @@ Es lo que hacen el dibujo y la tabla de Logs; aquí se había perdido.
 .table input, .table select { width: 100%; }
 .tdel { width: 74px; }
 .bar {
-  display: flex; align-items: center; gap: var(--s-5);
+  display: flex; align-items: center; gap: var(--s-5); flex-wrap: wrap;
   padding: var(--s-8) var(--s-9); border: 1px solid var(--line); border-radius: var(--r-4);
   background: var(--pan); position: sticky; bottom: 0;
 }
@@ -115,3 +115,10 @@ Es lo que hacen el dibujo y la tabla de Logs; aquí se había perdido.
 .stack { display: flex; flex-direction: column; gap: var(--s-6); }
 .inline { display: flex; align-items: center; gap: var(--s-7); flex-wrap: wrap; }
 .val { font-size: var(--t-4); color: var(--ink); font-family: var(--font-mono); }
+
+/* En estrecho la barra se apila y el separador elástico deja de tener sentido:
+   con él, «Backup Settings» se salía de la pantalla. */
+@media (max-width: 720px) {
+  .spacer { display: none; }
+  .bar { padding: var(--s-7) var(--s-8); }
+}

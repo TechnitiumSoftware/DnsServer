@@ -61,3 +61,18 @@ módulo de sección se había hecho por su cuenta. Todos los valores salen de
      de una sección con sub-pestañas queda más alta que la de una sin ellas. */
   padding-top: var(--s-1);
 }
+
+/* En estrecho el título y la barra de acciones se apilan: si no, la columna del
+   título se estrecha hasta partir el nombre de la sección letra a letra. */
+@media (max-width: 720px) {
+  .hrow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--s-8);
+  }
+
+  .acts {
+    justify-content: flex-start;
+    padding-top: 0;
+  }
+}

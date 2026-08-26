@@ -45,3 +45,20 @@ escanear, no lo que se lee después.
   flex-direction: column;
   gap: var(--s-3);
 }
+
+/*
+Por debajo de 720 px la etiqueta se pone encima. A 390 px la rejilla de 210 px
+dejaba 20 px al campo: diecisiete campos de texto de Settings eran invisibles.
+*/
+@media (max-width: 720px) {
+  .row,
+  .mrow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-4);
+  }
+
+  .rowLabel,
+  .mrowLabel { padding-top: 0; }
+
+  .row { padding: var(--s-7) var(--s-8); }
+}

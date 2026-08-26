@@ -57,6 +57,8 @@ que no sea uno de estos tokens.** Un valor suelto es deriva futura.
   --ok-bg: #052e26;    --ok-bd: #065f46;
   --warn-bg: #2a1e05;  --warn-bd: #4a3609;
   --dan-bg: #2a1113;   --dan-bd: #7f1d1d;
+  /* El botón destructivo: relleno propio y texto legible sobre él. */
+  --dan-fill: #3a1214; --on-dan: #fecaca;
   --info-bg: #0d1730;  --info-bd: #1e3a8a;
   --field: #0a0d12;
   --hover: #161c27;

@@ -37,3 +37,9 @@
 .avisoHueco { margin-bottom: var(--s-9); }
 .parrafo { margin: 0 0 var(--s-7); font-size: var(--t-4); color:var(--mute); line-height:1.6; }
 .area { min-height:260px; resize:vertical; }
+
+/* El árbol y los registros dejan de convivir en dos columnas: a 390 px el árbol
+   se quedaba con 270 de los 375 y empujaba la tabla fuera de la pantalla. */
+@media (max-width: 860px) {
+  .brow { grid-template-columns: minmax(0, 1fr); }
+}
