@@ -1,3 +1,7 @@
+/* El hueco entre un aviso y lo que viene debajo. Estaba a mano en cada
+   pantalla con un `style` en línea. */
+.aviso { margin-bottom: var(--hueco-bloque); }
+
 .apps { display:grid; grid-template-columns:repeat(2,1fr); gap: var(--s-8); list-style:none; margin: 0; padding: 0; }
 @media (max-width: 1040px) { .apps { grid-template-columns:1fr; } }
 .app { background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); padding: var(--s-9); display:flex; flex-direction:column; }

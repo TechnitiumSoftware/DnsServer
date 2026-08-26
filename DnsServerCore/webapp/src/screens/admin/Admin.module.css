@@ -3,7 +3,7 @@
    cuatro tablas de la consola se lean igual; el formulario de SSO repite las
    filas `210px 1fr` de Settings por el mismo motivo. */
 
-.avisoHueco { margin-bottom: var(--s-9); }
+.avisoHueco { margin-bottom: var(--hueco-bloque); }
 .fail { padding: var(--s-12); text-align:center; color:var(--faint); font-size: var(--t-4); }
 
 .mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
@@ -80,3 +80,5 @@
 @media (max-width: 720px) {
   .prow { grid-template-columns: minmax(0, 1fr) 40px 40px 40px; }
 }
+
+.etiquetaSesion { margin-top: var(--s-2); }

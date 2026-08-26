@@ -6,7 +6,8 @@
   cursor: pointer;
 }
 
-.check input { margin-top: 1px; }
+/* La casilla se alinea con la primera línea del rótulo, no con su caja. */
+.check input { margin-top: var(--s-1); }
 .check input:disabled { cursor: default; }
 .texto { min-width: 0; }
 

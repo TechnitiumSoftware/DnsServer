@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes } from 'react'
+import type { ButtonHTMLAttributes, Ref } from 'react'
 import styles from './Button.module.css'
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger'
@@ -13,15 +13,18 @@ export function Button({
   size = 'md',
   icono = false,
   className,
+  ref,
   ...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant
   size?: 'md' | 'sm'
   /** Sin rótulo: sólo un icono. El ancho lo da el icono, no el texto. */
   icono?: boolean
+  ref?: Ref<HTMLButtonElement>
 }) {
   return (
     <button
+      ref={ref}
       data-variant={variant}
       data-icono={icono || undefined}
       className={[styles.btn, size === 'sm' && styles.sm, variant !== 'secondary' && styles[variant], className]

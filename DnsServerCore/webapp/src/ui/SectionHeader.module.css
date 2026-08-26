@@ -9,7 +9,7 @@ módulo de sección se había hecho por su cuenta. Todos los valores salen de
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--s-11);
-  margin-bottom: var(--s-10);
+  margin-bottom: var(--hueco-bloque);
 }
 
 .izq { min-width: 0; }

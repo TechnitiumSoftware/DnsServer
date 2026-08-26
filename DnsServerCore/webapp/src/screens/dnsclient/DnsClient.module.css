@@ -1,4 +1,38 @@
-.filt { display:flex; align-items:flex-end; gap: var(--s-8); padding: var(--s-8) var(--s-9); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); margin-bottom: var(--s-9); flex-wrap:wrap; }
+/*
+La barra de consulta. `align-items: flex-end` es lo que alinea los botones con
+el borde inferior de los campos; antes se conseguía con un `marginBottom: 1`
+puesto a mano en cada botón, que es el síntoma de que la fila no alineaba.
+*/
+.filt {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-8);
+  padding: var(--s-9);
+  background: var(--pan);
+  border: 1px solid var(--line);
+  border-radius: var(--r-4);
+  box-shadow: var(--e-1), var(--filo);
+  margin-bottom: var(--hueco-bloque);
+  flex-wrap: wrap;
+}
+
+.aviso { margin-bottom: var(--hueco-bloque); }
+
+.ancho { flex: 1 1 240px; min-width: 240px; }
+.medio { flex: 1 1 200px; min-width: 200px; }
+.corto { width: 120px; }
+.ecs { width: 176px; }
+
+/* La casilla se alinea con la LÍNEA BASE de los campos, no con su etiqueta: por
+   eso lleva el alto del campo y no un margen inventado. */
+.chk {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  font-size: var(--t-4);
+  min-height: var(--campo-alto);
+  cursor: pointer;
+}
 .panel { background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); overflow:hidden; margin-bottom: var(--s-9); }
 .ph { display:flex; align-items:center; justify-content:space-between; padding: var(--s-8) var(--s-9); border-bottom:1px solid var(--line); }
 .ph h2 { margin: 0; font-size: var(--t-4); font-weight: 550; color:var(--ink); }

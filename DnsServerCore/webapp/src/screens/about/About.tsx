@@ -85,7 +85,7 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
             {update === 'al-dia' && <Alert type="info" title="Note:">No update available. You are running the latest version.</Alert>}
             {update === 'hay' && <Alert type="success" title="New Update Available!">Se puede actualizar a una versión más reciente.</Alert>}
             {update === 'sin-mirar' && <Empty compacto>Update notifications are turned off for this server.</Empty>}
-            <div style={{ marginTop: 10 }}>
+            <div className={styles.accion}>
               <Button disabled={update === 'mirando'} onClick={() => void mirar()}>Check for Update</Button>
             </div>
           </div>

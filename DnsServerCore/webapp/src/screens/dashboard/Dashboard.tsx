@@ -9,6 +9,7 @@ import type { ChartData } from '../../api/dashboard'
 import { SectionHeader } from '../../ui/SectionHeader'
 import {Empty, Loading} from '../../ui/Empty'
 import styles from './Dashboard.module.css'
+import { Button } from '../../ui/Button'
 
 /*
 Las once métricas, en el orden de upstream y con sus etiquetas literales.
@@ -93,9 +94,13 @@ function Top({
     <div className={styles.panel}>
       <div className={styles.ph}>
         <h2>{titulo}</h2>
-        <button type="button" onClick={onMore}>More</button>
+        {/* Era un `<button>` a pelo, sin clase: lo pintaba el navegador con su
+            estilo por defecto, en medio de una consola con sistema propio. */}
+        <Button size="sm" onClick={onMore}>
+          More
+        </Button>
       </div>
-      <div className={styles.pb} style={{ paddingTop: 4 }}>
+      <div className={`${styles.pb} ${styles.pbAjustado}`}>
         {filas.length === 0 && <Empty compacto>No data for this period.</Empty>}
         {filas.slice(0, 5).map((f, i) => (
           <div

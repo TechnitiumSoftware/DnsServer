@@ -1,7 +1,7 @@
 .seg { display:inline-flex; padding: var(--s-1); background:var(--pan2); border:1px solid var(--line); border-radius: var(--r-3); gap: var(--s-1); }
 .seg button { font:500 var(--t-4)/1 inherit; padding: var(--s-4) var(--s-8); border:0; border-radius: var(--r-2); background:transparent; color:var(--mute); cursor:pointer; }
 .seg button[aria-pressed='true'] { background:var(--acc); color:var(--on-acc); font-weight: 550; }
-.tiles { display:grid; grid-template-columns:repeat(auto-fill, minmax(148px, 1fr)); gap: var(--s-7); margin-bottom: var(--s-10); }
+.tiles { display:grid; grid-template-columns:repeat(auto-fill, minmax(148px, 1fr)); gap: var(--s-7); margin-bottom: var(--hueco-bloque); }
 /*
 El color de la métrica es el de SU SERIE en la gráfica de abajo: la relación es
 la que hace útil el tile. Estaba dicho con un filo de 3 px a la izquierda, que
@@ -11,7 +11,7 @@ viene la relación.
 */
 .tile { padding: var(--s-8) var(--s-8); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); box-shadow: var(--e-1), var(--filo); }
 .tile .v { font:600 var(--t-7)/1.1 var(--font-mono); letter-spacing:-.02em; color:var(--ink); }
-.tile .p { font-size: var(--t-2); color:var(--faint); margin-top: 1px; font-family:var(--font-mono); }
+.tile .p { font-size: var(--t-2); color:var(--faint); font-family:var(--font-mono); }
 .tile .k { display:flex; align-items:center; gap: var(--s-4); font-size: var(--t-1); color:var(--mute); margin-top: var(--s-3); text-transform:uppercase; letter-spacing:.05em; font-weight: 550; }
 /*
 La muestra de color sólo la llevan las once métricas, que SON series de la
@@ -61,3 +61,6 @@ remite a ninguna línea es decoración.
 @media (max-width: 720px) {
   .seg { flex-wrap: wrap; }
 }
+
+/* La leyenda de una gráfica ya trae su propio hueco arriba. */
+.pbAjustado { padding-top: var(--s-2); }

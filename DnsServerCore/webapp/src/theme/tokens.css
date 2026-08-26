@@ -124,6 +124,22 @@ que no sea uno de estos tokens.** Un valor suelto es deriva futura.
   --s-11: 24px;
   --s-12: 32px;
 
+  /*
+  EL RITMO VERTICAL DE UNA PANTALLA. Tres huecos, y no más.
+
+  Medidos los doce, Zones tenía cuatro distintos —16, 14, 9 y 12— sin regla que
+  los explicara: cada bloque se había puesto el suyo. Eso es lo que hace que una
+  pantalla se lea desordenada aunque todos los valores estén en la escala.
+
+    --hueco-bloque   entre bloques independientes: tras el título de sección,
+                     entre una barra de filtros y lo que filtra
+    --hueco-grupo    entre cosas que se leen juntas: el pie de una tabla
+    --hueco-pegado   entre una cosa y su rótulo: la barra de recuento y su tabla
+  */
+  --hueco-bloque: var(--s-11);
+  --hueco-grupo: var(--s-8);
+  --hueco-pegado: var(--s-5);
+
   /* ── Radios ─────────────────────────────────────────────────────────── */
   --r-1: 4px;   /* muestra de color, chip diminuto            (4,5) */
   --r-2: 6px;   /* botón de fila, item de menú                  (6,7) */

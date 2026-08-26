@@ -408,7 +408,7 @@ export function ListaZonas({
             )}
           </Field>
         </div>
-        <Button variant="primary" disabled={ocupado} onClick={aplicarFiltros} style={{ marginBottom: 1 }}>
+        <Button variant="primary" disabled={ocupado} onClick={aplicarFiltros}>
           Go
         </Button>
       </div>

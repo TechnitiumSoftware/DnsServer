@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Alert } from '../../ui/Alert'
+import { Field } from '../../ui/Field'
+import styles from './Settings.module.css'
 import { ELEMENTOS_BACKUP } from '../../api/settings'
 import { Check } from './parts'
-import styles from './Settings.module.css'
 
 /*
 Los tres diálogos de la barra de acciones.
@@ -103,15 +104,13 @@ export function BackupDialog({
       }
     >
       {aviso && (
-        <div style={{ marginBottom: 12 }}>
-          <Alert type="warning" title={aviso.title}>
-            {aviso.text}
-          </Alert>
-        </div>
+        <Alert type="warning" title={aviso.title}>
+          {aviso.text}
+        </Alert>
       )}
       <p>The backup process will create a zip file for the items selected below:</p>
       <ListaElementos seleccion={seleccion} onChange={onSeleccion} prefijo="backup" />
-      <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className={styles.notas}>
         <Alert type="info" title="Note!">
           The Web Service or Optional Protocols TLS certificate (.pfx or .p12) files will be
           included in the backup only if they exist within the DNS Server's config folder.
@@ -152,29 +151,24 @@ export function RestoreDialog({
       }
     >
       {aviso && (
-        <div style={{ marginBottom: 12 }}>
-          <Alert type="warning" title={aviso.title}>
-            {aviso.text}
-          </Alert>
-        </div>
+        <Alert type="warning" title={aviso.title}>
+          {aviso.text}
+        </Alert>
       )}
-      <label style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
-        <span style={{ fontSize: 11, color: 'var(--mute)', fontWeight: 650 }}>Backup Zip File</span>
-        <input
-          type="file"
-          onChange={(e) => setFichero(e.target.files?.[0] ?? null)}
-          style={{ fontSize: 12.5 }}
-        />
-      </label>
+      <Field label="Backup Zip File">
+        {(id) => (
+          <input id={id} type="file" onChange={(e) => setFichero(e.target.files?.[0] ?? null)} />
+        )}
+      </Field>
       <p>The restore process will restore all the selected items from the backup zip file:</p>
       <ListaElementos seleccion={seleccion} onChange={onSeleccion} prefijo="restore" />
-      <p style={{ marginTop: 12 }}>Restore options:</p>
+      <p>Restore options:</p>
       <Check
         label="Delete Existing Files For Selected Items"
         checked={borrar}
         onChange={setBorrar}
       />
-      <div style={{ marginTop: 12 }}>
+      <div>
         <Alert type="warning" title="Warning!">
           The restore process will overwrite existing config files on disk for above selected items
           and reload new settings including user accounts from the backup. The current logged in

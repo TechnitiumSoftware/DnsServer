@@ -15,7 +15,7 @@
 .pb { padding: var(--s-9); }
 .pbLista { padding: var(--s-5); }
 
-.logfiles { display: flex; flex-direction: column; gap: 1px; }
+.logfiles { display: flex; flex-direction: column; gap: var(--s-1); }
 .logfile {
   display: flex; align-items: center; justify-content: space-between; gap: var(--s-5);
   padding: var(--s-5) var(--s-7); border: 0; border-radius: var(--r-2); background: transparent;
@@ -49,7 +49,7 @@
 .campo label { font-size: var(--t-2); color: var(--mute); font-weight: 550; }
 .campo input, .campo select { width: 100%; }
 
-.count { display: flex; align-items: center; justify-content: space-between; gap: var(--s-7); font-size: var(--t-4); color: var(--mute); margin-bottom: var(--s-6); flex-wrap: wrap; }
+.count { display: flex; align-items: center; justify-content: space-between; gap: var(--s-7); font-size: var(--t-4); color: var(--mute); margin-bottom: var(--hueco-pegado); flex-wrap: wrap; }
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .nowrap { white-space: nowrap; }
 .romper { word-break: break-all; }

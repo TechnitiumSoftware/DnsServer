@@ -174,7 +174,7 @@ export function CeldaSesion({ sesion }: { sesion: { partialToken: string; tokenN
       {sesion.tokenName != null && <div>{sesion.tokenName}</div>}
       <div className={styles.mono}>{`[${sesion.partialToken}]`}</div>
       {sesion.isCurrentSession && <div>(current)</div>}
-      <div style={{ marginTop: 4 }}>{etiqueta}</div>
+      <div className={styles.etiquetaSesion}>{etiqueta}</div>
     </>
   )
 }

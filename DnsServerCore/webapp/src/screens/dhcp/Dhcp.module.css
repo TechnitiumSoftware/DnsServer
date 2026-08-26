@@ -8,7 +8,7 @@
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .nombre { font-weight: 550; color: var(--ink); white-space: nowrap; }
 .fecha { white-space: nowrap; font-family: var(--font-mono); font-size: var(--t-3); }
-.total { font-size: var(--t-4); color: var(--mute); margin-top: var(--s-8); }
+.total { font-size: var(--t-4); color: var(--mute); margin-top: var(--hueco-grupo); }
 .kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--s-1) var(--s-8); margin: 0; }
 .kv dt { font-size: var(--t-3); color: var(--mute); white-space: nowrap; }
 .kv dd { margin: 0; font: var(--t-4)/1.45 var(--font-mono); color: var(--ink); min-width: 0; }

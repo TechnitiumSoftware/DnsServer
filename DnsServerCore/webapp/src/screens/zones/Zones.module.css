@@ -5,14 +5,14 @@
 /* Migas de pan: volver a la lista desde una zona */
 
 /* Barra de filtros */
-.filt { display:flex; gap: var(--s-7); align-items:flex-end; flex-wrap:wrap; margin-bottom: var(--s-9); }
+.filt { display:flex; gap: var(--s-7); align-items:flex-end; flex-wrap:wrap; margin-bottom: var(--hueco-bloque); }
 .filtAncho { flex:1; min-width:220px; }
 .filtMedio { width:190px; }
 .filtCorto { width:120px; }
 
 /* Cuenta y paginación */
-.count { display:flex; align-items:center; justify-content:space-between; gap: var(--s-7); font-size: var(--t-4); color:var(--mute); margin-bottom: var(--s-6); flex-wrap:wrap; }
-.countPie { margin-top: var(--s-8); margin-bottom: 0; }
+.count { display:flex; align-items:center; justify-content:space-between; gap: var(--s-7); font-size: var(--t-4); color:var(--mute); margin-bottom: var(--hueco-pegado); flex-wrap:wrap; }
+.countPie { margin-top: var(--hueco-grupo); margin-bottom: 0; }
 .mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
 
 /* Tabla */

@@ -1,5 +1,5 @@
 import { Button } from './Button'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import styles from './Menu.module.css'
 import { Icono } from './Icono'
 
@@ -31,29 +31,55 @@ export function Menu({
   children: (cerrar: () => void) => ReactNode
 }) {
   const [abierto, setAbierto] = useState(false)
-  const caja = useRef<HTMLDivElement>(null)
+  const [caja, setCaja] = useState<{ right: number; top: number } | null>(null)
+  const disparador = useRef<HTMLButtonElement>(null)
+  const lista = useRef<HTMLDivElement>(null)
+
+  /*
+  La lista va en `position: fixed`, medida desde el disparador, y NO absoluta
+  dentro de la fila. Absoluta no valía: la recortaban dos contenedores a la vez
+  —el grupo segmentado de acciones, que lleva `overflow: hidden` por sus
+  esquinas, y el envoltorio de la tabla, que lleva `overflow-x: auto`—, así que
+  el menú se abría y no se veía. Es el mismo motivo por el que `ui/Select` la
+  saca fija, y por el mismo motivo se cierra al rodar la página.
+  */
+  useLayoutEffect(() => {
+    if (!abierto) { setCaja(null); return }
+    const r = disparador.current?.getBoundingClientRect()
+    if (r != null) setCaja({ right: window.innerWidth - r.right, top: r.bottom + 4 })
+  }, [abierto])
 
   useEffect(() => {
     if (!abierto) return
 
     function fuera(e: MouseEvent) {
-      if (caja.current && !caja.current.contains(e.target as Node)) setAbierto(false)
+      const t = e.target as Node
+      if (!disparador.current?.contains(t) && !lista.current?.contains(t)) setAbierto(false)
     }
     function escape(e: KeyboardEvent) {
-      if (e.key === 'Escape') setAbierto(false)
+      if (e.key === 'Escape') {
+        setAbierto(false)
+        disparador.current?.focus()
+      }
     }
+    const alRodar = () => setAbierto(false)
 
     document.addEventListener('mousedown', fuera)
     document.addEventListener('keydown', escape)
+    window.addEventListener('scroll', alRodar, true)
+    window.addEventListener('resize', alRodar)
     return () => {
       document.removeEventListener('mousedown', fuera)
       document.removeEventListener('keydown', escape)
+      window.removeEventListener('scroll', alRodar, true)
+      window.removeEventListener('resize', alRodar)
     }
   }, [abierto])
 
   return (
-    <div className={styles.menu} ref={caja}>
+    <div className={styles.menu}>
       <Button
+        ref={disparador}
         size="sm"
         icono={rotulo == null}
         aria-haspopup="menu"
@@ -70,8 +96,8 @@ export function Menu({
           </>
         )}
       </Button>
-      {abierto && (
-        <div className={styles.menuLista} role="menu">
+      {abierto && caja && (
+        <div className={styles.menuLista} role="menu" ref={lista} style={caja}>
           {children(() => setAbierto(false))}
         </div>
       )}

@@ -30,7 +30,7 @@ Administration) y lo que se consulta (Logs, About).
 .rtop { display:flex; align-items:center; justify-content:flex-end; gap: var(--s-6); padding: 0 var(--s-11); height:52px; border-bottom:1px solid var(--line); background:var(--pan); box-shadow: var(--filo); font-size: var(--t-4); color:var(--mute); position:sticky; top:0; z-index:5; }
 .host { font-family:var(--font-mono); font-size: var(--t-3); color:var(--faint); border-right:1px solid var(--line); padding-right: var(--s-6); }
 .menu { position:relative; }
-.menuBtn { display:inline-flex; align-items:center; gap: var(--s-3); background:none; border:0; color:var(--mute); font:inherit; font-size: var(--t-4); cursor:pointer; }
+.menuBtn { display:inline-flex; align-items:center; gap: var(--s-3); padding: var(--s-3) var(--s-5); border-radius: var(--r-2); background:none; border:0; color:var(--mute); font:inherit; font-size: var(--t-4); cursor:pointer; }
 .menuBtn:hover { color:var(--ink); }
 .menuList { position:absolute; right:0; top:30px; min-width:190px; z-index:10; background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); padding: var(--s-3); display:flex; flex-direction:column; box-shadow: var(--e-2), var(--filo); }
 .menuList button { background:none; border:0; color:var(--ink); font:inherit; font-size: var(--t-4); text-align:left; padding: var(--s-4) var(--s-6); border-radius: var(--r-2); cursor:pointer; }
@@ -55,6 +55,10 @@ mirarlo desde el móvil cuando algo ha dejado de resolver.
 .marcaTop {
   display: none;
 }
+
+/* El padding va aquí y no dentro de la media query: sin declararlo, el navegador
+   pone el suyo —1px 6px— y ése es un valor que no hemos elegido nosotros. */
+.hamburguesa { padding: 0; }
 
 @media (max-width: 900px) {
   .shell { grid-template-columns: 1fr; }
@@ -88,6 +92,7 @@ mirarlo desde el móvil cuando algo ha dejado de resolver.
     width: 32px;
     height: 32px;
     margin-right: auto;
+    padding: 0;
     background: none;
     border: 1px solid var(--line);
     border-radius: var(--r-2);

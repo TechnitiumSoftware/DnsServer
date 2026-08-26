@@ -15,7 +15,7 @@
 .lvl { margin-left: var(--s-9); border-left:1px solid var(--line); padding-left: var(--s-3); }
 
 /* Panel de registros */
-.count { display:flex; align-items:center; justify-content:space-between; gap: var(--s-7); font-size: var(--t-4); color:var(--mute); margin-bottom: var(--s-6); }
+.count { display:flex; align-items:center; justify-content:space-between; gap: var(--s-7); font-size: var(--t-4); color:var(--mute); margin-bottom: var(--hueco-pegado); }
 .countActs { display:flex; gap: var(--s-3); }
 .mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
 
@@ -33,7 +33,7 @@
 .meta { margin-top: var(--s-4); font-size: var(--t-2); color:var(--faint); }
 .firmas { margin: var(--s-5) 0 0; padding: var(--s-6) var(--s-8); background:var(--field); border:1px solid var(--line); border-radius: var(--r-2); font:var(--t-2)/1.6 var(--font-mono); color:var(--mute); white-space:pre-wrap; word-break:break-all; }
 
-.avisoHueco { margin-bottom: var(--s-9); }
+.avisoHueco { margin-bottom: var(--hueco-bloque); }
 .parrafo { margin: 0 0 var(--s-7); font-size: var(--t-4); color:var(--mute); line-height:1.6; }
 .area { min-height:260px; resize:vertical; }
 

@@ -135,7 +135,7 @@ export function Apps({ token }: { token: string | null }) {
   return (
     <>
       {alert && (
-        <div style={{ marginBottom: 14 }}>
+        <div className={styles.aviso}>
           <Alert type={alert.type} title={alert.title} onDismiss={() => setAlert(null)}>
             {alert.text}
           </Alert>

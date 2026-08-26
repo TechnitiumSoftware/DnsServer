@@ -126,3 +126,7 @@ Es lo que hacen el dibujo y la tabla de Logs; aquí se había perdido.
   .spacer { display: none; }
   .bar { padding: var(--s-7) var(--s-8); }
 }
+
+/* Dos avisos seguidos dentro de un modal: se agrupan más juntos que el resto
+   del cuerpo, porque dicen lo mismo sobre lo mismo. */
+.notas { display: flex; flex-direction: column; gap: var(--s-5); }

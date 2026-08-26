@@ -462,7 +462,7 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
                   />
                 )}
               </Field>
-              <Button variant="primary" onClick={() => navegar(campo)} style={{ marginBottom: 1 }}>
+              <Button variant="primary" onClick={() => navegar(campo)}>
                 Go
               </Button>
             </div>
