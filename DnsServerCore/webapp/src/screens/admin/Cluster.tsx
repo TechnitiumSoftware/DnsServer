@@ -3,6 +3,7 @@ import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Input } from '../../ui/Field'
+import { SectionHeader } from '../../ui/SectionHeader'
 import {
   deleteCluster,
   deleteSecondaryNode,
@@ -130,12 +131,10 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
 
   return (
     <>
-      <div className={styles.hrow}>
-        <div>
-          <h1 className={styles.zt}>Cluster</h1>
-        </div>
-        <div className={styles.acts}>
-          {inicializado && !esPrimario && (
+      <SectionHeader
+        seccion="Administration"
+        titulo="Cluster"
+        acciones={<>{inicializado && !esPrimario && (
             <Button variant="primary" onClick={() => setModal({ tipo: 'resync' })}>
               Resync
             </Button>
@@ -153,9 +152,8 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
               Delete Cluster
             </Button>
           )}
-          <SelectorNodo cluster={estado} value={nodo} onChange={setNodo} label="Cluster Node" />
-        </div>
-      </div>
+          <SelectorNodo cluster={estado} value={nodo} onChange={setNodo} label="Cluster Node" /></>}
+      />
 
       {cargando ? (
         <div className={styles.loading}>Loading…</div>

@@ -11,6 +11,7 @@ import {
 import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
+import { SectionHeader } from '../../ui/SectionHeader'
 import { errorAviso, type Aviso } from './avisos'
 import { formularioDesdeScope, formularioNuevo, type ScopeForm as Form } from './model'
 import { ScopeForm } from './ScopeForm'
@@ -158,12 +159,10 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.hrow}>
-        <div>
-          <h1 className={styles.zt}>DHCP Scopes</h1>
-        </div>
-        <div className={styles.acts}>
-          {canModify && (
+      <SectionHeader
+        seccion="DHCP"
+        titulo="Scopes"
+        acciones={<>{canModify && (
             <Button
               variant="primary"
               onClick={() => {
@@ -173,9 +172,8 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
             >
               Add Scope
             </Button>
-          )}
-        </div>
-      </div>
+          )}</>}
+      />
 
       {aviso && (
         <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>

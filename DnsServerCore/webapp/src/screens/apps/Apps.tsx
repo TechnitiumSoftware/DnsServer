@@ -8,6 +8,7 @@ import {
 } from '../../api/apps'
 import { Alert, type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
+import { SectionHeader } from '../../ui/SectionHeader'
 import { AppConfig } from './AppConfig'
 import { AppCard } from './AppCard'
 import { InstallApp } from './InstallApp'
@@ -124,8 +125,10 @@ export function Apps({ token }: { token: string | null }) {
     setModal({ kind: 'config', name, config: outcome.data.response.config ?? '' })
   }
 
+  // El recuento de apps instaladas ya no va en la cabecera: la píldora de
+  // cabecera es para ESTADO, y un recuento con ese mismo aspecto era una de las
+  // incongruencias. Aquí sólo queda lo que sí es estado: hay actualizaciones.
   const conUpdate = (apps ?? []).filter((a) => a.updateAvailable).length
-  const total = apps?.length ?? 0
 
   return (
     <>
@@ -137,29 +140,24 @@ export function Apps({ token }: { token: string | null }) {
         </div>
       )}
 
-      <div className={styles.hrow}>
-        <div>
-          <h1>Apps</h1>
-          {total > 0 && (
-            <div className={styles.tags}>
-              <span className={styles.tag}>
-                {total} {total === 1 ? 'instalada' : 'instaladas'}
-              </span>
-              {conUpdate > 0 && (
-                <span className={`${styles.tag} ${styles.tagUpd}`}>
-                  {conUpdate} {conUpdate === 1 ? 'actualización' : 'actualizaciones'}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-        <div className={styles.acts}>
-          <Button variant="primary" onClick={() => setModal({ kind: 'store' })}>
-            App Store
-          </Button>
-          <Button onClick={() => setModal({ kind: 'install' })}>Install from file</Button>
-        </div>
-      </div>
+      <SectionHeader
+        titulo="Apps"
+        etiquetas={
+          conUpdate > 0 ? (
+            <span className={`${styles.tag} ${styles.tagUpd}`}>
+              {conUpdate === 1 ? '1 update available' : `${conUpdate} updates available`}
+            </span>
+          ) : undefined
+        }
+        acciones={
+          <>
+            <Button variant="primary" onClick={() => setModal({ kind: 'store' })}>
+              App Store
+            </Button>
+            <Button onClick={() => setModal({ kind: 'install' })}>Install from file</Button>
+          </>
+        }
+      />
 
       {apps === null ? (
         <div className={styles.cargando}>Loading…</div>

@@ -28,6 +28,7 @@ import { filtrar } from './filtro'
 import { textoDeEstado, ventanaDePaginas } from './paginacion'
 import { accionesDeFila, nombreRelativo, ocultarDnssec } from './registro-vista'
 import { cabeceraDeZona, estaFirmada, guardarOcultarDnssec, leerOcultarDnssec } from './vista-zona'
+import { SectionHeader } from '../../ui/SectionHeader'
 import styles from './Zones.module.css'
 import type { Aviso, Confirmacion } from './tipos'
 
@@ -335,127 +336,125 @@ export function RegistrosZona(p: RegistrosZonaProps) {
 
   return (
     <>
-      <div className={styles.crumb}>
-        <button type="button" className={styles.crumbBtn} onClick={p.onVolver}>
-          ← Zones
-        </button>
-      </div>
-
-      <div className={styles.hrow}>
-        <div>
-          <h1 className={styles.zt}>{zone === '.' ? '<root>' : zone}</h1>
-          <div className={styles.tags}>
+      <SectionHeader
+        seccion="Zones"
+        onVolver={p.onVolver}
+        titulo={zone === '.' ? '<root>' : zone}
+        etiquetas={
+          <>
             <span className={styles.tag}>{etiquetaTipo(zona.type)}</span>
             <span className={`${styles.tag} ${estado === 'Enabled' ? styles.tagOk : ''}`}>{estado}</span>
             {firmada && (
               <span className={`${styles.tag} ${styles.tagInfo}`}>DNSSEC</span>
             )}
             {zona.catalog != null && <span className={styles.tag}>{zona.catalog}</span>}
-          </div>
-        </div>
-        <div className={styles.acts}>
-          {cab?.anadirRegistro && (
-            <Button
-              variant="primary"
-              disabled={!p.canModify || ocupado}
-              onClick={() => p.onAnadirRegistro(zona, registros)}
-            >
-              Add Record
-            </Button>
-          )}
-          {zona.disabled ? (
-            <Button disabled={!p.canModify || ocupado} onClick={habilitarZona}>
-              Enable Zone
-            </Button>
-          ) : (
-            <Button disabled={!p.canModify || ocupado} onClick={deshabilitarZona}>
-              Disable Zone
-            </Button>
-          )}
-          <Button variant="danger" disabled={!p.canDelete || ocupado} onClick={borrarZona}>
-            Delete Zone
-          </Button>
-
-          <Menu etiqueta="Zone actions" rotulo="Options">
-            {(cerrar) => (
-              <>
-                {cab?.resync && (
-                  <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); resincronizar() }}>
-                    Resync
-                  </button>
-                )}
-                {cab?.importar && (
-                  <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onImportar(zone) }}>
-                    Import Zone
-                  </button>
-                )}
-                {cab?.exportar && (
-                  <button type="button" onClick={() => { cerrar(); void exportar() }}>
-                    Export Zone
-                  </button>
-                )}
-                {cab?.convertir && (
-                  <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onConvertir(zone, zona.type) }}>
-                    Convert Zone
-                  </button>
-                )}
-                {cab?.clonar && (
-                  <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onClonar(zone) }}>
-                    Clone Zone
-                  </button>
-                )}
-                {cab?.opciones && (
-                  <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onOpciones(zone) }}>
-                    Zone Options
-                  </button>
-                )}
-                {cab?.permisos && (
-                  <button type="button" onClick={() => { cerrar(); p.onPermisos(zone) }}>
-                    Permissions
-                  </button>
-                )}
-              </>
+          </>
+        }
+        acciones={
+          <>
+            {cab?.anadirRegistro && (
+              <Button
+                variant="primary"
+                disabled={!p.canModify || ocupado}
+                onClick={() => p.onAnadirRegistro(zona, registros)}
+              >
+                Add Record
+              </Button>
             )}
-          </Menu>
+            {zona.disabled ? (
+              <Button disabled={!p.canModify || ocupado} onClick={habilitarZona}>
+                Enable Zone
+              </Button>
+            ) : (
+              <Button disabled={!p.canModify || ocupado} onClick={deshabilitarZona}>
+                Disable Zone
+              </Button>
+            )}
+            <Button variant="danger" disabled={!p.canDelete || ocupado} onClick={borrarZona}>
+              Delete Zone
+            </Button>
 
-          {cab?.dnssec && (
-            <Menu etiqueta="DNSSEC actions" rotulo="DNSSEC">
+            <Menu etiqueta="Zone actions" rotulo="Options">
               {(cerrar) => (
                 <>
-                  {cab.firmar && (
-                    <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onFirmar(zone) }}>
-                      Sign Zone
+                  {cab?.resync && (
+                    <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); resincronizar() }}>
+                      Resync
                     </button>
                   )}
-                  {cab.alternarRegistrosDnssec && (
-                    <button type="button" onClick={() => { cerrar(); alternarDnssec() }}>
-                      {ocultarDnssecRegs ? 'Show DNSSEC Records' : 'Hide DNSSEC Records'}
+                  {cab?.importar && (
+                    <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onImportar(zone) }}>
+                      Import Zone
                     </button>
                   )}
-                  {cab.verDs && (
-                    <button type="button" onClick={() => { cerrar(); p.onVerDs(zone) }}>
-                      View DS Info
+                  {cab?.exportar && (
+                    <button type="button" onClick={() => { cerrar(); void exportar() }}>
+                      Export Zone
                     </button>
                   )}
-                  {cab.propiedades && (
-                    <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onPropiedadesDnssec(zone) }}>
-                      DNSSEC Properties
+                  {cab?.convertir && (
+                    <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onConvertir(zone, zona.type) }}>
+                      Convert Zone
                     </button>
                   )}
-                  {cab.desfirmar && (
-                    <>
-                      <Separador />
-                      <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onDesfirmar(zone) }}>
-                        Unsign Zone
-                      </button>
-                    </>
+                  {cab?.clonar && (
+                    <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onClonar(zone) }}>
+                      Clone Zone
+                    </button>
+                  )}
+                  {cab?.opciones && (
+                    <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onOpciones(zone) }}>
+                      Zone Options
+                    </button>
+                  )}
+                  {cab?.permisos && (
+                    <button type="button" onClick={() => { cerrar(); p.onPermisos(zone) }}>
+                      Permissions
+                    </button>
                   )}
                 </>
               )}
             </Menu>
-          )}
-        </div>
-      </div>
+
+            {cab?.dnssec && (
+              <Menu etiqueta="DNSSEC actions" rotulo="DNSSEC">
+                {(cerrar) => (
+                  <>
+                    {cab.firmar && (
+                      <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onFirmar(zone) }}>
+                        Sign Zone
+                      </button>
+                    )}
+                    {cab.alternarRegistrosDnssec && (
+                      <button type="button" onClick={() => { cerrar(); alternarDnssec() }}>
+                        {ocultarDnssecRegs ? 'Show DNSSEC Records' : 'Hide DNSSEC Records'}
+                      </button>
+                    )}
+                    {cab.verDs && (
+                      <button type="button" onClick={() => { cerrar(); p.onVerDs(zone) }}>
+                        View DS Info
+                      </button>
+                    )}
+                    {cab.propiedades && (
+                      <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onPropiedadesDnssec(zone) }}>
+                        DNSSEC Properties
+                      </button>
+                    )}
+                    {cab.desfirmar && (
+                      <>
+                        <Separador />
+                        <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onDesfirmar(zone) }}>
+                          Unsign Zone
+                        </button>
+                      </>
+                    )}
+                  </>
+                )}
+              </Menu>
+            )}
+          </>
+        }
+      />
 
       <div className={styles.filt}>
         <div className={styles.filtAncho}>

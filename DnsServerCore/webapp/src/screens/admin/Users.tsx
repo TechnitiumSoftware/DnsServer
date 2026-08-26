@@ -3,6 +3,7 @@ import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Input } from '../../ui/Field'
+import { SectionHeader } from '../../ui/SectionHeader'
 import {
   createUser,
   deleteUser,
@@ -109,16 +110,13 @@ export function Users({ token, cluster, onAviso }: Props) {
 
   return (
     <>
-      <div className={styles.hrow}>
-        <div>
-          <h1 className={styles.zt}>Users</h1>
-        </div>
-        <div className={styles.acts}>
-          <Button variant="primary" onClick={() => setAnadir(true)}>
+      <SectionHeader
+        seccion="Administration"
+        titulo="Users"
+        acciones={<><Button variant="primary" onClick={() => setAnadir(true)}>
             Add User
-          </Button>
-        </div>
-      </div>
+          </Button></>}
+      />
 
       {cargando ? (
         <div className={styles.loading}>Loading…</div>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Alert, type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
+import { SectionHeader } from '../../ui/SectionHeader'
 import { openDownload } from '../../api/user'
 import {
   flushCache,
@@ -279,10 +280,9 @@ export function Settings({
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.head}>
-        <h1>Settings</h1>
-        <span>{activa}</span>
-      </div>
+      {/* El título es la sub-pestaña, no «Settings»: las nueve decían lo mismo,
+          así que no servía ni para orientarse ni para buscar con Ctrl+F. */}
+      <SectionHeader seccion="Settings" titulo={activa} />
 
       {aviso && (
         <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>

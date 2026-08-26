@@ -6,6 +6,7 @@ import {
 import { Chart } from './Chart'
 import { TopStats } from './TopStats'
 import type { ChartData } from '../../api/dashboard'
+import { SectionHeader } from '../../ui/SectionHeader'
 import styles from './Dashboard.module.css'
 
 /*
@@ -133,13 +134,18 @@ export function Dashboard({ token }: { token: string | null }) {
 
   return (
     <>
-      <div className={styles.seg} role="group" aria-label="Periodo">
+      <SectionHeader
+        titulo="Dashboard"
+        acciones={
+          <div className={styles.seg} role="group" aria-label="Period">
         {RANGOS.map((r) => (
           <button key={r} type="button" aria-pressed={r === rango} onClick={() => setRango(r)}>
             {ETIQUETA_RANGO[r]}
           </button>
         ))}
-      </div>
+          </div>
+        }
+      />
 
       <div className={styles.tiles} data-testid="metricas">
         {METRICAS.map((m) => (

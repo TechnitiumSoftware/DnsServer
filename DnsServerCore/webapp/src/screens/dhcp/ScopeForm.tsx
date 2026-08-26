@@ -8,6 +8,7 @@ import {
   type ScopeForm as Form,
 } from './model'
 import { AreaRow, Block, Check, EditableTable, GroupRow, Note, Row, TextRow, Warning } from './parts'
+import { SectionHeader } from '../../ui/SectionHeader'
 import styles from './Dhcp.module.css'
 
 /*
@@ -61,9 +62,7 @@ export function ScopeForm({
 
   return (
     <div>
-      <div className={styles.hrow}>
-        <h1 className={styles.zt}>{titulo}</h1>
-      </div>
+      <SectionHeader seccion="DHCP" titulo={titulo} />
 
       <Block title="Scope">
         <TextRow

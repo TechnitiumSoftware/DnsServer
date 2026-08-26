@@ -3,6 +3,7 @@ import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Input } from '../../ui/Field'
+import { SectionHeader } from '../../ui/SectionHeader'
 import {
   createApiToken,
   deleteAdminSession,
@@ -96,19 +97,16 @@ export function Sessions({ token, cluster, onAviso }: Props) {
 
   return (
     <>
-      <div className={styles.hrow}>
-        <div>
-          <h1 className={styles.zt}>Sessions</h1>
-        </div>
-        <div className={styles.acts}>
-          {puedeCrearToken && (
+      <SectionHeader
+        seccion="Administration"
+        titulo="Sessions"
+        acciones={<>{puedeCrearToken && (
             <Button variant="primary" onClick={() => setCrear(true)}>
               Create Token
             </Button>
           )}
-          <SelectorNodo cluster={cluster} value={nodo} onChange={setNodo} label="Cluster Node" />
-        </div>
-      </div>
+          <SelectorNodo cluster={cluster} value={nodo} onChange={setNodo} label="Cluster Node" /></>}
+      />
 
       {cargando ? (
         <div className={styles.loading}>Loading…</div>

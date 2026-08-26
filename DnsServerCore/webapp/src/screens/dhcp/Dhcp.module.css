@@ -5,16 +5,12 @@
 
 .wrap { display: flex; flex-direction: column; gap: var(--s-9); }
 
-.hrow { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-11); margin-bottom: var(--s-2); }
-.zt { margin: 0; font-size: var(--t-7); letter-spacing: -0.02em; font-weight: 700; color: var(--ink); }
-.tags { display: flex; gap: var(--s-3); margin-top: var(--s-5); flex-wrap: wrap; }
 .tag {
   font-size: var(--t-1); padding: var(--s-1) var(--s-5); border-radius: var(--r-full); font-weight: 700;
   border: 1px solid var(--line); letter-spacing: 0.03em; color: var(--mute);
   background: var(--pan2); white-space: nowrap;
 }
 .tagOk { color: var(--ok); border-color: #065f46; background: #052e26; }
-.acts { display: flex; gap: var(--s-4); flex-wrap: wrap; justify-content: flex-end; }
 
 .tablaWrap { overflow-x: auto; }
 .tabla { border-collapse: collapse; width: 100%; }

@@ -3,6 +3,7 @@ import { PROTOCOLOS, TIPOS, prepararServidor, resolve } from '../../api/dnsclien
 import { Alert, type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { LabeledInput } from '../../ui/Field'
+import { SectionHeader } from '../../ui/SectionHeader'
 import styles from './DnsClient.module.css'
 
 /*
@@ -76,6 +77,8 @@ export function DnsClient({ token }: { token: string | null }) {
 
   return (
     <>
+      <SectionHeader titulo="DNS Client" />
+
       {alert && (
         <div style={{ marginBottom: 14 }}>
           <Alert type={alert.type} title={alert.title} onDismiss={() => setAlert(null)}>

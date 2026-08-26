@@ -16,6 +16,7 @@ import {
 } from '../../api/zones'
 import { Button } from '../../ui/Button'
 import { Field, Input, Select } from '../../ui/Field'
+import { SectionHeader } from '../../ui/SectionHeader'
 import { Menu, Separador } from './Menu'
 import { fechaMinuto as fecha } from '../../lib/fechas'
 import { textoDeEstado, ventanaDePaginas } from './paginacion'
@@ -335,19 +336,15 @@ export function ListaZonas({
 
   return (
     <>
-      <div className={styles.hrow}>
-        <div>
-          <h1 className={styles.zt}>Zones</h1>
-        </div>
-        <div className={styles.acts}>
-          <Button variant="primary" disabled={!canModify || ocupado} onClick={onAnadir}>
+      <SectionHeader
+        titulo="Zones"
+        acciones={<><Button variant="primary" disabled={!canModify || ocupado} onClick={onAnadir}>
             Add Zone
           </Button>
           <Button variant="danger" disabled={!canDelete || ocupado} onClick={borrarMarcadas}>
             Delete Zones
-          </Button>
-        </div>
-      </div>
+          </Button></>}
+      />
 
       <div className={styles.filt}>
         <div className={styles.filtAncho}>

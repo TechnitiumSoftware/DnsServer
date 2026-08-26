@@ -9,6 +9,7 @@ import {
 import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
+import { SectionHeader } from '../../ui/SectionHeader'
 import { fechaMinuto } from './fechas'
 import type { Aviso } from './avisos'
 import styles from './Dhcp.module.css'
@@ -121,14 +122,11 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.hrow}>
-        <div>
-          <h1 className={styles.zt}>DHCP Leases</h1>
-        </div>
-        <div className={styles.acts}>
-          <Button onClick={() => void cargar()}>Refresh</Button>
-        </div>
-      </div>
+      <SectionHeader
+        seccion="DHCP"
+        titulo="Leases"
+        acciones={<><Button onClick={() => void cargar()}>Refresh</Button></>}
+      />
 
       {aviso && (
         <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>

@@ -3,14 +3,10 @@
    cuatro tablas de la consola se lean igual; el formulario de SSO repite las
    filas `210px 1fr` de Settings por el mismo motivo. */
 
-.hrow { display:flex; align-items:flex-start; justify-content:space-between; gap: var(--s-11); margin-bottom: var(--s-10); }
-.zt { margin: 0; font-size: var(--t-7); letter-spacing:-.02em; font-weight:700; color:var(--ink); }
-.tags { display:flex; gap: var(--s-3); margin-top: var(--s-5); flex-wrap:wrap; }
 .tag { font-size: var(--t-1); padding: var(--s-1) var(--s-5); border-radius: var(--r-full); font-weight:700; border:1px solid var(--line); letter-spacing:.03em; color:var(--mute); background:var(--pan2); white-space:nowrap; display:inline-block; }
 .tagOk { color:var(--ok); border-color:#065f46; background:#052e26; }
 .tagInfo { color:var(--acc); border-color:var(--acc); background:var(--pan2); }
 .tagWarn { color:#fcd34d; border-color:#4a3609; background:#2a1e05; }
-.acts { display:flex; gap: var(--s-4); flex-wrap:wrap; justify-content:flex-end; align-items:center; }
 
 .avisoHueco { margin-bottom: var(--s-9); }
 .loading, .fail { padding: var(--s-12); text-align:center; color:var(--faint); font-size: var(--t-4); }

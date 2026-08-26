@@ -68,20 +68,22 @@ describe('Apps — lista de instaladas', () => {
     ).toBeInTheDocument()
   })
 
-  it('cuenta las instaladas y las que tienen actualización', async () => {
+  it('anuncia en la cabecera cuántas apps tienen actualización', async () => {
     conApps([AL_DIA, CON_UPDATE])
     render(<Apps token="t" />)
 
-    expect(await screen.findByText('2 instaladas')).toBeInTheDocument()
-    expect(screen.getByText('1 actualización')).toBeInTheDocument()
+    expect(await screen.findByText('1 update available')).toBeInTheDocument()
+    // El recuento de instaladas ya no está: la píldora de cabecera es para
+    // ESTADO, y contar filas con ese mismo aspecto era una incongruencia.
+    expect(screen.queryByText(/^\d+ instaladas?$/)).not.toBeInTheDocument()
   })
 
-  it('sin actualizaciones no enseña ese recuento', async () => {
+  it('sin actualizaciones no enseña la píldora', async () => {
     conApps([AL_DIA])
     render(<Apps token="t" />)
 
-    expect(await screen.findByText('1 instalada')).toBeInTheDocument()
-    expect(screen.queryByText(/actualizaci/)).not.toBeInTheDocument()
+    await screen.findByRole('listitem', { name: 'What Is My Dns' })
+    expect(screen.queryByText(/update available/)).not.toBeInTheDocument()
   })
 
   it('anuncia la versión nueva y ofrece «Store Update» sólo si la hay', async () => {

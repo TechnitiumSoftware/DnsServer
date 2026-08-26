@@ -15,6 +15,7 @@ import {
 import { Alert, type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Input, Select } from '../../ui/Field'
+import { SectionHeader } from '../../ui/SectionHeader'
 import { aIso, fechaHora } from './fechas'
 import styles from './Logs.module.css'
 
@@ -376,16 +377,11 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.hrow}>
-        <div>
-          <h1 className={styles.zt}>Query Logs</h1>
-          {f.appName !== '' && (
-            <div className={styles.tags}>
-              <span className={styles.tag}>app: {f.appName}</span>
-            </div>
-          )}
-        </div>
-        <div className={styles.acts}>
+      <SectionHeader
+        seccion="Logs"
+        titulo="Query Logs"
+        etiquetas={f.appName !== '' ? <span className={styles.tag}>app: {f.appName}</span> : undefined}
+        acciones={<>
           <label className={styles.check}>
             <input
               type="checkbox"
@@ -405,8 +401,8 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
             Export
           </Button>
           <Button onClick={reiniciar}>Reset</Button>
-        </div>
-      </div>
+        </>}
+      />
 
       {aviso && (
         <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>

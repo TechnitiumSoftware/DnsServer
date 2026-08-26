@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { checkForUpdate } from '../../api/user'
 import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
+import { SectionHeader } from '../../ui/SectionHeader'
 import styles from './About.module.css'
 
 interface Info { version: string; uptimestamp: string; dnsServerDomain: string }
@@ -43,13 +44,15 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
   }
 
   return (
+    <>
+      <SectionHeader titulo="About" />
     <div className={styles.grid}>
       <div className={styles.panel}>
         <div className={styles.pb}>
           <div className={styles.head}>
             <span className={styles.mark}>T</span>
             <div>
-              <h1 className={styles.h1}>Technitium DNS Server</h1>
+              <h2 className={styles.h1}>Technitium DNS Server</h2>
               <div className={styles.ver}>Version {info?.version ?? '—'}</div>
             </div>
           </div>
@@ -100,5 +103,6 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
         </div>
       </div>
     </div>
+    </>
   )
 }

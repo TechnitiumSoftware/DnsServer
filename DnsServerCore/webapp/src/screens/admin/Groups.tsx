@@ -3,6 +3,7 @@ import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Input } from '../../ui/Field'
+import { SectionHeader } from '../../ui/SectionHeader'
 import {
   createGroup,
   deleteGroup,
@@ -75,16 +76,13 @@ export function Groups({ token, onAviso }: Props) {
 
   return (
     <>
-      <div className={styles.hrow}>
-        <div>
-          <h1 className={styles.zt}>Groups</h1>
-        </div>
-        <div className={styles.acts}>
-          <Button variant="primary" onClick={() => setAnadir(true)}>
+      <SectionHeader
+        seccion="Administration"
+        titulo="Groups"
+        acciones={<><Button variant="primary" onClick={() => setAnadir(true)}>
             Add Group
-          </Button>
-        </div>
-      </div>
+          </Button></>}
+      />
 
       {cargando ? (
         <div className={styles.loading}>Loading…</div>

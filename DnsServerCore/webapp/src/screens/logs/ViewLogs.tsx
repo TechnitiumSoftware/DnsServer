@@ -11,6 +11,7 @@ import { deleteAllStats } from '../../api/dashboard'
 import { Alert, type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
+import { SectionHeader } from '../../ui/SectionHeader'
 import styles from './Logs.module.css'
 
 /*
@@ -154,12 +155,10 @@ export function ViewLogs({
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.hrow}>
-        <div>
-          <h1 className={styles.zt}>Logs</h1>
-        </div>
-        <div className={styles.acts}>
-          {/* logs.js:121 — «delete all logs» sólo existe si hay ficheros. */}
+      <SectionHeader
+        seccion="Logs"
+        titulo="View Logs"
+        acciones={<>{/* logs.js:121 — «delete all logs» sólo existe si hay ficheros. */}
           {canDeleteLogs && ficheros.length > 0 && (
             <Button variant="danger" disabled={ocupado} onClick={() => setConfirmar('allLogs')}>
               Delete All Logs
@@ -170,9 +169,8 @@ export function ViewLogs({
             <Button variant="danger" disabled={ocupado} onClick={() => setConfirmar('allStats')}>
               Delete All Stats
             </Button>
-          )}
-        </div>
-      </div>
+          )}</>}
+      />
 
       {aviso && (
         <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>

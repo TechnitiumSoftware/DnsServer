@@ -18,6 +18,7 @@ import { Alert, type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Field, Input, LabeledTextarea } from '../../ui/Field'
+import { SectionHeader } from '../../ui/SectionHeader'
 import { Arbol } from './Arbol'
 import { Registros } from './Registros'
 import styles from './Listas.module.css'
@@ -410,16 +411,11 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
 
   return (
     <>
-      <div className={styles.hrow}>
-        <div>
-          <h1 className={styles.zt}>{TITULO[lista]}</h1>
-          <div className={styles.tags}>
-            <span className={styles.tag}>{zones.length} zones</span>
-            <span className={styles.tag}>{records.length} records</span>
-          </div>
-        </div>
-        <div className={styles.acts}>
-          {esCache ? (
+      <SectionHeader
+        titulo={TITULO[lista]}
+        etiquetas={<><span className={styles.tag}>{zones.length} zones</span>
+            <span className={styles.tag}>{records.length} records</span></>}
+        acciones={<>{esCache ? (
             <Button variant="danger" disabled={ocupado} onClick={pedirFlushCache}>
               Flush Cache
             </Button>
@@ -438,9 +434,8 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
                 Flush
               </Button>
             </>
-          )}
-        </div>
-      </div>
+          )}</>}
+      />
 
       {aviso && (
         <div className={styles.avisoHueco}>

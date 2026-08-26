@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useState } from 'react'
 import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Input } from '../../ui/Field'
+import { SectionHeader } from '../../ui/SectionHeader'
 import { getSsoConfig, setSsoConfig, type SsoConfig } from '../../api/admin'
 import { serializarTabla, type Celda } from './tabla'
 import {
@@ -177,11 +178,10 @@ export function Sso({ token, onAviso }: Props) {
 
   return (
     <>
-      <div className={styles.hrow}>
-        <div>
-          <h1 className={styles.zt}>Single Sign-On (SSO)</h1>
-        </div>
-      </div>
+      <SectionHeader
+        seccion="Administration"
+        titulo="Single Sign-On (SSO)"
+      />
 
       <fieldset className={styles.block}>
         <legend className={styles.blockTitle}>Single Sign-On (SSO)</legend>

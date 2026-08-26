@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
+import { SectionHeader } from '../../ui/SectionHeader'
 import {
   getPermission,
   listPermissions,
@@ -59,11 +60,10 @@ export function Permissions({ token, cluster, onAviso }: Props) {
 
   return (
     <>
-      <div className={styles.hrow}>
-        <div>
-          <h1 className={styles.zt}>Permissions</h1>
-        </div>
-      </div>
+      <SectionHeader
+        seccion="Administration"
+        titulo="Permissions"
+      />
 
       {cargando ? (
         <div className={styles.loading}>Loading…</div>
