@@ -204,6 +204,7 @@ namespace DnsServerCore.Dns
         bool _enableDnsOverHttp3;
         bool _enableDnsOverQuic;
         bool _useDnsCookies;
+        bool _enableDnsCookieStandaloneAutomaticRotation;
         IReadOnlyCollection<NetworkAccessControl> _reverseProxyNetworkACL;
         bool _enableDnsOverHttpHelpRedirect = true;
         int _dnsOverUdpProxyPort = 538;
@@ -1271,8 +1272,10 @@ namespace DnsServerCore.Dns
             }
 
             _enableUdpReflectionLimiting = s.Position < s.Length && bR.ReadBoolean();
+            _enableDnsCookieStandaloneAutomaticRotation = s.Position < s.Length && bR.ReadBoolean();
 
             _cookieCoordinator.Configure(_useDnsCookies);
+            _cookieCoordinator.ConfigureStandaloneAutomaticRotation(_enableDnsCookieStandaloneAutomaticRotation);
         }
 
         private void WriteConfigTo(Stream s)
@@ -1574,6 +1577,7 @@ namespace DnsServerCore.Dns
             bW.Write(rrlOptions.TableSize);
             AuthZoneInfo.WriteNetworkAddressesTo(rrlOptions.BypassList, bW);
             bW.Write(_enableUdpReflectionLimiting);
+            bW.Write(_enableDnsCookieStandaloneAutomaticRotation);
         }
         #endregion
 
@@ -7935,6 +7939,19 @@ namespace DnsServerCore.Dns
 
                 _useDnsCookies = value;
                 _cookieCoordinator.Configure(value);
+            }
+        }
+
+        public bool EnableDnsCookieStandaloneAutomaticRotation
+        {
+            get => _enableDnsCookieStandaloneAutomaticRotation;
+            set
+            {
+                if (_enableDnsCookieStandaloneAutomaticRotation == value)
+                    return;
+
+                _enableDnsCookieStandaloneAutomaticRotation = value;
+                _cookieCoordinator.ConfigureStandaloneAutomaticRotation(value);
             }
         }
 

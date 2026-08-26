@@ -97,6 +97,7 @@ namespace DnsServerCore.Dns.Security
     public sealed class DnsCookieCoordinator
     {
         private const string SecretFileName = "dns.cookies.state";
+        private static readonly TimeSpan StandaloneAutomaticRotationPeriod = TimeSpan.FromHours(1);
 
         private const int ClientCookieLength = 8;
         private const int ServerCookieMinLength = 8;
@@ -110,6 +111,8 @@ namespace DnsServerCore.Dns.Security
 
         RuntimeState _state = DisabledState.Instance;
         long _generation;
+        bool _enableStandaloneAutomaticRotation;
+        Timer _standaloneRotationTimer;
 
         // Optional observability counters (not currently exposed; see ValidationInvocations for
         // the one counter DnsServer does expose publicly).
@@ -156,6 +159,8 @@ namespace DnsServerCore.Dns.Security
                     DnsCookieSecretManager secretManager = new DnsCookieSecretManager(GetSecretPath());
                     EnabledState nextState = new EnabledState(NextGeneration(), secretManager);
                     Volatile.Write(ref _state, nextState);
+                    if (_enableStandaloneAutomaticRotation)
+                        ScheduleStandaloneTransition(secretManager);
                 }
                 catch (Exception ex) when (ex is InvalidDataException || ex is IOException || ex is UnauthorizedAccessException)
                 {
@@ -169,10 +174,60 @@ namespace DnsServerCore.Dns.Security
         public void Stop()
         {
             lock (_lock)
+            {
+                _standaloneRotationTimer?.Dispose();
+                _standaloneRotationTimer = null;
                 Volatile.Write(ref _state, DisabledState.Instance);
+            }
+        }
+
+        public void ConfigureStandaloneAutomaticRotation(bool enabled)
+        {
+            lock (_lock)
+            {
+                _enableStandaloneAutomaticRotation = enabled;
+                _standaloneRotationTimer?.Dispose();
+                _standaloneRotationTimer = null;
+
+                if (enabled && Volatile.Read(ref _state) is EnabledState current)
+                    ScheduleStandaloneTransition(current.SecretManager);
+            }
         }
 
         private long NextGeneration() => Interlocked.Increment(ref _generation);
+
+        private void RotateStandaloneSecrets(DnsCookieSecretManager secretManager)
+        {
+            lock (_lock)
+            {
+                if (!_enableStandaloneAutomaticRotation ||
+                    Volatile.Read(ref _state) is not EnabledState current ||
+                    !ReferenceEquals(current.SecretManager, secretManager))
+                {
+                    return;
+                }
+
+                try
+                {
+                    secretManager.Rotate();
+                    Volatile.Write(ref _state, new EnabledState(NextGeneration(), secretManager));
+                }
+                catch (Exception ex)
+                {
+                    _log.Write(ex);
+                }
+
+                if (_enableStandaloneAutomaticRotation)
+                    ScheduleStandaloneTransition(secretManager);
+            }
+        }
+
+        private void ScheduleStandaloneTransition(DnsCookieSecretManager secretManager)
+        {
+            _standaloneRotationTimer?.Dispose();
+            _standaloneRotationTimer = new Timer(_ => RotateStandaloneSecrets(secretManager), null,
+                StandaloneAutomaticRotationPeriod, Timeout.InfiniteTimeSpan);
+        }
 
         private string GetSecretPath()
         {
@@ -206,6 +261,8 @@ namespace DnsServerCore.Dns.Security
                     ReferenceEquals(current.SecretManager, secretManager))
                 {
                     Volatile.Write(ref _state, new EnabledState(NextGeneration(), secretManager));
+                    if (_enableStandaloneAutomaticRotation)
+                        ScheduleStandaloneTransition(secretManager);
                 }
             }
         }

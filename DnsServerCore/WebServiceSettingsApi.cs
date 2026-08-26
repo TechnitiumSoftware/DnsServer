@@ -245,6 +245,7 @@ namespace DnsServerCore
                 jsonWriter.WriteBoolean("enableDnsOverHttp3", _dnsWebService._dnsServer.EnableDnsOverHttp3);
                 jsonWriter.WriteBoolean("enableDnsOverQuic", _dnsWebService._dnsServer.EnableDnsOverQuic);
                 jsonWriter.WriteBoolean("useDnsCookies", _dnsWebService._dnsServer.UseDnsCookies);
+                jsonWriter.WriteBoolean("enableDnsCookieStandaloneAutomaticRotation", _dnsWebService._dnsServer.EnableDnsCookieStandaloneAutomaticRotation);
                 bool dnsCookieStatusAvailable = _dnsWebService._dnsServer.TryGetDnsCookieSecretStatus(out string activeDnsCookieSecretId, out string stagingDnsCookieSecretId, out _);
                 jsonWriter.WriteBoolean("dnsCookieStatusAvailable", dnsCookieStatusAvailable);
                 jsonWriter.WriteString("dnsCookieActiveSecretFingerprint", activeDnsCookieSecretId);
@@ -510,6 +511,7 @@ namespace DnsServerCore
                     jsonWriter.WriteNull("activeSecretCreatedUtc");
                 jsonWriter.WriteString("stagingSecretId", stagingSecretId);
                 jsonWriter.WriteBoolean("useDnsCookies", _dnsWebService._dnsServer.UseDnsCookies);
+                jsonWriter.WriteBoolean("enableDnsCookieStandaloneAutomaticRotation", _dnsWebService._dnsServer.EnableDnsCookieStandaloneAutomaticRotation);
                 jsonWriter.WriteBoolean("enableUdpReflectionLimiting", _dnsWebService._dnsServer.EnableUdpReflectionLimiting);
                 jsonWriter.WriteBoolean("enableResponseRateLimiting", _dnsWebService._dnsServer.EnableResponseRateLimiting);
                 bool protectionComplete = !_dnsWebService._dnsServer.UseDnsCookies ||
@@ -1348,6 +1350,13 @@ namespace DnsServerCore
                                 _dnsWebService._dnsServer.UseDnsCookies = useDnsCookies;
                                 restartDnsService = true;
                             }
+                        }
+                        if (request.TryGetQueryOrForm("enableDnsCookieStandaloneAutomaticRotation", bool.Parse, out bool enableDnsCookieStandaloneAutomaticRotation))
+                        {
+                            if (enableDnsCookieStandaloneAutomaticRotation && _dnsWebService._clusterManager.ClusterInitialized)
+                                throw new DnsWebServiceException("Automatic DNS Cookie rotation is available only in standalone mode.");
+
+                            _dnsWebService._dnsServer.EnableDnsCookieStandaloneAutomaticRotation = enableDnsCookieStandaloneAutomaticRotation;
                         }
                         if (request.TryGetQueryOrForm("enableDnsOverHttpHelpRedirect", bool.Parse, out bool enableDnsOverHttpHelpRedirect))
                             _dnsWebService._dnsServer.EnableDnsOverHttpHelpRedirect = enableDnsOverHttpHelpRedirect;
