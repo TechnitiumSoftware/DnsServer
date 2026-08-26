@@ -267,6 +267,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
                         {(cerrar) => (
                           <button
                             type="button"
+                            data-variant="danger"
                             disabled={ocupado}
                             onClick={() => { cerrar(); setConfirmar({ accion: 'delete', nombre: s.name }) }}
                           >

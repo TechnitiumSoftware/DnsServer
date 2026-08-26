@@ -152,7 +152,16 @@ una fila tenga tres acciones y la de al lado cinco.
   box-shadow: var(--filo);
 }
 
-.acciones > * {
+/*
+El `> *` es hijo DIRECTO, y el disparador del menú «⋮» no lo es: `ui/Menu` lo
+envuelve en un `div`. Así que el aplanado le pasaba por encima y se quedaba con
+el borde, el radio de 6 px, el fondo sólido y la sombra interior del botón
+suelto — una cajita redondeada por fila, pegada a un grupo plano. Medido en la
+misma celda: «Zone Options» y «Disable Zone» con radio 0 y fondo transparente,
+y el «⋮» con radio 6 y `rgb(33,37,41)`.
+*/
+.acciones > *,
+.acciones > * > button {
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
@@ -165,8 +174,10 @@ una fila tenga tres acciones y la de al lado cinco.
 
 .acciones > * + * { border-left: 1px solid var(--line) !important; }
 
-.acciones > *:hover:not(:disabled) { background: var(--hover-fuerte) !important; }
-.acciones > *:disabled { color: var(--faint); }
+.acciones > *:hover:not(:disabled),
+.acciones > * > button:hover:not(:disabled) { background: var(--hover-fuerte) !important; }
+.acciones > *:disabled,
+.acciones > * > button:disabled { color: var(--faint); }
 
 /* El de borrar mantiene su color, pero dentro del grupo: no se rellena de rojo
    porque una fila con un bloque rojo convierte la tabla en una alarma. */
@@ -189,7 +200,8 @@ el lector de pantalla lo anuncian igual— y en `title`, que es el globo al pasa
 por encima. Y el menú `⋮` lleva TODAS las acciones con su texto, incluida la de
 borrar, así que ningún nombre vive sólo dentro de un dibujo.
 */
-.acciones > [data-icono='true'] { padding-left: var(--s-6); padding-right: var(--s-6); }
+.acciones > [data-icono='true'],
+.acciones > * > [data-icono='true'] { padding-left: var(--s-6); padding-right: var(--s-6); }
 
 /* La casilla de seleccionar fila mide 18 px: se pulsa desde toda su celda. */
 .celdaCheck {

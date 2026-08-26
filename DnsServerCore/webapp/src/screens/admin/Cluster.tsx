@@ -280,7 +280,7 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
                                 {esPrimario && n.type === 'Secondary' && (
                                   <>
                                     <Separador />
-                                    <button type="button" onClick={() => { cerrar(); setModal({ tipo: 'remove', nodo: n }) }}>
+                                    <button type="button" data-variant="danger" onClick={() => { cerrar(); setModal({ tipo: 'remove', nodo: n }) }}>
                                       Remove Node
                                     </button>
                                   </>

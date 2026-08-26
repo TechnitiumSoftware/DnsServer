@@ -115,7 +115,7 @@ describe('DHCP › Leases', () => {
     expect(
       screen.getByText('Are you sure you want to convert the dynamic lease to reserved lease?'),
     ).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'OK' }))
+    await user.click(screen.getByRole('button', { name: 'Convert' }))
 
     expect(spy).toHaveBeenCalledWith('t', 'Default', '1-A4-83-E7-2B-19-0C', '')
     expect(await screen.findByText('Reserved!')).toBeInTheDocument()
@@ -139,7 +139,7 @@ describe('DHCP › Leases', () => {
     expect(
       screen.getByText('Are you sure you want to convert the reserved lease to dynamic lease?'),
     ).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'OK' }))
+    await user.click(screen.getByRole('button', { name: 'Convert' }))
 
     expect(await screen.findByText('Unreserved!')).toBeInTheDocument()
     expect(

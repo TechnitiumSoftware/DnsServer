@@ -136,7 +136,7 @@ export function Groups({ token, onAviso }: Props) {
                         />
                         <Menu etiqueta={`Actions for ${g.name}`}>
                           {(cerrar) => (
-                            <button type="button" onClick={() => { cerrar(); setPorBorrar(g) }}>
+                            <button type="button" data-variant="danger" onClick={() => { cerrar(); setPorBorrar(g) }}>
                               Delete Group
                             </button>
                           )}

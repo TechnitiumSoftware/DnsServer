@@ -205,6 +205,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
                         {(cerrar) => (
                           <button
                             type="button"
+                            data-variant="danger"
                             disabled={ocupado}
                             onClick={() => { cerrar(); setAvisoModal(null); setQuitar(i) }}
                           >
@@ -236,7 +237,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
               disabled={ocupado}
               onClick={() => confirmar && void convertir(confirmar.i, confirmar.tipo)}
             >
-              OK
+              Convert
             </Button>
           </>
         }

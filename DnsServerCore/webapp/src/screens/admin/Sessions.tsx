@@ -175,7 +175,7 @@ export function Sessions({ token, cluster, onAviso }: Props) {
                         />
                         <Menu etiqueta={`Actions for ${s.partialToken}`}>
                           {(cerrar) => (
-                            <button type="button" onClick={() => { cerrar(); setPorBorrar(s) }}>
+                            <button type="button" data-variant="danger" onClick={() => { cerrar(); setPorBorrar(s) }}>
                               Delete Session
                             </button>
                           )}

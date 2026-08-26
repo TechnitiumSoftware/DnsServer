@@ -7,3 +7,28 @@
 .menuLista button:hover,
 .menuLista button:focus-visible { background:var(--hover-fuerte); color:var(--ink); }
 .menuLista button:disabled { opacity:.4; cursor:default; }
+
+/*
+Lo destructivo se marca, y aquí no se marcaba.
+
+`Menu.tsx` dice que «lo destructivo va aquí dentro» y `ui/Table.module.css` dice
+que «el de borrar mantiene su color». Entre las dos frases se quedaba el hecho:
+las SIETE acciones de borrado de la consola —Delete Zone, Remove Lease, Delete
+Scope, Delete Session, Delete User, Delete Group, Remove Node— se pintaban en el
+mismo gris que «Export Zone». Y en cuatro de los seis menús la destructiva es la
+ÚNICA opción: se abría un menú cuyo contenido entero era una acción sin deshacer,
+sin una sola señal de que lo fuera.
+
+Va en rojo y no en ámbar por una medida, no por gusto: `--warn` es
+`rgb(251,191,36)` y `--acc` `rgb(245,165,36)` —los dos son el mismo ámbar—, así
+que una opción naranja se leería como el color de acento, que en esta consola
+significa «ésta es la acción recomendada». Exactamente lo contrario. `--dan` da
+6.19:1 sobre el fondo del menú.
+*/
+.menuLista button[data-variant='danger'] { color: var(--dan); }
+
+.menuLista button[data-variant='danger']:hover,
+.menuLista button[data-variant='danger']:focus-visible {
+  background: var(--dan-fill);
+  color: var(--on-dan);
+}

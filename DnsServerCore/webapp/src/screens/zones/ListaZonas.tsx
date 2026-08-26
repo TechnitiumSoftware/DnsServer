@@ -681,7 +681,7 @@ function FilaZona(p: FilaProps) {
                 parte de esta consola.
                 */}
                 <Separador />
-                <button type="button" disabled={!p.canDelete} onClick={() => { cerrar(); p.onBorrar(z) }}>
+                <button type="button" data-variant="danger" disabled={!p.canDelete} onClick={() => { cerrar(); p.onBorrar(z) }}>
                   Delete Zone
                 </button>
               </>

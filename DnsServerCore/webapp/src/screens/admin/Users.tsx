@@ -234,7 +234,7 @@ export function Users({ token, cluster, onAviso }: Props) {
                                 </button>
                               )}
                               <Separador />
-                              <button type="button" onClick={() => { cerrar(); setAccion({ tipo: 'delete', user: u }) }}>
+                              <button type="button" data-variant="danger" onClick={() => { cerrar(); setAccion({ tipo: 'delete', user: u }) }}>
                                 Delete User
                               </button>
                             </>
