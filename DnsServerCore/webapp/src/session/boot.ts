@@ -42,11 +42,20 @@ export function readBootIntent(): BootIntent {
   const hash = window.location.hash
   const params = new URLSearchParams(hash.length > 0 ? '?' + hash.substring(1) : '')
 
-  window.history.replaceState(
-    null,
-    '',
-    window.location.protocol + '//' + window.location.host + window.location.pathname,
-  )
+  /*
+  El hash se limpiaba SIEMPRE, y con él se llevaba por delante la ruta: el
+  arranque no distinguía «#error=…» —lo que trae el proveedor de SSO, y que hay
+  que borrar de la barra para que no se comparta ni se quede en el historial— de
+  «#/zones», que es dónde estaba el usuario. Una ruta empieza por `#/` y ningún
+  parámetro de SSO puede hacerlo, así que basta con mirar el primer carácter.
+  */
+  if (!hash.startsWith('#/')) {
+    window.history.replaceState(
+      null,
+      '',
+      window.location.protocol + '//' + window.location.host + window.location.pathname,
+    )
+  }
 
   const errorMessage = params.get('error')
   if (errorMessage != null) return { kind: 'show-error', message: errorMessage }
