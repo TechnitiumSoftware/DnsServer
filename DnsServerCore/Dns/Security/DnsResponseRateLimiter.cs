@@ -37,14 +37,14 @@ namespace DnsServerCore.Dns.Security
     /// Values are flags so policy can name sets of responses without numeric literals.
     /// </summary>
     [Flags]
-    public enum DnsResponseRateLimitCategory : byte
+    public enum DnsResponseRateLimitClass : byte
     {
-        Positive = 1 << 0,
+        Query = 1 << 0,
         NxDomain = 1 << 1,
         NoData = 1 << 2,
         Referral = 1 << 3,
-        ServerError = 1 << 4,
-        Wildcard = 1 << 5
+        Error = 1 << 4,
+        All = 1 << 5
     }
 
     /// <summary>
@@ -60,13 +60,13 @@ namespace DnsServerCore.Dns.Security
         public readonly ulong ResponseIdentity;
         public readonly ushort QueryType;
         public readonly ushort QueryClass;
-        public readonly DnsResponseRateLimitCategory Category;
+        public readonly DnsResponseRateLimitClass Category;
         public readonly byte AddressFamily;
         public readonly byte PrefixLength;
         private readonly byte _reserved;
 
         internal DnsResponseRateLimitKey(ulong networkHigh, ulong networkLow, ulong responseIdentity,
-            ushort queryType, ushort queryClass, DnsResponseRateLimitCategory category, byte addressFamily, byte prefixLength)
+            ushort queryType, ushort queryClass, DnsResponseRateLimitClass category, byte addressFamily, byte prefixLength)
         {
             NetworkHigh = networkHigh;
             NetworkLow = networkLow;
@@ -83,12 +83,11 @@ namespace DnsServerCore.Dns.Security
     /// <summary>Defines which limited response categories may be replaced by a truncated slip response.</summary>
     public static class DnsResponseRateLimitSlipPolicy
     {
-        private const DnsResponseRateLimitCategory EligibleCategories =
-            DnsResponseRateLimitCategory.Positive | DnsResponseRateLimitCategory.NxDomain |
-            DnsResponseRateLimitCategory.NoData | DnsResponseRateLimitCategory.Referral |
-            DnsResponseRateLimitCategory.Wildcard;
+        private const DnsResponseRateLimitClass EligibleClasses =
+            DnsResponseRateLimitClass.Query | DnsResponseRateLimitClass.NxDomain |
+            DnsResponseRateLimitClass.NoData | DnsResponseRateLimitClass.Referral;
 
-        public static bool IsEligible(DnsResponseRateLimitCategory category) => (EligibleCategories & category) != 0;
+        public static bool IsEligible(DnsResponseRateLimitClass responseClass) => (EligibleClasses & responseClass) != 0;
     }
 
     public sealed class DnsResponseRateLimiterOptions
@@ -305,7 +304,7 @@ namespace DnsServerCore.Dns.Security
 
         public int MaximumEntriesExaminedPerRequest => CandidateCount * Math.Max(_ipv4PrefixLengths.Length, _ipv6PrefixLengths.Length);
 
-        public DnsResponseRateLimitResult Evaluate(IPAddress sourceAddress, DnsResponseRateLimitCategory category,
+        public DnsResponseRateLimitResult Evaluate(IPAddress sourceAddress, DnsResponseRateLimitClass category,
             ushort queryType, ushort queryClass, string canonicalName)
         {
             ArgumentNullException.ThrowIfNull(sourceAddress);
@@ -352,7 +351,7 @@ namespace DnsServerCore.Dns.Security
             return result;
         }
 
-        private ulong ComputeResponseIdentity(DnsResponseRateLimitCategory category, ushort queryType, ushort queryClass, string canonicalName)
+        private ulong ComputeResponseIdentity(DnsResponseRateLimitClass category, ushort queryType, ushort queryClass, string canonicalName)
         {
             // DNS wire names are at most 255 octets. Domain names in DnsDatagram are
             // already canonical ASCII/punycode, so encoding them directly avoids a

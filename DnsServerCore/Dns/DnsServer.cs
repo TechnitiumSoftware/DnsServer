@@ -2094,17 +2094,17 @@ namespace DnsServerCore.Dns
 
                 // RRL is response policy: classify and limit only after resolution has
                 // produced the response, immediately before the UDP emission path.
-                Security.DnsResponseRateLimitCategory responseCategory = Security.DnsResponseRateLimiterRuntime.ClassifyResponse(response);
+                Security.DnsResponseRateLimitClass responseClass = Security.DnsResponseRateLimiterRuntime.ClassifyResponse(response);
                 Security.DnsResponseRrlRequestTrust rrlTrust = cookieClassification.State == Security.CookieRequestState.ValidServerCookie
                     ? Security.DnsResponseRrlRequestTrust.ValidServerCookie
                     : Security.DnsResponseRrlRequestTrust.Unverified;
                 if (!isUdpReflectionRecovery && response.Question.Count > 0 && Security.DnsResponseRrlPolicy.ShouldEvaluate(_dnsResponseRrlRuntime.Enabled, isUdp: true, rrlTrust))
                 {
                     DnsQuestionRecord question = response.Question[0];
-                    Security.DnsResponseRateLimitResult rrlResult = _dnsResponseRrlRuntime.Evaluate(remoteEP.Address, responseCategory,
+                    Security.DnsResponseRateLimitResult rrlResult = _dnsResponseRrlRuntime.Evaluate(remoteEP.Address, responseClass,
                         (ushort)question.Type, (ushort)question.Class, question.Name);
                     if (rrlResult == Security.DnsResponseRateLimitResult.LimitedDrop ||
-                        (rrlResult == Security.DnsResponseRateLimitResult.LimitedSlip && !Security.DnsResponseRateLimitSlipPolicy.IsEligible(responseCategory)))
+                        (rrlResult == Security.DnsResponseRateLimitResult.LimitedSlip && !Security.DnsResponseRateLimitSlipPolicy.IsEligible(responseClass)))
                     {
                         _statsManager.QueueUpdate(null, remoteEP, protocol, null, true);
                         return;

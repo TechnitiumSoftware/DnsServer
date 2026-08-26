@@ -184,32 +184,35 @@ namespace DnsServerCore.Dns.Security
         /// the two reads, which is acceptable since a policy update racing a single request is
         /// not a correctness issue here.
         /// </summary>
-        public DnsResponseRateLimitResult Evaluate(IPAddress remoteIP, DnsResponseRateLimitCategory category, ushort queryType, ushort queryClass, string canonicalName)
+        public DnsResponseRateLimitResult Evaluate(IPAddress remoteIP, DnsResponseRateLimitClass responseClass, ushort queryType, ushort queryClass, string canonicalName)
         {
             RrlRuntimeState state = Volatile.Read(ref _state);
             if (state.BypassMatcher.IsMatch(remoteIP))
                 return DnsResponseRateLimitResult.Allowed;
 
-            return state.Limiter.Evaluate(remoteIP, category, queryType, queryClass, canonicalName);
+            DnsResponseRateLimitResult classResult = state.Limiter.Evaluate(remoteIP, responseClass, queryType, queryClass, canonicalName);
+            DnsResponseRateLimitResult allResult = state.Limiter.Evaluate(remoteIP, DnsResponseRateLimitClass.All, 0, 0, string.Empty);
+            if (classResult == DnsResponseRateLimitResult.LimitedDrop || allResult == DnsResponseRateLimitResult.LimitedDrop)
+                return DnsResponseRateLimitResult.LimitedDrop;
+            if (classResult == DnsResponseRateLimitResult.LimitedSlip || allResult == DnsResponseRateLimitResult.LimitedSlip)
+                return DnsResponseRateLimitResult.LimitedSlip;
+            return DnsResponseRateLimitResult.Allowed;
         }
 
-        public static DnsResponseRateLimitCategory ClassifyResponse(DnsDatagram response)
+        public static DnsResponseRateLimitClass ClassifyResponse(DnsDatagram response)
         {
             if (response.RCODE == DnsResponseCode.NxDomain)
-                return DnsResponseRateLimitCategory.NxDomain;
+                return DnsResponseRateLimitClass.NxDomain;
             if (response.RCODE != DnsResponseCode.NoError)
-                return DnsResponseRateLimitCategory.ServerError;
+                return DnsResponseRateLimitClass.Error;
             if (response.Answer.Count == 0)
             {
                 for (int i = 0; i < response.Authority.Count; i++)
                     if (response.Authority[i].Type == DnsResourceRecordType.NS)
-                        return DnsResponseRateLimitCategory.Referral;
-                return DnsResponseRateLimitCategory.NoData;
+                        return DnsResponseRateLimitClass.Referral;
+                return DnsResponseRateLimitClass.NoData;
             }
-            for (int i = 0; i < response.Answer.Count; i++)
-                if (response.Answer[i].Type == DnsResourceRecordType.RRSIG && DnsRRSIGRecordData.IsWildcard(response.Answer[i]))
-                    return DnsResponseRateLimitCategory.Wildcard;
-            return DnsResponseRateLimitCategory.Positive;
+            return DnsResponseRateLimitClass.Query;
         }
 
         private static ulong GetNextGeneration(ulong generation) => generation == ulong.MaxValue ? INITIAL_GENERATION + 1UL : generation + 1UL;
