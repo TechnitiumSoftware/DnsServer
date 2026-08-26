@@ -1249,7 +1249,9 @@ function loadDnsSettings(responseJSON) {
     $("#txtQpmLimitUdpTruncation").val(responseJSON.response.qpmLimitUdpTruncationPercentage);
     $("#txtQpmLimitBypassList").val(getArrayAsString(responseJSON.response.qpmLimitBypassList));
 
+    $("#chkEnableUdpReflectionLimiting").prop("checked", responseJSON.response.enableUdpReflectionLimiting);
     $("#chkEnableResponseRateLimiting").prop("checked", responseJSON.response.enableResponseRateLimiting);
+    $("#chkEnableDnsCookieStandaloneAutomaticRotation").prop("checked", responseJSON.response.enableDnsCookieStandaloneAutomaticRotation);
     $("#txtResponseRateLimit").val(responseJSON.response.responseRateLimit);
     $("#txtResponseRateLimitInstant").val(responseJSON.response.responseRateLimitInstant);
     $("#txtResponseRateLimitSlip").val(responseJSON.response.responseRateLimitSlip);
@@ -1261,10 +1263,12 @@ function loadDnsSettings(responseJSON) {
 
     function updateDnsCookieRrlWarning() {
         $("#divDnsCookieRrlWarning").toggle(
-            $("#chkUseDnsCookies").prop("checked") && !$("#chkEnableResponseRateLimiting").prop("checked"));
+            $("#chkUseDnsCookies").prop("checked") &&
+            !$("#chkEnableUdpReflectionLimiting").prop("checked") &&
+            !$("#chkEnableResponseRateLimiting").prop("checked"));
     }
 
-    $("#chkUseDnsCookies, #chkEnableResponseRateLimiting").off("change.dnsSecurity").on("change.dnsSecurity", updateDnsCookieRrlWarning);
+    $("#chkUseDnsCookies, #chkEnableUdpReflectionLimiting, #chkEnableResponseRateLimiting").off("change.dnsSecurity").on("change.dnsSecurity", updateDnsCookieRrlWarning);
     updateDnsCookieRrlWarning();
 
     $("#txtClientTimeout").val(responseJSON.response.clientTimeout);
@@ -1781,6 +1785,7 @@ function saveDnsSettings(objBtn) {
         else
             $("#txtQpmLimitBypassList").val(qpmLimitBypassList.replace(/,/g, "\n") + "\n");
 
+        var enableUdpReflectionLimiting = $("#chkEnableUdpReflectionLimiting").prop("checked");
         var enableResponseRateLimiting = $("#chkEnableResponseRateLimiting").prop("checked");
         var responseRateLimit = $("#txtResponseRateLimit").val();
         var responseRateLimitInstant = $("#txtResponseRateLimitInstant").val();
@@ -1864,7 +1869,7 @@ function saveDnsSettings(objBtn) {
         formData += "&udpPayloadSize=" + udpPayloadSize + "&dnssecValidation=" + dnssecValidation;
         formData += "&eDnsClientSubnet=" + eDnsClientSubnet + "&eDnsClientSubnetIPv4PrefixLength=" + eDnsClientSubnetIPv4PrefixLength + "&eDnsClientSubnetIPv6PrefixLength=" + eDnsClientSubnetIPv6PrefixLength + "&eDnsClientSubnetIpv4Override=" + encodeURIComponent(eDnsClientSubnetIpv4Override) + "&eDnsClientSubnetIpv6Override=" + encodeURIComponent(eDnsClientSubnetIpv6Override);
         formData += "&qpmPrefixLimitsIPv4=" + encodeURIComponent(qpmPrefixLimitsIPv4) + "&qpmPrefixLimitsIPv6=" + encodeURIComponent(qpmPrefixLimitsIPv6) + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitUdpTruncationPercentage=" + qpmLimitUdpTruncationPercentage + "&qpmLimitBypassList=" + encodeURIComponent(qpmLimitBypassList);
-        formData += "&enableResponseRateLimiting=" + enableResponseRateLimiting + "&responseRateLimit=" + responseRateLimit + "&responseRateLimitInstant=" + responseRateLimitInstant + "&responseRateLimitSlip=" + responseRateLimitSlip + "&responseRateLimitTableSize=" + responseRateLimitTableSize + "&responseRateLimitBypassList=" + encodeURIComponent(responseRateLimitBypassList);
+        formData += "&enableUdpReflectionLimiting=" + enableUdpReflectionLimiting + "&enableResponseRateLimiting=" + enableResponseRateLimiting + "&responseRateLimit=" + responseRateLimit + "&responseRateLimitInstant=" + responseRateLimitInstant + "&responseRateLimitSlip=" + responseRateLimitSlip + "&responseRateLimitTableSize=" + responseRateLimitTableSize + "&responseRateLimitBypassList=" + encodeURIComponent(responseRateLimitBypassList);
         formData += "&clientTimeout=" + clientTimeout + "&tcpSendTimeout=" + tcpSendTimeout + "&tcpReceiveTimeout=" + tcpReceiveTimeout + "&quicIdleTimeout=" + quicIdleTimeout + "&quicMaxInboundStreams=" + quicMaxInboundStreams + "&listenBacklog=" + listenBacklog + "&udpSendBufferSizeKB=" + udpSendBufferSizeKB + "&udpReceiveBufferSizeKB=" + udpReceiveBufferSizeKB + "&maxConcurrentResolutionsPerCore=" + maxConcurrentResolutionsPerCore;
     }
 
@@ -1923,6 +1928,7 @@ function saveDnsSettings(objBtn) {
         var enableDnsOverHttp3 = $("#chkEnableDnsOverHttp3").prop("checked");
         var enableDnsOverQuic = $("#chkEnableDnsOverQuic").prop("checked");
         var useDnsCookies = $("#chkUseDnsCookies").prop("checked");
+        var enableDnsCookieStandaloneAutomaticRotation = $("#chkEnableDnsCookieStandaloneAutomaticRotation").prop("checked");
 
         var enableDnsOverHttpHelpRedirect = $("#chkEnableDnsOverHttpHelpRedirect").prop("checked");
 
@@ -1983,7 +1989,7 @@ function saveDnsSettings(objBtn) {
         var dnsTlsCertificatePath = $("#txtDnsTlsCertificatePath").val();
         var dnsTlsCertificatePassword = $("#txtDnsTlsCertificatePassword").val();
 
-        formData += "&enableEDnsClientSubnetSourceAddress=" + enableEDnsClientSubnetSourceAddress + "&enableDnsOverUdpProxy=" + enableDnsOverUdpProxy + "&enableDnsOverTcpProxy=" + enableDnsOverTcpProxy + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverHttpUnixSocket=" + enableDnsOverHttpUnixSocket + "&enableDnsOverHttpsUnixSocket=" + enableDnsOverHttpsUnixSocket + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&enableDnsOverHttp3=" + enableDnsOverHttp3 + "&enableDnsOverQuic=" + enableDnsOverQuic + "&enableDnsOverHttpHelpRedirect=" + enableDnsOverHttpHelpRedirect + "&dnsOverUdpProxyPort=" + dnsOverUdpProxyPort + "&dnsOverTcpProxyPort=" + dnsOverTcpProxyPort + "&dnsOverHttpPort=" + dnsOverHttpPort + "&dnsOverHttpUnixSocket=" + encodeURIComponent(dnsOverHttpUnixSocket) + "&dnsOverHttpsUnixSocket=" + encodeURIComponent(dnsOverHttpsUnixSocket) + "&dnsOverTlsPort=" + dnsOverTlsPort + "&dnsOverHttpsPort=" + dnsOverHttpsPort + "&dnsOverQuicPort=" + dnsOverQuicPort + "&dnsReverseProxyNetworkACL=" + encodeURIComponent(dnsReverseProxyNetworkACL) + "&dnsOverHttpRealIpHeader=" + encodeURIComponent(dnsOverHttpRealIpHeader) + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword) + "&useDnsCookies=" + useDnsCookies;
+        formData += "&enableEDnsClientSubnetSourceAddress=" + enableEDnsClientSubnetSourceAddress + "&enableDnsOverUdpProxy=" + enableDnsOverUdpProxy + "&enableDnsOverTcpProxy=" + enableDnsOverTcpProxy + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverHttpUnixSocket=" + enableDnsOverHttpUnixSocket + "&enableDnsOverHttpsUnixSocket=" + enableDnsOverHttpsUnixSocket + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&enableDnsOverHttp3=" + enableDnsOverHttp3 + "&enableDnsOverQuic=" + enableDnsOverQuic + "&enableDnsOverHttpHelpRedirect=" + enableDnsOverHttpHelpRedirect + "&dnsOverUdpProxyPort=" + dnsOverUdpProxyPort + "&dnsOverTcpProxyPort=" + dnsOverTcpProxyPort + "&dnsOverHttpPort=" + dnsOverHttpPort + "&dnsOverHttpUnixSocket=" + encodeURIComponent(dnsOverHttpUnixSocket) + "&dnsOverHttpsUnixSocket=" + encodeURIComponent(dnsOverHttpsUnixSocket) + "&dnsOverTlsPort=" + dnsOverTlsPort + "&dnsOverHttpsPort=" + dnsOverHttpsPort + "&dnsOverQuicPort=" + dnsOverQuicPort + "&dnsReverseProxyNetworkACL=" + encodeURIComponent(dnsReverseProxyNetworkACL) + "&dnsOverHttpRealIpHeader=" + encodeURIComponent(dnsOverHttpRealIpHeader) + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword) + "&useDnsCookies=" + useDnsCookies + "&enableDnsCookieStandaloneAutomaticRotation=" + enableDnsCookieStandaloneAutomaticRotation;
     }
 
     //tsig
@@ -3342,4 +3348,36 @@ function showChangeThemeModal() {
     }
 
     $("#modalChangeTheme").modal("show");
+}
+
+function manageDnsCookieSecret(operation, button) {
+    var actionNames = {
+        generateStagedSecret: "stage a newly generated DNS Cookie secret",
+        activateSecret: "activate the staged DNS Cookie secret",
+        retirePreviousSecret: "retire the previous DNS Cookie secret",
+        dropSecret: "drop the staged DNS Cookie secret"
+    };
+
+    if (!confirm("Are you sure you want to " + actionNames[operation] + "?"))
+        return;
+
+    var btn = $(button);
+    btn.button("loading");
+
+    HTTPRequest({
+        url: "api/settings/dnsCookies/" + operation,
+        token: sessionData.token,
+        success: function () {
+            btn.button("reset");
+            showAlert("success", "DNS Cookie lifecycle updated", "The requested DNS Cookie lifecycle operation completed successfully.");
+            refreshDnsSettings();
+        },
+        error: function () {
+            btn.button("reset");
+        },
+        invalidToken: function () {
+            btn.button("reset");
+            showPageLogin();
+        }
+    });
 }
