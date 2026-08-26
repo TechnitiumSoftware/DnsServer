@@ -1,9 +1,26 @@
 /* El velo y el contenido van a la misma capa y se ordenan entre sí por el orden
    del DOM. Sin esta declaración el cabecero pegajoso les pasaba por encima. */
 .overlay { position: fixed; inset: 0; z-index: var(--capa-dialogo); background: rgba(5, 7, 10, 0.72); }
+/*
+Scrollea el CUERPO, no el diálogo entero.
+
+Antes el `overflow: auto` estaba aquí, en la caja completa, y eso tenía dos
+consecuencias que sólo se ven con un diálogo alto y una ventana baja —medido con
+«Restore Settings», 880 px de contenido en una ventana de 700—:
+
+  · el pie quedaba en `y=858`, o sea **fuera de la pantalla**: había que
+    descubrir que se podía scrollear para encontrar los botones de la acción;
+  · y al scrollear, el título se iba a `y=-196`, así que dejabas de saber en qué
+    diálogo estabas justo cuando más lejos habías llegado de su principio.
+
+Con el cuerpo como única zona que rueda, el título y las acciones no se mueven
+nunca. El `min-height: 0` no es adorno: sin él un hijo flexible se niega a
+encogerse por debajo de su contenido y el scroll no aparece.
+*/
 .content {
   position: fixed; z-index: var(--capa-dialogo); left: 50%; top: 50%; transform: translate(-50%, -50%);
-  width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 64px); overflow: auto;
+  display: flex; flex-direction: column;
+  max-height: calc(100vh - 64px); overflow: hidden;
   background: var(--pan); border: 1px solid var(--line); border-radius: var(--r-4);
   box-shadow: var(--e-3), var(--filo);
 }
@@ -14,8 +31,19 @@ dos vuelven al scroll horizontal, que es justo lo que este ancho evita. Se queda
 en 880 y NO se usa para texto: un diálogo de prosa a 880 px da renglones de 130
 caracteres.
 */
+/*
+Tres tallas, y la decide el contenido.
+
+Todos medían 560 px: el mismo cajón para «Are you sure to flush the DNS Server
+cache?» que para las quince casillas de «Restore Settings». La pregunta más larga
+de toda la consola mide **405 px** con la tipografía real —medido, no estimado—,
+así que con los 32 px de aire del cuerpo caben todas en un renglón dentro de 440.
+*/
+.compacto { width: min(440px, calc(100vw - 32px)); }
+.formulario { width: min(560px, calc(100vw - 32px)); }
 .ancho { width: min(880px, calc(100vw - 32px)); }
 .head {
+  flex: none;
   display: flex; align-items: center; justify-content: space-between;
   padding: var(--s-9) var(--s-10); border-bottom: 1px solid var(--line);
   background: var(--pan2);
@@ -27,8 +55,13 @@ caracteres.
   min-width: 28px; min-height: 28px;
   background: none; border: 0; color: var(--faint); font-size: var(--t-6); cursor: pointer;
 }
-.body { padding: var(--s-3) var(--s-10) var(--s-9); display: flex; flex-direction: column; gap: var(--s-8); }
+.body {
+  padding: var(--s-3) var(--s-10) var(--s-9);
+  display: flex; flex-direction: column; gap: var(--s-8);
+  overflow-y: auto; min-height: 0;
+}
 .foot {
+  flex: none;
   display: flex; justify-content: flex-end; gap: var(--s-5);
   padding: var(--s-8) var(--s-10); border-top: 1px solid var(--line); background: var(--pan2);
 }

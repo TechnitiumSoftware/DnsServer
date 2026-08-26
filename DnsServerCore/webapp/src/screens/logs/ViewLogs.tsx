@@ -254,6 +254,7 @@ export function ViewLogs({
           </>
         }
         cerrar="Cancel"
+        tamano="compacto"
       >
         <p className={styles.parrafo}>{confirmar ? TEXTO_CONFIRM[confirmar].texto : ''}</p>
       </Dialog>

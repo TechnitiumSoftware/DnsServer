@@ -50,6 +50,7 @@ export function Confirm({
         </>
       }
       cerrar="Cancel"
+      tamano="compacto"
     >
       {texto}
     </Dialog>

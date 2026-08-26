@@ -72,7 +72,7 @@ export function TopStats({
     <Dialog
       open={tipo !== null}
       onOpenChange={(o) => !o && onCerrar()}
-      ancho
+      tamano="ancho"
       title={tipo == null ? 'Top Stats' : `Top ${LIMITE} ${TITULOS[tipo]}`}
     >
       {cargando ? (

@@ -84,6 +84,7 @@ function Confirmar({
         </>
       }
       cerrar="Cancel"
+        tamano="compacto"
     >
       <p className={styles.parrafo}>{c?.texto}</p>
     </Dialog>

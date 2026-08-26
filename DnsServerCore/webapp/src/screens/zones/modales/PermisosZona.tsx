@@ -120,7 +120,7 @@ export function PermisosZona({
     <Dialog
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
-      ancho
+      tamano="ancho"
       title={titulo}
       acciones={
         <>

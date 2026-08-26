@@ -74,6 +74,7 @@ export function Confirmar({
         </>
       }
       cerrar="Cancel"
+      tamano="compacto"
     >
       <div className={styles.parrafo}>{texto}</div>
     </Dialog>

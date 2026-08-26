@@ -242,6 +242,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
           </>
         }
         cerrar="Cancel"
+        tamano="compacto"
       >
         <p className={styles.parrafo}>
           {confirmar?.tipo === 'dynamic'

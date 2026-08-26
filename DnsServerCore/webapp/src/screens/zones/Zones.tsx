@@ -319,6 +319,7 @@ function Confirmar({ c, onCerrar }: { c: Confirmacion | null; onCerrar: () => vo
         </>
       }
       cerrar="Cancel"
+        tamano="compacto"
     >
       <p className={styles.parrafo} style={{ whiteSpace: 'pre-wrap' }}>
         {c?.texto}

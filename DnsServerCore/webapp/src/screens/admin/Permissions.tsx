@@ -281,6 +281,12 @@ function EditarPermisos({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title={`Edit Permissions - ${seccion}`}
+      /* El MISMO diálogo abierto desde una zona ya iba ancho, y desde aquí iba a
+         560: dos anchuras para la misma cosa. No es que apretara —la tabla se
+         encoge y cabe en las tres tallas, comprobado—, es que sus dos entradas
+         tenían que verse igual. Va con el arreglo del título, que también se
+         había desviado entre las dos. */
+      tamano="ancho"
       acciones={
         <>
           <Button variant="primary" disabled={ocupado || cargando} onClick={() => void guardar()}>

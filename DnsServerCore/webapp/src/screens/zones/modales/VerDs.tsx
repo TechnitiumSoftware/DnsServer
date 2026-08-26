@@ -70,7 +70,7 @@ export function VerDs({
     <Dialog
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
-      ancho
+      tamano="ancho"
       title={`View DS Info - ${zone === '.' ? '<root>' : zone}`}
     >
       {aviso && (

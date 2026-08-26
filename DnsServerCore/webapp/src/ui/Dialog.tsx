@@ -25,7 +25,7 @@ export function Dialog({
   children,
   acciones,
   cerrar = 'Close',
-  ancho = false,
+  tamano = 'formulario',
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -35,14 +35,25 @@ export function Dialog({
   acciones?: ReactNode
   /** Rótulo del botón de descartar. `Cancel` cuando el modal es una pregunta. */
   cerrar?: string
-  /** Los modales con tabla dentro necesitan más de los 560 px por defecto. */
-  ancho?: boolean
+  /**
+   * La talla, que la decide el CONTENIDO y no el gusto:
+   *
+   * · `compacto` — una pregunta y dos botones. El literal de confirmación más
+   *   largo de la consola mide 405 px con la tipografía real, así que en 440
+   *   caben todos en un renglón. A 560 sobraba caja por todos lados.
+   * · `formulario` — lo normal: campos con sus rótulos.
+   * · `ancho` — sólo si lleva tabla. Ver el porqué de los 880 en el módulo.
+   */
+  tamano?: 'compacto' | 'formulario' | 'ancho'
 }) {
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       <RadixDialog.Portal>
         <RadixDialog.Overlay className={styles.overlay} />
-        <RadixDialog.Content className={`${styles.content}${ancho ? ` ${styles.ancho}` : ''}`}>
+        <RadixDialog.Content
+          className={`${styles.content} ${styles[tamano]}`}
+          data-tamano={tamano}
+        >
           <div className={styles.head}>
             <RadixDialog.Title className={styles.title}>{title}</RadixDialog.Title>
             <RadixDialog.Close className={styles.close} aria-label="Close">

@@ -325,7 +325,7 @@ export function PropiedadesDnssec({
     <Dialog
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
-      ancho
+      tamano="ancho"
       title={`DNSSEC Properties - ${zone === '.' ? '<root>' : zone}`}
     >
       {aviso && (
