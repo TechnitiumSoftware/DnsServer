@@ -4,7 +4,14 @@
 .shell { min-height:100vh; background:var(--bg); color:var(--ink); display:grid; grid-template-columns:216px 1fr; align-items:start; }
 .side { background:var(--pan); border-right:1px solid var(--line); align-self:stretch; position:sticky; top:0; height:100vh; overflow:auto; }
 .sbrand { display:flex; align-items:center; gap: var(--s-6); padding: 0 var(--s-10); height:52px; border-bottom:1px solid var(--line); font-weight: 600; letter-spacing:-.01em; color:var(--ink); }
-.mark { width:22px; height:22px; border-radius: var(--r-2); background:var(--acc); color:var(--on-acc); display:grid; place-items:center; font:600 var(--t-2)/1 var(--font-ui); flex:none; }
+/*
+El logo de Technitium, no una «T» en un cuadrado ámbar.
+
+La inicial era invención nuestra: el logo existe, viaja en `public/img/logo.png`
+desde el andamiaje y upstream lo usa. Sustituir la marca de un producto ajeno por
+una letra propia es justo lo que un fork no debe hacer.
+*/
+.mark { width:22px; height:22px; flex:none; }
 /*
 Los elementos estaban a 1 px unos de otros y con 7 px de padding vertical: la
 lista se leía como un bloque de texto, no como doce destinos. Y no había ninguna

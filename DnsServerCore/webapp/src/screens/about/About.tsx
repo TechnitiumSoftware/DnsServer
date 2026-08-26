@@ -6,6 +6,7 @@ import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty } from '../../ui/Empty'
 import { desdeAhora, fechaHora } from '../../lib/fechas'
 import styles from './About.module.css'
+import { urlPublica } from '../../app/base'
 
 interface Info { version: string; uptimestamp: string; dnsServerDomain: string }
 
@@ -39,7 +40,10 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
       <div className={styles.panel}>
         <div className={styles.pb}>
           <div className={styles.head}>
-            <span className={styles.mark}>T</span>
+            {/* El logo de Technitium, no una inicial nuestra. Upstream lo pone
+                justo aquí (`index.html:3483`) y el fichero viaja en `public/img/`
+                desde el andamiaje: lo teníamos y no lo usábamos. */}
+            <img className={styles.mark} src={urlPublica('img/logo.png')} alt="" width={38} height={38} />
             <div>
               <h2 className={styles.h1}>Technitium DNS Server</h2>
               <div className={styles.ver}>Version {info?.version ?? '—'}</div>

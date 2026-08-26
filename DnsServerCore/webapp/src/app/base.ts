@@ -46,3 +46,12 @@ export function olvidarRaiz(): void {
 export function urlApi(camino: string): string {
   return raizDeLaApp() + camino
 }
+
+/**
+ * Lo mismo para un fichero de `public/` —el logo, los `loader.gif`—. Un `src`
+ * relativo también se rompe desde una ruta de dos niveles: `img/logo.png` en
+ * `/settings/logging/` pide `/settings/logging/img/logo.png`.
+ */
+export function urlPublica(camino: string): string {
+  return raizDeLaApp() + camino
+}

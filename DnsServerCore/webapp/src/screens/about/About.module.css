@@ -5,7 +5,8 @@
 .ph h2 { margin: 0; font-size: var(--t-4); font-weight: 550; color:var(--ink); }
 .pb { padding: var(--s-9); }
 .head { display:flex; align-items:center; gap: var(--s-8); margin-bottom: var(--s-9); }
-.mark { width:38px; height:38px; border-radius: var(--r-4); background:var(--acc); color:var(--on-acc); display:grid; place-items:center; font:600 var(--t-6)/1 var(--font-ui); }
+/* El logo se enseña tal cual: ni recuadro de color ni recorte. */
+.mark { width:38px; height:38px; flex:none; }
 .h1 { margin: 0; font-size: var(--t-7); font-weight: 600; letter-spacing:-.02em; color:var(--ink); }
 .ver { font-family:var(--font-mono); font-size: var(--t-4); color:var(--mute); margin-top: var(--s-1); }
 .prose { font-size: var(--t-4); line-height:1.7; color:var(--mute); max-width:720px; }

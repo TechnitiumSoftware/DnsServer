@@ -17,6 +17,7 @@ import { Logs } from '../screens/logs/Logs'
 import { Admin } from '../screens/admin/Admin'
 import styles from './Shell.module.css'
 import { Icono, type NombreIcono } from '../ui/Icono'
+import { urlPublica } from './base'
 
 type ModalId = 'profile' | 'password' | 'twofa' | 'token'
 
@@ -168,7 +169,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
 
       <aside className={styles.side} data-abierto={cajon}>
         <div className={styles.sbrand}>
-          <span className={styles.mark}>T</span> Technitium
+          <img className={styles.mark} src={urlPublica('img/logo.png')} alt="" width={22} height={22} /> Technitium
         </div>
         <nav className={styles.slist} role="navigation" aria-label="Sections">
           {/*
@@ -238,7 +239,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
             <Icono nombre="menu" tam={18} />
           </button>
           <span className={styles.marcaTop}>
-            <span className={styles.mark}>T</span> Technitium
+            <img className={styles.mark} src={urlPublica('img/logo.png')} alt="" width={22} height={22} /> Technitium
           </span>
           {session.info && <span className={styles.host}>{session.info.dnsServerDomain}</span>}
           <div className={styles.menu}>
