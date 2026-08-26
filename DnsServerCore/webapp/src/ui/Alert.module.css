@@ -1,7 +1,7 @@
 .alert {
-  padding: 9px 11px;
-  border-radius: 7px;
-  font-size: 12.5px;
+  padding: var(--s-6) var(--s-8);
+  border-radius: var(--r-2);
+  font-size: var(--t-4);
   line-height: 1.5;
   border: 1px solid var(--line);
   background: var(--pan);
@@ -14,10 +14,10 @@
   border: 0;
   color: inherit;
   opacity: 0.6;
-  font-size: 16px;
+  font-size: var(--t-6);
   line-height: 1;
   cursor: pointer;
-  padding: 0 0 0 8px;
+  padding: 0 0 0 var(--s-5);
 }
 .close:hover { opacity: 1; }
 .success { border-color: var(--ok); color: var(--ok); }

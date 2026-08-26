@@ -2,19 +2,19 @@
 .content {
   position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
   width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 64px); overflow: auto;
-  background: var(--pan); border: 1px solid var(--line); border-radius: 12px;
+  background: var(--pan); border: 1px solid var(--line); border-radius: var(--r-4);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
 }
 /* Los que llevan tabla dentro: con 560 px se ven obligados a scroll horizontal. */
 .ancho { width: min(880px, calc(100vw - 32px)); }
 .head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 16px; border-bottom: 1px solid var(--line);
+  padding: var(--s-9) var(--s-10); border-bottom: 1px solid var(--line);
 }
-.title { margin: 0; font-size: 14px; font-weight: 650; color: var(--ink); }
-.close { background: none; border: 0; color: var(--faint); font-size: 16px; cursor: pointer; }
-.body { padding: 6px 16px 14px; display: flex; flex-direction: column; gap: 12px; }
+.title { margin: 0; font-size: var(--t-5); font-weight: 650; color: var(--ink); }
+.close { background: none; border: 0; color: var(--faint); font-size: var(--t-6); cursor: pointer; }
+.body { padding: var(--s-3) var(--s-10) var(--s-9); display: flex; flex-direction: column; gap: var(--s-8); }
 .foot {
-  display: flex; justify-content: flex-end; gap: 8px;
-  padding: 13px 16px; border-top: 1px solid var(--line); background: var(--pan2);
+  display: flex; justify-content: flex-end; gap: var(--s-5);
+  padding: var(--s-8) var(--s-10); border-top: 1px solid var(--line); background: var(--pan2);
 }

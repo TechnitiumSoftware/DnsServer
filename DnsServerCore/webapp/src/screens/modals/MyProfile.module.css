@@ -1,13 +1,13 @@
-.caption { font-size: 11px; color: var(--mute); font-weight: 650; margin-bottom: 6px; }
-.table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.caption { font-size: var(--t-2); color: var(--mute); font-weight: 650; margin-bottom: var(--s-3); }
+.table { width: 100%; border-collapse: collapse; font-size: var(--t-4); }
 .table th {
-  text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em;
-  color: var(--mute); font-weight: 700; padding: 0 8px 5px; border-bottom: 1px solid var(--line);
+  text-align: left; font-size: var(--t-1); text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--mute); font-weight: 700; padding: 0 var(--s-5) var(--s-3); border-bottom: 1px solid var(--line);
 }
-.table td { padding: 7px 8px; border-bottom: 1px solid var(--line2); color: var(--ink); vertical-align: middle; }
-.mono { font-family: var(--font-mono); font-size: 11.5px; }
+.table td { padding: var(--s-4) var(--s-5); border-bottom: 1px solid var(--line2); color: var(--ink); vertical-align: middle; }
+.mono { font-family: var(--font-mono); font-size: var(--t-3); }
 .current {
-  margin-left: 6px; font-size: 10px; padding: 1px 6px; border-radius: 999px;
+  margin-left: var(--s-3); font-size: var(--t-1); padding: 1px var(--s-3); border-radius: var(--r-full);
   background: var(--pan2); color: var(--ok); border: 1px solid var(--ok);
 }
-.total { margin-top: 8px; font-size: 11.5px; color: var(--mute); }
+.total { margin-top: var(--s-5); font-size: var(--t-3); color: var(--mute); }

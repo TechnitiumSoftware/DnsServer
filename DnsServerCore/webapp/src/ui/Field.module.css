@@ -1,10 +1,10 @@
-.field { display: flex; flex-direction: column; gap: 5px; }
-.label { font-size: 11px; color: var(--mute); font-weight: 650; }
+.field { display: flex; flex-direction: column; gap: var(--s-3); }
+.label { font-size: var(--t-2); color: var(--mute); font-weight: 650; }
 .input {
-  font-size: 12.5px;
-  padding: 7px 9px;
+  font-size: var(--t-4);
+  padding: var(--s-4) var(--s-6);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--r-2);
   background: var(--field);
   color: var(--ink);
   font-family: inherit;

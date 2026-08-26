@@ -5,14 +5,35 @@ Upstream trae tres —claro, oscuro y ámbar— y un modal `Change Theme` para e
 Aquí ese modal no existe. Es la ÚNICA excepción deliberada a la regla «solo
 diseño, cero funcionalidad» de todo el proyecto: es lo único que quita algo en
 vez de sólo cambiar cómo se ve.
+
+── Por qué esto ya no es sólo una paleta ──────────────────────────────────────
+
+Hasta el 2026-08-26 este fichero declaraba SÓLO color, y esa ausencia era la
+causa mecánica de la deriva entre secciones: sin escala declarada, cada módulo
+inventó la suya. La consola llegó a tener 13 tamaños de texto, 25 valores de
+`padding`, 13 de `gap` y 9 radios, con las mismas ideas resueltas de tres
+maneras según qué fase la hubiera construido.
+
+Las escalas de abajo NO son un rediseño: son la escala que ya existía implícita,
+medida por frecuencia de uso real y declarada. Los valores dominantes se
+conservan tal cual; los sueltos convergen al escalón vecino.
+
+**Regla: en `*.module.css` no se escribe un px de espaciado, de tipo ni de radio
+que no sea uno de estos tokens.** Un valor suelto es deriva futura.
 */
 
 :root {
---bg: #0e1116;
+  /* ── Color ──────────────────────────────────────────────────────────── */
+  --bg: #0e1116;
   --pan: #141923;
   --pan2: #11151d;
   --ink: #e6e9ef;
   --mute: #8b95a7;
+  /*
+  OJO: `--faint` da 3.09-3.32:1 sobre los tres fondos y NO cumple el 4.5:1 de
+  texto normal. Sólo vale para texto decorativo o duplicado; para cualquier dato
+  que haya que leer, `--mute` (5.83-6.26:1).
+  */
   --faint: #5d6779;
   --line: #232a36;
   --line2: #1a202b;
@@ -22,6 +43,74 @@ vez de sólo cambiar cómo se ve.
   --warn: #fbbf24;
   --dan: #f87171;
   --info: #60a5fa;
+  /* Los dos que el dibujo tiene y se habían caído: las series de Query Logs
+     los necesitan para no volver a los `rgba()` sueltos heredados de upstream. */
+  --viol: #a78bfa;
+  --cyan: #2dd4bf;
   --field: #0a0d12;
   --hover: #161c27;
+
+  /* ── Tipografía ─────────────────────────────────────────────────────── */
+  --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /*
+  Siete escalones. Entre paréntesis, los usos que absorbe cada uno al converger.
+  El dominante es `--t-3` (12,5 px): es el cuerpo de la consola.
+  */
+  --t-1: 10.5px;  /* rótulo en versalitas, cabecera de tabla, píldora  (10) */
+  --t-2: 11px;    /* metadatos, ayuda bajo un campo                         */
+  --t-3: 11.5px;  /* etiqueta de campo, texto secundario                    */
+  --t-4: 12.5px;  /* CUERPO                                       (12,13,13.5) */
+  --t-5: 14px;    /* título de bloque, subtítulo de panel             (15) */
+  --t-6: 17px;    /* cifra de contador                            (16,17) */
+  --t-7: 22px;    /* título de sección                         (19,21,22) */
+
+  /* ── Espaciado ──────────────────────────────────────────────────────── */
+  /*
+  Once escalones. 14, 10, 9, 8 y 7 son los que soportan la consola y se
+  conservan; los sueltos convergen: 2,5→2 · 5→6 · 11,13→12 · 15,18→16 ·
+  20,22,23,26→24 · 28,34→32.
+  */
+  --s-1: 2px;
+  --s-2: 4px;
+  --s-3: 6px;
+  --s-4: 7px;
+  --s-5: 8px;
+  --s-6: 9px;
+  --s-7: 10px;
+  --s-8: 12px;
+  --s-9: 14px;
+  --s-10: 16px;
+  --s-11: 24px;
+  --s-12: 32px;
+
+  /* ── Radios ─────────────────────────────────────────────────────────── */
+  --r-1: 4px;   /* muestra de color, chip diminuto            (4,5) */
+  --r-2: 6px;   /* botón de fila, item de menú                  (6,7) */
+  --r-3: 8px;   /* campo, aviso, bloque interior                (8,9) */
+  --r-4: 10px;  /* panel, tarjeta, tabla                       (10,12) */
+  --r-full: 999px;
+
+  /* ── Foco ───────────────────────────────────────────────────────────── */
+  /*
+  Un solo lenguaje de foco. Antes había dos: anillo ámbar en botones y campos,
+  y el del navegador en la navegación, las acciones de fila, la paginación y las
+  casillas. Todo lo enfocable usa `outline: var(--focus)`.
+  */
+  --focus: 2px solid var(--acc);
+  --focus-offset: 1px;
+
+  /* ── Sombra ─────────────────────────────────────────────────────────── */
+  --shadow-menu: 0 12px 30px rgba(0, 0, 0, 0.45);
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+/*
+Un solo anillo de foco para todo lo enfocable, en vez de las 5 reglas sueltas
+que había. Se usa `:focus-visible` para no molestar al puntero.
+*/
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: var(--focus);
+  outline-offset: var(--focus-offset);
 }
