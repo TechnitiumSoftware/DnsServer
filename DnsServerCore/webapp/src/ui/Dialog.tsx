@@ -8,18 +8,21 @@ export function Dialog({
   title,
   children,
   footer,
+  ancho = false,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   title: string
   children: ReactNode
   footer?: ReactNode
+  /** Los modales con tabla dentro necesitan más de los 560 px por defecto. */
+  ancho?: boolean
 }) {
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       <RadixDialog.Portal>
         <RadixDialog.Overlay className={styles.overlay} />
-        <RadixDialog.Content className={styles.content}>
+        <RadixDialog.Content className={`${styles.content}${ancho ? ` ${styles.ancho}` : ''}`}>
           <div className={styles.head}>
             <RadixDialog.Title className={styles.title}>{title}</RadixDialog.Title>
             <RadixDialog.Close className={styles.close} aria-label="Close">

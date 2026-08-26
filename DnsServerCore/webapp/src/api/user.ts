@@ -48,6 +48,14 @@ export async function openDownload(
   token: string | null,
   path: string,
   params: Record<string, string> = {},
+  /*
+  `ts` es un rompe-cachés que upstream añade SÓLO en DOS de las seis descargas
+  —la copia de ajustes (main.js:3100) y la descarga de un log (logs.js:202)— y
+  no en las otras cuatro: exportar una zona, exportar allowed, exportar blocked
+  y `logs/export` (logs.js:696). El servidor lo ignora, pero la URL que se abre
+  no es la misma, así que se replica dónde va y dónde no.
+  */
+  opciones: { ts?: boolean } = {},
 ): Promise<{ ok: boolean; url?: string }> {
   const outcome = await apiRequest<{ response: { token: string } }>('user/createSingleUseToken', {
     token,
@@ -57,8 +65,10 @@ export async function openDownload(
   const query = new URLSearchParams({
     ...params,
     token: outcome.data.response.token,
-    ts: String(performance.timeOrigin + performance.now()),
   })
+  if (opciones.ts === true) {
+    query.set('ts', String(performance.timeOrigin + performance.now()))
+  }
   const url = `api/${path}?${query.toString()}`
   window.open(url, '_blank')
   return { ok: true, url }

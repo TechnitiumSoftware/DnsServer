@@ -78,8 +78,11 @@ export function etiquetasDnsApp(d: DnsAppDetail): string[] {
   return labels.length > 0 ? labels : ['Generic']
 }
 
-export function listApps(token: string | null): Promise<ApiOutcome<{ response: { apps: InstalledApp[] } }>> {
-  return apiRequest('apps/list', { token })
+export function listApps(
+  token: string | null,
+  node = '',
+): Promise<ApiOutcome<{ response: { apps: InstalledApp[] } }>> {
+  return apiRequest('apps/list', { token, body: { node } })
 }
 
 export function listStoreApps(

@@ -37,6 +37,12 @@ export interface ApiOptions {
   file?: { campo: string; archivo: File }
   /** Alternativa a `file` cuando quien llama ya tiene armado el FormData. */
   form?: FormData
+  /*
+  Cuerpo en texto plano. Lo pide una sola pantalla: importar una zona pegando
+  el fichero en un textarea manda el texto crudo con `Content-Type: text/plain`
+  en vez de multipart (zone.js:1281). El servidor distingue por ese tipo.
+  */
+  texto?: string
 }
 
 interface Envelope {
@@ -59,6 +65,10 @@ export async function apiRequest<T = unknown>(
   if (opts.form) {
     init.method = 'POST'
     init.body = opts.form
+  } else if (opts.texto != null) {
+    init.method = 'POST'
+    headers['Content-Type'] = 'text/plain'
+    init.body = opts.texto
   } else if (opts.file) {
     const fd = new FormData()
     for (const [k, v] of Object.entries(body ?? {})) fd.append(k, v)

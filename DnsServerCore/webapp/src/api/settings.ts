@@ -335,10 +335,10 @@ export async function flushCache(token: string | null, node = ''): Promise<boole
 pantalla de Zones** (zone.js), para elegir la clave TSIG en las opciones de una
 zona y en el SOA de una secundaria. Vive aquí por familia, no por pantalla.
 */
-export async function getTsigKeyNames(token: string | null): Promise<string[]> {
+export async function getTsigKeyNames(token: string | null, node = ''): Promise<string[]> {
   const outcome = await apiRequest<{ response: { tsigKeyNames: string[] } }>(
     'settings/getTsigKeyNames',
-    { token },
+    { token, body: { node } },
   )
   return outcome.kind === 'ok' ? (outcome.data.response.tsigKeyNames ?? []) : []
 }

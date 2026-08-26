@@ -1,0 +1,884 @@
+import { dominioCompleto, identidadRegistro, type Registro } from '../../api/registros'
+import { limpiarLista } from '../../api/zonelists'
+
+/*
+El formulario de «Add / Edit Record» y su validación: réplica de `addRecord`
+(zone.js:4707) y `updateRecord` (5584), los dos `switch` más largos de la
+consola vieja.
+
+Están juntos porque son el MISMO formulario, y separarlos habría multiplicado
+por dos los sitios donde equivocarse. Lo que cambia entre alta y edición es:
+
+  1. El alta manda `overwrite`; la edición manda `disable` y `newDomain`.
+  2. La edición manda, además del valor nuevo, **el valor viejo** de casi todos
+     los tipos, porque el servidor identifica el registro por su contenido.
+  3. Los textos de aviso dicen «to add the record» o «to update the record»…
+     salvo unos cuantos que son idénticos en los dos (SRV, NAPTR, URI, CAA).
+     Se copian uno a uno; no se generan con una plantilla.
+  4. **SOA sólo se puede editar**, nunca crear. **APP no valida al editar** y su
+     nombre y clase no se pueden cambiar: sólo su `recordData`.
+  5. **La comprobación del certificado PEM completo de un TLSA sólo existe al
+     dar de alta.** Editando, ese mismo valor pasa sin más.
+*/
+
+export type ModoRegistro = 'add' | 'update'
+
+/** Los 23 tipos del desplegable, en el orden de upstream (index.html). */
+export const TIPOS_REGISTRO = [
+  'A', 'NS', 'SOA', 'CNAME', 'PTR', 'MX', 'TXT', 'RP', 'AAAA', 'SRV', 'NAPTR',
+  'DNAME', 'DS', 'SSHFP', 'TLSA', 'SVCB', 'HTTPS', 'URI', 'CAA', 'ANAME',
+  'FWD', 'APP', 'Unknown',
+] as const
+
+export interface ParametroSvcb {
+  clave: string
+  valor: string
+}
+
+export interface FormularioRegistro {
+  name: string
+  type: string
+  ttl: string
+  overwrite: boolean
+  comments: string
+  expiryTtl: string
+
+  /** El campo «Value» que comparten A, AAAA, CNAME, PTR, DNAME, ANAME y Unknown. */
+  valor: string
+  ptr: boolean
+  createPtrZone: boolean
+
+  nsNameServer: string
+  nsGlue: string
+
+  soaPrimaryNameServer: string
+  soaResponsiblePerson: string
+  soaSerial: string
+  soaRefresh: string
+  soaRetry: string
+  soaExpire: string
+  soaMinimum: string
+  soaUseSerialDateScheme: boolean
+
+  mxPreference: string
+  mxExchange: string
+
+  txt: string
+  txtSplitText: boolean
+
+  rpMailbox: string
+  rpTxtDomain: string
+
+  srvPriority: string
+  srvWeight: string
+  srvPort: string
+  srvTarget: string
+
+  naptrOrder: string
+  naptrPreference: string
+  naptrFlags: string
+  naptrServices: string
+  naptrRegexp: string
+  naptrReplacement: string
+
+  dsKeyTag: string
+  dsAlgorithm: string
+  dsDigestType: string
+  dsDigest: string
+
+  sshfpAlgorithm: string
+  sshfpFingerprintType: string
+  sshfpFingerprint: string
+
+  tlsaCertificateUsage: string
+  tlsaSelector: string
+  tlsaMatchingType: string
+  tlsaCertificateAssociationData: string
+
+  svcbPriority: string
+  svcbTargetName: string
+  svcbParams: ParametroSvcb[]
+  svcbAutoIpv4Hint: boolean
+  svcbAutoIpv6Hint: boolean
+
+  uriPriority: string
+  uriWeight: string
+  uri: string
+
+  caaFlags: string
+  caaTag: string
+  caaValue: string
+
+  forwarderProtocol: string
+  forwarder: string
+  forwarderPriority: string
+  forwarderDnssecValidation: boolean
+  proxyType: string
+  proxyAddress: string
+  proxyPort: string
+  proxyUsername: string
+  proxyPassword: string
+
+  appName: string
+  classPath: string
+  recordData: string
+
+  unknownType: string
+}
+
+export function formularioVacio(): FormularioRegistro {
+  return {
+    name: '', type: 'A', ttl: '3600', overwrite: false, comments: '', expiryTtl: '',
+    valor: '', ptr: false, createPtrZone: false,
+    nsNameServer: '', nsGlue: '',
+    soaPrimaryNameServer: '', soaResponsiblePerson: '', soaSerial: '', soaRefresh: '',
+    soaRetry: '', soaExpire: '', soaMinimum: '', soaUseSerialDateScheme: false,
+    mxPreference: '', mxExchange: '',
+    txt: '', txtSplitText: false,
+    rpMailbox: '', rpTxtDomain: '',
+    srvPriority: '', srvWeight: '', srvPort: '', srvTarget: '',
+    naptrOrder: '', naptrPreference: '', naptrFlags: '', naptrServices: '',
+    naptrRegexp: '', naptrReplacement: '',
+    dsKeyTag: '', dsAlgorithm: '', dsDigestType: '', dsDigest: '',
+    sshfpAlgorithm: '', sshfpFingerprintType: '', sshfpFingerprint: '',
+    tlsaCertificateUsage: '', tlsaSelector: '', tlsaMatchingType: '',
+    tlsaCertificateAssociationData: '',
+    svcbPriority: '', svcbTargetName: '', svcbParams: [], svcbAutoIpv4Hint: false,
+    svcbAutoIpv6Hint: false,
+    uriPriority: '', uriWeight: '', uri: '',
+    caaFlags: '', caaTag: '', caaValue: '',
+    forwarderProtocol: 'Udp', forwarder: '', forwarderPriority: '',
+    forwarderDnssecValidation: false, proxyType: 'DefaultProxy', proxyAddress: '',
+    proxyPort: '', proxyUsername: '', proxyPassword: '',
+    appName: '', classPath: '', recordData: '',
+    unknownType: '',
+  }
+}
+
+const s = (v: unknown): string => (v == null ? '' : String(v))
+
+/** Rellena el formulario con un registro existente, para la edición. */
+export function formularioDesdeRegistro(r: Registro, zone: string): FormularioRegistro {
+  const f = formularioVacio()
+  const d = r.rData
+
+  f.name = nombreRelativo(r.name, zone)
+  f.type = r.type
+  f.ttl = String(r.ttl)
+  f.comments = r.comments ?? ''
+  f.expiryTtl = String(r.expiryTtl)
+
+  switch (r.type.toUpperCase()) {
+    case 'A':
+    case 'AAAA':
+      f.valor = s(d.ipAddress)
+      break
+    case 'NS':
+      f.nsNameServer = s(d.nameServer)
+      f.nsGlue = (r.glueRecords ?? []).join('\n')
+      break
+    case 'CNAME':
+      f.valor = s(d.cname)
+      break
+    case 'SOA':
+      f.soaPrimaryNameServer = s(d.primaryNameServer)
+      f.soaResponsiblePerson = s(d.responsiblePerson)
+      f.soaSerial = s(d.serial)
+      f.soaRefresh = s(d.refresh)
+      f.soaRetry = s(d.retry)
+      f.soaExpire = s(d.expire)
+      f.soaMinimum = s(d.minimum)
+      f.soaUseSerialDateScheme = d.useSerialDateScheme === true
+      break
+    case 'PTR':
+      f.valor = s(d.ptrName)
+      break
+    case 'MX':
+      f.mxPreference = s(d.preference)
+      f.mxExchange = s(d.exchange)
+      break
+    case 'TXT':
+      f.txt = s(d.text)
+      f.txtSplitText = d.splitText === true
+      break
+    case 'RP':
+      f.rpMailbox = s(d.mailbox)
+      f.rpTxtDomain = s(d.txtDomain)
+      break
+    case 'SRV':
+      f.srvPriority = s(d.priority)
+      f.srvWeight = s(d.weight)
+      f.srvPort = s(d.port)
+      f.srvTarget = s(d.target)
+      break
+    case 'NAPTR':
+      f.naptrOrder = s(d.order)
+      f.naptrPreference = s(d.preference)
+      f.naptrFlags = s(d.flags)
+      f.naptrServices = s(d.services)
+      f.naptrRegexp = s(d.regexp)
+      f.naptrReplacement = s(d.replacement)
+      break
+    case 'DNAME':
+      f.valor = s(d.dname)
+      break
+    case 'DS':
+      f.dsKeyTag = s(d.keyTag)
+      f.dsAlgorithm = s(d.algorithm)
+      f.dsDigestType = s(d.digestType)
+      f.dsDigest = s(d.digest)
+      break
+    case 'SSHFP':
+      f.sshfpAlgorithm = s(d.algorithm)
+      f.sshfpFingerprintType = s(d.fingerprintType)
+      f.sshfpFingerprint = s(d.fingerprint)
+      break
+    case 'TLSA':
+      f.tlsaCertificateUsage = s(d.certificateUsage)
+      f.tlsaSelector = s(d.selector)
+      f.tlsaMatchingType = s(d.matchingType)
+      f.tlsaCertificateAssociationData = s(d.certificateAssociationData)
+      break
+    case 'SVCB':
+    case 'HTTPS': {
+      f.svcbPriority = s(d.svcPriority)
+      f.svcbTargetName = s(d.svcTargetName) === '' ? '.' : s(d.svcTargetName)
+      const params = (d.svcParams ?? {}) as Record<string, unknown>
+      f.svcbParams = Object.entries(params).map(([clave, valor]) => ({ clave, valor: s(valor) }))
+      f.svcbAutoIpv4Hint = d.autoIpv4Hint === true
+      f.svcbAutoIpv6Hint = d.autoIpv6Hint === true
+      break
+    }
+    case 'URI':
+      f.uriPriority = s(d.priority)
+      f.uriWeight = s(d.weight)
+      f.uri = s(d.uri)
+      break
+    case 'CAA':
+      f.caaFlags = s(d.flags)
+      f.caaTag = s(d.tag)
+      f.caaValue = s(d.value)
+      break
+    case 'ANAME':
+      f.valor = s(d.aname)
+      break
+    case 'FWD':
+      f.forwarderProtocol = s(d.protocol)
+      f.forwarder = s(d.forwarder)
+      f.forwarderPriority = s(d.priority)
+      f.forwarderDnssecValidation = d.dnssecValidation === true
+      f.proxyType = s(d.proxyType)
+      f.proxyAddress = s(d.proxyAddress)
+      f.proxyPort = s(d.proxyPort)
+      f.proxyUsername = s(d.proxyUsername)
+      f.proxyPassword = s(d.proxyPassword)
+      break
+    case 'APP':
+      f.appName = s(d.appName)
+      f.classPath = s(d.classPath)
+      f.recordData = s(d.data)
+      break
+    default:
+      f.unknownType = r.type
+      f.valor = s(d.value)
+      break
+  }
+
+  return f
+}
+
+/** Copia local para no importar en círculo desde `registro-vista`. */
+function nombreRelativo(nombreCompleto: string, zone: string): string {
+  const nombre = nombreCompleto === '' ? '.' : nombreCompleto
+  const minus = nombre.toLowerCase()
+  if (minus === zone.toLowerCase()) return '@'
+  const i = minus.lastIndexOf(`.${zone.toLowerCase()}`)
+  return i > -1 ? nombre.substring(0, i) : nombre
+}
+
+export interface ErrorRegistro {
+  title: string
+  text: string
+  /** Qué campo recibe el foco, igual que hace upstream. */
+  campo: keyof FormularioRegistro
+}
+
+export type ResultadoRegistro =
+  | { error: ErrorRegistro }
+  | { body: Record<string, string> }
+
+export interface ContextoRegistro {
+  zone: string
+  modo: ModoRegistro
+  /** Sólo en edición: el registro que se está tocando. */
+  original?: Registro
+  /** `zoneHasSvcbAutoHint`: si hay que rehacer las pistas de algún SVCB. */
+  updateSvcbHints: boolean
+}
+
+/** `serializeTableData` con 2 columnas para los parámetros de un SVCB. */
+export function serializarSvcParams(
+  filas: ParametroSvcb[],
+): { valor: string } | { error: ErrorRegistro } {
+  const salida: string[] = []
+  for (const fila of filas) {
+    for (const celda of [fila.clave, fila.valor]) {
+      if (celda === '') {
+        return {
+          error: {
+            title: 'Missing!',
+            text: 'Please enter a valid value in the text field in focus.',
+            campo: 'svcbParams',
+          },
+        }
+      }
+      if (celda.includes('|')) {
+        return {
+          error: {
+            title: 'Invalid Character!',
+            text: "Please edit the value in the text field in focus to remove '|' character.",
+            campo: 'svcbParams',
+          },
+        }
+      }
+      salida.push(celda)
+    }
+  }
+  // Una lista vacía viaja como la cadena «false», no como cadena vacía.
+  return { valor: salida.length === 0 ? 'false' : salida.join('|') }
+}
+
+export function construirCuerpoRegistro(
+  f: FormularioRegistro,
+  ctx: ContextoRegistro,
+): ResultadoRegistro {
+  const alta = ctx.modo === 'add'
+  const verbo = alta ? 'add' : 'update'
+  const falta = (text: string, campo: keyof FormularioRegistro): ResultadoRegistro => ({
+    error: { title: 'Missing!', text, campo },
+  })
+
+  // La identidad del registro que se edita: la mitad «vieja» del cuerpo.
+  const viejo = ctx.original
+    ? identidadRegistro(ctx.original, { updateSvcbHints: ctx.updateSvcbHints })
+    : {}
+
+  const p: Record<string, string> = {}
+  let type = f.type
+
+  switch (f.type.toUpperCase()) {
+    case 'A':
+    case 'AAAA': {
+      if (f.valor === '') return falta(`Please enter an IP address to ${verbo} the record.`, 'valor')
+      if (alta) p.ipAddress = f.valor
+      else {
+        p.ipAddress = viejo.ipAddress ?? ''
+        p.newIpAddress = f.valor
+      }
+      p.ptr = String(f.ptr)
+      p.createPtrZone = String(f.createPtrZone)
+      p.updateSvcbHints = String(ctx.updateSvcbHints)
+      break
+    }
+
+    case 'NS': {
+      if (f.nsNameServer === '') {
+        return falta(`Please enter a name server to ${verbo} the record.`, 'nsNameServer')
+      }
+      if (alta) p.nameServer = f.nsNameServer
+      else {
+        p.nameServer = viejo.nameServer ?? ''
+        p.newNameServer = f.nsNameServer
+      }
+      p.glue = limpiarLista(f.nsGlue)
+      break
+    }
+
+    case 'CNAME': {
+      // El aviso del nombre es idéntico en alta y edición, con esa explicación
+      // larguísima sobre ANAME que se copia entera.
+      if (f.name === '' || f.name === '@') {
+        return falta(
+          "Please enter a name for the CNAME record since DNS protocol does not allow CNAME at zone's apex. If you need CNAME like function at the zone's apex then use ANAME record instead.",
+          'name',
+        )
+      }
+      if (f.valor === '') return falta(`Please enter a domain name to ${verbo} the record.`, 'valor')
+      p.cname = f.valor
+      break
+    }
+
+    case 'SOA': {
+      // Sólo existe en edición: no hay rama de alta para SOA.
+      if (f.soaPrimaryNameServer === '') {
+        return falta('Please enter a value for primary name server.', 'soaPrimaryNameServer')
+      }
+      if (f.soaResponsiblePerson === '') {
+        return falta('Please enter a value for responsible person.', 'soaResponsiblePerson')
+      }
+      if (f.soaSerial === '') return falta('Please enter a value for serial.', 'soaSerial')
+      if (f.soaRefresh === '') return falta('Please enter a value for refresh.', 'soaRefresh')
+      if (f.soaRetry === '') return falta('Please enter a value for retry.', 'soaRetry')
+      if (f.soaExpire === '') return falta('Please enter a value for expire.', 'soaExpire')
+      if (f.soaMinimum === '') return falta('Please enter a value for minimum.', 'soaMinimum')
+
+      p.primaryNameServer = f.soaPrimaryNameServer
+      p.responsiblePerson = f.soaResponsiblePerson
+      p.serial = f.soaSerial
+      p.refresh = f.soaRefresh
+      p.retry = f.soaRetry
+      p.expire = f.soaExpire
+      p.minimum = f.soaMinimum
+      p.useSerialDateScheme = String(f.soaUseSerialDateScheme)
+      break
+    }
+
+    case 'PTR': {
+      if (f.valor === '') return falta(`Please enter a suitable value to ${verbo} the record.`, 'valor')
+      if (alta) p.ptrName = f.valor
+      else {
+        p.ptrName = viejo.ptrName ?? ''
+        p.newPtrName = f.valor
+      }
+      break
+    }
+
+    case 'MX': {
+      // Una preferencia vacía cae a 1, no da error.
+      const preferencia = f.mxPreference === '' ? '1' : f.mxPreference
+      if (f.mxExchange === '') {
+        return falta(`Please enter a mail exchange domain name to ${verbo} the record.`, 'mxExchange')
+      }
+      if (alta) {
+        p.preference = preferencia
+        p.exchange = f.mxExchange
+      } else {
+        p.preference = viejo.preference ?? ''
+        p.newPreference = preferencia
+        p.exchange = viejo.exchange ?? ''
+        p.newExchange = f.mxExchange
+      }
+      break
+    }
+
+    case 'TXT': {
+      if (f.txt === '') return falta(`Please enter a suitable value to ${verbo} the record.`, 'txt')
+      if (alta) {
+        p.text = f.txt
+        p.splitText = String(f.txtSplitText)
+      } else {
+        p.characterStringsBase64 = viejo.characterStringsBase64 ?? ''
+        p.newText = f.txt
+        p.newSplitText = String(f.txtSplitText)
+      }
+      break
+    }
+
+    case 'RP': {
+      // Los dos vacíos caen a la raíz; no hay aviso ninguno.
+      const buzon = f.rpMailbox === '' ? '.' : f.rpMailbox
+      const dominioTxt = f.rpTxtDomain === '' ? '.' : f.rpTxtDomain
+      if (alta) {
+        p.mailbox = buzon
+        p.txtDomain = dominioTxt
+      } else {
+        p.mailbox = viejo.mailbox ?? ''
+        p.newMailbox = buzon
+        p.txtDomain = viejo.txtDomain ?? ''
+        p.newTxtDomain = dominioTxt
+      }
+      break
+    }
+
+    case 'SRV': {
+      if (f.name === '') {
+        return falta('Please enter a name that includes service and protocol labels.', 'name')
+      }
+      if (f.srvPriority === '') return falta('Please enter a suitable priority.', 'srvPriority')
+      if (f.srvWeight === '') return falta('Please enter a suitable weight.', 'srvWeight')
+      if (f.srvPort === '') return falta('Please enter a suitable port number.', 'srvPort')
+      if (f.srvTarget === '') {
+        return falta('Please enter a suitable value into the target field.', 'srvTarget')
+      }
+
+      if (alta) {
+        p.priority = f.srvPriority
+        p.weight = f.srvWeight
+        p.port = f.srvPort
+        p.target = f.srvTarget
+      } else {
+        p.priority = viejo.priority ?? ''
+        p.newPriority = f.srvPriority
+        p.weight = viejo.weight ?? ''
+        p.newWeight = f.srvWeight
+        p.port = viejo.port ?? ''
+        p.newPort = f.srvPort
+        p.target = viejo.target ?? ''
+        p.newTarget = f.srvTarget
+      }
+      break
+    }
+
+    case 'NAPTR': {
+      if (f.naptrOrder === '') return falta('Please enter a suitable order.', 'naptrOrder')
+      if (f.naptrPreference === '') return falta('Please enter a suitable preference.', 'naptrPreference')
+
+      if (alta) {
+        p.naptrOrder = f.naptrOrder
+        p.naptrPreference = f.naptrPreference
+        p.naptrFlags = f.naptrFlags
+        p.naptrServices = f.naptrServices
+        p.naptrRegexp = f.naptrRegexp
+        p.naptrReplacement = f.naptrReplacement
+      } else {
+        // Sólo al EDITAR, un reemplazo vacío cae a la raíz. Dando de alta, no.
+        p.naptrOrder = viejo.naptrOrder ?? ''
+        p.naptrNewOrder = f.naptrOrder
+        p.naptrPreference = viejo.naptrPreference ?? ''
+        p.naptrNewPreference = f.naptrPreference
+        p.naptrFlags = viejo.naptrFlags ?? ''
+        p.naptrNewFlags = f.naptrFlags
+        p.naptrServices = viejo.naptrServices ?? ''
+        p.naptrNewServices = f.naptrServices
+        p.naptrRegexp = viejo.naptrRegexp ?? ''
+        p.naptrNewRegexp = f.naptrRegexp
+        p.naptrReplacement = viejo.naptrReplacement ?? ''
+        p.naptrNewReplacement = f.naptrReplacement === '' ? '.' : f.naptrReplacement
+      }
+      break
+    }
+
+    case 'DNAME': {
+      if (f.valor === '') return falta(`Please enter a domain name to ${verbo} the record.`, 'valor')
+      p.dname = f.valor
+      break
+    }
+
+    case 'DS': {
+      if (f.name === '' || f.name === '@') {
+        return falta('Please enter a name for the DS record.', 'name')
+      }
+      if (f.dsKeyTag === '') {
+        return falta(`Please enter the Key Tag value to ${verbo} the record.`, 'dsKeyTag')
+      }
+      if (f.dsAlgorithm === '') {
+        return falta(`Please select an DNSSEC algorithm to ${verbo} the record.`, 'dsAlgorithm')
+      }
+      if (f.dsDigestType === '') {
+        return falta(`Please select a Digest Type to ${verbo} the record.`, 'dsDigestType')
+      }
+      if (f.dsDigest === '') {
+        return falta(
+          `Please enter the Digest hash in hex string format to ${verbo} the record.`,
+          'dsDigest',
+        )
+      }
+
+      if (alta) {
+        p.keyTag = f.dsKeyTag
+        p.algorithm = f.dsAlgorithm
+        p.digestType = f.dsDigestType
+        p.digest = f.dsDigest
+      } else {
+        p.keyTag = viejo.keyTag ?? ''
+        p.algorithm = viejo.algorithm ?? ''
+        p.digestType = viejo.digestType ?? ''
+        p.newKeyTag = f.dsKeyTag
+        p.newAlgorithm = f.dsAlgorithm
+        p.newDigestType = f.dsDigestType
+        p.digest = viejo.digest ?? ''
+        p.newDigest = f.dsDigest
+      }
+      break
+    }
+
+    case 'SSHFP': {
+      if (f.sshfpAlgorithm === '') {
+        return falta(`Please select an Algorithm to ${verbo} the record.`, 'sshfpAlgorithm')
+      }
+      if (f.sshfpFingerprintType === '') {
+        return falta(`Please select a Fingerprint Type to ${verbo} the record.`, 'sshfpFingerprintType')
+      }
+      if (f.sshfpFingerprint === '') {
+        return falta(
+          `Please enter the Fingerprint hash in hex string format to ${verbo} the record.`,
+          'sshfpFingerprint',
+        )
+      }
+
+      if (alta) {
+        p.sshfpAlgorithm = f.sshfpAlgorithm
+        p.sshfpFingerprintType = f.sshfpFingerprintType
+        p.sshfpFingerprint = f.sshfpFingerprint
+      } else {
+        p.sshfpAlgorithm = viejo.sshfpAlgorithm ?? ''
+        p.newSshfpAlgorithm = f.sshfpAlgorithm
+        p.sshfpFingerprintType = viejo.sshfpFingerprintType ?? ''
+        p.newSshfpFingerprintType = f.sshfpFingerprintType
+        p.sshfpFingerprint = viejo.sshfpFingerprint ?? ''
+        p.newSshfpFingerprint = f.sshfpFingerprint
+      }
+      break
+    }
+
+    case 'TLSA': {
+      if (f.tlsaCertificateUsage === '') {
+        return falta(`Please select a Certificate Usage to ${verbo} the record.`, 'tlsaCertificateUsage')
+      }
+      if (f.tlsaSelector === '') {
+        return falta(`Please select a Selector to ${verbo} the record.`, 'tlsaSelector')
+      }
+      if (f.tlsaMatchingType === '') {
+        return falta(`Please select a Matching Type to ${verbo} the record.`, 'tlsaMatchingType')
+      }
+      if (f.tlsaCertificateAssociationData === '') {
+        return falta(
+          `Please enter the Certificate Association Data to ${verbo} the record.`,
+          'tlsaCertificateAssociationData',
+        )
+      }
+      // Sólo al dar de alta: con «Full» exige un PEM completo.
+      if (
+        alta &&
+        f.tlsaMatchingType === 'Full' &&
+        !f.tlsaCertificateAssociationData.startsWith('-')
+      ) {
+        return falta(
+          'Please enter a complete certificate in PEM format as the Certificate Association Data to add the record.',
+          'tlsaCertificateAssociationData',
+        )
+      }
+
+      if (alta) {
+        p.tlsaCertificateUsage = f.tlsaCertificateUsage
+        p.tlsaSelector = f.tlsaSelector
+        p.tlsaMatchingType = f.tlsaMatchingType
+        p.tlsaCertificateAssociationData = f.tlsaCertificateAssociationData
+      } else {
+        p.tlsaCertificateUsage = viejo.tlsaCertificateUsage ?? ''
+        p.newTlsaCertificateUsage = f.tlsaCertificateUsage
+        p.tlsaSelector = viejo.tlsaSelector ?? ''
+        p.newTlsaSelector = f.tlsaSelector
+        p.tlsaMatchingType = viejo.tlsaMatchingType ?? ''
+        p.newTlsaMatchingType = f.tlsaMatchingType
+        p.tlsaCertificateAssociationData = viejo.tlsaCertificateAssociationData ?? ''
+        p.newTlsaCertificateAssociationData = f.tlsaCertificateAssociationData
+      }
+      break
+    }
+
+    case 'SVCB':
+    case 'HTTPS': {
+      if (f.svcbPriority === '') {
+        return falta(`Please enter a Priority value to ${verbo} the record.`, 'svcbPriority')
+      }
+      if (f.svcbTargetName === '') {
+        return falta(`Please enter a Target Name to ${verbo} the record.`, 'svcbTargetName')
+      }
+
+      const params = serializarSvcParams(f.svcbParams)
+      if ('error' in params) return params
+
+      if (alta) {
+        p.svcPriority = f.svcbPriority
+        p.svcTargetName = f.svcbTargetName
+        p.svcParams = params.valor
+      } else {
+        p.svcPriority = viejo.svcPriority ?? ''
+        p.newSvcPriority = f.svcbPriority
+        p.svcTargetName = viejo.svcTargetName ?? ''
+        p.newSvcTargetName = f.svcbTargetName
+        p.svcParams = viejo.svcParams ?? 'false'
+        p.newSvcParams = params.valor
+      }
+      p.autoIpv4Hint = String(f.svcbAutoIpv4Hint)
+      p.autoIpv6Hint = String(f.svcbAutoIpv6Hint)
+      break
+    }
+
+    case 'URI': {
+      if (f.uriPriority === '') return falta('Please enter a suitable priority.', 'uriPriority')
+      if (f.uriWeight === '') return falta('Please enter a suitable weight.', 'uriWeight')
+      if (f.uri === '') return falta('Please enter a suitable value into the URI field.', 'uri')
+
+      if (alta) {
+        p.uriPriority = f.uriPriority
+        p.uriWeight = f.uriWeight
+        p.uri = f.uri
+      } else {
+        p.uriPriority = viejo.uriPriority ?? ''
+        p.newUriPriority = f.uriPriority
+        p.uriWeight = viejo.uriWeight ?? ''
+        p.newUriWeight = f.uriWeight
+        p.uri = viejo.uri ?? ''
+        p.newUri = f.uri
+      }
+      break
+    }
+
+    case 'CAA': {
+      // Los dos primeros caen a valores por defecto, no dan error.
+      const flags = f.caaFlags === '' ? '0' : f.caaFlags
+      const tag = f.caaTag === '' ? 'issue' : f.caaTag
+      if (f.caaValue === '') {
+        return falta('Please enter a suitable value into the authority field.', 'caaValue')
+      }
+
+      if (alta) {
+        p.flags = flags
+        p.tag = tag
+        p.value = f.caaValue
+      } else {
+        p.flags = viejo.flags ?? ''
+        p.tag = viejo.tag ?? ''
+        p.newFlags = flags
+        p.newTag = tag
+        p.value = viejo.value ?? ''
+        p.newValue = f.caaValue
+      }
+      break
+    }
+
+    case 'ANAME': {
+      if (f.valor === '') return falta(`Please enter a suitable value to ${verbo} the record.`, 'valor')
+      if (alta) p.aname = f.valor
+      else {
+        p.aname = viejo.aname ?? ''
+        p.newAName = f.valor
+      }
+      break
+    }
+
+    case 'FWD': {
+      const reenviador = f.forwarder
+      if (reenviador === '') {
+        return falta(
+          `Please enter a domain name or IP address or URL as a forwarder to ${verbo} the record.`,
+          'forwarder',
+        )
+      }
+
+      if (alta) {
+        p.protocol = f.forwarderProtocol
+        p.forwarder = reenviador
+      } else {
+        p.protocol = viejo.protocol ?? ''
+        p.newProtocol = f.forwarderProtocol
+        p.forwarder = viejo.forwarder ?? ''
+        p.newForwarder = reenviador
+      }
+      p.forwarderPriority = f.forwarderPriority
+      p.dnssecValidation = String(f.forwarderDnssecValidation)
+
+      /*
+      Aquí alta y edición NO se comportan igual: dando de alta, el proxy se
+      manda siempre; editando, sólo si el reenviador nuevo no es «this-server».
+      Es asimétrico en upstream y se replica.
+      */
+      const mandarProxy = alta || reenviador !== 'this-server'
+      if (mandarProxy) {
+        p.proxyType = f.proxyType
+        if (f.proxyType === 'Http' || f.proxyType === 'Socks5') {
+          if (f.proxyAddress === '') {
+            return falta(
+              `Please enter a domain name or IP address for Proxy Server Address to ${verbo} the record.`,
+              'proxyAddress',
+            )
+          }
+          if (f.proxyPort === '') {
+            return falta(
+              `Please enter a port number for Proxy Server Port to ${verbo} the record.`,
+              'proxyPort',
+            )
+          }
+          p.proxyAddress = f.proxyAddress
+          p.proxyPort = f.proxyPort
+          p.proxyUsername = f.proxyUsername
+          p.proxyPassword = f.proxyPassword
+        }
+      }
+      break
+    }
+
+    case 'APP': {
+      if (alta) {
+        if (f.appName === '') {
+          return falta('Please select an application name to add record.', 'appName')
+        }
+        if (f.classPath === '') {
+          return falta('Please select a class path to add record.', 'classPath')
+        }
+        p.appName = f.appName
+        p.classPath = f.classPath
+        p.recordData = f.recordData
+      } else {
+        // Editando, el nombre y la clase vienen del registro y NO se validan.
+        p.appName = viejo.appName ?? ''
+        p.classPath = viejo.classPath ?? ''
+        p.recordData = f.recordData
+      }
+      break
+    }
+
+    default: {
+      // «Unknown»: el tipo lo escribe el usuario. Sólo el alta lo exige.
+      type = f.unknownType
+      if (alta && type === '') {
+        return falta('Please enter a resoure record name or number to add record.', 'unknownType')
+      }
+      /*
+      Los dos textos NO son la misma frase con el verbo cambiado: el alta dice
+      «to add record» y la edición «to update the record», con artículo. Y el
+      «resoure» de arriba es una errata de upstream que se conserva: son
+      contrato, no prosa nuestra.
+      */
+      if (f.valor === '') {
+        return falta(
+          alta
+            ? 'Please enter a hex value as the RDATA to add record.'
+            : 'Please enter a hex value as the RDATA to update the record.',
+          'valor',
+        )
+      }
+      if (alta) p.rdata = f.valor
+      else {
+        p.rdata = viejo.rdata ?? ''
+        p.newRData = f.valor
+      }
+      break
+    }
+  }
+
+  const domain = dominioCompleto(ctx.zone, f.name)
+
+  if (alta) {
+    return {
+      body: {
+        zone: ctx.zone,
+        domain,
+        type,
+        ttl: f.ttl,
+        overwrite: String(f.overwrite),
+        comments: f.comments,
+        expiryTtl: f.expiryTtl,
+        ...p,
+      },
+    }
+  }
+
+  const original = ctx.original
+  return {
+    body: {
+      zone: ctx.zone,
+      type,
+      domain: original == null || original.name === '' ? '.' : original.name,
+      newDomain: domain,
+      ttl: f.ttl,
+      // La edición NO cambia el estado: reenvía el que tenía el registro.
+      disable: String(original?.disabled === true),
+      comments: f.comments,
+      expiryTtl: f.expiryTtl,
+      ...p,
+    },
+  }
+}

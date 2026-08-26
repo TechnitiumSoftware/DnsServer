@@ -21,12 +21,14 @@ function espiar() {
 }
 
 describe('apps — endpoints de lectura', () => {
-  it('lista las instaladas por `apps/list`, sin cuerpo', async () => {
+  it('lista las instaladas por `apps/list`, con el nodo del clúster', async () => {
+    // `node` lo manda upstream también aquí (zone.js:4440, al cargar los
+    // nombres de app del modal de registro). Con una sola instancia va vacío.
     const spy = espiar()
     await listApps('t')
     const call = spy.mock.calls.find((c) => c[0] === 'apps/list')
     expect(call).toBeDefined()
-    expect(call![1]?.body).toBeUndefined()
+    expect(call![1]?.body).toEqual({ node: '' })
   })
 
   it('lista la tienda por `apps/listStoreApps`', async () => {

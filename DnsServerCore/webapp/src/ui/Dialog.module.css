@@ -5,6 +5,8 @@
   background: var(--pan); border: 1px solid var(--line); border-radius: 12px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
 }
+/* Los que llevan tabla dentro: con 560 px se ven obligados a scroll horizontal. */
+.ancho { width: min(880px, calc(100vw - 32px)); }
 .head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 16px; border-bottom: 1px solid var(--line);

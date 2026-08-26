@@ -1,0 +1,645 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  deleteZone,
+  deleteZones,
+  disableZone,
+  enableZone,
+  estadoDeZona,
+  etiquetaTipo,
+  exportZone,
+  listZones,
+  nombreDeZona,
+  resyncZone,
+  TIPOS_ZONA,
+  ZONAS_POR_PAGINA,
+  type Zone,
+} from '../../api/zones'
+import { Button } from '../../ui/Button'
+import { Field, Input, Select } from '../../ui/Field'
+import { Menu, Separador } from './Menu'
+import { fechaMinuto as fecha } from '../../lib/fechas'
+import { textoDeEstado, ventanaDePaginas } from './paginacion'
+import styles from './Zones.module.css'
+import type { Aviso, Confirmacion } from './tipos'
+
+/*
+La lista de zonas. Réplica de `refreshZones` (zone.js:649) y de las seis
+acciones que cuelgan de cada fila.
+
+Dos cosas del original que aquí se ven raras y son deliberadas:
+
+  · **El botón «Delete Zones» borra lo marcado y usa el mismo endpoint** que el
+    borrado de una sola, con el parámetro en plural. Cuando alguna falla, el
+    aviso NO es un error: es un `warning` que cuenta cuántas fallaron.
+
+  · **Qué acciones ofrece una fila depende del tipo de zona**, con cinco listas
+    distintas que se solapan a medias (`showResyncMenu`, y los cuatro `switch`
+    de Import / Export / Convert / Clone). No se uniforman.
+*/
+
+/** Los tipos que ofrecen cada acción, tal cual los enumera zone.js:760-880. */
+const RESYNC = ['Secondary', 'SecondaryForwarder', 'SecondaryCatalog', 'Stub']
+const IMPORTAR = ['Primary', 'Forwarder']
+const EXPORTAR = ['Primary', 'Forwarder', 'Secondary', 'SecondaryForwarder', 'SecondaryCatalog', 'Catalog']
+const CONVERTIR = ['Primary', 'Secondary', 'SecondaryForwarder', 'Forwarder', 'SecondaryCatalog']
+const CLONAR = ['Primary', 'Forwarder']
+/** `hideOptionsMenu` es falso para los siete tipos conocidos (zone.js:774-790). */
+const CON_OPCIONES = [...TIPOS_ZONA] as string[]
+
+export interface AccionesDeZona {
+  onAbrir: (zone: string) => void
+  onImportar: (zone: string) => void
+  onConvertir: (zone: string, type: string) => void
+  onClonar: (zone: string) => void
+  onPermisos: (zone: string) => void
+  onOpciones: (zone: string) => void
+}
+
+export interface ListaZonasProps extends AccionesDeZona {
+  token: string | null
+  node?: string
+  canModify: boolean
+  canDelete: boolean
+  onAviso: (a: Aviso) => void
+  onConfirmar: (c: Confirmacion) => void
+  onAnadir: () => void
+  /** Cambia cuando algo de fuera (un modal) obliga a releer la lista. */
+  refresco: number
+}
+
+export function ListaZonas({
+  token,
+  node = '',
+  canModify,
+  canDelete,
+  onAviso,
+  onConfirmar,
+  onAnadir,
+  onAbrir,
+  onImportar,
+  onConvertir,
+  onClonar,
+  onPermisos,
+  onOpciones,
+  refresco,
+}: ListaZonasProps) {
+  const [zonas, setZonas] = useState<Zone[]>([])
+  const [pageNumber, setPageNumber] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalZones, setTotalZones] = useState(0)
+  const [ocupado, setOcupado] = useState(false)
+  const [marcadas, setMarcadas] = useState<string[]>([])
+
+  // Los filtros son estado del formulario: no se aplican hasta pulsar «Go»,
+  // igual que en upstream, donde `refreshZones` los lee en ese momento.
+  const [filtroNombre, setFiltroNombre] = useState('')
+  const [filtroTipo, setFiltroTipo] = useState('')
+  const [porPagina, setPorPagina] = useState(10)
+  const [campoPagina, setCampoPagina] = useState('1')
+
+  const nombreRef = useRef<HTMLInputElement>(null)
+
+  const cargar = useCallback(
+    async (pagina: number) => {
+      setOcupado(true)
+      const r = await listZones(token, {
+        filterName: filtroNombre,
+        filterType: filtroTipo,
+        pageNumber: pagina,
+        zonesPerPage: porPagina,
+        node,
+      })
+      setOcupado(false)
+
+      if (r == null) {
+        onAviso({ type: 'danger', title: 'Error!', text: 'Unable to reach the DNS server.' })
+        return
+      }
+
+      setZonas(r.zones)
+      setPageNumber(r.pageNumber)
+      setTotalPages(r.totalPages)
+      setTotalZones(r.totalZones)
+      setCampoPagina(String(r.pageNumber))
+      // `chkZonesTableCheckAll` se desmarca en cada refresco (zone.js:938).
+      setMarcadas([])
+      nombreRef.current?.focus()
+    },
+    [token, node, filtroNombre, filtroTipo, porPagina, onAviso],
+  )
+
+  /*
+  Al montar y cuando algo de fuera pide releer. Los filtros NO disparan recarga
+  por sí solos: hay que pulsar «Go», igual que en upstream, donde `refreshZones`
+  los lee en ese momento. Por eso `cargar` va por referencia y no en las
+  dependencias: si estuviera, teclear en el filtro recargaría la lista.
+  */
+  const cargarRef = useRef(cargar)
+  useEffect(() => {
+    cargarRef.current = cargar
+  }, [cargar])
+  useEffect(() => {
+    void cargarRef.current(1)
+  }, [refresco])
+
+  function irA(pagina: number) {
+    void cargar(pagina)
+  }
+
+  function aplicarFiltros() {
+    const n = Number(campoPagina)
+    void cargar(campoPagina === '' || Number.isNaN(n) ? 1 : n)
+  }
+
+  /** Ejecuta una mutación y refresca, con el aviso literal de upstream. */
+  async function mutar(
+    fn: () => Promise<{ kind: string; message?: string }>,
+    exito: Aviso,
+  ) {
+    setOcupado(true)
+    const outcome = await fn()
+    setOcupado(false)
+
+    if (outcome.kind !== 'ok') {
+      onAviso({
+        type: 'danger',
+        title: 'Error!',
+        text: outcome.kind === 'error' ? (outcome.message ?? '') : 'Invalid token or session expired.',
+      })
+      return
+    }
+    await cargar(pageNumber)
+    onAviso(exito)
+  }
+
+  function habilitar(z: Zone) {
+    const nombre = z.name === '' ? '.' : z.name
+    void mutar(() => enableZone(token, nombre, node), {
+      type: 'success',
+      title: 'Zone Enabled!',
+      text: `Zone '${nombre}' was enabled successfully.`,
+    })
+  }
+
+  function deshabilitar(z: Zone) {
+    const nombre = z.name === '' ? '.' : z.name
+    onConfirmar({
+      titulo: 'Disable Zone',
+      texto: `Are you sure you want to disable the zone '${nombre}'?`,
+      etiqueta: 'Disable',
+      accion: () =>
+        mutar(() => disableZone(token, nombre, node), {
+          type: 'success',
+          title: 'Zone Disabled!',
+          text: `Zone '${nombre}' was disabled successfully.`,
+        }),
+    })
+  }
+
+  function borrar(z: Zone) {
+    const nombre = z.name === '' ? '.' : z.name
+    onConfirmar({
+      titulo: 'Delete Zone',
+      texto: `Are you sure you want to permanently delete the zone '${nombre}' and all its records?`,
+      etiqueta: 'Delete',
+      peligro: true,
+      accion: () =>
+        mutar(() => deleteZone(token, nombre, node), {
+          type: 'success',
+          title: 'Zone Deleted!',
+          text: `Zone '${nombre}' was deleted successfully.`,
+        }),
+    })
+  }
+
+  function resincronizar(z: Zone) {
+    const nombre = z.name === '' ? '.' : z.name
+    // Dos textos distintos: la secundaria habla de AXFR y el resto de refresco.
+    const texto =
+      z.type === 'Secondary'
+        ? `The resync action will perform a full zone transfer (AXFR). You will need to check the logs to confirm if the resync action was successful.\n\nAre you sure you want to resync the '${nombre}' zone?`
+        : `The resync action will perform a full zone refresh. You will need to check the logs to confirm if the resync action was successful.\n\nAre you sure you want to resync the '${nombre}' zone?`
+
+    onConfirmar({
+      titulo: 'Resync Zone',
+      texto,
+      etiqueta: 'Resync',
+      accion: () =>
+        mutar(() => resyncZone(token, nombre, node), {
+          type: 'success',
+          title: 'Resync Triggered!',
+          text: `Zone '${nombre}' resync was triggered successfully. Please check the Logs for confirmation.`,
+        }),
+    })
+  }
+
+  async function exportar(z: Zone) {
+    const nombre = z.name === '' ? '.' : z.name
+    const r = await exportZone(token, nombre, node)
+    if (!r.ok) return
+    onAviso({ type: 'success', title: 'Zone Exported!', text: 'Zone file was exported successfully.' })
+  }
+
+  function borrarMarcadas() {
+    if (marcadas.length === 0) {
+      // `alert()` sin más en upstream, no un `showAlert` de la pantalla.
+      onAviso({ type: 'warning', title: 'Missing!', text: 'Please select one or more zones to delete.' })
+      return
+    }
+
+    const lista = zonas
+      .filter((z) => marcadas.includes(z.name))
+      .map((z) => (z.nameIdn == null ? (z.name === '' ? '.' : z.name) : `${z.nameIdn} (${z.name})`))
+
+    onConfirmar({
+      titulo: 'Delete Zones',
+      texto: `Are you sure you want to permanently delete the following zones and all of their records?\n\n${lista.join('\n')}`,
+      etiqueta: 'Delete',
+      peligro: true,
+      accion: async () => {
+        setOcupado(true)
+        const outcome = await deleteZones(token, marcadas, node)
+        setOcupado(false)
+
+        if (outcome.kind !== 'ok') {
+          onAviso({
+            type: 'danger',
+            title: 'Error!',
+            text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
+          })
+          return
+        }
+
+        await cargar(pageNumber)
+
+        const fallos = Object.keys(outcome.data.response.failed ?? {}).length
+        if (fallos === 0) {
+          onAviso({
+            type: 'success',
+            title: 'Zones Deleted!',
+            text: 'All selected zones were deleted successfully.',
+          })
+        } else {
+          const total = (outcome.data.response.deleted?.length ?? 0) + fallos
+          onAviso({
+            type: 'warning',
+            title: 'Failed To Deleted!',
+            text: `A total of ${fallos} zone(s) of the selected ${total} zone(s) failed to delete. Please check error logs for more details.`,
+          })
+        }
+      },
+    })
+  }
+
+  const primeraFila = (pageNumber - 1) * porPagina + 1
+  const estado = textoDeEstado(primeraFila, zonas.length, totalZones, pageNumber, totalPages, 'zones')
+  const pg = ventanaDePaginas(pageNumber, totalPages)
+  const todasMarcadas = zonas.length > 0 && marcadas.length === zonas.length
+
+  const paginacion = (
+    <span className={styles.pg}>
+      {pg.primera && (
+        <button type="button" className={styles.pgBtn} aria-label="First" onClick={() => irA(1)}>
+          «
+        </button>
+      )}
+      {pg.anterior != null && (
+        <button type="button" className={styles.pgBtn} aria-label="Previous" onClick={() => irA(pg.anterior!)}>
+          ‹
+        </button>
+      )}
+      {pg.paginas.map((p) => (
+        <button
+          key={p}
+          type="button"
+          className={styles.pgBtn}
+          aria-current={p === pageNumber}
+          onClick={() => irA(p)}
+        >
+          {p}
+        </button>
+      ))}
+      {pg.siguiente != null && (
+        <button type="button" className={styles.pgBtn} aria-label="Next" onClick={() => irA(pg.siguiente!)}>
+          ›
+        </button>
+      )}
+      {/* La última página se pide con -1: el servidor la resuelve él. */}
+      {pg.ultima && (
+        <button type="button" className={styles.pgBtn} aria-label="Last" onClick={() => irA(-1)}>
+          »
+        </button>
+      )}
+    </span>
+  )
+
+  return (
+    <>
+      <div className={styles.hrow}>
+        <div>
+          <h1 className={styles.zt}>Zones</h1>
+        </div>
+        <div className={styles.acts}>
+          <Button variant="primary" disabled={!canModify || ocupado} onClick={onAnadir}>
+            Add Zone
+          </Button>
+          <Button variant="danger" disabled={!canDelete || ocupado} onClick={borrarMarcadas}>
+            Delete Zones
+          </Button>
+        </div>
+      </div>
+
+      <div className={styles.filt}>
+        <div className={styles.filtAncho}>
+          <Field label="Name">
+            {(id) => (
+              <Input
+                id={id}
+                ref={nombreRef}
+                placeholder="abc or a* or *b* or a?c"
+                value={filtroNombre}
+                onChange={(e) => setFiltroNombre(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && aplicarFiltros()}
+              />
+            )}
+          </Field>
+        </div>
+        <div className={styles.filtMedio}>
+          <Field label="Type">
+            {(id) => (
+              <Select id={id} value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}>
+                <option value="" />
+                {TIPOS_ZONA.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        </div>
+        <div className={styles.filtCorto}>
+          <Field label="Page Number">
+            {(id) => (
+              <Input
+                id={id}
+                mono
+                value={campoPagina}
+                onChange={(e) => setCampoPagina(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && aplicarFiltros()}
+              />
+            )}
+          </Field>
+        </div>
+        <div className={styles.filtCorto}>
+          <Field label="Zones Per Page">
+            {(id) => (
+              <Select id={id} value={String(porPagina)} onChange={(e) => setPorPagina(Number(e.target.value))}>
+                {ZONAS_POR_PAGINA.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        </div>
+        <Button variant="primary" disabled={ocupado} onClick={aplicarFiltros} style={{ marginBottom: 1 }}>
+          Go
+        </Button>
+      </div>
+
+      <div className={styles.count}>
+        <span>{estado}</span>
+        {paginacion}
+      </div>
+
+      <div className={styles.tablaWrap}>
+        <table className={styles.tabla}>
+          <thead>
+            <tr>
+              <th style={{ width: 30 }}>
+                <input
+                  type="checkbox"
+                  className={styles.check}
+                  aria-label="Select all zones"
+                  checked={todasMarcadas}
+                  onChange={(e) => setMarcadas(e.target.checked ? zonas.map((z) => z.name) : [])}
+                />
+              </th>
+              <th style={{ width: 34 }}>#</th>
+              <th>Zone</th>
+              <th style={{ width: 120 }}>Type</th>
+              <th style={{ width: 90 }}>DNSSEC</th>
+              <th style={{ width: 120 }}>Status</th>
+              <th style={{ width: 110 }}>Serial</th>
+              <th style={{ width: 110 }}>Expiry</th>
+              <th style={{ width: 150 }}>Last Modified</th>
+              <th style={{ width: 230 }} />
+            </tr>
+          </thead>
+          <tbody>
+            {zonas.length === 0 ? (
+              <tr>
+                <td colSpan={10} style={{ textAlign: 'center' }}>
+                  No Zone Found
+                </td>
+              </tr>
+            ) : (
+              zonas.map((z, i) => (
+                <FilaZona
+                  key={z.name}
+                  zona={z}
+                  indice={primeraFila + i}
+                  marcada={marcadas.includes(z.name)}
+                  ocupado={ocupado}
+                  canModify={canModify}
+                  canDelete={canDelete}
+                  onMarcar={(v) =>
+                    setMarcadas((m) => (v ? [...m, z.name] : m.filter((n) => n !== z.name)))
+                  }
+                  onAbrir={onAbrir}
+                  onHabilitar={habilitar}
+                  onDeshabilitar={deshabilitar}
+                  onBorrar={borrar}
+                  onResync={resincronizar}
+                  onImportar={onImportar}
+                  onExportar={exportar}
+                  onConvertir={onConvertir}
+                  onClonar={onClonar}
+                  onPermisos={onPermisos}
+                  onOpciones={onOpciones}
+                />
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className={`${styles.count} ${styles.countPie}`}>
+        <span>{estado}</span>
+        {paginacion}
+      </div>
+    </>
+  )
+}
+
+interface FilaProps {
+  zona: Zone
+  indice: number
+  marcada: boolean
+  ocupado: boolean
+  canModify: boolean
+  canDelete: boolean
+  onMarcar: (v: boolean) => void
+  onAbrir: (zone: string) => void
+  onHabilitar: (z: Zone) => void
+  onDeshabilitar: (z: Zone) => void
+  onBorrar: (z: Zone) => void
+  onResync: (z: Zone) => void
+  onImportar: (zone: string) => void
+  onExportar: (z: Zone) => void
+  onConvertir: (zone: string, type: string) => void
+  onClonar: (zone: string) => void
+  onPermisos: (zone: string) => void
+  onOpciones: (zone: string) => void
+}
+
+function FilaZona(p: FilaProps) {
+  const { zona: z } = p
+  const nombre = z.name === '' ? '.' : z.name
+  const estado = estadoDeZona(z)
+  const firmada = z.dnssecStatus === 'SignedWithNSEC' || z.dnssecStatus === 'SignedWithNSEC3'
+
+  const claseEstado =
+    estado === 'Enabled'
+      ? styles.tagOk
+      : estado === 'Expired' || estado === 'Validation Failed'
+        ? styles.tagDan
+        : estado === 'Sync Failed' || estado === 'Notify Failed'
+          ? styles.tagWarn
+          : ''
+
+  // El catálogo del que es miembro; y si ELLA es un catálogo, su propio nombre.
+  const etiquetaCatalogo =
+    z.catalog != null
+      ? { texto: z.catalog, clase: '' }
+      : z.type === 'Catalog' || z.type === 'SecondaryCatalog'
+        ? { texto: nombre, clase: styles.tagInfo }
+        : null
+
+  return (
+    <tr>
+      <td>
+        <input
+          type="checkbox"
+          className={styles.check}
+          aria-label={`Select ${nombre}`}
+          checked={p.marcada}
+          onChange={(e) => p.onMarcar(e.target.checked)}
+        />
+      </td>
+      <td className={styles.num}>{p.indice}</td>
+      <td>
+        <button type="button" className={styles.enlaceZona} onClick={() => p.onAbrir(nombre)}>
+          {nombreDeZona(z)}
+        </button>
+        {etiquetaCatalogo && (
+          <div className={styles.tags}>
+            <span className={`${styles.tag} ${etiquetaCatalogo.clase}`}>{etiquetaCatalogo.texto}</span>
+          </div>
+        )}
+      </td>
+      <td>
+        <span className={styles.ty}>{etiquetaTipo(z.type)}</span>
+      </td>
+      <td>
+        {/* Sin claves privadas la etiqueta se apaga: la zona está firmada pero
+            este servidor no puede re-firmarla (zone.js:721-731). */}
+        {firmada && (
+          <span className={`${styles.tag} ${z.hasDnssecPrivateKeys ? styles.tagInfo : ''}`}>DNSSEC</span>
+        )}
+      </td>
+      <td>
+        <span className={`${styles.tag} ${claseEstado}`}>{estado}</span>
+      </td>
+      <td className={styles.mono}>{z.soaSerial ?? ' '}</td>
+      <td className={styles.mono}>{fecha(z.expiry)}</td>
+      <td className={styles.mono} style={{ fontSize: 11.5 }}>
+        {fecha(z.lastModified)}
+      </td>
+      <td>
+        <div className={styles.rowacts}>
+          <button
+            type="button"
+            className={styles.ib}
+            disabled={!p.canModify || p.ocupado || !CON_OPCIONES.includes(z.type)}
+            onClick={() => p.onOpciones(nombre)}
+          >
+            Options
+          </button>
+          {z.disabled ? (
+            <button
+              type="button"
+              className={styles.ib}
+              disabled={!p.canModify || p.ocupado}
+              onClick={() => p.onHabilitar(z)}
+            >
+              Enable
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={styles.ib}
+              disabled={!p.canModify || p.ocupado}
+              onClick={() => p.onDeshabilitar(z)}
+            >
+              Disable
+            </button>
+          )}
+          <Menu etiqueta={`Actions for ${nombre}`}>
+            {(cerrar) => (
+              <>
+                <button type="button" onClick={() => { cerrar(); p.onAbrir(nombre) }}>
+                  Edit Zone
+                </button>
+                {RESYNC.includes(z.type) && (
+                  <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onResync(z) }}>
+                    Resync
+                  </button>
+                )}
+                {IMPORTAR.includes(z.type) && (
+                  <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onImportar(nombre) }}>
+                    Import Zone
+                  </button>
+                )}
+                {EXPORTAR.includes(z.type) && (
+                  <button type="button" onClick={() => { cerrar(); void p.onExportar(z) }}>
+                    Export Zone
+                  </button>
+                )}
+                {CONVERTIR.includes(z.type) && (
+                  <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onConvertir(nombre, z.type) }}>
+                    Convert Zone
+                  </button>
+                )}
+                {CLONAR.includes(z.type) && (
+                  <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onClonar(nombre) }}>
+                    Clone Zone
+                  </button>
+                )}
+                <button type="button" onClick={() => { cerrar(); p.onPermisos(nombre) }}>
+                  Permissions
+                </button>
+                <Separador />
+                <button type="button" disabled={!p.canDelete} onClick={() => { cerrar(); p.onBorrar(z) }}>
+                  Delete Zone
+                </button>
+              </>
+            )}
+          </Menu>
+        </div>
+      </td>
+    </tr>
+  )
+}

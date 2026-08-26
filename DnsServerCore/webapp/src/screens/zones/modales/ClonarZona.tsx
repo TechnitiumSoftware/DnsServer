@@ -1,0 +1,97 @@
+import { useEffect, useRef, useState } from 'react'
+import { cloneZone } from '../../../api/zones'
+import { Alert } from '../../../ui/Alert'
+import { Button } from '../../../ui/Button'
+import { Dialog } from '../../../ui/Dialog'
+import { LabeledInput } from '../../../ui/Field'
+import type { Aviso } from '../tipos'
+import styles from '../Zones.module.css'
+
+/** `modalCloneZone` (zone.js:1332 y 1346). */
+export function ClonarZona({
+  zone,
+  abierto,
+  token,
+  node = '',
+  onCerrar,
+  onHecho,
+}: {
+  zone: string
+  abierto: boolean
+  token: string | null
+  node?: string
+  onCerrar: () => void
+  onHecho: (a: Aviso) => void
+}) {
+  const [nueva, setNueva] = useState('')
+  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [ocupado, setOcupado] = useState(false)
+  const campo = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!abierto) return
+    setNueva('')
+    setAviso(null)
+    campo.current?.focus()
+  }, [abierto])
+
+  async function clonar() {
+    if (nueva === '') {
+      setAviso({ type: 'warning', title: 'Missing!', text: 'Please enter a domain name for the new zone.' })
+      campo.current?.focus()
+      return
+    }
+
+    setOcupado(true)
+    const outcome = await cloneZone(token, nueva, zone, node)
+    setOcupado(false)
+
+    if (outcome.kind !== 'ok') {
+      setAviso({
+        type: 'danger',
+        title: 'Error!',
+        text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
+      })
+      return
+    }
+
+    onCerrar()
+    // El texto de upstream está así, con esa frase a medias. Se copia literal.
+    onHecho({ type: 'success', title: 'Zone Cloned!', text: 'Zone was cloned from successfully.' })
+  }
+
+  return (
+    <Dialog
+      open={abierto}
+      onOpenChange={(o) => !o && onCerrar()}
+      title={`Clone Zone - ${zone === '.' ? '<root>' : zone}`}
+      footer={
+        <>
+          <Button onClick={onCerrar}>Close</Button>
+          <Button variant="primary" disabled={ocupado} onClick={() => void clonar()}>
+            Clone Zone
+          </Button>
+        </>
+      }
+    >
+      {aviso && (
+        <div className={styles.avisoHueco}>
+          <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
+            {aviso.text}
+          </Alert>
+        </div>
+      )}
+      <div className={styles.campos}>
+        {/* El origen es de sólo lectura: upstream lo guarda en un input oculto. */}
+        <LabeledInput label="Source Zone" mono readOnly value={zone} />
+        <LabeledInput
+          label="New Zone"
+          mono
+          ref={campo}
+          value={nueva}
+          onChange={(e) => setNueva(e.target.value)}
+        />
+      </div>
+    </Dialog>
+  )
+}

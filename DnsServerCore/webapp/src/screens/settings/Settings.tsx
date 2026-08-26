@@ -231,7 +231,7 @@ export function Settings({
     }
     setAvisoModal(null)
     setOcupado(true)
-    const r = await openDownload(token, 'settings/backup', parametrosBackup(seleccion))
+    const r = await openDownload(token, 'settings/backup', parametrosBackup(seleccion), { ts: true })
     setOcupado(false)
     if (!r.ok) return
     setModal(null)
