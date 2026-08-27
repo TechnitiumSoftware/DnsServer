@@ -99,9 +99,11 @@ namespace DnsServerCore.Dns.Security
         private const string SecretFileName = "dns.cookies.state";
         private static readonly TimeSpan DefaultStandaloneAutomaticRotationPeriod = TimeSpan.FromDays(30);
 
-        private const int ClientCookieLength = 8;
-        private const int ServerCookieMinLength = 8;
-        private const int ServerCookieMaxLength = 32;
+        // Wire-format lengths come from the EDNS COOKIE option type that parsed them, so
+        // the server cannot drift away from its own parser.
+        private const int ClientCookieLength = EDnsCookieOptionData.CLIENT_COOKIE_LENGTH;
+        private const int ServerCookieMinLength = EDnsCookieOptionData.SERVER_COOKIE_MIN_LENGTH;
+        private const int ServerCookieMaxLength = EDnsCookieOptionData.SERVER_COOKIE_MAX_LENGTH;
         private const int V1ServerCookieLength = 16;
         private const byte V1Version = 1;
 
@@ -368,10 +370,13 @@ namespace DnsServerCore.Dns.Security
                 if (option.Data is not EDnsCookieOptionData cookieData)
                     return new CookieRequestClassification(runtimeState, CookieRequestState.MalformedCookie, clientAddress);
 
-                int clientLength = cookieData.ClientCookie.Length;
-                int serverLength = cookieData.ServerCookie.Length;
-                if (clientLength != ClientCookieLength || (serverLength != 0 && (serverLength < ServerCookieMinLength || serverLength > ServerCookieMaxLength)))
+                // The option parser already applied these length rules and kept the raw
+                // payload for FORMERR; re-deriving the verdict here just invites the two
+                // to disagree.
+                if (cookieData.IsMalformed)
                     return new CookieRequestClassification(runtimeState, CookieRequestState.MalformedCookie, clientAddress, cookieData);
+
+                int serverLength = cookieData.ServerCookie.Length;
 
                 if (serverLength == 0)
                     return new CookieRequestClassification(runtimeState, CookieRequestState.ClientOnly, clientAddress, cookieData);
@@ -428,24 +433,8 @@ namespace DnsServerCore.Dns.Security
                     ushort udpPayload = request.EDNS?.UdpPayloadSize ?? udpPayloadSizeFallback;
                     EDnsHeaderFlags flags = request.EDNS?.Flags ?? EDnsHeaderFlags.None;
 
-                    DnsDatagram formErr = new DnsDatagram(
-                        request.Identifier,
-                        true,
-                        request.OPCODE,
-                        false,
-                        false,
-                        request.RecursionDesired,
-                        isRecursionAllowed,
-                        false,
-                        request.CheckingDisabled,
-                        DnsResponseCode.FormatError,
-                        request.Question,
-                        null,
-                        null,
-                        null,
-                        request.EDNS is null ? ushort.MinValue : udpPayload,
-                        flags)
-                    { Tag = DnsServerResponseType.Authoritative };
+                    DnsDatagram formErr = BuildCookieResponse(request, request.OPCODE, DnsResponseCode.FormatError,
+                        isRecursionAllowed, request.EDNS is null ? ushort.MinValue : udpPayload, flags);
 
                     return CookiePreflightResult.Immediate(formErr);
                 }
@@ -483,24 +472,7 @@ namespace DnsServerCore.Dns.Security
 
             // Do not pass an RFC 7873 zero-question exchange to normal QUERY
             // processing, which correctly rejects all other QDCOUNT != 1 queries.
-            DnsDatagram ack = new DnsDatagram(
-                request.Identifier,
-                true,
-                DnsOpcode.StandardQuery,
-                false,
-                false,
-                request.RecursionDesired,
-                isRecursionAllowed,
-                false,
-                request.CheckingDisabled,
-                DnsResponseCode.NoError,
-                request.Question,
-                null,
-                null,
-                null,
-                request.EDNS.UdpPayloadSize,
-                request.EDNS.Flags)
-            { Tag = DnsServerResponseType.Authoritative };
+            DnsDatagram ack = BuildAcquisitionAcknowledgement(request, isRecursionAllowed);
 
             return CookiePreflightResult.Acquisition(ack);
         }
@@ -523,24 +495,7 @@ namespace DnsServerCore.Dns.Security
 
             if (classification.State == CookieRequestState.ClientOnly && IsCookieAcquisitionRequest(request, classification.State))
             {
-                DnsDatagram acquisition = new DnsDatagram(
-                    request.Identifier,
-                    true,
-                    DnsOpcode.StandardQuery,
-                    false,
-                    false,
-                    request.RecursionDesired,
-                    isRecursionAllowed,
-                    false,
-                    request.CheckingDisabled,
-                    DnsResponseCode.NoError,
-                    request.Question,
-                    null,
-                    null,
-                    null,
-                    request.EDNS.UdpPayloadSize,
-                    request.EDNS.Flags)
-                { Tag = DnsServerResponseType.Authoritative };
+                DnsDatagram acquisition = BuildAcquisitionAcknowledgement(request, isRecursionAllowed);
 
                 return AttachToResponse(request, acquisition, cookieClientAddress, DnsTransportProtocol.Udp, classification);
             }
@@ -567,10 +522,10 @@ namespace DnsServerCore.Dns.Security
                 return response;
 
             EDnsCookieOptionData requestCookie = classification.Cookie;
+            EDnsCookieOptionData responseCookie;
 
-            if (requestCookie != null && requestCookie.ClientCookie.Length == ClientCookieLength)
+            if (requestCookie is not null && requestCookie.ClientCookie.Length == ClientCookieLength)
             {
-                EDnsCookieOptionData responseCookie;
                 if (classification.State == CookieRequestState.ValidServerCookie &&
                     classification.ValidationResult == DnsCookieValidationResult.Valid)
                 {
@@ -583,22 +538,22 @@ namespace DnsServerCore.Dns.Security
                     byte[] serverCookie = cookieRuntimeState.Validator.CreateResponseCookie(cookieClientAddress, requestCookie.ClientCookie);
                     responseCookie = new EDnsCookieOptionData(requestCookie.ClientCookie.ToArray(), serverCookie);
                 }
-
-                IReadOnlyList<EDnsOption> mergedOptions =
-                    MergeCookieOption(response.EDNS?.Options ?? request.EDNS?.Options, responseCookie);
-
-                return response.Clone(additional: UpsertOptRecord(response.Additional, request, response, mergedOptions));
             }
-
-            if (requestCookie is null && HasCookieOption(request))
+            else if (requestCookie is null && HasCookieOption(request))
             {
-                IReadOnlyList<EDnsOption> mergedOptions =
-                    MergeCookieOption(response.EDNS?.Options ?? request.EDNS?.Options, null);
-
-                return response.Clone(additional: UpsertOptRecord(response.Additional, request, response, mergedOptions));
+                // A COOKIE option that never parsed is dropped from the response rather
+                // than echoed back.
+                responseCookie = null;
+            }
+            else
+            {
+                return response;
             }
 
-            return response;
+            IReadOnlyList<EDnsOption> mergedOptions =
+                MergeCookieOption(response.EDNS?.Options ?? request.EDNS?.Options, responseCookie);
+
+            return response.Clone(additional: UpsertOptRecord(response.Additional, request, response, mergedOptions));
         }
 
         private DnsDatagram HandleInvalidCookieRequest(DnsDatagram request, IPAddress cookieClientAddress, bool isRecursionAllowed,
@@ -619,34 +574,50 @@ namespace DnsServerCore.Dns.Security
             IReadOnlyList<EDnsOption> options =
                 MergeCookieOption(request.EDNS?.Options, responseCookie);
 
-            ushort udpPayload = request.EDNS?.UdpPayloadSize ?? 512;
-            EDnsHeaderFlags flags = request.EDNS?.Flags ?? EDnsHeaderFlags.None;
+            // BADCOOKIE is a COOKIE protocol retry signal, not an RRL slip or DNS
+            // truncation response, which is why nothing here sets TC. Reflection RRL may
+            // independently drop the unverified UDP request before this response is emitted.
+            return BuildCookieResponse(request, request.OPCODE, DnsResponseCode.BADCOOKIE, isRecursionAllowed,
+                request.EDNS?.UdpPayloadSize ?? 512, request.EDNS?.Flags ?? EDnsHeaderFlags.None, options);
+        }
 
+        /// <summary>
+        /// RFC 7873 section 5.4 zero-question acknowledgement used to hand a client a fresh
+        /// Server Cookie without running the query.
+        /// </summary>
+        private static DnsDatagram BuildAcquisitionAcknowledgement(DnsDatagram request, bool isRecursionAllowed)
+        {
+            return BuildCookieResponse(request, DnsOpcode.StandardQuery, DnsResponseCode.NoError,
+                isRecursionAllowed, request.EDNS.UdpPayloadSize, request.EDNS.Flags);
+        }
+
+        /// <summary>
+        /// Builds a cookie-subsystem response that mirrors the request's identity and flags.
+        /// Every such response is authoritative, never truncated, and carries no records, so
+        /// only the opcode, RCODE, EDNS envelope and options differ between call sites.
+        /// </summary>
+        private static DnsDatagram BuildCookieResponse(DnsDatagram request, DnsOpcode opcode, DnsResponseCode rcode,
+            bool isRecursionAllowed, ushort udpPayloadSize, EDnsHeaderFlags ednsFlags, IReadOnlyList<EDnsOption> options = null)
+        {
             return new DnsDatagram(
                 request.Identifier,
                 true,
-                request.OPCODE,
-                false,
-                // BADCOOKIE is a COOKIE protocol retry signal, not an RRL slip or
-                // DNS truncation response. Reflection RRL may independently drop
-                // the unverified UDP request before this response is emitted.
+                opcode,
+                authoritativeAnswer: false,
                 truncation: false,
                 recursionDesired: request.RecursionDesired,
                 recursionAvailable: isRecursionAllowed,
                 authenticData: false,
                 checkingDisabled: request.CheckingDisabled,
-                DnsResponseCode.BADCOOKIE,
+                rcode,
                 request.Question,
                 null,
                 null,
                 null,
-                udpPayload,
-                flags,
-                options
-            )
-            {
-                Tag = DnsServerResponseType.Authoritative
-            };
+                udpPayloadSize,
+                ednsFlags,
+                options)
+            { Tag = DnsServerResponseType.Authoritative };
         }
 
         private static IReadOnlyList<EDnsOption> MergeCookieOption(IReadOnlyList<EDnsOption> existing, EDnsCookieOptionData cookieData)
