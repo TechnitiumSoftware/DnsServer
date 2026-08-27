@@ -35,16 +35,25 @@ namespace DnsServerCore.Dns.Security
     {
         #region constants
 
-        // This state format is introduced with DNS Cookie support and has not yet
-        // acquired a released compatibility contract. Keep one canonical layout until
-        // a published version needs a migration reader.
-        private const int CurrentFileVersion = 6;
+        private const int LegacyFileVersion = 1;
+        private const int PreviousFileVersion = 2;
+        // Version 3 was emitted with rollover state before the timestamp. Retain a
+        // dedicated reader for that layout so existing instances can migrate safely.
+        private const int BrokenCurrentFileVersion = 3;
+        private const int PreviousCurrentFileVersion = 4;
+        private const int CurrentFileVersion = 5;
 
-        // RFC 9018 Version 1 uses SipHash-2-4, which has a 128-bit key.
+        // RFC 9018 Version 1 uses SipHash-2-4, which has a 128-bit key. New state
+        // is always exactly this size; a larger persisted legacy secret is read using
+        // its historical first-16-byte effective key and normalized on the next write.
         internal const int EffectiveSecretLength = 16;
+        private const int LegacySecretMaxLength = 256;
 
-        private const int SerializedMetadataSize = sizeof(int) + (2 * sizeof(long)) + sizeof(byte) + (2 * sizeof(int));
-        internal const int MaxSerializedStateSize = SerializedMetadataSize + (2 * EffectiveSecretLength);
+        // Serialized state contains versioned timestamps and length fields for the
+        // active, previous-validation, and manually staged secrets. The read limit
+        // permits legacy storage until it is legitimately rewritten.
+        private const int SerializedMetadataSize = sizeof(int) + (2 * sizeof(long)) + (3 * sizeof(int));
+        internal const int MaxSerializedStateSize = SerializedMetadataSize + (3 * LegacySecretMaxLength);
 
         private const int DefaultSecretLen = EffectiveSecretLength;
 
@@ -74,10 +83,14 @@ namespace DnsServerCore.Dns.Security
                 Snapshot loaded = LoadLocked();
                 if (loaded is null)
                 {
-                    loaded = new Snapshot(0, DnsCookieSecretRolloverState.None,
+                    loaded = new Snapshot(CurrentFileVersion, 0, DnsCookieSecretRolloverState.None,
                         GenerateSecret(), DateTime.UtcNow, null);
                     SaveLocked(loaded);
                 }
+                // Legacy storage remains untouched at startup. It is read through the
+                // first-16-byte effective key and becomes canonical only when a later
+                // lifecycle operation legitimately persists a replacement snapshot.
+
                 Volatile.Write(ref _snapshot, loaded);
             }
         }
@@ -102,19 +115,51 @@ namespace DnsServerCore.Dns.Security
                 using BinaryReader br = new BinaryReader(stream);
 
                 int version = br.ReadInt32();
-                if (version != CurrentFileVersion)
+                if (version < LegacyFileVersion || version > CurrentFileVersion)
                     throw new InvalidDataException($"Unsupported DNS Cookie secret state version: {version}.");
 
-                long generation = br.ReadInt64();
+                if (version == BrokenCurrentFileVersion)
+                    return ReadBrokenVersion3(br, stream, version);
+
+                long generation = version == CurrentFileVersion ? br.ReadInt64() : 0;
                 if (generation < 0)
                     throw new InvalidDataException("Invalid DNS Cookie secret generation.");
 
                 DateTime createdUtc = ReadCreatedUtc(br);
-                byte[] active = ReadSecret(br, "active", required: true);
-                DnsCookieSecretRolloverState rolloverState = ReadRolloverState(br);
-                byte[] secondary = ReadSecret(br, "secondary", required: false);
+                byte[] active = ReadActiveSecret(br);
+
+                if (version == CurrentFileVersion || version == PreviousCurrentFileVersion)
+                {
+                    DnsCookieSecretRolloverState rolloverState = ReadRolloverState(br);
+                    byte[] secondary = ReadOptionalSecret(br, "secondary");
+                    EnsureEndOfFile(stream);
+                    return new Snapshot(version, generation, rolloverState, active, createdUtc, secondary);
+                }
+
+                byte[] legacySecondary;
+                if (version == LegacyFileVersion)
+                {
+                    legacySecondary = ReadOptionalSecret(br, "staging");
+                }
+                else if (version == PreviousFileVersion)
+                {
+                    // Version 2 could store an ambiguous previous and staged slot. Its
+                    // format cannot prove intent, so retain one existing secondary as
+                    // validation-only rather than ever auto-activating it.
+                    _ = br.ReadInt64(); // legacy retirement metadata
+                    byte[] previous = ReadOptionalSecret(br, "previous");
+                    byte[] stagedNext = ReadOptionalSecret(br, "staged next");
+                    legacySecondary = previous ?? stagedNext;
+                }
+                else
+                {
+                    throw new InvalidDataException($"Unsupported DNS Cookie secret state version: {version}.");
+                }
+
                 EnsureEndOfFile(stream);
-                return new Snapshot(generation, rolloverState, active, createdUtc, secondary);
+                return new Snapshot(version, 0,
+                    legacySecondary is null ? DnsCookieSecretRolloverState.None : DnsCookieSecretRolloverState.Activated,
+                    active, createdUtc, legacySecondary);
             }
             catch (FileNotFoundException)
             {
@@ -151,19 +196,30 @@ namespace DnsServerCore.Dns.Security
             return new DateTime(createdUtcTicks, DateTimeKind.Utc);
         }
 
-        private static byte[] ReadSecret(BinaryReader reader, string name, bool required)
+        private static byte[] ReadActiveSecret(BinaryReader reader)
+        {
+            int currentLen = reader.ReadInt32();
+            if (currentLen < EffectiveSecretLength || currentLen > LegacySecretMaxLength)
+                throw new InvalidDataException("Invalid current secret length.");
+
+            byte[] active = reader.ReadBytes(currentLen);
+            if (active.Length != currentLen)
+                throw new EndOfStreamException("Unexpected end of secret file (active secret).");
+
+            return ToEffectiveSecret(active);
+        }
+
+        private static byte[] ReadOptionalSecret(BinaryReader reader, string name)
         {
             int length = reader.ReadInt32();
-            if (!required && length == 0)
+            if (length == 0)
                 return null;
-            if (length != EffectiveSecretLength)
+            if (length < EffectiveSecretLength || length > LegacySecretMaxLength)
                 throw new InvalidDataException($"Invalid {name} secret length.");
-
-            byte[] secret = reader.ReadBytes(length);
-            if (secret.Length != length)
+            byte[] value = reader.ReadBytes(length);
+            if (value.Length != length)
                 throw new EndOfStreamException($"Unexpected end of secret file ({name} secret).");
-
-            return secret;
+            return ToEffectiveSecret(value);
         }
 
         private static void EnsureEndOfFile(Stream stream)
@@ -192,6 +248,18 @@ namespace DnsServerCore.Dns.Security
             activeId = SecretId(snapshot.Active);
             stagingId = SecretId(GetSecondary(snapshot, DnsCookieSecretRolloverState.Staged));
             activeCreatedUtc = snapshot.ActiveCreatedUtc;
+        }
+
+        // Version 3 wrote the same fields in a different order, so it needs its own reader
+        // even though the individual field readers are shared with the current layout.
+        private static Snapshot ReadBrokenVersion3(BinaryReader br, Stream stream, int version)
+        {
+            DnsCookieSecretRolloverState rolloverState = ReadRolloverState(br);
+            DateTime createdUtc = ReadCreatedUtc(br);
+            byte[] active = ReadActiveSecret(br);
+            byte[] secondary = ReadOptionalSecret(br, "secondary");
+            EnsureEndOfFile(stream);
+            return new Snapshot(version, 0, rolloverState, active, createdUtc, secondary);
         }
 
         private static DnsCookieSecretRolloverState ReadRolloverState(BinaryReader br)
@@ -317,6 +385,14 @@ namespace DnsServerCore.Dns.Security
             return RandomNumberGenerator.GetBytes(DefaultSecretLen);
         }
 
+        private static byte[] ToEffectiveSecret(ReadOnlySpan<byte> secret)
+        {
+            if (secret.Length < EffectiveSecretLength)
+                throw new ArgumentException($"Secret must contain at least {EffectiveSecretLength} bytes.", nameof(secret));
+
+            return secret[..EffectiveSecretLength].ToArray();
+        }
+
         /// <summary>The secondary slot only holds a secret while the rollover is in the matching state.</summary>
         private static byte[] GetSecondary(Snapshot snapshot, DnsCookieSecretRolloverState requiredState)
         {
@@ -340,9 +416,9 @@ namespace DnsServerCore.Dns.Security
         {
             return Transition(null, current => current.RolloverState switch
             {
-                DnsCookieSecretRolloverState.None => new Snapshot(NextGeneration(current),
+                DnsCookieSecretRolloverState.None => new Snapshot(CurrentFileVersion, NextGeneration(current),
                     DnsCookieSecretRolloverState.Staged, current.Active, current.ActiveCreatedUtc, GenerateSecret()),
-                DnsCookieSecretRolloverState.Staged => new Snapshot(NextGeneration(current),
+                DnsCookieSecretRolloverState.Staged => new Snapshot(CurrentFileVersion, NextGeneration(current),
                     DnsCookieSecretRolloverState.Activated, current.Secondary, DateTime.UtcNow, current.Active),
                 DnsCookieSecretRolloverState.Activated => null, //retirement stays manual
                 _ => throw new InvalidOperationException("The DNS Cookie rollover state is invalid.")
@@ -421,7 +497,7 @@ namespace DnsServerCore.Dns.Security
                 if (current.RolloverState != DnsCookieSecretRolloverState.None)
                     throw new InvalidOperationException("A DNS Cookie rollover is already in progress.");
 
-                return new Snapshot(NextGeneration(current), DnsCookieSecretRolloverState.Staged,
+                return new Snapshot(CurrentFileVersion, NextGeneration(current), DnsCookieSecretRolloverState.Staged,
                     current.Active, current.ActiveCreatedUtc, stagedSecret);
             });
         }
@@ -448,7 +524,7 @@ namespace DnsServerCore.Dns.Security
                 if (current.RolloverState != DnsCookieSecretRolloverState.Staged || current.Secondary is null)
                     throw new InvalidOperationException("There is no staging secret to activate.");
 
-                return new Snapshot(NextGeneration(current), DnsCookieSecretRolloverState.Activated,
+                return new Snapshot(CurrentFileVersion, NextGeneration(current), DnsCookieSecretRolloverState.Activated,
                     current.Secondary, DateTime.UtcNow, current.Active);
             });
         }
@@ -467,7 +543,7 @@ namespace DnsServerCore.Dns.Security
                 if (current.RolloverState != DnsCookieSecretRolloverState.Staged)
                     throw new InvalidOperationException("There is no staging secret to drop.");
 
-                return new Snapshot(NextGeneration(current), DnsCookieSecretRolloverState.None,
+                return new Snapshot(CurrentFileVersion, NextGeneration(current), DnsCookieSecretRolloverState.None,
                     current.Active, current.ActiveCreatedUtc, null);
             });
         }
@@ -479,7 +555,7 @@ namespace DnsServerCore.Dns.Security
                 if (current.RolloverState != DnsCookieSecretRolloverState.Activated)
                     throw new InvalidOperationException("There is no previous DNS Cookie secret to retire.");
 
-                return new Snapshot(NextGeneration(current), DnsCookieSecretRolloverState.None,
+                return new Snapshot(CurrentFileVersion, NextGeneration(current), DnsCookieSecretRolloverState.None,
                     current.Active, current.ActiveCreatedUtc, null);
             });
         }
@@ -564,13 +640,14 @@ namespace DnsServerCore.Dns.Security
 
         private sealed class Snapshot
         {
+            internal readonly int FormatVersion;
             internal readonly long Generation;
             internal readonly DnsCookieSecretRolloverState RolloverState;
             internal readonly byte[] Active;
             internal readonly DateTime ActiveCreatedUtc;
             internal readonly byte[] Secondary;
 
-            internal Snapshot(long generation, DnsCookieSecretRolloverState rolloverState,
+            internal Snapshot(int formatVersion, long generation, DnsCookieSecretRolloverState rolloverState,
                 byte[] active, DateTime activeCreatedUtc, byte[] secondary)
             {
                 if (generation < 0)
@@ -579,18 +656,15 @@ namespace DnsServerCore.Dns.Security
                     throw new ArgumentOutOfRangeException(nameof(rolloverState));
                 if (active is null)
                     throw new ArgumentNullException(nameof(active));
-                if (active.Length != EffectiveSecretLength)
-                    throw new ArgumentException($"Active secret must be exactly {EffectiveSecretLength} bytes.", nameof(active));
                 if ((rolloverState == DnsCookieSecretRolloverState.None) != (secondary is null))
                     throw new ArgumentException("A secondary secret is required only while a rollover is in progress.", nameof(secondary));
-                if (secondary is not null && secondary.Length != EffectiveSecretLength)
-                    throw new ArgumentException($"Secondary secret must be exactly {EffectiveSecretLength} bytes.", nameof(secondary));
 
+                FormatVersion = formatVersion;
                 Generation = generation;
                 RolloverState = rolloverState;
-                Active = CopySecret(active);
+                Active = ToEffectiveSecret(active);
                 ActiveCreatedUtc = activeCreatedUtc;
-                Secondary = CopySecret(secondary);
+                Secondary = secondary is null ? null : ToEffectiveSecret(secondary);
             }
         }
     }
