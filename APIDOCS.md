@@ -5538,12 +5538,12 @@ RESPONSE FIELDS:
 - `activeSecretId` / `stagingSecretId`: identifiers for the currently active and (if any) staged secret. `stagingSecretId` is `null` when no staged secret exists.
 - `antiReflectionProtectionComplete`: `false` when `useDnsCookies` is `true` but `enableResponseRateLimiting` is `false` — in that state a `warning` field is also present (see below), because valid cookies alone establish return-routability but unverified spoofable UDP traffic is not covered by the DNS Cookie/RRL anti-reflection policy without RRL also enabled.
 
-#### Add DNS Cookie Secret
+#### Generate Staged DNS Cookie Secret
 
-Adds a new DNS Cookie secret as the staged secret. Used for gradual anycast secret rotation per RFC 9018 §5. Fails if a staged secret already exists. Returns the same payload as [Get DNS Cookie Settings](#get-dns-cookie-settings), now reflecting the newly staged secret.
+Generates a new DNS Cookie secret as the staged secret. Used for gradual anycast secret rotation per RFC 9018 §5. Fails if a staged secret already exists. Returns the same payload as [Get DNS Cookie Settings](#get-dns-cookie-settings), now reflecting the newly staged secret.
 
 URL:\
-`http://localhost:5380/api/settings/dnsCookies/addSecret`
+`http://localhost:5380/api/settings/dnsCookies/generateStagedSecret`
 
 PERMISSIONS:\
 Settings: Modify
@@ -5633,7 +5633,7 @@ OPERATIONAL NOTES:
 - **RFC 7873 §7**: DNS Cookie implementation includes pseudorandom jitter (0-40% reduction) applied to secret rotation schedule to prevent synchronized rotations in anycast deployments. This distributed jitter reduces the risk of all replicas generating new keys simultaneously, which could cause coordinated validator-key mismatches.
 - **RFC 9018 §4.3 (Anycast Clock Synchronization)**: When deploying DNS Cookies in an anycast cluster, ensure all servers have their clocks synchronized within acceptable limits (~1 second). The server cookie timestamp validation uses RFC 1982 serial arithmetic with a window of 1 hour past and 5 minutes future. Clock skew across replicas can cause BADCOOKIE responses when clients query different servers with the same cached cookie.
 - **Three-Stage Rollout (RFC 9018 §5)**: For zero-downtime secret rotation in anycast:
-  1. Add staging secret via `addSecret` (clients still use old key).
+  1. Generate a staged secret via `generateStagedSecret` (clients still use old key).
   2. Wait ≥(longest zone TTL + 1 hour) to ensure downstream caches expire.
   3. Activate via `activateSecret` (new key becomes active, old becomes staging).
   4. Wait ~70 minutes (automatic retention) or call `dropSecret` to remove old key.

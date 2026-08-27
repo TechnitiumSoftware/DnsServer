@@ -578,9 +578,6 @@ namespace DnsServerCore
                 GetDnsCookieSecrets(context);
             }
 
-            public void AddDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context,
-                expectedGeneration => _dnsWebService._dnsServer.GenerateDnsCookieStagedSecret(expectedGeneration), "staging secret addition");
-
             public void GenerateDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context,
                 expectedGeneration => _dnsWebService._dnsServer.GenerateDnsCookieStagedSecret(expectedGeneration), "generated staging secret addition");
 

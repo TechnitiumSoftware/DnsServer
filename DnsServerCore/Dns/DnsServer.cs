@@ -8048,8 +8048,6 @@ namespace DnsServerCore.Dns
 
         public DateTime? ActiveDnsCookieSecretCreatedUtc => TryGetDnsCookieSecretStatus(out _, out _, out DateTime activeCreatedUtc) ? activeCreatedUtc : null;
 
-        public void AddDnsCookieSecret() => GenerateDnsCookieStagedSecret();
-
         public void GenerateDnsCookieStagedSecret(long? expectedGeneration = null) =>
             _cookieCoordinator.UpdateSecrets(_useDnsCookies, secrets => secrets.GenerateStagedSecret(expectedGeneration));
 

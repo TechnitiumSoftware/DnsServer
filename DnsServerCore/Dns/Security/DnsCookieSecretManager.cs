@@ -405,8 +405,6 @@ namespace DnsServerCore.Dns.Security
         /// Throws InvalidOperationException if a staging secret already exists.
         /// See RFC 9018 §5 and APIDOCS.md DNS Cookie section for operational guidance.
         /// </summary>
-        public void AddStaging() => GenerateStagedSecret();
-
         public void GenerateStagedSecret(long? expectedGeneration = null) => StageSecret(GenerateSecret(), expectedGeneration);
 
         public void StageSecret(ReadOnlySpan<byte> secret, long? expectedGeneration = null)
