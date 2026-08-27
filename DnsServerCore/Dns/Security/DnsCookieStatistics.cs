@@ -1,6 +1,6 @@
 /*
 Technitium DNS Server
-Copyright (C) 2024  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026 Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -25,73 +25,41 @@ namespace DnsServerCore.Dns.Security
     /// RFC 9018 §9: "If the server detects that more than a certain percentage of queries
     /// result in a server cookie, the server might want to generate fresh keys more frequently."
     /// </summary>
-    public class DnsCookieStatistics
-    {
-        #region constructor
-
-        public DnsCookieStatistics(long validationInvocations, long validCount, long validCurrentCount, long validRenewCount,
-            long invalidCount, long malformedCount, long missingCount, long badCookieSentCount, long clientOnlyCount)
-        {
-            ValidationInvocations = validationInvocations;
-            ValidCount = validCount;
-            ValidCurrentCount = validCurrentCount;
-            ValidRenewCount = validRenewCount;
-            InvalidCount = invalidCount;
-            MalformedCount = malformedCount;
-            MissingCount = missingCount;
-            BadCookieSentCount = badCookieSentCount;
-            ClientOnlyCount = clientOnlyCount;
-        }
-
-        #endregion
-
-        #region properties
-
-        /// <summary>
-        /// Total number of times cookie classification was invoked (all requests with EDNS enabled).
-        /// </summary>
-        public long ValidationInvocations { get; }
-
-        /// <summary>
-        /// Number of requests with valid server cookies (bypassed reflection RRL).
-        /// High ratio indicates legitimate traffic or an active attack from a sophisticated resolver.
-        /// </summary>
-        public long ValidCount { get; }
-
-        /// <summary>Number of requests validated by the current Active secret.</summary>
-        public long ValidCurrentCount { get; }
-
-        /// <summary>Number of requests accepted with a prior secret and renewed with Active.</summary>
-        public long ValidRenewCount { get; }
-
-        /// <summary>
-        /// Number of requests with invalid (rejected) server cookies.
-        /// Can indicate: (1) forged cookies, (2) expired keys, (3) anycast clock skew, (4) truncation/corruption.
-        /// </summary>
-        public long InvalidCount { get; }
-
-        /// <summary>Number of structurally malformed COOKIE options that received FORMERR.</summary>
-        public long MalformedCount { get; }
-
-        /// <summary>
-        /// Number of requests with no server cookie (client cookie only, or neither).
-        /// Expected for first-time queries; high ratio for repeated clients may indicate client loss or attack.
-        /// </summary>
-        public long MissingCount { get; }
-
-        /// <summary>
-        /// Number of times BADCOOKIE (RCODE 23) was sent due to invalid server cookie.
-        /// High rate indicates attack attempts or widespread key rotation/clock skew.
-        /// RFC 9018 §9: If high rate detected, rotate keys more frequently.
-        /// </summary>
-        public long BadCookieSentCount { get; }
-
-        /// <summary>
-        /// Number of requests with client cookie but no server cookie (initial acquisition phase).
-        /// Expected for first ~5 minutes after server restart; should stabilize as clients cache cookies.
-        /// </summary>
-        public long ClientOnlyCount { get; }
-
-        #endregion
-    }
+    /// <param name="ValidationInvocations">
+    /// Total number of times cookie classification was invoked (all requests with EDNS enabled).
+    /// </param>
+    /// <param name="ValidCount">
+    /// Number of requests with valid server cookies (bypassed reflection RRL).
+    /// High ratio indicates legitimate traffic or an active attack from a sophisticated resolver.
+    /// </param>
+    /// <param name="ValidCurrentCount">Number of requests validated by the current Active secret.</param>
+    /// <param name="ValidRenewCount">Number of requests accepted with a prior secret and renewed with Active.</param>
+    /// <param name="InvalidCount">
+    /// Number of requests with invalid (rejected) server cookies.
+    /// Can indicate: (1) forged cookies, (2) expired keys, (3) anycast clock skew, (4) truncation/corruption.
+    /// </param>
+    /// <param name="MalformedCount">Number of structurally malformed COOKIE options that received FORMERR.</param>
+    /// <param name="MissingCount">
+    /// Number of requests with no server cookie (client cookie only, or neither).
+    /// Expected for first-time queries; high ratio for repeated clients may indicate client loss or attack.
+    /// </param>
+    /// <param name="BadCookieSentCount">
+    /// Number of times BADCOOKIE (RCODE 23) was sent due to invalid server cookie.
+    /// High rate indicates attack attempts or widespread key rotation/clock skew.
+    /// RFC 9018 §9: If high rate detected, rotate keys more frequently.
+    /// </param>
+    /// <param name="ClientOnlyCount">
+    /// Number of requests with client cookie but no server cookie (initial acquisition phase).
+    /// Expected for first ~5 minutes after server restart; should stabilize as clients cache cookies.
+    /// </param>
+    public readonly record struct DnsCookieStatistics(
+        long ValidationInvocations,
+        long ValidCount,
+        long ValidCurrentCount,
+        long ValidRenewCount,
+        long InvalidCount,
+        long MalformedCount,
+        long MissingCount,
+        long BadCookieSentCount,
+        long ClientOnlyCount);
 }

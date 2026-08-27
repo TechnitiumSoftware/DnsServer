@@ -193,8 +193,9 @@ namespace DnsServerCore.Dns.Security
         private const byte PromotionObservationThreshold = 3;
         private const uint StaleEpochThreshold = 4096;
         private const int MaximumCanonicalDnsNameBytes = 255;
-        private const byte IPv4AddressFamilyCode = 4;
-        private const byte IPv6AddressFamilyCode = 6;
+        private const byte IPv4AddressFamilyCode = AddressPrefix.IPv4FamilyCode;
+        private const byte IPv6AddressFamilyCode = AddressPrefix.IPv6FamilyCode;
+        private const ulong GoldenGamma = 0x9e3779b97f4a7c15UL;
 
         public DnsResponseRateLimiter(DnsResponseRateLimiterOptions options, TimeProvider? timeProvider = null)
             : this(options, RandomNumberGenerator.GetBytes(HashKeyWidthBytes), timeProvider)
@@ -338,7 +339,7 @@ namespace DnsServerCore.Dns.Security
             {
                 network.Clear();
                 addressBytes[..addressLength].CopyTo(network);
-                MaskHostBits(network[..addressLength], prefixLength);
+                AddressPrefix.MaskHostBits(network[..addressLength], prefixLength);
                 DnsResponseRateLimitKey key = new DnsResponseRateLimitKey(
                     MemoryMarshal.Read<ulong>(network), MemoryMarshal.Read<ulong>(network[8..]), responseIdentity,
                     queryType, queryClass, category, family, (byte)prefixLength);
@@ -379,7 +380,7 @@ namespace DnsServerCore.Dns.Security
             key[0] = address.AddressFamily == AddressFamily.InterNetwork ? (byte)4 : (byte)6;
             key[1] = (byte)prefixLength;
             bytes[..length].CopyTo(key[2..]);
-            MaskHostBits(key.Slice(2, length), prefixLength);
+            AddressPrefix.MaskHostBits(key.Slice(2, length), prefixLength);
             return Locate(key[..(length + 2)]);
         }
 
@@ -484,11 +485,7 @@ namespace DnsServerCore.Dns.Security
             int first = (int)((firstHash >> 32) % (uint)length);
             // One keyed PRF supplies the attacker-resistant fingerprint and first
             // placement. SplitMix-style finalization cheaply derives a second choice.
-            ulong mixed = firstHash + 0x9e3779b97f4a7c15UL;
-            mixed = (mixed ^ (mixed >> 30)) * 0xbf58476d1ce4e5b9UL;
-            mixed = (mixed ^ (mixed >> 27)) * 0x94d049bb133111ebUL;
-            mixed ^= mixed >> 31;
-            int second = (int)(mixed % (uint)length);
+            int second = (int)(SplitMix64(firstHash + GoldenGamma) % (uint)length);
             return (shardIndex, first, second);
         }
 
@@ -547,10 +544,15 @@ namespace DnsServerCore.Dns.Security
             if (candidate == 1)
                 return second;
 
-            ulong mixed = fingerprint + (0x9e3779b97f4a7c15UL * (uint)candidate);
-            mixed = (mixed ^ (mixed >> 30)) * 0xbf58476d1ce4e5b9UL;
-            mixed = (mixed ^ (mixed >> 27)) * 0x94d049bb133111ebUL;
-            return (int)((mixed ^ (mixed >> 31)) % (uint)length);
+            return (int)(SplitMix64(fingerprint + (GoldenGamma * (uint)candidate)) % (uint)length);
+        }
+
+        /// <summary>SplitMix64 finalization, used to derive extra placements from one keyed hash.</summary>
+        private static ulong SplitMix64(ulong value)
+        {
+            value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9UL;
+            value = (value ^ (value >> 27)) * 0x94d049bb133111ebUL;
+            return value ^ (value >> 31);
         }
 
         /// <summary>Unsigned subtraction preserves recency ordering across one epoch wrap.</summary>
@@ -573,15 +575,6 @@ namespace DnsServerCore.Dns.Security
                 copy[i] = prefix;
             }
             return copy;
-        }
-
-        private static void MaskHostBits(Span<byte> bytes, int prefixLength)
-        {
-            int wholeBytes = prefixLength / 8;
-            int remainingBits = prefixLength % 8;
-            if (remainingBits != 0)
-                bytes[wholeBytes++] &= (byte)(0xff << (8 - remainingBits));
-            bytes[wholeBytes..].Clear();
         }
     }
 }

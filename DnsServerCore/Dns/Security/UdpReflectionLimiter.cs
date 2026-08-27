@@ -10,7 +10,6 @@
 
 using System;
 using System.Net;
-using System.Net.Sockets;
 using System.Security.Cryptography;
 
 namespace DnsServerCore.Dns.Security
@@ -142,49 +141,20 @@ namespace DnsServerCore.Dns.Security
 
         private ulong GetSourcePrefixHash(IPAddress sourceAddress)
         {
-            Span<byte> keyMaterial = stackalloc byte[17];
-            int addressLength;
-            int prefixLength;
+            Span<byte> keyMaterial = stackalloc byte[1 + AddressPrefix.MaximumAddressLength];
 
-            if (sourceAddress.AddressFamily == AddressFamily.InterNetwork)
-            {
-                keyMaterial[0] = 4;
-                addressLength = 4;
-                prefixLength = IPv4PrefixLength;
-                sourceAddress.TryWriteBytes(keyMaterial[1..5], out _);
-            }
-            else if (sourceAddress.AddressFamily == AddressFamily.InterNetworkV6)
-            {
-                if (sourceAddress.IsIPv4MappedToIPv6)
-                    return GetSourcePrefixHash(sourceAddress.MapToIPv4());
-
-                keyMaterial[0] = 6;
-                addressLength = 16;
-                prefixLength = IPv6PrefixLength;
-                sourceAddress.TryWriteBytes(keyMaterial[1..], out _);
-            }
-            else
-            {
+            // Canonicalizing here is what keeps an IPv4-mapped source from getting its own
+            // bucket separate from the same peer arriving as plain IPv4.
+            if (!AddressPrefix.TryWriteCanonical(sourceAddress, keyMaterial[1..], out int addressLength, out byte familyCode))
                 throw new ArgumentException("Only IPv4 and IPv6 source addresses are supported.", nameof(sourceAddress));
-            }
 
-            MaskHostBits(keyMaterial.Slice(1, addressLength), prefixLength);
+            keyMaterial[0] = familyCode;
+
+            AddressPrefix.MaskHostBits(keyMaterial.Slice(1, addressLength),
+                familyCode == AddressPrefix.IPv4FamilyCode ? IPv4PrefixLength : IPv6PrefixLength);
+
             ulong hash = SipHash24.Compute(_hashKey, keyMaterial[..(addressLength + 1)]);
             return hash == 0 ? 1UL : hash;
-        }
-
-        private static void MaskHostBits(Span<byte> address, int prefixLength)
-        {
-            int wholeBytes = prefixLength / 8;
-            int remainingBits = prefixLength % 8;
-
-            if (remainingBits != 0 && wholeBytes < address.Length)
-            {
-                address[wholeBytes] &= (byte)(0xff << (8 - remainingBits));
-                wholeBytes++;
-            }
-
-            address[wholeBytes..].Clear();
         }
 
         private static object[] CreateShards()
