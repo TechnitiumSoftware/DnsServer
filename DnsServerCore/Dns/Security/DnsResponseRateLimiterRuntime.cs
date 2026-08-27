@@ -34,24 +34,6 @@ namespace DnsServerCore.Dns.Security
     /// </summary>
     public readonly record struct ResponseRateLimitingOptions(bool Enabled, int SustainedRate, int InstantLimit, int SlipEvery, int TableSize, IReadOnlyCollection<NetworkAddress> BypassList);
 
-    readonly record struct RrlPolicySettings(bool Enabled, ImmutableArray<NetworkAddress> BypassList, NetworkPrefixMatcher BypassMatcher);
-
-    [Flags]
-    enum RrlLimiterSemanticChanges
-    {
-        None = 0,
-        Capacity = 1 << 0,
-        ShardCount = 1 << 1,
-        SustainedRate = 1 << 2,
-        DecayTime = 1 << 3,
-        InstantLimit = 1 << 4,
-        InstantWindow = 1 << 5,
-        SlipEvery = 1 << 6,
-        IPv4Prefixes = 1 << 7,
-        IPv6Prefixes = 1 << 8,
-        KeyInterpretation = 1 << 9
-    }
-
     enum RrlKeyInterpretation
     {
         ResponseIdentityV1
@@ -71,31 +53,27 @@ namespace DnsServerCore.Dns.Security
         RrlKeyInterpretation KeyInterpretation)
     {
         /// <summary>
-        /// Identifies changes that alter the table layout, token/window accounting, slip
+        /// Determines whether a change alters the table layout, token/window accounting, slip
         /// counters, address aggregation, or response-identity keys stored in limiter history.
         /// </summary>
-        public RrlLimiterSemanticChanges GetHistoryAffectingChanges(in RrlLimiterSemanticSettings other)
+        public bool RequiresHistoryRebuild(in RrlLimiterSemanticSettings other)
         {
-            RrlLimiterSemanticChanges changes = RrlLimiterSemanticChanges.None;
-            if (Capacity != other.Capacity) changes |= RrlLimiterSemanticChanges.Capacity;
-            if (ShardCount != other.ShardCount) changes |= RrlLimiterSemanticChanges.ShardCount;
-            if (ScaledTokensPerSecond != other.ScaledTokensPerSecond) changes |= RrlLimiterSemanticChanges.SustainedRate;
-            if (ScaledTokenCapacity != other.ScaledTokenCapacity) changes |= RrlLimiterSemanticChanges.DecayTime;
-            if (InstantLimit != other.InstantLimit) changes |= RrlLimiterSemanticChanges.InstantLimit;
-            if (InstantWindowTimestampUnits != other.InstantWindowTimestampUnits) changes |= RrlLimiterSemanticChanges.InstantWindow;
-            if (SlipEvery != other.SlipEvery) changes |= RrlLimiterSemanticChanges.SlipEvery;
-            if (!IPv4PrefixLengths.AsSpan().SequenceEqual(other.IPv4PrefixLengths.AsSpan())) changes |= RrlLimiterSemanticChanges.IPv4Prefixes;
-            if (!IPv6PrefixLengths.AsSpan().SequenceEqual(other.IPv6PrefixLengths.AsSpan())) changes |= RrlLimiterSemanticChanges.IPv6Prefixes;
-            if (KeyInterpretation != other.KeyInterpretation) changes |= RrlLimiterSemanticChanges.KeyInterpretation;
-            return changes;
+            return Capacity != other.Capacity ||
+                ShardCount != other.ShardCount ||
+                ScaledTokensPerSecond != other.ScaledTokensPerSecond ||
+                ScaledTokenCapacity != other.ScaledTokenCapacity ||
+                InstantLimit != other.InstantLimit ||
+                InstantWindowTimestampUnits != other.InstantWindowTimestampUnits ||
+                SlipEvery != other.SlipEvery ||
+                !IPv4PrefixLengths.AsSpan().SequenceEqual(other.IPv4PrefixLengths.AsSpan()) ||
+                !IPv6PrefixLengths.AsSpan().SequenceEqual(other.IPv6PrefixLengths.AsSpan()) ||
+                KeyInterpretation != other.KeyInterpretation;
         }
 
         public NormalizedDnsResponseRateLimiterOptions ToLimiterOptions() => new NormalizedDnsResponseRateLimiterOptions(
             Capacity, ShardCount, ScaledTokenCapacity, ScaledTokensPerSecond, TimeProvider.System.TimestampFrequency,
             InstantWindowTimestampUnits, InstantLimit, SlipEvery, IPv4PrefixLengths, IPv6PrefixLengths);
     }
-
-    readonly record struct NormalizedRrlSettings(RrlPolicySettings Policy, RrlLimiterSemanticSettings Limiter);
 
     /// <summary>
     /// An immutable RRL policy generation. Instances are completely constructed before a
@@ -171,15 +149,17 @@ namespace DnsServerCore.Dns.Security
             lock (_lock)
             {
                 RrlRuntimeState current = Volatile.Read(ref _state);
-                NormalizedRrlSettings settings = NormalizeSettings(options);
-                bool rebuild = current.LimiterSettings.GetHistoryAffectingChanges(settings.Limiter) != RrlLimiterSemanticChanges.None;
+                ResponseRateLimitingOptions normalizedOptions = NormalizeOptions(options, out NetworkPrefixMatcher bypassMatcher);
+                RrlLimiterSemanticSettings limiterSettings = CreateLimiterSettings(normalizedOptions);
+                bool rebuild = current.LimiterSettings.RequiresHistoryRebuild(limiterSettings);
                 DnsResponseRateLimiter limiter = rebuild
-                    ? new DnsResponseRateLimiter(settings.Limiter.ToLimiterOptions())
+                    ? new DnsResponseRateLimiter(limiterSettings.ToLimiterOptions())
                     : current.Limiter;
                 DnsResponseRateLimiter errorLeakLimiter = rebuild
-                    ? CreateErrorLeakLimiter(settings)
+                    ? CreateErrorLeakLimiter(limiterSettings)
                     : current.ErrorLeakLimiter;
-                RrlRuntimeState replacement = CreateRuntimeState(settings, limiter, errorLeakLimiter, GetNextGeneration(current.Generation));
+                RrlRuntimeState replacement = new RrlRuntimeState(normalizedOptions, limiterSettings, limiter,
+                    errorLeakLimiter, bypassMatcher, GetNextGeneration(current.Generation));
 
                 // The previous generation remains published if any construction step above fails.
                 Volatile.Write(ref _state, replacement);
@@ -263,42 +243,40 @@ namespace DnsServerCore.Dns.Security
 
         private static RrlRuntimeState CreateRuntimeState(ResponseRateLimitingOptions options, ulong generation)
         {
-            NormalizedRrlSettings settings = NormalizeSettings(options);
-            DnsResponseRateLimiter limiter = new DnsResponseRateLimiter(settings.Limiter.ToLimiterOptions());
-            return CreateRuntimeState(settings, limiter, CreateErrorLeakLimiter(settings), generation);
+            ResponseRateLimitingOptions normalizedOptions = NormalizeOptions(options, out NetworkPrefixMatcher bypassMatcher);
+            RrlLimiterSemanticSettings limiterSettings = CreateLimiterSettings(normalizedOptions);
+            DnsResponseRateLimiter limiter = new DnsResponseRateLimiter(limiterSettings.ToLimiterOptions());
+            return new RrlRuntimeState(normalizedOptions, limiterSettings, limiter,
+                CreateErrorLeakLimiter(limiterSettings), bypassMatcher, generation);
         }
 
-        private static RrlRuntimeState CreateRuntimeState(NormalizedRrlSettings settings, DnsResponseRateLimiter limiter,
-            DnsResponseRateLimiter errorLeakLimiter, ulong generation)
-        {
-            ResponseRateLimitingOptions options = new ResponseRateLimitingOptions(
-                settings.Policy.Enabled, settings.Limiter.SustainedRatePerSecond, settings.Limiter.InstantLimit,
-                settings.Limiter.SlipEvery, settings.Limiter.Capacity, settings.Policy.BypassList);
-            return new RrlRuntimeState(options, settings.Limiter, limiter, errorLeakLimiter, settings.Policy.BypassMatcher, generation);
-        }
-
-        private static DnsResponseRateLimiter CreateErrorLeakLimiter(NormalizedRrlSettings settings)
+        private static DnsResponseRateLimiter CreateErrorLeakLimiter(RrlLimiterSemanticSettings limiterSettings)
         {
             DnsResponseRateLimiterOptions options = new DnsResponseRateLimiterOptions
             {
-                Capacity = Math.Min(ErrorLeakTableSize, settings.Limiter.Capacity),
+                Capacity = Math.Min(ErrorLeakTableSize, limiterSettings.Capacity),
                 ShardCount = 1,
                 SustainedRate = ErrorLeakRatePerSecond,
                 DecayTime = TimeSpan.FromSeconds(1),
                 InstantLimit = ErrorLeakInstantLimit,
                 InstantWindow = TimeSpan.FromSeconds(1),
                 SlipEvery = 0,
-                IPv4PrefixLengths = settings.Limiter.IPv4PrefixLengths,
-                IPv6PrefixLengths = settings.Limiter.IPv6PrefixLengths
+                IPv4PrefixLengths = limiterSettings.IPv4PrefixLengths,
+                IPv6PrefixLengths = limiterSettings.IPv6PrefixLengths
             };
             return new DnsResponseRateLimiter(options);
         }
 
-        private static NormalizedRrlSettings NormalizeSettings(ResponseRateLimitingOptions options)
+        private static ResponseRateLimitingOptions NormalizeOptions(ResponseRateLimitingOptions options, out NetworkPrefixMatcher bypassMatcher)
         {
             ValidateOptions(options);
-            NetworkPrefixMatcher bypassMatcher = NetworkPrefixMatcher.Create(options.BypassList, out ImmutableArray<NetworkAddress> bypassNetworks);
-            RrlPolicySettings policy = new RrlPolicySettings(options.Enabled, bypassNetworks, bypassMatcher);
+            bypassMatcher = NetworkPrefixMatcher.Create(options.BypassList, out ImmutableArray<NetworkAddress> bypassNetworks);
+            return new ResponseRateLimitingOptions(options.Enabled, options.SustainedRate, options.InstantLimit,
+                options.SlipEvery, options.TableSize, bypassNetworks);
+        }
+
+        private static RrlLimiterSemanticSettings CreateLimiterSettings(ResponseRateLimitingOptions options)
+        {
             ImmutableArray<int> ipv4PrefixLengths = ImmutableArray.Create(32, 24);
             ImmutableArray<int> ipv6PrefixLengths = ImmutableArray.Create(128, 64, 56);
             NormalizedDnsResponseRateLimiterOptions normalizedLimiter = new DnsResponseRateLimiterOptions
@@ -313,12 +291,11 @@ namespace DnsServerCore.Dns.Security
                 IPv4PrefixLengths = ipv4PrefixLengths,
                 IPv6PrefixLengths = ipv6PrefixLengths
             }.Normalize(TimeProvider.System.TimestampFrequency);
-            RrlLimiterSemanticSettings limiter = new RrlLimiterSemanticSettings(
+            return new RrlLimiterSemanticSettings(
                 normalizedLimiter.Capacity, normalizedLimiter.ShardCount, options.SustainedRate,
                 normalizedLimiter.ScaledTokenCapacity, normalizedLimiter.ScaledTokensPerSecond,
                 normalizedLimiter.InstantLimit, normalizedLimiter.InstantWindowTimestampUnits,
                 normalizedLimiter.SlipEvery, ipv4PrefixLengths, ipv6PrefixLengths, RrlKeyInterpretation.ResponseIdentityV1);
-            return new NormalizedRrlSettings(policy, limiter);
         }
 
         // Parameter names intentionally mirror DnsServer's public ResponseRateLimit* property
