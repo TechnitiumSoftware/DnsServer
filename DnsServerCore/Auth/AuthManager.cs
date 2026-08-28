@@ -343,18 +343,9 @@ namespace DnsServerCore.Auth
             string tmpConfigFile = Path.Combine(_configFolder, "auth.tmp");
             string configFile = Path.Combine(_configFolder, "auth.config");
 
-            using (MemoryStream mS = new MemoryStream())
+            using (FileStream fS = new FileStream(tmpConfigFile, FileMode.Create, FileAccess.Write))
             {
-                //serialize config
-                WriteConfigTo(mS);
-
-                //write config
-                mS.Position = 0;
-
-                using (FileStream fS = new FileStream(tmpConfigFile, FileMode.Create, FileAccess.Write))
-                {
-                    mS.CopyTo(fS);
-                }
+                WriteConfigTo(fS);
             }
 
             File.Move(tmpConfigFile, configFile, true);
