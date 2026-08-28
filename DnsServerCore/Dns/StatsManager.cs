@@ -1841,12 +1841,12 @@ namespace DnsServerCore.Dns
 
             long _totalClients;
 
-            readonly ConcurrentDictionary<string, Counter> _queryDomains;
-            readonly ConcurrentDictionary<string, Counter> _queryBlockedDomains;
-            readonly ConcurrentDictionary<DnsResourceRecordType, Counter> _queryTypes;
-            readonly ConcurrentDictionary<DnsTransportProtocol, Counter> _protocolTypes;
-            readonly ConcurrentDictionary<IPAddress, (Counter, Counter)> _clientIpAddressesUdpTcp;
-            readonly ConcurrentDictionary<DnsQuestionRecord, Counter> _queries;
+            readonly ConcurrentDictionary<string, Counter> _queryDomains; //top domains
+            readonly ConcurrentDictionary<string, Counter> _queryBlockedDomains; //top blocked domains
+            readonly ConcurrentDictionary<DnsResourceRecordType, Counter> _queryTypes; //query type chart
+            readonly ConcurrentDictionary<DnsTransportProtocol, Counter> _protocolTypes; //protocol type chart
+            readonly ConcurrentDictionary<IPAddress, (Counter, Counter)> _clientIpAddressesUdpTcp; //top clients
+            readonly ConcurrentDictionary<DnsQuestionRecord, Counter> _queries; //for auto prefetching, not saved to disk
 
             bool _truncationFoundDuringMerge;
             long _totalClientsDailyStatsSummation;
@@ -1943,10 +1943,13 @@ namespace DnsServerCore.Dns
                         if (version >= 4)
                         {
                             int count = bR.ReadInt32();
-                            _queries = new ConcurrentDictionary<DnsQuestionRecord, Counter>(1, count);
+                            _queries = new ConcurrentDictionary<DnsQuestionRecord, Counter>(1, 0);
 
                             for (int i = 0; i < count; i++)
-                                _queries.TryAdd(new DnsQuestionRecord(bR.BaseStream), new Counter(bR.ReadInt32()));
+                            {
+                                _ = new DnsQuestionRecord(bR.BaseStream);
+                                _ = bR.ReadInt32();
+                            }
                         }
                         else
                         {
@@ -1967,6 +1970,7 @@ namespace DnsServerCore.Dns
                     case 7:
                     case 8:
                     case 9:
+                    case 10:
                         _totalQueries = bR.ReadInt64();
                         _totalNoError = bR.ReadInt64();
                         _totalServerFailure = bR.ReadInt64();
@@ -2037,21 +2041,32 @@ namespace DnsServerCore.Dns
                                 _clientIpAddressesUdpTcp.TryAdd(IPAddressExtensions.ReadFrom(bR), (new Counter(bR.ReadInt64()), new Counter()));
                         }
 
+                        if (version >= 10)
+                        {
+                            //not saved on disk
+                            _queries = new ConcurrentDictionary<DnsQuestionRecord, Counter>(1, 0);
+                        }
+                        else
                         {
                             int count = bR.ReadInt32();
-                            _queries = new ConcurrentDictionary<DnsQuestionRecord, Counter>(1, count);
+                            _queries = new ConcurrentDictionary<DnsQuestionRecord, Counter>(1, 0);
 
                             for (int i = 0; i < count; i++)
-                                _queries.TryAdd(new DnsQuestionRecord(bR.BaseStream), new Counter(bR.ReadInt64()));
+                            {
+                                _ = new DnsQuestionRecord(bR.BaseStream);
+                                _ = bR.ReadInt64();
+                            }
                         }
 
                         if (version <= 8)
                         {
                             int count = bR.ReadInt32();
-                            ConcurrentDictionary<IPAddress, Counter> errorIpAddresses = new ConcurrentDictionary<IPAddress, Counter>(1, count);
 
                             for (int i = 0; i < count; i++)
-                                errorIpAddresses.TryAdd(IPAddressExtensions.ReadFrom(bR), new Counter(bR.ReadInt64()));
+                            {
+                                _ = IPAddressExtensions.ReadFrom(bR);
+                                _ = bR.ReadInt64();
+                            }
                         }
 
                         break;
@@ -2356,7 +2371,7 @@ namespace DnsServerCore.Dns
                     truncated = true;
                 }
 
-                if (_queries.Count > limit)
+                if (!_queries.IsEmpty)
                 {
                     //only last hour queries data is required for cache auto prefetching
                     _queries.Clear();
@@ -2378,7 +2393,7 @@ namespace DnsServerCore.Dns
                     throw new DnsServerException("StatCounter must be locked.");
 
                 bW.Write(Encoding.ASCII.GetBytes("SC")); //format
-                bW.Write((byte)9); //version
+                bW.Write((byte)10); //version
 
                 bW.Write(_totalQueries);
                 bW.Write(_totalNoError);
@@ -2437,15 +2452,6 @@ namespace DnsServerCore.Dns
                         clientIpAddress.Key.WriteTo(bW);
                         bW.Write(clientIpAddress.Value.Item1.Count);
                         bW.Write(clientIpAddress.Value.Item2.Count);
-                    }
-                }
-
-                {
-                    bW.Write(_queries.Count);
-                    foreach (KeyValuePair<DnsQuestionRecord, Counter> query in _queries)
-                    {
-                        query.Key.WriteTo(bW.BaseStream, null);
-                        bW.Write(query.Value.Count);
                     }
                 }
             }
