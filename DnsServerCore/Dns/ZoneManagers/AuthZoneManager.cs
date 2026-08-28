@@ -251,20 +251,25 @@ namespace DnsServerCore.Dns.ZoneManagers
             string tmpZoneFile = Path.Combine(_dnsServer.ConfigFolder, "zones", zoneName + ".tmp");
             string zoneFile = Path.Combine(_dnsServer.ConfigFolder, "zones", zoneName + ".zone");
 
-            using (MemoryStream mS = new MemoryStream())
+            using (FileStream fS = new FileStream(tmpZoneFile, FileMode.Create, FileAccess.Write))
             {
-                //serialize zone
-                WriteZoneTo(zoneName, mS);
+                WriteZoneTo(zoneName, fS);
 
-                if (mS.Position == 0)
-                    return; //zone was not found
-
-                //write to zone file
-                mS.Position = 0;
-
-                using (FileStream fS = new FileStream(tmpZoneFile, FileMode.Create, FileAccess.Write))
+                if (fS.Position == 0)
                 {
-                    mS.CopyTo(fS);
+                    //zone was not found
+                    fS.Dispose();
+
+                    try
+                    {
+                        File.Delete(tmpZoneFile);
+                    }
+                    catch (Exception ex)
+                    {
+                        _dnsServer.LogManager.Write(ex);
+                    }
+
+                    return;
                 }
             }
 
