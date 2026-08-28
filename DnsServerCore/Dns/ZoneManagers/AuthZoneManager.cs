@@ -3259,13 +3259,21 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                             if (dnssecOk)
                             {
-                                //add proof of non existence (NXDOMAIN) to prove the qname does not exists
+                                //add proof of non existence to prove the qname does not have a RRset of its own.
+                                //When hasSubDomains is true, qname is an empty non-terminal (rCode stays NoError
+                                //above) rather than a genuinely non-existent name - RFC 4035 2.3 forbids creating
+                                //an NSEC record for an ENT, so the covering NSEC from the closest real predecessor
+                                //is the only proof available, and the wildcard-disproof step that would normally
+                                //follow must be skipped: the wildcard name it computes from qname can itself be a
+                                //real, existing record (the ENT's own child), and asserting its non-existence is
+                                //simply wrong. NSEC3 is unaffected: an ENT always gets its own NSEC3 record
+                                //(RFC 5155 7.1), so a genuine ENT never reaches this "zone not found" branch.
                                 IReadOnlyList<DnsResourceRecord> nsecRecords;
 
                                 if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
                                     nsecRecords = _root.FindNSec3ProofOfNonExistenceNxDomain(question.Name, false);
                                 else
-                                    nsecRecords = _root.FindNSecProofOfNonExistenceNxDomain(question.Name, false);
+                                    nsecRecords = _root.FindNSecProofOfNonExistenceNxDomain(question.Name, hasSubDomains);
 
                                 if (nsecRecords.Count > 0)
                                 {
