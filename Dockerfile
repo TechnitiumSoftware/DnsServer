@@ -7,7 +7,7 @@ ADD --link https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft
 RUN <<HEREDOC
   dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb
   # `dnsutils` added to include the `dig` command for troubleshooting:
-  apt-get update && apt-get install -y libmsquic dnsutils iputils-ping
+  apt-get update && apt-get install -y libmsquic dnsutils iputils-ping curl
   apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
   # `/etc/dns` is expected to exist the default directory for persisting state:
