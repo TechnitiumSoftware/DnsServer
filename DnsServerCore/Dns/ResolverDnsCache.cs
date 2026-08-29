@@ -150,7 +150,7 @@ namespace DnsServerCore.Dns
 
             ResolverDnsCache dnsCache = new ResolverDnsCache(_dnsServer, _skipDnsAppAuthoritativeRequestHandlers, true);
 
-            return _dnsServer.PriorityConditionalForwarderResolveAsync(question, eDnsClientSubnet, advancedForwardingClientSubnet, dnsCache, _skipDnsAppAuthoritativeRequestHandlers, conditionalForwarders);
+            return _dnsServer.PriorityConditionalForwarderResolveAsync(question, eDnsClientSubnet, advancedForwardingClientSubnet, dnsCache, _skipDnsAppAuthoritativeRequestHandlers, conditionalForwarders, new DnsClient.ResolverContext());
         }
 
         #endregion
