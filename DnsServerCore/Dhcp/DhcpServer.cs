@@ -1289,18 +1289,9 @@ namespace DnsServerCore.Dhcp
 
             try
             {
-                using (MemoryStream mS = new MemoryStream())
+                using (FileStream fS = new FileStream(tmpScopeFile, FileMode.Create, FileAccess.Write))
                 {
-                    //serialize scope
-                    scope.WriteTo(mS);
-
-                    //write config
-                    mS.Position = 0;
-
-                    using (FileStream fS = new FileStream(tmpScopeFile, FileMode.Create, FileAccess.Write))
-                    {
-                        mS.CopyTo(fS);
-                    }
+                    scope.WriteTo(fS);
                 }
 
                 File.Move(tmpScopeFile, scopeFile, true);
