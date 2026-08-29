@@ -425,6 +425,12 @@ namespace DnsServerCore.Dns.ZoneManagers
                             //hosts file format
                             firstWord = PopWord(ref line);
 
+                            if (!DnsClient.IsDomainNameValid(firstWord) && !IPAddress.TryParse(firstWord, out _))
+                                continue; //first word is neither a domain name nor an IP address; this is not a
+                                          //hosts-file/domain-list line (e.g. an unsupported Adblock cosmetic,
+                                          //procedural, or scriptlet filter) so avoid misreading a fragment of it
+                                          //as the intended hostname
+
                             if (line.Length == 0)
                             {
                                 hostname = firstWord;
