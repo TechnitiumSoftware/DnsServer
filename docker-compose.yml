@@ -48,6 +48,13 @@ services:
     volumes:
       - config:/etc/dns
       - logs:/var/log/technitium/dns
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:5380/api/dnsClient/healthCheck | grep '\"status\":\"ok\"'"]
+      #test: ["CMD", "dig", "+short", "+norecurse", "+retry=0", "@127.0.0.1", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
     sysctls:
       - net.ipv4.ip_local_port_range=1024 65535 #remove when using "host" network mode
