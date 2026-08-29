@@ -64,6 +64,13 @@ namespace DnsServerCore.ApplicationCommon
         Task<DnsDatagram> DirectQueryAsync(DnsDatagram request, IPEndPoint remoteEP, int timeout = 4000, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Allows an app to find out if a domain name is answered by Locally Served DNS Zones.
+        /// </summary>
+        /// <param name="domain">The domain name to test.</param>
+        /// <returns>Returns <![CDATA[true]]> if the domain name was found to be served by Locally Served DNS Zones.</returns>
+        bool IsLocallyServedZone(string domain);
+
+        /// <summary>
         /// Writes a log entry to the DNS server log file.
         /// </summary>
         /// <param name="message">The message to log.</param>
