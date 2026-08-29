@@ -26,7 +26,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.ZoneManagers
 {
-    sealed class SpecialZoneManager
+    public sealed class SpecialZoneManager
     {
         #region variables
 
@@ -218,20 +218,13 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                 foreach (string nonExistentZone in _nonExistentZones)
                 {
-                    if (qname.Equals(nonExistentZone, StringComparison.OrdinalIgnoreCase))
+                    if (qname.Equals(nonExistentZone, StringComparison.OrdinalIgnoreCase) || qname.EndsWith("." + nonExistentZone, StringComparison.OrdinalIgnoreCase))
                     {
                         if (question.Type == DnsResourceRecordType.DS)
                             return null; //allow resolving DS from parent zone
 
-                        string parentZone = AuthZoneManager.GetParentZone(qname) ?? "";
+                        string parentZone = AuthZoneManager.GetParentZone(nonExistentZone) ?? "";
                         DnsResourceRecord soaRecord = new DnsResourceRecord(parentZone, DnsResourceRecordType.SOA, DnsClass.IN, _dnsServer.AuthZoneManager.DefaultSoaRecordTtl, new DnsSOARecordData(parentZone, _dnsServer.DefaultResponsiblePerson?.Address ?? "nobody.invalid", 1, 3600, 1200, 604800, _dnsServer.AuthZoneManager.DefaultSoaRecordTtl));
-
-                        return new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, true, true, false, false, DnsResponseCode.NxDomain, request.Question, authority: [soaRecord]);
-                    }
-
-                    if (qname.EndsWith("." + nonExistentZone, StringComparison.OrdinalIgnoreCase))
-                    {
-                        DnsResourceRecord soaRecord = new DnsResourceRecord(nonExistentZone, DnsResourceRecordType.SOA, DnsClass.IN, _dnsServer.AuthZoneManager.DefaultSoaRecordTtl, new DnsSOARecordData(nonExistentZone, _dnsServer.DefaultResponsiblePerson?.Address ?? "nobody.invalid", 1, 3600, 1200, 604800, _dnsServer.AuthZoneManager.DefaultSoaRecordTtl));
 
                         return new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, true, true, false, false, DnsResponseCode.NxDomain, request.Question, authority: [soaRecord]);
                     }
@@ -239,6 +232,23 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
 
             return null;
+        }
+
+        public bool IsLocallyServedZone(string domain)
+        {
+            foreach (string locallyServedZone in _locallyServedZones)
+            {
+                if (domain.Equals(locallyServedZone, StringComparison.OrdinalIgnoreCase) || domain.EndsWith("." + locallyServedZone, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            foreach (string nonExistentZone in _nonExistentZones)
+            {
+                if (domain.Equals(nonExistentZone, StringComparison.OrdinalIgnoreCase) || domain.EndsWith("." + nonExistentZone, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
         }
 
         #endregion
