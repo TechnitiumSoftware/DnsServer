@@ -131,17 +131,9 @@ namespace WildIp
 
                             foreach (string part in parts)
                             {
-                                if (
-                                    (part.Length == 8) &&
-                                    uint.TryParse(part, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint value)
-                                )
+                                if ((part.Length == 8) && uint.TryParse(part, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint value))
                                 {
-                                    rawIp[0] = (byte)(value >> 24);
-                                    rawIp[1] = (byte)(value >> 16);
-                                    rawIp[2] = (byte)(value >> 8);
-                                    rawIp[3] = (byte)value;
-
-                                    address = new IPAddress(rawIp);
+                                    address = IPAddressExtensions.ConvertNumberToIp(value);
                                     break;
                                 }
                             }
