@@ -320,10 +320,7 @@ namespace DnsServerCore.Dns.Zones
             )
             {
                 //failed to queue refresh zone task; try again in some time
-                lock (_refreshTimerLock)
-                {
-                    _refreshTimer?.Change(REFRESH_TIMER_INTERVAL, Timeout.Infinite);
-                }
+                ResetRefreshTimer(REFRESH_TIMER_INTERVAL);
             }
         }
 
@@ -499,7 +496,22 @@ namespace DnsServerCore.Dns.Zones
 
                         if (doIXFR)
                         {
-                            IReadOnlyList<DnsResourceRecord> historyRecords = _dnsServer.AuthZoneManager.SyncIncrementalZoneTransferRecords(_name, xfrResponse.Answer);
+                            IReadOnlyList<DnsResourceRecord> historyRecords;
+
+                            try
+                            {
+                                historyRecords = _dnsServer.AuthZoneManager.SyncIncrementalZoneTransferRecords(_name, xfrResponse.Answer);
+                            }
+                            catch (Exception ex)
+                            {
+                                _dnsServer.LogManager.Write(ex);
+                                _dnsServer.LogManager.Write("DNS Server is retrying zone refresh with AXFR for " + GetZoneTypeName() + " zone: " + ToString());
+
+                                //retry with AXFR
+                                doIXFR = false;
+                                continue;
+                            }
+
                             if (historyRecords.Count > 0)
                                 await FinalizeIncrementalZoneTransferAsync(historyRecords);
                             else
