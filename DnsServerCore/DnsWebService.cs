@@ -2176,6 +2176,9 @@ namespace DnsServerCore
             _webService.MapGetAndPost("/api/apps/uninstall", _appsApi.UninstallApp);
             _webService.MapGetAndPost("/api/apps/config/get", _appsApi.GetAppConfigAsync);
             _webService.MapGetAndPost("/api/apps/config/set", _appsApi.SetAppConfigAsync);
+            _webService.MapGetAndPost("/api/apps/repositories/list", _appsApi.ListCustomRepositoryAppsAsync);
+            _webService.MapGetAndPost("/api/apps/repositories/add", _appsApi.AddAppRepository);
+            _webService.MapGetAndPost("/api/apps/repositories/remove", _appsApi.RemoveAppRepository);
 
             //dns client
             _webService.MapGetAndPost("/api/dnsClient/resolve", _api.ResolveQueryAsync);
