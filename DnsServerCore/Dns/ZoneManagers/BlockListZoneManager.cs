@@ -198,18 +198,9 @@ namespace DnsServerCore.Dns.ZoneManagers
             string tmpBlockListConfigFile = Path.Combine(_dnsServer.ConfigFolder, "blocklist.tmp");
             string blockListConfigFile = Path.Combine(_dnsServer.ConfigFolder, "blocklist.config");
 
-            using (MemoryStream mS = new MemoryStream())
+            using (FileStream fS = new FileStream(tmpBlockListConfigFile, FileMode.Create, FileAccess.Write))
             {
-                //serialize config
-                WriteConfigTo(mS);
-
-                //write config
-                mS.Position = 0;
-
-                using (FileStream fS = new FileStream(tmpBlockListConfigFile, FileMode.Create, FileAccess.Write))
-                {
-                    mS.CopyTo(fS);
-                }
+                WriteConfigTo(fS);
             }
 
             File.Move(tmpBlockListConfigFile, blockListConfigFile, true);
