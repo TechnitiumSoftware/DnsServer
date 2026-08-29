@@ -391,26 +391,41 @@ namespace DnsServerCore
                 if (scope is null)
                 {
                     //scope does not exists; create new scope
-                    if (string.IsNullOrEmpty(strStartingAddress))
-                        throw new DnsWebServiceException("Parameter 'startingAddress' missing.");
+                    if (string.IsNullOrEmpty(strStartingAddress) || !IPAddress.TryParse(strStartingAddress, out IPAddress startingAddress))
+                        throw new DnsWebServiceException("Parameter 'startingAddress' is missing or invalid.");
 
-                    if (string.IsNullOrEmpty(strEndingAddress))
-                        throw new DnsWebServiceException("Parameter 'endingAddress' missing.");
+                    if (string.IsNullOrEmpty(strEndingAddress) || !IPAddress.TryParse(strEndingAddress, out IPAddress endingAddress))
+                        throw new DnsWebServiceException("Parameter 'endingAddress' is missing or invalid.");
 
-                    if (string.IsNullOrEmpty(strSubnetMask))
-                        throw new DnsWebServiceException("Parameter 'subnetMask' missing.");
+                    if (string.IsNullOrEmpty(strSubnetMask) || !IPAddress.TryParse(strSubnetMask, out IPAddress subnetMask))
+                        throw new DnsWebServiceException("Parameter 'subnetMask' is missing or invalid.");
 
                     scopeExists = false;
-                    scope = new Scope(scopeName, true, IPAddress.Parse(strStartingAddress), IPAddress.Parse(strEndingAddress), IPAddress.Parse(strSubnetMask), _dnsWebService._log, _dnsWebService._dhcpServer);
+                    scope = new Scope(scopeName, true, startingAddress, endingAddress, subnetMask, _dnsWebService._log, _dnsWebService._dhcpServer);
                     scope.IgnoreClientIdentifierOption = true;
                 }
                 else
                 {
                     scopeExists = true;
 
-                    IPAddress startingAddress = string.IsNullOrEmpty(strStartingAddress) ? scope.StartingAddress : IPAddress.Parse(strStartingAddress);
-                    IPAddress endingAddress = string.IsNullOrEmpty(strEndingAddress) ? scope.EndingAddress : IPAddress.Parse(strEndingAddress);
-                    IPAddress subnetMask = string.IsNullOrEmpty(strSubnetMask) ? scope.SubnetMask : IPAddress.Parse(strSubnetMask);
+                    IPAddress startingAddress;
+                    IPAddress endingAddress;
+                    IPAddress subnetMask;
+
+                    if (string.IsNullOrEmpty(strStartingAddress))
+                        startingAddress = scope.StartingAddress;
+                    else if (!IPAddress.TryParse(strStartingAddress, out startingAddress))
+                        throw new DnsWebServiceException("Parameter 'startingAddress' is invalid.");
+
+                    if (string.IsNullOrEmpty(strEndingAddress))
+                        endingAddress = scope.EndingAddress;
+                    else if (!IPAddress.TryParse(strEndingAddress, out endingAddress))
+                        throw new DnsWebServiceException("Parameter 'endingAddress' is invalid.");
+
+                    if (string.IsNullOrEmpty(strSubnetMask))
+                        subnetMask = scope.SubnetMask;
+                    else if (!IPAddress.TryParse(strSubnetMask, out subnetMask))
+                        throw new DnsWebServiceException("Parameter 'subnetMask' is invalid.");
 
                     //validate scope address
                     foreach (KeyValuePair<string, Scope> entry in _dnsWebService._dhcpServer.Scopes)
