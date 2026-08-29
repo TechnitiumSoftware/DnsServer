@@ -68,6 +68,11 @@ namespace DnsServerCore.Dns.Applications
             return _dnsServer.DirectQueryAsync(request, remoteEP, timeout, true, cancellationToken);
         }
 
+        public bool IsLocallyServedZone(string domain)
+        {
+            return _dnsServer.SpecialZoneManager.IsLocallyServedZone(domain);
+        }
+
         public Task<DnsDatagram> ResolveAsync(DnsQuestionRecord question, CancellationToken cancellationToken = default)
         {
             return DirectQueryAsync(question, cancellationToken: cancellationToken);
