@@ -202,6 +202,12 @@ $(function () {
                 break;
         }
     });
+
+    $("#chkAdminSsoAllowSignup").on("click", function () {
+        var ssoAllowSignup = $("#chkAdminSsoAllowSignup").prop("checked");
+
+        $("#chkAdminSsoAllowSignupOnlyForMappedUsers").prop("disabled", !ssoAllowSignup);
+    });
 });
 
 function login(username, password) {
@@ -2187,6 +2193,7 @@ function loadAdminSsoConfig(responseJSON) {
         addAdminSsoScopesRow(responseJSON.response.ssoScopes[i]);
 
     $("#chkAdminSsoAllowSignup").prop("checked", responseJSON.response.ssoAllowSignup);
+    $("#chkAdminSsoAllowSignupOnlyForMappedUsers").prop("disabled", !responseJSON.response.ssoAllowSignup);
     $("#chkAdminSsoAllowSignupOnlyForMappedUsers").prop("checked", responseJSON.response.ssoAllowSignupOnlyForMappedUsers);
 
     $("#tableAdminSsoGroupMap").html("");
