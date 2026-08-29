@@ -333,9 +333,22 @@ namespace DnsServerCore.Dns.Zones
             {
                 bool rdataFound = false;
 
+                DnsResourceRecordData rdata;
+
+                if (record.Type == DnsResourceRecordType.FWD)
+                {
+                    //use partial FWD for comparison to prevent duplicate FWD records
+                    DnsForwarderRecordData fwd = record.RDATA as DnsForwarderRecordData;
+                    rdata = DnsForwarderRecordData.CreatePartialRecordData(fwd.Protocol, fwd.Forwarder);
+                }
+                else
+                {
+                    rdata = record.RDATA;
+                }
+
                 foreach (DnsResourceRecord existingRecord in existingRecords)
                 {
-                    if (record.RDATA.Equals(existingRecord.RDATA))
+                    if (rdata.Equals(existingRecord.RDATA))
                     {
                         //same rdata found
                         if (record.OriginalTtlValue == existingRecord.OriginalTtlValue)
