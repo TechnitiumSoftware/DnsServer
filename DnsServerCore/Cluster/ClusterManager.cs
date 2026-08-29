@@ -285,18 +285,9 @@ namespace DnsServerCore.Cluster
             string tmpConfigFile = Path.Combine(_dnsWebService.ConfigFolder, "cluster.tmp");
             string configFile = Path.Combine(_dnsWebService.ConfigFolder, "cluster.config");
 
-            using (MemoryStream mS = new MemoryStream())
+            using (FileStream fS = new FileStream(tmpConfigFile, FileMode.Create, FileAccess.Write))
             {
-                //serialize config
-                WriteConfigTo(mS);
-
-                //write config
-                mS.Position = 0;
-
-                using (FileStream fS = new FileStream(tmpConfigFile, FileMode.Create, FileAccess.Write))
-                {
-                    mS.CopyTo(fS);
-                }
+                WriteConfigTo(fS);
             }
 
             File.Move(tmpConfigFile, configFile, true);
@@ -1593,7 +1584,24 @@ namespace DnsServerCore.Cluster
             primaryNode.UpdateNode(primaryNodeUrl, primaryNodeIpAddresses);
 
             //update cluster catalog zone's primary name server
-            clusterSecondaryCatalogZoneInfo.PrimaryNameServerAddresses = primaryNodeIpAddresses.Convert(delegate (IPAddress ipAddress) { return new NameServerAddress(primaryNodeUrl.Host, ipAddress); });
+            clusterSecondaryCatalogZoneInfo.PrimaryNameServerAddresses = primaryNodeIpAddresses.Convert(delegate (IPAddress ipAddress)
+            {
+                int port = 53;
+
+                if (clusterSecondaryCatalogZoneInfo.PrimaryNameServerAddresses is not null)
+                {
+                    foreach (NameServerAddress primaryNameServerAddress in clusterSecondaryCatalogZoneInfo.PrimaryNameServerAddresses)
+                    {
+                        if ((primaryNameServerAddress.IPEndPoint is not null) && primaryNameServerAddress.IPEndPoint.Address.Equals(ipAddress))
+                        {
+                            port = primaryNameServerAddress.Port;
+                            break;
+                        }
+                    }
+                }
+
+                return new NameServerAddress(primaryNodeUrl.Host, new IPEndPoint(ipAddress, port));
+            });
 
             //save all changes
             _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(clusterSecondaryCatalogZoneInfo.Name);
