@@ -170,10 +170,10 @@ namespace AdvancedForwarding
             return Task.CompletedTask;
         }
 
-        public Task<DnsDatagram?> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed)
+        public async Task<DnsDatagram?> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed)
         {
             if (!_enableForwarding || !request.RecursionDesired)
-                return Task.FromResult<DnsDatagram?>(null);
+                return null;
 
             IPAddress remoteIP = remoteEP.Address;
             NetworkAddress? network = null;
@@ -189,13 +189,20 @@ namespace AdvancedForwarding
             }
 
             if ((groupName is null) || !_groups!.TryGetValue(groupName, out Group? group) || !group.EnableForwarding)
-                return Task.FromResult<DnsDatagram?>(null);
+                return null;
 
             DnsQuestionRecord question = request.Question[0];
             string qname = question.Name;
 
-            if (!group.TryGetForwarderRecords(qname, out IReadOnlyList<DnsForwarderRecordData>? forwarderRecords))
-                return Task.FromResult<DnsDatagram?>(null);
+            if (!group.TryGetForwarderRecords(qname, out IReadOnlyList<DnsForwarderRecordData>? forwarderRecords, out string? matchedDomain))
+                return null;
+
+            if ("*".Equals(matchedDomain, StringComparison.OrdinalIgnoreCase))
+            {
+                //wildcard domain matched; check if the domain is locally served to avoid forwarding for it
+                if (_dnsServer!.IsLocallyServedZone(qname))
+                    return null; //qname is locally served; do not forward
+            }
 
             request.SetShadowEDnsClientSubnetOption(network, true);
 
@@ -204,7 +211,7 @@ namespace AdvancedForwarding
             for (int i = 0; i < forwarderRecords.Count; i++)
                 authority[i] = new DnsResourceRecord(qname, DnsResourceRecordType.FWD, DnsClass.IN, 0, forwarderRecords[i]);
 
-            return Task.FromResult<DnsDatagram?>(new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, authority));
+            return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, authority);
         }
 
         #endregion
@@ -317,23 +324,24 @@ namespace AdvancedForwarding
                 }
             }
 
-            public bool TryGetForwarderRecords(string domain, [MaybeNullWhen(false)] out IReadOnlyList<DnsForwarderRecordData> forwarderRecords)
+            public bool TryGetForwarderRecords(string domain, [MaybeNullWhen(false)] out IReadOnlyList<DnsForwarderRecordData> forwarderRecords, [MaybeNullWhen(false)] out string matchedDomain)
             {
                 domain = domain.ToLowerInvariant();
 
-                if ((_forwardings is not null) && (_forwardings.Length > 0) && Forwarding.TryGetForwarderRecords(domain, _forwardings, out forwarderRecords))
+                if ((_forwardings is not null) && (_forwardings.Length > 0) && Forwarding.TryGetForwarderRecords(domain, _forwardings, out forwarderRecords, out matchedDomain))
                     return true;
 
                 if (_adguardUpstreams is not null)
                 {
                     foreach (KeyValuePair<string, AdGuardUpstream> adguardUpstream in _adguardUpstreams)
                     {
-                        if (adguardUpstream.Value.TryGetForwarderRecords(domain, out forwarderRecords))
+                        if (adguardUpstream.Value.TryGetForwarderRecords(domain, out forwarderRecords, out matchedDomain))
                             return true;
                     }
                 }
 
                 forwarderRecords = null;
+                matchedDomain = null;
                 return false;
             }
 
@@ -402,11 +410,11 @@ namespace AdvancedForwarding
 
             #region static
 
-            public static bool TryGetForwarderRecords(string domain, IReadOnlyList<Forwarding> forwardings, [MaybeNullWhen(false)] out IReadOnlyList<DnsForwarderRecordData> forwarderRecords)
+            public static bool TryGetForwarderRecords(string domain, IReadOnlyList<Forwarding> forwardings, [MaybeNullWhen(false)] out IReadOnlyList<DnsForwarderRecordData> forwarderRecords, [MaybeNullWhen(false)] out string matchedDomain)
             {
                 if (forwardings.Count == 1)
                 {
-                    if (forwardings[0].TryGetForwarderRecords(domain, out forwarderRecords, out _))
+                    if (forwardings[0].TryGetForwarderRecords(domain, out forwarderRecords, out matchedDomain))
                         return true;
                 }
                 else
@@ -416,16 +424,17 @@ namespace AdvancedForwarding
 
                     foreach (Forwarding forwarding in forwardings)
                     {
-                        if (forwarding.TryGetForwarderRecords(domain, out IReadOnlyList<DnsForwarderRecordData>? fwdRecords, out string? matchedDomain))
+                        if (forwarding.TryGetForwarderRecords(domain, out IReadOnlyList<DnsForwarderRecordData>? fwdRecords, out string? currentMatchedDomain))
                         {
-                            if ((lastMatchedDomain is null) || (matchedDomain.Length > lastMatchedDomain.Length) || ((matchedDomain.Length == lastMatchedDomain.Length) && lastMatchedDomain.StartsWith("*.")))
+                            if ((lastMatchedDomain is null) || (currentMatchedDomain.Length > lastMatchedDomain.Length) || ((currentMatchedDomain.Length == lastMatchedDomain.Length) && lastMatchedDomain.StartsWith("*.")))
                             {
-                                lastMatchedDomain = matchedDomain;
+                                lastMatchedDomain = currentMatchedDomain;
                                 forwarderRecords = fwdRecords;
                             }
                         }
                     }
 
+                    matchedDomain = lastMatchedDomain;
                     return forwarderRecords is not null;
                 }
 
@@ -758,17 +767,18 @@ namespace AdvancedForwarding
                 }
             }
 
-            public bool TryGetForwarderRecords(string domain, [MaybeNullWhen(false)] out IReadOnlyList<DnsForwarderRecordData> forwarderRecords)
+            public bool TryGetForwarderRecords(string domain, [MaybeNullWhen(false)] out IReadOnlyList<DnsForwarderRecordData> forwarderRecords, [MaybeNullWhen(false)] out string matchedDomain)
             {
                 if ((_forwardings is not null) && (_forwardings.Count > 0))
                 {
                     if (Forwarding.IsForwarderDomain(domain, _forwardings))
                     {
+                        matchedDomain = null;
                         forwarderRecords = null;
                         return false;
                     }
 
-                    if (Forwarding.TryGetForwarderRecords(domain, _forwardings, out forwarderRecords))
+                    if (Forwarding.TryGetForwarderRecords(domain, _forwardings, out forwarderRecords, out matchedDomain))
                         return true;
                 }
 
@@ -776,14 +786,17 @@ namespace AdvancedForwarding
                 {
                     if (Forwarding.IsForwarderDomain(domain, _defaultForwarderRecords))
                     {
+                        matchedDomain = null;
                         forwarderRecords = null;
                         return false;
                     }
 
+                    matchedDomain = "*";
                     forwarderRecords = _defaultForwarderRecords;
                     return true;
                 }
 
+                matchedDomain = null;
                 forwarderRecords = null;
                 return false;
             }
