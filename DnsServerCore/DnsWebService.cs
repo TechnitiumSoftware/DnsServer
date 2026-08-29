@@ -2200,6 +2200,8 @@ namespace DnsServerCore
             _webService.MapGetAndPost("/api/dhcp/scopes/set", _dhcpApi.SetDhcpScopeAsync);
             _webService.MapGetAndPost("/api/dhcp/scopes/addReservedLease", _dhcpApi.AddReservedLease);
             _webService.MapGetAndPost("/api/dhcp/scopes/removeReservedLease", _dhcpApi.RemoveReservedLease);
+            _webService.MapGetAndPost("/api/dhcp/scopes/addHostNameOverride", _dhcpApi.AddHostNameOverride);
+            _webService.MapGetAndPost("/api/dhcp/scopes/removeHostNameOverride", _dhcpApi.RemoveHostNameOverride);
             _webService.MapGetAndPost("/api/dhcp/scopes/enable", _dhcpApi.EnableDhcpScopeAsync);
             _webService.MapGetAndPost("/api/dhcp/scopes/disable", _dhcpApi.DisableDhcpScope);
             _webService.MapGetAndPost("/api/dhcp/scopes/delete", _dhcpApi.DeleteDhcpScope);
