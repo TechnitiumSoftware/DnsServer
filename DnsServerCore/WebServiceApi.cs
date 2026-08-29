@@ -449,10 +449,14 @@ namespace DnsServerCore
 
             public async Task HealthCheckAsync(HttpContext context)
             {
-                User sessionUser = _dnsWebService.GetSessionUser(context);
+                //unauthenticated call from localhost allowed, so check for permissions only when user session is available
+                if (context.Items["session"] is UserSession)
+                {
+                    User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DnsClient, sessionUser, PermissionFlag.View))
-                    throw new DnsWebServiceException("Access was denied.");
+                    if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DnsClient, sessionUser, PermissionFlag.View))
+                        throw new DnsWebServiceException("Access was denied.");
+                }
 
                 HttpRequest request = context.Request;
 
