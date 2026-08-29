@@ -401,18 +401,9 @@ namespace DnsServerCore
             string tmpConfigFile = Path.Combine(_configFolder, "webservice.tmp");
             string configFile = Path.Combine(_configFolder, "webservice.config");
 
-            using (MemoryStream mS = new MemoryStream())
+            using (FileStream fS = new FileStream(tmpConfigFile, FileMode.Create, FileAccess.Write))
             {
-                //serialize config
-                WriteConfigTo(mS);
-
-                //write config
-                mS.Position = 0;
-
-                using (FileStream fS = new FileStream(tmpConfigFile, FileMode.Create, FileAccess.Write))
-                {
-                    mS.CopyTo(fS);
-                }
+                WriteConfigTo(fS);
             }
 
             File.Move(tmpConfigFile, configFile, true);
@@ -2422,6 +2413,22 @@ namespace DnsServerCore
                         await next(context);
                     }
                     return;
+
+                case "/api/dnsClient/healthCheck":
+                    {
+                        if (!TryValidateSession(context, out UserSession _))
+                        {
+                            IPAddress remoteAddress = GetRemoteEndPoint(context).Address;
+
+                            if (!remoteAddress.Equals(IPAddress.Loopback) && !remoteAddress.Equals(IPAddress.IPv6Loopback))
+                                throw new InvalidTokenWebServiceException("Invalid token or session expired.");
+
+                            //allow unauthenticated call from localhost
+                        }
+
+                        needsJsonResponseObject = false;
+                    }
+                    break;
 
                 default:
                     if (request.Path.Value.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
