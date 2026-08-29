@@ -323,18 +323,9 @@ namespace DnsServerCore
             string tmpLogConfigFile = Path.Combine(_configFolder, "log.tmp");
             string logConfigFile = Path.Combine(_configFolder, "log.config");
 
-            using (MemoryStream mS = new MemoryStream())
+            using (FileStream fS = new FileStream(tmpLogConfigFile, FileMode.Create, FileAccess.Write))
             {
-                //serialize config
-                WriteConfigTo(mS);
-
-                //write config
-                mS.Position = 0;
-
-                using (FileStream fS = new FileStream(tmpLogConfigFile, FileMode.Create, FileAccess.Write))
-                {
-                    mS.CopyTo(fS);
-                }
+                WriteConfigTo(fS);
             }
 
             File.Move(tmpLogConfigFile, logConfigFile, true);
