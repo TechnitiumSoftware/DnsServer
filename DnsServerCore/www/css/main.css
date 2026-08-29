@@ -1,4 +1,8 @@
-﻿html, body {
+﻿html {
+    color-scheme: light dark;
+}
+
+html, body {
     height: 100% !important;
     scrollbar-gutter: stable;
 }
@@ -12,19 +16,11 @@ body {
     line-height: 1.42857143 !important;
 }
 
-@media (prefers-color-scheme: light) {
-    body {
-        background-color: #fafafa;
-    }
-
-    #header {
-        background-color: #6699ff;
-        box-shadow: 0px 1px 15px 0px #888888;
-    }
-
-    #footer {
-        background-color: #f3f3f3;
-        box-shadow: 0px 2px 15px 1px #888888;
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
     }
 }
 
