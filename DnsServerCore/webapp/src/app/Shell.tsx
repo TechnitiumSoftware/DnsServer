@@ -223,12 +223,60 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
             ))}
           </div>
         </nav>
+
+        {/* El servidor y la cuenta, al pie. En estrecho se llega por el cajón. */}
+        <div className={styles.pieLateral}>
+          {session.info && <span className={styles.host}>{session.info.dnsServerDomain}</span>}
+          <div className={styles.menu}>
+            <button
+              className={styles.menuBtn}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((v) => !v)}
+            >
+              {displayName}
+              <Icono nombre="chevronAbajo" tam={12} />
+            </button>
+            {menuOpen && (
+              <div className={styles.menuList} role="menu">
+                <button type="button" role="menuitem" onClick={() => abrir('profile')}>
+                  My Profile
+                </button>
+                {/* main.js:71-78 — a un usuario de SSO se le ocultan estas dos. */}
+                {!session.isSsoUser && (
+                  <button type="button" role="menuitem" onClick={() => abrir('password')}>
+                    Change Password
+                  </button>
+                )}
+                {!session.isSsoUser && (
+                  <button type="button" role="menuitem" onClick={() => abrir('twofa')}>
+                    Configure 2FA
+                  </button>
+                )}
+                <button type="button" role="menuitem" onClick={() => abrir('token')}>
+                  Create API Token
+                </button>
+                <button type="button" role="menuitem" onClick={onLogout}>
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </aside>
 
       <div className={styles.main}>
+        {/*
+        En pantalla ANCHA no hay cabecero: sólo llevaba el dominio del servidor y
+        el menú de cuenta, los dos pegados al borde derecho, y medía 1224×52 con
+        el 78 % del ancho vacío —952 px de 1224— empujando el título de cada
+        sección hasta `y=76`. Las dos cosas bajan al pie del panel lateral, que
+        tenía 377 px libres, el 42 % de su alto.
+
+        En pantalla ESTRECHA sí hace falta, porque el lateral es un cajón cerrado
+        y su disparador tiene que vivir fuera.
+        */}
         <header className={styles.rtop}>
-          {/* En pantalla estrecha el lateral es un cajón, así que el cabecero
-              tiene que traer su disparador y la marca. */}
           <button
             type="button"
             className={styles.hamburguesa}
@@ -241,37 +289,6 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
           <span className={styles.marcaTop}>
             <img className={styles.mark} src={urlPublica('img/logo.png')} alt="" width={22} height={22} /> Technitium
           </span>
-          {session.info && <span className={styles.host}>{session.info.dnsServerDomain}</span>}
-          <div className={styles.menu}>
-            <button className={styles.menuBtn} onClick={() => setMenuOpen((v) => !v)}>
-              {displayName}
-              <Icono nombre="chevronAbajo" tam={12} />
-            </button>
-            {menuOpen && (
-              <div className={styles.menuList}>
-                <button type="button" onClick={() => abrir('profile')}>
-                  My Profile
-                </button>
-                {/* main.js:71-78 — a un usuario de SSO se le ocultan estas dos. */}
-                {!session.isSsoUser && (
-                  <button type="button" onClick={() => abrir('password')}>
-                    Change Password
-                  </button>
-                )}
-                {!session.isSsoUser && (
-                  <button type="button" onClick={() => abrir('twofa')}>
-                    Configure 2FA
-                  </button>
-                )}
-                <button type="button" onClick={() => abrir('token')}>
-                  Create API Token
-                </button>
-                <button type="button" onClick={onLogout}>
-                  Logout
-                </button>
-              </div>
-            )}
-          </div>
         </header>
 
         <main

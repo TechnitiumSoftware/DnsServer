@@ -6,6 +6,7 @@ import { Button } from '../ui/Button'
 import { LabeledInput } from '../ui/Field'
 import { ForgotPassword } from './modals/ForgotPassword'
 import styles from './Login.module.css'
+import { urlPublica } from '../app/base'
 
 /*
 Pantalla de login. Réplica de `login()` en
@@ -186,7 +187,7 @@ export function Login({
     <div className={styles.page}>
       <div className={styles.card}>
         <div className={styles.brand}>
-          <span className={styles.mark}>T</span>
+          <img className={styles.mark} src={urlPublica('img/logo.png')} alt="" width={28} height={28} />
           <span className={styles.name}>Technitium DNS Server</span>
         </div>
 

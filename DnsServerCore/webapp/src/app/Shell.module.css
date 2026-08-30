@@ -2,7 +2,7 @@
    diseño 09-navegacion): 72 px de cromo frente a 163 con pestañas arriba, y
    desaparece la segunda fila de pestañas apiladas. */
 .shell { min-height:100vh; background:var(--bg); color:var(--ink); display:grid; grid-template-columns:216px 1fr; align-items:start; }
-.side { background:var(--pan); border-right:1px solid var(--line); align-self:stretch; position:sticky; top:0; height:100vh; overflow:auto; }
+.side { background:var(--pan); border-right:1px solid var(--line); align-self:stretch; position:sticky; top:0; height:100vh; overflow:auto; display:flex; flex-direction:column; }
 .sbrand { display:flex; align-items:center; gap: var(--s-6); padding: 0 var(--s-10); height:52px; border-bottom:1px solid var(--line); font-weight: 600; letter-spacing:-.01em; color:var(--ink); }
 /*
 El logo de Technitium, no una «T» en un cuadrado ámbar.
@@ -34,12 +34,25 @@ Administration) y lo que se consulta (Logs, About).
 .s2:hover { color:var(--ink); }
 .s2[aria-current='true'] { color:var(--acc); font-weight: 550; background:var(--pan2); box-shadow: var(--filo); }
 .main { min-width:0; }
-.rtop { display:flex; align-items:center; justify-content:flex-end; gap: var(--s-6); padding: 0 var(--s-11); height:52px; border-bottom:1px solid var(--line); background:var(--pan); box-shadow: var(--filo); font-size: var(--t-4); color:var(--mute); position:sticky; top:0; z-index: var(--capa-pegajosa); }
-.host { font-family:var(--font-mono); font-size: var(--t-3); color:var(--faint); border-right:1px solid var(--line); padding-right: var(--s-6); }
+/*
+El cabecero SÓLO existe en pantalla estrecha.
+
+Llevaba el dominio del servidor y el menú de cuenta, los dos pegados al borde
+derecho: 1224×52 con el 78 % del ancho vacío —952 px de 1224— y empujando el
+título de cada sección hasta `y=76`. Sus dos inquilinos viven ahora al pie del
+lateral, que tenía 377 px libres (el 42 % de su alto). En estrecho sí hace falta,
+porque el lateral es un cajón cerrado y su disparador tiene que estar fuera.
+*/
+.rtop { display:none; }
+/* Al pie del lateral, y por eso `margin-top:auto`: es lo que lo empuja abajo
+   por mucho que la lista de secciones sea corta. */
+.pieLateral { margin-top:auto; padding: var(--s-8) var(--s-9); border-top:1px solid var(--line); display:flex; flex-direction:column; gap: var(--s-4); }
+.host { font-family:var(--font-mono); font-size: var(--t-3); color:var(--faint); word-break:break-all; }
 .menu { position:relative; }
-.menuBtn { display:inline-flex; align-items:center; gap: var(--s-3); padding: var(--s-3) var(--s-5); border-radius: var(--r-2); background:none; border:0; color:var(--mute); font:inherit; font-size: var(--t-4); cursor:pointer; }
+.menuBtn { display:flex; align-items:center; justify-content:space-between; width:100%; gap: var(--s-3); padding: var(--s-4) var(--s-5); border-radius: var(--r-2); background:none; border:0; color:var(--ink); font:inherit; font-size: var(--t-4); cursor:pointer; }
 .menuBtn:hover { color:var(--ink); }
-.menuList { position:absolute; right:0; top:30px; min-width:190px; z-index: var(--capa-flotante); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); padding: var(--s-3); display:flex; flex-direction:column; box-shadow: var(--e-2), var(--filo); }
+/* Se abre hacia arriba: está al pie de la ventana, no bajo un cabecero. */
+.menuList { position:absolute; left:0; bottom:calc(100% + var(--s-3)); min-width:190px; z-index: var(--capa-flotante); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); padding: var(--s-3); display:flex; flex-direction:column; box-shadow: var(--e-2), var(--filo); }
 .menuList button { background:none; border:0; color:var(--ink); font:inherit; font-size: var(--t-4); text-align:left; padding: var(--s-4) var(--s-6); border-radius: var(--r-2); cursor:pointer; }
 .menuList button:hover,
 .menuList button:focus-visible { background:var(--hover-fuerte); }
@@ -68,6 +81,14 @@ mirarlo desde el móvil cuando algo ha dejado de resolver.
 
 @media (max-width: 900px) {
   .shell { grid-template-columns: 1fr; }
+
+  .rtop {
+    display: flex; align-items: center; gap: var(--s-6);
+    padding: 0 var(--s-9); height: 52px;
+    border-bottom: 1px solid var(--line); background: var(--pan);
+    box-shadow: var(--filo); font-size: var(--t-4); color: var(--mute);
+    position: sticky; top: 0; z-index: var(--capa-pegajosa);
+  }
 
   .side {
     position: fixed;
@@ -116,7 +137,6 @@ mirarlo desde el móvil cuando algo ha dejado de resolver.
   }
 
   .rtop { padding: 0 var(--s-9); gap: var(--s-7); }
-  .host { display: none; }
   .body { padding: var(--s-9); }
 }
 

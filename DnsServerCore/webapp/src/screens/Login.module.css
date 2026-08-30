@@ -13,12 +13,8 @@
   padding: var(--s-11) var(--s-11);
 }
 .brand { display: flex; align-items: center; gap: var(--s-7); margin-bottom: var(--s-11); }
-.mark {
-  width: 26px; height: 26px; border-radius: var(--r-2);
-  background: var(--acc); color: var(--on-acc);
-  display: grid; place-items: center;
-  font:600 var(--t-4)/1 system-ui;
-}
+/* El logo de Technitium, no una inicial nuestra. Ver `app/Shell.module.css`. */
+.mark { width: 28px; height: 28px; flex: none; }
 .name { font-weight: 600; letter-spacing: -0.01em; color: var(--ink); font-size: var(--t-5); }
 .form { display: flex; flex-direction: column; gap: var(--s-9); }
 .alertSlot { margin-bottom: var(--s-9); }
