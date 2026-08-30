@@ -34,6 +34,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -177,6 +178,18 @@ namespace DnsServerCore.Dns
         int _qpmLimitUdpTruncationPercentage = 50; //percentage of requests that are responded with TC when QPM limit exceeds for UDP (Slip)
         IReadOnlyCollection<NetworkAddress> _qpmLimitBypassList;
 
+        // Early source-prefix admission control remains separate from the post-response
+        // DNS response-rate limiter configured through _dnsResponseRrlRuntime. It has no
+        // enablement flag of its own: DNS Cookies are not a defence against spoofed UDP
+        // without it, so it follows _useDnsCookies.
+        readonly Security.DnsCookieUdpAdmissionLimiter _cookieAdmissionLimiter = new Security.DnsCookieUdpAdmissionLimiter();
+        long _cookieAdmissionDroppedCount;
+        long _cookieAdmissionSlippedCount;
+        readonly Security.DnsResponseRateLimiterRuntime _dnsResponseRrlRuntime = new Security.DnsResponseRateLimiterRuntime();
+        long _dnsResponseRrlDroppedCount;
+        long _dnsResponseRrlSlippedCount;
+        long _dnsResponseRrlErrorLeakCount;
+
         int _clientTimeout = 2000;
         int _tcpSendTimeout = 10000;
         int _tcpReceiveTimeout = 10000;
@@ -196,6 +209,14 @@ namespace DnsServerCore.Dns
         bool _enableDnsOverHttps;
         bool _enableDnsOverHttp3;
         bool _enableDnsOverQuic;
+        const int DNS_COOKIE_STANDALONE_ROTATION_MINIMUM_PERIOD_HOURS = 24;
+        const int DNS_COOKIE_STANDALONE_ROTATION_DEFAULT_PERIOD_HOURS = 30 * 24;
+        const int DNS_COOKIE_STANDALONE_ROTATION_MAXIMUM_PERIOD_HOURS = 366 * 24;
+        bool _useDnsCookies;
+        bool _enableDnsCookieStandaloneAutomaticRotation;
+        int _dnsCookieStandaloneAutomaticRotationPeriodHours = DNS_COOKIE_STANDALONE_ROTATION_DEFAULT_PERIOD_HOURS;
+        bool _dnsCookieClusterManaged;
+        IReadOnlyCollection<NetworkAccessControl> _reverseProxyNetworkACL;
         bool _enableDnsOverHttpHelpRedirect = true;
         int _dnsOverUdpProxyPort = 538;
         int _dnsOverTcpProxyPort = 538;
@@ -286,6 +307,9 @@ namespace DnsServerCore.Dns
         readonly Timer _saveTimer;
         const int SAVE_TIMER_INITIAL_INTERVAL = 5000;
 
+        // DNS Cookies (RFC 7873 / RFC 9018); see Security.DnsCookieCoordinator.
+        readonly Security.DnsCookieCoordinator _cookieCoordinator;
+
         #endregion
 
         #region constructor
@@ -329,6 +353,9 @@ namespace DnsServerCore.Dns
             _dohwwwFolder = dohwwwFolder;
             LocalEndPoints = localEndPoints;
             _log = log;
+            _cookieCoordinator = new Security.DnsCookieCoordinator(_configFolder, _saveLock, _log);
+
+            ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions);
 
             ReconfigureResolverTaskPool(100);
 
@@ -448,6 +475,8 @@ namespace DnsServerCore.Dns
                     _log.Write(ex);
                 }
             }
+
+            _cookieCoordinator.Stop();
 
             _disposed = true;
             GC.SuppressFinalize(this);
@@ -600,6 +629,8 @@ namespace DnsServerCore.Dns
                 {
                     SaveConfigFileInternal();
                 }
+
+                _cookieCoordinator.Configure(_useDnsCookies);
             }
             catch (Exception ex)
             {
@@ -1222,6 +1253,47 @@ namespace DnsServerCore.Dns
             int maxStatFileDays = bR.ReadInt32();
             if (!isConfigTransfer)
                 _statsManager.MaxStatFileDays = maxStatFileDays;
+
+            if (s.Position < s.Length)
+            {
+                // Backward-compatible read: older config files won't have this trailing flag.
+                _useDnsCookies = bR.ReadBoolean();
+            }
+            else
+            {
+                _useDnsCookies = false;
+            }
+
+            _enableDnsCookieStandaloneAutomaticRotation = s.Position < s.Length && bR.ReadBoolean();
+            _dnsCookieStandaloneAutomaticRotationPeriodHours = DNS_COOKIE_STANDALONE_ROTATION_DEFAULT_PERIOD_HOURS;
+            if (s.Position < s.Length)
+            {
+                int persistedRotationPeriodHours = bR.ReadInt32();
+                ValidateDnsCookieStandaloneRotationPeriod(persistedRotationPeriodHours);
+                _dnsCookieStandaloneAutomaticRotationPeriodHours = persistedRotationPeriodHours;
+            }
+
+            if (s.Position < s.Length)
+            {
+                bool enableResponseRateLimiting = bR.ReadBoolean();
+                int responseRateLimit = bR.ReadInt32();
+                int responseRateLimitInstant = bR.ReadInt32();
+                int responseRateLimitSlip = bR.ReadInt32();
+                int responseRateLimitTableSize = bR.ReadInt32();
+                IReadOnlyCollection<NetworkAddress> responseRateLimitBypassList = AuthZoneInfo.ReadNetworkAddressesFrom(bR);
+
+                // Validate and allocate before accepting persisted or transferred values. A corrupt or
+                // malicious configuration must not replace a working limiter with an invalid one.
+                ApplyResponseRateLimitingOptions(new Security.ResponseRateLimitingOptions(enableResponseRateLimiting, responseRateLimit, responseRateLimitInstant, responseRateLimitSlip, responseRateLimitTableSize, responseRateLimitBypassList));
+            }
+            else
+            {
+                ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { Enabled = false });
+            }
+
+            _cookieCoordinator.Configure(_useDnsCookies);
+            _cookieCoordinator.ConfigureStandaloneAutomaticRotation(_enableDnsCookieStandaloneAutomaticRotation && !_dnsCookieClusterManaged,
+                TimeSpan.FromHours(_dnsCookieStandaloneAutomaticRotationPeriodHours));
         }
 
         private void WriteConfigTo(Stream s)
@@ -1514,8 +1586,17 @@ namespace DnsServerCore.Dns
             bW.Write(_queryLog is not null); //log all queries
             bW.Write(_statsManager.EnableInMemoryStats);
             bW.Write(_statsManager.MaxStatFileDays);
+            bW.Write(_useDnsCookies);
+            bW.Write(_enableDnsCookieStandaloneAutomaticRotation);
+            bW.Write(_dnsCookieStandaloneAutomaticRotationPeriodHours);
+            Security.ResponseRateLimitingOptions rrlOptions = _dnsResponseRrlRuntime.CurrentOptions;
+            bW.Write(rrlOptions.Enabled);
+            bW.Write(rrlOptions.SustainedRate);
+            bW.Write(rrlOptions.InstantLimit);
+            bW.Write(rrlOptions.SlipEvery);
+            bW.Write(rrlOptions.TableSize);
+            AuthZoneInfo.WriteNetworkAddressesTo(rrlOptions.BypassList, bW);
         }
-
         #endregion
 
         #region tls
@@ -1687,7 +1768,6 @@ namespace DnsServerCore.Dns
 
             return Path.Combine(_configFolder, path);
         }
-
         #endregion
 
         #region private
@@ -1813,6 +1893,10 @@ namespace DnsServerCore.Dns
 
                             request.SetMetadata(new NameServerAddress(sourceEP, protocol));
 
+                            // Capture the trusted transport/PROXY source before ECS can alter
+                            // the effective address used by normal DNS processing.
+                            IPAddress cookieClientAddress = remoteEP.Address;
+
                             if ((protocol == DnsTransportProtocol.Udp) && _enableEDnsClientSubnetSourceAddress)
                             {
                                 if (NetworkAccessControl.IsAddressAllowed(remoteEP.Address, _dnsReverseProxyNetworkACL))
@@ -1839,6 +1923,8 @@ namespace DnsServerCore.Dns
                                 }
                             }
 
+                            // QPM is request/workload control and applies independently of
+                            // DNS Cookie trust and the later response RRL decision.
                             if (HasQpmLimitExceeded(remoteEP.Address, DnsTransportProtocol.Udp))
                             {
                                 if (SendQpmLimitExceededTruncationResponse())
@@ -1856,6 +1942,17 @@ namespace DnsServerCore.Dns
                                 sendTruncationResponse = false;
                             }
 
+                            // Classify once using the stable Cookie identity captured before
+                            // ECS processing. The classification is reused for the RRL decision
+                            // and for response processing.
+                            Security.CookieRequestClassification cookieClassification =
+                                _cookieCoordinator.Classify(request, cookieClientAddress, protocol);
+                            Security.DnsCookieAdmissionResult admissionResult =
+                                !sendTruncationResponse &&
+                                _useDnsCookies &&
+                                cookieClassification.State != Security.CookieRequestState.ValidServerCookie
+                                    ? _cookieAdmissionLimiter.Evaluate(remoteEP.Address)
+                                    : Security.DnsCookieAdmissionResult.Allowed;
                             if (enableSocketBindingToSourceEP)
                             {
                                 Socket newUdpListener = null;
@@ -1925,14 +2022,14 @@ namespace DnsServerCore.Dns
                                 if (newUdpListener is not null)
                                 {
                                     //respond via new socket
-                                    _ = ProcessUdpRequestAsync(newUdpListener, remoteEP, returnEP, protocol, request, sendTruncationResponse);
+                                    _ = ProcessUdpRequestAsync(newUdpListener, remoteEP, returnEP, protocol, request, sendTruncationResponse, admissionResult, cookieClassification);
 
                                     //continue reading next request
                                     continue;
                                 }
                             }
 
-                            _ = ProcessUdpRequestAsync(udpListener, remoteEP, returnEP, protocol, request, sendTruncationResponse);
+                            _ = ProcessUdpRequestAsync(udpListener, remoteEP, returnEP, protocol, request, sendTruncationResponse, admissionResult, cookieClassification);
                         }
                         catch (EndOfStreamException)
                         {
@@ -1974,7 +2071,14 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task ProcessUdpRequestAsync(Socket udpListener, IPEndPoint remoteEP, IPEndPoint returnEP, DnsTransportProtocol protocol, DnsDatagram request, bool sendTruncationResponse)
+        // The empty truncated answer used when the transport must reply without running the
+        // query: a Cookie admission slip with no usable Cookie material, or a QPM truncation.
+        private DnsDatagram CreateEmptyTruncatedUdpResponse(DnsDatagram request, bool recursionAllowed)
+        {
+            return new DnsDatagram(request.Identifier, true, request.OPCODE, false, true, request.RecursionDesired, recursionAllowed, false, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, null, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, _dnssecValidation && request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative };
+        }
+
+        private async Task ProcessUdpRequestAsync(Socket udpListener, IPEndPoint remoteEP, IPEndPoint returnEP, DnsTransportProtocol protocol, DnsDatagram request, bool sendTruncationResponse, Security.DnsCookieAdmissionResult admissionResult, Security.CookieRequestClassification cookieClassification)
         {
             byte[] sendBuffer = null;
 
@@ -1983,17 +2087,60 @@ namespace DnsServerCore.Dns
                 bool recursionAllowed = IsRecursionAllowed(remoteEP.Address);
                 DnsDatagram response;
 
-                if (sendTruncationResponse)
+                if (admissionResult == Security.DnsCookieAdmissionResult.LimitedDrop)
                 {
-                    response = new DnsDatagram(request.Identifier, true, request.OPCODE, false, true, request.RecursionDesired, recursionAllowed, false, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, null, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, _dnssecValidation && request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative };
+                    Interlocked.Increment(ref _cookieAdmissionDroppedCount);
+                    _statsManager.QueueUpdate(null, remoteEP, protocol, null, true);
+                    return; //drop before request processing
+                }
+
+                bool isCookieAdmissionRecovery = admissionResult == Security.DnsCookieAdmissionResult.LimitedSlip;
+                if (isCookieAdmissionRecovery)
+                    Interlocked.Increment(ref _cookieAdmissionSlippedCount);
+                bool isSyntheticRecoveryResponse = isCookieAdmissionRecovery || sendTruncationResponse;
+                if (isCookieAdmissionRecovery)
+                {
+                    response = _cookieCoordinator.CreateCookieAdmissionRecoveryResponse(
+                        request, cookieClassification.CookieClientAddress, recursionAllowed, cookieClassification);
+                    response ??= CreateEmptyTruncatedUdpResponse(request, recursionAllowed);
+                }
+                else if (sendTruncationResponse)
+                {
+                    response = CreateEmptyTruncatedUdpResponse(request, recursionAllowed);
                 }
                 else
                 {
-                    response = await ProcessRequestAsync(request, remoteEP, protocol, recursionAllowed);
+                    response = await ProcessRequestAsync(request, remoteEP, protocol, recursionAllowed, cookieClassification);
                     if (response is null)
                     {
                         _statsManager.QueueUpdate(null, remoteEP, protocol, null, false);
                         return; //drop request
+                    }
+                }
+
+                // RRL is response policy: classify and limit only after resolution has
+                // produced the response, immediately before the UDP emission path.
+                Security.DnsResponseRrlRequestTrust rrlTrust = cookieClassification.State == Security.CookieRequestState.ValidServerCookie
+                    ? Security.DnsResponseRrlRequestTrust.ValidServerCookie
+                    : Security.DnsResponseRrlRequestTrust.Unverified;
+                if (!isSyntheticRecoveryResponse && response.Question.Count > 0 && Security.DnsResponseRrlPolicy.ShouldEvaluate(_dnsResponseRrlRuntime.Enabled, isUdp: true, rrlTrust))
+                {
+                    DnsQuestionRecord question = response.Question[0];
+                    Security.DnsResponseRateLimitIdentity responseIdentity = Security.DnsResponseRateLimiterRuntime.BuildResponseIdentity(response, question);
+                    Security.DnsResponseRateLimitResult rrlResult = _dnsResponseRrlRuntime.Evaluate(remoteEP.Address, responseIdentity, out bool errorLeakAllowed);
+                    if (errorLeakAllowed)
+                        Interlocked.Increment(ref _dnsResponseRrlErrorLeakCount);
+                    if (rrlResult == Security.DnsResponseRateLimitResult.LimitedDrop ||
+                        (rrlResult == Security.DnsResponseRateLimitResult.LimitedSlip && !Security.DnsResponseRateLimitSlipPolicy.IsEligible(responseIdentity.ResponseClass)))
+                    {
+                        Interlocked.Increment(ref _dnsResponseRrlDroppedCount);
+                        _statsManager.QueueUpdate(null, remoteEP, protocol, null, true);
+                        return;
+                    }
+                    if (rrlResult == Security.DnsResponseRateLimitResult.LimitedSlip)
+                    {
+                        Interlocked.Increment(ref _dnsResponseRrlSlippedCount);
+                        response = CreateEmptyTruncatedUdpResponse(request, recursionAllowed);
                     }
                 }
 
@@ -2230,9 +2377,13 @@ namespace DnsServerCore.Dns
 
                         cancellationTokenSource.Cancel(); //cancel delay task
 
-                        request = await task;
-                        request.SetMetadata(dnsEP);
+                    request = await task;
+                    request.SetMetadata(dnsEP);
                     }
+
+                    // Capture the trusted transport/PROXY source before ECS can alter
+                    // the effective address used by normal DNS processing.
+                    IPAddress cookieClientAddress = remoteEP.Address;
 
                     if ((protocol == DnsTransportProtocol.Tcp) && _enableEDnsClientSubnetSourceAddress)
                     {
@@ -2266,8 +2417,11 @@ namespace DnsServerCore.Dns
                         break;
                     }
 
+                    Security.CookieRequestClassification cookieClassification =
+                        _cookieCoordinator.Classify(request, cookieClientAddress, protocol);
+
                     //process request async
-                    _ = ProcessStreamRequestAsync(stream, writeBuffer, writeSemaphore, remoteEP, request, protocol);
+                    _ = ProcessStreamRequestAsync(stream, writeBuffer, writeSemaphore, remoteEP, request, protocol, cookieClassification);
                 }
             }
             catch (ObjectDisposedException)
@@ -2284,11 +2438,11 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task ProcessStreamRequestAsync(Stream stream, MemoryStream writeBuffer, SemaphoreSlim writeSemaphore, IPEndPoint remoteEP, DnsDatagram request, DnsTransportProtocol protocol)
+        private async Task ProcessStreamRequestAsync(Stream stream, MemoryStream writeBuffer, SemaphoreSlim writeSemaphore, IPEndPoint remoteEP, DnsDatagram request, DnsTransportProtocol protocol, Security.CookieRequestClassification cookieClassification)
         {
             try
             {
-                DnsDatagram response = await ProcessRequestAsync(request, remoteEP, protocol, IsRecursionAllowed(remoteEP.Address));
+                DnsDatagram response = await ProcessRequestAsync(request, remoteEP, protocol, IsRecursionAllowed(remoteEP.Address), cookieClassification);
                 if (response is null)
                 {
                     await stream.DisposeAsync();
@@ -2457,7 +2611,7 @@ namespace DnsServerCore.Dns
                 }
 
                 //process request async
-                DnsDatagram response = await ProcessRequestAsync(request, remoteEP, DnsTransportProtocol.Quic, IsRecursionAllowed(remoteEP.Address));
+                DnsDatagram response = await ProcessRequestAsync(request, remoteEP, DnsTransportProtocol.Quic, IsRecursionAllowed(remoteEP.Address), default);
                 if (response is null)
                 {
                     _statsManager.QueueUpdate(null, remoteEP, DnsTransportProtocol.Quic, null, false);
@@ -2643,7 +2797,7 @@ namespace DnsServerCore.Dns
                         throw new InvalidOperationException();
                 }
 
-                DnsDatagram dnsResponse = await ProcessRequestAsync(dnsRequest, remoteEP, DnsTransportProtocol.Https, IsRecursionAllowed(remoteEP.Address));
+                DnsDatagram dnsResponse = await ProcessRequestAsync(dnsRequest, remoteEP, DnsTransportProtocol.Https, IsRecursionAllowed(remoteEP.Address), default);
                 if (dnsResponse is null)
                 {
                     //drop request
@@ -2712,7 +2866,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed)
+        private async Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, Security.CookieRequestClassification cookieClassification)
         {
             foreach (IDnsRequestController requestController in _dnsApplicationManager.DnsRequestControllers)
             {
@@ -2741,7 +2895,25 @@ namespace DnsServerCore.Dns
                     _log.Write(remoteEP, protocol, request.ParsingException);
 
                 //format error response
-                return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, DnsResponseCode.FormatError, request.Question, null, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, _dnssecValidation && request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative };
+                ushort udpPayload = request.EDNS?.UdpPayloadSize ?? _udpPayloadSize;
+                EDnsHeaderFlags flags = request.EDNS?.Flags ?? EDnsHeaderFlags.None;
+                return new DnsDatagram(request.Identifier,
+                                       true,
+                                       request.OPCODE,
+                                       false,
+                                       false,
+                                       request.RecursionDesired,
+                                       isRecursionAllowed,
+                                       false,
+                                       request.CheckingDisabled,
+                                       DnsResponseCode.FormatError,
+                                       request.Question,
+                                       null,
+                                       null,
+                                       null,
+                                       request.EDNS is null ? ushort.MinValue : udpPayload,
+                                       flags)
+                { Tag = DnsServerResponseType.Authoritative };
             }
 
             //check for invalid domain name
@@ -2775,12 +2947,45 @@ namespace DnsServerCore.Dns
             if (request.EDNS is not null)
             {
                 if (request.EDNS.Version != 0)
-                    return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, DnsResponseCode.BADVERS, request.Question, null, null, null, _udpPayloadSize, _dnssecValidation && request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative };
+                {
+                    ushort udpPayload = request.EDNS?.UdpPayloadSize ?? _udpPayloadSize;
+                    EDnsHeaderFlags flags = request.EDNS?.Flags ?? EDnsHeaderFlags.None;
+                    return new DnsDatagram(
+                                    request.Identifier,
+                                    true,
+                                    request.OPCODE,
+                                    false,
+                                    false,
+                                    request.RecursionDesired,
+                                    isRecursionAllowed,
+                                    false,
+                                    request.CheckingDisabled,
+                                    DnsResponseCode.BADVERS,
+                                    request.Question,
+                                    null,
+                                    null,
+                                    null,
+                                    udpPayload,
+                                    flags)
+                    { Tag = DnsServerResponseType.Authoritative };
+                }
             }
 
-            DnsDatagram response = await ProcessQueryAsync(request, remoteEP, protocol, isRecursionAllowed, false, _clientTimeout, null);
+            // DNS Cookies (RFC 7873 / RFC 9018 v1)
+            Security.CookiePreflightResult cookiePreflight = _cookieCoordinator.Preflight(
+                request, cookieClassification.CookieClientAddress, protocol, isRecursionAllowed, cookieClassification, _udpPayloadSize);
+            if (cookiePreflight.ShortCircuit)
+                return cookiePreflight.Response;
+
+            // A non-null, non-short-circuit result is a pre-built RFC 7873 section 5.4
+            // zero-question acquisition acknowledgement; otherwise process the query as usual.
+            DnsDatagram response = cookiePreflight.Response
+                ?? await ProcessQueryAsync(request, remoteEP, protocol, isRecursionAllowed, false, _clientTimeout, null);
+
             if (response is null)
                 return null;
+
+            response = _cookieCoordinator.AttachToResponse(request, response, cookieClassification.CookieClientAddress, protocol, cookieClassification);
 
             return await PostProcessQueryAsync(request, remoteEP, protocol, response);
         }
@@ -7497,6 +7702,56 @@ namespace DnsServerCore.Dns
             }
         }
 
+        public long DnsCookieAdmissionDroppedCount => Interlocked.Read(ref _cookieAdmissionDroppedCount);
+        public long DnsCookieAdmissionSlippedCount => Interlocked.Read(ref _cookieAdmissionSlippedCount);
+        public long DnsResponseRrlDroppedCount => Interlocked.Read(ref _dnsResponseRrlDroppedCount);
+        public long DnsResponseRrlSlippedCount => Interlocked.Read(ref _dnsResponseRrlSlippedCount);
+        public long DnsResponseRrlErrorLeakCount => Interlocked.Read(ref _dnsResponseRrlErrorLeakCount);
+
+        public Security.ResponseRateLimitingOptions CurrentResponseRateLimitingOptions => _dnsResponseRrlRuntime.CurrentOptions;
+
+        public void ApplyResponseRateLimitingOptions(Security.ResponseRateLimitingOptions options) => _dnsResponseRrlRuntime.Apply(options);
+
+        // Diagnostic hook: callers can compare this value around a settings update.
+        public long ResponseRateLimiterRebuildCount => _dnsResponseRrlRuntime.RebuildCount;
+
+        public bool EnableResponseRateLimiting { get => _dnsResponseRrlRuntime.Enabled; set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { Enabled = value }); }
+
+        public int ResponseRateLimit
+        {
+            get => _dnsResponseRrlRuntime.CurrentOptions.SustainedRate;
+            set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { SustainedRate = value });
+        }
+
+        public static readonly int ResponseRateLimitMaximum = Security.DnsResponseRateLimiterRuntime.SustainedRateMaximum;
+
+        public int ResponseRateLimitInstant
+        {
+            get => _dnsResponseRrlRuntime.CurrentOptions.InstantLimit;
+            set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { InstantLimit = value });
+        }
+
+        public int ResponseRateLimitSlip
+        {
+            get => _dnsResponseRrlRuntime.CurrentOptions.SlipEvery;
+            set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { SlipEvery = value });
+        }
+
+        public const int ResponseRateLimitTableSizeMinimum = Security.DnsResponseRateLimiterRuntime.TableSizeMinimum;
+        public const int ResponseRateLimitTableSizeMaximum = Security.DnsResponseRateLimiterRuntime.TableSizeMaximum;
+
+        public int ResponseRateLimitTableSize
+        {
+            get => _dnsResponseRrlRuntime.CurrentOptions.TableSize;
+            set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { TableSize = value });
+        }
+
+        public IReadOnlyCollection<NetworkAddress> ResponseRateLimitBypassList
+        {
+            get => _dnsResponseRrlRuntime.CurrentOptions.BypassList;
+            set => ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { BypassList = value });
+        }
+
         public int ClientTimeout
         {
             get { return _clientTimeout; }
@@ -7694,6 +7949,140 @@ namespace DnsServerCore.Dns
         {
             get { return _enableDnsOverHttpHelpRedirect; }
             set { _enableDnsOverHttpHelpRedirect = value; }
+        }
+
+        public bool UseDnsCookies
+        {
+            get { return _useDnsCookies; }
+            set
+            {
+                if (_useDnsCookies == value)
+                    return;
+
+                _useDnsCookies = value;
+                _cookieCoordinator.Configure(value);
+            }
+        }
+
+        public bool EnableDnsCookieStandaloneAutomaticRotation
+        {
+            get => _enableDnsCookieStandaloneAutomaticRotation;
+            set
+            {
+                if (value && _dnsCookieClusterManaged)
+                    throw new InvalidOperationException("Automatic DNS Cookie rotation is unavailable while the server is cluster managed.");
+                if (_enableDnsCookieStandaloneAutomaticRotation == value)
+                    return;
+
+                _enableDnsCookieStandaloneAutomaticRotation = value;
+                _cookieCoordinator.ConfigureStandaloneAutomaticRotation(value,
+                    TimeSpan.FromHours(_dnsCookieStandaloneAutomaticRotationPeriodHours));
+            }
+        }
+
+        public int DnsCookieStandaloneAutomaticRotationPeriodHours
+        {
+            get => _dnsCookieStandaloneAutomaticRotationPeriodHours;
+            set
+            {
+                ValidateDnsCookieStandaloneRotationPeriod(value);
+                if (_dnsCookieStandaloneAutomaticRotationPeriodHours == value)
+                    return;
+
+                _dnsCookieStandaloneAutomaticRotationPeriodHours = value;
+                _cookieCoordinator.ConfigureStandaloneAutomaticRotation(_enableDnsCookieStandaloneAutomaticRotation && !_dnsCookieClusterManaged,
+                    TimeSpan.FromHours(value));
+            }
+        }
+
+        private static void ValidateDnsCookieStandaloneRotationPeriod(int periodHours)
+        {
+            if (periodHours < DNS_COOKIE_STANDALONE_ROTATION_MINIMUM_PERIOD_HOURS ||
+                periodHours > DNS_COOKIE_STANDALONE_ROTATION_MAXIMUM_PERIOD_HOURS)
+            {
+                throw new ArgumentOutOfRangeException(nameof(periodHours),
+                    $"DNS Cookie standalone rotation period must be between {DNS_COOKIE_STANDALONE_ROTATION_MINIMUM_PERIOD_HOURS} and {DNS_COOKIE_STANDALONE_ROTATION_MAXIMUM_PERIOD_HOURS} hours.");
+            }
+        }
+
+        internal void SetDnsCookieClusterManaged(bool clusterManaged)
+        {
+            if (_dnsCookieClusterManaged == clusterManaged)
+                return;
+
+            _dnsCookieClusterManaged = clusterManaged;
+            _cookieCoordinator.ConfigureStandaloneAutomaticRotation(_enableDnsCookieStandaloneAutomaticRotation && !clusterManaged,
+                TimeSpan.FromHours(_dnsCookieStandaloneAutomaticRotationPeriodHours));
+        }
+
+        // Monotonic instrumentation for transport-path tests and operational diagnostics.
+        // One increment represents one cryptographic validation attempt, not classification
+        // of client-only, malformed, or otherwise structurally invalid COOKIE options.
+        public long DnsCookieValidationInvocations => _cookieCoordinator.ValidationInvocations;
+
+        // Per-outcome DNS Cookie counters (RFC 9018 §9) for attack detection and rotation tuning.
+        public Security.DnsCookieStatistics DnsCookieStatistics => _cookieCoordinator.GetStatistics();
+
+        // Status lookup is deliberately non-creating. When cookies are disabled and no
+        // persisted state exists, false is returned and all output values are unavailable.
+        public bool TryGetDnsCookieSecretStatus(out string activeId, out string stagingId, out DateTime activeCreatedUtc) =>
+            _cookieCoordinator.TryGetStatus(out activeId, out stagingId, out activeCreatedUtc);
+
+        public bool TryGetDnsCookieSecretCoordinationStatus(out long generation, out Security.DnsCookieSecretRolloverState rolloverState,
+            out string activeId, out string stagingId, out DateTime activeCreatedUtc) =>
+            _cookieCoordinator.TryGetCoordinationStatus(out generation, out rolloverState, out activeId, out stagingId, out activeCreatedUtc);
+
+        public void GenerateDnsCookieStagedSecret(long? expectedGeneration = null) =>
+            _cookieCoordinator.UpdateSecrets(_useDnsCookies, secrets => secrets.GenerateStagedSecret(expectedGeneration));
+
+        public void StageDnsCookieSecret(ReadOnlySpan<byte> secret, long? expectedGeneration = null)
+        {
+            byte[] secretCopy = secret.ToArray();
+            _cookieCoordinator.UpdateSecrets(_useDnsCookies, secrets => secrets.StageSecret(secretCopy, expectedGeneration));
+        }
+
+        public void ActivateDnsCookieSecret(long? expectedGeneration = null)
+        {
+            EnsureClusterCookieTransitionIsSafe();
+            _cookieCoordinator.UpdateSecrets(_useDnsCookies, secrets => secrets.ActivateStaging(expectedGeneration));
+        }
+
+        public void RetirePreviousDnsCookieSecret(long? expectedGeneration = null)
+        {
+            EnsureClusterCookieTransitionIsSafe();
+            _cookieCoordinator.UpdateSecrets(_useDnsCookies, secrets => secrets.RetirePrevious(expectedGeneration));
+        }
+
+        private void EnsureClusterCookieTransitionIsSafe()
+        {
+            if (_dnsCookieClusterManaged)
+            {
+                throw new InvalidOperationException(
+                    "DNS Cookie activation and previous-secret retirement are disabled while the server is cluster managed. " +
+                    "The current cluster configuration propagation does not acknowledge that every member has persisted the staged generation; " +
+                    "activating without that barrier can violate RFC 9018 anycast interoperability.");
+            }
+        }
+
+        public void DropDnsCookieSecret(long? expectedGeneration = null) =>
+            _cookieCoordinator.UpdateSecrets(_useDnsCookies, secrets => secrets.DropStaging(expectedGeneration));
+
+        internal void ImportDnsCookieSecretState(Stream stream) => _cookieCoordinator.Import(stream);
+
+        internal void ExportDnsCookieSecretState(Stream stream) => _cookieCoordinator.Export(stream);
+
+        public IReadOnlyCollection<NetworkAccessControl> ReverseProxyNetworkACL
+        {
+            get { return _reverseProxyNetworkACL; }
+            set
+            {
+                if ((value is null) || (value.Count == 0))
+                    _reverseProxyNetworkACL = null;
+                else if (value.Count > byte.MaxValue)
+                    throw new ArgumentOutOfRangeException(nameof(ReverseProxyNetworkACL), "Network Access Control List cannot have more than 255 entries.");
+                else
+                    _reverseProxyNetworkACL = value;
+            }
         }
 
         public int DnsOverUdpProxyPort

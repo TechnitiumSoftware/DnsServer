@@ -23,6 +23,7 @@ using DnsServerCore.Dhcp;
 using DnsServerCore.Dns;
 using DnsServerCore.Dns.Applications;
 using DnsServerCore.Dns.Dnssec;
+using DnsServerCore.Dns.Security;
 using DnsServerCore.Dns.Zones;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.BearerToken;
@@ -686,6 +687,16 @@ namespace DnsServerCore
                     if (File.Exists(dnsConfigFile) && (File.GetLastWriteTimeUtc(dnsConfigFile) > ifModifiedSince))
                         backupZip.CreateEntryFromFile(dnsConfigFile, "dns.config");
 
+                    // DNS Cookie secrets are cluster configuration: all nodes must
+                    // validate cookies issued by any other node.
+                    string dnsCookieStateFile = Path.Combine(_configFolder, "dns.cookies.state");
+                    if (File.Exists(dnsCookieStateFile) && (File.GetLastWriteTimeUtc(dnsCookieStateFile) > ifModifiedSince))
+                    {
+                        ZipArchiveEntry dnsCookieStateEntry = backupZip.CreateEntry("dns.cookies.state");
+                        using Stream stream = dnsCookieStateEntry.Open();
+                        _dnsServer.ExportDnsCookieSecretState(stream);
+                    }
+
                     //backup optional protocols cert
                     if (!isConfigTransfer && !string.IsNullOrEmpty(_dnsServer.DnsTlsCertificatePath))
                     {
@@ -696,6 +707,7 @@ namespace DnsServerCore
                             string entryName = ConvertToRelativePath(dnsTlsCertificatePath).Replace('\\', '/');
                             backupZip.CreateEntryFromFile(dnsTlsCertificatePath, entryName);
                         }
+
                     }
                 }
 
@@ -1074,6 +1086,16 @@ namespace DnsServerCore
                                     }
                                 }
                             }
+                        }
+
+                        ZipArchiveEntry dnsCookieStateEntry = backupZip.GetEntry("dns.cookies.state");
+                        if (dnsCookieStateEntry is not null)
+                        {
+                            if (dnsCookieStateEntry.Length > DnsCookieSecretManager.MaxSerializedStateSize)
+                                throw new InvalidDataException($"DNS Cookie secret state exceeds the maximum size of {DnsCookieSecretManager.MaxSerializedStateSize} bytes.");
+
+                            await using Stream stream = dnsCookieStateEntry.Open();
+                            _dnsServer.ImportDnsCookieSecretState(stream);
                         }
                     }
 
@@ -2193,6 +2215,13 @@ namespace DnsServerCore
             //settings
             _webService.MapGetAndPost("/api/settings/get", _settingsApi.GetDnsSettings);
             _webService.MapGetAndPost("/api/settings/set", _settingsApi.SetDnsSettingsAsync);
+            _webService.MapGetAndPost("/api/settings/dnsCookies/get", _settingsApi.GetDnsCookieSecrets);
+            _webService.MapGetAndPost("/api/settings/dnsCookies/generateStagedSecret", _settingsApi.GenerateDnsCookieSecret);
+            _webService.MapPost("/api/settings/dnsCookies/stageSecret", _settingsApi.StageDnsCookieSecret);
+            _webService.MapGetAndPost("/api/settings/dnsCookies/activateSecret", _settingsApi.ActivateDnsCookieSecret);
+            _webService.MapGetAndPost("/api/settings/dnsCookies/retirePreviousSecret", _settingsApi.RetirePreviousDnsCookieSecret);
+            _webService.MapGetAndPost("/api/settings/dnsCookies/dropSecret", _settingsApi.DropDnsCookieSecret);
+            _webService.MapGetAndPost("/api/settings/dnsCookies/stats", _settingsApi.GetDnsCookieStatistics);
             _webService.MapGetAndPost("/api/settings/getTsigKeyNames", _settingsApi.GetTsigKeyNames);
             _webService.MapGetAndPost("/api/settings/forceUpdateBlockLists", _settingsApi.ForceUpdateBlockLists);
             _webService.MapGetAndPost("/api/settings/temporaryDisableBlocking", _settingsApi.TemporaryDisableBlocking);

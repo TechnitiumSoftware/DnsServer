@@ -58,6 +58,7 @@ The following is a list of RFCs that Technitium DNS Server implements.
 | RFC 7816 | DNS Query Name Minimisation to Improve Privacy
 | RFC 7830 | The EDNS(0) Padding Option
 | RFC 7871 | Client Subnet in DNS Queries
+| RFC 7873 | Domain Name System (DNS) Cookies
 | RFC 7858 | Specification for DNS over Transport Layer Security (TLS)
 | RFC 8080 | Edwards-Curve Digital Security Algorithm (EdDSA) for DNSSEC
 | RFC 8109 | Initializing a DNS Resolver with Priming Queries
@@ -69,6 +70,7 @@ The following is a list of RFCs that Technitium DNS Server implements.
 | RFC 8914 | Extended DNS Errors
 | RFC 8945 | Secret Key Transaction Authentication for DNS (TSIG)
 | RFC 8976 | Message Digest for DNS Zones
+| RFC 9018 | Interoperable Domain Name System (DNS) Server Cookies
 | RFC 9103 | DNS Zone Transfer over TLS
 | RFC 9156 | DNS Query Name Minimisation to Improve Privacy
 | RFC 9250 | DNS over Dedicated QUIC Connections 
