@@ -1,4 +1,4 @@
-/*
+﻿/*
 Technitium DNS Server
 Copyright (C) 2026 Shreyas Zare (shreyas@technitium.com)
 
@@ -416,10 +416,10 @@ namespace DnsServerCore.Dns.Security
         {
             return Transition(null, current => current.RolloverState switch
             {
-                DnsCookieSecretRolloverState.None => new Snapshot(CurrentFileVersion, NextGeneration(current),
-                    DnsCookieSecretRolloverState.Staged, current.Active, current.ActiveCreatedUtc, GenerateSecret()),
-                DnsCookieSecretRolloverState.Staged => new Snapshot(CurrentFileVersion, NextGeneration(current),
-                    DnsCookieSecretRolloverState.Activated, current.Secondary, DateTime.UtcNow, current.Active),
+                DnsCookieSecretRolloverState.None => current.Next(DnsCookieSecretRolloverState.Staged,
+                    current.Active, current.ActiveCreatedUtc, GenerateSecret()),
+                DnsCookieSecretRolloverState.Staged => current.Next(DnsCookieSecretRolloverState.Activated,
+                    current.Secondary, DateTime.UtcNow, current.Active),
                 DnsCookieSecretRolloverState.Activated => null, //retirement stays manual
                 _ => throw new InvalidOperationException("The DNS Cookie rollover state is invalid.")
             });
@@ -497,8 +497,7 @@ namespace DnsServerCore.Dns.Security
                 if (current.RolloverState != DnsCookieSecretRolloverState.None)
                     throw new InvalidOperationException("A DNS Cookie rollover is already in progress.");
 
-                return new Snapshot(CurrentFileVersion, NextGeneration(current), DnsCookieSecretRolloverState.Staged,
-                    current.Active, current.ActiveCreatedUtc, stagedSecret);
+                return current.Next(DnsCookieSecretRolloverState.Staged, current.Active, current.ActiveCreatedUtc, stagedSecret);
             });
         }
 
@@ -524,8 +523,7 @@ namespace DnsServerCore.Dns.Security
                 if (current.RolloverState != DnsCookieSecretRolloverState.Staged || current.Secondary is null)
                     throw new InvalidOperationException("There is no staging secret to activate.");
 
-                return new Snapshot(CurrentFileVersion, NextGeneration(current), DnsCookieSecretRolloverState.Activated,
-                    current.Secondary, DateTime.UtcNow, current.Active);
+                return current.Next(DnsCookieSecretRolloverState.Activated, current.Secondary, DateTime.UtcNow, current.Active);
             });
         }
 
@@ -536,27 +534,23 @@ namespace DnsServerCore.Dns.Security
         /// was postponed or cancelled). Operators should consult RFC 9018 §5 and APIDOCS.md
         /// DNS Cookie section when making manual secret management decisions.
         /// </summary>
-        public void DropStaging(long? expectedGeneration = null)
+        public void DropStaging(long? expectedGeneration = null) =>
+            ClearSecondary(DnsCookieSecretRolloverState.Staged, "There is no staging secret to drop.", expectedGeneration);
+
+        public void RetirePrevious(long? expectedGeneration = null) =>
+            ClearSecondary(DnsCookieSecretRolloverState.Activated, "There is no previous DNS Cookie secret to retire.", expectedGeneration);
+
+        // Dropping a staged secret and retiring a previous one end the rollover the same way:
+        // keep the active secret, discard the secondary. Only the state they are valid from
+        // and the message they fail with differ.
+        private void ClearSecondary(DnsCookieSecretRolloverState requiredState, string message, long? expectedGeneration)
         {
             Transition(expectedGeneration, current =>
             {
-                if (current.RolloverState != DnsCookieSecretRolloverState.Staged)
-                    throw new InvalidOperationException("There is no staging secret to drop.");
+                if (current.RolloverState != requiredState)
+                    throw new InvalidOperationException(message);
 
-                return new Snapshot(CurrentFileVersion, NextGeneration(current), DnsCookieSecretRolloverState.None,
-                    current.Active, current.ActiveCreatedUtc, null);
-            });
-        }
-
-        public void RetirePrevious(long? expectedGeneration = null)
-        {
-            Transition(expectedGeneration, current =>
-            {
-                if (current.RolloverState != DnsCookieSecretRolloverState.Activated)
-                    throw new InvalidOperationException("There is no previous DNS Cookie secret to retire.");
-
-                return new Snapshot(CurrentFileVersion, NextGeneration(current), DnsCookieSecretRolloverState.None,
-                    current.Active, current.ActiveCreatedUtc, null);
+                return current.Next(DnsCookieSecretRolloverState.None, current.Active, current.ActiveCreatedUtc, null);
             });
         }
 
@@ -565,32 +559,18 @@ namespace DnsServerCore.Dns.Security
             if (stream is null)
                 throw new ArgumentNullException(nameof(stream));
 
-            if (stream.CanSeek && (stream.Length - stream.Position > MaxSerializedStateSize))
+            // Read one byte past the cap so an oversized import is rejected rather than truncated.
+            byte[] buffer = new byte[MaxSerializedStateSize + 1];
+            int totalBytesRead = stream.ReadAtLeast(buffer, buffer.Length, throwOnEndOfStream: false);
+            if (totalBytesRead > MaxSerializedStateSize)
                 throw new InvalidDataException($"DNS Cookie secret state exceeds the maximum size of {MaxSerializedStateSize} bytes.");
-
-            using MemoryStream buffer = new MemoryStream(MaxSerializedStateSize);
-            byte[] readBuffer = new byte[Math.Min(4096, MaxSerializedStateSize + 1)];
-            int totalBytesRead = 0;
-
-            while (true)
-            {
-                int bytesRead = stream.Read(readBuffer, 0, Math.Min(readBuffer.Length, MaxSerializedStateSize - totalBytesRead + 1));
-                if (bytesRead == 0)
-                    break;
-
-                totalBytesRead += bytesRead;
-                if (totalBytesRead > MaxSerializedStateSize)
-                    throw new InvalidDataException($"DNS Cookie secret state exceeds the maximum size of {MaxSerializedStateSize} bytes.");
-
-                buffer.Write(readBuffer, 0, bytesRead);
-            }
 
             lock (_lock)
             {
                 string tmpPath = _secretFilePath + ".tmp";
                 try
                 {
-                    WriteSecretFile(tmpPath, buffer.ToArray());
+                    WriteSecretFile(tmpPath, buffer.AsSpan(0, totalBytesRead).ToArray());
                     Snapshot imported = LoadFileLocked(tmpPath);
                     if (imported is null)
                         throw new InvalidDataException("Imported DNS Cookie secret state is missing.");
@@ -631,13 +611,6 @@ namespace DnsServerCore.Dns.Security
                 throw new InvalidOperationException($"DNS Cookie secret generation changed from {expectedGeneration.Value} to {snapshot.Generation}; refresh state before retrying.");
         }
 
-        private static long NextGeneration(Snapshot snapshot)
-        {
-            if (snapshot.Generation == long.MaxValue)
-                throw new InvalidOperationException("DNS Cookie secret generation has reached its maximum value.");
-            return snapshot.Generation + 1;
-        }
-
         private sealed class Snapshot
         {
             internal readonly int FormatVersion;
@@ -646,6 +619,16 @@ namespace DnsServerCore.Dns.Security
             internal readonly byte[] Active;
             internal readonly DateTime ActiveCreatedUtc;
             internal readonly byte[] Secondary;
+
+            // Every transition produces the current format at the next generation, so callers
+            // state only what changes and cannot forget to advance the generation.
+            internal Snapshot Next(DnsCookieSecretRolloverState rolloverState, byte[] active, DateTime activeCreatedUtc, byte[] secondary)
+            {
+                if (Generation == long.MaxValue)
+                    throw new InvalidOperationException("DNS Cookie secret generation has reached its maximum value.");
+
+                return new Snapshot(CurrentFileVersion, Generation + 1, rolloverState, active, activeCreatedUtc, secondary);
+            }
 
             internal Snapshot(int formatVersion, long generation, DnsCookieSecretRolloverState rolloverState,
                 byte[] active, DateTime activeCreatedUtc, byte[] secondary)
