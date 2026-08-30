@@ -1,4 +1,4 @@
-/*
+﻿/*
 Technitium DNS Server
 Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
@@ -77,20 +77,20 @@ namespace DnsServerCore.Dns.Security
 
     /// <summary>
     /// An immutable RRL policy generation. Instances are completely constructed before a
-    /// single atomic publication and neither their options nor bypass matcher are mutated
+    /// single atomic publication and neither their options nor bypass list are mutated
     /// afterward; readers must capture the published reference once and use only that
     /// instance for the entire decision.
     /// </summary>
     sealed class RrlRuntimeState
     {
         public RrlRuntimeState(ResponseRateLimitingOptions options, RrlLimiterSemanticSettings limiterSettings,
-            DnsResponseRateLimiter limiter, DnsResponseRateLimiter errorLeakLimiter, NetworkPrefixMatcher bypassMatcher, ulong generation)
+            DnsResponseRateLimiter limiter, DnsResponseRateLimiter errorLeakLimiter, ImmutableArray<NetworkAddress> bypassList, ulong generation)
         {
             Options = options;
             LimiterSettings = limiterSettings;
             Limiter = limiter ?? throw new ArgumentNullException(nameof(limiter));
             ErrorLeakLimiter = errorLeakLimiter ?? throw new ArgumentNullException(nameof(errorLeakLimiter));
-            BypassMatcher = bypassMatcher ?? throw new ArgumentNullException(nameof(bypassMatcher));
+            BypassList = bypassList;
             Generation = generation;
         }
 
@@ -98,7 +98,7 @@ namespace DnsServerCore.Dns.Security
         public DnsResponseRateLimiter Limiter { get; }
         public DnsResponseRateLimiter ErrorLeakLimiter { get; }
         public RrlLimiterSemanticSettings LimiterSettings { get; }
-        public NetworkPrefixMatcher BypassMatcher { get; }
+        public ImmutableArray<NetworkAddress> BypassList { get; }
         public ResponseRateLimitingOptions Options { get; }
         public ulong Generation { get; }
     }
@@ -149,7 +149,7 @@ namespace DnsServerCore.Dns.Security
             lock (_lock)
             {
                 RrlRuntimeState current = Volatile.Read(ref _state);
-                ResponseRateLimitingOptions normalizedOptions = NormalizeOptions(options, out NetworkPrefixMatcher bypassMatcher);
+                ResponseRateLimitingOptions normalizedOptions = NormalizeOptions(options, out ImmutableArray<NetworkAddress> bypassList);
                 RrlLimiterSemanticSettings limiterSettings = CreateLimiterSettings(normalizedOptions);
                 bool rebuild = current.LimiterSettings.RequiresHistoryRebuild(limiterSettings);
                 DnsResponseRateLimiter limiter = rebuild
@@ -159,7 +159,7 @@ namespace DnsServerCore.Dns.Security
                     ? CreateErrorLeakLimiter(limiterSettings)
                     : current.ErrorLeakLimiter;
                 RrlRuntimeState replacement = new RrlRuntimeState(normalizedOptions, limiterSettings, limiter,
-                    errorLeakLimiter, bypassMatcher, GetNextGeneration(current.Generation));
+                    errorLeakLimiter, bypassList, GetNextGeneration(current.Generation));
 
                 // The previous generation remains published if any construction step above fails.
                 Volatile.Write(ref _state, replacement);
@@ -180,7 +180,7 @@ namespace DnsServerCore.Dns.Security
         {
             errorLeakAllowed = false;
             RrlRuntimeState state = Volatile.Read(ref _state);
-            if (state.BypassMatcher.IsMatch(remoteIP))
+            if (IsBypassed(state.BypassList, remoteIP))
                 return DnsResponseRateLimitResult.Allowed;
 
             DnsResponseRateLimitResult classResult = state.Limiter.Evaluate(remoteIP, identity.ResponseClass,
@@ -243,11 +243,11 @@ namespace DnsServerCore.Dns.Security
 
         private static RrlRuntimeState CreateRuntimeState(ResponseRateLimitingOptions options, ulong generation)
         {
-            ResponseRateLimitingOptions normalizedOptions = NormalizeOptions(options, out NetworkPrefixMatcher bypassMatcher);
+            ResponseRateLimitingOptions normalizedOptions = NormalizeOptions(options, out ImmutableArray<NetworkAddress> bypassList);
             RrlLimiterSemanticSettings limiterSettings = CreateLimiterSettings(normalizedOptions);
             DnsResponseRateLimiter limiter = new DnsResponseRateLimiter(limiterSettings.ToLimiterOptions());
             return new RrlRuntimeState(normalizedOptions, limiterSettings, limiter,
-                CreateErrorLeakLimiter(limiterSettings), bypassMatcher, generation);
+                CreateErrorLeakLimiter(limiterSettings), bypassList, generation);
         }
 
         private static DnsResponseRateLimiter CreateErrorLeakLimiter(RrlLimiterSemanticSettings limiterSettings)
@@ -267,12 +267,26 @@ namespace DnsServerCore.Dns.Security
             return new DnsResponseRateLimiter(options);
         }
 
-        private static ResponseRateLimitingOptions NormalizeOptions(ResponseRateLimitingOptions options, out NetworkPrefixMatcher bypassMatcher)
+        // The bypass list is operator-configured, capped at 255 entries, and rebuilt only on a
+        // settings change, so it is scanned directly. This matches how the query-per-minute
+        // bypass list is evaluated on the same request path.
+        private static bool IsBypassed(ImmutableArray<NetworkAddress> bypassList, IPAddress remoteIP)
+        {
+            foreach (NetworkAddress network in bypassList)
+            {
+                if (network.Contains(remoteIP))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static ResponseRateLimitingOptions NormalizeOptions(ResponseRateLimitingOptions options, out ImmutableArray<NetworkAddress> bypassList)
         {
             ValidateOptions(options);
-            bypassMatcher = NetworkPrefixMatcher.Create(options.BypassList, out ImmutableArray<NetworkAddress> bypassNetworks);
+            bypassList = options.BypassList is null ? ImmutableArray<NetworkAddress>.Empty : ImmutableArray.CreateRange(options.BypassList);
             return new ResponseRateLimitingOptions(options.Enabled, options.SustainedRate, options.InstantLimit,
-                options.SlipEvery, options.TableSize, bypassNetworks);
+                options.SlipEvery, options.TableSize, bypassList);
         }
 
         private static RrlLimiterSemanticSettings CreateLimiterSettings(ResponseRateLimitingOptions options)
