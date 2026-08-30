@@ -2071,6 +2071,13 @@ namespace DnsServerCore.Dns
             }
         }
 
+        // The empty truncated answer used when the transport must reply without running the
+        // query: a Cookie admission slip with no usable Cookie material, or a QPM truncation.
+        private DnsDatagram CreateEmptyTruncatedUdpResponse(DnsDatagram request, bool recursionAllowed)
+        {
+            return new DnsDatagram(request.Identifier, true, request.OPCODE, false, true, request.RecursionDesired, recursionAllowed, false, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, null, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, _dnssecValidation && request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative };
+        }
+
         private async Task ProcessUdpRequestAsync(Socket udpListener, IPEndPoint remoteEP, IPEndPoint returnEP, DnsTransportProtocol protocol, DnsDatagram request, bool sendTruncationResponse, Security.DnsCookieAdmissionResult admissionResult, Security.CookieRequestClassification cookieClassification)
         {
             byte[] sendBuffer = null;
@@ -2095,14 +2102,11 @@ namespace DnsServerCore.Dns
                 {
                     response = _cookieCoordinator.CreateCookieAdmissionRecoveryResponse(
                         request, cookieClassification.CookieClientAddress, recursionAllowed, cookieClassification);
-                    if (response is null)
-                    {
-                        response = new DnsDatagram(request.Identifier, true, request.OPCODE, false, true, request.RecursionDesired, recursionAllowed, false, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, null, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, _dnssecValidation && request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative };
-                    }
+                    response ??= CreateEmptyTruncatedUdpResponse(request, recursionAllowed);
                 }
                 else if (sendTruncationResponse)
                 {
-                    response = new DnsDatagram(request.Identifier, true, request.OPCODE, false, true, request.RecursionDesired, recursionAllowed, false, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, null, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, _dnssecValidation && request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative };
+                    response = CreateEmptyTruncatedUdpResponse(request, recursionAllowed);
                 }
                 else
                 {
@@ -2136,12 +2140,7 @@ namespace DnsServerCore.Dns
                     if (rrlResult == Security.DnsResponseRateLimitResult.LimitedSlip)
                     {
                         Interlocked.Increment(ref _dnsResponseRrlSlippedCount);
-                        response = new DnsDatagram(request.Identifier, true, request.OPCODE, false, true,
-                            request.RecursionDesired, recursionAllowed, false, request.CheckingDisabled,
-                            DnsResponseCode.NoError, request.Question, null, null, null,
-                            request.EDNS is null ? ushort.MinValue : _udpPayloadSize,
-                            _dnssecValidation && request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None)
-                        { Tag = DnsServerResponseType.Authoritative };
+                        response = CreateEmptyTruncatedUdpResponse(request, recursionAllowed);
                     }
                 }
 
@@ -8032,12 +8031,6 @@ namespace DnsServerCore.Dns
         public bool TryGetDnsCookieSecretCoordinationStatus(out long generation, out Security.DnsCookieSecretRolloverState rolloverState,
             out string activeId, out string stagingId, out DateTime activeCreatedUtc) =>
             _cookieCoordinator.TryGetCoordinationStatus(out generation, out rolloverState, out activeId, out stagingId, out activeCreatedUtc);
-
-        public string ActiveDnsCookieSecretId => TryGetDnsCookieSecretStatus(out string activeId, out _, out _) ? activeId : null;
-
-        public string StagingDnsCookieSecretId => TryGetDnsCookieSecretStatus(out _, out string stagingId, out _) ? stagingId : null;
-
-        public DateTime? ActiveDnsCookieSecretCreatedUtc => TryGetDnsCookieSecretStatus(out _, out _, out DateTime activeCreatedUtc) ? activeCreatedUtc : null;
 
         public void GenerateDnsCookieStagedSecret(long? expectedGeneration = null) =>
             _cookieCoordinator.UpdateSecrets(_useDnsCookies, secrets => secrets.GenerateStagedSecret(expectedGeneration));

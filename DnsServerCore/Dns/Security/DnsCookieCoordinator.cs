@@ -419,33 +419,27 @@ namespace DnsServerCore.Dns.Security
             EDnsCookieOptionData requestCookie = classification.Cookie;
             bool isCookieAcquisitionRequest = IsCookieAcquisitionRequest(request, classification.State);
 
-            if (classification.State == CookieRequestState.NoCookie)
+            switch (classification.State)
             {
-                Interlocked.Increment(ref _missingCount);
-            }
-            else
-            {
-                if (classification.State == CookieRequestState.MalformedCookie)
-                {
+                case CookieRequestState.NoCookie:
+                    Interlocked.Increment(ref _missingCount);
+                    break;
+
+                case CookieRequestState.MalformedCookie:
                     // Malformed COOKIE option => FORMERR
                     Interlocked.Increment(ref _invalidCount);
                     Interlocked.Increment(ref _malformedCount);
                     ushort udpPayload = request.EDNS?.UdpPayloadSize ?? udpPayloadSizeFallback;
                     EDnsHeaderFlags flags = request.EDNS?.Flags ?? EDnsHeaderFlags.None;
-
-                    DnsDatagram formErr = BuildCookieResponse(request, request.OPCODE, DnsResponseCode.FormatError,
-                        isRecursionAllowed, request.EDNS is null ? ushort.MinValue : udpPayload, flags);
-
-                    return CookiePreflightResult.Immediate(formErr);
-                }
+                    return CookiePreflightResult.Immediate(BuildCookieResponse(request, request.OPCODE, DnsResponseCode.FormatError,
+                        isRecursionAllowed, request.EDNS is null ? ushort.MinValue : udpPayload, flags));
 
                 // CC-only: valid request; we'll attach SC to the normal response later (no extra RTT).
-                if (classification.State == CookieRequestState.ClientOnly)
-                {
+                case CookieRequestState.ClientOnly:
                     Interlocked.Increment(ref _clientOnlyCount);
-                }
-                else if (classification.State == CookieRequestState.InvalidServerCookie)
-                {
+                    break;
+
+                case CookieRequestState.InvalidServerCookie:
                     // TCP can safely process an ordinary query and return a fresh cookie.
                     // UDP, and the transport-independent zero-question acquisition
                     // mechanism, use BADCOOKIE as required by RFC 7873.
@@ -456,15 +450,15 @@ namespace DnsServerCore.Dns.Security
                     }
 
                     Interlocked.Increment(ref _invalidCount);
-                }
-                else
-                {
+                    break;
+
+                default:
                     Interlocked.Increment(ref _validCount);
                     if (classification.ValidationResult == DnsCookieValidationResult.ValidRenew)
                         Interlocked.Increment(ref _validRenewCount);
                     else
                         Interlocked.Increment(ref _validCurrentCount);
-                }
+                    break;
             }
 
             if (!isCookieAcquisitionRequest)

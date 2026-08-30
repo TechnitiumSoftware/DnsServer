@@ -591,14 +591,8 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("DNS Cookie secret body must be exactly 16 bytes.");
 
                 byte[] secret = new byte[SecretLength];
-                int offset = 0;
-                while (offset < secret.Length)
-                {
-                    int read = context.Request.Body.Read(secret, offset, secret.Length - offset);
-                    if (read == 0)
-                        throw new DnsWebServiceException("DNS Cookie secret body must be exactly 16 bytes.");
-                    offset += read;
-                }
+                if (context.Request.Body.ReadAtLeast(secret, SecretLength, throwOnEndOfStream: false) != SecretLength)
+                    throw new DnsWebServiceException("DNS Cookie secret body must be exactly 16 bytes.");
 
                 if (context.Request.Body.ReadByte() != -1)
                     throw new DnsWebServiceException("DNS Cookie secret body must be exactly 16 bytes.");
