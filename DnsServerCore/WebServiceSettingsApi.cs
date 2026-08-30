@@ -155,8 +155,8 @@ namespace DnsServerCore
                 jsonWriter.WriteEndArray();
 
                 jsonWriter.WriteBoolean("enableUdpReflectionLimiting", _dnsWebService._dnsServer.EnableUdpReflectionLimiting);
-                jsonWriter.WriteNumber("udpReflectionLimiterDroppedCount", _dnsWebService._dnsServer.UdpReflectionLimiterDroppedCount);
-                jsonWriter.WriteNumber("udpReflectionLimiterSlippedCount", _dnsWebService._dnsServer.UdpReflectionLimiterSlippedCount);
+                jsonWriter.WriteNumber("dnsCookieAdmissionDroppedCount", _dnsWebService._dnsServer.DnsCookieAdmissionDroppedCount);
+                jsonWriter.WriteNumber("dnsCookieAdmissionSlippedCount", _dnsWebService._dnsServer.DnsCookieAdmissionSlippedCount);
 
                 jsonWriter.WriteNumber("qpmLimitSampleMinutes", _dnsWebService._dnsServer.QpmLimitSampleMinutes);
                 jsonWriter.WriteNumber("qpmLimitUdpTruncationPercentage", _dnsWebService._dnsServer.QpmLimitUdpTruncationPercentage);

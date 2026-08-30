@@ -1,4 +1,4 @@
-/*
+﻿/*
 Technitium DNS Server
 Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
@@ -344,8 +344,8 @@ namespace DnsServerCore.Dns.Security
         #region request classification
 
         // This is deliberately a statement about return-routability only. A valid cookie
-        // bypasses reflection RRL, but does not bypass any other admission, query, or
-        // resource-control policy.
+        // bypasses Cookie admission limiting, but does not bypass any other admission,
+        // query, or resource-control policy.
         internal CookieRequestClassification Classify(DnsDatagram request, IPAddress clientAddress, DnsTransportProtocol protocol)
         {
             RuntimeState runtimeState = Volatile.Read(ref _state);
@@ -478,12 +478,12 @@ namespace DnsServerCore.Dns.Security
         }
 
         /// <summary>
-        /// Creates the recovery response used only when the early UDP reflection limiter elects
+        /// Creates the recovery response used only when the Cookie admission limiter elects
         /// to slip an otherwise unverified request. A usable Client Cookie receives BADCOOKIE
         /// plus an Active-secret Server Cookie; requests without usable Cookie material leave
         /// truncation construction to the transport path.
         /// </summary>
-        internal DnsDatagram CreateUdpReflectionLimiterSlipResponse(DnsDatagram request, IPAddress cookieClientAddress,
+        internal DnsDatagram CreateCookieAdmissionRecoveryResponse(DnsDatagram request, IPAddress cookieClientAddress,
             bool isRecursionAllowed, in CookieRequestClassification classification)
         {
             if (classification.RuntimeState is not EnabledState cookieRuntimeState ||
@@ -574,9 +574,9 @@ namespace DnsServerCore.Dns.Security
             IReadOnlyList<EDnsOption> options =
                 MergeCookieOption(request.EDNS?.Options, responseCookie);
 
-            // BADCOOKIE is a COOKIE protocol retry signal, not an RRL slip or DNS
-            // truncation response, which is why nothing here sets TC. Reflection RRL may
-            // independently drop the unverified UDP request before this response is emitted.
+            // BADCOOKIE is a COOKIE protocol retry signal, not an admission slip or DNS
+            // truncation response, which is why nothing here sets TC. The admission limiter
+            // may independently drop the unverified UDP request before this response is emitted.
             return BuildCookieResponse(request, request.OPCODE, DnsResponseCode.BADCOOKIE, isRecursionAllowed,
                 request.EDNS?.UdpPayloadSize ?? 512, request.EDNS?.Flags ?? EDnsHeaderFlags.None, options);
         }
