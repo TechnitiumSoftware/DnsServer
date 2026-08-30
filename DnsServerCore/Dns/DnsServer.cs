@@ -179,8 +179,9 @@ namespace DnsServerCore.Dns
         IReadOnlyCollection<NetworkAddress> _qpmLimitBypassList;
 
         // Early source-prefix admission control remains separate from the post-response
-        // DNS response-rate limiter configured through _dnsResponseRrlRuntime.
-        bool _enableUdpReflectionLimiting;
+        // DNS response-rate limiter configured through _dnsResponseRrlRuntime. It has no
+        // enablement flag of its own: DNS Cookies are not a defence against spoofed UDP
+        // without it, so it follows _useDnsCookies.
         readonly Security.DnsCookieUdpAdmissionLimiter _cookieAdmissionLimiter = new Security.DnsCookieUdpAdmissionLimiter();
         long _cookieAdmissionDroppedCount;
         long _cookieAdmissionSlippedCount;
@@ -1281,7 +1282,6 @@ namespace DnsServerCore.Dns
                 ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { Enabled = false });
             }
 
-            _enableUdpReflectionLimiting = s.Position < s.Length && bR.ReadBoolean();
             _enableDnsCookieStandaloneAutomaticRotation = s.Position < s.Length && bR.ReadBoolean();
             _dnsCookieStandaloneAutomaticRotationPeriodHours = DNS_COOKIE_STANDALONE_ROTATION_DEFAULT_PERIOD_HOURS;
             if (s.Position < s.Length)
@@ -1594,7 +1594,6 @@ namespace DnsServerCore.Dns
             bW.Write(rrlOptions.SlipEvery);
             bW.Write(rrlOptions.TableSize);
             AuthZoneInfo.WriteNetworkAddressesTo(rrlOptions.BypassList, bW);
-            bW.Write(_enableUdpReflectionLimiting);
             bW.Write(_enableDnsCookieStandaloneAutomaticRotation);
             bW.Write(_dnsCookieStandaloneAutomaticRotationPeriodHours);
         }
@@ -1950,7 +1949,7 @@ namespace DnsServerCore.Dns
                                 _cookieCoordinator.Classify(request, cookieClientAddress, protocol);
                             Security.DnsCookieAdmissionResult admissionResult =
                                 !sendTruncationResponse &&
-                                _enableUdpReflectionLimiting &&
+                                _useDnsCookies &&
                                 cookieClassification.State != Security.CookieRequestState.ValidServerCookie
                                     ? _cookieAdmissionLimiter.Evaluate(remoteEP.Address)
                                     : Security.DnsCookieAdmissionResult.Allowed;
@@ -7702,14 +7701,6 @@ namespace DnsServerCore.Dns
                 else
                     _qpmLimitBypassList = value;
             }
-        }
-
-        // The early limiter is intentionally distinct from response-aware RRL. Its
-        // persisted settings and management naming are introduced in the API phase.
-        public bool EnableUdpReflectionLimiting
-        {
-            get => _enableUdpReflectionLimiting;
-            set => _enableUdpReflectionLimiting = value;
         }
 
         public long DnsCookieAdmissionDroppedCount => Interlocked.Read(ref _cookieAdmissionDroppedCount);

@@ -5503,7 +5503,7 @@ WHERE:
 
 #### Get DNS Cookie Settings
 
-Get the current DNS Cookie configuration including active/staging secret IDs and whether UDP Response Rate Limiting (required for full anti-reflection protection alongside DNS Cookies) is also enabled.
+Get the current DNS Cookie configuration, including the active and staging secret IDs.
 
 URL:\
 `http://localhost:5380/api/settings/dnsCookies/get`
@@ -5526,8 +5526,7 @@ RESPONSE:
     "activeSecretCreatedUtc": "2026-08-26T15:30:00Z",
     "stagingSecretId": null,
     "useDnsCookies": true,
-    "enableResponseRateLimiting": true,
-    "antiReflectionProtectionComplete": true
+    "enableResponseRateLimiting": true
   },
   "status": "ok"
 }
@@ -5536,7 +5535,8 @@ RESPONSE:
 RESPONSE FIELDS:
 - `statusAvailable`: `false` when DNS Cookies have never been enabled and no secret state exists yet; `activeSecretId` is then `null` and `activeSecretCreatedUtc` is omitted (`null`).
 - `activeSecretId` / `stagingSecretId`: identifiers for the currently active and (if any) staged secret. `stagingSecretId` is `null` when no staged secret exists.
-- `antiReflectionProtectionComplete`: `false` when `useDnsCookies` is `true` but `enableResponseRateLimiting` is `false` — in that state a `warning` field is also present (see below), because valid cookies alone establish return-routability but unverified spoofable UDP traffic is not covered by the DNS Cookie/RRL anti-reflection policy without RRL also enabled.
+- `useDnsCookies`: whether DNS Cookies are enabled. The early UDP admission limiter that bounds unverified spoofable UDP traffic follows this flag and has no separate setting, so an enabled server always has its Cookie anti-reflection protection active.
+- `enableResponseRateLimiting`: whether the post-response UDP response rate limiter is enabled. It is an independent policy layer; a valid Server Cookie exempts a response from it.
 
 #### Generate Staged DNS Cookie Secret
 
@@ -5621,7 +5621,7 @@ RESPONSE:
 
 RESPONSE FIELDS:
 - `validationInvocations`: Total number of cryptographic server-cookie validation attempts performed.
-- `validCount`: Requests with valid server cookies (bypassed reflection RRL).
+- `validCount`: Requests with valid server cookies (bypassed Cookie admission limiting).
 - `invalidCount`: Requests with invalid/rejected server cookies.
 - `missingCount`: Requests with no server cookie (client cookie only or neither).
 - `badCookieSentCount`: Number of BADCOOKIE (RCODE 23) responses sent.
