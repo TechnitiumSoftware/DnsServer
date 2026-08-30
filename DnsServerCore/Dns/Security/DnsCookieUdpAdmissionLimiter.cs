@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Technitium DNS Server
  * Copyright (C) 2026 Shreyas Zare (shreyas@technitium.com)
  *
@@ -15,11 +15,11 @@ using System.Security.Cryptography;
 namespace DnsServerCore.Dns.Security
 {
     /// <summary>
-    /// The action selected by the early, source-prefix-based UDP reflection limiter.
-    /// This limiter deliberately makes no response-equivalence decision; that work belongs
-    /// to the separate post-response DNS response-rate limiter.
+    /// The action selected by the early, source-prefix-based Cookie admission limiter.
+    /// It admits, drops, or slips a request; it makes no response-equivalence decision,
+    /// which is the separate work of the post-response DNS response-rate limiter.
     /// </summary>
-    internal enum UdpReflectionLimitResult
+    internal enum DnsCookieAdmissionResult
     {
         Allowed,
         LimitedDrop,
@@ -27,12 +27,14 @@ namespace DnsServerCore.Dns.Security
     }
 
     /// <summary>
-    /// Bounded pre-response admission control for spoofable UDP requests. Its fixed-size,
-    /// keyed table limits unverified traffic before DNS resolution or response construction.
-    /// The implementation is intentionally independent of DNS Cookie secrets, QPM, and the
-    /// post-response DNS response-rate limiter.
+    /// Bounded admission control for UDP requests that carry no valid Server Cookie. Its
+    /// fixed-size, keyed table limits unverified traffic before DNS resolution or response
+    /// construction, while the slip path preserves the RFC 7873 bootstrap so a legitimate
+    /// client can still obtain a Server Cookie. The implementation is intentionally
+    /// independent of DNS Cookie secrets, QPM, and the post-response DNS response-rate
+    /// limiter.
     /// </summary>
-    internal sealed class UdpReflectionLimiter
+    internal sealed class DnsCookieUdpAdmissionLimiter
     {
         private const int BucketCount = 16_384;
         private const int ShardCount = 64;
@@ -58,7 +60,7 @@ namespace DnsServerCore.Dns.Security
         private readonly object[] _shards = CreateShards();
         private readonly byte[] _hashKey = RandomNumberGenerator.GetBytes(16);
 
-        public UdpReflectionLimitResult Evaluate(IPAddress sourceAddress)
+        public DnsCookieAdmissionResult Evaluate(IPAddress sourceAddress)
         {
             ArgumentNullException.ThrowIfNull(sourceAddress);
 
@@ -100,7 +102,7 @@ namespace DnsServerCore.Dns.Security
                 // Under table pressure, fail closed rather than allocating or permitting an
                 // attacker to turn collisions into an amplification path.
                 if (selectedIndex < 0)
-                    return UdpReflectionLimitResult.LimitedDrop;
+                    return DnsCookieAdmissionResult.LimitedDrop;
 
                 ref Bucket state = ref _buckets[selectedIndex];
                 if (state.SourcePrefixHash != sourcePrefixHash)
@@ -127,15 +129,15 @@ namespace DnsServerCore.Dns.Security
                 if (state.Tokens > 0)
                 {
                     state.Tokens--;
-                    return UdpReflectionLimitResult.Allowed;
+                    return DnsCookieAdmissionResult.Allowed;
                 }
 
                 if (state.LimitedCount < uint.MaxValue)
                     state.LimitedCount++;
 
                 return state.LimitedCount % SlipEvery == 0
-                    ? UdpReflectionLimitResult.LimitedSlip
-                    : UdpReflectionLimitResult.LimitedDrop;
+                    ? DnsCookieAdmissionResult.LimitedSlip
+                    : DnsCookieAdmissionResult.LimitedDrop;
             }
         }
 

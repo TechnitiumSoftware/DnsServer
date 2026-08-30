@@ -1,4 +1,4 @@
-/*
+﻿/*
 Technitium DNS Server
 Copyright (C) 2026 Shreyas Zare (shreyas@technitium.com)
 
@@ -29,7 +29,7 @@ namespace DnsServerCore.Dns.Security
     /// Total number of times cookie classification was invoked (all requests with EDNS enabled).
     /// </param>
     /// <param name="ValidCount">
-    /// Number of requests with valid server cookies (bypassed reflection RRL).
+    /// Number of requests with valid server cookies (bypassed Cookie admission limiting).
     /// High ratio indicates legitimate traffic or an active attack from a sophisticated resolver.
     /// </param>
     /// <param name="ValidCurrentCount">Number of requests validated by the current Active secret.</param>

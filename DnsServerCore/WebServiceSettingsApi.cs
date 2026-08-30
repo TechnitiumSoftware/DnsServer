@@ -161,8 +161,8 @@ namespace DnsServerCore
                 jsonWriter.WriteNumber("responseRateLimitSlip", _dnsWebService._dnsServer.ResponseRateLimitSlip);
                 jsonWriter.WriteNumber("responseRateLimitTableSize", _dnsWebService._dnsServer.ResponseRateLimitTableSize);
                 jsonWriter.WriteStringArray("responseRateLimitBypassList", _dnsWebService._dnsServer.ResponseRateLimitBypassList);
-                jsonWriter.WriteNumber("udpReflectionLimiterDroppedCount", _dnsWebService._dnsServer.UdpReflectionLimiterDroppedCount);
-                jsonWriter.WriteNumber("udpReflectionLimiterSlippedCount", _dnsWebService._dnsServer.UdpReflectionLimiterSlippedCount);
+                jsonWriter.WriteNumber("dnsCookieAdmissionDroppedCount", _dnsWebService._dnsServer.DnsCookieAdmissionDroppedCount);
+                jsonWriter.WriteNumber("dnsCookieAdmissionSlippedCount", _dnsWebService._dnsServer.DnsCookieAdmissionSlippedCount);
                 jsonWriter.WriteNumber("dnsResponseRrlDroppedCount", _dnsWebService._dnsServer.DnsResponseRrlDroppedCount);
                 jsonWriter.WriteNumber("dnsResponseRrlSlippedCount", _dnsWebService._dnsServer.DnsResponseRrlSlippedCount);
                 jsonWriter.WriteNumber("dnsResponseRrlErrorLeakCount", _dnsWebService._dnsServer.DnsResponseRrlErrorLeakCount);

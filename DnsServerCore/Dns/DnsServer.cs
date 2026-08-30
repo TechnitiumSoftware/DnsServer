@@ -181,9 +181,9 @@ namespace DnsServerCore.Dns
         // Early source-prefix admission control remains separate from the post-response
         // DNS response-rate limiter configured through _dnsResponseRrlRuntime.
         bool _enableUdpReflectionLimiting;
-        readonly Security.UdpReflectionLimiter _udpReflectionLimiter = new Security.UdpReflectionLimiter();
-        long _udpReflectionLimiterDroppedCount;
-        long _udpReflectionLimiterSlippedCount;
+        readonly Security.DnsCookieUdpAdmissionLimiter _cookieAdmissionLimiter = new Security.DnsCookieUdpAdmissionLimiter();
+        long _cookieAdmissionDroppedCount;
+        long _cookieAdmissionSlippedCount;
         readonly Security.DnsResponseRateLimiterRuntime _dnsResponseRrlRuntime = new Security.DnsResponseRateLimiterRuntime();
         long _dnsResponseRrlDroppedCount;
         long _dnsResponseRrlSlippedCount;
@@ -1948,12 +1948,12 @@ namespace DnsServerCore.Dns
                             // and for response processing.
                             Security.CookieRequestClassification cookieClassification =
                                 _cookieCoordinator.Classify(request, cookieClientAddress, protocol);
-                            Security.UdpReflectionLimitResult reflectionLimitResult =
+                            Security.DnsCookieAdmissionResult admissionResult =
                                 !sendTruncationResponse &&
                                 _enableUdpReflectionLimiting &&
                                 cookieClassification.State != Security.CookieRequestState.ValidServerCookie
-                                    ? _udpReflectionLimiter.Evaluate(remoteEP.Address)
-                                    : Security.UdpReflectionLimitResult.Allowed;
+                                    ? _cookieAdmissionLimiter.Evaluate(remoteEP.Address)
+                                    : Security.DnsCookieAdmissionResult.Allowed;
                             if (enableSocketBindingToSourceEP)
                             {
                                 Socket newUdpListener = null;
@@ -2023,14 +2023,14 @@ namespace DnsServerCore.Dns
                                 if (newUdpListener is not null)
                                 {
                                     //respond via new socket
-                                    _ = ProcessUdpRequestAsync(newUdpListener, remoteEP, returnEP, protocol, request, sendTruncationResponse, reflectionLimitResult, cookieClassification);
+                                    _ = ProcessUdpRequestAsync(newUdpListener, remoteEP, returnEP, protocol, request, sendTruncationResponse, admissionResult, cookieClassification);
 
                                     //continue reading next request
                                     continue;
                                 }
                             }
 
-                            _ = ProcessUdpRequestAsync(udpListener, remoteEP, returnEP, protocol, request, sendTruncationResponse, reflectionLimitResult, cookieClassification);
+                            _ = ProcessUdpRequestAsync(udpListener, remoteEP, returnEP, protocol, request, sendTruncationResponse, admissionResult, cookieClassification);
                         }
                         catch (EndOfStreamException)
                         {
@@ -2072,7 +2072,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task ProcessUdpRequestAsync(Socket udpListener, IPEndPoint remoteEP, IPEndPoint returnEP, DnsTransportProtocol protocol, DnsDatagram request, bool sendTruncationResponse, Security.UdpReflectionLimitResult reflectionLimitResult, Security.CookieRequestClassification cookieClassification)
+        private async Task ProcessUdpRequestAsync(Socket udpListener, IPEndPoint remoteEP, IPEndPoint returnEP, DnsTransportProtocol protocol, DnsDatagram request, bool sendTruncationResponse, Security.DnsCookieAdmissionResult admissionResult, Security.CookieRequestClassification cookieClassification)
         {
             byte[] sendBuffer = null;
 
@@ -2081,20 +2081,20 @@ namespace DnsServerCore.Dns
                 bool recursionAllowed = IsRecursionAllowed(remoteEP.Address);
                 DnsDatagram response;
 
-                if (reflectionLimitResult == Security.UdpReflectionLimitResult.LimitedDrop)
+                if (admissionResult == Security.DnsCookieAdmissionResult.LimitedDrop)
                 {
-                    Interlocked.Increment(ref _udpReflectionLimiterDroppedCount);
+                    Interlocked.Increment(ref _cookieAdmissionDroppedCount);
                     _statsManager.QueueUpdate(null, remoteEP, protocol, null, true);
                     return; //drop before request processing
                 }
 
-                bool isUdpReflectionRecovery = reflectionLimitResult == Security.UdpReflectionLimitResult.LimitedSlip;
-                if (isUdpReflectionRecovery)
-                    Interlocked.Increment(ref _udpReflectionLimiterSlippedCount);
-                bool isSyntheticRecoveryResponse = isUdpReflectionRecovery || sendTruncationResponse;
-                if (isUdpReflectionRecovery)
+                bool isCookieAdmissionRecovery = admissionResult == Security.DnsCookieAdmissionResult.LimitedSlip;
+                if (isCookieAdmissionRecovery)
+                    Interlocked.Increment(ref _cookieAdmissionSlippedCount);
+                bool isSyntheticRecoveryResponse = isCookieAdmissionRecovery || sendTruncationResponse;
+                if (isCookieAdmissionRecovery)
                 {
-                    response = _cookieCoordinator.CreateUdpReflectionLimiterSlipResponse(
+                    response = _cookieCoordinator.CreateCookieAdmissionRecoveryResponse(
                         request, cookieClassification.CookieClientAddress, recursionAllowed, cookieClassification);
                     if (response is null)
                     {
@@ -7712,8 +7712,8 @@ namespace DnsServerCore.Dns
             set => _enableUdpReflectionLimiting = value;
         }
 
-        public long UdpReflectionLimiterDroppedCount => Interlocked.Read(ref _udpReflectionLimiterDroppedCount);
-        public long UdpReflectionLimiterSlippedCount => Interlocked.Read(ref _udpReflectionLimiterSlippedCount);
+        public long DnsCookieAdmissionDroppedCount => Interlocked.Read(ref _cookieAdmissionDroppedCount);
+        public long DnsCookieAdmissionSlippedCount => Interlocked.Read(ref _cookieAdmissionSlippedCount);
         public long DnsResponseRrlDroppedCount => Interlocked.Read(ref _dnsResponseRrlDroppedCount);
         public long DnsResponseRrlSlippedCount => Interlocked.Read(ref _dnsResponseRrlSlippedCount);
         public long DnsResponseRrlErrorLeakCount => Interlocked.Read(ref _dnsResponseRrlErrorLeakCount);
