@@ -35,7 +35,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace QueryLogsSqlite
 {
-    public sealed class App : IDnsApplication, IDnsQueryLogger, IDnsQueryLogs
+    public sealed class App : IDnsApplication, IDnsQueryLoggerEx, IDnsQueryLogs
     {
         #region variables
 
@@ -264,7 +264,7 @@ namespace QueryLogsSqlite
                     {
                         await using (SqliteCommand command = connection.CreateCommand())
                         {
-                            command.CommandText = "INSERT INTO dns_logs (timestamp, client_ip, protocol, response_type, response_rtt, rcode, qname, qtype, qclass, answer) VALUES (@timestamp, @client_ip, @protocol, @response_type, @response_rtt, @rcode, @qname, @qtype, @qclass, @answer);";
+                            command.CommandText = "INSERT INTO dns_logs (timestamp, client_ip, protocol, response_type, response_rtt, rcode, qname, qtype, qclass, answer, blocking_metadata) VALUES (@timestamp, @client_ip, @protocol, @response_type, @response_rtt, @rcode, @qname, @qtype, @qclass, @answer, @blocking_metadata);";
 
                             SqliteParameter paramTimestamp = command.Parameters.Add("@timestamp", SqliteType.Text);
                             SqliteParameter paramClientIp = command.Parameters.Add("@client_ip", SqliteType.Text);
@@ -276,6 +276,7 @@ namespace QueryLogsSqlite
                             SqliteParameter paramQtype = command.Parameters.Add("@qtype", SqliteType.Integer);
                             SqliteParameter paramQclass = command.Parameters.Add("@qclass", SqliteType.Integer);
                             SqliteParameter paramAnswer = command.Parameters.Add("@answer", SqliteType.Text);
+                            SqliteParameter paramBlockingMetadata = command.Parameters.Add("@blocking_metadata", SqliteType.Text);
 
                             foreach (LogEntry log in logs)
                             {
@@ -283,12 +284,7 @@ namespace QueryLogsSqlite
                                 paramClientIp.Value = log.RemoteEP.Address.ToString();
                                 paramProtocol.Value = (int)log.Protocol;
 
-                                DnsServerResponseType responseType;
-
-                                if (log.Response.Tag == null)
-                                    responseType = DnsServerResponseType.Recursive;
-                                else
-                                    responseType = (DnsServerResponseType)log.Response.Tag;
+                                DnsServerResponseType responseType = DnsServerResponseTag.GetResponseType(log.Response.Tag);
 
                                 paramResponseType.Value = (int)responseType;
 
@@ -339,6 +335,11 @@ namespace QueryLogsSqlite
 
                                     paramAnswer.Value = answer;
                                 }
+
+                                if (log.Metadata is null)
+                                    paramBlockingMetadata.Value = DBNull.Value;
+                                else
+                                    paramBlockingMetadata.Value = JsonSerializer.Serialize(log.Metadata.Values);
 
                                 await command.ExecuteNonQueryAsync();
                             }
@@ -430,7 +431,8 @@ CREATE TABLE IF NOT EXISTS dns_logs
     qname VARCHAR(255),
     qtype SMALLINT,
     qclass SMALLINT,
-    answer TEXT
+    answer TEXT,
+    blocking_metadata TEXT
 );
 ";
                     await command.ExecuteNonQueryAsync();
@@ -441,6 +443,17 @@ CREATE TABLE IF NOT EXISTS dns_logs
                     await using (SqliteCommand command = connection.CreateCommand())
                     {
                         command.CommandText = "ALTER TABLE dns_logs ADD COLUMN response_rtt REAL;";
+                        await command.ExecuteNonQueryAsync();
+                    }
+                }
+                catch
+                { }
+
+                try
+                {
+                    await using (SqliteCommand command = connection.CreateCommand())
+                    {
+                        command.CommandText = "ALTER TABLE dns_logs ADD COLUMN blocking_metadata TEXT;";
                         await command.ExecuteNonQueryAsync();
                     }
                 }
@@ -568,8 +581,13 @@ CREATE TABLE IF NOT EXISTS dns_logs
 
         public Task InsertLogAsync(DateTime timestamp, DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
         {
+            return InsertLogAsync(timestamp, request, remoteEP, protocol, response, null);
+        }
+
+        public Task InsertLogAsync(DateTime timestamp, DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response, DnsQueryLogMetadata? metadata)
+        {
             if (_enableLogging)
-                _channelWriter?.TryWrite(new LogEntry(timestamp, request, remoteEP, protocol, response));
+                _channelWriter?.TryWrite(new LogEntry(timestamp, request, remoteEP, protocol, response, metadata));
 
             return Task.CompletedTask;
         }
@@ -786,18 +804,20 @@ LIMIT @limit OFFSET @offset";
             public readonly IPEndPoint RemoteEP;
             public readonly DnsTransportProtocol Protocol;
             public readonly DnsDatagram Response;
+            public readonly DnsQueryLogMetadata? Metadata;
 
             #endregion
 
             #region constructor
 
-            public LogEntry(DateTime timestamp, DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
+            public LogEntry(DateTime timestamp, DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response, DnsQueryLogMetadata? metadata = null)
             {
                 Timestamp = timestamp;
                 Request = request;
                 RemoteEP = remoteEP;
                 Protocol = protocol;
                 Response = response;
+                Metadata = metadata ?? DnsServerResponseTag.GetLogMetadata(response.Tag);
             }
 
             #endregion

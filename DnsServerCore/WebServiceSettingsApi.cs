@@ -456,6 +456,7 @@ namespace DnsServerCore
                 jsonWriter.WriteBoolean("logQueries", _dnsWebService._dnsServer.QueryLogManager != null);
                 jsonWriter.WriteBoolean("noStackTrace", _dnsWebService._log.NoStackTrace);
                 jsonWriter.WriteBoolean("useLocalTime", _dnsWebService._log.UseLocalTime);
+                jsonWriter.WriteBoolean("logQueryMetadata", _dnsWebService._dnsServer.LogQueryMetadata);
                 jsonWriter.WriteString("logFolder", _dnsWebService._log.LogFolder);
                 jsonWriter.WriteNumber("maxLogFileDays", _dnsWebService._log.MaxLogFileDays);
 
@@ -1708,6 +1709,9 @@ namespace DnsServerCore
 
                         if (request.TryGetQueryOrForm("useLocalTime", bool.Parse, out bool useLocalTime))
                             _dnsWebService._log.UseLocalTime = useLocalTime;
+
+                        if (request.TryGetQueryOrForm("logQueryMetadata", bool.Parse, out bool logQueryMetadata))
+                            _dnsWebService._dnsServer.LogQueryMetadata = logQueryMetadata;
 
                         if (request.TryGetQueryOrForm("logFolder", out string logFolder))
                             _dnsWebService._log.LogFolder = logFolder;

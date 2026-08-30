@@ -5282,6 +5282,7 @@ RESPONSE:
 		"logQueries": false,
 		"noStackTrace": false,
 		"useLocalTime": false,
+		"logQueryMetadata": false,
 		"logFolder": "logs",
 		"maxLogFileDays": 30,
 		"enableInMemoryStats": false,
@@ -5439,6 +5440,7 @@ WHERE:
 - `logQueries` (optional): Enable this option to log every query received by this DNS Server and the corresponding response answers into the log file.  Initial value is `false`.
 - `noStackTrace` (optional): Enable to log only short error messages instead of full exception stack trace.
 - `useLocalTime` (optional): Enable this option to use local time instead of UTC for logging.  Initial value is `false`.
+- `logQueryMetadata` (optional): Enable this option to pass extended metadata (blocking source, matched domain, block list URL, blocking group, and matched regex) to installed query logger apps. This option is node local and does not affect the log file, nor the Extended DNS Error and TXT blocking report sent to clients. When enabled, the `Tag` property of a blocked `DnsDatagram` response holds a `DnsServerResponseMetadata` object instead of a `DnsServerResponseType` value, so DNS Apps must read it using `DnsServerResponseTag.GetResponseType()`. Initial value is `false`.
 - `logFolder` (optional): The folder path on the server where the log files should be saved. The path can be relative to the DNS server config folder. Initial value is `logs`.
 - `maxLogFileDays` (optional): Max number of days to keep the log files. Log files older than the specified number of days will be deleted automatically. Recommended value is `365`. Set `0` to disable auto delete.
 - `enableInMemoryStats` (optional): Set this option to `true` to enable in-memory stats. When enabled, only Last Hour data will be available on Dashboard and no stats data will be stored on disk.

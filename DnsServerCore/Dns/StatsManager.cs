@@ -141,10 +141,8 @@ namespace DnsServerCore.Dns
 
                         if (item._response is null)
                             responseType = DnsServerResponseType.Dropped;
-                        else if (item._response.Tag is null)
-                            responseType = DnsServerResponseType.Recursive;
                         else
-                            responseType = (DnsServerResponseType)item._response.Tag;
+                            responseType = DnsServerResponseTag.GetResponseType(item._response.Tag);
 
                         UpdateLifetimeCounters(responseCode, responseType, item._remoteEP.Address);
 
@@ -164,11 +162,17 @@ namespace DnsServerCore.Dns
                         if ((item._request is null) || (item._response is null))
                             continue; //skip dropped requests for apps to prevent DoS
 
+                        bool logQueryMetadata = _dnsServer.LogQueryMetadata;
+                        DnsQueryLogMetadata logMetadata = logQueryMetadata ? DnsServerResponseTag.GetLogMetadata(item._response.Tag) : null;
+
                         foreach (IDnsQueryLogger logger in _dnsServer.DnsApplicationManager.DnsQueryLoggers)
                         {
                             try
                             {
-                                _ = logger.InsertLogAsync(item._timestamp, item._request, item._remoteEP, item._protocol, item._response);
+                                if (logQueryMetadata && (logger is IDnsQueryLoggerEx loggerEx))
+                                    _ = loggerEx.InsertLogAsync(item._timestamp, item._request, item._remoteEP, item._protocol, item._response, logMetadata);
+                                else
+                                    _ = logger.InsertLogAsync(item._timestamp, item._request, item._remoteEP, item._protocol, item._response);
                             }
                             catch (Exception ex)
                             {

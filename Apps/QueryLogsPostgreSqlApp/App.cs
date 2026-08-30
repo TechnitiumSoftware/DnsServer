@@ -269,12 +269,7 @@ namespace QueryLogsPostgreSql
                             paramClientIp.Value = log.RemoteEP.Address.ToString();
                             paramProtocol.Value = (byte)log.Protocol;
 
-                            DnsServerResponseType responseType;
-
-                            if (log.Response.Tag == null)
-                                responseType = DnsServerResponseType.Recursive;
-                            else
-                                responseType = (DnsServerResponseType)log.Response.Tag;
+                            DnsServerResponseType responseType = DnsServerResponseTag.GetResponseType(log.Response.Tag);
 
                             paramResponseType.Value = (byte)responseType;
 
