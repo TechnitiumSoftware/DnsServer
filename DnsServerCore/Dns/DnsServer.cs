@@ -1224,17 +1224,14 @@ namespace DnsServerCore.Dns
             if (!isConfigTransfer)
                 _statsManager.MaxStatFileDays = maxStatFileDays;
 
-            if (version >= 4)
-            {
-                bool logQueryMetadata = bR.ReadBoolean(); //log extended query metadata for DNS Apps
-                if (!isConfigTransfer)
-                    _logQueryMetadata = logQueryMetadata;
-            }
-            else
-            {
-                if (!isConfigTransfer)
-                    _logQueryMetadata = false;
-            }
+            //log extended query metadata for DNS Apps
+            //this optional field is appended after the last field of the config version 3 layout and is read only when
+            //available so that the config version does not need to be incremented. this keeps the config file readable
+            //by older versions which simply ignore the trailing byte.
+            //note: ReadByte() returns -1 when there is no data left; the stream may not be seekable during config transfer.
+            int logQueryMetadata = s.ReadByte();
+            if (!isConfigTransfer)
+                _logQueryMetadata = logQueryMetadata == 1;
         }
 
         private void WriteConfigTo(Stream s)
@@ -1527,7 +1524,7 @@ namespace DnsServerCore.Dns
             bW.Write(_queryLog is not null); //log all queries
             bW.Write(_statsManager.EnableInMemoryStats);
             bW.Write(_statsManager.MaxStatFileDays);
-            bW.Write(_logQueryMetadata); //log extended query metadata for DNS Apps
+            bW.Write(_logQueryMetadata); //log extended query metadata for DNS Apps; optional trailing field, see ReadConfigFrom()
         }
 
         #endregion
