@@ -96,9 +96,9 @@ describe('SessionProvider', () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion({}, { DhcpServer: false, Administration: false }))
     montar()
     await screen.findByRole('navigation')
-    expect(screen.queryByRole('tab', { name: 'DHCP' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('tab', { name: 'Administration' })).not.toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Zones' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'DHCP' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Administration' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Zones' })).toBeInTheDocument()
   })
 
   it('aterriza en la primera sección visible cuando Dashboard no lo es', async () => {
@@ -106,55 +106,86 @@ describe('SessionProvider', () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion({}, { Dashboard: false }))
     montar()
     await screen.findByRole('navigation')
-    expect(screen.queryByRole('tab', { name: 'Dashboard' })).not.toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Zones' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('link', { name: 'Dashboard' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Zones' })).toHaveAttribute('aria-current', 'page')
   })
 
   /*
-  El patrón de pestañas se declaraba y no se cumplía: doce `role="tab"` sin
-  `tabpanel`, sin `aria-controls` y con las doce en el orden de tabulación.
-  Upstream sí lo cumple (28 `role="tabpanel"`), así que faltaba de nuestro lado.
+  El panel lateral se declaraba `tablist` y no lo era.
+
+  Venía de cuando la consola no tenía direcciones: doce `role="tab"` sobre un
+  único panel. Con rutas reales eso dejó de ser cierto —la guía de ARIA dice que
+  si activar el elemento lleva a otra URL es un enlace—, y encima las
+  sub-secciones colgaban dentro del `tablist` como botones sueltos, que es un
+  hijo que ese rol no admite. Estos dos casos fijan lo contrario: enlaces con
+  destino de verdad, todos alcanzables con el tabulador, y un único
+  `aria-current="page"`.
   */
-  it('las pestañas gobiernan un panel y sólo la activa está en el orden de tabulación', async () => {
+  it('el panel lateral son enlaces de verdad, no pestañas', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
     montar()
     await screen.findByRole('navigation')
 
-    const panel = screen.getByRole('tabpanel')
-    const activa = screen.getByRole('tab', { name: 'Dashboard' })
-    expect(activa).toHaveAttribute('aria-controls', panel.id)
-    expect(panel).toHaveAttribute('aria-labelledby', activa.id)
-    expect(activa).toHaveAttribute('tabindex', '0')
-    expect(screen.getByRole('tab', { name: 'Zones' })).toHaveAttribute('tabindex', '-1')
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+    expect(screen.queryAllByRole('tab')).toHaveLength(0)
+    expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument()
+
+    // Destino copiable y abrible en otra pestaña, no un `href="#"`.
+    expect(screen.getByRole('link', { name: 'Zones' })).toHaveAttribute('href', '/zones/')
+
+    // Nadie fuera del orden de tabulación: en un menú, `Tab` los recorre todos.
+    for (const enlace of screen.getAllByRole('link')) {
+      expect(enlace).not.toHaveAttribute('tabindex', '-1')
+    }
   })
 
-  it('las flechas recorren las secciones y dan la vuelta por los extremos', async () => {
+  it('la sub-sección activa es la única que dice ser la página actual', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
     montar()
     await screen.findByRole('navigation')
 
-    const lista = screen.getByRole('tablist')
-    const seleccionada = () =>
-      screen.getAllByRole('tab').find((t) => t.getAttribute('aria-selected') === 'true')
+    fireEvent.click(screen.getByRole('link', { name: 'Logs' }))
+    // La sección abre por su primera sub, y es ELLA la página, no la sección.
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: 'View Logs' })).toHaveAttribute('aria-current', 'page'),
+    )
+    expect(screen.getByRole('link', { name: 'Logs' })).not.toHaveAttribute('aria-current')
 
-    fireEvent.keyDown(lista, { key: 'ArrowDown' })
-    await waitFor(() => expect(seleccionada()).toHaveAccessibleName('Zones'))
+    fireEvent.click(screen.getByRole('link', { name: 'Query Logs' }))
+    await waitFor(() => expect(window.location.pathname).toBe('/logs/query-logs/'))
 
-    fireEvent.keyDown(lista, { key: 'End' })
-    await waitFor(() => expect(seleccionada()).toHaveAccessibleName('About'))
+    const actuales = screen
+      .getAllByRole('link')
+      .filter((a) => a.getAttribute('aria-current') === 'page')
+    expect(actuales.map((a) => a.textContent)).toEqual(['Query Logs'])
+  })
 
-    // desde la última, «abajo» vuelve a la primera
-    fireEvent.keyDown(lista, { key: 'ArrowDown' })
-    await waitFor(() => expect(seleccionada()).toHaveAccessibleName('Dashboard'))
+  it('una sección con sub-secciones completa la dirección sin dejar rastro en el historial', async () => {
+    localStorage.setItem('token', 'tok')
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
+    window.history.replaceState(null, '', '/settings/')
+    montar()
+    await screen.findByRole('navigation')
 
-    // y desde la primera, «arriba» va a la última
-    fireEvent.keyDown(lista, { key: 'ArrowUp' })
-    await waitFor(() => expect(seleccionada()).toHaveAccessibleName('About'))
+    // Estar «en Settings» sin más es media página: la dirección se completa.
+    await waitFor(() => expect(window.location.pathname).toBe('/settings/general/'))
+    expect(screen.getByRole('link', { name: 'General' })).toHaveAttribute('aria-current', 'page')
 
-    fireEvent.keyDown(lista, { key: 'Home' })
-    await waitFor(() => expect(seleccionada()).toHaveAccessibleName('Dashboard'))
+    /*
+    Y volver atrás a `/settings/` la vuelve a completar REEMPLAZANDO. Si
+    empujara, la entrada nueva sería otra vez `/settings/general/` y el botón
+    «atrás» quedaría atrapado: cada pulsación volvería al mismo sitio.
+
+    Se espía el método y no `history.length`, que en jsdom no se mueve ni con
+    `pushState` —contarla daba un verde con el fallo dentro—.
+    */
+    const empujar = vi.spyOn(window.history, 'pushState')
+    window.history.replaceState(null, '', '/settings/')
+    fireEvent.popState(window)
+    await waitFor(() => expect(window.location.pathname).toBe('/settings/general/'))
+    expect(empujar).not.toHaveBeenCalled()
   })
 
   it('a un usuario de SSO le oculta cambiar contraseña y configurar 2FA', async () => {

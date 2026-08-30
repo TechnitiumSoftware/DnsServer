@@ -20,10 +20,21 @@ Los avisos de upstream son `<p><b>Note!</b> …</p>` en negrita dentro del flujo
 Aquí pasan a bloque con color: `Warning!` en ámbar, `Note!` en azul.
 */
 
-export function Block({ title, children }: { title: string; children: ReactNode }) {
+/*
+El título es opcional a propósito.
+
+Cinco paneles repetían su propio nombre como leyenda del primer bloque —TSIG,
+Recursion, Blocking, Logging y SSO—, y en tres de ellos era la ÚNICA leyenda, así
+que no agrupaba nada: sólo repetía. En SSO llegaba a decirse cuatro veces
+seguidas antes del primer control (h1, leyenda, rótulo del campo y el propio
+«Enable Single Sign-On (SSO)»).
+
+Sin `title` el `<fieldset>` sigue agrupando: lo que desaparece es el eco.
+*/
+export function Block({ title, children }: { title?: string; children: ReactNode }) {
   return (
-    <fieldset className={styles.block}>
-      <legend className={styles.blockTitle}>{title}</legend>
+    <fieldset className={`${styles.block} ${title == null ? styles.blockSinTitulo : ''}`}>
+      {title != null && <legend className={styles.blockTitle}>{title}</legend>}
       {children}
     </fieldset>
   )

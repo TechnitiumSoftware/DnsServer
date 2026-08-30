@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "typecheck": "tsc -b --force",
     "preview": "vite preview",
     "build:check": "vite build --mode check",
     "test": "vitest run",

@@ -20,8 +20,9 @@ export const ALGORITMOS_TSIG: { value: string; label: string }[] = [
    campo de tabla de toda la consola marcado `data-optional`: se puede dejar
    vacío y el servidor genera una clave fuerte. */
 export function Tsig({ f, set }: PaneProps) {
+  // Sin leyenda: repetía el título del panel.
   return (
-    <Block title="TSIG">
+    <Block>
       <EditableTable
         label="TSIG Keys"
         columns={['Key Name', 'Shared Secret', 'Algorithm']}

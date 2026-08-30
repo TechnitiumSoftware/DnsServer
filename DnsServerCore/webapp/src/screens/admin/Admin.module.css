@@ -47,7 +47,10 @@
 
 /* SSO y los modales de Cluster: filas etiqueta + control, como en Settings. */
 .block { border:1px solid var(--line); border-radius: var(--r-4); background:var(--pan); margin: 0 0 var(--s-9) 0; padding: 0 0 var(--s-9) 0; min-width:0; }
-.blockTitle { display:block; width:100%; padding: var(--s-7) var(--s-9); margin: 0 0 var(--s-8) 0; border-bottom:1px solid var(--line); font-size: var(--t-1); font-weight: 600; letter-spacing:.09em; text-transform:uppercase; color:var(--mute); }
+
+/* Un bloque sin leyenda necesita recuperar arriba el aire que ponía la leyenda:
+   `.block` no lleva padding superior porque esa banda la ocupaba ella. */
+.blockSinTitulo { padding-top: var(--s-9); }
 .ctlLine { display:flex; align-items:center; gap: var(--s-6); flex-wrap:wrap; }
 .suffix { font-size: var(--t-3); color:var(--mute); }
 .help { font-size: var(--t-3); color:var(--mute); line-height:1.55; max-width:720px; }

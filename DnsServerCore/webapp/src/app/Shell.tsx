@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { visibleSections, type Permission } from './sections'
-import { escribirRuta, leerRuta } from './ruta'
+import { aCamino, escribirRuta, leerRuta } from './ruta'
 import { ChangePassword } from '../screens/modals/ChangePassword'
 import { Configure2FA } from '../screens/modals/Configure2FA'
 import { CreateApiToken } from '../screens/modals/CreateApiToken'
@@ -56,6 +56,16 @@ export interface ShellSession {
   }
 }
 
+/*
+Un clic que el navegador debe atender él: botón central o derecho, o con
+modificador —abrir en pestaña nueva, en ventana, descargar—. Interceptarlos
+convertiría un enlace real en un botón disfrazado, que es justo lo que se acaba
+de quitar.
+*/
+function clicSimple(e: React.MouseEvent): boolean {
+  return e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey
+}
+
 export function Shell({ session, onLogout }: { session: ShellSession; onLogout: () => void }) {
   const permisos = session.info?.permissions
   // Memorizada: si se recrea en cada render, el `hashchange` se resuscribe en cada uno.
@@ -86,59 +96,31 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
   const current = sections.find((s) => s.id === active) ?? sections[0]
 
   /*
-  La URL sigue al estado, y el estado sigue a la URL. El guardia del `hashchange`
-  es lo que evita el bucle: sin él, escribir el hash dispara el evento, que
-  vuelve a fijar el estado, que vuelve a escribir el hash.
+  La sub efectiva. Una sección con sub-secciones SIEMPRE está en una de ellas,
+  así que `null` quiere decir «la primera».
+
+  Se resuelve aquí y no en cada rama —había cinco `sub ?? 'General'` sueltos, y
+  el panel lateral repetía el mismo apaño para decidir a quién marcar— porque la
+  regla repartida es justo la que se desincroniza: el menú decía «General» y la
+  barra de direcciones ponía `/settings/`, que es media página.
   */
+  const subActual = current?.subs != null ? (sub ?? current.subs[0] ?? null) : null
+
   /*
-  Las flechas del patrón de pestañas. Vertical, así que Arriba y Abajo; y `Home`
-  y `End` a los extremos, que es lo que la guía de ARIA da por supuesto. Mueven
-  el foco Y activan, como hace un `tablist` de selección automática: aquí cambiar
-  de sección no cuesta nada y obligar a pulsar Enter después sería un paso de más.
+  La URL sigue al estado, y el estado sigue a la URL. El guardia está en
+  `escribirRuta`, que no toca el historial si la ruta ya es la que está: sin él,
+  responder a `popstate` fijando el estado volvería a escribir la ruta.
   */
-  const pestanas = useRef<Record<string, HTMLButtonElement | null>>({})
-  const focoPendiente = useRef<string | null>(null)
   // La primera escritura normaliza la URL y no debe dejar entrada en el historial.
   const primerRender = useRef(true)
-
-  function porTeclado(e: React.KeyboardEvent) {
-    const teclas = ['ArrowDown', 'ArrowUp', 'Home', 'End']
-    if (!teclas.includes(e.key)) return
-    const i = sections.findIndex((s) => s.id === current?.id)
-    if (i < 0) return
-    const destino =
-      e.key === 'Home' ? 0
-      : e.key === 'End' ? sections.length - 1
-      : (i + (e.key === 'ArrowDown' ? 1 : -1) + sections.length) % sections.length
-    const id = sections[destino]?.id
-    if (id == null) return
-    e.preventDefault()
-    setActive(id)
-    setSub(null)
-    focoPendiente.current = id
-  }
-
-  /*
-  El foco se mueve DESPUÉS del commit, no en un `requestAnimationFrame`. Con el
-  cuadro suelto el salto Dashboard → Zones perdía el foco —y sólo ése—: al
-  desmontar las gráficas del Dashboard, el botón al que se apuntaba todavía no
-  existía y el foco se caía al `body`. Medido: los otros once saltos lo
-  conservaban, así que era una carrera y no un descuido.
-  */
-  useEffect(() => {
-    const id = focoPendiente.current
-    if (id == null) return
-    focoPendiente.current = null
-    pestanas.current[id]?.focus()
-  })
 
   const activaRef = useRef({ seccion: current?.id ?? 'about', sub })
   useEffect(() => {
     if (current == null) return
-    activaRef.current = { seccion: current.id, sub }
-    escribirRuta({ seccion: current.id, sub }, primerRender.current)
+    activaRef.current = { seccion: current.id, sub: subActual }
+    escribirRuta({ seccion: current.id, sub: subActual }, primerRender.current)
     primerRender.current = false
-  }, [current, sub])
+  }, [current, sub, subActual])
 
   useEffect(() => {
     function alCambiar() {
@@ -149,8 +131,21 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
         escribirRuta({ seccion: activaRef.current.seccion, sub: activaRef.current.sub }, true)
         return
       }
+      /*
+      Una dirección a medias —`/settings/`, sin sub— se completa aquí y no en el
+      efecto que escribe la ruta: al volver con «atrás» el estado no cambia
+      (`sub` ya valía `null`), así que aquel efecto no se vuelve a ejecutar y la
+      barra se quedaba diciendo media página.
+
+      Y se completa reemplazando: empujar dejaría una entrada nueva que apunta a
+      donde ya estamos, y el botón «atrás» daría vueltas sobre sí mismo.
+      */
+      const seccion = sections.find((x) => x.id === r.seccion)
+      const suya = r.sub ?? seccion?.subs?.[0] ?? null
+      if (suya !== r.sub) escribirRuta({ seccion: r.seccion, sub: suya }, true)
+
       setActive((v) => (v === r.seccion ? v : r.seccion))
-      setSub((v) => (v === r.sub ? v : r.sub))
+      setSub((v) => (v === suya ? v : suya))
     }
     window.addEventListener('popstate', alCambiar)
     return () => window.removeEventListener('popstate', alCambiar)
@@ -173,55 +168,76 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
         </div>
         <nav className={styles.slist} role="navigation" aria-label="Sections">
           {/*
-          El patrón de pestañas se declaraba y no se cumplía: doce `role="tab"`
-          sin un solo `role="tabpanel"`, sin `aria-controls` y con las doce en el
-          orden de tabulación. Un lector de pantalla anunciaba «pestaña 1 de 12»
-          y prometía flechas que no hacían nada; y para llegar a «About» con el
-          teclado había que pulsar Tab once veces. Upstream sí lo cumple —28
-          `role="tabpanel"` y `aria-controls` en todas—, así que esto era una
-          pérdida nuestra, no una diferencia de estilo.
+          Esto es un menú de navegación, y hasta ahora decía ser un `tablist`.
+
+          Se declaró como pestañas cuando la consola no tenía direcciones: doce
+          `role="tab"` sobre un único panel. Al ganar rutas reales
+          (`app/ruta.ts`) la descripción dejó de ser cierta —la guía de ARIA es
+          explícita: si activar el elemento lleva a otra URL, es un enlace, no
+          una pestaña—, y encima las sub-secciones colgaban DENTRO del
+          `tablist` siendo botones sueltos, que es un hijo que ese rol no
+          admite. Anunciaba «pestaña 3 de 12» y navegaba.
+
+          Ahora son enlaces con `href` de verdad: se abren en pestaña nueva, se
+          copian y se marcan. El clic normal lo intercepta la aplicación —no hay
+          recarga—; el clic con modificador se deja pasar al navegador, que para
+          eso las rutas existen como fichero. La sección activa se marca con
+          `data-activa` (es estado visual) y `aria-current="page"` se reserva
+          para UNA sola cosa: la página en la que se está, que es la
+          sub-sección cuando la hay.
           */}
-          <div role="tablist" aria-orientation="vertical" onKeyDown={porTeclado}>
-            {GRUPOS.map((grupo, g) => (
-              <div className={styles.grupo} key={g} role="presentation">
-            {sections.filter((sec) => grupo.includes(sec.id)).map((sec) => (
-              <div key={sec.id} role="presentation">
-                <button
-                  role="tab"
-                  id={`tab-${sec.id}`}
-                  aria-controls="panel-seccion"
-                  className={styles.s}
-                  aria-selected={sec.id === current?.id}
-                  tabIndex={sec.id === current?.id ? 0 : -1}
-                  ref={(el) => { pestanas.current[sec.id] = el }}
-                  onClick={() => { setActive(sec.id); setSub(null); setCajon(false) }}
-                >
-                  <span className={styles.ico}>
-                    <Icono nombre={ICONOS[sec.id] ?? 'about'} tam={16} />
-                  </span>
-                  {sec.label}
-                </button>
-                {/* main.js — los sub-items sólo se ven cuando su sección está
-                    activa, igual que hoy las sub-pestañas. Sin desplegable. */}
-                {sec.id === current?.id && sec.subs && (
-                  <div className={styles.sub}>
-                    {sec.subs.map((t, i) => (
-                      <button
-                        key={t}
-                        className={styles.s2}
-                        aria-current={(sub ?? sec.subs![0]) === t || (sub === null && i === 0)}
-                        onClick={() => { setSub(t); setCajon(false) }}
-                      >
-                        {t}
-                      </button>
-                    ))}
+          {GRUPOS.map((grupo, g) => (
+            <div className={styles.grupo} key={g}>
+              {sections.filter((sec) => grupo.includes(sec.id)).map((sec) => {
+                const activa = sec.id === current?.id
+                const primera = sec.subs?.[0] ?? null
+                return (
+                  <div key={sec.id}>
+                    <a
+                      className={styles.s}
+                      href={aCamino({ seccion: sec.id, sub: primera })}
+                      data-activa={activa}
+                      aria-current={activa && sec.subs == null ? 'page' : undefined}
+                      onClick={(e) => {
+                        if (!clicSimple(e)) return
+                        e.preventDefault()
+                        setActive(sec.id)
+                        setSub(primera)
+                        setCajon(false)
+                      }}
+                    >
+                      <span className={styles.ico}>
+                        <Icono nombre={ICONOS[sec.id] ?? 'about'} tam={16} />
+                      </span>
+                      {sec.label}
+                    </a>
+                    {/* main.js — los sub-items sólo se ven cuando su sección está
+                        activa, igual que hoy las sub-pestañas. Sin desplegable. */}
+                    {activa && sec.subs && (
+                      <div className={styles.sub}>
+                        {sec.subs.map((t) => (
+                          <a
+                            key={t}
+                            className={styles.s2}
+                            href={aCamino({ seccion: sec.id, sub: t })}
+                            aria-current={activa && subActual === t ? 'page' : undefined}
+                            onClick={(e) => {
+                              if (!clicSimple(e)) return
+                              e.preventDefault()
+                              setSub(t)
+                              setCajon(false)
+                            }}
+                          >
+                            {t}
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
-              </div>
-            ))}
-          </div>
+                )
+              })}
+            </div>
+          ))}
         </nav>
 
         {/* El servidor y la cuenta, al pie. En estrecho se llega por el cajón. */}
@@ -291,12 +307,9 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
           </span>
         </header>
 
-        <main
-          className={styles.body}
-          id="panel-seccion"
-          role="tabpanel"
-          aria-labelledby={current ? `tab-${current.id}` : undefined}
-        >
+        {/* Ni `tabpanel` ni `aria-labelledby`: desde que cada sección tiene su
+            propia URL esto no es un panel que se alterna, es la página. */}
+        <main className={styles.body} id="panel-seccion">
         {current?.id === 'dashboard' ? (
           <Dashboard token={session.token} />
         ) : current?.id === 'dnsclient' ? (
@@ -320,7 +333,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
         ) : current?.id === 'dhcp' ? (
           <Dhcp
             token={session.token}
-            sub={sub ?? 'Leases'}
+            sub={subActual ?? 'Leases'}
             onSubChange={setSub}
             canModify={permisos?.DhcpServer?.canModify !== false}
             canDelete={permisos?.DhcpServer?.canDelete !== false}
@@ -330,7 +343,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
              del Dashboard (WebServiceLogsApi.cs:135). No es un despiste. */
           <Logs
             token={session.token}
-            sub={sub ?? 'View Logs'}
+            sub={subActual ?? 'View Logs'}
             onSubChange={setSub}
             canDeleteLogs={permisos?.Logs?.canDelete !== false}
             canDeleteStats={permisos?.Dashboard?.canDelete !== false}
@@ -338,14 +351,14 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
         ) : current?.id === 'admin' ? (
           /* Sin props de permiso a propósito: upstream no oculta ni deshabilita
              nada dentro de Administration, sólo la sección entera (main.js:165). */
-          <Admin token={session.token} sub={sub ?? 'Sessions'} onSubChange={setSub} />
+          <Admin token={session.token} sub={subActual ?? 'Sessions'} onSubChange={setSub} />
         ) : current?.id === 'settings' ? (
           /* main.js:906-930 — tres permisos distintos en una sola barra:
              guardar exige Settings.canModify, vaciar caché Cache.canDelete y
              copia/restauración Settings.canDelete. */
           <Settings
             token={session.token}
-            sub={sub ?? 'General'}
+            sub={subActual ?? 'General'}
             onSubChange={setSub}
             canModify={permisos?.Settings?.canModify !== false}
             canFlushCache={permisos?.Cache?.canDelete !== false}

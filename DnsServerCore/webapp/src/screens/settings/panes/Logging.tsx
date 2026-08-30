@@ -5,7 +5,8 @@ import type { PaneProps } from './tipos'
 export function Logging({ f, set, en }: PaneProps) {
   return (
     <>
-      <Block title="Logging">
+      {/* Sin leyenda: repetía el título del panel. */}
+      <Block>
         <GroupRow label="Enable Logging To">
           <Radios
             name="rdLoggingType"

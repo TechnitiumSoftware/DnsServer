@@ -155,7 +155,7 @@ function medirEstado(el, fondoReposo) {
 async function recorrer(ms = 650) {
   const espera = (t) => new Promise(r => setTimeout(r, t))
   const todo = {}
-  for (const t of document.querySelectorAll('[role="tab"]')) {
+  for (const t of document.querySelectorAll('nav[aria-label="Sections"] a')) {
     t.click(); await espera(ms)
     todo[t.textContent.trim().replace(/[^\w ]/g, '')] = medir()
   }

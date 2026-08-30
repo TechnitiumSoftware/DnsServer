@@ -22,7 +22,8 @@ la deja deshabilitada pero visible, no la oculta.
 export function Recursion({ f, set, en }: PaneProps) {
   return (
     <>
-      <Block title="Recursion">
+      {/* Sin leyenda: repetía el título del panel. */}
+      <Block>
         <GroupRow label="Recursion">
           <Radios
             name="rdRecursion"

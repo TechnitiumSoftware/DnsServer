@@ -35,14 +35,14 @@ async function cerrar() {
 
 async function irSeccion(n) {
   await cerrar()
-  for (const t of document.querySelectorAll('[role="tab"]')) {
+  for (const t of document.querySelectorAll('nav[aria-label="Sections"] a')) {
     if (t.textContent.trim() === n) { t.click(); await espera(1200) }
   }
 }
 
 async function irSub(n) {
   await cerrar()
-  const b = [...document.querySelectorAll('nav [class*="_sub_"] button')].find((x) => x.textContent.trim() === n)
+  const b = [...document.querySelectorAll('nav [class*="_sub_"] a')].find((x) => x.textContent.trim() === n)
   if (!b) return false
   b.click(); await espera(1100); return true
 }

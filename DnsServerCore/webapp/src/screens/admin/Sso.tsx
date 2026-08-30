@@ -185,8 +185,10 @@ export function Sso({ token, onAviso }: Props) {
         titulo="Single Sign-On (SSO)"
       />
 
-      <fieldset className={styles.block}>
-        <legend className={styles.blockTitle}>Single Sign-On (SSO)</legend>
+      {/* Sin leyenda: era el segundo de cuatro «Single Sign-On (SSO)» seguidos
+          —título, leyenda, rótulo de la fila y el propio conmutador— antes del
+          primer control, y siendo el único bloque no agrupaba nada. */}
+      <fieldset className={`${styles.block} ${styles.blockSinTitulo}`}>
 
         <div className={frm.row}>
           <div className={frm.rowLabel}>Single Sign-On (SSO)</div>

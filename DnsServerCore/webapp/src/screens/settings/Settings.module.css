@@ -14,6 +14,10 @@
   min-width: 0;
   box-shadow: var(--e-1), var(--filo);
 }
+
+/* Un bloque sin leyenda necesita recuperar arriba el aire que ponía la leyenda:
+   `.block` no lleva padding superior porque esa banda la ocupaba ella. */
+.blockSinTitulo { padding-top: var(--s-9); }
 .blockTitle {
   display: block;
   width: 100%;

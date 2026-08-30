@@ -558,13 +558,17 @@ function FilaZona(p: FilaProps) {
           ? 'warn'
           : 'neutral'
 
-  // El catálogo del que es miembro; y si ELLA es un catálogo, su propio nombre.
+  /*
+  El catálogo del que la zona es MIEMBRO, y sólo eso.
+
+  Antes, si la zona era ella misma un catálogo, se le ponía una etiqueta con su
+  propio nombre: la celda decía `catalogo.test` dos veces seguidas y la columna
+  `Type` ya decía «Catalog». No informaba de nada. Upstream pinta la etiqueta
+  únicamente cuando hay pertenencia (`zone.js:796`: `if (zones[i].catalog != null)`),
+  así que aquello era un añadido nuestro, no paridad.
+  */
   const etiquetaCatalogo =
-    z.catalog != null
-      ? { texto: z.catalog, tono: 'neutral' as TagTone }
-      : z.type === 'Catalog' || z.type === 'SecondaryCatalog'
-        ? { texto: nombre, tono: 'info' as TagTone }
-        : null
+    z.catalog != null ? { texto: z.catalog, tono: 'neutral' as TagTone } : null
 
   return (
     <tr>

@@ -50,8 +50,9 @@ export function textoProximaActualizacion(iso: string | null | undefined): strin
 export function Blocking({ f, set, en, extra }: PaneProps & { extra: BlockingExtra }) {
   const off = !en.blocking
 
+  // Sin leyenda: repetía el título del panel.
   return (
-    <Block title="Blocking">
+    <Block>
       <GroupRow label="Blocking">
         <Check
           conmutador
