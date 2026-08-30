@@ -1264,6 +1264,15 @@ namespace DnsServerCore.Dns
                 _useDnsCookies = false;
             }
 
+            _enableDnsCookieStandaloneAutomaticRotation = s.Position < s.Length && bR.ReadBoolean();
+            _dnsCookieStandaloneAutomaticRotationPeriodHours = DNS_COOKIE_STANDALONE_ROTATION_DEFAULT_PERIOD_HOURS;
+            if (s.Position < s.Length)
+            {
+                int persistedRotationPeriodHours = bR.ReadInt32();
+                ValidateDnsCookieStandaloneRotationPeriod(persistedRotationPeriodHours);
+                _dnsCookieStandaloneAutomaticRotationPeriodHours = persistedRotationPeriodHours;
+            }
+
             if (s.Position < s.Length)
             {
                 bool enableResponseRateLimiting = bR.ReadBoolean();
@@ -1280,15 +1289,6 @@ namespace DnsServerCore.Dns
             else
             {
                 ApplyResponseRateLimitingOptions(CurrentResponseRateLimitingOptions with { Enabled = false });
-            }
-
-            _enableDnsCookieStandaloneAutomaticRotation = s.Position < s.Length && bR.ReadBoolean();
-            _dnsCookieStandaloneAutomaticRotationPeriodHours = DNS_COOKIE_STANDALONE_ROTATION_DEFAULT_PERIOD_HOURS;
-            if (s.Position < s.Length)
-            {
-                int persistedRotationPeriodHours = bR.ReadInt32();
-                ValidateDnsCookieStandaloneRotationPeriod(persistedRotationPeriodHours);
-                _dnsCookieStandaloneAutomaticRotationPeriodHours = persistedRotationPeriodHours;
             }
 
             _cookieCoordinator.Configure(_useDnsCookies);
@@ -1587,6 +1587,8 @@ namespace DnsServerCore.Dns
             bW.Write(_statsManager.EnableInMemoryStats);
             bW.Write(_statsManager.MaxStatFileDays);
             bW.Write(_useDnsCookies);
+            bW.Write(_enableDnsCookieStandaloneAutomaticRotation);
+            bW.Write(_dnsCookieStandaloneAutomaticRotationPeriodHours);
             Security.ResponseRateLimitingOptions rrlOptions = _dnsResponseRrlRuntime.CurrentOptions;
             bW.Write(rrlOptions.Enabled);
             bW.Write(rrlOptions.SustainedRate);
@@ -1594,8 +1596,6 @@ namespace DnsServerCore.Dns
             bW.Write(rrlOptions.SlipEvery);
             bW.Write(rrlOptions.TableSize);
             AuthZoneInfo.WriteNetworkAddressesTo(rrlOptions.BypassList, bW);
-            bW.Write(_enableDnsCookieStandaloneAutomaticRotation);
-            bW.Write(_dnsCookieStandaloneAutomaticRotationPeriodHours);
         }
         #endregion
 
