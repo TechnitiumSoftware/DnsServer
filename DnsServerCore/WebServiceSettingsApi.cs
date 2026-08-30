@@ -154,6 +154,9 @@ namespace DnsServerCore
 
                 jsonWriter.WriteEndArray();
 
+                jsonWriter.WriteNumber("dnsCookieAdmissionDroppedCount", _dnsWebService._dnsServer.DnsCookieAdmissionDroppedCount);
+                jsonWriter.WriteNumber("dnsCookieAdmissionSlippedCount", _dnsWebService._dnsServer.DnsCookieAdmissionSlippedCount);
+
                 jsonWriter.WriteNumber("qpmLimitSampleMinutes", _dnsWebService._dnsServer.QpmLimitSampleMinutes);
                 jsonWriter.WriteNumber("qpmLimitUdpTruncationPercentage", _dnsWebService._dnsServer.QpmLimitUdpTruncationPercentage);
 
@@ -236,9 +239,14 @@ namespace DnsServerCore
                 jsonWriter.WriteBoolean("enableDnsOverHttps", _dnsWebService._dnsServer.EnableDnsOverHttps);
                 jsonWriter.WriteBoolean("enableDnsOverHttp3", _dnsWebService._dnsServer.EnableDnsOverHttp3);
                 jsonWriter.WriteBoolean("enableDnsOverQuic", _dnsWebService._dnsServer.EnableDnsOverQuic);
-
+                jsonWriter.WriteBoolean("useDnsCookies", _dnsWebService._dnsServer.UseDnsCookies);
+                jsonWriter.WriteBoolean("enableDnsCookieStandaloneAutomaticRotation", _dnsWebService._dnsServer.EnableDnsCookieStandaloneAutomaticRotation);
+                jsonWriter.WriteNumber("dnsCookieStandaloneAutomaticRotationPeriodHours", _dnsWebService._dnsServer.DnsCookieStandaloneAutomaticRotationPeriodHours);
+                bool dnsCookieStatusAvailable = _dnsWebService._dnsServer.TryGetDnsCookieSecretStatus(out string activeDnsCookieSecretId, out string stagingDnsCookieSecretId, out _);
+                jsonWriter.WriteBoolean("dnsCookieStatusAvailable", dnsCookieStatusAvailable);
+                jsonWriter.WriteString("dnsCookieActiveSecretFingerprint", activeDnsCookieSecretId);
+                jsonWriter.WriteString("dnsCookieStagingSecretFingerprint", stagingDnsCookieSecretId);
                 jsonWriter.WriteBoolean("enableDnsOverHttpHelpRedirect", _dnsWebService._dnsServer.EnableDnsOverHttpHelpRedirect);
-
                 jsonWriter.WriteNumber("dnsOverUdpProxyPort", _dnsWebService._dnsServer.DnsOverUdpProxyPort);
                 jsonWriter.WriteNumber("dnsOverTcpProxyPort", _dnsWebService._dnsServer.DnsOverTcpProxyPort);
                 jsonWriter.WriteNumber("dnsOverHttpPort", _dnsWebService._dnsServer.DnsOverHttpPort);
@@ -476,6 +484,110 @@ namespace DnsServerCore
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                 WriteDnsSettings(jsonWriter);
+            }
+
+            public void GetDnsCookieSecrets(HttpContext context)
+            {
+                User sessionUser = _dnsWebService.GetSessionUser(context);
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, sessionUser, PermissionFlag.View))
+                    throw new DnsWebServiceException("Access was denied.");
+
+                Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+                bool statusAvailable = _dnsWebService._dnsServer.TryGetDnsCookieSecretCoordinationStatus(out long dnsCookieGeneration,
+                    out Dns.Security.DnsCookieSecretRolloverState dnsCookieRolloverState, out string activeSecretId,
+                    out string stagingSecretId, out DateTime activeSecretCreatedUtc);
+                jsonWriter.WriteBoolean("statusAvailable", statusAvailable);
+                jsonWriter.WriteNumber("generation", dnsCookieGeneration);
+                jsonWriter.WriteString("rolloverState", dnsCookieRolloverState.ToString());
+                jsonWriter.WriteString("activeSecretId", activeSecretId);
+                if (statusAvailable)
+                    jsonWriter.WriteString("activeSecretCreatedUtc", activeSecretCreatedUtc);
+                else
+                    jsonWriter.WriteNull("activeSecretCreatedUtc");
+                jsonWriter.WriteString("stagingSecretId", stagingSecretId);
+                jsonWriter.WriteBoolean("useDnsCookies", _dnsWebService._dnsServer.UseDnsCookies);
+                jsonWriter.WriteBoolean("enableDnsCookieStandaloneAutomaticRotation", _dnsWebService._dnsServer.EnableDnsCookieStandaloneAutomaticRotation);
+                jsonWriter.WriteNumber("dnsCookieStandaloneAutomaticRotationPeriodHours", _dnsWebService._dnsServer.DnsCookieStandaloneAutomaticRotationPeriodHours);
+            }
+
+            // RFC 9018 §9: per-outcome counters that let an operator detect attack patterns
+            // (e.g. a spike in badCookieSentCount) and tune secret rotation frequency accordingly.
+            public void GetDnsCookieStatistics(HttpContext context)
+            {
+                User sessionUser = _dnsWebService.GetSessionUser(context);
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, sessionUser, PermissionFlag.View))
+                    throw new DnsWebServiceException("Access was denied.");
+
+                Dns.Security.DnsCookieStatistics statistics = _dnsWebService._dnsServer.DnsCookieStatistics;
+
+                Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+                jsonWriter.WriteNumber("validationInvocations", statistics.ValidationInvocations);
+                jsonWriter.WriteNumber("validCount", statistics.ValidCount);
+                jsonWriter.WriteNumber("validCurrentCount", statistics.ValidCurrentCount);
+                jsonWriter.WriteNumber("validRenewCount", statistics.ValidRenewCount);
+                jsonWriter.WriteNumber("invalidCount", statistics.InvalidCount);
+                jsonWriter.WriteNumber("malformedCount", statistics.MalformedCount);
+                jsonWriter.WriteNumber("missingCount", statistics.MissingCount);
+                jsonWriter.WriteNumber("badCookieSentCount", statistics.BadCookieSentCount);
+                jsonWriter.WriteNumber("clientOnlyCount", statistics.ClientOnlyCount);
+            }
+
+            private void ChangeDnsCookieSecret(HttpContext context, Action<long?> action, string operation)
+            {
+                User sessionUser = _dnsWebService.GetSessionUser(context);
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, sessionUser, PermissionFlag.Modify))
+                    throw new DnsWebServiceException("Access was denied.");
+                if (_dnsWebService._clusterManager.ClusterInitialized &&
+                    _dnsWebService._clusterManager.GetSelfNode().Type != ClusterNodeType.Primary)
+                {
+                    throw new DnsWebServiceException("DNS Cookie secret changes must be made on the cluster primary node.");
+                }
+
+                long? expectedGeneration = context.Request.TryGetQueryOrForm("expectedGeneration", long.Parse, out long requestedGeneration)
+                    ? requestedGeneration
+                    : null;
+                action(expectedGeneration);
+                if (_dnsWebService._clusterManager.ClusterInitialized &&
+                    _dnsWebService._clusterManager.GetSelfNode().Type == ClusterNodeType.Primary)
+                {
+                    _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodes();
+                }
+                _dnsWebService._log.Write(_dnsWebService.GetRemoteEndPoint(context), "[" + sessionUser.Username + "] DNS Cookie " + operation + " completed successfully.");
+                GetDnsCookieSecrets(context);
+            }
+
+            public void GenerateDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context,
+                expectedGeneration => _dnsWebService._dnsServer.GenerateDnsCookieStagedSecret(expectedGeneration), "generated staging secret addition");
+
+            public void StageDnsCookieSecret(HttpContext context)
+            {
+                byte[] secret = ReadExactDnsCookieSecret(context);
+                ChangeDnsCookieSecret(context, expectedGeneration => _dnsWebService._dnsServer.StageDnsCookieSecret(secret, expectedGeneration), "staging secret addition");
+            }
+
+            public void ActivateDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context,
+                expectedGeneration => _dnsWebService._dnsServer.ActivateDnsCookieSecret(expectedGeneration), "staging secret activation");
+
+            public void RetirePreviousDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context,
+                expectedGeneration => _dnsWebService._dnsServer.RetirePreviousDnsCookieSecret(expectedGeneration), "previous secret retirement");
+
+            public void DropDnsCookieSecret(HttpContext context) => ChangeDnsCookieSecret(context,
+                expectedGeneration => _dnsWebService._dnsServer.DropDnsCookieSecret(expectedGeneration), "staging secret removal");
+
+            private static byte[] ReadExactDnsCookieSecret(HttpContext context)
+            {
+                const int SecretLength = 16;
+                if (context.Request.ContentLength.HasValue && context.Request.ContentLength.Value != SecretLength)
+                    throw new DnsWebServiceException("DNS Cookie secret body must be exactly 16 bytes.");
+
+                byte[] secret = new byte[SecretLength];
+                if (context.Request.Body.ReadAtLeast(secret, SecretLength, throwOnEndOfStream: false) != SecretLength)
+                    throw new DnsWebServiceException("DNS Cookie secret body must be exactly 16 bytes.");
+
+                if (context.Request.Body.ReadByte() != -1)
+                    throw new DnsWebServiceException("DNS Cookie secret body must be exactly 16 bytes.");
+
+                return secret;
             }
 
             public async Task SetDnsSettingsAsync(HttpContext context)
@@ -1166,7 +1278,23 @@ namespace DnsServerCore
                                 restartDnsService = true;
                             }
                         }
+                        if (request.TryGetQueryOrForm("useDnsCookies", bool.Parse, out bool useDnsCookies))
+                        {
+                            if (_dnsWebService._dnsServer.UseDnsCookies != useDnsCookies)
+                            {
+                                _dnsWebService._dnsServer.UseDnsCookies = useDnsCookies;
+                                restartDnsService = true;
+                            }
+                        }
+                        if (request.TryGetQueryOrForm("enableDnsCookieStandaloneAutomaticRotation", bool.Parse, out bool enableDnsCookieStandaloneAutomaticRotation))
+                        {
+                            if (enableDnsCookieStandaloneAutomaticRotation && _dnsWebService._clusterManager.ClusterInitialized)
+                                throw new DnsWebServiceException("Automatic DNS Cookie rotation is available only in standalone mode.");
 
+                            _dnsWebService._dnsServer.EnableDnsCookieStandaloneAutomaticRotation = enableDnsCookieStandaloneAutomaticRotation;
+                        }
+                        if (request.TryGetQueryOrForm("dnsCookieStandaloneAutomaticRotationPeriodHours", int.Parse, out int dnsCookieStandaloneAutomaticRotationPeriodHours))
+                            _dnsWebService._dnsServer.DnsCookieStandaloneAutomaticRotationPeriodHours = dnsCookieStandaloneAutomaticRotationPeriodHours;
                         if (request.TryGetQueryOrForm("enableDnsOverHttpHelpRedirect", bool.Parse, out bool enableDnsOverHttpHelpRedirect))
                             _dnsWebService._dnsServer.EnableDnsOverHttpHelpRedirect = enableDnsOverHttpHelpRedirect;
 

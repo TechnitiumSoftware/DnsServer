@@ -1249,6 +1249,12 @@ function loadDnsSettings(responseJSON) {
     $("#txtQpmLimitUdpTruncation").val(responseJSON.response.qpmLimitUdpTruncationPercentage);
     $("#txtQpmLimitBypassList").val(getArrayAsString(responseJSON.response.qpmLimitBypassList));
 
+    $("#chkEnableDnsCookieStandaloneAutomaticRotation").prop("checked", responseJSON.response.enableDnsCookieStandaloneAutomaticRotation);
+    $("#txtDnsCookieStandaloneAutomaticRotationPeriodHours").val(responseJSON.response.dnsCookieStandaloneAutomaticRotationPeriodHours);
+    var dnsCookieStatusAvailable = responseJSON.response.dnsCookieStatusAvailable === true;
+    $("#lblDnsCookieActiveSecretFingerprint").text(dnsCookieStatusAvailable ? responseJSON.response.dnsCookieActiveSecretFingerprint : "Unavailable");
+    $("#lblDnsCookieStagingSecretFingerprint").text(dnsCookieStatusAvailable ? (responseJSON.response.dnsCookieStagingSecretFingerprint || "None") : "Unavailable");
+
     $("#txtClientTimeout").val(responseJSON.response.clientTimeout);
     $("#txtTcpSendTimeout").val(responseJSON.response.tcpSendTimeout);
     $("#txtTcpReceiveTimeout").val(responseJSON.response.tcpReceiveTimeout);
@@ -1318,6 +1324,8 @@ function loadDnsSettings(responseJSON) {
     $("#chkEnableDnsOverHttp3").prop("disabled", !responseJSON.response.enableDnsOverHttps);
     $("#chkEnableDnsOverHttp3").prop("checked", responseJSON.response.enableDnsOverHttp3);
     $("#chkEnableDnsOverQuic").prop("checked", responseJSON.response.enableDnsOverQuic);
+    $("#chkUseDnsCookies").prop("checked", responseJSON.response.useDnsCookies);
+    updateDnsCookieRrlWarning();
 
     $("#chkEnableDnsOverHttpHelpRedirect").prop("checked", responseJSON.response.enableDnsOverHttpHelpRedirect);
 
@@ -1761,6 +1769,7 @@ function saveDnsSettings(objBtn) {
         else
             $("#txtQpmLimitBypassList").val(qpmLimitBypassList.replace(/,/g, "\n") + "\n");
 
+
         var clientTimeout = $("#txtClientTimeout").val();
         if ((clientTimeout == null) || (clientTimeout === "")) {
             showAlert("warning", "Missing!", "Please enter a value for Client Timeout.");
@@ -1884,6 +1893,16 @@ function saveDnsSettings(objBtn) {
         var enableDnsOverHttps = $("#chkEnableDnsOverHttps").prop("checked");
         var enableDnsOverHttp3 = $("#chkEnableDnsOverHttp3").prop("checked");
         var enableDnsOverQuic = $("#chkEnableDnsOverQuic").prop("checked");
+        var useDnsCookies = $("#chkUseDnsCookies").prop("checked");
+        var enableDnsCookieStandaloneAutomaticRotation = $("#chkEnableDnsCookieStandaloneAutomaticRotation").prop("checked");
+        var dnsCookieStandaloneAutomaticRotationPeriodHours = $("#txtDnsCookieStandaloneAutomaticRotationPeriodHours").val();
+        if (!/^\d+$/.test(dnsCookieStandaloneAutomaticRotationPeriodHours) ||
+            parseInt(dnsCookieStandaloneAutomaticRotationPeriodHours, 10) < 24 ||
+            parseInt(dnsCookieStandaloneAutomaticRotationPeriodHours, 10) > 8784) {
+            showAlert("warning", "Invalid DNS Cookie rotation period", "Enter a whole number between 24 and 8784 hours.");
+            $("#txtDnsCookieStandaloneAutomaticRotationPeriodHours").trigger("focus");
+            return;
+        }
 
         var enableDnsOverHttpHelpRedirect = $("#chkEnableDnsOverHttpHelpRedirect").prop("checked");
 
@@ -1944,7 +1963,7 @@ function saveDnsSettings(objBtn) {
         var dnsTlsCertificatePath = $("#txtDnsTlsCertificatePath").val();
         var dnsTlsCertificatePassword = $("#txtDnsTlsCertificatePassword").val();
 
-        formData += "&enableEDnsClientSubnetSourceAddress=" + enableEDnsClientSubnetSourceAddress + "&enableDnsOverUdpProxy=" + enableDnsOverUdpProxy + "&enableDnsOverTcpProxy=" + enableDnsOverTcpProxy + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverHttpUnixSocket=" + enableDnsOverHttpUnixSocket + "&enableDnsOverHttpsUnixSocket=" + enableDnsOverHttpsUnixSocket + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&enableDnsOverHttp3=" + enableDnsOverHttp3 + "&enableDnsOverQuic=" + enableDnsOverQuic + "&enableDnsOverHttpHelpRedirect=" + enableDnsOverHttpHelpRedirect + "&dnsOverUdpProxyPort=" + dnsOverUdpProxyPort + "&dnsOverTcpProxyPort=" + dnsOverTcpProxyPort + "&dnsOverHttpPort=" + dnsOverHttpPort + "&dnsOverHttpUnixSocket=" + encodeURIComponent(dnsOverHttpUnixSocket) + "&dnsOverHttpsUnixSocket=" + encodeURIComponent(dnsOverHttpsUnixSocket) + "&dnsOverTlsPort=" + dnsOverTlsPort + "&dnsOverHttpsPort=" + dnsOverHttpsPort + "&dnsOverQuicPort=" + dnsOverQuicPort + "&dnsReverseProxyNetworkACL=" + encodeURIComponent(dnsReverseProxyNetworkACL) + "&dnsOverHttpRealIpHeader=" + encodeURIComponent(dnsOverHttpRealIpHeader) + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword);
+        formData += "&enableEDnsClientSubnetSourceAddress=" + enableEDnsClientSubnetSourceAddress + "&enableDnsOverUdpProxy=" + enableDnsOverUdpProxy + "&enableDnsOverTcpProxy=" + enableDnsOverTcpProxy + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverHttpUnixSocket=" + enableDnsOverHttpUnixSocket + "&enableDnsOverHttpsUnixSocket=" + enableDnsOverHttpsUnixSocket + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&enableDnsOverHttp3=" + enableDnsOverHttp3 + "&enableDnsOverQuic=" + enableDnsOverQuic + "&enableDnsOverHttpHelpRedirect=" + enableDnsOverHttpHelpRedirect + "&dnsOverUdpProxyPort=" + dnsOverUdpProxyPort + "&dnsOverTcpProxyPort=" + dnsOverTcpProxyPort + "&dnsOverHttpPort=" + dnsOverHttpPort + "&dnsOverHttpUnixSocket=" + encodeURIComponent(dnsOverHttpUnixSocket) + "&dnsOverHttpsUnixSocket=" + encodeURIComponent(dnsOverHttpsUnixSocket) + "&dnsOverTlsPort=" + dnsOverTlsPort + "&dnsOverHttpsPort=" + dnsOverHttpsPort + "&dnsOverQuicPort=" + dnsOverQuicPort + "&dnsReverseProxyNetworkACL=" + encodeURIComponent(dnsReverseProxyNetworkACL) + "&dnsOverHttpRealIpHeader=" + encodeURIComponent(dnsOverHttpRealIpHeader) + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword) + "&useDnsCookies=" + useDnsCookies + "&enableDnsCookieStandaloneAutomaticRotation=" + enableDnsCookieStandaloneAutomaticRotation + "&dnsCookieStandaloneAutomaticRotationPeriodHours=" + dnsCookieStandaloneAutomaticRotationPeriodHours;
     }
 
     //tsig
@@ -3303,4 +3322,36 @@ function showChangeThemeModal() {
     }
 
     $("#modalChangeTheme").modal("show");
+}
+
+function manageDnsCookieSecret(operation, button) {
+    var actionNames = {
+        generateStagedSecret: "stage a newly generated DNS Cookie secret",
+        activateSecret: "activate the staged DNS Cookie secret",
+        retirePreviousSecret: "retire the previous DNS Cookie secret",
+        dropSecret: "drop the staged DNS Cookie secret"
+    };
+
+    if (!confirm("Are you sure you want to " + actionNames[operation] + "?"))
+        return;
+
+    var btn = $(button);
+    btn.button("loading");
+
+    HTTPRequest({
+        url: "api/settings/dnsCookies/" + operation,
+        token: sessionData.token,
+        success: function () {
+            btn.button("reset");
+            showAlert("success", "DNS Cookie lifecycle updated", "The requested DNS Cookie lifecycle operation completed successfully.");
+            refreshDnsSettings();
+        },
+        error: function () {
+            btn.button("reset");
+        },
+        invalidToken: function () {
+            btn.button("reset");
+            showPageLogin();
+        }
+    });
 }

@@ -209,6 +209,7 @@ namespace DnsServerCore.Cluster
                     ReadConfigFrom(fS);
                 }
 
+                _dnsWebService.DnsServer.SetDnsCookieClusterManaged(ClusterInitialized);
                 InitializeHeartbeatTimerFor(_clusterNodes);
                 UpdateConfigRefreshTimer();
 
@@ -232,6 +233,7 @@ namespace DnsServerCore.Cluster
 
                 ReadConfigFrom(s);
 
+                _dnsWebService.DnsServer.SetDnsCookieClusterManaged(ClusterInitialized);
                 InitializeHeartbeatTimerFor(_clusterNodes);
                 UpdateConfigRefreshTimer();
 
@@ -331,6 +333,7 @@ namespace DnsServerCore.Cluster
                 _clusterDomain = null;
                 _configLastSynced = default;
                 _clusterNodes = null;
+                _dnsWebService.DnsServer.SetDnsCookieClusterManaged(false);
 
                 //delete config file
                 string configFile = Path.Combine(_dnsWebService.ConfigFolder, "cluster.config");
@@ -642,6 +645,7 @@ namespace DnsServerCore.Cluster
             {
                 [selfPrimaryNode.Id] = selfPrimaryNode
             };
+            _dnsWebService.DnsServer.SetDnsCookieClusterManaged(true);
 
             _clusterDomain = clusterZoneInfo.Name;
             _heartbeatRefreshIntervalSeconds = HEARTBEAT_REFRESH_INTERVAL_SECONDS;
@@ -1413,6 +1417,7 @@ namespace DnsServerCore.Cluster
                 DisposeAllNodes(); //dispose existing nodes, if any
 
                 _clusterNodes = clusterNodes;
+                _dnsWebService.DnsServer.SetDnsCookieClusterManaged(true);
 
                 _clusterDomain = primaryNodeClusterInfo.ClusterDomain;
                 _heartbeatRefreshIntervalSeconds = primaryNodeClusterInfo.HeartbeatRefreshIntervalSeconds;
