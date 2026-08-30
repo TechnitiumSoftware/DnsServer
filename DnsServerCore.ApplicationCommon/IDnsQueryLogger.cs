@@ -103,6 +103,18 @@ namespace DnsServerCore.ApplicationCommon
 
     public static class DnsServerResponseTag
     {
+        /// <summary>
+        /// Creates the value to be stored in <see cref="DnsDatagram.Tag"/>. When no log metadata is available, a plain
+        /// <see cref="DnsServerResponseType"/> is returned so that DNS Apps which read the tag directly keep working.
+        /// </summary>
+        public static object CreateTag(DnsServerResponseType responseType, DnsQueryLogMetadata? logMetadata)
+        {
+            if ((logMetadata is null) || (logMetadata.Values.Count < 1))
+                return responseType;
+
+            return new DnsServerResponseMetadata(responseType, logMetadata);
+        }
+
         public static DnsServerResponseType GetResponseType(object? tag)
         {
             if (tag is null)

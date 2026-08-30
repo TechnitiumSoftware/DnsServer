@@ -1621,6 +1621,7 @@ function loadDnsSettings(responseJSON) {
     $("#chkNoStackTrace").prop("checked", responseJSON.response.noStackTrace);
     $("#chkLogQueries").prop("checked", responseJSON.response.logQueries);
     $("#chkUseLocalTime").prop("checked", responseJSON.response.useLocalTime);
+    $("#chkLogQueryMetadata").prop("checked", responseJSON.response.logQueryMetadata);
     $("#txtLogFolderPath").val(responseJSON.response.logFolder);
     $("#txtMaxLogFileDays").val(responseJSON.response.maxLogFileDays);
 
@@ -2191,13 +2192,14 @@ function saveDnsSettings(objBtn) {
         var noStackTrace = $("#chkNoStackTrace").prop("checked");
         var logQueries = $("#chkLogQueries").prop("checked");
         var useLocalTime = $("#chkUseLocalTime").prop("checked");
+        var logQueryMetadata = $("#chkLogQueryMetadata").prop("checked");
         var logFolder = $("#txtLogFolderPath").val();
         var maxLogFileDays = $("#txtMaxLogFileDays").val();
 
         var enableInMemoryStats = $("#chkEnableInMemoryStats").prop("checked");
         var maxStatFileDays = $("#txtMaxStatFileDays").val();
 
-        formData += "&loggingType=" + loggingType + "&ignoreResolverLogs=" + ignoreResolverLogs + "&noStackTrace=" + noStackTrace + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&enableInMemoryStats=" + enableInMemoryStats + "&maxStatFileDays=" + maxStatFileDays;
+        formData += "&loggingType=" + loggingType + "&ignoreResolverLogs=" + ignoreResolverLogs + "&noStackTrace=" + noStackTrace + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logQueryMetadata=" + logQueryMetadata + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&enableInMemoryStats=" + enableInMemoryStats + "&maxStatFileDays=" + maxStatFileDays;
     }
 
     //send request

@@ -890,7 +890,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
 
             DnsQueryLogMetadata responseLogMetadata = new DnsQueryLogMetadata(metadataValues);
-            DnsServerResponseMetadata responseMetadata = new DnsServerResponseMetadata(DnsServerResponseType.Blocked, responseLogMetadata);
+            object responseTag = DnsServerResponseTag.CreateTag(DnsServerResponseType.Blocked, _dnsServer.LogQueryMetadata ? responseLogMetadata : null);
             logMetadata = responseLogMetadata;
 
             //zone is blocked
@@ -902,7 +902,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 for (int i = 0; i < answer.Length; i++)
                     answer[i] = new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, _dnsServer.BlockingAnswerTtl, new DnsTXTRecordData(CreateLogMetadata(blockLists[i]).ToReportString()));
 
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answer) { Tag = responseMetadata };
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answer) { Tag = responseTag };
             }
             else
             {
@@ -936,7 +936,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         if (parentDomain is null)
                             parentDomain = string.Empty;
 
-                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NxDomain, request.Question, null, [new DnsResourceRecord(parentDomain, DnsResourceRecordType.SOA, question.Class, _dnsServer.BlockingAnswerTtl, _soaRecord)], null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, options) { Tag = responseMetadata };
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NxDomain, request.Question, null, [new DnsResourceRecord(parentDomain, DnsResourceRecordType.SOA, question.Class, _dnsServer.BlockingAnswerTtl, _soaRecord)], null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, options) { Tag = responseTag };
 
                     default:
                         throw new InvalidOperationException();
@@ -1002,7 +1002,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         break;
                 }
 
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, options) { Tag = responseMetadata };
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, options) { Tag = responseTag };
             }
         }
 

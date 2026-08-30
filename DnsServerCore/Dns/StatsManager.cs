@@ -162,13 +162,14 @@ namespace DnsServerCore.Dns
                         if ((item._request is null) || (item._response is null))
                             continue; //skip dropped requests for apps to prevent DoS
 
+                        bool logQueryMetadata = _dnsServer.LogQueryMetadata;
+                        DnsQueryLogMetadata logMetadata = logQueryMetadata ? DnsServerResponseTag.GetLogMetadata(item._response.Tag) : null;
+
                         foreach (IDnsQueryLogger logger in _dnsServer.DnsApplicationManager.DnsQueryLoggers)
                         {
                             try
                             {
-                                DnsQueryLogMetadata? logMetadata = DnsServerResponseTag.GetLogMetadata(item._response.Tag);
-
-                                if (logger is IDnsQueryLoggerEx loggerEx)
+                                if (logQueryMetadata && (logger is IDnsQueryLoggerEx loggerEx))
                                     _ = loggerEx.InsertLogAsync(item._timestamp, item._request, item._remoteEP, item._protocol, item._response, logMetadata);
                                 else
                                     _ = logger.InsertLogAsync(item._timestamp, item._request, item._remoteEP, item._protocol, item._response);
