@@ -5526,7 +5526,7 @@ RESPONSE:
     "activeSecretCreatedUtc": "2026-08-26T15:30:00Z",
     "stagingSecretId": null,
     "useDnsCookies": true,
-    "enableResponseRateLimiting": true,
+    "enableUdpReflectionLimiting": true,
     "antiReflectionProtectionComplete": true
   },
   "status": "ok"
@@ -5536,7 +5536,7 @@ RESPONSE:
 RESPONSE FIELDS:
 - `statusAvailable`: `false` when DNS Cookies have never been enabled and no secret state exists yet; `activeSecretId` is then `null` and `activeSecretCreatedUtc` is omitted (`null`).
 - `activeSecretId` / `stagingSecretId`: identifiers for the currently active and (if any) staged secret. `stagingSecretId` is `null` when no staged secret exists.
-- `antiReflectionProtectionComplete`: `false` when `useDnsCookies` is `true` but `enableResponseRateLimiting` is `false` — in that state a `warning` field is also present (see below), because valid cookies alone establish return-routability but unverified spoofable UDP traffic is not covered by the DNS Cookie/RRL anti-reflection policy without RRL also enabled.
+- `antiReflectionProtectionComplete`: `false` when `useDnsCookies` is `true` but `enableUdpReflectionLimiting` is `false` — in that state a `warning` field is also present (see below), because valid cookies alone establish return-routability but unverified spoofable UDP traffic has no dedicated reflection protection without the early UDP admission limiter.
 
 #### Generate Staged DNS Cookie Secret
 

@@ -1261,37 +1261,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                     </div>
 
                                                     <div id="divSettingsGeneralRateLimiting" class="well well-sm form-horizontal">
-                                                        <h4>Response Rate Limiting</h4>
+                                                        <h4>UDP Reflection Limiting</h4>
                                                         <div class="form-group">
                                                             <label class="col-sm-3 control-label">Early protection</label>
                                                             <div class="col-sm-8 checkbox"><label><input id="chkEnableUdpReflectionLimiting" type="checkbox"> Enable early UDP reflection limiting</label></div>
-                                                        </div>
-                                                        <div class="form-group">
-                                                            <label class="col-sm-3 control-label">Response RRL</label>
-                                                            <div class="col-sm-8 checkbox"><label><input id="chkEnableResponseRateLimiting" type="checkbox"> Enable UDP Response Rate Limiting</label></div>
-                                                        </div>
-                                                        <div class="form-group">
-                                                            <label for="txtResponseRateLimit" class="col-sm-3 control-label">Rate</label>
-                                                            <div class="col-sm-8"><input id="txtResponseRateLimit" type="number" min="1" class="form-control" style="width: 120px; display: inline;"> responses/second</div>
-                                                        </div>
-                                                        <div class="form-group">
-                                                            <label for="txtResponseRateLimitInstant" class="col-sm-3 control-label">Instant limit</label>
-                                                            <div class="col-sm-8"><input id="txtResponseRateLimitInstant" type="number" min="1" class="form-control" style="width: 120px; display: inline;"> responses</div>
-                                                        </div>
-                                                        <div class="form-group">
-                                                            <label for="txtResponseRateLimitSlip" class="col-sm-3 control-label">Slip</label>
-                                                            <div class="col-sm-8"><input id="txtResponseRateLimitSlip" type="number" min="0" class="form-control" style="width: 120px; display: inline;"></div>
-                                                        </div>
-                                                        <div class="form-group">
-                                                            <label for="txtResponseRateLimitTableSize" class="col-sm-3 control-label">Table size</label>
-                                                            <div class="col-sm-8"><input id="txtResponseRateLimitTableSize" type="number" min="16" max="524288" class="form-control" style="width: 120px; display: inline;"> entries (maximum 524288)</div>
-                                                        </div>
-                                                        <div class="form-group">
-                                                            <label for="txtResponseRateLimitBypassList" class="col-sm-3 control-label">Bypass list</label>
-                                                            <div class="col-sm-6">
-                                                                <textarea id="txtResponseRateLimitBypassList" class="form-control" rows="3" placeholder="IP address or network"></textarea>
-                                                            </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enter one IP address or network per line to bypass UDP Response Rate Limiting.</div>
                                                         </div>
 
                                                         <hr>
@@ -1327,7 +1300,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             </div>
                                                         </div>
                                                         <div id="divDnsCookieRrlWarning" class="alert alert-warning" style="display: none;">
-                                                            DNS Cookies are enabled without either early UDP reflection limiting or UDP response rate limiting. Valid cookies establish return-routability, but unverified spoofable UDP traffic has no dedicated reflection protection.
+                                                            DNS Cookies are enabled without early UDP reflection limiting. Valid cookies establish return-routability, but unverified spoofable UDP traffic has no dedicated reflection protection.
                                                         </div>
 
                                                         <hr>

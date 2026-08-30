@@ -155,17 +155,8 @@ namespace DnsServerCore
                 jsonWriter.WriteEndArray();
 
                 jsonWriter.WriteBoolean("enableUdpReflectionLimiting", _dnsWebService._dnsServer.EnableUdpReflectionLimiting);
-                jsonWriter.WriteBoolean("enableResponseRateLimiting", _dnsWebService._dnsServer.EnableResponseRateLimiting);
-                jsonWriter.WriteNumber("responseRateLimit", _dnsWebService._dnsServer.ResponseRateLimit);
-                jsonWriter.WriteNumber("responseRateLimitInstant", _dnsWebService._dnsServer.ResponseRateLimitInstant);
-                jsonWriter.WriteNumber("responseRateLimitSlip", _dnsWebService._dnsServer.ResponseRateLimitSlip);
-                jsonWriter.WriteNumber("responseRateLimitTableSize", _dnsWebService._dnsServer.ResponseRateLimitTableSize);
-                jsonWriter.WriteStringArray("responseRateLimitBypassList", _dnsWebService._dnsServer.ResponseRateLimitBypassList);
                 jsonWriter.WriteNumber("udpReflectionLimiterDroppedCount", _dnsWebService._dnsServer.UdpReflectionLimiterDroppedCount);
                 jsonWriter.WriteNumber("udpReflectionLimiterSlippedCount", _dnsWebService._dnsServer.UdpReflectionLimiterSlippedCount);
-                jsonWriter.WriteNumber("dnsResponseRrlDroppedCount", _dnsWebService._dnsServer.DnsResponseRrlDroppedCount);
-                jsonWriter.WriteNumber("dnsResponseRrlSlippedCount", _dnsWebService._dnsServer.DnsResponseRrlSlippedCount);
-                jsonWriter.WriteNumber("dnsResponseRrlErrorLeakCount", _dnsWebService._dnsServer.DnsResponseRrlErrorLeakCount);
 
                 jsonWriter.WriteNumber("qpmLimitSampleMinutes", _dnsWebService._dnsServer.QpmLimitSampleMinutes);
                 jsonWriter.WriteNumber("qpmLimitUdpTruncationPercentage", _dnsWebService._dnsServer.QpmLimitUdpTruncationPercentage);
@@ -257,10 +248,10 @@ namespace DnsServerCore
                 jsonWriter.WriteString("dnsCookieActiveSecretFingerprint", activeDnsCookieSecretId);
                 jsonWriter.WriteString("dnsCookieStagingSecretFingerprint", stagingDnsCookieSecretId);
                 bool dnsCookieProtectionComplete = !_dnsWebService._dnsServer.UseDnsCookies ||
-                    _dnsWebService._dnsServer.EnableUdpReflectionLimiting || _dnsWebService._dnsServer.EnableResponseRateLimiting;
+                    _dnsWebService._dnsServer.EnableUdpReflectionLimiting;
                 jsonWriter.WriteBoolean("dnsCookiesAntiReflectionProtectionComplete", dnsCookieProtectionComplete);
                 if (!dnsCookieProtectionComplete)
-                    jsonWriter.WriteString("dnsCookiesWarning", "DNS Cookies are enabled without either UDP reflection limiting or DNS response rate limiting. Valid cookies establish return-routability, but unverified spoofable UDP traffic has no dedicated reflection protection.");
+                    jsonWriter.WriteString("dnsCookiesWarning", "DNS Cookies are enabled without UDP reflection limiting. Valid cookies establish return-routability, but unverified spoofable UDP traffic has no dedicated reflection protection.");
                 jsonWriter.WriteBoolean("enableDnsOverHttpHelpRedirect", _dnsWebService._dnsServer.EnableDnsOverHttpHelpRedirect);
                 jsonWriter.WriteNumber("dnsOverUdpProxyPort", _dnsWebService._dnsServer.DnsOverUdpProxyPort);
                 jsonWriter.WriteNumber("dnsOverTcpProxyPort", _dnsWebService._dnsServer.DnsOverTcpProxyPort);
@@ -524,12 +515,11 @@ namespace DnsServerCore
                 jsonWriter.WriteBoolean("enableDnsCookieStandaloneAutomaticRotation", _dnsWebService._dnsServer.EnableDnsCookieStandaloneAutomaticRotation);
                 jsonWriter.WriteNumber("dnsCookieStandaloneAutomaticRotationPeriodHours", _dnsWebService._dnsServer.DnsCookieStandaloneAutomaticRotationPeriodHours);
                 jsonWriter.WriteBoolean("enableUdpReflectionLimiting", _dnsWebService._dnsServer.EnableUdpReflectionLimiting);
-                jsonWriter.WriteBoolean("enableResponseRateLimiting", _dnsWebService._dnsServer.EnableResponseRateLimiting);
                 bool protectionComplete = !_dnsWebService._dnsServer.UseDnsCookies ||
-                    _dnsWebService._dnsServer.EnableUdpReflectionLimiting || _dnsWebService._dnsServer.EnableResponseRateLimiting;
+                    _dnsWebService._dnsServer.EnableUdpReflectionLimiting;
                 jsonWriter.WriteBoolean("antiReflectionProtectionComplete", protectionComplete);
                 if (!protectionComplete)
-                    jsonWriter.WriteString("warning", "DNS Cookies are enabled without either UDP reflection limiting or DNS response rate limiting. Valid cookies establish return-routability, but unverified spoofable UDP traffic has no dedicated reflection protection.");
+                    jsonWriter.WriteString("warning", "DNS Cookies are enabled without UDP reflection limiting. Valid cookies establish return-routability, but unverified spoofable UDP traffic has no dedicated reflection protection.");
             }
 
             // RFC 9018 §9: per-outcome counters that let an operator detect attack patterns
@@ -937,53 +927,6 @@ namespace DnsServerCore
                         {
                             _dnsWebService._dnsServer.EnableUdpReflectionLimiting = enableUdpReflectionLimiting;
                             clusterParameters.Add("enableUdpReflectionLimiting", enableUdpReflectionLimiting.ToString());
-                        }
-
-                        Dns.Security.ResponseRateLimitingOptions rrlOptions = _dnsWebService._dnsServer.CurrentResponseRateLimitingOptions;
-                        bool hasRrlUpdate = false;
-
-                        if (request.TryGetQueryOrForm("enableResponseRateLimiting", bool.Parse, out bool enableResponseRateLimiting))
-                        {
-                            rrlOptions = rrlOptions with { Enabled = enableResponseRateLimiting };
-                            hasRrlUpdate = true;
-                        }
-                        if (request.TryGetQueryOrForm("responseRateLimit", int.Parse, out int responseRateLimit))
-                        {
-                            rrlOptions = rrlOptions with { SustainedRate = responseRateLimit };
-                            hasRrlUpdate = true;
-                        }
-                        if (request.TryGetQueryOrForm("responseRateLimitInstant", int.Parse, out int responseRateLimitInstant))
-                        {
-                            rrlOptions = rrlOptions with { InstantLimit = responseRateLimitInstant };
-                            hasRrlUpdate = true;
-                        }
-                        if (request.TryGetQueryOrForm("responseRateLimitSlip", int.Parse, out int responseRateLimitSlip))
-                        {
-                            rrlOptions = rrlOptions with { SlipEvery = responseRateLimitSlip };
-                            hasRrlUpdate = true;
-                        }
-                        if (request.TryGetQueryOrForm("responseRateLimitTableSize", int.Parse, out int responseRateLimitTableSize))
-                        {
-                            rrlOptions = rrlOptions with { TableSize = responseRateLimitTableSize };
-                            hasRrlUpdate = true;
-                        }
-                        if (request.TryQueryOrFormArray("responseRateLimitBypassList", NetworkAddress.Parse, out NetworkAddress[] responseRateLimitBypassList))
-                        {
-                            rrlOptions = rrlOptions with { BypassList = responseRateLimitBypassList };
-                            hasRrlUpdate = true;
-                        }
-
-                        if (hasRrlUpdate)
-                        {
-                            _dnsWebService._dnsServer.ApplyResponseRateLimitingOptions(rrlOptions);
-
-                            // Replicate the complete applied snapshot, never a partially parsed request.
-                            clusterParameters.Add("enableResponseRateLimiting", rrlOptions.Enabled.ToString());
-                            clusterParameters.Add("responseRateLimit", rrlOptions.SustainedRate.ToString());
-                            clusterParameters.Add("responseRateLimitInstant", rrlOptions.InstantLimit.ToString());
-                            clusterParameters.Add("responseRateLimitSlip", rrlOptions.SlipEvery.ToString());
-                            clusterParameters.Add("responseRateLimitTableSize", rrlOptions.TableSize.ToString());
-                            clusterParameters.Add("responseRateLimitBypassList", rrlOptions.BypassList is null ? "" : rrlOptions.BypassList.Join());
                         }
 
                         if (request.TryGetQueryOrForm("qpmLimitSampleMinutes", int.Parse, out int qpmLimitSampleMinutes))
