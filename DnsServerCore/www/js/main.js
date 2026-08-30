@@ -1249,21 +1249,11 @@ function loadDnsSettings(responseJSON) {
     $("#txtQpmLimitUdpTruncation").val(responseJSON.response.qpmLimitUdpTruncationPercentage);
     $("#txtQpmLimitBypassList").val(getArrayAsString(responseJSON.response.qpmLimitBypassList));
 
-    $("#chkEnableUdpReflectionLimiting").prop("checked", responseJSON.response.enableUdpReflectionLimiting);
     $("#chkEnableDnsCookieStandaloneAutomaticRotation").prop("checked", responseJSON.response.enableDnsCookieStandaloneAutomaticRotation);
     $("#txtDnsCookieStandaloneAutomaticRotationPeriodHours").val(responseJSON.response.dnsCookieStandaloneAutomaticRotationPeriodHours);
     var dnsCookieStatusAvailable = responseJSON.response.dnsCookieStatusAvailable === true;
     $("#lblDnsCookieActiveSecretFingerprint").text(dnsCookieStatusAvailable ? responseJSON.response.dnsCookieActiveSecretFingerprint : "Unavailable");
     $("#lblDnsCookieStagingSecretFingerprint").text(dnsCookieStatusAvailable ? (responseJSON.response.dnsCookieStagingSecretFingerprint || "None") : "Unavailable");
-
-    function updateDnsCookieAdmissionWarning() {
-        $("#divDnsCookieRrlWarning").toggle(
-            $("#chkUseDnsCookies").prop("checked") &&
-            !$("#chkEnableUdpReflectionLimiting").prop("checked"));
-    }
-
-    $("#chkUseDnsCookies, #chkEnableUdpReflectionLimiting").off("change.dnsSecurity").on("change.dnsSecurity", updateDnsCookieAdmissionWarning);
-    updateDnsCookieAdmissionWarning();
 
     $("#txtClientTimeout").val(responseJSON.response.clientTimeout);
     $("#txtTcpSendTimeout").val(responseJSON.response.tcpSendTimeout);
@@ -1779,7 +1769,6 @@ function saveDnsSettings(objBtn) {
         else
             $("#txtQpmLimitBypassList").val(qpmLimitBypassList.replace(/,/g, "\n") + "\n");
 
-        var enableUdpReflectionLimiting = $("#chkEnableUdpReflectionLimiting").prop("checked");
 
         var clientTimeout = $("#txtClientTimeout").val();
         if ((clientTimeout == null) || (clientTimeout === "")) {
@@ -1847,7 +1836,6 @@ function saveDnsSettings(objBtn) {
         formData += "&udpPayloadSize=" + udpPayloadSize + "&dnssecValidation=" + dnssecValidation;
         formData += "&eDnsClientSubnet=" + eDnsClientSubnet + "&eDnsClientSubnetIPv4PrefixLength=" + eDnsClientSubnetIPv4PrefixLength + "&eDnsClientSubnetIPv6PrefixLength=" + eDnsClientSubnetIPv6PrefixLength + "&eDnsClientSubnetIpv4Override=" + encodeURIComponent(eDnsClientSubnetIpv4Override) + "&eDnsClientSubnetIpv6Override=" + encodeURIComponent(eDnsClientSubnetIpv6Override);
         formData += "&qpmPrefixLimitsIPv4=" + encodeURIComponent(qpmPrefixLimitsIPv4) + "&qpmPrefixLimitsIPv6=" + encodeURIComponent(qpmPrefixLimitsIPv6) + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitUdpTruncationPercentage=" + qpmLimitUdpTruncationPercentage + "&qpmLimitBypassList=" + encodeURIComponent(qpmLimitBypassList);
-        formData += "&enableUdpReflectionLimiting=" + enableUdpReflectionLimiting;
         formData += "&clientTimeout=" + clientTimeout + "&tcpSendTimeout=" + tcpSendTimeout + "&tcpReceiveTimeout=" + tcpReceiveTimeout + "&quicIdleTimeout=" + quicIdleTimeout + "&quicMaxInboundStreams=" + quicMaxInboundStreams + "&listenBacklog=" + listenBacklog + "&udpSendBufferSizeKB=" + udpSendBufferSizeKB + "&udpReceiveBufferSizeKB=" + udpReceiveBufferSizeKB + "&maxConcurrentResolutionsPerCore=" + maxConcurrentResolutionsPerCore;
     }
 

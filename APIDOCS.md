@@ -5503,7 +5503,7 @@ WHERE:
 
 #### Get DNS Cookie Settings
 
-Get the current DNS Cookie configuration including active/staging secret IDs and whether UDP Response Rate Limiting (required for full anti-reflection protection alongside DNS Cookies) is also enabled.
+Get the current DNS Cookie configuration, including the active and staging secret IDs.
 
 URL:\
 `http://localhost:5380/api/settings/dnsCookies/get`
@@ -5525,9 +5525,7 @@ RESPONSE:
     "activeSecretId": "c8b3c4f1e2d8a9b6",
     "activeSecretCreatedUtc": "2026-08-26T15:30:00Z",
     "stagingSecretId": null,
-    "useDnsCookies": true,
-    "enableUdpReflectionLimiting": true,
-    "antiReflectionProtectionComplete": true
+    "useDnsCookies": true
   },
   "status": "ok"
 }
@@ -5536,7 +5534,7 @@ RESPONSE:
 RESPONSE FIELDS:
 - `statusAvailable`: `false` when DNS Cookies have never been enabled and no secret state exists yet; `activeSecretId` is then `null` and `activeSecretCreatedUtc` is omitted (`null`).
 - `activeSecretId` / `stagingSecretId`: identifiers for the currently active and (if any) staged secret. `stagingSecretId` is `null` when no staged secret exists.
-- `antiReflectionProtectionComplete`: `false` when `useDnsCookies` is `true` but `enableUdpReflectionLimiting` is `false` — in that state a `warning` field is also present (see below), because valid cookies alone establish return-routability but unverified spoofable UDP traffic has no dedicated reflection protection without the early UDP admission limiter.
+- `useDnsCookies`: whether DNS Cookies are enabled. The early UDP admission limiter that bounds unverified spoofable UDP traffic follows this flag and has no separate setting, so an enabled server always has its Cookie anti-reflection protection active.
 
 #### Generate Staged DNS Cookie Secret
 
@@ -5621,7 +5619,7 @@ RESPONSE:
 
 RESPONSE FIELDS:
 - `validationInvocations`: Total number of cryptographic server-cookie validation attempts performed.
-- `validCount`: Requests with valid server cookies (bypassed reflection RRL).
+- `validCount`: Requests with valid server cookies (bypassed Cookie admission limiting).
 - `invalidCount`: Requests with invalid/rejected server cookies.
 - `missingCount`: Requests with no server cookie (client cookie only or neither).
 - `badCookieSentCount`: Number of BADCOOKIE (RCODE 23) responses sent.

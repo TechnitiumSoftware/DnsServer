@@ -154,7 +154,6 @@ namespace DnsServerCore
 
                 jsonWriter.WriteEndArray();
 
-                jsonWriter.WriteBoolean("enableUdpReflectionLimiting", _dnsWebService._dnsServer.EnableUdpReflectionLimiting);
                 jsonWriter.WriteNumber("dnsCookieAdmissionDroppedCount", _dnsWebService._dnsServer.DnsCookieAdmissionDroppedCount);
                 jsonWriter.WriteNumber("dnsCookieAdmissionSlippedCount", _dnsWebService._dnsServer.DnsCookieAdmissionSlippedCount);
 
@@ -247,11 +246,6 @@ namespace DnsServerCore
                 jsonWriter.WriteBoolean("dnsCookieStatusAvailable", dnsCookieStatusAvailable);
                 jsonWriter.WriteString("dnsCookieActiveSecretFingerprint", activeDnsCookieSecretId);
                 jsonWriter.WriteString("dnsCookieStagingSecretFingerprint", stagingDnsCookieSecretId);
-                bool dnsCookieProtectionComplete = !_dnsWebService._dnsServer.UseDnsCookies ||
-                    _dnsWebService._dnsServer.EnableUdpReflectionLimiting;
-                jsonWriter.WriteBoolean("dnsCookiesAntiReflectionProtectionComplete", dnsCookieProtectionComplete);
-                if (!dnsCookieProtectionComplete)
-                    jsonWriter.WriteString("dnsCookiesWarning", "DNS Cookies are enabled without UDP reflection limiting. Valid cookies establish return-routability, but unverified spoofable UDP traffic has no dedicated reflection protection.");
                 jsonWriter.WriteBoolean("enableDnsOverHttpHelpRedirect", _dnsWebService._dnsServer.EnableDnsOverHttpHelpRedirect);
                 jsonWriter.WriteNumber("dnsOverUdpProxyPort", _dnsWebService._dnsServer.DnsOverUdpProxyPort);
                 jsonWriter.WriteNumber("dnsOverTcpProxyPort", _dnsWebService._dnsServer.DnsOverTcpProxyPort);
@@ -514,12 +508,6 @@ namespace DnsServerCore
                 jsonWriter.WriteBoolean("useDnsCookies", _dnsWebService._dnsServer.UseDnsCookies);
                 jsonWriter.WriteBoolean("enableDnsCookieStandaloneAutomaticRotation", _dnsWebService._dnsServer.EnableDnsCookieStandaloneAutomaticRotation);
                 jsonWriter.WriteNumber("dnsCookieStandaloneAutomaticRotationPeriodHours", _dnsWebService._dnsServer.DnsCookieStandaloneAutomaticRotationPeriodHours);
-                jsonWriter.WriteBoolean("enableUdpReflectionLimiting", _dnsWebService._dnsServer.EnableUdpReflectionLimiting);
-                bool protectionComplete = !_dnsWebService._dnsServer.UseDnsCookies ||
-                    _dnsWebService._dnsServer.EnableUdpReflectionLimiting;
-                jsonWriter.WriteBoolean("antiReflectionProtectionComplete", protectionComplete);
-                if (!protectionComplete)
-                    jsonWriter.WriteString("warning", "DNS Cookies are enabled without UDP reflection limiting. Valid cookies establish return-routability, but unverified spoofable UDP traffic has no dedicated reflection protection.");
             }
 
             // RFC 9018 §9: per-outcome counters that let an operator detect attack patterns
@@ -921,12 +909,6 @@ namespace DnsServerCore
                             }
 
                             clusterParameters.Add("qpmPrefixLimitsIPv6", strQpmPrefixLimitsIPv6);
-                        }
-
-                        if (request.TryGetQueryOrForm("enableUdpReflectionLimiting", bool.Parse, out bool enableUdpReflectionLimiting))
-                        {
-                            _dnsWebService._dnsServer.EnableUdpReflectionLimiting = enableUdpReflectionLimiting;
-                            clusterParameters.Add("enableUdpReflectionLimiting", enableUdpReflectionLimiting.ToString());
                         }
 
                         if (request.TryGetQueryOrForm("qpmLimitSampleMinutes", int.Parse, out int qpmLimitSampleMinutes))

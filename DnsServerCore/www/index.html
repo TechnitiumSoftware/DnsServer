@@ -1261,13 +1261,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                     </div>
 
                                                     <div id="divSettingsGeneralRateLimiting" class="well well-sm form-horizontal">
-                                                        <h4>UDP Reflection Limiting</h4>
-                                                        <div class="form-group">
-                                                            <label class="col-sm-3 control-label">Early protection</label>
-                                                            <div class="col-sm-8 checkbox"><label><input id="chkEnableUdpReflectionLimiting" type="checkbox"> Enable early UDP reflection limiting</label></div>
-                                                        </div>
-
-                                                        <hr>
                                                         <h4>DNS Cookies</h4>
                                                         <div class="form-group">
                                                             <label class="col-sm-3 control-label">Enabled</label>
@@ -1298,9 +1291,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                 <button type="button" id="btnDnsCookieRetire" class="btn btn-default btn-sm" onclick="manageDnsCookieSecret('retirePreviousSecret', this)">Retire Previous</button>
                                                                 <button type="button" id="btnDnsCookieDrop" class="btn btn-danger btn-sm" onclick="manageDnsCookieSecret('dropSecret', this)">Drop Staged</button>
                                                             </div>
-                                                        </div>
-                                                        <div id="divDnsCookieRrlWarning" class="alert alert-warning" style="display: none;">
-                                                            DNS Cookies are enabled without early UDP reflection limiting. Valid cookies establish return-routability, but unverified spoofable UDP traffic has no dedicated reflection protection.
                                                         </div>
 
                                                         <hr>
