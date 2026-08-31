@@ -3,6 +3,7 @@ import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Input } from '../../ui/Field'
 import styles from './Dhcp.module.css'
+import { Panel } from '../../ui/Panel'
 import { Empty } from '../../ui/Empty'
 import frm from '../../ui/Form.module.css'
 export { Check } from '../../ui/Check'
@@ -21,10 +22,9 @@ campos, mismo orden, sólo agrupados a la vista.
 
 export function Block({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <fieldset className={styles.block}>
-      <legend className={styles.blockTitle}>{title}</legend>
+    <Panel titulo={title} className={styles.block} agrupa>
       {children}
-    </fieldset>
+    </Panel>
   )
 }
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useState } from 'react'
 import { Alert } from '../../ui/Alert'
+import { Panel } from '../../ui/Panel'
 import { Button } from '../../ui/Button'
 import { Input, Select } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
@@ -188,7 +189,7 @@ export function Sso({ token, onAviso }: Props) {
       {/* Sin leyenda: era el segundo de cuatro «Single Sign-On (SSO)» seguidos
           —título, leyenda, rótulo de la fila y el propio conmutador— antes del
           primer control, y siendo el único bloque no agrupaba nada. */}
-      <fieldset className={`${styles.block} ${styles.blockSinTitulo}`}>
+      <Panel className={styles.block}>
 
         <div className={frm.row}>
           <div className={frm.rowLabel}>Single Sign-On (SSO)</div>
@@ -455,7 +456,7 @@ export function Sso({ token, onAviso }: Props) {
             it is recommended to maintain a local administrator user account for such scenarios.
           </Alert>
         </div>
-      </fieldset>
+      </Panel>
 
       <div className={styles.bar}>
         <Button variant="primary" disabled={ocupado} onClick={() => guardar()}>

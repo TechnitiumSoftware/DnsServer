@@ -14,6 +14,7 @@ import { Dialog } from '../../ui/Dialog'
 import { SectionHeader } from '../../ui/SectionHeader'
 import {Empty, Loading} from '../../ui/Empty'
 import styles from './Logs.module.css'
+import { Cuerpo, Panel } from '../../ui/Panel'
 
 /*
 Logs › View Logs (logs.js:105-268).
@@ -191,11 +192,8 @@ export function ViewLogs({
       )}
 
       <div className={styles.dos}>
-        <div className={styles.panel}>
-          <div className={styles.ph}>
-            <h2>Log Files</h2>
-          </div>
-          <div className={styles.pbLista}>
+        <Panel titulo="Log Files" className={styles.panel}>
+          <Cuerpo className={styles.pbLista}>
             {ficheros.length === 0 ? (
               <Empty>
                 {aviso?.type === 'danger'
@@ -218,15 +216,14 @@ export function ViewLogs({
                 ))}
               </div>
             )}
-          </div>
-        </div>
+          </Cuerpo>
+        </Panel>
 
         {abierto != null && (
-          <div className={styles.panel}>
-            <div className={styles.ph}>
-              <h2>
-                <span className={styles.mono}>{abierto}</span>
-              </h2>
+          <Panel
+            className={styles.panel}
+            titulo={<span className={styles.mono}>{abierto}</span>}
+            acciones={
               <div className={styles.acts}>
                 <Button disabled={ocupado} onClick={() => void descargar()}>
                   Download
@@ -237,15 +234,16 @@ export function ViewLogs({
                   </Button>
                 )}
               </div>
-            </div>
-            <div className={styles.pb}>
+            }
+          >
+            <Cuerpo>
               {cargandoCuerpo ? (
                 <Loading />
               ) : (
                 <pre className={styles.out}>{cuerpo ?? ''}</pre>
               )}
-            </div>
-          </div>
+            </Cuerpo>
+          </Panel>
         )}
       </div>
 

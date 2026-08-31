@@ -6,6 +6,7 @@ import { LabeledInput, LabeledSelect } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty } from '../../ui/Empty'
 import styles from './DnsClient.module.css'
+import { Cuerpo, Panel } from '../../ui/Panel'
 
 /*
 Réplica de `resolveQuery()` (dnsclient.js:95-210). Los dos botones llaman al
@@ -141,12 +142,12 @@ export function DnsClient({ token }: { token: string | null }) {
       {salida === null ? (
         <Empty>Run a query to see the response.</Empty>
       ) : (
-        <div className={styles.panel}>
-          <div className={styles.ph}>
-            <h2>Response</h2>
-            <span className={styles.meta}>{protocol} · {type}</span>
-          </div>
-          <div className={styles.pb}>
+        <Panel
+          titulo="Response"
+          acciones={<span className={styles.meta}>{protocol} · {type}</span>}
+          className={styles.panel}
+        >
+          <Cuerpo>
             <pre className={styles.out}>{salida}</pre>
 
             {crudas.length > 0 && (
@@ -159,8 +160,8 @@ export function DnsClient({ token }: { token: string | null }) {
                 ))}
               </details>
             )}
-          </div>
-        </div>
+          </Cuerpo>
+        </Panel>
       )}
     </>
   )

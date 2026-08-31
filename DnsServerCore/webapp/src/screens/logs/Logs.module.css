@@ -27,17 +27,7 @@ descuadrar el título.
 /* ---- View Logs ---- */
 
 .dos { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: var(--s-10); align-items: start; }
-/*
-El panel, la cabecera y el cuerpo son los de `ui/Panel.module.css`.
 
-Estaban escritos aquí, y en otros tres módulos más, con valores que se habían
-ido separando: sombra sí o no, fondo de cabecera sí o no, y dos tipografías de
-título distintas para el mismo objeto.
-*/
-.panel { composes: panel from '../../ui/Panel.module.css'; }
-.ph { composes: cabecera from '../../ui/Panel.module.css'; }
-
-.pb { composes: cuerpo from '../../ui/Panel.module.css'; }
 .pbLista { padding: var(--s-5); }
 
 .logfiles { display: flex; flex-direction: column; gap: var(--s-1); }

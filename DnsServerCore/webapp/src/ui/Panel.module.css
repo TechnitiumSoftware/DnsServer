@@ -31,10 +31,6 @@ Es `flex` porque muchas llevan una acción a la derecha —«More», «Blocking�
 las que no, no lo notan.
 */
 .cabecera {
-  /* `width` y `box-sizing` son para la variante `legend`: un `legend` no ocupa
-     el ancho de su `fieldset` por sí solo. */
-  width: 100%;
-  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -68,7 +64,3 @@ Los valores son los mismos tokens, que es lo que impide que se separen.
 
 /* Un panel sin cabecera necesita recuperar arriba el aire que ponía ella. */
 .sinCabecera { padding-top: var(--s-9); }
-
-/* El `legend` como cabecera: además de las reglas de arriba, hay que quitarle
-   el hueco que el navegador le reserva a un `legend` normal. */
-legend.cabecera { margin: 0; float: left; }

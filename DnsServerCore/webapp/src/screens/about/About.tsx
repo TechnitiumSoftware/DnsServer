@@ -6,6 +6,7 @@ import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty } from '../../ui/Empty'
 import { desdeAhora, fechaHora } from '../../lib/fechas'
 import styles from './About.module.css'
+import { Cuerpo, Panel } from '../../ui/Panel'
 import { urlPublica } from '../../app/base'
 
 interface Info { version: string; uptimestamp: string; dnsServerDomain: string }
@@ -69,8 +70,8 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
     <>
       <SectionHeader titulo="About" />
     <div className={styles.grid}>
-      <div className={styles.panel}>
-        <div className={styles.pb}>
+      <Panel className={styles.panel}>
+        <Cuerpo>
           <div className={styles.head}>
             {/* El logo de Technitium, no una inicial nuestra. Upstream lo pone
                 justo aquí (`index.html:3483`) y el fichero viaja en `public/img/`
@@ -153,24 +154,22 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
               <Enlace href={DONAR} clase={styles.destino}>Donate Now!</Enlace>
             </p>
           </div>
-        </div>
-      </div>
+        </Cuerpo>
+      </Panel>
 
       <div className={styles.col}>
-        <div className={styles.panel}>
-          <div className={styles.ph}><h2>Server</h2></div>
-          <div className={styles.pb}>
+        <Panel titulo="Server" className={styles.panel}>
+          <Cuerpo>
             <dl className={styles.kv}>
               <dt>Version</dt><dd>{info?.version ?? '—'}</dd>
               <dt>Domain</dt><dd>{info?.dnsServerDomain ?? '—'}</dd>
               <dt>Up since</dt><dd>{info ? fechaHora(info.uptimestamp) : '—'}</dd>
               <dt>Uptime</dt><dd>{info ? desdeAhora(info.uptimestamp) : '—'}</dd>
             </dl>
-          </div>
-        </div>
-        <div className={styles.panel}>
-          <div className={styles.ph}><h2>Update</h2></div>
-          <div className={styles.pb}>
+          </Cuerpo>
+        </Panel>
+        <Panel titulo="Update" className={styles.panel}>
+          <Cuerpo>
             {update === 'al-dia' && <Alert type="info" title="Note:">No update available. You are running the latest version.</Alert>}
             {/*
             main.js:751-767 — el título por defecto es «New Update Available!» y
@@ -185,8 +184,8 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
             <div className={styles.accion}>
               <Button disabled={update === 'mirando'} onClick={() => void mirar()}>Check for Update</Button>
             </div>
-          </div>
-        </div>
+          </Cuerpo>
+        </Panel>
       </div>
     </div>
     </>

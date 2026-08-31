@@ -24,15 +24,7 @@
 .nodo { font-size: var(--t-4); padding: var(--s-3) var(--s-6); border:1px solid var(--line); border-radius: var(--r-2); background:var(--field); color:var(--ink); }
 
 /* Permissions: una tarjeta por sección, con las dos tablas en dos columnas. */
-/*
-Cada sección de permisos es un panel como los demás. Iba por su cuenta —sin
-sombra y con la cabecera en caja baja y color de acento— cuando el resto de la
-consola la lleva en versalitas sobre el escalón elevado, así que esta pantalla
-parecía de otra aplicación.
-*/
-.perm { composes: panel from '../../ui/Panel.module.css'; margin-bottom: var(--s-8); }
-.permHead { composes: cabecera from '../../ui/Panel.module.css'; margin: 0; }
-.permNombre { composes: versalita from '../../ui/rotulo.module.css'; }
+.perm { margin-bottom: var(--s-8); }
 .permCols { display:grid; grid-template-columns:1fr 1fr; }
 .permCol { padding: var(--s-7) var(--s-9); min-width:0; }
 .permCol + .permCol { border-left:1px solid var(--line); }
@@ -55,19 +47,17 @@ parecía de otra aplicación.
 
 /* SSO y los modales de Cluster: filas etiqueta + control, como en Settings. */
 /*
-El bloque es el mismo panel que el resto de la consola (`ui/Panel.module.css`),
-y hasta ahora era otra cosa: los tres módulos que lo definían no coincidían
-entre sí ni con los cuatro `.panel` de las otras pantallas.
+Lo propio del bloque de esta pantalla, y nada más: la caja la pone `ui/Panel`,
+que es quien la pinta en toda la consola. Antes esto redefinía el borde, el
+fondo, la sombra y la cabecera por su cuenta.
 */
 .block {
-  composes: panel from '../../ui/Panel.module.css';
   margin: 0 0 var(--s-9) 0;
   padding-bottom: var(--s-9);
 }
 
 /* Un bloque sin leyenda necesita recuperar arriba el aire que ponía la leyenda:
    `.block` no lleva padding superior porque esa banda la ocupaba ella. */
-.blockSinTitulo { composes: sinCabecera from '../../ui/Panel.module.css'; }
 .ctlLine { display:flex; align-items:center; gap: var(--s-6); flex-wrap:wrap; }
 .suffix { font-size: var(--t-3); color:var(--mute); }
 .help { font-size: var(--t-3); color:var(--mute); line-height:1.55; max-width:720px; }

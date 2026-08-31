@@ -4,6 +4,7 @@ import { Empty } from '../../ui/Empty'
 import { Button } from '../../ui/Button'
 import { Input } from '../../ui/Field'
 import styles from './Settings.module.css'
+import { Panel } from '../../ui/Panel'
 import frm from '../../ui/Form.module.css'
 export { Check } from '../../ui/Check'
 
@@ -29,14 +30,13 @@ que no agrupaba nada: sólo repetía. En SSO llegaba a decirse cuatro veces
 seguidas antes del primer control (h1, leyenda, rótulo del campo y el propio
 «Enable Single Sign-On (SSO)»).
 
-Sin `title` el `<fieldset>` sigue agrupando: lo que desaparece es el eco.
+Sin `title` el panel sigue agrupando: lo que desaparece es el eco.
 */
 export function Block({ title, children }: { title?: string; children: ReactNode }) {
   return (
-    <fieldset className={`${styles.block} ${title == null ? styles.blockSinTitulo : ''}`}>
-      {title != null && <legend className={styles.blockTitle}>{title}</legend>}
+    <Panel titulo={title} className={styles.block} agrupa>
       {children}
-    </fieldset>
+    </Panel>
   )
 }
 

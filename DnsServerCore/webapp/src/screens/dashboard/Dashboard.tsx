@@ -9,6 +9,7 @@ import type { ChartData } from '../../api/dashboard'
 import { SectionHeader } from '../../ui/SectionHeader'
 import {Empty, Loading} from '../../ui/Empty'
 import styles from './Dashboard.module.css'
+import { Cuerpo, Panel } from '../../ui/Panel'
 import { Button } from '../../ui/Button'
 import { Alert, type AlertType } from '../../ui/Alert'
 import { MenuBloqueo } from './MenuBloqueo'
@@ -77,16 +78,15 @@ export function tieneDatos(d?: { datasets?: { data: number[] }[] }): boolean {
 
 function Reparto({ titulo, data }: { titulo: string; data: ChartData }) {
   return (
-    <div className={styles.panel}>
-      <div className={styles.ph}><h2>{titulo}</h2></div>
-      <div className={styles.pb}>
+    <Panel titulo={titulo} className={styles.panel}>
+      <Cuerpo>
         {tieneDatos(data) ? (
           <Chart tipo="doughnut" data={data} alto={190} aria={titulo} />
         ) : (
           <Empty compacto>No data for this period.</Empty>
         )}
-      </div>
-    </div>
+      </Cuerpo>
+    </Panel>
   )
 }
 
@@ -107,9 +107,10 @@ function Top({
   antesDeMore?: ReactNode
 }) {
   return (
-    <div className={styles.panel}>
-      <div className={styles.ph}>
-        <h2>{titulo}</h2>
+    <Panel
+      titulo={titulo}
+      className={styles.panel}
+      acciones={
         <div className={styles.accionesPanel}>
           {antesDeMore}
           {/* Era un `<button>` a pelo, sin clase: lo pintaba el navegador con su
@@ -118,8 +119,9 @@ function Top({
             More
           </Button>
         </div>
-      </div>
-      <div className={`${styles.pb} ${styles.pbAjustado}`}>
+      }
+    >
+      <Cuerpo className={styles.pbAjustado}>
         {filas.length === 0 && <Empty compacto>No data for this period.</Empty>}
         {filas.slice(0, 5).map((f, i) => (
           <div
@@ -138,8 +140,8 @@ function Top({
             <span className={styles.c}>{num(f.hits)}</span>
           </div>
         ))}
-      </div>
-    </div>
+      </Cuerpo>
+    </Panel>
   )
 }
 
@@ -262,9 +264,8 @@ export function Dashboard({ token }: { token: string | null }) {
 
       <div className={styles.grid}>
         <div className={styles.col}>
-          <div className={styles.panel}>
-            <div className={styles.ph}><h2>Queries</h2></div>
-            <div className={styles.pb}>
+          <Panel titulo="Queries" className={styles.panel}>
+            <Cuerpo>
               {cargando && <Loading compacto />}
               {!cargando && datos && tieneDatos(datos.mainChartData) && (
                 <Chart tipo="line" data={datos.mainChartData} aria="Queries over time" />
@@ -272,8 +273,8 @@ export function Dashboard({ token }: { token: string | null }) {
               {!cargando && (!datos || !tieneDatos(datos.mainChartData)) && (
                 <Empty compacto>No queries for this period.</Empty>
               )}
-            </div>
-          </div>
+            </Cuerpo>
+          </Panel>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <Top
               titulo="Top Domains"
@@ -290,9 +291,8 @@ export function Dashboard({ token }: { token: string | null }) {
         </div>
 
         <div className={styles.col}>
-          <div className={styles.panel}>
-            <div className={styles.ph}><h2>Server</h2></div>
-            <div className={styles.pb}>
+          <Panel titulo="Server" className={styles.panel}>
+            <Cuerpo>
               <div className={styles.counters} data-testid="contadores">
                 {CONTADORES.map((c) => (
                   <div className={styles.cnt} key={c.k}>
@@ -301,8 +301,8 @@ export function Dashboard({ token }: { token: string | null }) {
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
+            </Cuerpo>
+          </Panel>
           {datos && (
             <>
               <Reparto titulo="Query Response Types" data={datos.queryResponseChartData} />

@@ -1,3 +1,8 @@
+/*
+El panel lo pinta `ui/Panel`. Aquí sólo quedan los ajustes propios de esta
+pantalla, si los hay: replicar su marcado con `composes:` era lo que había, y
+así fue como una cabecera acabó midiendo 21 px menos que su tarjeta.
+*/
 .seg { display:inline-flex; padding: var(--s-1); background:var(--pan2); border:1px solid var(--line); border-radius: var(--r-3); gap: var(--s-1); }
 .seg button { /* Ver `ui/Menu.module.css`: el atajo con `inherit` dentro es inválido y el
      segmentado se pintaba a 13 px, el tamaño del cuerpo. */
@@ -28,17 +33,8 @@ remite a ninguna línea es decoración.
 .counters .k::before { display:none; }
 .grid { display:grid; grid-template-columns:1fr 310px; gap: var(--s-9); align-items:start; }
 .col { display:flex; flex-direction:column; gap: var(--s-9); }
-/*
-El panel, la cabecera y el cuerpo son los de `ui/Panel.module.css`.
+.panel {}
 
-Estaban escritos aquí, y en otros tres módulos más, con valores que se habían
-ido separando: sombra sí o no, fondo de cabecera sí o no, y dos tipografías de
-título distintas para el mismo objeto.
-*/
-.panel { composes: panel from '../../ui/Panel.module.css'; }
-.ph { composes: cabecera from '../../ui/Panel.module.css'; }
-
-.pb { composes: cuerpo from '../../ui/Panel.module.css'; }
 .counters { display:grid; grid-template-columns:repeat(auto-fill, minmax(92px, 1fr)); gap: var(--s-6); }
 .cnt { padding: var(--s-8); background:var(--pan2); border:1px solid var(--line2); border-radius: var(--r-3); }
 .cnt .v { font:600 var(--t-6)/1 var(--font-mono); color:var(--ink); }

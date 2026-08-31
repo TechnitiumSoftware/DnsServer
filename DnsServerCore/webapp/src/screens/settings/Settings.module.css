@@ -24,24 +24,17 @@ descuadrar el título.
 .wrap > :first-child { margin-bottom: calc(var(--hueco-bloque) - var(--hueco)); }
 
 /*
-El bloque es el mismo panel que el resto de la consola (`ui/Panel.module.css`),
-y hasta ahora era otra cosa: los tres módulos que lo definían no coincidían
-entre sí ni con los cuatro `.panel` de las otras pantallas.
+Lo propio del bloque de esta pantalla, y nada más: la caja la pone `ui/Panel`,
+que es quien la pinta en toda la consola. Antes esto redefinía el borde, el
+fondo, la sombra y la cabecera por su cuenta.
 */
 .block {
-  composes: panel from '../../ui/Panel.module.css';
   margin: 0 0 var(--s-9) 0;
   padding-bottom: var(--s-9);
 }
 
 /* Un bloque sin leyenda necesita recuperar arriba el aire que ponía la leyenda:
    `.block` no lleva padding superior porque esa banda la ocupaba ella. */
-.blockSinTitulo { composes: sinCabecera from '../../ui/Panel.module.css'; }
-.blockTitle {
-  composes: cabecera from '../../ui/Panel.module.css';
-  composes: titulo from '../../ui/Panel.module.css';
-  margin-bottom: var(--s-8);
-}
 
 /*
 Cada fila lleva separador. Sin él, General es un muro de 5.400 px en el que la

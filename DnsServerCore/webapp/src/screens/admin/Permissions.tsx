@@ -4,6 +4,7 @@ import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Loading } from '../../ui/Empty'
+import { Panel } from '../../ui/Panel'
 import {
   getPermission,
   listPermissions,
@@ -73,21 +74,20 @@ export function Permissions({ token, cluster, onAviso }: Props) {
         <Loading />
       ) : (
         <>
+          {/* El nombre de la sección es el título del panel, no un enlace: estaba
+              como botón naranja y hacía lo mismo que el «Edit Permissions» de al
+              lado. Upstream tampoco lo enlaza (`auth.js:1975`). */}
           {secciones.map((s) => (
-            <div className={styles.perm} key={s.section}>
-              {/*
-              El nombre de la sección es el título del panel, no un enlace.
-              Estaba como botón naranja y hacía exactamente lo mismo que el
-              «Edit Permissions» de al lado: dos controles para una acción, y
-              uno de ellos disfrazado de título. Upstream tampoco lo enlaza —lo
-              pinta como celda de su tabla (`auth.js:1975`)—.
-              */}
-              <h4 className={styles.permHead}>
-                <span className={styles.permNombre}>{s.section}</span>
+            <Panel
+              key={s.section}
+              className={styles.perm}
+              titulo={s.section}
+              acciones={
                 <Button size="sm" onClick={() => setEditar(s.section)}>
                   Edit Permissions
                 </Button>
-              </h4>
+              }
+            >
               <div className={styles.permCols}>
                 <div className={styles.permCol}>
                   <div className={styles.permTitle}>User Permissions</div>
@@ -141,7 +141,7 @@ export function Permissions({ token, cluster, onAviso }: Props) {
                   )}
                 </div>
               </div>
-            </div>
+            </Panel>
           ))}
           <div className={styles.count}>
             <span>{`Total Sections: ${secciones.length}`}</span>
