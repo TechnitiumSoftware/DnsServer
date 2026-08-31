@@ -22,16 +22,27 @@ proyecto son deliberadamente pocas.
 export function Menu({
   etiqueta,
   rotulo,
+  onAbrir,
   children,
 }: {
   /** Nombre accesible; es lo único que hay cuando no lleva rótulo visible. */
   etiqueta: string
   /** Texto visible. Sin él, el botón es el «⋮» compacto de una fila. */
   rotulo?: string
+  /**
+   * Se avisa al abrir, para el menú que necesita saber el estado del servidor
+   * justo antes de enseñar sus opciones. Upstream hace lo mismo con el de
+   * bloqueo del Dashboard (`main.js:2429`): pregunta al abrir, no al pintar,
+   * porque entre una cosa y otra el ajuste puede haber cambiado en otra
+   * pestaña.
+   */
+  onAbrir?: () => void
   children: (cerrar: () => void) => ReactNode
 }) {
   const [abierto, setAbierto] = useState(false)
-  const [caja, setCaja] = useState<{ right: number; top: number } | null>(null)
+  const [caja, setCaja] = useState<
+    { right: number; top?: number; bottom?: number; maxHeight: number } | null
+  >(null)
   const disparador = useRef<HTMLButtonElement>(null)
   const lista = useRef<HTMLDivElement>(null)
 
@@ -43,10 +54,33 @@ export function Menu({
   el menú se abría y no se veía. Es el mismo motivo por el que `ui/Select` la
   saca fija, y por el mismo motivo se cierra al rodar la página.
   */
+  /*
+  Y se abre hacia donde quepa. Un menú largo colgado de un disparador bajo se
+  salía por debajo: el de bloqueo del Dashboard son nueve opciones sobre un panel
+  a media pantalla, y las tres últimas quedaban fuera de la ventana. Sin salida,
+  además, porque este menú se cierra al rodar la página.
+
+  Así que si abajo no cabe y arriba hay más sitio, se ancla por el borde de
+  abajo; y en cualquier caso se le pone el alto disponible como tope, con la
+  lista rodando por dentro. Lo segundo es el cinturón: aunque no quepa en
+  ninguno de los dos lados —una ventana muy baja—, todas las opciones siguen
+  siendo alcanzables.
+  */
   useLayoutEffect(() => {
     if (!abierto) { setCaja(null); return }
     const r = disparador.current?.getBoundingClientRect()
-    if (r != null) setCaja({ right: window.innerWidth - r.right, top: r.bottom + 4 })
+    if (r == null) return
+
+    const MARGEN = 8
+    const debajo = window.innerHeight - r.bottom - MARGEN
+    const encima = r.top - MARGEN
+    const right = window.innerWidth - r.right
+
+    setCaja(
+      debajo < encima && debajo < 240
+        ? { right, bottom: window.innerHeight - r.top + 4, maxHeight: encima }
+        : { right, top: r.bottom + 4, maxHeight: debajo },
+    )
   }, [abierto])
 
   useEffect(() => {
@@ -62,7 +96,16 @@ export function Menu({
         disparador.current?.focus()
       }
     }
-    const alRodar = () => setAbierto(false)
+    /* Rodar la página lo cierra, pero rodar la propia lista no: desde que la
+       lista puede tener tope de alto, ese scroll es suyo.
+
+       El `instanceof` no sobra: este mismo manejador atiende al `resize`, y ahí
+       el `target` es `window`, que no es un nodo. Sin la guarda, `contains()`
+       lanzaba en cada cambio de tamaño con un menú abierto. */
+    const alRodar = (e: Event) => {
+      if (e.target instanceof Node && lista.current?.contains(e.target)) return
+      setAbierto(false)
+    }
 
     document.addEventListener('mousedown', fuera)
     document.addEventListener('keydown', escape)
@@ -85,7 +128,10 @@ export function Menu({
         aria-haspopup="menu"
         aria-expanded={abierto}
         aria-label={etiqueta}
-        onClick={() => setAbierto((v) => !v)}
+        onClick={() => {
+          if (!abierto) onAbrir?.()
+          setAbierto((v) => !v)
+        }}
       >
         {rotulo == null ? (
           <Icono nombre="mas" tam={16} />

@@ -64,3 +64,8 @@ remite a ninguna línea es decoración.
 
 /* La leyenda de una gráfica ya trae su propio hueco arriba. */
 .pbAjustado { padding-top: var(--s-2); }
+
+/* El aviso de las acciones de la propia pantalla —hoy, el menú de bloqueo—. */
+.aviso { margin-bottom: var(--s-9); }
+/* La cabecera de un panel puede llevar más de un control. */
+.accionesPanel { display: flex; align-items: center; gap: var(--s-4); }

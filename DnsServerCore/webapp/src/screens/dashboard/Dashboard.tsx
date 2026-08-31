@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   ETIQUETA_RANGO, RANGOS, getDashboardStats,
   type DashboardStats, type Rango, type Stats, type TipoTop, type TopEntry,
@@ -10,6 +10,8 @@ import { SectionHeader } from '../../ui/SectionHeader'
 import {Empty, Loading} from '../../ui/Empty'
 import styles from './Dashboard.module.css'
 import { Button } from '../../ui/Button'
+import { Alert, type AlertType } from '../../ui/Alert'
+import { MenuBloqueo } from './MenuBloqueo'
 
 /*
 Las once métricas, en el orden de upstream y con sus etiquetas literales.
@@ -92,22 +94,29 @@ function Top({
   filas,
   esCliente = false,
   onMore,
+  antesDeMore,
 }: {
   titulo: string
   filas: TopEntry[]
   /** Un cliente enseña además el dominio que resolvió y si estaba limitado. */
   esCliente?: boolean
   onMore: () => void
+  /** Acción propia del panel, a la izquierda de «More». Sólo la usa el de
+   *  dominios bloqueados, con el menú de bloqueo que pone ahí upstream. */
+  antesDeMore?: ReactNode
 }) {
   return (
     <div className={styles.panel}>
       <div className={styles.ph}>
         <h2>{titulo}</h2>
-        {/* Era un `<button>` a pelo, sin clase: lo pintaba el navegador con su
-            estilo por defecto, en medio de una consola con sistema propio. */}
-        <Button size="sm" onClick={onMore}>
-          More
-        </Button>
+        <div className={styles.accionesPanel}>
+          {antesDeMore}
+          {/* Era un `<button>` a pelo, sin clase: lo pintaba el navegador con su
+              estilo por defecto, en medio de una consola con sistema propio. */}
+          <Button size="sm" onClick={onMore}>
+            More
+          </Button>
+        </div>
       </div>
       <div className={`${styles.pb} ${styles.pbAjustado}`}>
         {filas.length === 0 && <Empty compacto>No data for this period.</Empty>}
@@ -138,6 +147,7 @@ export function Dashboard({ token }: { token: string | null }) {
   const [datos, setDatos] = useState<DashboardStats | null>(null)
   const [cargando, setCargando] = useState(true)
   const [top, setTop] = useState<TipoTop | null>(null)
+  const [aviso, setAviso] = useState<{ type: AlertType; title: string; text: string } | null>(null)
 
   useEffect(() => {
     let cancelado = false
@@ -171,6 +181,14 @@ export function Dashboard({ token }: { token: string | null }) {
           </div>
         }
       />
+
+      {aviso && (
+        <div className={styles.aviso}>
+          <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
+            {aviso.text}
+          </Alert>
+        </div>
+      )}
 
       <div className={styles.tiles} data-testid="metricas">
         {METRICAS.map((m) => (
@@ -206,6 +224,7 @@ export function Dashboard({ token }: { token: string | null }) {
               titulo="Top Blocked Domains"
               filas={datos?.topBlockedDomains ?? []}
               onMore={() => setTop('TopBlockedDomains')}
+              antesDeMore={<MenuBloqueo token={token} onAviso={setAviso} />}
             />
           </div>
         </div>
