@@ -23,6 +23,16 @@ export function DnsClient({ token }: { token: string | null }) {
   const [ecs, setEcs] = useState('')
   const [dnssec, setDnssec] = useState(true)
   const [salida, setSalida] = useState<string | null>(null)
+  /*
+  Las respuestas en crudo de cada salto de la resolución.
+
+  Upstream las enseña en el segundo panel de su acordeón —«Raw Responses (N)»,
+  plegado y oculto si no hay ninguna (`dnsclient.js:178-194`)— y aquí faltaba
+  entero: el tipo de la API ya declaraba `rawResponses`, pero no lo pintaba
+  nadie. Es lo que deja ver qué contestó cada servidor por el camino cuando una
+  consulta recursiva sale mal, que es justo cuando se abre esta pantalla.
+  */
+  const [crudas, setCrudas] = useState<unknown[]>([])
   const [alert, setAlert] = useState<AlertState | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -54,6 +64,7 @@ export function DnsClient({ token }: { token: string | null }) {
 
     if (outcome.kind !== 'ok') {
       setSalida(null)
+      setCrudas([])
       setAlert({
         type: 'danger',
         title: 'Error!',
@@ -64,6 +75,7 @@ export function DnsClient({ token }: { token: string | null }) {
 
     const r = outcome.data.response
     setSalida(JSON.stringify(r.result, null, 2))
+    setCrudas(r.rawResponses ?? [])
 
     if (r.warningMessage) {
       setAlert({ type: 'warning', title: 'Warning!', text: r.warningMessage })
@@ -136,6 +148,17 @@ export function DnsClient({ token }: { token: string | null }) {
           </div>
           <div className={styles.pb}>
             <pre className={styles.out}>{salida}</pre>
+
+            {crudas.length > 0 && (
+              <details className={styles.crudas}>
+                <summary>Raw Responses ({crudas.length})</summary>
+                {crudas.map((c, i) => (
+                  <pre key={i} className={styles.out}>
+                    {JSON.stringify(c, null, 2)}
+                  </pre>
+                ))}
+              </details>
+            )}
           </div>
         </div>
       )}

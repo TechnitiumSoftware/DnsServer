@@ -16,7 +16,16 @@ Las once métricas, en el orden de upstream y con sus etiquetas literales.
 El color de cada una es el de su serie en la gráfica principal.
 */
 const METRICAS: { k: keyof Stats; label: string; color: string; pct?: boolean }[] = [
-  { k: 'totalQueries', label: 'Total Queries', color: '#60a5fa', pct: true },
+  /*
+  El total no lleva porcentaje. Upstream escribe ahí un «100%» fijo en el
+  marcado —`main.js` nunca lo actualiza—, que es decoración: el porcentaje de
+  un total sobre sí mismo no dice nada. Calculado de verdad, con el servidor
+  recién arrancado salía «0%» debajo de «Total Queries», que además de no
+  informar confunde. La regla que queda es la que ya seguía la baldosa de
+  clientes: el porcentaje es la parte del total de consultas, y el total no
+  tiene parte de sí mismo.
+  */
+  { k: 'totalQueries', label: 'Total Queries', color: '#60a5fa' },
   { k: 'totalNoError', label: 'No Error', color: '#34d399', pct: true },
   { k: 'totalServerFailure', label: 'Server Failure', color: '#f87171', pct: true },
   { k: 'totalNxDomain', label: 'NX Domain', color: '#8b95a7', pct: true },

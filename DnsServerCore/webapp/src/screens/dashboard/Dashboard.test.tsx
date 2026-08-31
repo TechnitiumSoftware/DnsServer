@@ -50,6 +50,22 @@ describe('Dashboard', () => {
     expect(tiles.getByText('84.88%')).toBeInTheDocument()
   })
 
+  /*
+  Upstream escribe un «100%» fijo bajo «Total Queries» que su JavaScript nunca
+  actualiza. Calculado de verdad daba «0%» con el servidor recién arrancado, que
+  confunde más de lo que informa: el porcentaje es la parte del total, y el total
+  no tiene parte de sí mismo.
+  */
+  it('la baldosa del total no lleva porcentaje, como la de clientes', async () => {
+    vi.spyOn(api, 'getDashboardStats').mockResolvedValue(datos as never)
+    render(<Dashboard token="t" />)
+    const tiles = within(await screen.findByTestId('metricas'))
+    expect(tiles.queryByText('100.00%')).not.toBeInTheDocument()
+    expect(tiles.queryByText('100%')).not.toBeInTheDocument()
+    // y las que sí lo llevan siguen llevándolo
+    expect(tiles.getByText('84.88%')).toBeInTheDocument()
+  })
+
   it('pinta los seis contadores del servidor', async () => {
     vi.spyOn(api, 'getDashboardStats').mockResolvedValue(datos as never)
     render(<Dashboard token="t" />)
