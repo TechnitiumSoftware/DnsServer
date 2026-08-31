@@ -17,4 +17,4 @@
 
 /* Two consecutive alerts inside a modal: they group closer together than the
    rest of the body, because they say the same thing about the same thing. */
-.notas { display: flex; flex-direction: column; gap: var(--s-5); }
+.notes { display: flex; flex-direction: column; gap: var(--s-5); }

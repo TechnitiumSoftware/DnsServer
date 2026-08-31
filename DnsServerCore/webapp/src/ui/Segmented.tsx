@@ -25,7 +25,7 @@ export function Segmented<T extends string>({
 }) {
   return (
     <div
-      className={styles.seg}
+      className={styles.secs}
       role={asTabs ? 'tablist' : 'group'}
       aria-label={label}
     >

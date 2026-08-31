@@ -467,14 +467,14 @@ export function buildRecordBody(
 
     case 'RP': {
       // Both empties fall to the root; there is no alert at all.
-      const buzon = f.rpMailbox === '' ? '.' : f.rpMailbox
+      const mailbox = f.rpMailbox === '' ? '.' : f.rpMailbox
       const domainTxt = f.rpTxtDomain === '' ? '.' : f.rpTxtDomain
       if (alta) {
-        p.mailbox = buzon
+        p.mailbox = mailbox
         p.txtDomain = domainTxt
       } else {
         p.mailbox = old.mailbox ?? ''
-        p.newMailbox = buzon
+        p.newMailbox = mailbox
         p.txtDomain = old.txtDomain ?? ''
         p.newTxtDomain = domainTxt
       }

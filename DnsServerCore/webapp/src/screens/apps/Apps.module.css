@@ -18,8 +18,8 @@
 .clasePath { font-family:var(--font-mono); font-size: var(--t-3); color:var(--ink); }
 .caps { display:flex; gap: var(--s-3); flex-wrap:wrap; margin: var(--s-3) 0; }
 .claseDesc { font-size: var(--t-3); line-height:1.5; color:var(--mute); margin: 0; white-space:pre-line; }
-.plantilla { margin: var(--s-3) 0 0; padding: var(--s-6); background:var(--field); border:1px solid var(--line); border-radius: var(--r-2); font-family:var(--font-mono); font-size: var(--t-2); color:var(--ink); overflow:auto; }
-.plantillaK { font-size: var(--t-2); color:var(--mute); font-weight: 550; margin-top: var(--s-4); }
+.template { margin: var(--s-3) 0 0; padding: var(--s-6); background:var(--field); border:1px solid var(--line); border-radius: var(--r-2); font-family:var(--font-mono); font-size: var(--t-2); color:var(--ink); overflow:auto; }
+.templateK { font-size: var(--t-2); color:var(--mute); font-weight: 550; margin-top: var(--s-4); }
 
 /* --- Tienda --- */
 .store { list-style:none; margin: 0; padding: 0; display:flex; flex-direction:column; }

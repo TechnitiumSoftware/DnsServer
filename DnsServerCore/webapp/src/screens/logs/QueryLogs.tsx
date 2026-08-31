@@ -165,7 +165,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
   const [busy, setBusy] = useState(false)
   const [live, setLive] = useState(false)
 
-  const desde = useRef<HTMLInputElement>(null)
+  const since2 = useRef<HTMLInputElement>(null)
   const until = useRef<HTMLInputElement>(null)
   // The dropdown is `ui/Select`, so what gets focused is its trigger.
   const appRef = useRef<HTMLButtonElement>(null)
@@ -256,13 +256,13 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
 
       // logs.js:407-424 — "From" before "To", and only if the browser says
       // what was typed is not a date.
-      if (desde.current?.validity.badInput === true) {
+      if (since2.current?.validity.badInput === true) {
         setNotice({
           type: 'warning',
           title: 'Missing!',
           text: "Please enter correct date and time for 'From' field.",
         })
-        desde.current.focus()
+        since2.current.focus()
         return
       }
       if (until.current?.validity.badInput === true) {
@@ -302,12 +302,12 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | undefined
 
-    async function ciclo() {
+    async function cycle() {
       await queryRef.current('1', true)
       if (cancelled) return
-      timer = setTimeout(() => void ciclo(), 2000)
+      timer = setTimeout(() => void cycle(), 2000)
     }
-    void ciclo()
+    void cycle()
 
     return () => {
       cancelled = true
@@ -321,11 +321,11 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
 
   function cambiarApp(name: string) {
     // logs.js:21 — on changing app its classes reload and the first is taken.
-    const clases = apps?.find((a) => a.name === name)?.classPaths ?? []
-    set({ appName: name, classPath: clases[0] ?? '' })
+    const classes = apps?.find((a) => a.name === name)?.classPaths ?? []
+    set({ appName: name, classPath: classes[0] ?? '' })
   }
 
-  function reiniciar() {
+  function restart() {
     const first = apps?.[0]
     setF(defaultFilters(first?.name ?? '', first?.classPaths[0] ?? ''))
   }
@@ -338,7 +338,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
       return
     }
     setLive(false)
-    reiniciar()
+    restart()
   }
 
   async function runExport() {
@@ -405,7 +405,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
           <Button disabled={busy} onClick={() => void runExport()}>
             Export
           </Button>
-          <Button onClick={reiniciar}>Reset</Button>
+          <Button onClick={restart}>Reset</Button>
         </>}
       />
 
@@ -457,7 +457,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                 <label htmlFor="ql-start">From</label>
                 <Input
                   id="ql-start"
-                  ref={desde}
+                  ref={since2}
                   type="datetime-local"
                   disabled={live}
                   value={f.start}

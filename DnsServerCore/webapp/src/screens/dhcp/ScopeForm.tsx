@@ -45,14 +45,14 @@ export function ScopeForm({
   initial,
   busy,
   onSave,
-  onCancelar,
+  onCancel,
   onNotice,
 }: {
   title: 'Add Scope' | 'Edit Scope'
   initial: Form
   busy: boolean
   onSave: (body: Record<string, string>) => void
-  onCancelar: () => void
+  onCancel: () => void
   onNotice: (e: ScopeError) => void
 }) {
   const [f, setF] = useState<Form>(initial)
@@ -489,7 +489,7 @@ export function ScopeForm({
         <Button variant="primary" disabled={busy} onClick={save}>
           Save
         </Button>
-        <Button onClick={onCancelar}>Cancel</Button>
+        <Button onClick={onCancel}>Cancel</Button>
       </div>
     </div>
   )

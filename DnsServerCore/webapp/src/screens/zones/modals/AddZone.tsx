@@ -57,7 +57,7 @@ export function AddZone({
   const [f, setF] = useState<FormularioAlta>(() =>
     formularioAltaInicial(useSoaSerialDateScheme, dnssecValidation),
   )
-  const [catalogos, setCatalogos] = useState<string[]>([])
+  const [catalogs, setCatalogos] = useState<string[]>([])
   const [tsigKeys, setTsigKeys] = useState<string[]>([])
   const [archivo, setArchivo] = useState<File | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
@@ -175,12 +175,12 @@ export function AddZone({
           ))}
         </GroupRow>
 
-        {v.catalogo && catalogos.length > 0 && (
+        {v.catalogo && catalogs.length > 0 && (
           <Row modal label="Catalog Zone" help={<>Select a Catalog zone to register as its member zone.</>}>
             {(id) => (
               <Select id={id} value={f.catalog} onChange={(e) => set('catalog', e.target.value)}>
                 <option value="" />
-                {catalogos.map((c) => (
+                {catalogs.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>

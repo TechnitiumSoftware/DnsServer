@@ -63,8 +63,8 @@ export function AppCard({
                   serve APP records, which are the ones that bring it. */}
               {d.isAppRecordRequestHandler && d.recordDataTemplate != null && (
                 <>
-                  <div className={styles.plantillaK}>Record Data Template</div>
-                  <pre className={styles.plantilla}>{d.recordDataTemplate}</pre>
+                  <div className={styles.templateK}>Record Data Template</div>
+                  <pre className={styles.template}>{d.recordDataTemplate}</pre>
                 </>
               )}
             </div>

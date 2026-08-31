@@ -43,15 +43,15 @@ describe('ttlPartido', () => {
   /* In cache the server sends the TTL already composed as a STRING ("218
      (3m38s)"); in allowed and blocked it sends the number and `ttlString` apart. */
   it('it splits the cache string into a number and a human form', () => {
-    expect(ttlPartido(CACHE_DNSKEY)).toEqual({ value: '2000', humano: '33m20s' })
+    expect(ttlPartido(CACHE_DNSKEY)).toEqual({ value: '2000', human: '33m20s' })
   })
 
   it('it composes the allowed and blocked pair out of ttl and ttlString', () => {
-    expect(ttlPartido(ALLOWED_NS)).toEqual({ value: '14400', humano: '4h' })
+    expect(ttlPartido(ALLOWED_NS)).toEqual({ value: '14400', human: '4h' })
   })
 
   it('a stale cache record arrives as \"0 (0s)\" and is respected', () => {
-    expect(ttlPartido({ ...CACHE_DNSKEY, ttl: '0 (0s)' })).toEqual({ value: '0', humano: '0s' })
+    expect(ttlPartido({ ...CACHE_DNSKEY, ttl: '0 (0s)' })).toEqual({ value: '0', human: '0s' })
   })
 })
 

@@ -51,14 +51,14 @@ export function Panel({
   className?: string
 }) {
   const id = useId()
-  const clases = [styles.panel, title == null ? styles.noHeader : null, className]
+  const classes = [styles.panel, title == null ? styles.noHeader : null, className]
     .filter(Boolean)
     .join(' ')
 
-  if (title == null) return <div className={clases}>{children}</div>
+  if (title == null) return <div className={classes}>{children}</div>
 
   return (
-    <div className={clases} role={groups2 ? 'group' : undefined} aria-labelledby={groups2 ? id : undefined}>
+    <div className={classes} role={groups2 ? 'group' : undefined} aria-labelledby={groups2 ? id : undefined}>
       <div className={styles.header}>
         <h2 className={styles.title} id={id}>
           {title}

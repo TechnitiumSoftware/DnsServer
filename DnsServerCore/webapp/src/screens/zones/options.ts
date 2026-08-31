@@ -27,7 +27,7 @@ export const TABS: { id: OptionsTab; label: string }[] = [
   { id: 'Dynamic Updates', label: 'Dynamic Updates (RFC 2136)' },
 ]
 
-export const ACCESOS_CONSULTA = [
+export const QUERY_ACCESS = [
   { value: 'Deny', label: 'Deny' },
   { value: 'Allow', label: 'Allow (default)' },
   { value: 'AllowOnlyPrivateNetworks', label: 'Allow Only Private Networks' },

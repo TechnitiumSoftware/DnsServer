@@ -215,7 +215,7 @@ export function Select({
       <button
         type="button"
         id={id}
-        ref={fusionar(trigger, ref)}
+        ref={merge(trigger, ref)}
         role="combobox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
@@ -277,15 +277,15 @@ export function Select({
 }
 
 /** The next usable index in that direction; if there is none, it stays put. */
-function firstUsable(options: Option[], desde: number, step: number, current = desde): number {
-  for (let i = desde; i >= 0 && i < options.length; i += step) {
+function firstUsable(options: Option[], since2: number, step: number, current = since2): number {
+  for (let i = since2; i >= 0 && i < options.length; i += step) {
     if (!options[i].disabled) return i
   }
   return current
 }
 
 /** Merges the internal ref with whatever the caller may pass. */
-function fusionar(own: React.RefObject<HTMLButtonElement | null>, outside?: Ref<HTMLButtonElement>) {
+function merge(own: React.RefObject<HTMLButtonElement | null>, outside?: Ref<HTMLButtonElement>) {
   return (node: HTMLButtonElement | null) => {
     own.current = node
     if (typeof outside === 'function') outside(node)

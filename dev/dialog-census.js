@@ -78,7 +78,7 @@ function inspect() {
   /* 3. What `measure()` already measured, if it is injected. */
   if (typeof measure === 'function') {
     const m = measure(d)
-    for (const c of m.contrast) problems.push(`CONTRAST ${c.cr} «${c.text}»`)
+    for (const c of m.contrast) problems.push(`CONTRAST ${c.cr} "${c.text}"`)
     for (const t of m.target) problems.push(`TARGET ${t}`)
     for (const n of m.unnamed) problems.push(`NO NAME ${n.slice(0, 50)}`)
   }
@@ -119,27 +119,27 @@ async function open(recipe) {
     return !!b
   }
 
-  if (recipe.button && !press('main button', recipe.button)) return { problems: [`no button «${recipe.button}»`] }
+  if (recipe.button && !press('main button', recipe.button)) return { problems: [`no button "${recipe.button}"`] }
 
   if (recipe.cell) {
-    if (!press('main tbody button', recipe.cell)) return { problems: [`no cell «${recipe.cell}»`] }
+    if (!press('main tbody button', recipe.cell)) return { problems: [`no cell "${recipe.cell}"`] }
   }
 
   if (recipe.menu) {
     const [trigger, item] = recipe.menu
     if (recipe.row) {
       const f = [...document.querySelectorAll('main tbody tr')].find((x) => x.innerText.includes(recipe.row))
-      if (!f) return { problems: [`no row «${recipe.row}»`] }
+      if (!f) return { problems: [`no row "${recipe.row}"`] }
       const b = [...f.querySelectorAll('button')].find((x) => /Actions/.test(x.getAttribute('aria-label') || ''))
       if (!b) return { problems: ['no row menu'] }
       b.click()
     } else if (!press('main button', trigger)) {
-      return { problems: [`no menu «${trigger}»`] }
+      return { problems: [`no menu "${trigger}"`] }
     }
     const m = await until(() => { const l = document.querySelectorAll('[role="menu"]'); return l.length ? l[l.length - 1] : null })
     if (!m) return { problems: ['the menu does not open'] }
     const it = [...m.querySelectorAll('button')].find((x) => x.textContent.trim() === item)
-    if (!it) return { problems: [`no «${item}» in the menu`] }
+    if (!it) return { problems: [`no "${item}" in the menu`] }
     it.click()
   }
 
@@ -149,7 +149,7 @@ async function open(recipe) {
     const list = await until(() => document.querySelector('[class*="_menuList_"]'))
     if (!list) return { problems: ['the account menu does not open'] }
     const it = [...list.querySelectorAll('button')].find((x) => x.textContent.trim() === recipe.user)
-    if (!it) return { problems: [`no «${recipe.user}»`] }
+    if (!it) return { problems: [`no "${recipe.user}"`] }
     it.click()
   }
 

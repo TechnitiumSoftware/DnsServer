@@ -179,7 +179,7 @@ export function MyProfile({
             that wraps it, so the same sessions table looked two different ways
             depending on whether it opened from "My Profile" or "User Details". */}
         <Table
-          className={styles.estrecha}
+          className={styles.narrow}
           header={
             <Th field="group" sort={groups.sort} onSort={groups.toggle}>Group</Th>
           }

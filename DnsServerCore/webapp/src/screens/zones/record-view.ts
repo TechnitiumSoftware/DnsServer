@@ -104,8 +104,8 @@ export function recordCells(r: ResourceRecord): Cell[] {
     case 'TXT': {
       // Split, each string goes in quotes and on a line of its own.
       if (d.splitText === true) {
-        const cadenas = (d.characterStrings ?? []) as string[]
-        output.push({ cls: 'lines', lines: cadenas.map((c) => `"${escaparTxt(c)}"`) })
+        const strings = (d.characterStrings ?? []) as string[]
+        output.push({ cls: 'lines', lines: strings.map((c) => `"${escaparTxt(c)}"`) })
       } else {
         output.push({ cls: 'value', text: escaparTxt(s(d.text)) })
       }
@@ -408,9 +408,9 @@ export function recordFooter(r: ResourceRecord, now?: number): { label: string; 
   const pairs: { label: string; value: string }[] = []
 
   if (r.expiryTtl > 0) {
-    const caduca = new Date(new Date(r.lastModified).getTime() + r.expiryTtl * 1000)
+    const expires = new Date(new Date(r.lastModified).getTime() + r.expiryTtl * 1000)
     pairs.push({ label: 'Expiry TTL:', value: `${r.expiryTtl} (${r.expiryTtlString})` })
-    pairs.push({ label: 'Expires On:', value: fechaConAntiguedad(caduca.toISOString(), now) })
+    pairs.push({ label: 'Expires On:', value: fechaConAntiguedad(expires.toISOString(), now) })
   }
 
   // `0001-01-01T00:00:00` is "never", and there upstream does NOT put the age.

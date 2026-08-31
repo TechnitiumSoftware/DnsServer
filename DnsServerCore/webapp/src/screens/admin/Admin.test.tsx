@@ -43,7 +43,7 @@ describe('Admin — the sub-navigation belongs to the Shell', () => {
   })
 
   it('the six sub-tabs draw without breaking and only one at a time', async () => {
-    const marcas: Record<string, string> = {
+    const marks: Record<string, string> = {
       Sessions: 'Total Sessions: 1',
       Users: 'Total Users: 1',
       Groups: 'Total Groups: 3',
@@ -54,7 +54,7 @@ describe('Admin — the sub-navigation belongs to the Shell', () => {
     for (const sub of SUB_TABS) {
       servidor()
       const { unmount } = render(<Admin token="tok" sub={sub} />)
-      expect(await screen.findAllByText(marcas[sub])).not.toHaveLength(0)
+      expect(await screen.findAllByText(marks[sub])).not.toHaveLength(0)
       unmount()
       vi.restoreAllMocks()
     }

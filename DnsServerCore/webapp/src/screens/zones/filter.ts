@@ -45,14 +45,14 @@ export function compilarFiltroDeNombre(
     return { domain, regex: null }
   }
 
-  let patron = domain.replace(/\./g, '\\.')
-  patron = patron.replace(/\*/g, '.*')
-  patron = patron.replace(/\?/g, '.')
+  let pattern = domain.replace(/\./g, '\\.')
+  pattern = pattern.replace(/\*/g, '.*')
+  pattern = pattern.replace(/\?/g, '.')
 
   // See rule 3 of the header: `.*\.` at the start is a literal asterisk.
-  if (patron.startsWith('.*\\.')) patron = `\\*${patron.substring(2)}`
+  if (pattern.startsWith('.*\\.')) pattern = `\\*${pattern.substring(2)}`
 
-  return { domain, regex: new RegExp(`^${patron}$`) }
+  return { domain, regex: new RegExp(`^${pattern}$`) }
 }
 
 /**

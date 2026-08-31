@@ -29,7 +29,7 @@ The confirmation and alert texts are upstream's literals
 */
 
 /** Upstream's eight durations, with their exact labels. */
-const PLAZOS: { minutes: number; rotulo: string }[] = [
+const DURATIONS: { minutes: number; rotulo: string }[] = [
   { minutes: 1, rotulo: 'Disable Blocking For 1 Minute' },
   { minutes: 2, rotulo: 'Disable Blocking For 2 Minutes' },
   { minutes: 5, rotulo: 'Disable Blocking For 5 Minutes' },
@@ -45,7 +45,7 @@ interface Pending {
   text: string
   label: string
   variant: 'primary' | 'danger'
-  hacer: () => Promise<void>
+  perform: () => Promise<void>
 }
 
 export function BlockingMenu({
@@ -71,7 +71,7 @@ export function BlockingMenu({
       text: `Are you sure you want to ${turnOn ? 'enable' : 'disable'} blocking?`,
       label: turnOn ? 'Enable' : 'Disable',
       variant: turnOn ? 'primary' : 'danger',
-      hacer: async () => {
+      perform: async () => {
         const r = await setSettings(token, { enableBlocking: String(turnOn) })
         // The same text as the other thirty-six: it was the only one that said
         // a bare "Session expired." for this very condition.
@@ -92,7 +92,7 @@ export function BlockingMenu({
       text: `Are you sure to temporarily disable blocking for ${minutes} minute(s)?`,
       label: 'Disable',
       variant: 'danger',
-      hacer: async () => {
+      perform: async () => {
         const till = await temporaryDisableBlocking(token, String(minutes))
         if (till == null) throw new Error('The request failed.')
         setActive(false)
@@ -109,7 +109,7 @@ export function BlockingMenu({
     if (pending == null) return
     setBusy(true)
     try {
-      await pending.hacer()
+      await pending.perform()
       setPendiente(null)
     } catch (e) {
       onNotice({ type: 'danger', title: 'Error!', text: (e as Error).message })
@@ -134,7 +134,7 @@ export function BlockingMenu({
                 Disable Blocking
               </button>
             )}
-            {PLAZOS.map((p) => (
+            {DURATIONS.map((p) => (
               <button
                 key={p.minutes}
                 role="menuitem"

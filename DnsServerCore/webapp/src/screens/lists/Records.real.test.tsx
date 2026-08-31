@@ -53,17 +53,17 @@ describe('the table loses nothing from the real JSON', () => {
   for (const [name, node] of Object.entries(NODES)) {
     const withDnssec = name.startsWith('cache')
 
-    it(`${name}: cada valor de rData sale en la tabla`, async () => {
+    it(`${name}: every rData value shows in the table`, async () => {
       const c = await drawAll(node, withDnssec)
       const text = c.textContent ?? ''
       for (const r of node.records) {
         for (const v of leaves(r.rData)) {
-          expect(text, `falta ${v} de un ${r.type}`).toContain(v)
+          expect(text, `${v} of a ${r.type} is missing`).toContain(v)
         }
       }
     })
 
-    it(`${name}: los metadatos y las firmas también`, async () => {
+    it(`${name}: the metadata and the signatures too`, async () => {
       const c = await drawAll(node, withDnssec)
       const text = c.textContent ?? ''
       for (const r of node.records as DnsRecord[]) {
@@ -74,20 +74,20 @@ describe('the table loses nothing from the real JSON', () => {
           ...leaves(r.glueRecords),
           ...leaves(r.eDnsClientSubnet),
         ]) {
-          expect(text, `falta ${v} de un ${r.type}`).toContain(v)
+          expect(text, `${v} of a ${r.type} is missing`).toContain(v)
         }
         if (r.dnssecStatus) expect(text).toContain(r.dnssecStatus)
       }
     })
 
-    it(`${name}: el TTL sale con su número y su forma humana`, async () => {
+    it(`${name}: the TTL comes out with its number and its human form`, async () => {
       const c = await drawAll(node, withDnssec)
       const text = c.textContent ?? ''
       for (const r of node.records as DnsRecord[]) {
         if (typeof r.ttl === 'string') {
-          const [num, humano] = r.ttl.replace(')', '').split(' (')
-          expect(text).toContain(num)
-          expect(text).toContain(humano)
+          const [num2, human] = r.ttl.replace(')', '').split(' (')
+          expect(text).toContain(num2)
+          expect(text).toContain(human)
         } else {
           expect(text).toContain(String(r.ttl))
           if (r.ttlString) expect(text).toContain(r.ttlString)
@@ -106,9 +106,9 @@ describe('the three fields that are stated differently', () => {
   it('the full timestamp is trimmed to minutes, but kept whole in the title', async () => {
     const node = NODES.cacheTechnitium
     const c = await drawAll(node, true)
-    const completa = (node.records[0] as DnsRecord).lastUsedOn!
-    expect(c.textContent).toContain(completa.slice(0, 16).replace('T', ' '))
-    expect(c.querySelector(`[title="${completa}"]`)).not.toBeNull()
+    const full = (node.records[0] as DnsRecord).lastUsedOn!
+    expect(c.textContent).toContain(full.slice(0, 16).replace('T', ' '))
+    expect(c.querySelector(`[title="${full}"]`)).not.toBeNull()
   })
 
   it('`expiryTtl: 0` is stated as "no expiry", which is what it means', async () => {

@@ -168,7 +168,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
           initial={editing.form}
           busy={busy}
           onSave={(body) => void save(body)}
-          onCancelar={() => {
+          onCancel={() => {
             setEditing(null)
             void load()
           }}

@@ -88,9 +88,9 @@ screens it is at 12.5 and normal weight.
 .accionesPanel { display: flex; align-items: center; gap: var(--s-4); }
 
 /* The custom range: two dates and the button, on one line. */
-.rangoPropio { display:flex; align-items:flex-end; gap: var(--s-7); flex-wrap:wrap; margin-bottom: var(--s-9); }
-.rangoPropio label { display:flex; flex-direction:column; gap: var(--s-3); font-size: var(--t-3); color:var(--mute); }
-.rangoPropio input {
+.ownRange { display:flex; align-items:flex-end; gap: var(--s-7); flex-wrap:wrap; margin-bottom: var(--s-9); }
+.ownRange label { display:flex; flex-direction:column; gap: var(--s-3); font-size: var(--t-3); color:var(--mute); }
+.ownRange input {
   padding: var(--s-4) var(--s-6);
   background: var(--pan2);
   border: 1px solid var(--line);

@@ -35,13 +35,13 @@ const ADD: RecordContext = { zone: 'casa.test', mode: 'add', updateSvcbHints: fa
 
 function body(f: RecordForm, ctx: RecordContext = ADD) {
   const r = buildRecordBody(f, ctx)
-  if ('error' in r) throw new Error(`esperaba cuerpo, salió el aviso: ${r.error.text}`)
+  if ('error' in r) throw new Error(`expected a body, got the alert: ${r.error.text}`)
   return r.body
 }
 
 function error(f: RecordForm, ctx: RecordContext = ADD) {
   const r = buildRecordBody(f, ctx)
-  if ('body' in r) throw new Error('esperaba un aviso y salió un cuerpo')
+  if ('body' in r) throw new Error('expected an alert and got a body')
   return r.error
 }
 
@@ -166,7 +166,7 @@ describe('add — the body', () => {
 })
 
 describe('edit — sends the old value AND the new one', () => {
-  const ctxDe = (original: ResourceRecord): RecordContext => ({
+  const ctxOf = (original: ResourceRecord): RecordContext => ({
     zone: 'casa.test',
     mode: 'update',
     original,
@@ -175,7 +175,7 @@ describe('edit — sends the old value AND the new one', () => {
 
   it('A: old ipAddress and new newIpAddress', () => {
     const original = rec('A', { ipAddress: '10.0.0.1' })
-    const b = body(form({ type: 'A', name: 'www', value: '10.0.0.2' }), ctxDe(original))
+    const b = body(form({ type: 'A', name: 'www', value: '10.0.0.2' }), ctxOf(original))
     expect(b).toMatchObject({
       ipAddress: '10.0.0.1',
       newIpAddress: '10.0.0.2',
@@ -187,14 +187,14 @@ describe('edit — sends the old value AND the new one', () => {
 
   it('CNAME and DNAME do NOT send the old one: only the new value', () => {
     const original = rec('CNAME', { cname: 'viejo.casa.test' })
-    const b = body(form({ type: 'CNAME', name: 'ali', value: 'nuevo.casa.test' }), ctxDe(original))
+    const b = body(form({ type: 'CNAME', name: 'ali', value: 'nuevo.casa.test' }), ctxOf(original))
     expect(b.cname).toBe('nuevo.casa.test')
     expect(b).not.toHaveProperty('newCname')
   })
 
   it('TXT identifies by the base64 strings, not by the text', () => {
     const original = rec('TXT', { text: 'viejo', characterStringsBase64: ['dmllam8='] })
-    const b = body(form({ type: 'TXT', name: 'x', txt: 'nuevo' }), ctxDe(original))
+    const b = body(form({ type: 'TXT', name: 'x', txt: 'nuevo' }), ctxOf(original))
     expect(b).toMatchObject({
       characterStringsBase64: 'dmllam8=',
       newText: 'nuevo',
@@ -207,21 +207,21 @@ describe('edit — sends the old value AND the new one', () => {
       order: 1, preference: 2, flags: 'U', services: 'x', regexp: 'y', replacement: '.',
     })
     const f = form({ type: 'NAPTR', name: 'x', naptrOrder: '1', naptrPreference: '2' })
-    expect(body(f, ctxDe(original)).naptrNewReplacement).toBe('.')
+    expect(body(f, ctxOf(original)).naptrNewReplacement).toBe('.')
     // When adding, it is sent empty.
     expect(body(f).naptrReplacement).toBe('')
   })
 
   it('the edit resends the state the record had, it does not change it', () => {
     const original = rec('A', { ipAddress: '10.0.0.1' }, { disabled: true })
-    expect(body(form({ type: 'A', name: 'www', value: '10.0.0.2' }), ctxDe(original)).disable).toBe(
+    expect(body(form({ type: 'A', name: 'www', value: '10.0.0.2' }), ctxOf(original)).disable).toBe(
       'true',
     )
   })
 
   it('APP when editing does not validate and takes the app and class from the record', () => {
     const original = rec('APP', { appName: 'Split Horizon', classPath: 'X.App', data: 'viejo' })
-    const b = body(form({ type: 'APP', name: 'x', recordData: 'nuevo' }), ctxDe(original))
+    const b = body(form({ type: 'APP', name: 'x', recordData: 'nuevo' }), ctxOf(original))
     expect(b).toMatchObject({ appName: 'Split Horizon', classPath: 'X.App', recordData: 'nuevo' })
   })
 
@@ -229,26 +229,26 @@ describe('edit — sends the old value AND the new one', () => {
     const original = rec('FWD', {
       protocol: 'Udp', forwarder: '1.1.1.1', priority: 1, dnssecValidation: false, proxyType: 'DefaultProxy',
     })
-    const withProxy = body(form({ type: 'FWD', name: 'x', forwarder: '8.8.8.8' }), ctxDe(original))
+    const withProxy = body(form({ type: 'FWD', name: 'x', forwarder: '8.8.8.8' }), ctxOf(original))
     expect(withProxy).toHaveProperty('proxyType')
 
     const esteServidor = body(
       form({ type: 'FWD', name: 'x', forwarder: 'this-server' }),
-      ctxDe(original),
+      ctxOf(original),
     )
     expect(esteServidor).not.toHaveProperty('proxyType')
   })
 
   it('the alert says \"to update the record\"', () => {
     const original = rec('A', { ipAddress: '10.0.0.1' })
-    expect(error(form({ type: 'A', name: 'www' }), ctxDe(original)).text).toBe(
+    expect(error(form({ type: 'A', name: 'www' }), ctxOf(original)).text).toBe(
       'Please enter an IP address to update the record.',
     )
   })
 
   it('the alert of an unknown type DOES carry the article when editing', () => {
     const original = rec('TYPE65280', { value: 'ABCD' })
-    expect(error(form({ type: 'Unknown', unknownType: 'TYPE65280' }), ctxDe(original)).text).toBe(
+    expect(error(form({ type: 'Unknown', unknownType: 'TYPE65280' }), ctxOf(original)).text).toBe(
       'Please enter a hex value as the RDATA to update the record.',
     )
   })

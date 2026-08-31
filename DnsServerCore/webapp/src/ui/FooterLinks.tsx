@@ -17,7 +17,7 @@ export function PieDeEnlaces({ className }: { className?: string }) {
           </a>
         </Fragment>
       ))}
-      <div className={styles.credito}>
+      <div className={styles.credit}>
         Theme by{' '}
         <a href={THEME_CREDIT.href} aria-label={THEME_CREDIT.name} target="_blank" rel="noreferrer">
           {THEME_CREDIT.text}

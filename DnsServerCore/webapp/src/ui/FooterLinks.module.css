@@ -40,4 +40,4 @@ dropped the "Theme by" to `--line`, which is a border colour, and it measured
 1.62:1 against the background —the minimum for text is 4.5—. It inherits the
 footer's `--faint`, which gives 5.61:1.
 */
-.credito { margin-top: var(--s-3); }
+.credit { margin-top: var(--s-3); }

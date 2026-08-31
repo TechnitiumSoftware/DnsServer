@@ -398,7 +398,7 @@ export interface ImportOptions {
 export function importZone(
   token: string | null,
   zone: string,
-  fuente: { archivo: File } | { text: string },
+  font: { archivo: File } | { text: string },
   options: ImportOptions,
   node = '',
 ): Promise<ApiOutcome> {
@@ -411,10 +411,10 @@ export function importZone(
   })
   const route = `zones/import?${query.toString()}`
 
-  if ('archivo' in fuente) {
-    return apiRequest(route, { token, method: 'POST', file: { field: 'fileImportZone', archivo: fuente.archivo } })
+  if ('archivo' in font) {
+    return apiRequest(route, { token, method: 'POST', file: { field: 'fileImportZone', archivo: font.archivo } })
   }
-  return apiRequest(route, { token, method: 'POST', text: fuente.text })
+  return apiRequest(route, { token, method: 'POST', text: font.text })
 }
 
 /**

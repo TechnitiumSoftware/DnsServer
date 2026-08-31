@@ -169,7 +169,7 @@ export function Th({
         onClick={() => onSort(field)}
       >
         {children}
-        <span className={styles.flecha}>
+        <span className={styles.arrow}>
           <Icon name={active ? 'chevronDown' : 'sort'} size={12} data-desc={active && !sort!.desc} />
         </span>
       </button>

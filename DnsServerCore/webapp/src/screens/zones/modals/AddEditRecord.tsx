@@ -76,7 +76,7 @@ export function AddEditRecord(p: AddEditRecordProps) {
   const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
   const [apps, setApps] = useState<string[]>([])
-  const [clases, setClases] = useState<string[]>([])
+  const [classes, setClases] = useState<string[]>([])
   const nombreRef = useRef<HTMLInputElement>(null)
 
   const editing = p.mode === 'update'
@@ -228,7 +228,7 @@ export function AddEditRecord(p: AddEditRecordProps) {
           )}
         </Field>
 
-        <TypeFields f={f} set={set} apps={apps} clases={clases} editing={editing} />
+        <TypeFields f={f} set={set} apps={apps} classes={classes} editing={editing} />
 
         {/* "Overwrite" only exists when adding. */}
         {!editing && (
@@ -277,11 +277,11 @@ interface FieldsProps {
   f: RecordForm
   set: <K extends keyof RecordForm>(k: K, value: RecordForm[K]) => void
   apps: string[]
-  clases: string[]
+  classes: string[]
   editing: boolean
 }
 
-function TypeFields({ f, set, apps, clases, editing }: FieldsProps) {
+function TypeFields({ f, set, apps, classes, editing }: FieldsProps) {
   const text = (
     label: string,
     key: keyof RecordForm,
@@ -301,12 +301,12 @@ function TypeFields({ f, set, apps, clases, editing }: FieldsProps) {
     </Field>
   )
 
-  const dropdown = (label: string, key: keyof RecordForm, valores: string[]) => (
+  const dropdown = (label: string, key: keyof RecordForm, values2: string[]) => (
     <Field label={label}>
       {(id) => (
         <Select id={id} value={String(f[key] ?? '')} onChange={(e) => set(key, e.target.value as never)}>
           <option value="" />
-          {valores.map((v) => (
+          {values2.map((v) => (
             <option key={v} value={v}>
               {v}
             </option>
@@ -709,7 +709,7 @@ MII...
                 onChange={(e) => set('classPath', e.target.value)}
               >
                 <option value="" />
-                {clases.map((c) => (
+                {classes.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>

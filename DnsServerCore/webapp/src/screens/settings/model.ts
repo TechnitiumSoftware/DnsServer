@@ -596,7 +596,7 @@ export function buildBody(f: SettingsForm, node = ''): ResultadoCuerpo {
   if (!(qbl.length === 0 || qbl === ',')) sanitised.qpmLimitBypassList = qbl.replace(/,/g, '\n') + '\n'
 
   // ── General: avanzado
-  const obligatorios: [keyof SettingsForm, string, string][] = [
+  const required: [keyof SettingsForm, string, string][] = [
     ['clientTimeout', 'Please enter a value for Client Timeout.', 'clientTimeout'],
     ['tcpSendTimeout', 'Please enter a value for TCP Send Timeout.', 'tcpSendTimeout'],
     ['tcpReceiveTimeout', 'Please enter a value for TCP Receive Timeout.', 'tcpReceiveTimeout'],
@@ -607,7 +607,7 @@ export function buildBody(f: SettingsForm, node = ''): ResultadoCuerpo {
     ['udpReceiveBufferSizeKB', 'Please enter a value for UDP Receive Buffer Size.', 'udpReceiveBufferSizeKB'],
     ['maxConcurrentResolutionsPerCore', 'Please enter a value for Max Concurrent Resolutions.', 'maxConcurrentResolutionsPerCore'],
   ]
-  for (const [key, text, field] of obligatorios) {
+  for (const [key, text, field] of required) {
     if (f[key] === '') return missing(text, 'General', field)
   }
 
@@ -661,7 +661,7 @@ export function buildBody(f: SettingsForm, node = ''): ResultadoCuerpo {
   body.webServiceTlsCertificatePassword = f.webServiceTlsCertificatePassword
 
   // ── Optional Protocols
-  const puertos: [keyof SettingsForm, string, string][] = [
+  const ports: [keyof SettingsForm, string, string][] = [
     ['dnsOverUdpProxyPort', 'Please enter a value for DNS-over-UDP-PROXY Port.', 'dnsOverUdpProxyPort'],
     ['dnsOverTcpProxyPort', 'Please enter a value for DNS-over-TCP-PROXY Port.', 'dnsOverTcpProxyPort'],
     ['dnsOverHttpPort', 'Please enter a value for DNS-over-HTTP Port.', 'dnsOverHttpPort'],
@@ -669,7 +669,7 @@ export function buildBody(f: SettingsForm, node = ''): ResultadoCuerpo {
     ['dnsOverHttpsPort', 'Please enter a value for DNS-over-HTTPS Port.', 'dnsOverHttpsPort'],
     ['dnsOverQuicPort', 'Please enter a value for DNS-over-QUIC Port.', 'dnsOverQuicPort'],
   ]
-  for (const [key, text, field] of puertos) {
+  for (const [key, text, field] of ports) {
     if (f[key] === '') return missing(text, 'Optional Protocols', field)
   }
 
@@ -719,13 +719,13 @@ export function buildBody(f: SettingsForm, node = ''): ResultadoCuerpo {
   const racl = cleanList(f.recursionNetworkACL)
   if (!(racl.length === 0 || racl === ',')) sanitised.recursionNetworkACL = racl.replace(/,/g, '\n')
 
-  const resolutor: [keyof SettingsForm, string, string][] = [
+  const resolver: [keyof SettingsForm, string, string][] = [
     ['resolverRetries', 'Please enter a value for Resolver Retries.', 'resolverRetries'],
     ['resolverTimeout', 'Please enter a value for Resolver Timeout.', 'resolverTimeout'],
     ['resolverConcurrency', 'Please enter a value for Resolver Concurrency.', 'resolverConcurrency'],
     ['resolverMaxStackCount', 'Please enter a value for Resolver Max Stack Count.', 'resolverMaxStackCount'],
   ]
-  for (const [key, text, field] of resolutor) {
+  for (const [key, text, field] of resolver) {
     if (f[key] === '') return missing(text, 'Recursion', field)
   }
 
@@ -814,12 +814,12 @@ export function buildBody(f: SettingsForm, node = ''): ResultadoCuerpo {
   const fwd = cleanList(f.forwarders)
   if (!(fwd.length === 0 || fwd === ',')) sanitised.forwarders = fwd.replace(/,/g, '\n')
 
-  const reenvio: [keyof SettingsForm, string, string][] = [
+  const forwarding: [keyof SettingsForm, string, string][] = [
     ['forwarderRetries', 'Please enter a value for Forwarder Retries.', 'forwarderRetries'],
     ['forwarderTimeout', 'Please enter a value for Forwarder Timeout.', 'forwarderTimeout'],
     ['forwarderConcurrency', 'Please enter a value for Forwarder Concurrency.', 'forwarderConcurrency'],
   ]
-  for (const [key, text, field] of reenvio) {
+  for (const [key, text, field] of forwarding) {
     if (f[key] === '') return missing(text, 'Proxy & Forwarders', field)
   }
 

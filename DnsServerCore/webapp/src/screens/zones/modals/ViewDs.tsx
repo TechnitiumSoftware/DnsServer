@@ -88,9 +88,9 @@ export function ViewDs({
         </li>
         <li>
           You should add only one DS record for each Key Tag. That is, do not create multiple DS records for
-          each Digest Type, instead use the Digest Type that is supported by your Domain Registrar.
+          each Digest Type, instead use the Digest Type that is supported by your Domain Register.
         </li>
-        <li>Use the provided Public Key if the Domain Registrar requires it instead of the Digest.</li>
+        <li>Use the provided Public Key if the Domain Register requires it instead of the Digest.</li>
         <li>
           When doing a Key Signing Key (KSK) rollover, you can immediately delete the old DS record after
           adding the new DS record.

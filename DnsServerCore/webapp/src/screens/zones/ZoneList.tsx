@@ -218,7 +218,7 @@ export function ZoneList({
     })
   }
 
-  function resincronizar(z: Zone) {
+  function resync(z: Zone) {
     const name = z.name === '' ? '.' : z.name
     // Two different texts: the secondary talks about AXFR and the rest about refresh.
     const text =
@@ -429,19 +429,19 @@ export function ZoneList({
             <ZoneRow
               key={z.name}
               zone={z}
-              indice={firstRow + i}
+              index={firstRow + i}
               checked={checkedOnes.includes(z.name)}
               busy={busy}
               canModify={canModify}
               canDelete={canDelete}
-              onMarcar={(v) =>
+              onCheck={(v) =>
                 setChecked((m) => (v ? [...m, z.name] : m.filter((n) => n !== z.name)))
               }
               onOpen={onOpen}
               onEnable={enable}
               onDisable={disable}
               onDelete={remove}
-              onResync={resincronizar}
+              onResync={resync}
               onImport={onImport}
               onExport={runExport}
               onConvert={onConvert}
@@ -463,12 +463,12 @@ export function ZoneList({
 
 interface RowProps {
   zone: Zone
-  indice: number
+  index: number
   checked: boolean
   busy: boolean
   canModify: boolean
   canDelete: boolean
-  onMarcar: (v: boolean) => void
+  onCheck: (v: boolean) => void
   onOpen: (zone: string) => void
   onEnable: (z: Zone) => void
   onDisable: (z: Zone) => void
@@ -527,7 +527,7 @@ function ZoneRow(p: RowProps) {
   addition of ours, not parity.
   */
   const catalogLabel =
-    z.catalog != null ? { text: z.catalog, tono: 'neutral' as TagTone } : null
+    z.catalog != null ? { text: z.catalog, tone: 'neutral' as TagTone } : null
 
   return (
     <tr>
@@ -537,11 +537,11 @@ function ZoneRow(p: RowProps) {
             type="checkbox"
             aria-label={`Select ${name}`}
             checked={p.checked}
-            onChange={(e) => p.onMarcar(e.target.checked)}
+            onChange={(e) => p.onCheck(e.target.checked)}
           />
         </label>
       </td>
-      <td className={`${styles.num} ${tbl.number}`}>{p.indice}</td>
+      <td className={`${styles.num2} ${tbl.number}`}>{p.index}</td>
       {/* The monospacing goes on the CELL and the button inherits it: the
           shared class says `font-family: inherit` precisely for this, and putting
           it on the button depended on which module was emitted last. */}
@@ -555,7 +555,7 @@ function ZoneRow(p: RowProps) {
         </button>
         {catalogLabel && (
           <div className={styles.tags}>
-            <Tag tone={catalogLabel.tono}>{catalogLabel.text}</Tag>
+            <Tag tone={catalogLabel.tone}>{catalogLabel.text}</Tag>
           </div>
         )}
       </td>

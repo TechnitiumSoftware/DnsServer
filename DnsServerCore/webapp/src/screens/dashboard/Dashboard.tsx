@@ -60,7 +60,7 @@ a bare `toLocaleString()` (main.js:2632-2650), that is, the browser's. They were
 nailed to `es-ES`, so a server in English showed "84.930" as "84.930" but with
 the dot meaning the opposite.
 */
-const num = (n: number) => n.toLocaleString()
+const num2 = (n: number) => n.toLocaleString()
 
 /*
 The percentage carries no locale, neither in upstream nor here: it is
@@ -74,16 +74,16 @@ export function percentage(value: number, total: number): string {
 
 /** A chart with no value other than zero is not drawn: an empty canvas takes up
  *  the same room and says nothing. It says there is no data instead. */
-export function tieneDatos(d?: { datasets?: { data: number[] }[] }): boolean {
+export function hasData(d?: { datasets?: { data: number[] }[] }): boolean {
   if (!d?.datasets?.length) return false
   return d.datasets.some((s) => (s.data ?? []).some((n) => Number(n) > 0))
 }
 
-function Reparto({ title, data }: { title: string; data: ChartData }) {
+function Split({ title, data }: { title: string; data: ChartData }) {
   return (
     <Panel title={title} className={styles.panel}>
       <Body>
-        {tieneDatos(data) ? (
+        {hasData(data) ? (
           <Chart type="doughnut" data={data} height={190} aria={title} />
         ) : (
           <Empty compacto>No data for this period.</Empty>
@@ -141,7 +141,7 @@ function Top({
                 </span>
               )}
             </span>
-            <span className={styles.c}>{num(f.hits)}</span>
+            <span className={styles.c}>{num2(f.hits)}</span>
           </div>
         ))}
       </Body>
@@ -195,7 +195,7 @@ export function Dashboard({ token }: { token: string | null }) {
     }
   }, [token, range, pedido])
 
-  function mostrarRango() {
+  function showRange() {
     const missing = loQueFalta(inicio, fin)
     if (missing != null) {
       setNotice({ type: 'warning', title: 'Missing!', text: missing })
@@ -226,7 +226,7 @@ export function Dashboard({ token }: { token: string | null }) {
       />
 
       {range === 'Custom' && (
-        <div className={styles.rangoPropio}>
+        <div className={styles.ownRange}>
           <label>
             Start
             <input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} />
@@ -235,7 +235,7 @@ export function Dashboard({ token }: { token: string | null }) {
             End
             <input type="date" value={fin} onChange={(e) => setFin(e.target.value)} />
           </label>
-          <Button size="sm" variant="primary" onClick={mostrarRango}>
+          <Button size="sm" variant="primary" onClick={showRange}>
             Show
           </Button>
         </div>
@@ -246,7 +246,7 @@ export function Dashboard({ token }: { token: string | null }) {
       <div className={styles.tiles} data-testid="metricas">
         {METRICAS.map((m) => (
           <div className={styles.tile} key={m.k} style={{ ['--tc' as string]: m.color }}>
-            <div className={styles.v}>{s ? num(s[m.k]) : '—'}</div>
+            <div className={styles.v}>{s ? num2(s[m.k]) : '—'}</div>
             <div className={styles.p}>{m.pct && s ? percentage(s[m.k], total) : ' '}</div>
             <div className={styles.k}>{m.label}</div>
           </div>
@@ -258,10 +258,10 @@ export function Dashboard({ token }: { token: string | null }) {
           <Panel title="Queries" className={styles.panel}>
             <Body>
               {loading && <Loading compacto />}
-              {!loading && data && tieneDatos(data.mainChartData) && (
+              {!loading && data && hasData(data.mainChartData) && (
                 <Chart type="line" data={data.mainChartData} aria="Queries over time" />
               )}
-              {!loading && (!data || !tieneDatos(data.mainChartData)) && (
+              {!loading && (!data || !hasData(data.mainChartData)) && (
                 <Empty compacto>No queries for this period.</Empty>
               )}
             </Body>
@@ -287,7 +287,7 @@ export function Dashboard({ token }: { token: string | null }) {
               <div className={styles.counters} data-testid="contadores">
                 {COUNTERS.map((c) => (
                   <div className={styles.cnt} key={c.k}>
-                    <div className={styles.v}>{s ? num(s[c.k]) : '—'}</div>
+                    <div className={styles.v}>{s ? num2(s[c.k]) : '—'}</div>
                     <div className={styles.k}>{c.label}</div>
                   </div>
                 ))}
@@ -296,9 +296,9 @@ export function Dashboard({ token }: { token: string | null }) {
           </Panel>
           {data && (
             <>
-              <Reparto title="Query Response Types" data={data.queryResponseChartData} />
-              <Reparto title="Query Types" data={data.queryTypeChartData} />
-              <Reparto title="Protocol Types" data={data.protocolTypeChartData} />
+              <Split title="Query Response Types" data={data.queryResponseChartData} />
+              <Split title="Query Types" data={data.queryTypeChartData} />
+              <Split title="Protocol Types" data={data.protocolTypeChartData} />
             </>
           )}
           <Top

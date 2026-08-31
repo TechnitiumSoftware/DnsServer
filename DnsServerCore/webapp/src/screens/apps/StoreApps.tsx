@@ -56,7 +56,7 @@ export function StoreApps({
     void load()
   }, [open, load])
 
-  async function tras(app: StoreApp, ok: AlertState, call: Promise<{ kind: string; message?: string }>) {
+  async function after3(app: StoreApp, ok: AlertState, call: Promise<{ kind: string; message?: string }>) {
     setBusy(app.name)
     const outcome = await call
     setBusy(null)
@@ -70,8 +70,8 @@ export function StoreApps({
     await load()
   }
 
-  function instalar(app: StoreApp) {
-    return tras(
+  function install(app: StoreApp) {
+    return after3(
       app,
       {
         type: 'success',
@@ -82,8 +82,8 @@ export function StoreApps({
     )
   }
 
-  function actualizar(app: StoreApp) {
-    return tras(
+  function update(app: StoreApp) {
+    return after3(
       app,
       {
         type: 'success',
@@ -102,7 +102,7 @@ export function StoreApps({
   console that still opened the operating system's dialog.
   */
   function uninstall(app: StoreApp) {
-    return tras(
+    return after3(
       app,
       {
         type: 'success',
@@ -169,13 +169,13 @@ export function StoreApps({
                       <Button
                         variant="primary"
                         disabled={busy === app.name}
-                        onClick={() => void instalar(app)}
+                        onClick={() => void install(app)}
                       >
                         Install
                       </Button>
                     )}
                     {hayUpdate && (
-                      <Button disabled={busy === app.name} onClick={() => void actualizar(app)}>
+                      <Button disabled={busy === app.name} onClick={() => void update(app)}>
                         Update
                       </Button>
                     )}

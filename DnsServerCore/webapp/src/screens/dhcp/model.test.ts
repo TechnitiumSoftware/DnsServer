@@ -17,13 +17,13 @@ function form(partial: Partial<ScopeForm> = {}): ScopeForm {
 
 function body(f: ScopeForm): Record<string, string> {
   const r = buildBody(f)
-  if ('error' in r) throw new Error(`esperaba cuerpo y salió ${r.error.title}`)
+  if ('error' in r) throw new Error(`expected a body and got ${r.error.title}`)
   return r.body
 }
 
 function error(f: ScopeForm) {
   const r = buildBody(f)
-  if (!('error' in r)) throw new Error('esperaba error y salió cuerpo')
+  if (!('error' in r)) throw new Error('expected an error and got a body')
   return r.error
 }
 
@@ -66,7 +66,7 @@ describe('default values', () => {
 })
 
 describe('formularioDesdeScope', () => {
-  const MINIMO: DhcpScope = {
+  const MINIMUM: DhcpScope = {
     name: 'Default',
     startingAddress: '192.168.1.1',
     endingAddress: '192.168.1.254',
@@ -89,7 +89,7 @@ describe('formularioDesdeScope', () => {
   }
 
   it('it survives a scope missing fifteen keys', () => {
-    const f = formularioDesdeScope(MINIMO)
+    const f = formularioDesdeScope(MINIMUM)
     expect(f.domainName).toBe('')
     expect(f.domainSearchList).toBe('')
     expect(f.routerAddress).toBe('')
@@ -99,12 +99,12 @@ describe('formularioDesdeScope', () => {
   })
 
   it('it keeps the original name in `oldName`, which is what decides the rename', () => {
-    expect(formularioDesdeScope(MINIMO).oldName).toBe('Default')
+    expect(formularioDesdeScope(MINIMUM).oldName).toBe('Default')
   })
 
   it('a null `hostName` or `comments` of a reservation arrives as an empty string', () => {
     const f = formularioDesdeScope({
-      ...MINIMO,
+      ...MINIMUM,
       reservedLeases: [
         { hostName: null, hardwareAddress: 'AA-BB', address: '192.168.1.5', comments: null },
       ],

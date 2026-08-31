@@ -133,7 +133,7 @@ export function SignZone({
   }
 
   const esRsa = f.algorithm === 'RSA'
-  const curvas = f.algorithm === 'EDDSA' ? CURVAS_EDDSA : CURVAS_ECDSA
+  const curves = f.algorithm === 'EDDSA' ? CURVAS_EDDSA : CURVAS_ECDSA
 
   return (
     <Dialog
@@ -181,7 +181,7 @@ export function SignZone({
           <Field label={f.algorithm === 'EDDSA' ? 'EdDSA Curve' : 'ECDSA Curve'}>
             {(id) => (
               <Select id={id} value={f.curve} onChange={(e) => set('curve', e.target.value)}>
-                {curvas.map((c) => (
+                {curves.map((c) => (
                   <option key={c.value} value={c.value}>
                     {c.label}
                   </option>
@@ -202,7 +202,7 @@ export function SignZone({
           size={f.kskKeySize}
           pem={f.pemKskPrivateKey}
           onGeneration={(v) => set('kskGeneration', v)}
-          onTamano={(v) => set('kskKeySize', v)}
+          onSize={(v) => set('kskKeySize', v)}
           onPem={(v) => set('pemKskPrivateKey', v)}
         />
 
@@ -217,7 +217,7 @@ export function SignZone({
           size={f.zskKeySize}
           pem={f.pemZskPrivateKey}
           onGeneration={(v) => set('zskGeneration', v)}
-          onTamano={(v) => set('zskKeySize', v)}
+          onSize={(v) => set('zskKeySize', v)}
           onPem={(v) => set('pemZskPrivateKey', v)}
         />
 
@@ -345,7 +345,7 @@ function SigningKey({
   size,
   pem,
   onGeneration,
-  onTamano,
+  onSize,
   onPem,
 }: {
   title: string
@@ -358,7 +358,7 @@ function SigningKey({
   size: string
   pem: string
   onGeneration: (v: string) => void
-  onTamano: (v: string) => void
+  onSize: (v: string) => void
   onPem: (v: string) => void
 }) {
   return (
@@ -381,7 +381,7 @@ function SigningKey({
         <Field label={sizeLabel}>
           {(id) => (
             <div className={styles.inline}>
-              <Select id={id} className={styles.short} value={size} onChange={(e) => onTamano(e.target.value)}>
+              <Select id={id} className={styles.short} value={size} onChange={(e) => onSize(e.target.value)}>
                 {TAMANOS_RSA.map((t) => (
                   <option key={t} value={t}>
                     {t}

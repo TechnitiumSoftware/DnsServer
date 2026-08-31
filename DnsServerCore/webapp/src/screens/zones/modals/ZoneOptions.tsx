@@ -6,7 +6,7 @@ import { Dialog } from '../../../ui/Dialog'
 import { Field, Input, Select, Textarea } from '../../../ui/Field'
 import { Loading } from '../../../ui/Empty'
 import {
-  ACCESOS_CONSULTA,
+  QUERY_ACCESS,
   UPDATES,
   NOTIFICATIONS,
   TABS,
@@ -291,12 +291,12 @@ export function ZoneOptions({
             {tab === 'Query Access' && (
               <Criterion
                 name="zoneOptionsQueryAccess"
-                options={ACCESOS_CONSULTA.filter(
+                options={QUERY_ACCESS.filter(
                   (o) => e.queryAccessConNameServers || !o.value.includes('ZoneNameServers'),
                 )}
                 value={f.queryAccess}
                 locked={e.queryAccessLocked}
-                onCambio={(v) => set('queryAccess', v)}
+                onChanged2={(v) => set('queryAccess', v)}
                 list={f.queryAccessNetworkACL}
                 listLabel="Network Access Control List (ACL)"
                 editableList={aclEditable(f.queryAccess) && !e.queryAccessLocked}
@@ -313,7 +313,7 @@ export function ZoneOptions({
                   )}
                   value={f.zoneTransfer}
                   locked={e.zoneTransferLocked}
-                  onCambio={(v) => set('zoneTransfer', v)}
+                  onChanged2={(v) => set('zoneTransfer', v)}
                   list={f.zoneTransferNetworkACL}
                   listLabel="Network Access Control List (ACL)"
                   editableList={aclEditable(f.zoneTransfer) && !e.zoneTransferLocked}
@@ -371,7 +371,7 @@ export function ZoneOptions({
                   })}
                   value={f.notify}
                   locked={false}
-                  onCambio={(v) => set('notify', v)}
+                  onChanged2={(v) => set('notify', v)}
                   list={f.notifyNameServers}
                   listLabel="Specified Name Servers"
                   editableList={notifyWithList(f.notify)}
@@ -408,7 +408,7 @@ export function ZoneOptions({
                   )}
                   value={f.update}
                   locked={false}
-                  onCambio={(v) => set('update', v)}
+                  onChanged2={(v) => set('update', v)}
                   list={f.updateNetworkACL}
                   listLabel="Network Access Control List (ACL)"
                   editableList={aclEditable(f.update)}
@@ -510,7 +510,7 @@ function Criterion({
   options,
   value,
   locked,
-  onCambio,
+  onChanged2,
   list,
   listLabel,
   editableList,
@@ -520,7 +520,7 @@ function Criterion({
   options: { value: string; label: string }[]
   value: string
   locked: boolean
-  onCambio: (v: string) => void
+  onChanged2: (v: string) => void
   list: string
   listLabel: string
   editableList: boolean
@@ -536,7 +536,7 @@ function Criterion({
               name={name}
               disabled={locked}
               checked={value === o.value}
-              onChange={() => onCambio(o.value)}
+              onChange={() => onChanged2(o.value)}
             />
             {o.label}
           </label>

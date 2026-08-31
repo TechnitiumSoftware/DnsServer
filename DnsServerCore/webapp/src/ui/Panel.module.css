@@ -41,7 +41,7 @@ It is `flex` because many of them carry an action on the right —"More",
 }
 
 .title {
-  composes: versalita from './rotulo.module.css';
+  composes: smallCaps from './rotulo.module.css';
   margin: 0;
 }
 

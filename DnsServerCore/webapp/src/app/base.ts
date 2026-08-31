@@ -12,14 +12,14 @@ Each generated `index.html` declares its own route in a `<meta>`, and the root
 comes from subtracting those segments from the `pathname`.
 */
 
-function calcular(): string {
+function compute(): string {
   const route = document.querySelector('meta[name="ruta"]')?.getAttribute('content')
   const trail = window.location.pathname
   if (route == null || route === '') return trail.endsWith('/') ? trail : trail + '/'
 
-  const sobra = route.split('/').length
+  const spare = route.split('/').length
   const parts = trail.split('/').filter(Boolean)
-  const prefix = parts.slice(0, Math.max(0, parts.length - sobra))
+  const prefix = parts.slice(0, Math.max(0, parts.length - spare))
   return prefix.length === 0 ? '/' : `/${prefix.join('/')}/`
 }
 
@@ -33,7 +33,7 @@ the console is mounted, not of where the user is.
 let cache: string | null = null
 
 export function raizDeLaApp(): string {
-  cache ??= calcular()
+  cache ??= compute()
   return cache
 }
 

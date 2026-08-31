@@ -80,8 +80,8 @@ function hitArea(el) {
 
 /*
 A link INSIDE a sentence does not breach the 24 px minimum, and this is not
-leniency: WCAG 2.2 exempts it literally —«Inline: the target is in a sentence or
-its size is otherwise constrained by the line-height of non-target text»—. And
+leniency: WCAG 2.2 exempts it literally —"Inline: the target is in a sentence or
+its size is otherwise constrained by the line-height of non-target text"—. And
 rightly so: enlarging its hit area would make it cover the words next to it.
 
 Without this exception the sweep raised fifteen 12 px help links as if they were

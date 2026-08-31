@@ -17,7 +17,7 @@
 .mono { composes: mono from '../../ui/text.module.css'; }
 
 /* Tabla */
-.num { color:var(--faint); font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+.num2 { color:var(--faint); font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
 
 /* A zone's name is a domain: that part does belong here, and it goes on the cell
    so the button inherits it. */

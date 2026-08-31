@@ -22,10 +22,10 @@ describe('rangeInstants', () => {
   })
 
   it('the seventh day still falls on the local side, and the eighth no longer does', () => {
-    const siete = rangeInstants('2026-08-01', '2026-08-07')
-    const ocho = rangeInstants('2026-08-01', '2026-08-08')
-    expect(siete.start).toBe(new Date('2026-08-01T00:00:00').toISOString())
-    expect(ocho.start).toBe('2026-08-01T00:00:00.000Z')
+    const seven = rangeInstants('2026-08-01', '2026-08-07')
+    const eight = rangeInstants('2026-08-01', '2026-08-08')
+    expect(seven.start).toBe(new Date('2026-08-01T00:00:00').toISOString())
+    expect(eight.start).toBe('2026-08-01T00:00:00.000Z')
   })
 })
 

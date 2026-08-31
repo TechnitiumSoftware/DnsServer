@@ -722,7 +722,7 @@ function JoinCluster({
   const [list, setList] = useState('')
   const [url, setUrl] = useState('')
   const [ip, setIp] = useState('')
-  const [ignorar, setIgnorar] = useState('false')
+  const [ignore, setIgnorar] = useState('false')
   const [user, setUser] = useState('admin')
   const [pass, setPass] = useState('')
   const [totp, setTotp] = useState('')
@@ -797,7 +797,7 @@ function JoinCluster({
       secondaryNodeIpAddresses: clean,
       primaryNodeUrl: url,
       primaryNodeIpAddress: ip,
-      ignoreCertificateErrors: ignorar,
+      ignoreCertificateErrors: ignore,
       primaryNodeUsername: user,
       primaryNodePassword: pass,
       primaryNodeTotp: totp,
@@ -900,7 +900,7 @@ function JoinCluster({
           <GroupRow modal label="Certificate Validation">
             <Radios
               name="joinClusterCertificateValidation"
-              value={ignorar}
+              value={ignore}
               onChange={setIgnorar}
               options={[
                 {
@@ -1104,7 +1104,7 @@ function ClusterOptions({
     onDone()
   }
 
-  const intervalos: [string, string, string, (v: string) => void, string][] = [
+  const intervals: [string, string, string, (v: string) => void, string][] = [
     ['Heartbeat Refresh Interval', hbRefresh, 'seconds (valid range 10-300; default 30)', setHbRefresh,
       'The interval in seconds in which the DNS Server must refresh the state of all nodes in the Cluster.'],
     ['Heartbeat Retry Interval', hbRetry, 'seconds (valid range 10-300; default 10)', setHbRetry,
@@ -1139,7 +1139,7 @@ function ClusterOptions({
           <MRow label="Cluster Domain" help="The fully qualified domain name of the Cluster.">
             {(id) => <Input id={id} placeholder="domain name" value={domain} disabled readOnly />}
           </MRow>
-          {intervalos.map(([label, value, suffix, set, help]) => (
+          {intervals.map(([label, value, suffix, set, help]) => (
             <MRow key={label} label={label} help={help}>
               {(id) => (
                 <div className={styles.ctlLine}>
@@ -1509,7 +1509,7 @@ function LeaveCluster({
   const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
-  async function salir() {
+  async function leave() {
     setBusy(true)
     const outcome = await leaveCluster(token, force, node)
     setBusy(false)
@@ -1528,7 +1528,7 @@ function LeaveCluster({
       title="Leave Cluster"
       actions={
         <>
-          <Button variant="danger" disabled={busy} onClick={() => void salir()}>
+          <Button variant="danger" disabled={busy} onClick={() => void leave()}>
             Leave
           </Button>
         </>

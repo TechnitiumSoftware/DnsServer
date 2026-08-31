@@ -13,7 +13,7 @@ interface Info { version: string; uptimestamp: string; dnsServerDomain: string }
 
 /* The two destinations that repeat, so text and title do not drift apart. */
 const API_DOCS = 'https://github.com/TechnitiumSoftware/DnsServer/blob/master/APIDOCS.md'
-const DONAR = 'https://go.technitium.com/?id=35'
+const DONATE = 'https://go.technitium.com/?id=35'
 
 /** External link: always in a new tab and without handing over the `opener`. */
 function Link({
@@ -57,7 +57,7 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
     })()
   }, [token])
 
-  async function mirar() {
+  async function check2() {
     setUpdate('checking')
     const r = await checkForUpdate(token, true)
     if (r.kind === 'ok') {
@@ -146,13 +146,13 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
               Join <Link href="https://www.reddit.com/r/technitium/">/r/technitium</Link> on Reddit.
             </p>
 
-            <h4><Link href={DONAR}>Donate</Link></h4>
+            <h4><Link href={DONATE}>Donate</Link></h4>
             <p>
               Make a contribution to Technitium and help making new software, updates, and features
               possible.
             </p>
             <p>
-              <Link href={DONAR} cls={styles.target}>Donate Now!</Link>
+              <Link href={DONATE} cls={styles.target}>Donate Now!</Link>
             </p>
           </div>
         </Body>
@@ -183,7 +183,7 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
               <Alert type="danger" title="Error!">Unable to check for updates.</Alert>
             )}
             <div className={styles.action}>
-              <Button disabled={update === 'checking'} onClick={() => void mirar()}>Check for Update</Button>
+              <Button disabled={update === 'checking'} onClick={() => void check2()}>Check for Update</Button>
             </div>
           </Body>
         </Panel>

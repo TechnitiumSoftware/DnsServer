@@ -55,7 +55,7 @@ export const ADD_TYPES: AddZoneOption[] = [
 ]
 
 /** The addresses of the thirteen root servers, copied literally from zone.js:3020. */
-export const RAICES =
+export const ROOTS =
   '199.9.14.201,192.33.4.12,199.7.91.13,192.5.5.241,192.112.36.4,193.0.14.129,192.0.47.132,192.0.32.132,[2001:500:200::b],[2001:500:2::c],[2001:500:2d::d],[2001:500:2f::f],[2001:500:12::d0d],[2001:7fd::1],[2620:0:2830:202::132],[2620:0:2d0:202::132]'
 
 export const TRANSFER_PROTOCOLS = [
@@ -218,8 +218,8 @@ export function seccionesVisibles(type: AddZoneKind, initializeForwarder: boolea
 }
 
 /** The "Forwarder" field's example changes with the protocol (zone.js:139-152). */
-export function ejemploDeForwarder(protocolo: string): string {
-  switch (protocolo) {
+export function ejemploDeForwarder(protocol: string): string {
+  switch (protocol) {
     case 'Tls':
     case 'Quic':
       return 'dns.quad9.net (9.9.9.9:853)'
@@ -341,7 +341,7 @@ export function buildAddParams(f: FormularioAlta): ResultadoAlta {
     case 'SecondaryRoot':
       type = 'Secondary'
       p.catalog = f.catalog
-      p.primaryNameServerAddresses = RAICES
+      p.primaryNameServerAddresses = ROOTS
       p.zoneTransferProtocol = 'Tcp'
       p.validateZone = 'true'
       break

@@ -3,23 +3,23 @@ import react from '@vitejs/plugin-react'
 import { STATIC_ROUTES } from './src/app/static-routes.js'
 
 /*
-Una carpeta con su `index.html` por cada route de la consola.
+One folder with its own `index.html` for each route of the console.
 
-El servidor sirve `www/` con ficheros estáticos y `UseDefaultFiles()`
-(DnsWebService.cs:1960): `/settings/logging/` se resuelve a
-`/settings/logging/index.html`, y `/settings/logging` recibe un 301 a la versión
-con barra. Con el fichero puesto, la URL es real —nada de `#/`— y un F5 vuelve
-donde estabas, **sin tocar una línea de C#**.
+The server serves `www/` with static files and `UseDefaultFiles()`
+(DnsWebService.cs:1960): `/settings/logging/` resolves to
+`/settings/logging/index.html`, and `/settings/logging` gets a 301 to the
+trailing-slash version. With the file in place the URL is real —no `#/`— and F5
+brings you back where you were, **without touching a line of C#**.
 
-Las rutas de los activos se corrigen a la profundidad de cada copia (`../` o
-`../../`). No es cosmética: `base` es relativa a propósito —el servidor honra
-`X-Forwarded-Prefix` montando un `PathBase`, y con base absoluta la consola se
-rompe tras un proxy con prefijo—, así que la única forma de que
-`/dns/settings/logging/` encuentre `/dns/assets/…` es contar los saltos.
+The asset paths are corrected to the depth of each copy (`../` or `../../`). It
+is not cosmetic: `base` is relative on purpose —the server honours
+`X-Forwarded-Prefix` by mounting a `PathBase`, and with an absolute base the
+console breaks behind a prefixed proxy— so the only way for
+`/dns/settings/logging/` to find `/dns/assets/…` is to count the hops.
 
-Y cada copia lleva su route en un `<meta>`, que es lo que permite a la aplicación
-saber cuál es su raíz sin conocer el prefijo: la raíz es su `pathname` menos esos
-segmentos.
+And each copy carries its route in a `<meta>`, which is what lets the application
+know its own root without knowing the prefix: the root is its `pathname` minus
+those segments.
 */
 function staticRoutes(): Plugin {
   return {

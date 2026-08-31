@@ -16,7 +16,7 @@ is lost: the value is still one click away.
 */
 
 /** The labels whose value is genuinely long and worth truncating. */
-const LARGOS = [
+const LONG_ONES = [
   'Public Key:',
   'Signature:',
   'Digest:',
@@ -29,7 +29,7 @@ const CUTOFF = 64
 
 function Value({ label, value }: { label: string; value: string }) {
   const [whole, setEntero] = useState(false)
-  const truncable = LARGOS.includes(label) && value.length > CUTOFF
+  const truncable = LONG_ONES.includes(label) && value.length > CUTOFF
 
   if (!truncable || whole) {
     return <span className={styles.key}>{value}</span>

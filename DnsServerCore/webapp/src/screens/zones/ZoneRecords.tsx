@@ -57,7 +57,7 @@ export interface ZoneRecordsProps {
   node?: string
   canModify: boolean
   canDelete: boolean
-  onVolver: () => void
+  onBack: () => void
   onNotice: (a: Notice) => void
   onConfirm: (c: Confirmation) => void
   onAddRecord: (zoneInfo: ZoneDetails, records: ResourceRecord[]) => void
@@ -180,7 +180,7 @@ export function ZoneRecords(p: ZoneRecordsProps) {
       expiryTtl: p.expiryTtlDelModal,
     }
 
-    const ejecutar = () =>
+    const run = () =>
       mutateRecord(
         () => updateRecord(token, body, node),
         disable
@@ -190,7 +190,7 @@ export function ZoneRecords(p: ZoneRecordsProps) {
 
     // Only disabling asks; enabling does not (zone.js:6241).
     if (!disable) {
-      void ejecutar()
+      void run()
       return
     }
 
@@ -198,7 +198,7 @@ export function ZoneRecords(p: ZoneRecordsProps) {
       title: 'Disable Record',
       text: `Are you sure to disable the ${r.type} record '${name}'?`,
       label: 'Disable',
-      action: ejecutar,
+      action: run,
     })
   }
 
@@ -224,7 +224,7 @@ export function ZoneRecords(p: ZoneRecordsProps) {
 
   /* ── Actions on the whole zone ─────────────────────────────────────── */
 
-  async function mutateZone(fn: () => Promise<{ kind: string; message?: string }>, success: Notice, volver = false) {
+  async function mutateZone(fn: () => Promise<{ kind: string; message?: string }>, success: Notice, back = false) {
     setBusy(true)
     const outcome = await fn()
     setBusy(false)
@@ -234,7 +234,7 @@ export function ZoneRecords(p: ZoneRecordsProps) {
       return
     }
     onNotice(success)
-    if (volver) p.onVolver()
+    if (back) p.onBack()
     else await load()
   }
 
@@ -275,7 +275,7 @@ export function ZoneRecords(p: ZoneRecordsProps) {
     })
   }
 
-  function resincronizar() {
+  function resync() {
     if (zoneInfo == null) return
     const text =
       zoneInfo.type === 'Secondary'
@@ -332,7 +332,7 @@ export function ZoneRecords(p: ZoneRecordsProps) {
     <>
       <SectionHeader
         section="Zones"
-        onVolver={p.onVolver}
+        onBack={p.onBack}
         title={zone === '.' ? '<root>' : zone}
         labels={
           <>
@@ -372,7 +372,7 @@ export function ZoneRecords(p: ZoneRecordsProps) {
               {(close) => (
                 <>
                   {cab?.resync && (
-                    <button type="button" disabled={!p.canModify} onClick={() => { close(); resincronizar() }}>
+                    <button type="button" disabled={!p.canModify} onClick={() => { close(); resync() }}>
                       Resync
                     </button>
                   )}
@@ -524,7 +524,7 @@ export function ZoneRecords(p: ZoneRecordsProps) {
             const actions = rowActions(zoneInfo.type, r.type)
             return (
               <tr key={`${r.name}|${r.type}|${inicio + i}`}>
-                <td className={styles.num}>{inicio + i + 1}</td>
+                <td className={styles.num2}>{inicio + i + 1}</td>
                 <td className={`${styles.mono}`}>{nombreRelativo(r.name, zone)}</td>
                 <td>
                   <Chip>{r.type}</Chip>

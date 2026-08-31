@@ -23,7 +23,7 @@ the name carries "(rate limited)" after it. Both fields only come in
 `TopClients`.
 */
 
-const LIMITE = 1000
+const LIMIT = 1000
 
 const TITLES: Record<TopKind, string> = {
   TopClients: 'Clients',
@@ -62,7 +62,7 @@ export function TopStats({
     if (type == null) return
     setLoading(true)
     setRows([])
-    void getTop(token, range, type, LIMITE).then((r) => {
+    void getTop(token, range, type, LIMIT).then((r) => {
       setRows(r)
       setLoading(false)
     })
@@ -78,7 +78,7 @@ export function TopStats({
          tables, and the measurement proves it right: the domain column took 736 px
          for a text of 148. It is a two-column list, not a wide table. */
       size="form"
-      title={type == null ? 'Top Stats' : `Top ${LIMITE} ${TITLES[type]}`}
+      title={type == null ? 'Top Stats' : `Top ${LIMIT} ${TITLES[type]}`}
     >
       {loading ? (
         <Loading compacto />

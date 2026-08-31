@@ -80,7 +80,7 @@ export function fromNow(iso: string | null | undefined, now: number = Date.now()
   if (d == null) return ''
 
   const ms = d.getTime() - now
-  const futuro = ms > 0
+  const future = ms > 0
   const abs = Math.abs(ms)
 
   const seconds = Math.round(abs / 1000)
@@ -88,7 +88,7 @@ export function fromNow(iso: string | null | undefined, now: number = Date.now()
   const hours = Math.round(abs / 3600000)
   const days = Math.round(abs / 86400000)
   const months = Math.round(asMonths(abs / 86400000))
-  const anos = Math.round(asMonths(abs / 86400000) / 12)
+  const years = Math.round(asMonths(abs / 86400000) / 12)
 
   let text: string
   if (seconds <= THRESHOLD.ss) text = 'a few seconds'
@@ -101,10 +101,10 @@ export function fromNow(iso: string | null | undefined, now: number = Date.now()
   else if (days < THRESHOLD.d) text = `${days} days`
   else if (months <= 1) text = 'a month'
   else if (months < THRESHOLD.M) text = `${months} months`
-  else if (anos <= 1) text = 'a year'
-  else text = `${anos} years`
+  else if (years <= 1) text = 'a year'
+  else text = `${years} years`
 
-  return futuro ? `in ${text}` : `${text} ago`
+  return future ? `in ${text}` : `${text} ago`
 }
 
 /** `date (time ago)`, which is how upstream composes the ones carrying both. */

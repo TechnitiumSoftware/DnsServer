@@ -6,7 +6,7 @@ import * as api from '../../api/dashboard'
 
 afterEach(() => vi.restoreAllMocks())
 
-const grafica = { labels: ['a', 'b'], datasets: [{ label: 'Total', data: [1, 2] }] }
+const chart = { labels: ['a', 'b'], datasets: [{ label: 'Total', data: [1, 2] }] }
 const isEmpty = { labels: ['a'], datasets: [{ label: 'Total', data: [0] }] }
 const data = {
   stats: {
@@ -16,8 +16,8 @@ const data = {
     zones: 14, cachedEntries: 8204, allowedZones: 3, blockedZones: 21,
     allowListZones: 0, blockListZones: 184302,
   },
-  mainChartData: grafica, queryResponseChartData: grafica,
-  queryTypeChartData: grafica, protocolTypeChartData: grafica,
+  mainChartData: chart, queryResponseChartData: chart,
+  queryTypeChartData: chart, protocolTypeChartData: chart,
   topClients: [{ name: '10.0.1.42', hits: 12408 }],
   topDomains: [{ name: 'github.com', hits: 3204 }],
   topBlockedDomains: [],

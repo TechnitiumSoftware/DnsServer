@@ -41,7 +41,7 @@ a state other times and a setting others.
 
 export function SectionHeader({
   section,
-  onVolver,
+  onBack,
   title,
   labels,
   actions,
@@ -51,7 +51,7 @@ export function SectionHeader({
   /** On a detail screen, the way back to the section. The kicker becomes that
    *  path: there used to be a "← Zones" above and a "ZONES" below, two elements
    *  saying the same thing two centimetres apart. */
-  onVolver?: () => void
+  onBack?: () => void
   /** The most specific name: the sub-tab if there is one, otherwise the section. */
   title: string
   /** STATE pills. Counts go in the count bar. */
@@ -61,11 +61,11 @@ export function SectionHeader({
 }) {
   return (
     <div className={styles.hrow}>
-      <div className={styles.izq}>
+      <div className={styles.left}>
         {section != null && (
           <nav className={styles.trail} aria-label="Breadcrumb">
-            {onVolver != null ? (
-              <button type="button" className={styles.ctx} onClick={onVolver}>
+            {onBack != null ? (
+              <button type="button" className={styles.ctx} onClick={onBack}>
                 {section}
               </button>
             ) : (

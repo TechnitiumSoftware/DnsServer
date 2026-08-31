@@ -6,7 +6,7 @@ dialog did the same thing —pick one of five— but borrowed the PAGINATION BUT
 class, so a tab and a page number looked identical: two meanings with one
 appearance, and any change to the pagination took the tabs down with it.
 */
-.seg {
+.secs {
   display: inline-flex;
   padding: var(--s-1);
   gap: var(--s-1);
@@ -54,5 +54,5 @@ It goes here, which is where the class lives and where it serves both places tha
 use the control: the Dashboard period and the options dialog's tabs.
 */
 @media (max-width: 720px) {
-  .seg { flex-wrap: wrap; }
+  .secs { flex-wrap: wrap; }
 }

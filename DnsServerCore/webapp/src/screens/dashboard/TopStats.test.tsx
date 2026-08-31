@@ -95,7 +95,7 @@ describe('modal Top Stats', () => {
 })
 
 describe('the three \"More\" buttons of the Dashboard', () => {
-  const grafica = { labels: ['a', 'b'], datasets: [{ label: 'Total', data: [1, 2] }] }
+  const chart = { labels: ['a', 'b'], datasets: [{ label: 'Total', data: [1, 2] }] }
   const DATA = {
     stats: {
       totalQueries: 10, totalNoError: 10, totalServerFailure: 0, totalNxDomain: 0,
@@ -104,10 +104,10 @@ describe('the three \"More\" buttons of the Dashboard', () => {
       zones: 1, cachedEntries: 0, allowedZones: 0, blockedZones: 0,
       allowListZones: 0, blockListZones: 0,
     },
-    mainChartData: grafica,
-    queryResponseChartData: grafica,
-    queryTypeChartData: grafica,
-    protocolTypeChartData: grafica,
+    mainChartData: chart,
+    queryResponseChartData: chart,
+    queryTypeChartData: chart,
+    protocolTypeChartData: chart,
     topClients: CLIENTS,
     topDomains: [],
     topBlockedDomains: [],

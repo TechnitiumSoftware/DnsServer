@@ -291,7 +291,7 @@ function GroupDetail({
   const [loading, setLoading] = useState(true)
   const [newName, setNuevoNombre] = useState('')
   const [description, setDescription] = useState('')
-  const [miembros, setMiembros] = useState('')
+  const [members, setMiembros] = useState('')
   const [users, setUsers] = useState<string[]>([])
   const [addUser, setAddUser] = useState(BLANK_OPTION)
   const [notice, setNotice] = useState<Notice | null>(null)
@@ -324,7 +324,7 @@ function GroupDetail({
       token,
       name,
       description,
-      cleanList(miembros),
+      cleanList(members),
       newName !== name ? newName : undefined,
     )
     setBusy(false)
@@ -386,7 +386,7 @@ function GroupDetail({
                 id={id}
                 className={styles.area}
                 rows={7}
-                value={miembros}
+                value={members}
                 onChange={(e) => setMiembros(e.target.value)}
               />
             )}

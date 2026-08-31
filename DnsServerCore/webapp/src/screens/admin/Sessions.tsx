@@ -266,9 +266,9 @@ function CrearApiToken({
         setNotice(noticeFromFailure(outcome))
         return
       }
-      const nombres = outcome.data.response.users.map((u) => u.username)
-      setUsers(nombres)
-      setUser(nombres[0] ?? '')
+      const names = outcome.data.response.users.map((u) => u.username)
+      setUsers(names)
+      setUser(names[0] ?? '')
     })
     return () => {
       live = false

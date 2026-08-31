@@ -37,7 +37,7 @@ export function UpdateApp({
     }
   }, [open])
 
-  async function actualizar() {
+  async function update() {
     const file = fileRef.current?.files?.[0]
     if (!file) {
       setAlert({
@@ -66,7 +66,7 @@ export function UpdateApp({
       title="Update App"
       actions={
         <>
-          <Button variant="primary" disabled={busy} onClick={() => void actualizar()}>
+          <Button variant="primary" disabled={busy} onClick={() => void update()}>
             Update
           </Button>
         </>

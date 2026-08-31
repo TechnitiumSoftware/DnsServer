@@ -21,7 +21,7 @@
 .permCols { display:grid; grid-template-columns:1fr 1fr; }
 .permCol { padding: var(--s-7) var(--s-9); min-width:0; }
 .permCol + .permCol { border-left:1px solid var(--line); }
-.permTitle { composes: versalita from '../../ui/rotulo.module.css'; margin-bottom: var(--s-4); }
+.permTitle { composes: smallCaps from '../../ui/rotulo.module.css'; margin-bottom: var(--s-4); }
 .prow { display:grid; grid-template-columns:1fr 46px 46px 46px; align-items:center; gap: var(--s-3); padding: var(--s-3) 0; border-bottom:1px solid var(--line2); font-size: var(--t-4); }
 .prow:last-child { border-bottom:0; }
 .who { color:var(--ink); font-family:var(--font-mono); font-size: var(--t-4); word-break:break-all; }
@@ -44,7 +44,7 @@
 .ctlLine { composes: inline from '../../ui/PanelForm.module.css'; }
 .suffix { composes: trailer from '../../ui/text.module.css'; }
 .help { composes: help from '../../ui/Form.module.css'; }
-.notas { composes: notices from '../../ui/PanelForm.module.css'; }
+.notes { composes: notices from '../../ui/PanelForm.module.css'; }
 .group { composes: group from '../../ui/Form.module.css'; }
 .area { composes: area from '../../ui/PanelForm.module.css'; }
 /* The width only: the trigger's box is set by `ui/Select`. */

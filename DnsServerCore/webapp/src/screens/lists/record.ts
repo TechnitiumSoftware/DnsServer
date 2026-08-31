@@ -48,13 +48,13 @@ const LABELS: Record<string, string> = {
 }
 
 /** `algorithmNumber` -> "Algorithm number"; `flags` -> "Flags". */
-function humanizar(key: string): string {
+function humanise(key: string): string {
   if (LABELS[key]) return LABELS[key]
-  const palabras = key
+  const words = key
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
     .toLowerCase()
-  return palabras.charAt(0).toUpperCase() + palabras.slice(1)
+  return words.charAt(0).toUpperCase() + words.slice(1)
 }
 
 function text(v: unknown): string {
@@ -69,7 +69,7 @@ function entry(key: string, value: string): Entry {
   return { key, value, long: value.length > LONG }
 }
 
-const SUFIJOS = ['String', 'Number', 'Idn'] as const
+const SUFFIXES = ['String', 'Number', 'Idn'] as const
 
 /**
  * Turns a flat object into key/value rows, merging the `x`/`xString`,
@@ -80,7 +80,7 @@ function rows(obj: Record<string, unknown>): Entry[] {
 
   for (const key of Object.keys(obj)) {
     // The derived keys are drawn next to their base, not on their own.
-    const derived = SUFIJOS.some(
+    const derived = SUFFIXES.some(
       (s) => key.endsWith(s) && key.length > s.length && key.slice(0, -s.length) in obj,
     )
     if (derived) continue
@@ -92,11 +92,11 @@ function rows(obj: Record<string, unknown>): Entry[] {
       // The Unicode is the readable one; the ASCII is what travels down the wire.
       value = `${text(idn)} (${value})`
     } else {
-      const compuesto = obj[`${key}String`] ?? obj[`${key}Number`]
-      if (compuesto != null) value = `${value} (${text(compuesto)})`
+      const composed = obj[`${key}String`] ?? obj[`${key}Number`]
+      if (composed != null) value = `${value} (${text(composed)})`
     }
 
-    output.push(entry(humanizar(key), value))
+    output.push(entry(humanise(key), value))
   }
 
   return output
@@ -111,12 +111,12 @@ The TTL arrives in two different shapes depending on the list (see
 `zonelists.ts`). It is normalised to the pair the design asks for: the number,
 and its human form beside it.
 */
-export function ttlPartido(r: DnsRecord): { value: string; humano: string } {
+export function ttlPartido(r: DnsRecord): { value: string; human: string } {
   if (typeof r.ttl === 'string') {
     const m = /^(\S+)\s+\((.*)\)$/.exec(r.ttl)
-    return m ? { value: m[1], humano: m[2] } : { value: r.ttl, humano: '' }
+    return m ? { value: m[1], human: m[2] } : { value: r.ttl, human: '' }
   }
-  return { value: String(r.ttl), humano: r.ttlString ?? '' }
+  return { value: String(r.ttl), human: r.ttlString ?? '' }
 }
 
 /*

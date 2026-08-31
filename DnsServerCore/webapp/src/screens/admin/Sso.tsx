@@ -381,7 +381,7 @@ export function Sso({ token, onNotice }: Props) {
                 </div>
         </GroupRow>
 
-        <div className={styles.notas}>
+        <div className={styles.notes}>
           <Alert type="info" title="Note!">
             The Single Sign-On (SSO) uses <code>/sso/callback</code> as the callback path. Thus, your
             SSO Redirect URI for this DNS Server should be <code>{redirectUri}</code> which needs to

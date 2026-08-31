@@ -16,7 +16,7 @@ inline SVG, which is also what lets them inherit the text colour.
 24 grid, 1.75 stroke and round caps, the same for all twenty-one.
 */
 
-const TRAZO = {
+const STROKE = {
   fill: 'none',
   stroke: 'currentColor',
   strokeWidth: 1.75,
@@ -234,7 +234,7 @@ export function Icon({
       viewBox="0 0 24 24"
       aria-hidden="true"
       focusable="false"
-      {...TRAZO}
+      {...STROKE}
       {...rest}
     >
       {PATHS[name]}

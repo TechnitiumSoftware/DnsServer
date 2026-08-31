@@ -34,11 +34,11 @@ const A_RECORD = {
 }
 
 /** A fake server that answers by path. */
-function servidor(respuestas: Record<string, unknown> = {}) {
+function servidor(responses: Record<string, unknown> = {}) {
   return vi.spyOn(client, 'apiRequest').mockImplementation(async (route) => {
     const base = route.split('?')[0]
-    if (base in respuestas) {
-      return { kind: 'ok', data: { status: 'ok', response: respuestas[base] } } as never
+    if (base in responses) {
+      return { kind: 'ok', data: { status: 'ok', response: responses[base] } } as never
     }
     if (base === 'zones/list') {
       return {

@@ -76,7 +76,7 @@ export function BackupDialog({
       )}
       <p>The backup process will create a zip file for the items selected below:</p>
       <ItemList selection={selection} onChange={onSelection} prefix="backup" />
-      <div className={styles.notas}>
+      <div className={styles.notes}>
         <Alert type="info" title="Note!">
           The Web Service or Optional Protocols TLS certificate (.pfx or .p12) files will be
           included in the backup only if they exist within the DNS Server's config folder.

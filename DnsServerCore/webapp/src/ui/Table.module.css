@@ -165,26 +165,26 @@ and when reached with the keyboard. With all nine headers carrying their little
 arrow at once, the label row was a line of symbols competing with the data and
 saying nothing, because "this is sortable" is the same on all of them.
 */
-.flecha {
+.arrow {
   display: inline-flex;
   color: var(--faint);
   opacity: 0;
   transition: opacity var(--t-fast);
 }
 
-.sort:hover .flecha,
-.sort:focus-visible .flecha,
-[aria-sort='ascending'] .flecha,
-[aria-sort='descending'] .flecha { opacity: 1; }
+.sort:hover .arrow,
+.sort:focus-visible .arrow,
+[aria-sort='ascending'] .arrow,
+[aria-sort='descending'] .arrow { opacity: 1; }
 
 /* Ascending and descending are the SAME chevron rotated, not two different
    characters: that way the arrow turns on click instead of jumping. */
-.flecha svg { transition: transform var(--t-fast), color var(--t-fast); }
-.flecha svg[data-desc='true'] { transform: rotate(180deg); }
+.arrow svg { transition: transform var(--t-fast), color var(--t-fast); }
+.arrow svg[data-desc='true'] { transform: rotate(180deg); }
 
-.sort:hover .flecha,
-[aria-sort='ascending'] .flecha,
-[aria-sort='descending'] .flecha { color: var(--acc); }
+.sort:hover .arrow,
+[aria-sort='ascending'] .arrow,
+[aria-sort='descending'] .arrow { color: var(--acc); }
 
 /*
 The actions column: hard against the end and as wide as what it carries.

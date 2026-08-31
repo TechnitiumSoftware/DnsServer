@@ -46,6 +46,6 @@ npm i -D playwright && npx playwright install chromium
 node parity-login.mjs
 ```
 
-It found two real divergences the first time it ran: the «×» button to dismiss
+It found two real divergences the first time it ran: the "×" button to dismiss
 the alert was missing —upstream has it, so its absence was a behavioural
 difference— and so was the space between the title and the text.

@@ -63,7 +63,7 @@ A click the browser should handle itself: middle or right button, or with a
 modifier —open in a new tab, in a window, download—. Intercepting them would turn a
 real link into a button in disguise, which is exactly what has just been removed.
 */
-function clicSimple(e: React.MouseEvent): boolean {
+function plainClick(e: React.MouseEvent): boolean {
   return e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey
 }
 
@@ -200,7 +200,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
                       data-active={active}
                       aria-current={active && sec.subs == null ? 'page' : undefined}
                       onClick={(e) => {
-                        if (!clicSimple(e)) return
+                        if (!plainClick(e)) return
                         e.preventDefault()
                         setActive(sec.id)
                         setSub(first)
@@ -223,7 +223,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
                             href={toTrail({ section: sec.id, sub: t })}
                             aria-current={active && subActual === t ? 'page' : undefined}
                             onClick={(e) => {
-                              if (!clicSimple(e)) return
+                              if (!plainClick(e)) return
                               e.preventDefault()
                               setSub(t)
                               setCajon(false)

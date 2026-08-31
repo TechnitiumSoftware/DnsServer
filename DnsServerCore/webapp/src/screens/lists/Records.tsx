@@ -66,7 +66,7 @@ function Row({ r, withDnssec, node }: { r: DnsRecord; withDnssec: boolean; node:
         {nombreDistinto && <span className={styles.name}>{name === '' ? '<ROOT>' : name}</span>}
       </td>
       <td className={styles.ttl}>
-        {ttl.value} {ttl.humano && <small>({ttl.humano})</small>}
+        {ttl.value} {ttl.human && <small>({ttl.human})</small>}
       </td>
       <td>
         <Kv entries={[...rdataEntries(r.rData), ...extras(r)]} />

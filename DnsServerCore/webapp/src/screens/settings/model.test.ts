@@ -138,7 +138,7 @@ describe('construirCuerpo — validation order of saveDnsSettings', () => {
     ['forwarderConcurrency', { forwarderConcurrency: '' }, 'Please enter a value for Forwarder Concurrency.'],
   ]
 
-  it.each(cases)('%s vacío da el aviso literal de upstream', (_n, partial, text) => {
+  it.each(cases)('an empty %s gives the literal alert of upstream', (_n, partial, text) => {
     const r = buildBody({ ...base(), ...partial } as ReturnType<typeof base>)
     expect(r.error?.title).toBe('Missing!')
     expect(r.error?.text).toBe(text)

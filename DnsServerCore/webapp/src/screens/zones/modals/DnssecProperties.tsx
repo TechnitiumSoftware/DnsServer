@@ -80,7 +80,7 @@ export function PropiedadesDnssec({
   node = '',
   onClose,
   onConfirm,
-  onCambio,
+  onChanged2,
 }: {
   zone: string
   open: boolean
@@ -89,7 +89,7 @@ export function PropiedadesDnssec({
   onClose: () => void
   onConfirm: (c: Confirmation) => void
   /** The zone has to be re-read: signing and changing the proof touch its records. */
-  onCambio: () => void
+  onChanged2: () => void
 }) {
   const [props, setProps] = useState<Properties | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
@@ -154,7 +154,7 @@ export function PropiedadesDnssec({
     }
 
     if (options.reload !== false) await load()
-    if (options.reloadZone) onCambio()
+    if (options.reloadZone) onChanged2()
     setNotice(success)
   }
 
@@ -228,7 +228,7 @@ export function PropiedadesDnssec({
     })
   }
 
-  function publicarTodas() {
+  function publishAll() {
     onConfirm({
       title: 'Publish All Keys',
       text: 'Are you sure you want to publish all generated DNSSEC private keys?',
@@ -319,7 +319,7 @@ export function PropiedadesDnssec({
   const keys = props?.dnssecPrivateKeys ?? []
   const { rows: visibleKeys, sort, toggle } = useOrden(KEYS, keys)
   const hasGenerated = keys.some((k) => k.state === 'Generated')
-  const notas = notasDeEstado(keys)
+  const notes = notasDeEstado(keys)
 
   return (
     <Dialog
@@ -375,7 +375,7 @@ export function PropiedadesDnssec({
             )}
           </Table>
 
-          {notas.map((n) => (
+          {notes.map((n) => (
             <Alert key={n} type="info" title="Note!">
               {n}
             </Alert>
@@ -383,7 +383,7 @@ export function PropiedadesDnssec({
 
           <div className={styles.acts}>
             <Button onClick={() => setAnadiendo((v) => !v)}>Add Private Key</Button>
-            <Button disabled={!hasGenerated || busy} onClick={publicarTodas}>
+            <Button disabled={!hasGenerated || busy} onClick={publishAll}>
               Publish All Keys
             </Button>
           </div>
@@ -691,23 +691,23 @@ export function keyActions(k: PrivateKey): {
 
 /** The three footnotes, which appear according to the keys' states. */
 export function notasDeEstado(keys: PrivateKey[]): string[] {
-  const notas: string[] = []
+  const notes: string[] = []
 
   if (keys.some((k) => k.keyType === 'KeySigningKey' && k.state === 'Published')) {
-    notas.push(
+    notes.push(
       'A "ready by" timestamp is displayed for a Key Signing Key (KSK) that is Published. Wait until then before adding its DS record to the parent zone.',
     )
   }
   if (keys.some((k) => k.keyType === 'KeySigningKey' && k.state === 'Ready')) {
-    notas.push(
+    notes.push(
       'An "active by" timestamp is displayed for a Key Signing Key (KSK) that is Ready. The key will become active automatically.',
     )
   }
   if (keys.some((k) => k.state === 'Retired' || k.state === 'Revoked')) {
-    notas.push('Retired and Revoked keys are removed automatically by the DNS Server.')
+    notes.push('Retired and Revoked keys are removed automatically by the DNS Server.')
   }
 
-  return notas
+  return notes
 }
 
 function KeyRow({

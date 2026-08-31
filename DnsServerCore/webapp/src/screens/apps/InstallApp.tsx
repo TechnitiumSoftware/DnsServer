@@ -36,7 +36,7 @@ export function InstallApp({
     }
   }, [open])
 
-  async function instalar() {
+  async function install() {
     if (name === '') {
       setAlert({ type: 'warning', title: 'Missing!', text: 'Please enter an application name.' })
       return
@@ -70,7 +70,7 @@ export function InstallApp({
       title="Install App"
       actions={
         <>
-          <Button variant="primary" disabled={busy} onClick={() => void instalar()}>
+          <Button variant="primary" disabled={busy} onClick={() => void install()}>
             Install
           </Button>
         </>

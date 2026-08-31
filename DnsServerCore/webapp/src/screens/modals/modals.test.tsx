@@ -138,7 +138,7 @@ describe('Configure 2FA', () => {
 })
 
 describe('My Profile', () => {
-  const perfil = (isSsoUser: boolean) =>
+  const profile = (isSsoUser: boolean) =>
     ok({
       status: 'ok',
       response: {
@@ -152,7 +152,7 @@ describe('My Profile', () => {
     })
 
   it('it lets a local user edit the name and sends it', async () => {
-    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(perfil(false))
+    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(profile(false))
     render(<MyProfile open onOpenChange={() => {}} token="t" />)
     await screen.findByDisplayValue('Administrator')
     expect(screen.getByLabelText('User Type')).toHaveValue('Local')
@@ -167,7 +167,7 @@ describe('My Profile', () => {
   })
 
   it('it disables the name for an SSO user and does NOT send it', async () => {
-    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(perfil(true))
+    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(profile(true))
     render(<MyProfile open onOpenChange={() => {}} token="t" />)
     await screen.findByDisplayValue('Administrator')
     expect(screen.getByLabelText('User Type')).toHaveValue('Remote/SSO')

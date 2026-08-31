@@ -83,9 +83,9 @@ export function Menu({
     const r = trigger.current?.getBoundingClientRect()
     if (r == null) return
 
-    const MARGEN = 8
-    const below = window.innerHeight - r.bottom - MARGEN
-    const above = r.top - MARGEN
+    const MARGIN = 8
+    const below = window.innerHeight - r.bottom - MARGIN
+    const above = r.top - MARGIN
     const edge2 = anchor === 'izquierda' ? { left: r.left } : { right: window.innerWidth - r.right }
 
     setBox(

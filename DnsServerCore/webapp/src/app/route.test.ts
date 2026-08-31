@@ -33,7 +33,7 @@ describe('aSlug', () => {
     for (const s of SECTIONS) {
       if (s.subs == null) continue
       const slugs = s.subs.map(aSlug)
-      expect(new Set(slugs).size, `colisión en ${s.id}: ${slugs.join(', ')}`).toBe(slugs.length)
+      expect(new Set(slugs).size, `slug collision in ${s.id}: ${slugs.join(', ')}`).toBe(slugs.length)
     }
   })
 })

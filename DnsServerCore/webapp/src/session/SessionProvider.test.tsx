@@ -181,11 +181,11 @@ describe('SessionProvider', () => {
     The method is spied on and not `history.length`, which in jsdom does not
     budge even with `pushState` —counting it gave a green with the bug inside.
     */
-    const empujar = vi.spyOn(window.history, 'pushState')
+    const push2 = vi.spyOn(window.history, 'pushState')
     window.history.replaceState(null, '', '/settings/')
     fireEvent.popState(window)
     await waitFor(() => expect(window.location.pathname).toBe('/settings/general/'))
-    expect(empujar).not.toHaveBeenCalled()
+    expect(push2).not.toHaveBeenCalled()
   })
 
   it('the upstream footer is still there with the console open, not only on the login', async () => {

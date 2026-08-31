@@ -12,7 +12,7 @@ not a single loose px is written here.
   margin-bottom: var(--gap-bloque);
 }
 
-.izq { min-width: 0; }
+.left { min-width: 0; }
 
 /*
 The path. In normal case and at body size: in tight small caps it would read as a

@@ -55,9 +55,9 @@ export function textoDeEstado(
   total: number,
   pageNumber: number,
   totalPages: number,
-  sustantivo: string,
+  noun: string,
 ): string {
-  if (onPage === 0) return `0 ${sustantivo}`
+  if (onPage === 0) return `0 ${noun}`
   const last = firstRow + onPage - 1
-  return `${firstRow}-${last} (${onPage}) of ${total} ${sustantivo} (page ${pageNumber} of ${totalPages})`
+  return `${firstRow}-${last} (${onPage}) of ${total} ${noun} (page ${pageNumber} of ${totalPages})`
 }

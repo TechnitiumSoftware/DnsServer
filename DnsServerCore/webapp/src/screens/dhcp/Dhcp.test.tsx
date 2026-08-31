@@ -328,11 +328,11 @@ describe('DHCP › Scopes — the form', () => {
     await screen.findByText('No Scope Found')
     await user.click(screen.getByRole('button', { name: 'Add Scope' }))
 
-    const sobrescribir = screen.getByLabelText('Enable DNS Overwrite For Dynamic Lease')
-    expect(sobrescribir).toBeEnabled()
+    const override = screen.getByLabelText('Enable DNS Overwrite For Dynamic Lease')
+    expect(override).toBeEnabled()
 
     await user.click(screen.getByLabelText('Enable DNS Updates'))
-    expect(sobrescribir).toBeDisabled()
+    expect(override).toBeDisabled()
   })
 
   it('saving sends the body by POST and alerts with the literal text', async () => {

@@ -94,7 +94,7 @@ export function Settings({
   // The validation jump remembers which sub-tab it fired from: as soon as the
   // Shell asks for a different one, it stops holding. Deriving it this way avoids
   // an effect whose only job was to null it out, and the extra render it brings.
-  const [newline, setSalto] = useState<{ tab: SubTab; desde: string } | null>(null)
+  const [newline, setSalto] = useState<{ tab: SubTab; since2: string } | null>(null)
   const [confirm, setConfirm] = useState<null | 'flush' | 'disable' | 'update'>(null)
   const [modal, setModal] = useState<null | 'backup' | 'restore'>(null)
   const [selection, setSelection] = useState<Record<string, boolean>>(initialBackupSelection)
@@ -120,7 +120,7 @@ export function Settings({
 
   const requested = (sub ?? 'General') as SubTab
   const valid: SubTab = SUB_TABS.includes(requested) ? requested : 'General'
-  const active: SubTab = newline?.desde === valid ? newline.tab : valid
+  const active: SubTab = newline?.since2 === valid ? newline.tab : valid
 
   const set = useCallback((partial: Partial<SettingsForm>) => {
     setForm((f) => (f ? { ...f, ...partial } : f))
@@ -141,7 +141,7 @@ export function Settings({
       const { title, text, tab } = result.error
       setNotice({ type: 'warning', title, text })
       const target = tab as SubTab
-      setSalto({ tab: target, desde: valid })
+      setSalto({ tab: target, since2: valid })
       onSubChange?.(target)
       return
     }
@@ -177,7 +177,7 @@ export function Settings({
     }
   }
 
-  function pedirDesactivarBloqueo() {
+  function askDisableBlocking() {
     if (form == null) return
     if (form.temporaryDisableBlockingMinutes === '') {
       setNotice({
@@ -295,7 +295,7 @@ export function Settings({
             extra={{
               temporaryDisableBlockingTill: settings.temporaryDisableBlockingTill,
               blockListNextUpdatedOn: nextList,
-              onTemporaryDisable: pedirDesactivarBloqueo,
+              onTemporaryDisable: askDisableBlocking,
               onUpdateNow: () => setConfirm('update'),
               busy,
             }}

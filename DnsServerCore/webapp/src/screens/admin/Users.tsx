@@ -305,7 +305,7 @@ export function Users({ token, cluster, onNotice }: Props) {
       />
 
       {reset != null && (
-        <ResetearContrasena
+        <ResetPassword
           username={reset}
           token={token}
           onClose={() => setReset(null)}
@@ -460,7 +460,7 @@ REUSES the "Change Password" modal by changing its title to "Reset Password",
 hiding the current password and the OTP, and renaming the button to "Reset". The
 success alert comes out on the PAGE, because the modal has already closed.
 */
-function ResetearContrasena({
+function ResetPassword({
   username,
   token,
   onClose,

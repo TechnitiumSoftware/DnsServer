@@ -133,7 +133,7 @@ export function Zones({
           node={node}
           canModify={canModify}
           canDelete={canDelete}
-          onVolver={() => {
+          onBack={() => {
             setAbierta(null)
             refreshList()
           }}
@@ -271,7 +271,7 @@ export function Zones({
         node={node}
         onClose={() => setModal(null)}
         onConfirm={setConfirmation}
-        onCambio={refreshZone}
+        onChanged2={refreshZone}
       />
 
       <AddEditRecord
