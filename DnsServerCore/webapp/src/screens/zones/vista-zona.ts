@@ -1,11 +1,11 @@
 /*
-Qué ofrece la cabecera de una zona abierta, por tipo y por estado DNSSEC.
-Réplica de los nueve `switch` de `showEditZone` (zone.js:3210-3440).
+What an open zone's header offers, by type and by DNSSEC state. A replica of the
+nine `switch` of `showEditZone` (zone.js:3210-3440).
 
-Se extrae aquí porque son nueve listas de tipos que se solapan a medias y
-ninguna se deduce de otra: hay tipos que exportan pero no importan, tipos que
-convierten pero no clonan, y una Secondary firmada que enseña el menú DNSSEC
-pero sólo con «ocultar registros» dentro.
+It is pulled out here because they are nine lists of types that half overlap and
+none of which follows from another: there are types that export but do not
+import, types that convert but do not clone, and a signed Secondary that shows
+the DNSSEC menu but with only "hide records" inside.
 */
 
 export interface CabeceraDeZona {
@@ -17,20 +17,20 @@ export interface CabeceraDeZona {
   clonar: boolean
   opciones: boolean
   permisos: boolean
-  /** El menú DNSSEC entero. */
+  /** The whole DNSSEC menu. */
   dnssec: boolean
   firmar: boolean
   desfirmar: boolean
   verDs: boolean
   propiedades: boolean
-  /** «Hide / Show DNSSEC Records»: sólo existe si la zona está firmada. */
+  /** "Hide / Show DNSSEC Records": it only exists if the zone is signed. */
   alternarRegistrosDnssec: boolean
 }
 
 const SECUNDARIAS = ['Secondary', 'SecondaryForwarder', 'SecondaryCatalog']
 const CONOCIDOS = [...SECUNDARIAS, 'Primary', 'Stub', 'Forwarder', 'Catalog']
 
-/** Una Catalog o una Forwarder no traen el campo: no se pueden firmar. */
+/** A Catalog or a Forwarder does not bring the field: they cannot be signed. */
 export function estaFirmada(dnssecStatus: string | undefined): boolean {
   return dnssecStatus === 'SignedWithNSEC' || dnssecStatus === 'SignedWithNSEC3'
 }
@@ -39,7 +39,7 @@ export function cabeceraDeZona(type: string, dnssecStatus: string | undefined): 
   const firmada = estaFirmada(dnssecStatus)
 
   const base: CabeceraDeZona = {
-    // Sólo Primary y Forwarder permiten añadir registros a mano.
+    // Only Primary and Forwarder allow adding records by hand.
     anadirRegistro: type === 'Primary' || type === 'Forwarder',
     resync: [...SECUNDARIAS, 'Stub'].includes(type),
     importar: type === 'Primary' || type === 'Forwarder',
@@ -60,7 +60,7 @@ export function cabeceraDeZona(type: string, dnssecStatus: string | undefined): 
     return {
       ...base,
       dnssec: true,
-      // Firmar sólo si NO lo está; el resto, sólo si lo está.
+      // Sign only if it is NOT; the rest, only if it is.
       firmar: !firmada,
       desfirmar: firmada,
       verDs: firmada,
@@ -69,9 +69,9 @@ export function cabeceraDeZona(type: string, dnssecStatus: string | undefined): 
     }
   }
 
-  // Una secundaria firmada enseña el menú, pero DENTRO sólo puede ocultar los
-  // registros DNSSEC: no firma, no desfirma y no ve el DS, porque la zona no
-  // es suya. Sin firmar, el menú no aparece en absoluto.
+  // A signed secondary shows the menu, but INSIDE it can only hide the DNSSEC
+  // records: it does not sign, does not unsign and does not see the DS, because
+  // the zone is not its own. Unsigned, the menu does not appear at all.
   if (type === 'Secondary' && firmada) {
     return { ...base, dnssec: true, alternarRegistrosDnssec: true }
   }
@@ -80,12 +80,12 @@ export function cabeceraDeZona(type: string, dnssecStatus: string | undefined): 
 }
 
 /**
- * Qué tipos de registro ofrece el desplegable de «Add Record», que **cambia
- * con el tipo de zona y con el estado DNSSEC** (zone.js:3213-3250):
+ * Which record types the "Add Record" dropdown offers, which **changes with the
+ * zone type and with the DNSSEC state** (zone.js:3213-3250):
  *
- *   · `FWD` sólo en zonas de reenvío condicional.
- *   · `DS`, `SSHFP` y `TLSA` sólo en una Primary FIRMADA.
- *   · `ANAME` y `APP` desaparecen justo en ese caso.
+ *   · `FWD` only on conditional forwarder zones.
+ *   · `DS`, `SSHFP` and `TLSA` only on a SIGNED Primary.
+ *   · `ANAME` and `APP` disappear in exactly that case.
  */
 export function tiposOcultosAlAnadir(tipoZona: string, dnssecStatus: string | undefined): string[] {
   if (tipoZona === 'Forwarder') return ['DS', 'SSHFP', 'TLSA']
@@ -97,7 +97,7 @@ export function tiposOcultosAlAnadir(tipoZona: string, dnssecStatus: string | un
   return []
 }
 
-/** Clave de `localStorage` donde upstream guarda si esconde los DNSSEC. */
+/** The `localStorage` key where upstream stores whether it hides the DNSSEC. */
 export const CLAVE_OCULTAR_DNSSEC = 'zoneHideDnssecRecords'
 
 export function leerOcultarDnssec(): boolean {
@@ -112,6 +112,6 @@ export function guardarOcultarDnssec(valor: boolean): void {
   try {
     localStorage.setItem(CLAVE_OCULTAR_DNSSEC, String(valor))
   } catch {
-    /* Sin localStorage la preferencia no persiste; la pantalla sigue viva. */
+    /* Without localStorage the preference does not persist; the screen lives on. */
   }
 }

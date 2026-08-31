@@ -11,11 +11,11 @@ import { PieDeEnlaces } from '../ui/PieDeEnlaces'
 import { Avisador } from '../ui/Avisador'
 
 /*
-Pantalla de login. Réplica de `login()` en
+The login screen. A replica of `login()` in
 upstream/master:DnsServerCore/www/js/auth.js:207-297.
 
-Los textos de aviso son LITERALES de upstream y son contrato: cambiarlos sería
-cambiar comportamiento.
+The alert texts are upstream LITERALS and they are contract: changing them would
+be changing behaviour.
 */
 
 export const OTP_TIMEOUT_INTERVAL = 30_000
@@ -48,8 +48,8 @@ export function Login({
   const [busy, setBusy] = useState(false)
   const [olvido, setOlvido] = useState(false)
   const [alert, setAlert] = useState<AlertState | null>(initialAlert ?? null)
-  // El botón de SSO sólo se pinta si el servidor dice que está habilitado
-  // (main.js:48-56). Por defecto NO: no se asume que hay SSO.
+  // The SSO button is only drawn if the server says it is enabled
+  // (main.js:48-56). By default NOT: SSO is not assumed.
   const [ssoEnabled, setSsoEnabled] = useState(false)
 
   const userRef = useRef<HTMLInputElement>(null)
@@ -64,7 +64,7 @@ export function Login({
     }
   }
 
-  /** Vuelve al login pasados 30 s en el panel OTP, igual que upstream. */
+  /** Returns to the login after 30 s on the OTP panel, just like upstream. */
   function armOtpTimer() {
     clearOtpTimer()
     timerRef.current = setTimeout(() => {
@@ -76,10 +76,10 @@ export function Login({
   useEffect(() => clearOtpTimer, [])
 
   /*
-  main.js:48-60 — al mostrar el login se consulta `api/status`, que decide dos
-  cosas: si se ve el botón de SSO, y si la instalación todavía tiene las
-  credenciales de fábrica, en cuyo caso **entra sola** con admin/admin.
-  Un auto-login fallido no deja alerta: se cae al formulario en silencio.
+  main.js:48-60 — on showing the login, `api/status` is queried, and it decides
+  two things: whether the SSO button shows, and whether the install still has the
+  factory credentials, in which case it **logs itself in** with admin/admin. A
+  failed auto-login leaves no alert: it falls back to the form in silence.
   */
   useEffect(() => {
     let cancelado = false
@@ -149,16 +149,16 @@ export function Login({
     if (outcome.kind === 'ok') {
       clearOtpTimer()
       const session = outcome.data as Session
-      // auth.js:263 — entrar con las credenciales de fábrica y sin 2FA obliga a
-      // cambiar la contraseña antes de seguir.
+      // auth.js:263 — logging in with the factory credentials and no 2FA forces a
+      // password change before going on.
       const forcePasswordChange =
         !session.totpEnabled && usuario.toLowerCase() === 'admin' && clave === 'admin'
       onSuccess(session, { forcePasswordChange })
       return
     }
 
-    // auth.js:281 — si el intento era automático, el fallo se traga: se deja el
-    // formulario limpio en vez de una alerta que el usuario no ha provocado.
+    // auth.js:281 — if the attempt was automatic, the failure is swallowed: the
+    // form is left clean instead of an alert the user did not cause.
     if (auto) {
       userRef.current?.focus()
       return
@@ -179,7 +179,7 @@ export function Login({
     }
   }
 
-  /** auth.js:70-74 — al alcanzar los 6 caracteres se envía solo. */
+  /** auth.js:70-74 — on reaching 6 characters it submits itself. */
   function onTotpInput(value: string) {
     setTotp(value)
     if (value.length === 6) void submit(value)
@@ -235,8 +235,8 @@ export function Login({
           </Button>
         </form>
 
-        {/* En upstream el enlace va ANTES del bloque de SSO, y el «or login
-            with» sólo aparece si hay SSO (index.html:119-124). */}
+        {/* In upstream the link goes BEFORE the SSO block, and the "or login
+            with" only appears if there is SSO (index.html:119-124). */}
         <div className={styles.sso}>
           <button type="button" className={styles.enlace} onClick={() => setOlvido(true)}>
             Forgot Password?
@@ -253,8 +253,8 @@ export function Login({
         </div>
       </div>
 
-      {/* El pie de upstream se ve también en su pantalla de login, porque cuelga
-          del `body` y no del panel. Ver `app/pie.ts`. */}
+      {/* Upstream's footer shows on its login screen too, because it hangs off
+          the `body` and not the panel. See `app/pie.ts`. */}
       <PieDeEnlaces className={styles.pie} />
 
       <ForgotPassword open={olvido} onOpenChange={setOlvido} />

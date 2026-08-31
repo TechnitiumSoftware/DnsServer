@@ -10,19 +10,18 @@ import { Avisador } from '../../ui/Avisador'
 import { Confirmar } from '../../ui/Confirmar'
 
 /*
-Réplica de `modalStoreApps` (index.html:6148-6183) y de las tres acciones que
-salen de él: `installStoreApp`, `updateStoreApp` con `isModal` a true y
+A replica of `modalStoreApps` (index.html:6148-6183) and of the three actions
+that come out of it: `installStoreApp`, `updateStoreApp` with `isModal` true and
 `uninstallStoreApp` (apps.js:137-328).
 
-Los avisos de estas tres van DENTRO del modal, no en la página: upstream les
-pasa `divStoreAppsAlert` como placeholder. Los de la pestaña (instalar por zip,
-desinstalar desde la tarjeta, guardar config) van en la página. La diferencia se
-conserva.
+The alerts of these three go INSIDE the modal, not on the page: upstream passes
+them `divStoreAppsAlert` as a placeholder. The tab's ones (install by zip,
+uninstall from the card, save config) go on the page. The difference is kept.
 
-Upstream, tras una acción, retoca la fila a mano: esconde «Install», enseña
-«Uninstall»... Aquí se vuelve a pedir la lista. El resultado visible es el mismo
-y evita el desfase de upstream, donde `installedApp` viene sin los campos de
-actualización y la fila recién puesta se queda sin su botón «Store Update».
+Upstream, after an action, patches the row by hand: hides "Install", shows
+"Uninstall"… Here the list is asked for again. The visible result is the same and
+it avoids upstream's lag, where `installedApp` comes without the update fields
+and the freshly placed row is left without its "Store Update" button.
 */
 export function StoreApps({
   open,
@@ -96,11 +95,11 @@ export function StoreApps({
   }
 
   /*
-  apps.js:292-294 — misma confirmación literal que la de la pestaña.
+  apps.js:292-294 — the same literal confirmation as the tab's.
 
-  Se apila sobre este diálogo, que es lo que hace Radix con un modal dentro de
-  otro. Antes era el `confirm()` nativo del navegador, el único paso de esta
-  consola que seguía abriendo el diálogo del sistema operativo.
+  It stacks over this dialog, which is what Radix does with a modal inside
+  another. Before it was the browser's native `confirm()`, the only step of this
+  console that still opened the operating system's dialog.
   */
   function desinstalar(app: StoreApp) {
     return tras(
@@ -141,7 +140,7 @@ export function StoreApps({
           <ul className={styles.store}>
             {storeApps.map((app) => {
               const hayUpdate = app.installed && app.updateAvailable === true
-              // apps.js:164 — instalada enseña SU versión; sin instalar, la de la tienda.
+              // apps.js:164 — installed shows ITS version; not installed, the store's.
               const version = app.installed ? (app.installedVersion ?? app.version) : app.version
               return (
                 <li key={app.name} className={styles.srow} aria-label={app.name}>

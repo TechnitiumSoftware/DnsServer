@@ -6,28 +6,29 @@ import type { AlertType } from '../../ui/Alert'
 import { avisoDeFallo } from '../../lib/aviso'
 
 /*
-El menú «Blocking» del Dashboard.
+The Dashboard's "Blocking" menu.
 
-Upstream lo pone en la cabecera de «Top Blocked Domains»
-(`btnDashboardBlockingOptions`, index.html) y aquí no estaba: apagar el bloqueo
-un rato desde el Dashboard es de las cosas que más se hacen en esta consola —lo
-típico es que una página no cargue por culpa de una lista— y obligaba a irse a
-Settings › Blocking a buscarlo.
+Upstream puts it in the header of "Top Blocked Domains"
+(`btnDashboardBlockingOptions`, index.html) and here it was missing: turning
+blocking off for a while from the Dashboard is one of the things most often done
+in this console —the typical case is a page not loading because of a list— and it
+forced a trip to Settings › Blocking to find it.
 
-Dos detalles de conducta que se copian tal cual:
+Two behavioural details copied as they are:
 
-- El estado se pregunta AL ABRIR el menú, no al pintar la pantalla
-  (`main.js:2429`): entre una cosa y otra el ajuste puede haber cambiado desde
-  otra pestaña, y enseñar «Enable Blocking» con el bloqueo ya encendido es peor
-  que tardar 100 ms.
-- Sale «Enable» o «Disable», nunca los dos. Mientras no se sabe, ninguno.
+- The state is asked for ON OPENING the menu, not when drawing the screen
+  (`main.js:2429`): between the two the setting may have changed from another
+  tab, and showing "Enable Blocking" with blocking already on is worse than
+  taking 100 ms.
+- Either "Enable" or "Disable" comes out, never both. While it is not known,
+  neither.
 
-Los textos de confirmación y de aviso son los literales de upstream
-(`main.js:2448-2496`). Lo que cambia es la forma de preguntar: allí es un
-`confirm()` del navegador y aquí el diálogo de la consola.
+The confirmation and alert texts are upstream's literals
+(`main.js:2448-2496`). What changes is the way of asking: there it is a browser
+`confirm()` and here the console's dialog.
 */
 
-/** Los ocho plazos de upstream, con su rótulo exacto. */
+/** Upstream's eight durations, with their exact labels. */
 const PLAZOS: { minutos: number; rotulo: string }[] = [
   { minutos: 1, rotulo: 'Disable Blocking For 1 Minute' },
   { minutos: 2, rotulo: 'Disable Blocking For 2 Minutes' },
@@ -72,8 +73,8 @@ export function MenuBloqueo({
       variante: encender ? 'primary' : 'danger',
       hacer: async () => {
         const r = await setSettings(token, { enableBlocking: String(encender) })
-        // El mismo texto que las otras treinta y seis: era la única que decía
-        // «Session expired.» a secas para esta misma condición.
+        // The same text as the other thirty-six: it was the only one that said
+        // a bare "Session expired." for this very condition.
         if (r.kind !== 'ok') throw new Error(avisoDeFallo(r).text)
         setActivo(encender)
         onAviso({

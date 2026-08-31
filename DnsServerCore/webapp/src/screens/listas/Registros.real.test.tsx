@@ -6,24 +6,24 @@ import type { NodoLista, RegistroDns } from '../../api/zonelists'
 import muestra from './muestra-real.json'
 
 /*
-La prueba que sostiene toda la fase.
+The test that holds up the whole phase.
 
-Upstream vuelca el JSON entero dentro de un `<pre>`; nosotros lo pintamos como
-tabla. Eso sólo es legítimo si NO se pierde ni un campo por el camino, y eso no
-se puede comprobar con un registro inventado: hay que hacerlo con la respuesta
-de verdad.
+Upstream dumps the entire JSON inside a `<pre>`; we draw it as a table. That is
+only legitimate if NOT a single field is lost along the way, and that cannot be
+checked with an invented record: it has to be done with the real response.
 
-`muestra-real.json` son cinco nodos capturados de una instancia v15.4 (la de
-`dev/`, en 127.0.0.1:5381) con `cache/list` y `allowed/list`: la raíz, `com`,
-`example.com`, `technitium.com` y un nodo de la lista de permitidos. Entre los
-cinco salen A, NS, SOA, DS y DNSKEY, y aparecen `responseMetadata`,
+`muestra-real.json` is five nodes captured from a v15.4 instance (the one in
+`dev/`, at 127.0.0.1:5381) with `cache/list` and `allowed/list`: the root, `com`,
+`example.com`, `technitium.com` and a node from the allowed list. Between the
+five, A, NS, SOA, DS and DNSKEY come out, and `responseMetadata`,
 `nameServerMetadata`, `dnssecRecords`, `glueRecords`, `disabled`, `lastModified`
-y `expiryTtl`. Para volver a capturarla: ver el bloque de curl de CONVENCIONES.md.
+and `expiryTtl` appear. To capture it again: see the curl block in
+CONVENCIONES.md.
 */
 
 const NODOS = muestra as unknown as Record<string, NodoLista>
 
-/** Todos los valores escalares de un objeto, en profundidad. */
+/** Every scalar value of an object, in depth. */
 function hojas(o: unknown): string[] {
   if (o == null) return []
   if (Array.isArray(o)) return o.flatMap(hojas)
@@ -36,11 +36,11 @@ async function pintarTodo(nodo: NodoLista, conDnssec: boolean) {
   const { container } = render(
     <Registros records={nodo.records} conDnssec={conDnssec} nodo={nodo.domain} />,
   )
-  // Los valores largos salen truncados: se despliegan todos antes de mirar.
+  // The long values come out truncated: they are all expanded before looking.
   for (const b of screen.queryAllByRole('button', { name: 'show full' })) {
     await userEvent.click(b)
   }
-  // Y las firmas DNSSEC y los glue records viven tras su botón.
+  // And the DNSSEC signatures and the glue records live behind their button.
   for (const nombre of ['RRSIG', 'Glue']) {
     for (const b of screen.queryAllByRole('button', { name: nombre })) {
       await userEvent.click(b)
@@ -98,9 +98,9 @@ describe('la tabla no pierde nada del JSON real', () => {
 })
 
 /*
-Los tres únicos campos que NO salen con su valor literal, y por qué. Están aquí
-escritos a propósito: si algún día alguien cambia el criterio, esta prueba se lo
-recuerda.
+The only three fields that do NOT come out with their literal value, and why.
+They are written here on purpose: if some day someone changes the criterion, this
+test reminds them.
 */
 describe('los tres campos que se dicen de otra forma', () => {
   it('la marca de tiempo completa se recorta a minutos, pero se conserva entera en el title', async () => {
@@ -127,9 +127,9 @@ describe('los tres campos que se dicen de otra forma', () => {
 })
 
 /*
-La red de seguridad de verdad: no basta con que salgan los campos que hoy
-conocemos, tiene que salir CUALQUIER campo. Si el servidor añade uno mañana,
-`extras` lo pinta solo y esta prueba lo demuestra sobre un registro real.
+The real safety net: it is not enough for the fields we know today to come out,
+ANY field has to. If the server adds one tomorrow, `extras` draws it on its own
+and this test proves it over a real record.
 */
 describe('un campo que el servidor añada mañana', () => {
   it('aparece sin tocar nada', async () => {

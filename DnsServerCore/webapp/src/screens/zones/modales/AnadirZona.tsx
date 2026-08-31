@@ -27,13 +27,13 @@ import { avisoDeFallo } from '../../../lib/aviso'
 import { Avisador } from '../../../ui/Avisador'
 
 /*
-`modalAddZone` (zone.js:2726 y 2911). Ocho tipos de zona, cada uno con su
-formulario. La decisión de qué se ve y qué viaja está en `anadir-zona.ts`, que
-se prueba sin montar nada.
+`modalAddZone` (zone.js:2726 and 2911). Eight zone types, each with its own form.
+The decision about what shows and what travels is in `anadir-zona.ts`, which
+tests without mounting anything.
 
-El catálogo sólo se ofrece **si el servidor devolvió alguno**: upstream marca el
-desplegable con `hasItems` y las ramas del `switch` lo comprueban antes de
-mostrarlo. Un servidor sin zonas de catálogo no enseña ese campo en absoluto.
+The catalog is only offered **if the server returned one**: upstream marks the
+dropdown with `hasItems` and the `switch`'s branches check it before showing it.
+A server with no catalog zones does not show that field at all.
 */
 
 export function AnadirZona({
@@ -48,7 +48,7 @@ export function AnadirZona({
   abierto: boolean
   token: string | null
   node?: string
-  /** Ambos heredan del ajuste global de Settings, no de `false`. */
+  /** Both inherit from Settings' global setting, not from `false`. */
   useSoaSerialDateScheme: boolean
   dnssecValidation: boolean
   onCerrar: () => void
@@ -106,7 +106,7 @@ export function AnadirZona({
     }
 
     onCerrar()
-    // Upstream abre la zona recién creada, no vuelve a la lista.
+    // Upstream opens the newly created zone, it does not go back to the list.
     onCreada(outcome.data.response.domain, {
       type: 'success',
       title: 'Zone Added!',
@@ -155,11 +155,11 @@ export function AnadirZona({
                 onChange={() => cambiarTipo(t.valor)}
               />
               {/*
-              `.chk` es `display:flex`, así que cada hijo del rótulo es un
-              ítem: sin este `span` el enlace y los paréntesis se separaban en
-              tres cajas —«Secondary ROOT Zone ( RFC 8806 )»— y el enlace
-              dejaba de estar dentro de una frase, que es lo que le da la
-              excepción de tamaño de objetivo. Envuelto, vuelve a ser texto.
+              `.chk` is `display:flex`, so every child of the label is an item:
+              without this `span` the link and the brackets split into three boxes
+              —"Secondary ROOT Zone ( RFC 8806 )"— and the link stopped being
+              inside a sentence, which is what grants it the target-size
+              exception. Wrapped, it is text again.
               */}
               <span>
                 {t.etiqueta}
@@ -321,8 +321,8 @@ export function AnadirZona({
               ))}
             </GroupRow>
 
-            {/* Dos párrafos de ayuda: los dos de upstream, uno sobre «This Server» y
-                otro sobre añadir más reenviadores después. */}
+            {/* Two help paragraphs: upstream's two, one about "This Server" and
+                another about adding more forwarders later. */}
             <Row
               modal
               label="Forwarder"
@@ -373,7 +373,7 @@ export function AnadirZona({
               </label>
             </GroupRow>
 
-            {/* «this-server» no admite proxy: upstream esconde el bloque entero. */}
+            {/* "this-server" takes no proxy: upstream hides the whole block. */}
             {!f.usarEsteServidor && (
               <GroupRow modal label="Network Proxy">
                 {TIPOS_PROXY.map((p) => (
@@ -440,7 +440,7 @@ export function AnadirZona({
           </>
         )}
 
-        {/* Upstream cierra este diálogo con su enlace de ayuda (`modalAddZone`). */}
+        {/* Upstream closes this dialog with its help link (`modalAddZone`). */}
         <Ayuda href="https://blog.technitium.com/2022/06/how-to-self-host-your-own-domain-name.html">
           Help: How To Self Host Your Own Domain Name
         </Ayuda>

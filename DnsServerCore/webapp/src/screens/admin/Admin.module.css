@@ -1,22 +1,22 @@
-/* Administration. Seis sub-pestañas: cuatro tablas, un formulario y el cluster.
-   La cabecera, la tabla y las etiquetas repiten las de Listas para que las
-   cuatro tablas de la consola se lean igual; el formulario de SSO repite las
-   filas `210px 1fr` de Settings por el mismo motivo. */
+/* Administration. Six sub-tabs: four tables, one form and the cluster. The
+   header, the table and the labels repeat the ones in Lists so that the
+   console's four tables read the same; the SSO form repeats Settings' `210px 1fr`
+   rows for the same reason. */
 
 
 .mono { composes: mono from '../../ui/texto.module.css'; }
 .nowrap { white-space:nowrap; }
 
 
-/* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
+/* The count is `ui/recuento.module.css`'s: see there for why. */
 .count { composes: barra debajo from '../../ui/recuento.module.css'; }
 
-/* El nombre de usuario / grupo / sección de la primera columna abre su ficha. */
+/* The first column's user / group / section name opens its record. */
 .link { composes: entidadEnlace from '../../ui/Table.module.css'; word-break: break-all; }
 
 .nodo { font-size: var(--t-4); padding: var(--s-3) var(--s-6); border:1px solid var(--line); border-radius: var(--r-2); background:var(--field); color:var(--ink); }
 
-/* Permissions: una tarjeta por sección, con las dos tablas en dos columnas. */
+/* Permissions: one card per section, with the two tables in two columns. */
 .perm { margin-bottom: var(--s-8); }
 .permCols { display:grid; grid-template-columns:1fr 1fr; }
 .permCol { padding: var(--s-7) var(--s-9); min-width:0; }
@@ -29,8 +29,8 @@
 .pnone { color:var(--faint); grid-column:1 / -1; }
 .pchk { margin: 0 auto; display:block; }
 
-/* La casilla EDITABLE de la matriz: 18 px de alto, y hasta ahora sin ampliar. La
-   de lectura (`.pchk`) va deshabilitada y no es objetivo de nada. */
+/* The matrix's EDITABLE checkbox: 18 px tall, and until now not enlarged. The
+   read-only one (`.pchk`) is disabled and is no target for anything. */
 .chkPerm { composes: golpe from '../../ui/interaccion.module.css'; margin: 0 auto; display: block; }
 
 @media (max-width: 860px) {
@@ -38,7 +38,7 @@
   .permCol + .permCol { border-left:0; border-top:1px solid var(--line); }
 }
 
-/* SSO y los modales de Cluster: filas etiqueta + control, como en Settings. */
+/* SSO and the Cluster modals: label + control rows, as in Settings. */
 .block { composes: block from '../../ui/Ajustes.module.css'; }
 
 .ctlLine { composes: enLinea from '../../ui/Ajustes.module.css'; }
@@ -47,23 +47,23 @@
 .notas { composes: avisos from '../../ui/Ajustes.module.css'; }
 .group { composes: grupo from '../../ui/Form.module.css'; }
 .area { composes: area from '../../ui/Ajustes.module.css'; }
-/* Sólo el ancho: la caja del disparador la pone `ui/Select`. */
+/* The width only: the trigger's box is set by `ui/Select`. */
 .select { max-width: 420px; }
 
 /* Tabla editable dentro de un formulario: scopes y mapa de grupos de SSO. */
 /*
-La tabla editable es la de `ui/TablaEditable.module.css`. Estaba escrita aquí y
-en otros dos módulos con los mismos valores copiados a mano.
+The editable table is `ui/TablaEditable.module.css`'s. It was written here and in
+two other modules with the same values copied by hand.
 */
 .edit { composes: tabla from '../../ui/TablaEditable.module.css'; }
 
 .edit input, .edit select { width:100%; }
 .tdel { width:84px; }
-/* La misma barra de guardar que Settings y DHCP: PEGAJOSA. Sin eso, en un
-   formulario tan largo como el de SSO el botón se queda arriba al bajar. */
+/* The same save bar as Settings and DHCP: STICKY. Without that, in a form as
+   long as SSO's the button stays up top as you scroll down. */
 .bar { composes: bar from '../../ui/Ajustes.module.css'; }
 
-/* Cuerpo de modal: mismas filas, pero con la etiqueta más estrecha. */
+/* Modal body: the same rows, but with a narrower label. */
 .mval { font-size: var(--t-4); font-weight: 600; color:var(--ink); padding-top: var(--s-5); }
 .parrafo { composes: parrafo from '../../ui/texto.module.css'; }
 .sub { margin: var(--s-10) 0 var(--s-5); font-size: var(--t-4); font-weight: 550; color:var(--ink); }

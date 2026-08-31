@@ -32,15 +32,15 @@ import { avisoDeFallo } from '../../../lib/aviso'
 import { Avisador } from '../../../ui/Avisador'
 
 /*
-`modalAddEditRecord` (zone.js:4395 alta, 5295 edición). Un solo formulario para
-los 23 tipos: cambiar el desplegable «Type» sustituye los campos de abajo.
+`modalAddEditRecord` (zone.js:4395 add, 5295 edit). A single form for all 23
+types: changing the "Type" dropdown replaces the fields below.
 
-Toda la lógica de qué viaja y en qué orden se valida vive en
-`registro-form.ts`. Aquí sólo están los campos.
+All the logic about what travels and in what order it validates lives in
+`registro-form.ts`. Only the fields are here.
 
-**Editando, el tipo no se puede cambiar**: upstream deja el desplegable fijo
-porque el servidor identifica el registro por su contenido y cambiar el tipo
-sería borrar uno y crear otro.
+**On edit the type cannot be changed**: upstream leaves the dropdown fixed
+because the server identifies the record by its content and changing the type
+would be deleting one and creating another.
 */
 
 const ALGORITMOS_DS = [
@@ -59,7 +59,7 @@ export interface AnadirEditarRegistroProps {
   modo: ModoRegistro
   zone: string
   zona: ZonaDeRegistros | null
-  /** Todos los registros de la zona: hacen falta para las pistas SVCB. */
+  /** Every record in the zone: they are needed for the SVCB hints. */
   registros: Registro[]
   /** Sólo en edición. */
   original?: Registro | null
@@ -67,7 +67,7 @@ export interface AnadirEditarRegistroProps {
   node?: string
   onCerrar: () => void
   onHecho: (a: Aviso) => void
-  /** Se avisa del TTL de expiración porque el botón «Disable» de la fila lo usa. */
+  /** The expiry TTL is reported because the row's "Disable" button uses it. */
   onExpiryTtl: (v: string) => void
 }
 
@@ -89,24 +89,24 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
       setF(formularioDesdeRegistro(p.original, p.zone))
     } else {
       const inicial = formularioVacio()
-      // El primer tipo visible, no «A» a ciegas: en una Primary firmada el
-      // desplegable empieza igual, pero en una Forwarder los ocultos cambian.
+      // The first visible type, not a blind "A": on a signed Primary the
+      // dropdown starts the same, but on a Forwarder the hidden ones change.
       const primero = TIPOS_REGISTRO.find((t) => t !== 'SOA' && !ocultos.includes(t))
       inicial.type = primero ?? 'A'
       setF(inicial)
     }
     setAviso(null)
     nombreRef.current?.focus()
-    // `ocultos` se recalcula en cada render; depender de él dispararía un bucle.
+    // `ocultos` is recalculated on every render; depending on it would loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.abierto, p.modo, p.original, p.zone])
 
-  // `loadAddRecordModalAppNames`: sólo los apps que manejan registros APP.
+  // `loadAddRecordModalAppNames`: only the apps that handle APP records.
   useEffect(() => {
     if (!p.abierto || f.type !== 'APP') return
     void listApps(p.token, p.node ?? '').then((outcome) => {
       if (outcome.kind !== 'ok') return
-      // Sólo los apps que traen un manejador de registros APP (zone.js:4451).
+      // Only the apps that bring an APP record handler (zone.js:4451).
       const conManejador = (outcome.data.response.apps ?? []).filter((a) =>
         (a.dnsApps ?? []).some((d) => d.isAppRecordRequestHandler),
       )
@@ -201,7 +201,7 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
               onChange={(e) => set('type', e.target.value)}
             >
               {TIPOS_REGISTRO.filter(
-                // SOA sólo aparece editando; el resto según el tipo de zona.
+                // SOA only appears on edit; the rest according to the zone type.
                 (t) => (t === 'SOA' ? edicion : !ocultos.includes(t)),
               ).map((t) => (
                 <option key={t} value={t}>
@@ -230,7 +230,7 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
 
         <CamposDelTipo f={f} set={set} apps={apps} clases={clases} edicion={edicion} />
 
-        {/* «Overwrite» sólo existe dando de alta. */}
+        {/* "Overwrite" only exists when adding. */}
         {!edicion && (
           <label className={styles.chk}>
             <input type="checkbox" checked={f.overwrite} onChange={(e) => set('overwrite', e.target.checked)} />
@@ -682,7 +682,7 @@ MII...
     case 'APP':
       return (
         <>
-          {/* Editando, el app y su clase son de sólo lectura: sólo cambia el dato. */}
+          {/* On edit, the app and its class are read-only: only the data changes. */}
           <Field label="App Name">
             {(id) => (
               <Select

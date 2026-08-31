@@ -18,16 +18,16 @@ import type { Aviso, Confirmacion } from './tipos'
 import { Avisador } from '../../ui/Avisador'
 
 /*
-La sección Zones entera: la lista, la vista de una zona y los diez modales.
+The whole Zones section: the list, a zone's view and the ten modals.
 
-Upstream son dos `div` que se enseñan y esconden (`divViewZones` y
-`divEditZone`); aquí es un estado, `abierta`. El resto de la estructura es la
-misma a propósito: mismos modales, mismos textos, mismos pasos.
+In upstream they are two `div` shown and hidden (`divViewZones` and
+`divEditZone`); here it is a state, `abierta`. The rest of the structure is the
+same on purpose: same modals, same texts, same steps.
 
-**Los avisos viven aquí, no en cada pantalla.** En upstream `showAlert` sin
-contenedor los pinta en la barra global, y así una acción lanzada desde un modal
-que cierra el modal deja el aviso visible detrás. Con el aviso dentro de cada
-pantalla ese caso se perdería.
+**The alerts live here, not in each screen.** In upstream a `showAlert` with no
+container draws them in the global bar, so an action fired from a modal that
+closes the modal leaves the alert visible behind it. With the alert inside each
+screen that case would be lost.
 */
 
 type ModalId =
@@ -48,7 +48,7 @@ export interface ZonesProps {
   node?: string
   canModify: boolean
   canDelete: boolean
-  /** Heredan del ajuste global de Settings para el modal de alta. */
+  /** They inherit from Settings' global setting for the add modal. */
   useSoaSerialDateScheme?: boolean
   dnssecValidation?: boolean
 }
@@ -66,7 +66,7 @@ export function Zones({
   const [confirmacion, setConfirmacion] = useState<Confirmacion | null>(null)
   const [modal, setModal] = useState<ModalId | null>(null)
 
-  /** La zona sobre la que actúa el modal abierto; puede no ser la que se ve. */
+  /** The zone the open modal acts on; it may not be the one on screen. */
   const [zonaModal, setZonaModal] = useState('')
   const [tipoModal, setTipoModal] = useState('')
 
@@ -76,10 +76,10 @@ export function Zones({
   const [registroOriginal, setRegistroOriginal] = useState<Registro | null>(null)
 
   /*
-  El TTL de expiración que queda en el modal de registro. Upstream lo lee de ese
-  campo al DESHABILITAR un registro desde la fila (`updateRecordState`,
-  zone.js:6236), así que el valor sobrevive al cierre del modal. Es un fallo
-  suyo; se replica porque la regla es cero cambios de comportamiento.
+  The expiry TTL left over in the record modal. Upstream reads it from that
+  field when DISABLING a record from the row (`updateRecordState`,
+  zone.js:6236), so the value survives the modal's closing. It is a bug of
+  theirs; it is replicated because the rule is zero behaviour changes.
   */
   const [expiryTtlDelModal, setExpiryTtlDelModal] = useState('')
 
@@ -95,7 +95,7 @@ export function Zones({
     setModal(id)
   }
 
-  /** Tras un modal que muta: refresca lo que esté delante. */
+  /** After a mutating modal: refreshes whatever is in front. */
   function hecho(a: Aviso) {
     setAviso(a)
     if (abierta == null) releerLista()

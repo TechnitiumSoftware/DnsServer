@@ -1,22 +1,23 @@
 /*
-El rango personalizado del Dashboard.
+The Dashboard's custom range.
 
-`Custom` era un botón muerto: se marcaba como pulsado, las baldosas se quedaban
-en «—» y no aparecía por ninguna parte dónde poner las fechas. La capa de API ya
-aceptaba `{start, end}` desde el principio; lo que faltaba era pedirlas.
+`Custom` was a dead button: it marked itself as pressed, the tiles stayed at "—"
+and nowhere did it appear where to put the dates. The API layer already accepted
+`{start, end}` from the beginning; what was missing was asking for them.
 
-Lo raro está aquí, en una función pura, porque es lo único de todo esto que
-tiene una regla que merece prueba: **cómo se convierte una fecha en instante**.
+The odd part is here, in a pure function, because it is the only thing in all of
+this with a rule worth testing: **how a date is turned into an instant**.
 
-Upstream (`main.js:2604-2612`) hace algo que parece un descuido y no lo es: si el
-rango cabe en siete días o menos, interpreta las fechas en la zona LOCAL del
-navegador; si es más largo, en UTC. La razón es que por debajo de una semana el
-servidor devuelve estadística por horas —y las horas hay que alinearlas con el
-reloj de quien mira—, y por encima devuelve por días, que el servidor agrupa en
-UTC. Interpretarlo todo igual desplazaría una de las dos vistas.
+Upstream (`main.js:2604-2612`) does something that looks like an oversight and is
+not: if the range fits in seven days or fewer, it reads the dates in the
+browser's LOCAL zone; if it is longer, in UTC. The reason is that under a week
+the server returns statistics by the hour —and hours have to line up with the
+clock of whoever is looking— and above that it returns them by day, which the
+server groups in UTC. Reading it all the same way would shift one of the two
+views.
 */
 
-/** Los dos instantes ISO que espera la API, con la regla de los siete días. */
+/** The two ISO instants the API expects, with the seven-day rule. */
 export function instantesDelRango(inicio: string, fin: string): { start: string; end: string } {
   const dias = (Date.parse(`${fin}T00:00:00Z`) - Date.parse(`${inicio}T00:00:00Z`)) / 86_400_000 + 1
   const aIso = (d: string) => new Date(dias > 7 ? `${d}T00:00:00Z` : `${d}T00:00:00`).toISOString()
@@ -24,8 +25,8 @@ export function instantesDelRango(inicio: string, fin: string): { start: string;
 }
 
 /**
- * Lo que falta por rellenar, con el texto literal de upstream
- * (`main.js:2591-2601`). `null` cuando el rango está completo.
+ * What is still to be filled in, with upstream's literal text
+ * (`main.js:2591-2601`). `null` when the range is complete.
  */
 export function loQueFalta(inicio: string, fin: string): string | null {
   if (inicio === '') return 'Please select a start date.'

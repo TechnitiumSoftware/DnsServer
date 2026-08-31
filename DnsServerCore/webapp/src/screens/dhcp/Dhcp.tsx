@@ -2,18 +2,18 @@ import { Leases } from './Leases'
 import { Scopes } from './Scopes'
 
 /*
-DHCP. Dos sub-pestañas, con las etiquetas literales de upstream
-(index.html:2496-2497): «Leases» y «Scopes».
+DHCP. Two sub-tabs, with upstream's literal labels (index.html:2496-2497):
+"Leases" and "Scopes".
 
-La sub-navegación NO se monta aquí: vive en el panel lateral del Shell, igual
-que la de Settings, y llega por la prop `sub`. A diferencia de Settings, las dos
-sub-pestañas son pantallas independientes —cada una con su propia carga y su
-propio estado—, así que sí se pueden trocear: en upstream son dos funciones
-distintas, `refreshDhcpLeases` y `refreshDhcpScopes`, y no comparten formulario.
+The sub-navigation is NOT mounted here: it lives in the Shell's side panel, just
+like Settings', and arrives through the `sub` prop. Unlike Settings, the two
+sub-tabs are independent screens —each with its own loading and its own state— so
+they can be split up: in upstream they are two different functions,
+`refreshDhcpLeases` and `refreshDhcpScopes`, and they share no form.
 
-El selector de nodo del clúster de upstream (`optDhcpClusterNode`) no se monta:
-esta consola aún no tiene modo clúster. El parámetro `node` viaja igual, vacío,
-en las diez llamadas, que es lo que manda upstream con un solo servidor.
+Upstream's cluster node selector (`optDhcpClusterNode`) is not mounted: this
+console has no cluster mode yet. The `node` parameter travels all the same,
+empty, on all ten calls, which is what upstream sends with a single server.
 */
 
 export const SUBPESTANAS = ['Leases', 'Scopes'] as const
@@ -21,17 +21,17 @@ export type Subpestana = (typeof SUBPESTANAS)[number]
 
 export interface DhcpProps {
   token: string | null
-  /** Sub-pestaña activa, la que marca el panel lateral del Shell. */
+  /** The active sub-tab, the one the Shell's side panel marks. */
   sub?: string | null
-  /** Existe por simetría con Settings; esta pantalla nunca fuerza un cambio. */
+  /** It exists for symmetry with Settings; this screen never forces a change. */
   onSubChange?: (sub: Subpestana) => void
-  /** `DhcpServer.canModify`: guardar un scope, habilitarlo, deshabilitarlo y
-   *  convertir una concesión (`WebServiceDhcpApi.cs:379,708,733,805,835`). */
+  /** `DhcpServer.canModify`: saving a scope, enabling it, disabling it and
+   *  converting a lease (`WebServiceDhcpApi.cs:379,708,733,805,835`). */
   canModify?: boolean
-  /** `DhcpServer.canDelete`: borrar un scope y quitar una concesión
-   *  (`WebServiceDhcpApi.cs:761,775`). Ojo: NO es `canModify`. */
+  /** `DhcpServer.canDelete`: deleting a scope and removing a lease
+   *  (`WebServiceDhcpApi.cs:761,775`). Careful: it is NOT `canModify`. */
   canDelete?: boolean
-  /** Nodo del clúster. Vacío significa «este servidor». */
+  /** The cluster node. Empty means "this server". */
   node?: string
 }
 

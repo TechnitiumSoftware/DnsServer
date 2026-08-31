@@ -47,19 +47,19 @@ import { avisoDeFallo } from '../../../lib/aviso'
 import { Avisador } from '../../../ui/Avisador'
 
 /*
-`modalDnssecProperties` (zone.js:6799-7400). Es la pantalla más viva del
-proyecto: nueve acciones distintas sobre las claves, cada una con su aviso.
+`modalDnssecProperties` (zone.js:6799-7400). It is the project's liveliest
+screen: nine different actions on the keys, each with its own alert.
 
-Dos cosas que se replican y sorprenden:
+Two things that are replicated and come as a surprise:
 
-  · **Qué acciones ofrece una clave depende de su estado Y de su tipo.** Una ZSK
-    en cualquier estado activo enseña el campo de rollover automático; una KSK,
-    nunca. «Activate» sólo existe para una clave `Ready`. Y una clave que ya se
-    está retirando (`isRetiring`) no ofrece nada.
+  · **Which actions a key offers depends on its state AND on its type.** A ZSK in
+    any active state shows the automatic rollover field; a KSK, never.
+    "Activate" only exists for a `Ready` key. And a key that is already retiring
+    (`isRetiring`) offers nothing.
 
-  · **El botón «Change» de la prueba de no-existencia a veces no llama a nadie**
-    y aun así pinta el aviso de éxito. La tabla de decisión está en
-    `api/dnssec.ts::planNxProof`, probada aparte.
+  · **The proof-of-non-existence "Change" button sometimes calls nobody** and
+    still draws the success alert. The decision table is in
+    `api/dnssec.ts::planNxProof`, tested separately.
 */
 
 
@@ -88,7 +88,7 @@ export function PropiedadesDnssec({
   node?: string
   onCerrar: () => void
   onConfirmar: (c: Confirmacion) => void
-  /** La zona hay que releerla: firmar y cambiar la prueba tocan sus registros. */
+  /** The zone has to be re-read: signing and changing the proof touch its records. */
   onCambio: () => void
 }) {
   const [props, setProps] = useState<Propiedades | null>(null)
@@ -138,7 +138,7 @@ export function PropiedadesDnssec({
     void cargar()
   }, [abierto, cargar])
 
-  /** Ejecuta, pinta el aviso literal y recarga si hace falta. */
+  /** Runs it, draws the literal alert and reloads if needed. */
   async function accion(
     fn: () => Promise<{ kind: string; message?: string }>,
     exito: Aviso,
@@ -166,7 +166,7 @@ export function PropiedadesDnssec({
         title: 'Updated!',
         text: 'The DNSKEY automatic rollover config was updated successfully.',
       },
-      // Upstream NO refresca la tabla aquí: sólo pinta el aviso.
+      // Upstream does NOT refresh the table here: it only draws the alert.
       { recargar: false },
     )
   }
@@ -283,7 +283,7 @@ export function PropiedadesDnssec({
       text: 'The proof of non-existence was changed successfully.',
     }
 
-    // Sin cambio real no se llama a nadie… y el aviso de éxito sale igual.
+    // With no real change nobody is called… and the success alert comes out anyway.
     if (plan.accion === 'ninguna') {
       setAviso(exito)
       return
@@ -666,8 +666,8 @@ function claveNuevaInicial(): ClaveNueva {
 }
 
 /**
- * Qué botones ofrece una clave. **`isRetiring` lo apaga todo**: una clave que
- * ya se está retirando no admite ninguna acción (zone.js:6906-6930).
+ * Which buttons a key offers. **`isRetiring` switches everything off**: a key
+ * that is already retiring takes no action at all (zone.js:6906-6930).
  */
 export function accionesDeClave(k: ClavePrivada): {
   borrar: boolean
@@ -684,12 +684,12 @@ export function accionesDeClave(k: ClavePrivada): {
     activar: k.state === 'Ready' && !k.isRetiring,
     rollover: (k.state === 'Ready' || k.state === 'Active') && !k.isRetiring,
     retirar: (k.state === 'Ready' || k.state === 'Active') && !k.isRetiring,
-    // Sólo las ZSK tienen rollover automático, y sólo mientras están en curso.
+    // Only ZSKs have automatic rollover, and only while they are in flight.
     rolloverAutomatico: zsk && enCurso && !k.isRetiring,
   }
 }
 
-/** Las tres notas al pie, que aparecen según los estados de las claves. */
+/** The three footnotes, which appear according to the keys' states. */
 export function notasDeEstado(claves: ClavePrivada[]): string[] {
   const notas: string[] = []
 

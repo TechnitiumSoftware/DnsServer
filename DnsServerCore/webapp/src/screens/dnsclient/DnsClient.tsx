@@ -12,10 +12,10 @@ import { avisoDeFallo } from '../../lib/aviso'
 import { Avisador } from '../../ui/Avisador'
 
 /*
-Réplica de `resolveQuery()` (dnsclient.js:95-210). Los dos botones llaman al
-mismo endpoint: «Import» sólo añade `import=true`.
+A replica of `resolveQuery()` (dnsclient.js:95-210). Both buttons call the same
+endpoint: "Import" only adds `import=true`.
 
-Los textos de aviso son literales de upstream.
+The alert texts are upstream literals.
 */
 interface AlertState { type: AlertType; title: string; text: string }
 
@@ -28,20 +28,20 @@ export function DnsClient({ token }: { token: string | null }) {
   const [dnssec, setDnssec] = useState(true)
   const [salida, setSalida] = useState<string | null>(null)
   /*
-  Las respuestas en crudo de cada salto de la resolución.
+  The raw responses of each hop of the resolution.
 
-  Upstream las enseña en el segundo panel de su acordeón —«Raw Responses (N)»,
-  plegado y oculto si no hay ninguna (`dnsclient.js:178-194`)— y aquí faltaba
-  entero: el tipo de la API ya declaraba `rawResponses`, pero no lo pintaba
-  nadie. Es lo que deja ver qué contestó cada servidor por el camino cuando una
-  consulta recursiva sale mal, que es justo cuando se abre esta pantalla.
+  Upstream shows them in the second panel of its accordion —"Raw Responses (N)",
+  collapsed and hidden if there are none (`dnsclient.js:178-194`)— and here it was
+  missing entirely: the API type already declared `rawResponses`, but nobody drew
+  it. It is what lets you see what each server answered along the way when a
+  recursive query goes wrong, which is exactly when this screen gets opened.
   */
   const [crudas, setCrudas] = useState<unknown[]>([])
   const [alert, setAlert] = useState<AlertState | null>(null)
   const [busy, setBusy] = useState(false)
 
   async function lanzar(importar: boolean) {
-    // El orden es el de upstream: extraer primero, comprobar después.
+    // The order is upstream's: extract first, check afterwards.
     const preparado = prepararServidor(server, protocol)
 
     if (preparado.server === '') {
@@ -95,10 +95,10 @@ export function DnsClient({ token }: { token: string | null }) {
       <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
 
       {/*
-      La barra de consulta usaba etiquetas hechas a mano con `style` en línea
-      —`fontSize: 11`, `gap: 5`, `marginBottom: 1`— en vez de los campos del
-      sistema. Eran seis valores fuera de la escala en una sola pantalla, y por
-      eso los rótulos de «Type» y «DNS-over-» no casaban con los de al lado.
+      The query bar used labels made by hand with inline `style` —`fontSize: 11`,
+      `gap: 5`, `marginBottom: 1`— instead of the system's fields. They were six
+      values off the scale on a single screen, and that is why the "Type" and
+      "DNS-over-" labels did not match the ones next to them.
       */}
       <div className={styles.filt}>
         <div className={styles.ancho}>

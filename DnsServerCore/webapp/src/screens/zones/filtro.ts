@@ -1,23 +1,22 @@
 import type { Registro } from '../../api/registros'
 
 /*
-El filtro de la tabla de registros (`showEditZonePage`, zone.js:3524-3570).
-Es del cliente, no del servidor, porque `zones/records/get` trae la zona entera.
+The records table's filter (`showEditZonePage`, zone.js:3524-3570). It is the
+client's, not the server's, because `zones/records/get` brings the whole zone.
 
-Tres reglas que no son evidentes y que se replican tal cual:
+Three rules that are not obvious and that are replicated as they are:
 
-  1. **Sin comodín, la comparación es exacta**, no «contiene». Escribir `www`
-     no encuentra `www.sub`: hay que escribir `www*`.
+  1. **Without a wildcard the comparison is exact**, not "contains". Typing `www`
+     does not find `www.sub`: you have to type `www*`.
 
-  2. **`@` significa el ápice de la zona**, y en la raíz significa el nombre
-     vacío.
+  2. **`@` means the zone's apex**, and at the root it means the empty name.
 
-  3. **Un filtro que empieza por `*` busca el registro comodín literal.** Es la
-     línea que más parece un error y no lo es: tras convertir el glob a regex,
-     si la expresión empieza por `.*\.` upstream la reescribe a `\*\.`, o sea,
-     un asterisco literal. Sirve para encontrar el registro `*.zona`, que en DNS
-     se llama así de verdad. Sin esa línea, escribir `*` listaría todo; con
-     ella, lista sólo el comodín. Se conserva.
+  3. **A filter starting with `*` looks for the literal wildcard record.** It is
+     the line that most looks like a bug and is not: after converting the glob to
+     a regex, if the expression starts with `.*\.` upstream rewrites it to
+     `\*\.`, that is, a literal asterisk. It serves to find the `*.zone` record,
+     which in DNS really is called that. Without that line, typing `*` would list
+     everything; with it, it lists only the wildcard. It is kept.
 */
 
 export interface Filtro {
@@ -25,7 +24,7 @@ export interface Filtro {
   tipo: string
 }
 
-/** Traduce el filtro de nombre al dominio o a la expresión que se comparará. */
+/** Translates the name filter into the domain or the expression to compare against. */
 export function compilarFiltroDeNombre(
   filterName: string,
   zone: string,
@@ -50,16 +49,16 @@ export function compilarFiltroDeNombre(
   patron = patron.replace(/\*/g, '.*')
   patron = patron.replace(/\?/g, '.')
 
-  // Ver la regla 3 de la cabecera: `.*\.` al principio es un asterisco literal.
+  // See rule 3 of the header: `.*\.` at the start is a literal asterisk.
   if (patron.startsWith('.*\\.')) patron = `\\*${patron.substring(2)}`
 
   return { dominio, regex: new RegExp(`^${patron}$`) }
 }
 
 /**
- * Aplica los dos filtros. El de tipo es exacto y en mayúsculas; el de nombre,
- * lo que devuelva `compilarFiltroDeNombre`. Necesita la zona porque sin ella no
- * se puede resolver `@`.
+ * Applies both filters. The type one is exact and uppercased; the name one,
+ * whatever `compilarFiltroDeNombre` returns. It needs the zone because without
+ * it `@` cannot be resolved.
  */
 export function filtrar(registros: Registro[], filtro: Filtro, zone: string): Registro[] {
   const { nombre, tipo } = filtro

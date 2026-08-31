@@ -20,20 +20,20 @@ import { Avisador } from '../../ui/Avisador'
 /*
 Logs › View Logs (logs.js:105-268).
 
-Cuatro cosas de upstream que gobiernan esta pantalla:
+Four things from upstream that govern this screen:
 
-  1. **Las tres acciones de borrado NO son de la misma sección.** «delete all
-     logs» y borrar un fichero piden `Logs.Delete`; «delete all stats» borra las
-     estadísticas del Dashboard y pide `Dashboard.Delete`
-     (`WebServiceLogsApi.cs:107,123,135`). Están juntas en la pantalla y son
-     permisos distintos.
-  2. **«delete all stats» se ofrece SIEMPRE; «delete all logs» sólo si hay
-     ficheros** (logs.js:119-127). Sin ficheros sale «No Log File Was Found».
-  3. **El visor pide sólo 2 MB** y el botón «Download» el fichero entero; son
-     dos llamadas distintas al mismo endpoint.
-  4. **Un error del servidor se pinta DENTRO del visor**, formateado como JSON,
-     en vez de como aviso (logs.js:170-172). No es un descuido: el endpoint
-     devuelve texto y la única forma de enseñar el error es en el mismo hueco.
+  1. **The three delete actions are NOT of the same section.** "delete all logs"
+     and deleting a file ask for `Logs.Delete`; "delete all stats" deletes the
+     Dashboard's statistics and asks for `Dashboard.Delete`
+     (`WebServiceLogsApi.cs:107,123,135`). They sit together on the screen and
+     they are different permissions.
+  2. **"delete all stats" is ALWAYS offered; "delete all logs" only if there are
+     files** (logs.js:119-127). With no files it says "No Log File Was Found".
+  3. **The viewer asks for only 2 MB** and the "Download" button for the whole
+     file; they are two different calls to the same endpoint.
+  4. **A server error is drawn INSIDE the viewer**, formatted as JSON, instead of
+     as an alert (logs.js:170-172). It is not an oversight: the endpoint returns
+     text and the only way to show the error is in that same space.
 */
 
 
@@ -42,7 +42,7 @@ export interface ViewLogsProps {
   node?: string
   /** `Logs.canDelete`: borrar un log y borrarlos todos. */
   canDeleteLogs?: boolean
-  /** `Dashboard.canDelete`: borrar todas las estadísticas. */
+  /** `Dashboard.canDelete`: deleting all the statistics. */
   canDeleteStats?: boolean
 }
 
@@ -62,7 +62,7 @@ export function ViewLogs({
   const [ocupado, setOcupado] = useState(false)
   const [confirmar, setConfirmar] = useState<Confirmacion | null>(null)
 
-  // Un fallo al cargar no se pinta como lista vacía; ver `dhcp/Leases`.
+  // A failure on load is not drawn as an empty list; see `dhcp/Leases`.
   const cargar = useCallback(async () => {
     const r = await listLogFiles(token, node)
     if (r.kind === 'ok') {
@@ -167,13 +167,13 @@ export function ViewLogs({
       <SectionHeader
         seccion="Logs"
         titulo="View Logs"
-        acciones={<>{/* logs.js:121 — «delete all logs» sólo existe si hay ficheros. */}
+        acciones={<>{/* logs.js:121 — "delete all logs" only exists if there are files. */}
           {canDeleteLogs && ficheros.length > 0 && (
             <Button variant="danger" disabled={ocupado} onClick={() => setConfirmar('allLogs')}>
               Delete All Logs
             </Button>
           )}
-          {/* logs.js:117 — «delete all stats» se ofrece siempre. */}
+          {/* logs.js:117 — "delete all stats" is always offered. */}
           {canDeleteStats && (
             <Button variant="danger" disabled={ocupado} onClick={() => setConfirmar('allStats')}>
               Delete All Stats
