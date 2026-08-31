@@ -149,3 +149,34 @@ describe('writeRoute', () => {
     }
   })
 })
+
+/*
+El nombre del `<meta>` lo escribe el build y lo lee la aplicación, y son dos
+ficheros distintos. Los casos de arriba no pueden ver esa junta porque escriben
+el meta con el mismo nombre con el que lo leen: siempre están de acuerdo consigo
+mismos.
+
+Y esa junta se rompió de verdad. Al pasar `ruta` a `route`, `vite.config.ts`
+empezó a emitir `<meta name="route">` mientras `app/base.ts` seguía buscando
+`meta[name="ruta"]` —dentro de una cadena, que es justo donde el renombrado no
+entra—. Resultado: la raíz caía al `pathname` completo y desde `/dhcp/scopes/`
+la consola pedía `/dhcp/scopes/api/status`. 404 en 31 de las 32 rutas, con el
+typecheck, el lint y las 821 pruebas en verde.
+
+Este caso lee los dos ficheros de disco y comprueba que dicen el mismo nombre.
+*/
+describe('the `<meta>` name is the same on both sides of the build', () => {
+  it('vite.config.ts writes the one app/base.ts reads', async () => {
+    // `?raw` is Vite's own: it needs no extra dependency, and a dependency
+    // would show up in the diff of the pull request.
+    const config = (await import('../../vite.config.ts?raw')).default
+    const reader = (await import('./base.ts?raw')).default
+
+    const written = /<meta name="([^"]+)" content=/.exec(config)?.[1]
+    const read = /meta\[name="([^"]+)"\]/.exec(reader)?.[1]
+
+    expect(written, 'vite.config.ts no longer emits a route meta').toBeTruthy()
+    expect(read, 'app/base.ts no longer reads a route meta').toBeTruthy()
+    expect(read).toBe(written)
+  })
+})
