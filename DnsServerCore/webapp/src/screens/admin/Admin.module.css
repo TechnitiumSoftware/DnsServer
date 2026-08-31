@@ -12,9 +12,7 @@
 .count { composes: barra debajo from '../../ui/recuento.module.css'; }
 
 /* El nombre de usuario / grupo / sección de la primera columna abre su ficha. */
-.link {
-  composes: golpe from '../../ui/interaccion.module.css'; border:0; background:transparent; padding: 0; font:inherit; color:var(--acc); cursor:pointer; text-align:left; word-break:break-all; }
-.link:hover { text-decoration:underline; }
+.link { composes: entidadEnlace from '../../ui/Table.module.css'; word-break: break-all; }
 
 .nodo { font-size: var(--t-4); padding: var(--s-3) var(--s-6); border:1px solid var(--line); border-radius: var(--r-2); background:var(--field); color:var(--ink); }
 

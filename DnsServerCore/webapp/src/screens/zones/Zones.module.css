@@ -19,9 +19,10 @@
 /* Tabla */
 .num { color:var(--faint); font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
 
-.enlaceZona {
-  composes: golpe from '../../ui/interaccion.module.css'; border:0; background:transparent; padding: 0; font:inherit; font-weight: 600; font-family:var(--font-mono); color:var(--ink); cursor:pointer; text-align:left; word-break:break-word; }
-.enlaceZona:hover { color:var(--acc); }
+/* El nombre de una zona es un dominio: eso sí es propio de aquí, y va en la
+   celda para que el botón lo herede. */
+.celdaZona { font-family: var(--font-mono); }
+.enlaceZona { composes: entidadEnlace from '../../ui/Table.module.css'; }
 
 .ttl { composes: ttl from '../../ui/registro.module.css'; }
 

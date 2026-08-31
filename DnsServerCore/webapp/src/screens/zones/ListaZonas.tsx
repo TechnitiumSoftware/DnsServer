@@ -540,7 +540,10 @@ function FilaZona(p: FilaProps) {
         </label>
       </td>
       <td className={`${styles.num} ${tbl.numero}`}>{p.indice}</td>
-      <td className={tbl.apilada}>
+      {/* El monoespaciado va en la CELDA y el botón lo hereda: la clase
+          compartida dice `font-family: inherit` justo para esto, y ponerlo en
+          el botón dependía de qué módulo se emitiera después. */}
+      <td className={`${tbl.apilada} ${styles.celdaZona}`}>
         <button
           type="button"
           className={`${styles.enlaceZona} ${tbl.entidad}`}

@@ -68,6 +68,39 @@ que está en una columna.
   color: var(--ink);
 }
 
+/*
+El nombre propio de una fila cuando además abre su ficha.
+
+Estaba escrito dos veces y con tratamientos opuestos: en Zones el nombre es el
+nombre —tinta y negrita— y pasa a `--acc` al pasar por encima; en las tres
+tablas de Administration era `--acc` YA en reposo. Con doscientas cuarenta filas
+eso es una columna entera de ámbar, y el color deja de significar «esto se
+pulsa» justo donde tenía que significarlo. Gana el de Zones, que es además lo
+que describe `.entidad` aquí arriba.
+
+La familia monoespaciada NO entra: es de Zones porque el valor es un dominio, no
+porque sea una entidad. Y por eso aquí van LONGHANDS y no el atajo `font`:
+`font: inherit` reinicia también la familia, y como esta clase se compone desde
+otro módulo, su regla se emite después y le borraba a Zones el monoespaciado.
+Es la misma trampa que ya está anotada en `Menu.module.css`.
+*/
+.entidadEnlace {
+  composes: golpe from './interaccion.module.css';
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  word-break: break-word;
+}
+
+.entidadEnlace:hover { color: var(--acc); }
+
 /* Números: a la derecha y con cifras de ancho fijo, para que las unidades
    caigan unas encima de otras. */
 .numero {
