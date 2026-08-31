@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { apiRequest } from '../api/client'
+import { apiRequest, avisarSiCaducaLaSesion } from '../api/client'
 import { Login, type Session } from '../screens/Login'
 import { Shell, type ShellSession } from '../app/Shell'
 import { readBootIntent } from './boot'
@@ -39,6 +39,26 @@ export function SessionProvider() {
     return () => {
       cancelled = true
     }
+  }, [])
+
+  /*
+  Si el servidor rechaza la sesión en CUALQUIER llamada, se acaba aquí: se borra
+  el token y se vuelve al login, como hace upstream. Sin esto, la consola se
+  quedaba en pie con una sesión muerta.
+  */
+  useEffect(() => {
+    avisarSiCaducaLaSesion(() => {
+      localStorage.removeItem('token')
+      setState((anterior) =>
+        anterior.phase === 'login'
+          ? anterior
+          : {
+              phase: 'login',
+              alert: { type: 'danger', title: 'Error!', text: 'Session expired. Please login again.' },
+            },
+      )
+    })
+    return () => avisarSiCaducaLaSesion(null)
   }, [])
 
   const onSuccess = useCallback((session: Session) => {

@@ -117,16 +117,22 @@ export function ListaZonas({
       })
       setOcupado(false)
 
-      if (r == null) {
-        onAviso({ type: 'danger', title: 'Error!', text: 'Unable to reach the DNS server.' })
+      if (r.kind !== 'ok') {
+        onAviso({
+          type: 'danger',
+          title: 'Error!',
+          // El mensaje del servidor, no una suposición sobre la red.
+          text: r.kind === 'error' ? r.message : 'Invalid token or session expired.',
+        })
         return
       }
 
-      setZonas(r.zones)
-      setPageNumber(r.pageNumber)
-      setTotalPages(r.totalPages)
-      setTotalZones(r.totalZones)
-      setCampoPagina(String(r.pageNumber))
+      const datos = r.data
+      setZonas(datos.zones)
+      setPageNumber(datos.pageNumber)
+      setTotalPages(datos.totalPages)
+      setTotalZones(datos.totalZones)
+      setCampoPagina(String(datos.pageNumber))
       // `chkZonesTableCheckAll` se desmarca en cada refresco (zone.js:938).
       setMarcadas([])
       nombreRef.current?.focus()

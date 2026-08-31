@@ -51,6 +51,28 @@ interface Envelope {
   errorMessage?: string
 }
 
+/*
+Qué hacer cuando el servidor dice que la sesión ya no vale.
+
+Upstream termina la sesión SIEMPRE: `invalid-token` llama a `showPageLogin()`
+—que borra el token y enseña el login— en las sesenta y cuatro llamadas que lo
+declaran, y en las que no, cae al `window.location = "/"` de `common.js:147`.
+
+Aquí no lo hacía nadie. Cada pantalla enseñaba «Invalid token or session
+expired.» y se quedaba donde estaba, con la consola aparentemente usable y todas
+las acciones fallando una tras otra; para volver a entrar había que saber que
+tocaba recargar. Aparte de incómodo, es una consola de administración: no debe
+seguir en pie con una sesión que el servidor ya ha rechazado.
+
+Se resuelve en un solo sitio —aquí— y no en las treinta pantallas, porque la
+regla es una: la registra `SessionProvider`, que es quien tiene la sesión.
+*/
+let alCaducar: (() => void) | null = null
+
+export function avisarSiCaducaLaSesion(fn: (() => void) | null): void {
+  alCaducar = fn
+}
+
 export async function apiRequest<T = unknown>(
   path: string,
   opts: ApiOptions = {},
@@ -99,6 +121,7 @@ export async function apiRequest<T = unknown>(
     case 'ok':
       return { kind: 'ok', data: payload as T }
     case 'invalid-token':
+      alCaducar?.()
       return { kind: 'invalid-token' }
     case '2fa-required':
       return { kind: 'two-factor-required' }

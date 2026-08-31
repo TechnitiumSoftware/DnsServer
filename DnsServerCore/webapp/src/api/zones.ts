@@ -105,7 +105,7 @@ export async function listZones(
     zonesPerPage?: number
     node?: string
   } = {},
-): Promise<ListaZonas | null> {
+): Promise<ApiOutcome<ListaZonas>> {
   const {
     filterName = '',
     filterType = '',
@@ -123,13 +123,25 @@ export async function listZones(
       node,
     },
   })
-  if (outcome.kind !== 'ok') return null
+  /*
+  Devuelve el resultado entero y no `ListaZonas | null`.
+
+  Con `null` la pantalla no sabía POR QUÉ había fallado y decía siempre «Unable
+  to reach the DNS server.», que es una afirmación concreta —la red está caída—
+  y era falsa en los dos casos que de verdad pasan: el servidor contestando un
+  error, y el servidor rechazando la sesión. En el segundo, además, mandaba a
+  mirar la red a quien lo que tenía que hacer era volver a entrar.
+  */
+  if (outcome.kind !== 'ok') return outcome
   const r = outcome.data.response
   return {
-    zones: r.zones ?? [],
-    pageNumber: r.pageNumber ?? 1,
-    totalPages: r.totalPages ?? 1,
-    totalZones: r.totalZones ?? (r.zones?.length ?? 0),
+    kind: 'ok',
+    data: {
+      zones: r.zones ?? [],
+      pageNumber: r.pageNumber ?? 1,
+      totalPages: r.totalPages ?? 1,
+      totalZones: r.totalZones ?? (r.zones?.length ?? 0),
+    },
   }
 }
 

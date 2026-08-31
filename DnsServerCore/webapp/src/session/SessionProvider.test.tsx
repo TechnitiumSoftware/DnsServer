@@ -204,6 +204,41 @@ describe('SessionProvider', () => {
     )
   })
 
+  /*
+  La sesión caducada termina la sesión, como en upstream.
+
+  Antes no lo hacía nadie: cada pantalla enseñaba «Invalid token or session
+  expired.» y la consola se quedaba en pie, con todas las acciones fallando una
+  tras otra y sin forma de volver a entrar salvo recargar a ciegas. Upstream
+  llama a `showPageLogin()` —borra el token y enseña el login— en las sesenta y
+  cuatro llamadas que declaran el manejador, y en las que no, cae al
+  `window.location = "/"` de `common.js:147`.
+
+  Se prueba por el camino de verdad: `apiRequest` sin simular, con el `fetch`
+  contestando lo que contestaría el servidor. Simulando `apiRequest` no se
+  probaría nada, porque el aviso lo emite él.
+  */
+  it('si el servidor rechaza la sesión, se acaba la sesión y se vuelve al login', async () => {
+    localStorage.setItem('token', 'tok')
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
+    montar()
+    await screen.findByRole('navigation')
+
+    // A partir de aquí, el servidor dice que el token ya no vale.
+    vi.restoreAllMocks()
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ status: 'invalid-token' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    await client.apiRequest('zones/list', { token: 'tok' })
+
+    expect(await screen.findByLabelText('Password')).toBeInTheDocument()
+    expect(localStorage.getItem('token')).toBeNull()
+    expect(screen.getByText('Session expired. Please login again.')).toBeInTheDocument()
+  })
+
   it('a un usuario de SSO le oculta cambiar contraseña y configurar 2FA', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion({ isSsoUser: true }))

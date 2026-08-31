@@ -36,19 +36,28 @@ describe('zones', () => {
       zonesPerPage: '10',
       node: '',
     })
-    expect(r).toEqual({ zones: [], pageNumber: 2, totalPages: 5, totalZones: 47 })
+    expect(r).toEqual({ kind: 'ok', data: { zones: [], pageNumber: 2, totalPages: 5, totalZones: 47 } })
   })
 
   it('si el servidor omite la paginación, se rellena sin romper', async () => {
     // Comprobado en v15.4: sin pageNumber la respuesta trae sólo `zones`.
     vi.spyOn(client, 'apiRequest').mockResolvedValue(env({ zones: [{ name: 'a' }, { name: 'b' }] }))
     const r = await listZones('t')
-    expect(r).toMatchObject({ pageNumber: 1, totalPages: 1, totalZones: 2 })
+    expect(r).toMatchObject({ kind: 'ok', data: { pageNumber: 1, totalPages: 1, totalZones: 2 } })
   })
 
-  it('devuelve null si la llamada falla, en vez de reventar la pantalla', async () => {
+  /*
+  `listZones` sube el fallo entero y los demás siguen devolviendo `null`.
+
+  La diferencia no es capricho: la lista de zonas es lo primero que se pinta al
+  entrar en la pantalla, así que su fallo es el que el usuario ve y hay que
+  contárselo con el motivo —antes se decía «Unable to reach the DNS server.»
+  incluso cuando el servidor había contestado—. Los otros tres alimentan
+  diálogos que ya avisan por su cuenta.
+  */
+  it('listZones sube el fallo con su motivo; los demás devuelven null', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'invalid-token' })
-    expect(await listZones('t')).toBeNull()
+    expect(await listZones('t')).toEqual({ kind: 'invalid-token' })
     expect(await getZoneOptions('t', 'x')).toBeNull()
     expect(await getZonePermissions('t', 'x')).toBeNull()
     expect(await listCatalogs('t')).toBeNull()
