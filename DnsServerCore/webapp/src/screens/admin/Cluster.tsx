@@ -41,33 +41,32 @@ import { GroupRow } from '../../ui/Form'
 import { Avisador } from '../../ui/Avisador'
 
 /*
-La sub-pestaña Cluster (`cluster.js` entera, 1.055 líneas). Doce endpoints y
-ocho modales.
+The Cluster sub-tab (the whole of `cluster.js`, 1,055 lines). Twelve endpoints
+and eight modals.
 
-Lo que hay que tener delante:
+What to keep in front of you:
 
-  · **El estado del cluster manda sobre la barra de acciones.** Sin cluster sólo
-    se ofrece inicializar; con cluster, el nodo PROPIO decide: si es primario se
-    ven «Options» y «Delete Cluster», y si es secundario «Resync», «Options» y
-    «Leave Cluster» (cluster.js:248-264). No es cosmético: los endpoints que
-    hay detrás sólo existen en un lado.
-  · **Las acciones de cada FILA también dependen del nodo propio**, y no de la
-    fila: un primario puede editarse a sí mismo y quitar secundarios; un
-    secundario puede editarse a sí mismo, promocionarse, y editar la ficha del
-    primario (cluster.js:207-238).
-  · **«Quick Add» compara por SUBCADENA**, no por línea (cluster.js:30): con
-    `10.0.0.1` ya en la lista, añadir `10.0.0.10` no hace nada. Se replica el
-    comportamiento, no la intención.
-  · **«Force Remove Node» cambia de endpoint**, no de parámetro:
-    `primary/deleteSecondary` con la casilla puesta y `primary/removeSecondary`
-    sin ella.
-  · **`secondary/resync` no devuelve el estado** del cluster: se avisa y se
-    remite a los Logs.
+  · **The cluster's state rules the action bar.** With no cluster only
+    initialising is offered; with a cluster, the node ITSELF decides: if it is
+    primary, "Options" and "Delete Cluster" show, and if it is secondary,
+    "Resync", "Options" and "Leave Cluster" (cluster.js:248-264). It is not
+    cosmetic: the endpoints behind them only exist on one side.
+  · **Each ROW's actions also depend on the node itself**, and not on the row: a
+    primary can edit itself and remove secondaries; a secondary can edit itself,
+    promote itself, and edit the primary's entry (cluster.js:207-238).
+  · **"Quick Add" compares by SUBSTRING**, not by line (cluster.js:30): with
+    `10.0.0.1` already in the list, adding `10.0.0.10` does nothing. The
+    behaviour is replicated, not the intent.
+  · **"Force Remove Node" changes the endpoint**, not a parameter:
+    `primary/deleteSecondary` with the box checked and `primary/removeSecondary`
+    without it.
+  · **`secondary/resync` does not return the cluster's state**: an alert is shown
+    and it points at the Logs.
 
-Aviso de verificación: con una sola instancia el cluster nunca llega a
-inicializarse, así que la mitad de estos endpoints no se ha podido ejercitar
-contra un servidor real. Están escritos contra `cluster.js` y contra
-`WebServiceClusterApi.cs`, y cubiertos con pruebas de respuestas simuladas.
+Verification notice: with a single instance the cluster never gets initialised,
+so half of these endpoints could not be exercised against a real server. They are
+written against `cluster.js` and against `WebServiceClusterApi.cs`, and covered
+with tests over simulated responses.
 */
 
 interface Props {
@@ -89,8 +88,8 @@ type Modal =
   | { tipo: 'delete' }
   | { tipo: 'resync' }
 
-/* `sortTable('tbodyAdminCluster', 0..7)`. Las tres fechas se leen por su ISO:
-   la celda pinta la fecha y el «hace tanto», y las dos ordenan igual. */
+/* `sortTable('tbodyAdminCluster', 0..7)`. The three dates are read by their ISO:
+   the cell draws the date and the "time ago", and both sort the same. */
 const CLAVES: Claves<ClusterNode> = {
   name: (n) => n.name,
   ip: (n) => n.ipAddresses.join(' '),
@@ -244,8 +243,8 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
                   <FechaRelativa iso={n.upSince} />
                 </td>
                 <td className={styles.nowrap}>
-                  {/* El nodo propio no tiene «Last Seen»: en su fila esa
-                      columna va siempre vacía (cluster.js:177-193). */}
+                  {/* The node itself has no "Last Seen": in its row that column
+                      is always empty (cluster.js:177-193). */}
                   {n.state !== 'Self' && <FechaRelativa iso={n.lastSeen} />}
                 </td>
                 <td className={styles.nowrap}>
@@ -255,10 +254,10 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
                 </td>
                 <td className={tbl.celdaAcciones}>
                   <div className={tbl.acciones}>
-                    {/* Qué se puede hacer con un nodo depende de si esta
-                        consola habla con el primario o con un secundario
-                        (cluster.js:248-264). Editar es lo frecuente y va en
-                        la fila; quitar y promocionar, dentro del menú. */}
+                    {/* What can be done with a node depends on whether this
+                        console is talking to the primary or to a secondary
+                        (cluster.js:248-264). Editing is the frequent one and goes
+                        in the row; removing and promoting, inside the menu. */}
                     {(esPrimario ? n.state === 'Self' : n.state === 'Self' || n.type === 'Primary') && (
                       <AccionFila
                         icono="editar"
@@ -490,9 +489,9 @@ function FechaRelativa({ iso }: { iso?: string }) {
 }
 
 /*
-«Quick Add» (cluster.js:21-72). Añade la IP elegida al final de la lista SÓLO si
-su texto no aparece ya en ella. La comparación es por subcadena: es lo que hace
-`indexOf` y se replica tal cual.
+"Quick Add" (cluster.js:21-72). Appends the chosen IP to the end of the list
+ONLY if its text does not already appear in it. The comparison is by substring:
+that is what `indexOf` does and it is replicated as it stands.
 */
 function QuickAdd({
   ips,
@@ -782,8 +781,8 @@ function UnirseCluster({
       })
       return
     }
-    // El OTP sólo se exige cuando el campo está a la vista, y sólo se pone a la
-    // vista después de que el servidor conteste `2fa-required`.
+    // The OTP is only required when the field is in sight, and it is only put in
+    // sight after the server answers `2fa-required`.
     if (pideTotp && totp === '') {
       setAviso({
         type: 'warning',
@@ -896,8 +895,8 @@ function UnirseCluster({
             )}
           </MRow>
 
-          {/* Iba con `frm.rowCtl` —la columna de una fila de PÁGINA— dentro de un
-              modal, que es el mismo descuido que tenía `MRow`. */}
+          {/* It went with `frm.rowCtl` —the column of a PAGE row— inside a
+              modal, which is the same oversight `MRow` had. */}
           <GroupRow modal label="Certificate Validation">
             <Radios
               name="joinClusterCertificateValidation"
@@ -1003,10 +1002,10 @@ function UnirseCluster({
 }
 
 /*
-`showClusterOptionsModal` / `saveClusterOptions` (cluster.js:786-928). Los cuatro
-intervalos sólo se pueden TOCAR desde el nodo primario; desde un secundario el
-modal sale de sólo lectura y sin botón de guardar. El dominio del cluster está
-siempre bloqueado: no se puede cambiar nunca.
+`showClusterOptionsModal` / `saveClusterOptions` (cluster.js:786-928). The four
+intervals can only be TOUCHED from the primary node; from a secondary the modal
+comes out read-only and with no save button. The cluster's domain is always
+locked: it can never be changed.
 */
 function OpcionesCluster({
   token,
@@ -1261,7 +1260,7 @@ function EditarNodoPropio({
 }
 
 /** `showEditPrimaryClusterNodeModal` / `updatePrimaryClusterNode` (cluster.js:363-432).
- *  No carga nada: sale con lo que ya había en la fila. */
+ *  It loads nothing: it comes up with whatever was already in the row. */
 function EditarNodoPrimario({
   token,
   nodo,
@@ -1285,8 +1284,8 @@ function EditarNodoPrimario({
       setAviso({ type: 'warning', title: 'Missing!', text: 'Please enter the Primary node URL.' })
       return
     }
-    // Aquí la lista SÍ puede quedar vacía: es opcional. Upstream sólo normaliza
-    // el caso degenerado de una coma suelta (cluster.js:400).
+    // Here the list CAN be left empty: it is optional. Upstream only normalises
+    // the degenerate case of a stray comma (cluster.js:400).
     let limpia = limpiarLista(lista)
     if (limpia === ',') limpia = ''
 
@@ -1348,7 +1347,7 @@ function EditarNodoPrimario({
 }
 
 /** `showRemoveSecondaryClusterNodeModal` / `removeSecondaryClusterNode`
- *  (cluster.js:434-495). La casilla cambia el ENDPOINT, no un parámetro. */
+ *  (cluster.js:434-495). The checkbox changes the ENDPOINT, not a parameter. */
 function QuitarNodo({
   token,
   nodo,

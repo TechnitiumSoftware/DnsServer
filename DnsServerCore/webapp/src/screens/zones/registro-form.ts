@@ -3,28 +3,28 @@ import { limpiarLista } from '../../api/zonelists'
 import { serializarTabla } from '../../lib/tabla-serie'
 
 /*
-El formulario de «Add / Edit Record» y su validación: réplica de `addRecord`
-(zone.js:4707) y `updateRecord` (5584), los dos `switch` más largos de la
-consola vieja.
+The "Add / Edit Record" form and its validation: a replica of `addRecord`
+(zone.js:4707) and `updateRecord` (5584), the two longest `switch` of the old
+console.
 
-Están juntos porque son el MISMO formulario, y separarlos habría multiplicado
-por dos los sitios donde equivocarse. Lo que cambia entre alta y edición es:
+They are together because they are the SAME form, and splitting them would have
+doubled the places to get it wrong. What changes between add and edit is:
 
-  1. El alta manda `overwrite`; la edición manda `disable` y `newDomain`.
-  2. La edición manda, además del valor nuevo, **el valor viejo** de casi todos
-     los tipos, porque el servidor identifica el registro por su contenido.
-  3. Los textos de aviso dicen «to add the record» o «to update the record»…
-     salvo unos cuantos que son idénticos en los dos (SRV, NAPTR, URI, CAA).
-     Se copian uno a uno; no se generan con una plantilla.
-  4. **SOA sólo se puede editar**, nunca crear. **APP no valida al editar** y su
-     nombre y clase no se pueden cambiar: sólo su `recordData`.
-  5. **La comprobación del certificado PEM completo de un TLSA sólo existe al
-     dar de alta.** Editando, ese mismo valor pasa sin más.
+  1. The add sends `overwrite`; the edit sends `disable` and `newDomain`.
+  2. The edit sends, besides the new value, **the old value** of nearly every
+     type, because the server identifies the record by its content.
+  3. The alert texts say "to add the record" or "to update the record"… except a
+     handful that are identical in both (SRV, NAPTR, URI, CAA). They are copied
+     one by one; they are not generated from a template.
+  4. **SOA can only be edited**, never created. **APP does not validate on edit**
+     and its name and class cannot be changed: only its `recordData`.
+  5. **The check for a TLSA's full PEM certificate only exists when adding.** On
+     editing, that same value goes through untouched.
 */
 
 export type ModoRegistro = 'add' | 'update'
 
-/** Los 23 tipos del desplegable, en el orden de upstream (index.html). */
+/** The 23 types of the dropdown, in upstream's order (index.html). */
 export const TIPOS_REGISTRO = [
   'A', 'NS', 'SOA', 'CNAME', 'PTR', 'MX', 'TXT', 'RP', 'AAAA', 'SRV', 'NAPTR',
   'DNAME', 'DS', 'SSHFP', 'TLSA', 'SVCB', 'HTTPS', 'URI', 'CAA', 'ANAME',
@@ -44,7 +44,7 @@ export interface FormularioRegistro {
   comments: string
   expiryTtl: string
 
-  /** El campo «Value» que comparten A, AAAA, CNAME, PTR, DNAME, ANAME y Unknown. */
+  /** The "Value" field shared by A, AAAA, CNAME, PTR, DNAME, ANAME and Unknown. */
   valor: string
   ptr: boolean
   createPtrZone: boolean
@@ -158,7 +158,7 @@ export function formularioVacio(): FormularioRegistro {
 
 const s = (v: unknown): string => (v == null ? '' : String(v))
 
-/** Rellena el formulario con un registro existente, para la edición. */
+/** Fills the form with an existing record, for editing. */
 export function formularioDesdeRegistro(r: Registro, zone: string): FormularioRegistro {
   const f = formularioVacio()
   const d = r.rData
@@ -288,7 +288,7 @@ export function formularioDesdeRegistro(r: Registro, zone: string): FormularioRe
   return f
 }
 
-/** Copia local para no importar en círculo desde `registro-vista`. */
+/** A local copy so as not to import circularly from `registro-vista`. */
 function nombreRelativo(nombreCompleto: string, zone: string): string {
   const nombre = nombreCompleto === '' ? '.' : nombreCompleto
   const minus = nombre.toLowerCase()
@@ -300,7 +300,7 @@ function nombreRelativo(nombreCompleto: string, zone: string): string {
 export interface ErrorRegistro {
   title: string
   text: string
-  /** Qué campo recibe el foco, igual que hace upstream. */
+  /** Which field receives the focus, just as upstream does. */
   campo: keyof FormularioRegistro
 }
 
@@ -311,18 +311,19 @@ export type ResultadoRegistro =
 export interface ContextoRegistro {
   zone: string
   modo: ModoRegistro
-  /** Sólo en edición: el registro que se está tocando. */
+  /** Only on edit: the record being touched. */
   original?: Registro
-  /** `zoneHasSvcbAutoHint`: si hay que rehacer las pistas de algún SVCB. */
+  /** `zoneHasSvcbAutoHint`: whether some SVCB's hints have to be redone. */
   updateSvcbHints: boolean
 }
 
 /*
-`serializeTableData` con 2 columnas para los parámetros de un SVCB. El algoritmo
-vive en `lib/tabla-serie`, compartido por las cinco pantallas con tabla editable.
+`serializeTableData` with 2 columns for an SVCB's parameters. The algorithm lives
+in `lib/tabla-serie`, shared by the five screens with an editable table.
 
-Una lista vacía viaja como la cadena «false», no como cadena vacía, y eso sí es
-de aquí: la función compartida devuelve la vacía y quien llama decide.
+An empty list travels as the string "false", not as an empty string, and that
+part does belong here: the shared function returns the empty one and the caller
+decides.
 */
 export function serializarSvcParams(
   filas: ParametroSvcb[],
@@ -348,7 +349,7 @@ export function construirCuerpoRegistro(
     error: { title: 'Missing!', text, campo },
   })
 
-  // La identidad del registro que se edita: la mitad «vieja» del cuerpo.
+  // The identity of the record being edited: the "old" half of the body.
   const viejo = ctx.original
     ? identidadRegistro(ctx.original, { updateSvcbHints: ctx.updateSvcbHints })
     : {}
@@ -385,8 +386,8 @@ export function construirCuerpoRegistro(
     }
 
     case 'CNAME': {
-      // El aviso del nombre es idéntico en alta y edición, con esa explicación
-      // larguísima sobre ANAME que se copia entera.
+      // The name alert is identical on add and edit, with that enormous
+      // explanation about ANAME that is copied whole.
       if (f.name === '' || f.name === '@') {
         return falta(
           "Please enter a name for the CNAME record since DNS protocol does not allow CNAME at zone's apex. If you need CNAME like function at the zone's apex then use ANAME record instead.",
@@ -399,7 +400,7 @@ export function construirCuerpoRegistro(
     }
 
     case 'SOA': {
-      // Sólo existe en edición: no hay rama de alta para SOA.
+      // It only exists on edit: there is no add branch for SOA.
       if (f.soaPrimaryNameServer === '') {
         return falta('Please enter a value for primary name server.', 'soaPrimaryNameServer')
       }
@@ -434,7 +435,7 @@ export function construirCuerpoRegistro(
     }
 
     case 'MX': {
-      // Una preferencia vacía cae a 1, no da error.
+      // An empty preference falls to 1, it does not error.
       const preferencia = f.mxPreference === '' ? '1' : f.mxPreference
       if (f.mxExchange === '') {
         return falta(`Please enter a mail exchange domain name to ${verbo} the record.`, 'mxExchange')
@@ -465,7 +466,7 @@ export function construirCuerpoRegistro(
     }
 
     case 'RP': {
-      // Los dos vacíos caen a la raíz; no hay aviso ninguno.
+      // Both empties fall to the root; there is no alert at all.
       const buzon = f.rpMailbox === '' ? '.' : f.rpMailbox
       const dominioTxt = f.rpTxtDomain === '' ? '.' : f.rpTxtDomain
       if (alta) {
@@ -521,7 +522,7 @@ export function construirCuerpoRegistro(
         p.naptrRegexp = f.naptrRegexp
         p.naptrReplacement = f.naptrReplacement
       } else {
-        // Sólo al EDITAR, un reemplazo vacío cae a la raíz. Dando de alta, no.
+        // Only on EDIT does an empty replacement fall to the root. On add, it does not.
         p.naptrOrder = viejo.naptrOrder ?? ''
         p.naptrNewOrder = f.naptrOrder
         p.naptrPreference = viejo.naptrPreference ?? ''
@@ -627,7 +628,7 @@ export function construirCuerpoRegistro(
           'tlsaCertificateAssociationData',
         )
       }
-      // Sólo al dar de alta: con «Full» exige un PEM completo.
+      // Only on add: with "Full" it requires a complete PEM.
       if (
         alta &&
         f.tlsaMatchingType === 'Full' &&
@@ -707,7 +708,7 @@ export function construirCuerpoRegistro(
     }
 
     case 'CAA': {
-      // Los dos primeros caen a valores por defecto, no dan error.
+      // The first two fall to default values, they do not error.
       const flags = f.caaFlags === '' ? '0' : f.caaFlags
       const tag = f.caaTag === '' ? 'issue' : f.caaTag
       if (f.caaValue === '') {
@@ -761,9 +762,9 @@ export function construirCuerpoRegistro(
       p.dnssecValidation = String(f.forwarderDnssecValidation)
 
       /*
-      Aquí alta y edición NO se comportan igual: dando de alta, el proxy se
-      manda siempre; editando, sólo si el reenviador nuevo no es «this-server».
-      Es asimétrico en upstream y se replica.
+      Here add and edit do NOT behave the same: when adding, the proxy is always
+      sent; when editing, only if the new forwarder is not "this-server". It is
+      asymmetric in upstream and it is replicated.
       */
       const mandarProxy = alta || reenviador !== 'this-server'
       if (mandarProxy) {
@@ -802,7 +803,7 @@ export function construirCuerpoRegistro(
         p.classPath = f.classPath
         p.recordData = f.recordData
       } else {
-        // Editando, el nombre y la clase vienen del registro y NO se validan.
+        // On edit, the name and the class come from the record and are NOT validated.
         p.appName = viejo.appName ?? ''
         p.classPath = viejo.classPath ?? ''
         p.recordData = f.recordData
@@ -811,16 +812,16 @@ export function construirCuerpoRegistro(
     }
 
     default: {
-      // «Unknown»: el tipo lo escribe el usuario. Sólo el alta lo exige.
+      // "Unknown": the type is typed by the user. Only the add requires it.
       type = f.unknownType
       if (alta && type === '') {
         return falta('Please enter a resoure record name or number to add record.', 'unknownType')
       }
       /*
-      Los dos textos NO son la misma frase con el verbo cambiado: el alta dice
-      «to add record» y la edición «to update the record», con artículo. Y el
-      «resoure» de arriba es una errata de upstream que se conserva: son
-      contrato, no prosa nuestra.
+      The two texts are NOT the same sentence with the verb swapped: the add
+      says "to add record" and the edit "to update the record", with the article.
+      And the "resoure" above is a typo of upstream's that is kept: they are
+      contract, not prose of ours.
       */
       if (f.valor === '') {
         return falta(
@@ -864,7 +865,7 @@ export function construirCuerpoRegistro(
       domain: original == null || original.name === '' ? '.' : original.name,
       newDomain: domain,
       ttl: f.ttl,
-      // La edición NO cambia el estado: reenvía el que tenía el registro.
+      // The edit does NOT change the state: it resends the one the record had.
       disable: String(original?.disabled === true),
       comments: f.comments,
       expiryTtl: f.expiryTtl,

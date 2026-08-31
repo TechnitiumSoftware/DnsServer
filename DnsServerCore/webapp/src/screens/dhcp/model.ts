@@ -2,28 +2,27 @@ import type { DhcpScope } from '../../api/dhcp'
 import { serializarTabla } from '../../lib/tabla-serie'
 
 /*
-El formulario de un scope DHCP: 36 campos, cinco de ellos tablas editables.
+The form of a DHCP scope: 36 fields, five of them editable tables.
 
-Todo lo que valida upstream antes de guardar está en `serializeTableData`
-(common.js:282-324). No hay ninguna otra comprobación en el cliente: el resto lo
-rechaza el servidor. Aquí se replica esa función tal cual, incluidos:
+Everything upstream validates before saving is in `serializeTableData`
+(common.js:282-324). There is no other client-side check: the rest is rejected by
+the server. That function is replicated here as it stands, including:
 
-  · el ORDEN — celda a celda, fila a fila, y las cinco tablas en el orden en que
-    `saveDhcpScope` las serializa: rutas estáticas, información de fabricante,
-    opciones genéricas, exclusiones y reservas (dhcp.js:525-547). Las dos listas
-    de texto que se leen entre medias (CAPWAP y TFTP) no validan nada;
-  · los DOS avisos, con sus textos literales y en su orden: primero «vacío»,
-    después «carácter prohibido»;
-  · qué celdas son OPCIONALES (`data-optional="true"`): el identificador de
-    fabricante, y el nombre de host y los comentarios de una reserva. Ninguna
-    otra puede quedarse vacía.
+  · the ORDER — cell by cell, row by row, and the five tables in the order
+    `saveDhcpScope` serialises them: static routes, vendor information, generic
+    options, exclusions and reservations (dhcp.js:525-547). The two text lists
+    read in between (CAPWAP and TFTP) validate nothing;
+  · the TWO alerts, with their literal texts and in their order: "empty" first,
+    "forbidden character" second;
+  · which cells are OPTIONAL (`data-optional="true"`): the vendor identifier, and
+    a reservation's host name and comments. No other one may be left empty.
 
-Un detalle de upstream que aquí NO se replica, y a propósito: `serializeTableData`
-aplica `htmlDecode` al valor que acaba de leer del DOM, donde el navegador YA lo
-había decodificado al parsear el HTML. Es una segunda decodificación sobre un
-texto ya limpio: escribir `&amp;` en una celda lo manda al servidor como `&`. En
-React no hay HTML intermedio, así que el valor viaja tal cual se escribió.
-Replicar la doble decodificación sería introducir el fallo a mano.
+One upstream detail that is NOT replicated here, on purpose: `serializeTableData`
+applies `htmlDecode` to the value it has just read from the DOM, where the
+browser had ALREADY decoded it when parsing the HTML. It is a second decoding
+over already-clean text: typing `&amp;` into a cell sends it to the server as
+`&`. In React there is no intermediate HTML, so the value travels exactly as
+typed. Replicating the double decoding would be introducing the bug by hand.
 */
 
 export interface FilaRutaEstatica {
@@ -51,8 +50,8 @@ export interface FilaReserva {
 }
 
 export interface ScopeForm {
-  /** El `data-name` del campo Name: el nombre con el que se cargó el scope.
-   *  Vacío en un scope nuevo. Es lo que decide si hay renombrado. */
+  /** The `data-name` of the Name field: the name the scope was loaded with.
+   *  Empty on a new scope. It is what decides whether there is a rename. */
   oldName: string
   name: string
   startingAddress: string
@@ -91,10 +90,9 @@ export interface ScopeForm {
   ignoreClientIdentifierOption: boolean
 }
 
-/** `clearDhcpScopeForm` (dhcp.js:310). Los valores por defecto son de upstream,
- *  no elecciones nuestras: 1 día de concesión, ping check a 1000 ms y 2
- *  reintentos, TTL de DNS 900 s, actualizaciones de DNS marcadas e identificador
- *  de cliente ignorado. */
+/** `clearDhcpScopeForm` (dhcp.js:310). The default values are upstream's, not
+ *  choices of ours: a 1-day lease, ping check at 1000 ms with 2 retries, DNS TTL
+ *  of 900 s, DNS updates checked and client identifier ignored. */
 export function formularioVacio(): ScopeForm {
   return {
     oldName: '',
@@ -136,20 +134,20 @@ export function formularioVacio(): ScopeForm {
   }
 }
 
-/** `showAddDhcpScope` (dhcp.js:352) parte del formulario vacío pero marca
- *  «Use This DNS Server», que a su vez deshabilita el área de servidores DNS. */
+/** `showAddDhcpScope` (dhcp.js:352) starts from the empty form but checks
+ *  "Use This DNS Server", which in turn disables the DNS servers area. */
 export function formularioNuevo(): ScopeForm {
   return { ...formularioVacio(), useThisDnsServer: true }
 }
 
-/** Un array de cadenas a textarea, con salto de línea entre elementos
- *  (`.join("\n")`, dhcp.js:399 y siguientes). */
+/** An array of strings into a textarea, with a newline between items
+ *  (`.join("\n")`, dhcp.js:399 and following). */
 export function listaATexto(lista: string[] | undefined): string {
   return lista == null ? '' : lista.join('\n')
 }
 
-/** `cleanTextList` (common.js:326): saltos de línea a comas, comas repetidas
- *  colapsadas y sin comas en los extremos. */
+/** `cleanTextList` (common.js:326): newlines to commas, repeated commas
+ *  collapsed and no commas at the ends. */
 export function limpiarLista(texto: string): string {
   let t = texto.replace(/\n/g, ',')
   while (t.includes(',,')) t = t.replace(/,,/g, ',')
@@ -158,8 +156,8 @@ export function limpiarLista(texto: string): string {
   return t
 }
 
-/** `showEditDhcpScope` (dhcp.js:363). Los campos que el servidor OMITE cuando
- *  son nulos se quedan como estaban en el formulario vacío. */
+/** `showEditDhcpScope` (dhcp.js:363). The fields the server OMITS when they are
+ *  null stay as they were in the empty form. */
 export function formularioDesdeScope(s: DhcpScope): ScopeForm {
   const f = formularioVacio()
   return {
@@ -224,19 +222,19 @@ export function formularioDesdeScope(s: DhcpScope): ScopeForm {
 export interface ErrorScope {
   title: string
   text: string
-  /** `id` del control que upstream enfoca. El texto del aviso habla del «campo
-   *  con el foco», así que sin esto el aviso no se puede resolver. */
+  /** `id` of the control upstream focuses. The alert's text talks about "the text
+   *  field in focus", so without this the alert cannot be resolved. */
   focus: string
 }
 
-/** El `id` de una celda de tabla. Determinista para poder enfocarla. */
+/** The `id` of a table cell. Deterministic so it can be focused. */
 export function idCelda(tabla: string, fila: number, columna: string): string {
   return `dhcp-${tabla}-${fila}-${columna}`
 }
 
 /*
-`serializeTableData` (common.js:282). Devuelve las celdas de todas las filas
-unidas por `|`, o el aviso de la primera celda que no vale.
+`serializeTableData` (common.js:282). Returns the cells of every row joined by
+`|`, or the alert of the first cell that is not valid.
 */
 function serializar(
   tabla: string,
@@ -244,11 +242,11 @@ function serializar(
   columnas: { key: string; optional?: boolean }[],
 ): { valor: string } | { error: ErrorScope } {
   /*
-  El algoritmo es `serializeTableData` de upstream y vive en `lib/tabla-serie`,
-  compartido por las cinco pantallas con tabla editable. Aquí sólo se traduce
-  dónde está la celda que falla: en DHCP, al `id` determinista de esa celda,
-  porque el aviso dice literalmente «the text field in focus» y sin poder
-  enfocarla no se puede resolver.
+  The algorithm is upstream's `serializeTableData` and it lives in
+  `lib/tabla-serie`, shared by the five screens with an editable table. All that
+  is translated here is where the failing cell is: in DHCP, to that cell's
+  deterministic `id`, because the alert literally says "the text field in focus"
+  and without being able to focus it there is no resolving it.
   */
   const r = serializarTabla(
     filas.map((fila) =>
@@ -270,14 +268,14 @@ function serializar(
 }
 
 /*
-`saveDhcpScope` (dhcp.js:485). Arma el cuerpo del POST en el mismo orden y con
-las mismas reglas:
+`saveDhcpScope` (dhcp.js:485). Builds the POST body in the same order and with
+the same rules:
 
-  · si el scope ya existía y el nombre cambió, `name` lleva el VIEJO y aparece
-    `newName` con el nuevo;
-  · `dnsServers` no se manda si «Use This DNS Server» está marcado;
-  · las cinco tablas se validan en el orden en que se serializan, y el primer
-    fallo aborta el guardado.
+  · if the scope already existed and the name changed, `name` carries the OLD one
+    and `newName` appears with the new one;
+  · `dnsServers` is not sent if "Use This DNS Server" is checked;
+  · the five tables are validated in the order they are serialised, and the first
+    failure aborts the save.
 */
 export function construirCuerpo(
   f: ScopeForm,

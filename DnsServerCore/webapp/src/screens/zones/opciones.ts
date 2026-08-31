@@ -3,18 +3,18 @@ import { limpiarLista } from '../../api/zonelists'
 import { serializarTabla } from '../../lib/tabla-serie'
 
 /*
-El formulario de `modalZoneOptions`: cinco pestañas, y **qué se ve y qué se
-puede tocar depende del tipo de zona y de si pertenece a un catálogo**.
+The `modalZoneOptions` form: five tabs, and **what shows and what can be touched
+depends on the zone type and on whether it belongs to a catalog**.
 
-Réplica de `showZoneOptionsModal` (zone.js:1524-2380) y `saveZoneOptions`
-(2380-2544). Son 856 líneas de jQuery encendiendo y apagando controles uno a
-uno; aquí es una función pura que devuelve el estado, y se prueba sola.
+A replica of `showZoneOptionsModal` (zone.js:1524-2380) and `saveZoneOptions`
+(2380-2544). Those are 856 lines of jQuery switching controls on and off one by
+one; here it is a pure function that returns the state, and it tests on its own.
 
-La regla de fondo, que explica casi todo: **una zona miembro de un catálogo
-hereda sus opciones**. Si el catálogo no le deja sobrescribir una sección, esa
-pestaña DESAPARECE; si se la deja, aparece editable; y si además la administra
-un catálogo secundario, aparece pero de sólo lectura, porque ni siquiera este
-servidor manda sobre ella.
+The underlying rule, which explains nearly everything: **a zone that is a member
+of a catalog inherits its options**. If the catalog does not let it override a
+section, that tab DISAPPEARS; if it does, it appears editable; and if on top of
+that it is administered by a secondary catalog, it appears but read-only, because
+not even this server rules over it.
 */
 
 export type PestanaOpciones = 'General' | 'Query Access' | 'Zone Transfer' | 'Notify' | 'Dynamic Updates'
@@ -78,7 +78,7 @@ export const PROTOCOLOS_XFR = [
   { valor: 'Quic', etiqueta: 'XFR-over-QUIC' },
 ]
 
-/* ── Estado de la interfaz ─────────────────────────────────────────────── */
+/* ── Interface state ───────────────────────────────────────────────────── */
 
 export interface EstadoOpciones {
   pestanas: PestanaOpciones[]
@@ -98,7 +98,7 @@ export interface EstadoOpciones {
   servidorPrimarioBloqueado: boolean
   /** Query Access */
   queryAccessBloqueado: boolean
-  /** Los dos criterios «…Name Servers In Zone» no existen en algunos tipos. */
+  /** The two "…Name Servers In Zone" criteria do not exist on some types. */
   queryAccessConNameServers: boolean
   /** Zone Transfer */
   zoneTransferBloqueado: boolean
@@ -172,7 +172,7 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
       break
   }
 
-  // El servidor primario: las tres secundarias y la stub.
+  // The primary server: the three secondaries and the stub.
   let servidorPrimario = false
   let protocoloXfr = false
   let tsigDelPrimario = false
@@ -275,9 +275,9 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
   if (update) pestanas.push('Dynamic Updates')
 
   /*
-  La pestaña que sale abierta NO es siempre la primera: en una Catalog es
-  «Query Access», y en una Primary o Forwarder depende de si hay catálogos
-  disponibles (zone.js:2303-2360).
+  The tab that comes up open is NOT always the first: on a Catalog it is "Query
+  Access", and on a Primary or Forwarder it depends on whether there are catalogs
+  available (zone.js:2303-2360).
   */
   let inicial: PestanaOpciones = pestanas[0] ?? 'Query Access'
   if ([...SECUNDARIAS, 'Stub'].includes(tipo)) inicial = 'General'
@@ -294,8 +294,8 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
     sobrescribirQueryAccess,
     sobrescribirZoneTransfer,
     sobrescribirNotify,
-    // Las casillas de sobrescritura se apagan si la zona no está en un catálogo,
-    // y también cuando la administra un catálogo secundario.
+    // The override checkboxes go off if the zone is not in a catalog,
+    // and also when it is administered by a secondary catalog.
     sobrescribirBloqueado: !enCatalogo || miembroSecundario,
     servidorPrimario,
     servidorPrimarioObligatorio,
@@ -345,11 +345,11 @@ export interface FormularioOpciones {
 }
 
 /*
-`\r\n` a propósito NO: upstream monta los textareas con `\r\n`, pero el
-navegador normaliza al leerlos del DOM y su limpieza sólo sustituye `\n`. En
-React no hay DOM intermedio, así que aquí se unen con `\n` y el resultado en el
-servidor es idéntico. Está anotado en CONVENCIONES.md porque muerde a cualquier
-pantalla con listas en textarea.
+No `\r\n` on purpose: upstream builds the textareas with `\r\n`, but the browser
+normalises when reading them from the DOM and its cleanup only substitutes `\n`.
+In React there is no intermediate DOM, so here they are joined with `\n` and the
+result on the server is identical. It is noted in CONVENCIONES.md because it
+bites any screen with lists in a textarea.
 */
 function texto(lista: readonly string[] | null | undefined): string {
   return (lista ?? []).join('\n')
@@ -362,7 +362,7 @@ export function formularioDesdeOpciones(r: OpcionesZona): FormularioOpciones {
     overrideCatalogZoneTransfer: r.catalog != null && r.overrideCatalogZoneTransfer === true,
     overrideCatalogNotify: r.catalog != null && r.overrideCatalogNotify === true,
     primaryNameServerAddresses: texto(r.primaryNameServerAddresses),
-    // Un protocolo desconocido cae a TCP, igual que el `default` de upstream.
+    // An unknown protocol falls to TCP, just like upstream's `default`.
     primaryZoneTransferProtocol:
       r.primaryZoneTransferProtocol === 'Tls' || r.primaryZoneTransferProtocol === 'Quic'
         ? r.primaryZoneTransferProtocol
@@ -401,9 +401,9 @@ export interface ErrorOpciones {
 export type ResultadoOpciones = { error: ErrorOpciones } | { body: Record<string, string> }
 
 /*
-`serializeTableData` con 3 columnas para las políticas de actualización. El
-algoritmo vive en `lib/tabla-serie`, compartido por las cinco pantallas con
-tabla editable; aquí sólo se dice dónde está la celda que falla.
+`serializeTableData` with 3 columns for the update policies. The algorithm lives
+in `lib/tabla-serie`, shared by the five screens with an editable table; all that
+is said here is where the failing cell is.
 */
 function serializarPoliticas(
   filas: FilaPolitica[],
@@ -428,12 +428,12 @@ function serializarPoliticas(
 }
 
 /**
- * `saveZoneOptions` (zone.js:2380). Cuatro listas caen a la cadena `"false"`
- * cuando están vacías —`zoneTransferNetworkACL`, `zoneTransferTsigKeyNames`,
- * `notifyNameServers`, `notifySecondaryCatalogsNameServers`,
- * `updateNetworkACL` y `updateSecurityPolicies`— y **dos no**:
- * `primaryNameServerAddresses` y `queryAccessNetworkACL` viajan vacías tal cual.
- * No es simetría: es lo que hace upstream.
+ * `saveZoneOptions` (zone.js:2380). Four lists fall to the string `"false"` when
+ * empty —`zoneTransferNetworkACL`, `zoneTransferTsigKeyNames`,
+ * `notifyNameServers`, `notifySecondaryCatalogsNameServers`, `updateNetworkACL`
+ * and `updateSecurityPolicies`— and **two do not**:
+ * `primaryNameServerAddresses` and `queryAccessNetworkACL` travel empty as they
+ * are. It is not symmetry: it is what upstream does.
  */
 export function construirCuerpoOpciones(
   f: FormularioOpciones,
@@ -486,7 +486,7 @@ export function construirCuerpoOpciones(
   }
 }
 
-/** Qué criterios habilitan su lista de ACL: son los mismos cuatro en las cuatro secciones. */
+/** Which criteria enable their ACL list: the same four in all four sections. */
 export function aclEditable(valor: string): boolean {
   return (
     valor === 'UseSpecifiedNetworkACL' ||
@@ -494,7 +494,7 @@ export function aclEditable(valor: string): boolean {
   )
 }
 
-/** En Notify, la lista de servidores se habilita con tres de los cinco criterios. */
+/** In Notify, the server list is enabled by three of the five criteria. */
 export function notificacionConLista(valor: string): boolean {
   return (
     valor === 'SpecifiedNameServers' ||

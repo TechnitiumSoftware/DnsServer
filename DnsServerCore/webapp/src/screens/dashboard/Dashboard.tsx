@@ -19,18 +19,18 @@ import { avisoDeFallo } from '../../lib/aviso'
 import { Avisador } from '../../ui/Avisador'
 
 /*
-Las once métricas, en el orden de upstream y con sus etiquetas literales.
-El color de cada una es el de su serie en la gráfica principal.
+The eleven metrics, in upstream's order and with its literal labels. Each one's
+colour is that of its series in the main chart.
 */
 const METRICAS: { k: keyof Stats; label: string; color: string; pct?: boolean }[] = [
   /*
-  El total no lleva porcentaje. Upstream escribe ahí un «100%» fijo en el
-  marcado —`main.js` nunca lo actualiza—, que es decoración: el porcentaje de
-  un total sobre sí mismo no dice nada. Calculado de verdad, con el servidor
-  recién arrancado salía «0%» debajo de «Total Queries», que además de no
-  informar confunde. La regla que queda es la que ya seguía la baldosa de
-  clientes: el porcentaje es la parte del total de consultas, y el total no
-  tiene parte de sí mismo.
+  The total carries no percentage. Upstream writes a fixed "100%" there in the
+  markup —`main.js` never updates it— which is decoration: the percentage of a
+  total over itself says nothing. Really calculated, with the server freshly
+  started it came out as "0%" under "Total Queries", which on top of informing
+  nothing is confusing. The rule that stands is the one the clients tile already
+  followed: the percentage is the share of the query total, and the total has no
+  share of itself.
   */
   { k: 'totalQueries', label: 'Total Queries', color: '#60a5fa' },
   { k: 'totalNoError', label: 'No Error', color: '#34d399', pct: true },
@@ -55,25 +55,25 @@ const CONTADORES: { k: keyof Stats; label: string }[] = [
 ]
 
 /*
-Los números salen como en upstream, y upstream NO fija locale: usa
-`toLocaleString()` a secas (main.js:2632-2650), o sea la del navegador. Estaban
-clavados a `es-ES`, así que un servidor en inglés enseñaba «84.930» como
-«84.930» pero con el punto significando lo contrario.
+The numbers come out as in upstream, and upstream does NOT pin a locale: it uses
+a bare `toLocaleString()` (main.js:2632-2650), that is, the browser's. They were
+nailed to `es-ES`, so a server in English showed "84.930" as "84.930" but with
+the dot meaning the opposite.
 */
 const num = (n: number) => n.toLocaleString()
 
 /*
-El porcentaje NO lleva locale ni en upstream ni aquí: es `toFixed(2)`, que
-siempre escribe el punto (main.js:2652-2676). Y con cero consultas es «0%»
-literal, no «0,00%».
+The percentage carries no locale, neither in upstream nor here: it is
+`toFixed(2)`, which always writes the dot (main.js:2652-2676). And with zero
+queries it is a literal "0%", not "0.00%".
 */
 export function porcentaje(valor: number, total: number): string {
   if (total === 0) return '0%'
   return ((valor * 100) / total).toFixed(2) + '%'
 }
 
-/** Una gráfica sin ningún valor distinto de cero no se pinta: un canvas vacío
- *  ocupa el mismo sitio y no dice nada. Se dice que no hay datos. */
+/** A chart with no value other than zero is not drawn: an empty canvas takes up
+ *  the same room and says nothing. It says there is no data instead. */
 export function tieneDatos(d?: { datasets?: { data: number[] }[] }): boolean {
   if (!d?.datasets?.length) return false
   return d.datasets.some((s) => (s.data ?? []).some((n) => Number(n) > 0))
@@ -102,11 +102,11 @@ function Top({
 }: {
   titulo: string
   filas: TopEntry[]
-  /** Un cliente enseña además el dominio que resolvió y si estaba limitado. */
+  /** A client also shows the domain it resolved and whether it was rate limited. */
   esCliente?: boolean
   onMore: () => void
-  /** Acción propia del panel, a la izquierda de «More». Sólo la usa el de
-   *  dominios bloqueados, con el menú de bloqueo que pone ahí upstream. */
+  /** The panel's own action, to the left of "More". Only the blocked-domains one
+   *  uses it, with the blocking menu upstream puts there. */
   antesDeMore?: ReactNode
 }) {
   return (
@@ -116,8 +116,9 @@ function Top({
       acciones={
         <div className={styles.accionesPanel}>
           {antesDeMore}
-          {/* Era un `<button>` a pelo, sin clase: lo pintaba el navegador con su
-              estilo por defecto, en medio de una consola con sistema propio. */}
+          {/* It was a bare `<button>`, with no class: the browser drew it with
+              its default style, in the middle of a console with a system of its
+              own. */}
           <Button size="sm" onClick={onMore}>
             More
           </Button>
@@ -155,10 +156,10 @@ export function Dashboard({ token }: { token: string | null }) {
   const [top, setTop] = useState<TipoTop | null>(null)
   const [aviso, setAviso] = useState<{ type: AlertType; title: string; text: string } | null>(null)
   /*
-  El rango personalizado. `inicio`/`fin` son lo que hay escrito en los dos
-  campos; `pedido` es lo último que se pulsó en «Show», que es lo que dispara la
-  consulta. Van separados porque escribir una fecha no debe recargar el
-  Dashboard: upstream tampoco lo hace, espera al botón (`main.js:646`).
+  The custom range. `inicio`/`fin` are what is typed into the two fields;
+  `pedido` is the last thing "Show" was pressed with, which is what triggers the
+  query. They are kept apart because typing a date must not reload the Dashboard:
+  upstream does not either, it waits for the button (`main.js:646`).
   */
   const [inicio, setInicio] = useState('')
   const [fin, setFin] = useState('')
@@ -166,7 +167,7 @@ export function Dashboard({ token }: { token: string | null }) {
 
   useEffect(() => {
     let cancelado = false
-    // Con «Custom» elegido y sin fechas todavía no hay nada que pedir.
+    // With "Custom" chosen and no dates yet there is nothing to ask for.
     if (rango === 'Custom' && pedido == null) {
       setCargando(false)
       return
@@ -181,10 +182,10 @@ export function Dashboard({ token }: { token: string | null }) {
         return
       }
       /*
-      Un fallo NO se pinta como un servidor tranquilo. Sin esto, las once
-      baldosas salían a cero y los paneles decían «No queries for this period.»,
-      que es exactamente lo que enseña un DNS que no ha recibido nada: la
-      pantalla contestaba en falso sobre lo único que se viene a mirar aquí.
+      A failure is NOT drawn as a quiet server. Without this, the eleven tiles
+      came out at zero and the panels said "No queries for this period.", which is
+      exactly what a DNS that has received nothing shows: the screen was answering
+      falsely about the one thing people come here to look at.
       */
       setDatos(null)
       setAviso(avisoDeFallo(r))

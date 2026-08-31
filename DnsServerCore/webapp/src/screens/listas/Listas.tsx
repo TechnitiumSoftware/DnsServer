@@ -27,19 +27,20 @@ import { avisoDeFallo, type Aviso } from '../../lib/aviso'
 import { Avisador } from '../../ui/Avisador'
 
 /*
-Cache, Allowed y Blocked. Una sola pantalla porque en upstream son tres copias
-del mismo código (`refreshCachedZonesList`, `refreshAllowedZonesList` y
-`refreshBlockedZonesList` son la misma función tres veces, other-zones.js).
+Cache, Allowed and Blocked. A single screen because in upstream they are three
+copies of the same code (`refreshCachedZonesList`, `refreshAllowedZonesList` and
+`refreshBlockedZonesList` are the same function three times, other-zones.js).
 
-Lo que de verdad cambia entre las tres son los TEXTOS —y no son intercambiables:
-borrar en Allowed dice «Domain 'x' was deleted from Allowed Zone successfully.»
-y borrar en Blocked dice «Blocked zone 'x' was deleted successfully.». Por eso
-cada frase está escrita entera en su sitio en vez de componerse con plantillas:
-una plantilla habría uniformado la asimetría y habría cambiado un texto.
+What really changes between the three are the TEXTS —and they are not
+interchangeable: deleting in Allowed says "Domain 'x' was deleted from Allowed
+Zone successfully." and deleting in Blocked says "Blocked zone 'x' was deleted
+successfully.". That is why each sentence is written out whole in its place
+instead of being composed from templates: a template would have made the
+asymmetry uniform and would have changed a text.
 
-Y lo que cambia en el COMPORTAMIENTO es cuándo se ve el botón Delete: en Cache
-depende de estar fuera de la raíz (other-zones.js:143-152) y en Allowed y
-Blocked de que el nodo tenga registros (líneas 319-327). Se replica tal cual.
+And what changes in the BEHAVIOUR is when the Delete button shows: in Cache it
+depends on being outside the root (other-zones.js:143-152) and in Allowed and
+Blocked on the node having records (lines 319-327). It is replicated as it is.
 */
 
 
@@ -53,9 +54,9 @@ interface Confirmacion {
 const TITULO: Record<Lista, string> = { cache: 'Cache', allowed: 'Allowed', blocked: 'Blocked' }
 
 /*
-`importAllowedZones` / `importBlockedZones` (other-zones.js:589-661). El aviso de
-lista vacía va DENTRO del modal, no en la página: upstream le pasa a `showAlert`
-el `divImportAllowedZonesAlert` del propio modal.
+`importAllowedZones` / `importBlockedZones` (other-zones.js:589-661). The
+empty-list alert goes INSIDE the modal, not on the page: upstream passes
+`showAlert` the modal's own `divImportAllowedZonesAlert`.
 */
 function Importar({
   lista,
@@ -82,7 +83,7 @@ function Importar({
     ? 'Enter domain names one below other to import into Allowed Zone:'
     : 'Enter domain names one below other to import into blocked zone:'
 
-  // `resetImport*Modal`: al abrir, el modal empieza limpio y con el foco dentro.
+  // `resetImport*Modal`: on opening, the modal starts clean and with the focus inside.
   useEffect(() => {
     if (abierto) {
       setTexto('')
@@ -172,8 +173,8 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
         setNodo(outcome.data)
         return
       }
-      // El manejador de errores de upstream deja la lista donde estaba y pinta
-      // el errorMessage del servidor; aquí igual.
+      // Upstream's error handler leaves the list where it was and draws the
+      // server's errorMessage; the same here.
       setAviso(avisoDeFallo(outcome))
     },
     [lista, token],
@@ -183,7 +184,7 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
     void cargar('')
   }, [cargar])
 
-  /** Envuelve una mutación: ejecuta, y en el fallo pinta el error del servidor. */
+  /** Wraps a mutation: runs it, and on failure draws the server's error. */
   async function mutar(
     fn: () => Promise<{ kind: string; message?: string }>,
     exito: Aviso,
@@ -206,7 +207,7 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
   const zones = nodo?.zones ?? []
   const records = nodo?.records ?? []
 
-  // Cache: Delete cuelga del NODO. Allowed/Blocked: cuelga de que haya registros.
+  // Cache: Delete hangs off the NODE. Allowed/Blocked: off there being records.
   const puedeBorrar = esCache ? domain !== '' : records.length > 0
 
   function navegar(d: string, arriba?: boolean) {
@@ -228,7 +229,7 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
             title: 'Flushed!',
             text: 'DNS Server cache was flushed successfully.',
           },
-          // Upstream deja la lista en `<ROOT>` y esconde el visor.
+          // Upstream leaves the list at `<ROOT>` and hides the viewer.
           () => cargar(''),
         ),
     })
@@ -257,7 +258,7 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
   async function anadir() {
     const dominio = campo
 
-    // El aviso va ANTES de cualquier llamada, y deja el foco en el campo:
+    // The alert goes BEFORE any call, and leaves the focus in the field:
     // other-zones.js:171-176 y 348-353.
     if (dominio === '') {
       setAviso({
@@ -385,11 +386,11 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
         <div className={styles.tree}>
           <div className={styles.browse}>
             <div className={styles.browseRow}>
-              {/* El campo se llama «Domain» y el botón «Browse». Upstream no pone
-                  rótulo aquí —sólo el `placeholder`—, así que este es añadido
-                  nuestro y puede llamarse como convenga; lo que no puede es
-                  llamarse igual que el botón de al lado, que sí lleva el
-                  literal de upstream. */}
+              {/* The field is called "Domain" and the button "Browse". Upstream puts
+                  no label here —only the `placeholder`— so this one is an
+                  addition of ours and can be called whatever suits; what it
+                  cannot be called is the same as the button next to it, which
+                  does carry upstream's literal. */}
               <Field label="Domain">
                 {(id) => (
                   <Input
@@ -405,17 +406,17 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
                   />
                 )}
               </Field>
-              {/* «Browse» y no «Go»: es el literal de upstream en las tres
-                  pantallas de lista (Cache, Allowed y Blocked), y además dice
-                  mejor lo que hace —te lleva a ese punto del árbol, no envía
-                  nada—. */}
+              {/* "Browse" and not "Go": it is upstream's literal on all three list
+                  screens (Cache, Allowed and Blocked), and it also says better
+                  what it does —it takes you to that point of the tree, it sends
+                  nothing. */}
               <Button variant="primary" onClick={() => navegar(campo)}>
                 Browse
               </Button>
             </div>
           </div>
-          {/* El recuento vive en la barra de recuento, como el de registros: en
-              la cabecera tenía el mismo aspecto que una píldora de estado. */}
+          {/* The count lives in the count bar, like the records one: in the
+              header it looked exactly like a status pill. */}
           <div className={styles.count}>
             <span>{zones.length === 1 ? '1 zone' : `${zones.length} zones`}</span>
           </div>

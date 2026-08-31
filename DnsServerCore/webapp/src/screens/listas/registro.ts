@@ -1,34 +1,34 @@
 import type { RegistroDns } from '../../api/zonelists'
 
 /*
-De JSON en crudo a filas de tabla.
+From raw JSON to table rows.
 
-Upstream vuelca `JSON.stringify(records, null, 2)` dentro de un `<pre>`
-(other-zones.js:157, 335, 471). Aquí se pinta como tabla, y eso obliga a una
-regla: **ni un campo del JSON puede desaparecer por el camino**. Por eso nada
-aquí lleva una lista blanca de tipos de registro. Se recorren las claves que
-vengan, se les da un nombre legible, y lo que no se reconozca sale igualmente
-con su nombre humanizado. Si mañana el servidor añade un campo o un tipo de
-registro nuevo, aparece solo.
+Upstream dumps `JSON.stringify(records, null, 2)` inside a `<pre>`
+(other-zones.js:157, 335, 471). Here it is drawn as a table, and that forces one
+rule: **not a single field of the JSON may disappear along the way**. That is why
+nothing here carries a whitelist of record types. Whatever keys arrive are walked
+through, given a readable name, and anything unrecognised comes out all the same
+with its humanised name. If tomorrow the server adds a field or a new record
+type, it appears on its own.
 
-Tres pares de claves que el servidor emite juntas y que se funden en una línea
-para no repetir el mismo dato dos veces (WebServiceZonesApi.cs:68-860):
+Three pairs of keys the server emits together and that are merged into one line
+so as not to repeat the same datum twice (WebServiceZonesApi.cs:68-860):
 
-  `algorithm` + `algorithmNumber`   -> «RSASHA256 (8)»
-  `refresh`   + `refreshString`     -> «900 (15m)»
-  `nameServer`+ `nameServerIdn`     -> «mañana.test (xn--maana-pta.test)»
+  `algorithm` + `algorithmNumber`   -> "RSASHA256 (8)"
+  `refresh`   + `refreshString`     -> "900 (15m)"
+  `nameServer`+ `nameServerIdn`     -> "mañana.test (xn--maana-pta.test)"
 */
 
 export interface Entrada {
   clave: string
   valor: string
-  /** Una clave pública de DNSKEY revienta el ancho: la pantalla la trunca. */
+  /** A DNSKEY public key blows the width apart: the screen truncates it. */
   largo: boolean
 }
 
 const LARGO = 64
 
-/** Nombres que upstream y el diseño usan y que no salen de humanizar la clave. */
+/** Names upstream and the design use that do not come from humanising the key. */
 const ETIQUETAS: Record<string, string> = {
   ipAddress: 'IP Address',
   nameServer: 'Name Server',
@@ -72,14 +72,14 @@ function entrada(clave: string, valor: string): Entrada {
 const SUFIJOS = ['String', 'Number', 'Idn'] as const
 
 /**
- * Convierte un objeto plano en filas clave/valor, fundiendo los pares
- * `x`/`xString`, `x`/`xNumber` y `x`/`xIdn`.
+ * Turns a flat object into key/value rows, merging the `x`/`xString`,
+ * `x`/`xNumber` and `x`/`xIdn` pairs.
  */
 function filas(obj: Record<string, unknown>): Entrada[] {
   const salida: Entrada[] = []
 
   for (const clave of Object.keys(obj)) {
-    // Las claves derivadas se pintan junto a su base, no por su cuenta.
+    // The derived keys are drawn next to their base, not on their own.
     const derivada = SUFIJOS.some(
       (s) => clave.endsWith(s) && clave.length > s.length && clave.slice(0, -s.length) in obj,
     )
@@ -89,7 +89,7 @@ function filas(obj: Record<string, unknown>): Entrada[] {
 
     const idn = obj[`${clave}Idn`]
     if (idn != null) {
-      // El Unicode es lo legible; el ASCII es lo que viaja por el cable.
+      // The Unicode is the readable one; the ASCII is what travels down the wire.
       valor = `${texto(idn)} (${valor})`
     } else {
       const compuesto = obj[`${clave}String`] ?? obj[`${clave}Number`]
@@ -107,8 +107,9 @@ export function entradasRData(rData: Record<string, unknown>): Entrada[] {
 }
 
 /*
-El TTL llega de dos formas distintas según la lista (ver `zonelists.ts`). Se
-normaliza al par que pide el diseño: el número, y su forma humana al lado.
+The TTL arrives in two different shapes depending on the list (see
+`zonelists.ts`). It is normalised to the pair the design asks for: the number,
+and its human form beside it.
 */
 export function ttlPartido(r: RegistroDns): { valor: string; humano: string } {
   if (typeof r.ttl === 'string') {
@@ -119,10 +120,10 @@ export function ttlPartido(r: RegistroDns): { valor: string; humano: string } {
 }
 
 /*
-`0001-01-01T00:00:00` es el `default(DateTime)` de .NET: significa «nunca», no
-una fecha del año 1. Y se recorta a minutos SIN convertir de huso, porque el
-servidor emite UTC y convertir sería cambiar el dato; la marca completa se
-conserva en el `title` de la celda.
+`0001-01-01T00:00:00` is .NET's `default(DateTime)`: it means "never", not a date
+in year 1. And it is trimmed to minutes WITHOUT converting the time zone, because
+the server emits UTC and converting would be changing the datum; the full stamp
+is kept in the cell's `title`.
 */
 export function fechaCorta(iso: string | undefined | null): string | null {
   if (!iso || iso.startsWith('0001-01-01')) return null
@@ -130,8 +131,8 @@ export function fechaCorta(iso: string | undefined | null): string | null {
 }
 
 /*
-La línea gris de cada fila. En cache lleva por dónde vino el registro; en
-allowed y blocked, el estado del registro en la zona.
+The grey line of each row. In cache it carries where the record came from; in
+allowed and blocked, the record's state in the zone.
 */
 export function meta(r: RegistroDns): string[] {
   const partes: string[] = []
@@ -145,12 +146,12 @@ export function meta(r: RegistroDns): string[] {
     if (rm.datagramSize) partes.push(rm.datagramSize)
     if (rm.roundTripTime) partes.push(rm.roundTripTime)
   } else if (r.dnssecStatus) {
-    // En cache el estado DNSSEC tiene columna propia; aquí no, así que va aquí.
+    // In cache the DNSSEC state has a column of its own; here it does not, so it goes here.
     partes.push(`DNSSEC ${r.dnssecStatus}`)
   }
 
-  // El vocabulario es el de upstream: «Last Modified», «Last Used» y «(never)»
-  // (zone.js:4179-4188), aquí en una sola línea en vez de en tres.
+  // The vocabulary is upstream's: "Last Modified", "Last Used" and "(never)"
+  // (zone.js:4179-4188), here on a single line instead of three.
   const modificado = fechaCorta(r.lastModified)
   if (modificado) partes.push(`modified ${modificado}`)
 
@@ -165,9 +166,9 @@ export function meta(r: RegistroDns): string[] {
 }
 
 /*
-Todo lo que no pinta ninguna de las funciones de arriba. Es la red que garantiza
-que ningún campo del JSON se cae: se parte de las claves reales del registro y
-se descuentan las que ya tienen su sitio.
+Everything none of the functions above draws. It is the net that guarantees no
+field of the JSON falls through: it starts from the record's real keys and
+subtracts the ones that already have a place.
 */
 const YA_PINTADOS = new Set([
   'name',
@@ -196,8 +197,8 @@ export function extras(r: RegistroDns): Entrada[] {
 
   const salida = filas(resto)
 
-  // La salud del servidor de nombres es un objeto: se reparte campo a campo
-  // para que se lea, en vez de caer como un JSON dentro de una celda.
+  // The name server's health is an object: it is spread out field by field
+  // so it reads, instead of landing as JSON inside a cell.
   if (r.nameServerMetadata) {
     salida.push(...filas(r.nameServerMetadata as unknown as Record<string, unknown>))
   }

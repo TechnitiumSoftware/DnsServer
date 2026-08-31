@@ -26,30 +26,30 @@ import { avisoDeFallo, type Aviso } from '../../lib/aviso'
 import { Avisador } from '../../ui/Avisador'
 
 /*
-Logs › Query Logs (logs.js:20-101 y 270-710).
+Logs › Query Logs (logs.js:20-101 and 270-710).
 
-Cinco comportamientos de upstream que son contrato y no preferencias:
+Five upstream behaviours that are contract and not preferences:
 
-  1. **Los dos avisos de «falta el app» NO dicen lo mismo.** El de «Query»
-     termina en «…from the Apps section.»; el de «Export», no (logs.js:391 vs
-     614). Uniformarlos sería cambiar un texto.
-  2. **El orden de validación de «Query»**: primero el app, después la clase,
-     después la fecha «From» y por último la «To». «Export» sólo valida las dos
-     primeras: no mira las fechas.
-  3. **«Live Update» no es un refresco: es un modo.** Al marcarlo, fija página 1
-     y orden descendente, VACÍA «From» y «To», deshabilita esos cuatro
-     controles y el botón «Query», y vuelve a consultar cada 2 s. Al
-     desmarcarlo, RESETEA el formulario entero, no sólo esos campos.
-  4. **«Logs Per Page» se recuerda en `localStorage`** con la clave
-     `optQueryLogsEntriesPerPage`, y se relee en cada reset (logs.js:23-26 y
-     63-65). El valor por defecto del formulario es 10, no los 25 del servidor.
-  5. **La página «Last» se pide con `pageNumber=-1`**: el servidor devuelve la
-     última. Comprobado contra una instancia v15.4.
+  1. **The two "the app is missing" alerts do NOT say the same thing.** The
+     "Query" one ends in "…from the Apps section."; the "Export" one does not
+     (logs.js:391 vs 614). Making them uniform would be changing a text.
+  2. **The validation order of "Query"**: the app first, then the class, then the
+     "From" date and lastly the "To" one. "Export" only validates the first two:
+     it does not look at the dates.
+  3. **"Live Update" is not a refresh: it is a mode.** On checking it, it pins
+     page 1 and descending order, EMPTIES "From" and "To", disables those four
+     controls and the "Query" button, and queries again every 2 s. On unchecking
+     it, it RESETS the whole form, not just those fields.
+  4. **"Logs Per Page" is remembered in `localStorage`** under the key
+     `optQueryLogsEntriesPerPage`, and re-read on every reset (logs.js:23-26 and
+     63-65). The form's default value is 10, not the server's 25.
+  5. **The "Last" page is asked for with `pageNumber=-1`**: the server returns
+     the last one. Checked against a v15.4 instance.
 
-Lo que NO está: el menú de cada fila («Query DNS Server», «Allow Domain» /
-«Block Domain», logs.js:539-552). Sus tres acciones viven en otras pantallas
-—DNS Client y Allowed/Blocked— y no hay forma de invocarlas desde aquí sin
-tocar el Shell. Queda anotado como hueco de integración, no resuelto a medias.
+What is NOT here: each row's menu ("Query DNS Server", "Allow Domain" / "Block
+Domain", logs.js:539-552). Its three actions live on other screens —DNS Client
+and Allowed/Blocked— and there is no way to invoke them from here without
+touching the Shell. It is noted as an integration gap, not half-solved.
 */
 
 
@@ -72,15 +72,15 @@ interface Filtros {
   qclass: string
 }
 
-/** `resetQueryLogsForm` (logs.js:50). El formulario vuelve a sus valores por
- *  defecto y relee de `localStorage` cuántas entradas por página. */
+/** `resetQueryLogsForm` (logs.js:50). The form returns to its default values and
+ *  re-reads from `localStorage` how many entries per page. */
 function filtrosPorDefecto(appName: string, classPath: string): Filtros {
   let entriesPerPage: string = ENTRIES_PER_PAGE[0]
   try {
     const guardado = localStorage.getItem(CLAVE_ENTRIES_PER_PAGE)
     if (guardado != null) entriesPerPage = guardado
   } catch {
-    /* Sin localStorage se usa el valor por defecto del formulario. */
+    /* Without localStorage the form's default value is used. */
   }
 
   return {
@@ -101,8 +101,8 @@ function filtrosPorDefecto(appName: string, classPath: string): Filtros {
   }
 }
 
-/** Los apps que ofrecen query logs y, para cada uno, sus clases que lo ofrecen
- *  (logs.js:69-84 y 300-325). */
+/** The apps that offer query logs and, for each one, its classes that offer it
+ *  (logs.js:69-84 and 300-325). */
 export function appsConQueryLogs(apps: InstalledApp[]): { name: string; classPaths: string[] }[] {
   return apps
     .map((a) => ({
@@ -112,8 +112,8 @@ export function appsConQueryLogs(apps: InstalledApp[]): { name: string; classPat
     .filter((a) => a.classPaths.length > 0)
 }
 
-/** El fondo de una fila (logs.js:452-508): manda el RCODE y, dentro de él, el
- *  tipo de respuesta. Es la única señal de color de la tabla. */
+/** A row's background (logs.js:452-508): the RCODE rules, and within it the
+ *  response type. It is the table's only colour signal. */
 export function claseFila(entry: QueryLogEntry): string {
   const bloqueada = ['blocked', 'upstreamblocked', 'upstreamblockedcached']
   const tipo = entry.responseType.toLowerCase()
@@ -134,7 +134,7 @@ export function claseFila(entry: QueryLogEntry): string {
   }
 }
 
-/** El texto del contador (logs.js:594-597). */
+/** The counter's text (logs.js:594-597). */
 export function textoEstado(p: QueryLogPage): string {
   if (p.entries.length === 0) return '0 logs'
   const primera = p.entries[0].rowNumber
@@ -143,10 +143,10 @@ export function textoEstado(p: QueryLogPage): string {
 }
 
 /*
-Las diez páginas centradas en la actual. Era una copia letra por letra de
-`lib/paginacion.ts` —aquella citaba `zone.js:880-905` y ésta `logs.js:571-586`,
-dos sitios de upstream que hacen lo mismo—, con sus propias pruebas. Se conserva
-el nombre porque las pruebas de esta pantalla lo usan.
+The ten pages centred on the current one. It was a letter-for-letter copy of
+`lib/paginacion.ts` —that one cited `zone.js:880-905` and this one
+`logs.js:571-586`, two places in upstream doing the same thing— with tests of its
+own. The name is kept because this screen's tests use it.
 */
 export function rangoPaginas(pageNumber: number, totalPages: number): number[] {
   return ventanaDePaginas(pageNumber, totalPages).paginas
@@ -167,12 +167,12 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
 
   const desde = useRef<HTMLInputElement>(null)
   const hasta = useRef<HTMLInputElement>(null)
-  // El desplegable es `ui/Select`, así que lo que se enfoca es su disparador.
+  // The dropdown is `ui/Select`, so what gets focused is its trigger.
   const appRef = useRef<HTMLButtonElement>(null)
   const claseRef = useRef<HTMLButtonElement>(null)
-  /* El bucle de «Live Update» y las validaciones leen SIEMPRE los filtros
-     vigentes, pero re-armar el temporizador cada vez que se teclea en un campo
-     lo reiniciaría. De ahí la referencia, sincronizada tras cada commit. */
+  /* The "Live Update" loop and the validations ALWAYS read the current
+     filters, but rebuilding the timer every time a field is typed into would
+     restart it. Hence the ref, synced after each commit. */
   const filtrosRef = useRef(f)
   useEffect(() => {
     filtrosRef.current = f
@@ -185,10 +185,10 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
       if (!vivo) return
       if (outcome.kind !== 'ok') {
         /*
-        Sin esto, un fallo aquí dejaba el desplegable de «Source App Name» a
-        «—», que es lo mismo que enseña un servidor sin ninguna app de registro
-        instalada. Y de ahí no se sale: sin app no hay consulta que hacer, así
-        que la pantalla quedaba muerta sin decir por qué.
+        Without this, a failure here left the "Source App Name" dropdown at
+        "—", which is the same thing a server with no logging app installed
+        shows. And there is no way out of that: with no app there is no query to
+        run, so the screen sat dead without saying why.
         */
         setApps([])
         setAviso(avisoDeFallo(outcome))
@@ -207,7 +207,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
   const clasesDelApp = apps?.find((a) => a.name === f.appName)?.classPaths ?? []
 
   const parametros = useCallback((filtros: Filtros, pageNumber: string): QueryLogsParams => {
-    // logs.js:405 — menos de 1 entrada por página cae a 10.
+    // logs.js:405 — fewer than 1 entry per page falls to 10.
     const n = Number(filtros.entriesPerPage)
     const entriesPerPage = String(n < 1 || Number.isNaN(n) ? 10 : n)
 
@@ -234,7 +234,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
     async (pageNumber: string, enVivo: boolean) => {
       const filtros = filtrosRef.current
 
-      // logs.js:389-401 — el app y la clase, en ese orden.
+      // logs.js:389-401 — the app and the class, in that order.
       if (filtros.appName === '') {
         setAviso({
           type: 'warning',
@@ -254,8 +254,8 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
         return
       }
 
-      // logs.js:407-424 — «From» antes que «To», y sólo si el navegador dice
-      // que lo tecleado no es una fecha.
+      // logs.js:407-424 — "From" before "To", and only if the browser says
+      // what was typed is not a date.
       if (desde.current?.validity.badInput === true) {
         setAviso({
           type: 'warning',
@@ -296,7 +296,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
     consultarRef.current = consultar
   }, [consultar])
 
-  /* logs.js:610 — mientras «Live Update» esté marcado, se repite cada 2 s. */
+  /* logs.js:610 — while "Live Update" is checked, it repeats every 2 s. */
   useEffect(() => {
     if (!live) return
     let cancelado = false
@@ -320,7 +320,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
   }
 
   function cambiarApp(name: string) {
-    // logs.js:21 — al cambiar de app se recargan sus clases y se toma la primera.
+    // logs.js:21 — on changing app its classes reload and the first is taken.
     const clases = apps?.find((a) => a.name === name)?.classPaths ?? []
     set({ appName: name, classPath: clases[0] ?? '' })
   }
@@ -332,7 +332,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
 
   function alternarLive(marcado: boolean) {
     if (marcado) {
-      // logs.js:34-42 — fija página y orden, y vacía el rango de fechas.
+      // logs.js:34-42 — pins page and order, and empties the date range.
       set({ pageNumber: '1', descendingOrder: 'true', start: '', end: '' })
       setLive(true)
       return
@@ -342,8 +342,8 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
   }
 
   async function exportar() {
-    // logs.js:612-625 — el aviso del app NO lleva «from the Apps section.» y
-    // aquí no se comprueban las fechas.
+    // logs.js:612-625 — the app alert does NOT carry "from the Apps section." and
+    // the dates are not checked here.
     if (f.appName === '') {
       setAviso({
         type: 'warning',
@@ -373,7 +373,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
     try {
       localStorage.setItem(CLAVE_ENTRIES_PER_PAGE, valor)
     } catch {
-      /* Sin localStorage no se recuerda; el filtro sigue funcionando. */
+      /* Without localStorage it is not remembered; the filter still works. */
     }
   }
 
@@ -616,7 +616,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
         <>
           <div className={styles.count}>
             <span>{textoEstado(pagina)}</span>
-            {/* logs.js:589 — «Last» se pide con -1; lo resuelve el servidor. */}
+            {/* logs.js:589 — "Last" is asked for with -1; the server resolves it. */}
             <Paginacion
               ventana={ventanaDePaginas(pagina.pageNumber, pagina.totalPages)}
               actual={pagina.pageNumber}
@@ -654,7 +654,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                   )}
                 </td>
                 <td>{e.rcode}</td>
-                {/* logs.js:518 — la raíz se escribe con un punto. */}
+                {/* logs.js:518 — the root is written with a dot. */}
                 <td className={`${styles.mono} ${styles.romper}`}>
                   {e.qname === '' ? '.' : (e.qname ?? '')}
                 </td>

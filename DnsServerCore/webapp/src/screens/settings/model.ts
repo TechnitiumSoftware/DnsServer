@@ -2,31 +2,31 @@ import type { DnsSettings } from '../../api/settings'
 import { serializarTabla, type Celda } from '../../lib/tabla-serie'
 
 /*
-El modelo del formulario de Settings.
+The model of the Settings form.
 
-La consola antigua no tiene modelo: lee y escribe el DOM. Aquí se replica ese
-DOM campo a campo —cada `<input>` es una cadena, cada `<textarea>` una cadena con
-saltos de línea, cada `<table>` una lista de filas— para que el orden de
-validación y el cuerpo que se manda salgan IDÉNTICOS a `saveDnsSettings`
+The old console has no model: it reads and writes the DOM. Here that DOM is
+replicated field by field —each `<input>` is a string, each `<textarea>` a string
+with newlines, each `<table>` a list of rows— so that the validation order and
+the body that gets sent come out IDENTICAL to `saveDnsSettings`
 (main.js:1631-2236).
 
-Dos convenciones de upstream que hay que respetar al pie de la letra:
+Two upstream conventions that have to be honoured to the letter:
 
-  · Una lista vacía se manda como la CADENA `"false"`, no se omite. Sale de
-    concatenar `x = false` a la query. El servidor lo interpreta como «vacía».
-    Dos excepciones: los End Points y las direcciones locales del Web Service,
-    que se rellenan con su valor por defecto, y `proxyBypass`, que se manda
-    como cadena vacía.
-  · Tras guardar, upstream REESCRIBE el textarea con la lista saneada. Unas
-    veces con salto de línea al final y otras no; esa asimetría se copia tal
-    cual para no cambiar lo que ve el usuario.
+  · An empty list is sent as the STRING `"false"`, it is not omitted. It comes
+    out of concatenating `x = false` into the query. The server reads it as
+    "empty". Two exceptions: the End Points and the Web Service's local
+    addresses, which are filled with their default value, and `proxyBypass`,
+    which is sent as an empty string.
+  · After saving, upstream REWRITES the textarea with the sanitised list.
+    Sometimes with a trailing newline and sometimes without; that asymmetry is
+    copied as it stands so as not to change what the user sees.
 */
 
 export interface QpmRow { prefix: string; udpLimit: string; tcpLimit: string }
 export interface TsigRow { keyName: string; sharedSecret: string; algorithmName: string }
 
 export interface SettingsForm {
-  // General — parámetros locales
+  // General — local parameters
   dnsServerDomain: string
   dnsServerLocalEndPoints: string
   dnsServerIPv4SourceAddresses: string
@@ -43,7 +43,7 @@ export interface SettingsForm {
   zoneTransferAllowedNetworks: string
   notifyAllowedNetworks: string
 
-  // General — actualización
+  // General — update
   dnsServerEnableCheckForUpdate: boolean
   dnsAppsEnableAutomaticUpdate: boolean
 
@@ -191,21 +191,21 @@ export interface SettingsForm {
 }
 
 /*
-`getArrayAsString` (main.js:1140) concatena cada entrada con `\r\n`, pero eso NO
-es lo que acaba viajando al servidor: el HTML obliga al navegador a normalizar
-los saltos del valor de un `<textarea>` a `\n` al leerlo, así que cuando
-`cleanTextList` lo recoge los `\r` ya no están. Aquí no hay DOM intermedio que
-normalice nada, de modo que se emite `\n` directamente. Copiar el `\r\n` literal
-mandaría `forwarders=1.1.1.1%0D,8.8.8.8%0D` al servidor, que es justo lo que
-upstream NO manda.
+`getArrayAsString` (main.js:1140) concatenates each entry with `\r\n`, but that
+is NOT what ends up travelling to the server: HTML forces the browser to
+normalise the newlines of a `<textarea>`'s value to `\n` when reading it, so by
+the time `cleanTextList` picks it up the `\r` are gone. Here there is no
+intermediate DOM normalising anything, so `\n` is emitted directly. Copying the
+literal `\r\n` would send `forwarders=1.1.1.1%0D,8.8.8.8%0D` to the server, which
+is exactly what upstream does NOT send.
 */
 export function listaATexto(lista: readonly string[] | number[] | null | undefined): string {
   if (lista == null) return ''
   return (lista as readonly (string | number)[]).map((v) => `${v}\n`).join('')
 }
 
-/** `cleanTextList` (common.js:326): saltos de línea a comas, comas repetidas
- *  colapsadas y comas de los extremos fuera. */
+/** `cleanTextList` (common.js:326): newlines to commas, repeated commas
+ *  collapsed and the ones at the ends stripped. */
 export function limpiarLista(texto: string): string {
   let t = texto.replace(/\n/g, ',')
   while (t.indexOf(',,') !== -1) t = t.replace(/,,/g, ',')
@@ -339,7 +339,7 @@ export function formularioDesdeAjustes(s: DnsSettings): SettingsForm {
 
     enableBlocking: s.enableBlocking,
     allowTxtBlockingReport: s.allowTxtBlockingReport,
-    // main.js:1455 — el campo de minutos se vacía en cada carga, no se conserva.
+    // main.js:1455 — the minutes field empties on every load, it is not kept.
     temporaryDisableBlockingMinutes: '',
     blockingBypassList: listaATexto(s.blockingBypassList),
     blockingType: s.blockingType ?? 'AnyAddress',
@@ -348,7 +348,7 @@ export function formularioDesdeAjustes(s: DnsSettings): SettingsForm {
     blockListUrls: listaATexto(s.blockListUrls),
     blockListUpdateIntervalHours: String(s.blockListUpdateIntervalHours ?? ''),
 
-    // main.js:1525 — el tipo de proxy se compara en minúsculas y cualquier
+    // main.js:1525 — the proxy type is compared lowercased and any
     // valor desconocido cae en «None».
     proxyType: tipoProxy(s.proxy?.type),
     proxyAddress: s.proxy?.address ?? '',
@@ -390,12 +390,12 @@ function tipoProxy(tipo: string | undefined): string {
   }
 }
 
-/* ── Reglas de habilitado ──────────────────────────────────────────────────
-   Upstream las reparte entre `loadDnsSettings` y una docena de manejadores de
-   `click`/`change` en `$(function(){…})` (main.js:279-490). Al derivarlas del
-   estado en vez de mutarlas por evento, la regla vive en un solo sitio y no se
-   puede quedar desincronizada, que es lo que le pasa hoy a upstream con
-   `chkEnableDnsOverHttp3` (ver el informe de esta fase).                    */
+/* ── Enablement rules ─────────────────────────────────────────────────────
+   Upstream splits them between `loadDnsSettings` and a dozen `click`/`change`
+   handlers in `$(function(){…})` (main.js:279-490). By deriving them from state
+   instead of mutating them per event, the rule lives in one place and cannot
+   fall out of sync, which is what happens to upstream today with
+   `chkEnableDnsOverHttp3` (see this phase's report).                         */
 export function habilitado(f: SettingsForm) {
   const tlsWeb = f.webServiceEnableTls || f.webServiceEnableTlsUnixSocket
   const proxyInverso =
@@ -447,31 +447,32 @@ export function habilitado(f: SettingsForm) {
   }
 }
 
-/* ── Construcción del cuerpo de `settings/set` ─────────────────────────── */
+/* ── Building the body of `settings/set` ──────────────────────────────── */
 
 export interface ErrorValidacion {
   title: string
   text: string
-  /** Sub-pestaña en la que está el campo, para poder saltar a ella. */
+  /** The sub-tab the field is in, so it can be jumped to. */
   tab: string
-  /** `name` del control, para devolverle el foco como hace upstream. */
+  /** The control's `name`, to give it back the focus as upstream does. */
   campo: string
 }
 
 export interface ResultadoCuerpo {
   error?: ErrorValidacion
   body?: Record<string, string>
-  /** Textareas que upstream reescribe con la lista saneada. */
+  /** Textareas upstream rewrites with the sanitised list. */
   saneado?: Partial<SettingsForm>
 }
 
 /*
-El algoritmo es `serializeTableData` de upstream y vive en `lib/tabla-serie`,
-que lo comparten las cinco pantallas con tabla editable. Aquí sólo se traduce
-dónde está la celda que falla: en Settings, a la sub-pestaña y el campo.
+The algorithm is upstream's `serializeTableData` and it lives in
+`lib/tabla-serie`, shared by the five screens with an editable table. All that is
+translated here is where the failing cell is: in Settings, to the sub-tab and the
+field.
 
-Sólo `sharedSecret` lleva `data-optional` en upstream, así que sólo ella admite
-vacío; eso lo dice cada celda con su `opcional`.
+Only `sharedSecret` carries `data-optional` in upstream, so only it allows empty;
+each cell says so through its `opcional`.
 */
 function serializarConUbicacion(
   filas: Celda[][],
@@ -491,7 +492,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
     error: { title: 'Missing!', text, tab, campo },
   })
 
-  // ── General: parámetros locales
+  // ── General: local parameters
   if (f.dnsServerDomain === '') {
     return falta('Please enter server domain name.', 'General', 'dnsServerDomain')
   }
@@ -632,7 +633,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   body.udpReceiveBufferSizeKB = f.udpReceiveBufferSizeKB
   body.maxConcurrentResolutionsPerCore = f.maxConcurrentResolutionsPerCore
 
-  // ── Web Service (sin validación: los vacíos caen a su valor por defecto)
+  // ── Web Service (no validation: the empty ones fall to their default value)
   let wsla = limpiarLista(f.webServiceLocalAddresses)
   if (wsla.length === 0 || wsla === ',') wsla = '0.0.0.0,[::]'
   else saneado.webServiceLocalAddresses = wsla.replace(/,/g, '\n')
@@ -770,7 +771,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   body.cachePrefetchSampleIntervalInMinutes = f.cachePrefetchSampleIntervalInMinutes
   body.cachePrefetchSampleEligibilityHitsPerHour = f.cachePrefetchSampleEligibilityHitsPerHour
 
-  // ── Blocking (sin validación en upstream)
+  // ── Blocking (no validation in upstream)
   const bbl = limpiarLista(f.blockingBypassList)
   if (!(bbl.length === 0 || bbl === ',')) saneado.blockingBypassList = bbl.replace(/,/g, '\n') + '\n'
 
@@ -800,7 +801,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
       return falta('Please enter proxy server port.', 'Proxy & Forwarders', 'proxyPort')
     }
     const pb = limpiarLista(f.proxyBypassList)
-    // main.js:2145 — aquí el vacío NO es «false», es cadena vacía.
+    // main.js:2145 — here empty is NOT "false", it is an empty string.
     if (!(pb.length === 0 || pb === ',')) saneado.proxyBypassList = pb.replace(/,/g, '\n')
 
     proxy.proxyAddress = f.proxyAddress
@@ -830,7 +831,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   body.forwarderTimeout = f.forwarderTimeout
   body.forwarderConcurrency = f.forwarderConcurrency
 
-  // ── Logging (sin validación en upstream)
+  // ── Logging (no validation in upstream)
   body.loggingType = f.loggingType
   body.ignoreResolverLogs = String(f.ignoreResolverLogs)
   body.noStackTrace = String(f.noStackTrace)

@@ -18,28 +18,28 @@ import { TablaEditable } from '../../ui/TablaEditable'
 import { GroupRow, Row } from '../../ui/Form'
 
 /*
-`refreshAdminSsoConfig`, `loadAdminSsoConfig` y `saveAdminSsoConfig`
-(auth.js:2152-2313). Es la pantalla que CONFIGURA el SSO; el inicio de sesión
-por SSO ya está resuelto en la fase 2 y no se toca aquí.
+`refreshAdminSsoConfig`, `loadAdminSsoConfig` and `saveAdminSsoConfig`
+(auth.js:2152-2313). This is the screen that CONFIGURES SSO; signing in through
+SSO is already solved in phase 2 and is not touched here.
 
-Cuatro cosas del servidor que gobiernan este formulario:
+Four things about the server that govern this form:
 
-  1. **`admin/sso/set` NO devuelve `localGroups`** (WebServiceAuthApi.cs:1790
-     llama a `WriteSsoConfig` con `includeGroups: false`). Upstream sobrevive
-     porque los guardó en una variable global al hacer el `get`; aquí se
-     conservan igual, en estado, y el guardado sólo refresca el resto.
-  2. **El secreto llega enmascarado como `"************"`** y el servidor
-     IGNORA ese valor exacto al guardar (líneas 339-342 y 1738). Por eso el
-     campo se rellena con la máscara y se reenvía tal cual: es lo que permite
-     guardar sin volver a teclear el secreto.
-  3. **Las tres validaciones de arriba sólo se aplican con el SSO ACTIVADO.**
-     Con la casilla desmarcada se puede guardar todo vacío.
-  4. **Una tabla vacía viaja como la cadena `"false"`**, no vacía
-     (auth.js:2265 y 2280): sale de concatenar un booleano a la query.
+  1. **`admin/sso/set` does NOT return `localGroups`** (WebServiceAuthApi.cs:1790
+     calls `WriteSsoConfig` with `includeGroups: false`). Upstream survives
+     because it saved them into a global variable when doing the `get`; here they
+     are kept just the same, in state, and the save only refreshes the rest.
+  2. **The secret arrives masked as `"************"`** and the server IGNORES
+     that exact value when saving (lines 339-342 and 1738). That is why the field
+     is filled with the mask and resent as it is: it is what allows saving
+     without typing the secret again.
+  3. **The three validations above only apply with SSO ENABLED.** With the box
+     unchecked everything can be saved empty.
+  4. **An empty table travels as the string `"false"`**, not empty (auth.js:2265
+     and 2280): it comes out of concatenating a boolean into the query.
 
-Y un orden que es contrato: autoridad, cliente, secreto, scopes, mapa de grupos,
-y sólo al final las dos confirmaciones de `http:`. Los avisos de esta pantalla
-salen en la PÁGINA, no en un modal: upstream llama a `showAlert` sin destino.
+And an order that is contract: authority, client, secret, scopes, group map, and
+only at the end the two `http:` confirmations. This screen's alerts come out on
+the PAGE, not in a modal: upstream calls `showAlert` with no destination.
 */
 
 interface Props {
@@ -77,8 +77,8 @@ export function Sso({ token, onAviso }: Props) {
     setAllowSignup(c.ssoAllowSignup)
     setOnlyMapped(c.ssoAllowSignupOnlyForMappedUsers)
     setGroupMap(c.ssoGroupMap.map((g) => ({ ...g })))
-    // `localGroups` sólo llega en el `get`: si no viene, se conserva el que ya
-    // había en vez de vaciar los desplegables del mapa de grupos.
+    // `localGroups` only arrives on the `get`: if it does not come, the one already
+    // there is kept instead of emptying the group map's dropdowns.
     if (c.localGroups != null) setGruposLocales(c.localGroups)
   }
 
@@ -99,9 +99,9 @@ export function Sso({ token, onAviso }: Props) {
   }, [cargar])
 
   /*
-  `loadAdminSsoConfig` (auth.js:2196-2204): el Redirect URI que hay que dar de
-  alta en el proveedor se calcula en el navegador a partir de la URL actual,
-  añadiendo `sso/callback` con una sola barra.
+  `loadAdminSsoConfig` (auth.js:2196-2204): the Redirect URI that has to be
+  registered with the provider is computed in the browser from the current URL,
+  appending `sso/callback` with a single slash.
   */
   const redirectUri = (() => {
     const base = `${window.location.protocol}//${window.location.host}${window.location.pathname}`
@@ -187,9 +187,9 @@ export function Sso({ token, onAviso }: Props) {
         titulo="Single Sign-On (SSO)"
       />
 
-      {/* Sin leyenda: era el segundo de cuatro «Single Sign-On (SSO)» seguidos
-          —título, leyenda, rótulo de la fila y el propio conmutador— antes del
-          primer control, y siendo el único bloque no agrupaba nada. */}
+      {/* No legend: it was the second of four consecutive "Single Sign-On
+          (SSO)" —title, legend, row label and the switch itself— before the first
+          control, and being the only block it grouped nothing. */}
       <Panel className={styles.block}>
 
         <GroupRow label="Single Sign-On (SSO)">
@@ -482,10 +482,10 @@ export function Sso({ token, onAviso }: Props) {
 }
 
 /*
-Un campo de texto de esta pantalla. La fila es la de `ui/Form`; aquí sólo queda
-lo propio: el `Input` y su ancho. Antes esto era una CUARTA copia de la fila
-—las otras tres estaban en las partes de Settings, de DHCP y de
-Administration—, cada una con su propio `useId` y su propia maquetación.
+A text field of this screen. The row is `ui/Form`'s; what is left here is only
+what belongs to it: the `Input` and its width. This used to be a FOURTH copy of
+the row —the other three were in the Settings, DHCP and Administration parts—
+each with its own `useId` and its own layout.
 */
 function Fila({
   label,

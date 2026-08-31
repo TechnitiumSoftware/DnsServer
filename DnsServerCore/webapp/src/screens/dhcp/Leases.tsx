@@ -24,28 +24,28 @@ import { Avisador } from '../../ui/Avisador'
 /*
 DHCP › Leases (dhcp.js:37-199).
 
-Tres detalles de upstream que no se ven en el dibujo y que aquí se conservan:
+Three upstream details that are not visible in the mockup and that are kept here:
 
-  1. **La tabla NO se recarga tras una acción.** Convertir una concesión cambia
-     la etiqueta de tipo de esa fila y las dos opciones de su menú; quitarla
-     borra la fila y recalcula el pie. En ningún caso se vuelve a pedir la lista.
-  2. **El aviso de «Remove Lease» sale DENTRO del modal cuando falla** y en la
-     pantalla cuando sale bien: upstream le pasa a `showAlert` el
-     `divDhcpRemoveLeaseAlert` del propio modal sólo en la rama de error.
-  3. **Las dos conversiones se confirman con un `confirm()`** y el borrado con un
-     modal entero de advertencias. No son la misma clase de acción.
+  1. **The table does NOT reload after an action.** Converting a lease changes
+     that row's type tag and the two options in its menu; removing it deletes the
+     row and recalculates the footer. In no case is the list asked for again.
+  2. **The "Remove Lease" alert comes out INSIDE the modal when it fails** and on
+     the screen when it succeeds: upstream passes `showAlert` the modal's own
+     `divDhcpRemoveLeaseAlert` only in the error branch.
+  3. **The two conversions are confirmed with a `confirm()`** and the delete with
+     a whole modal of warnings. They are not the same class of action.
 
-El dibujo del rediseño quita la columna de tipo (Dynamic/Reserved) y deja sólo
-«Remove» en cada fila. Eso perdería dos acciones reales de la API, así que se
-mantienen las tres de upstream y la etiqueta de tipo.
+The redesign mockup drops the type column (Dynamic/Reserved) and leaves only
+"Remove" on each row. That would lose two real API actions, so upstream's three
+and the type tag are kept.
 */
 
 export interface LeasesProps {
   token: string | null
   node?: string
-  /** `DhcpServer.canModify`: las dos conversiones (`WebServiceDhcpApi.cs:805,835`). */
+  /** `DhcpServer.canModify`: the two conversions (`WebServiceDhcpApi.cs:805,835`). */
   canModify?: boolean
-  /** `DhcpServer.canDelete`: quitar una concesión (`WebServiceDhcpApi.cs:761`). */
+  /** `DhcpServer.canDelete`: removing a lease (`WebServiceDhcpApi.cs:761`). */
   canDelete?: boolean
 }
 
@@ -69,12 +69,12 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
   const [avisoModal, setAvisoModal] = useState<Aviso | null>(null)
 
   /*
-  Un fallo al cargar NO se pinta como una lista vacía.
+  A failure on load is NOT drawn as an empty list.
 
-  Antes se decía «No Lease Found» cuando la llamada se había caído, que es lo
-  mismo que enseña un servidor sin concesiones: la pantalla contestaba en falso y
-  nadie sospecha de una respuesta que parece normal. Ahora el fallo se dice, con
-  el mensaje que mandó el servidor.
+  It used to say "No Lease Found" when the call had fallen over, which is the same
+  thing a server with no leases shows: the screen was answering falsely and nobody
+  suspects a response that looks normal. Now the failure is said, with the message
+  the server sent.
   */
   const cargar = useCallback(async () => {
     setLeases(null)
@@ -91,8 +91,8 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
     void cargar()
   }, [cargar])
 
-  // El hook va ANTES de cualquier return: si no, dejaría de llamarse en cuanto
-  // la tabla está cargando.
+  // The hook goes BEFORE any return: otherwise it would stop being called as soon
+  // as the table is loading.
   const { filas: leasesVisibles, orden, alternar } = useOrden(CLAVES, leases ?? [])
 
   async function convertir(i: number, tipo: 'reserve' | 'dynamic') {
@@ -109,7 +109,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
 
     if (outcome.kind !== 'ok') return
 
-    // dhcp.js:104-109 — sólo cambia la etiqueta de la fila; no se recarga.
+    // dhcp.js:104-109 — only the row's tag changes; nothing is reloaded.
     const nuevo = tipo === 'reserve' ? 'Reserved' : 'Dynamic'
     setLeases((prev) => prev?.map((l, j) => (j === i ? { ...l, type: nuevo } : l)) ?? prev)
     setAviso(
@@ -194,8 +194,8 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
             <td className={styles.fecha}>{fechaMinuto(l.leaseExpires)}</td>
             <td className={tbl.celdaAcciones}>
               <div className={tbl.acciones}>
-                {/* dhcp.js:63-64 — cuál de las dos conversiones se ofrece
-                    depende del tipo actual de la concesión. */}
+                {/* dhcp.js:63-64 — which of the two conversions is offered
+                    depends on the lease's current type. */}
                 {canModify && (
                   <AccionFila
                     icono="convertir"
@@ -231,10 +231,10 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
       </Tabla>
 
       <div className={styles.total}>
-        {/* El pie es el recuento y nada más. Cuando no hay filas, quien lo dice
-            es la propia tabla —con su fila centrada, como el resto de la
-            consola y como upstream (`dhcp.js:74`)—; aquí quedaba flotando
-            fuera del panel, bajo una tabla con el cuerpo en blanco. */}
+        {/* The footer is the count and nothing else. When there are no rows,
+            the one that says so is the table itself —with its centred row, like
+            the rest of the console and like upstream (`dhcp.js:74`)—; here it was
+            left floating outside the panel, under a table with a blank body. */}
         <span>{`Total Leases: ${leases.length}`}</span>
       </div>
 
@@ -253,8 +253,8 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
         onConfirmar={() => confirmar && void convertir(confirmar.i, confirmar.tipo)}
       />
 
-      {/* index.html:6587-6617 — el modal «Remove Lease?» completo, con sus dos
-          advertencias, su recomendación y su lista de alternativas. */}
+      {/* index.html:6587-6617 — the complete "Remove Lease?" modal, with its two
+          warnings, its recommendation and its list of alternatives. */}
       <Dialog
         open={quitar !== null}
         onOpenChange={(o) => !o && setQuitar(null)}

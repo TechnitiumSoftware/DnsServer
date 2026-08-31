@@ -29,27 +29,28 @@ import { Paginacion } from '../../ui/Paginacion'
 import { avisoDeFallo } from '../../lib/aviso'
 
 /*
-La lista de zonas. Réplica de `refreshZones` (zone.js:649) y de las seis
-acciones que cuelgan de cada fila.
+The zone list. A replica of `refreshZones` (zone.js:649) and of the six actions
+hanging off each row.
 
-Dos cosas del original que aquí se ven raras y son deliberadas:
+Two things from the original that look odd here and are deliberate:
 
-  · **El botón «Delete Zones» borra lo marcado y usa el mismo endpoint** que el
-    borrado de una sola, con el parámetro en plural. Cuando alguna falla, el
-    aviso NO es un error: es un `warning` que cuenta cuántas fallaron.
+  · **The "Delete Zones" button deletes what is checked and uses the same
+    endpoint** as the single delete, with the parameter in plural. When some of
+    them fail, the alert is NOT an error: it is a `warning` counting how many
+    failed.
 
-  · **Qué acciones ofrece una fila depende del tipo de zona**, con cinco listas
-    distintas que se solapan a medias (`showResyncMenu`, y los cuatro `switch`
-    de Import / Export / Convert / Clone). No se uniforman.
+  · **Which actions a row offers depends on the zone type**, through five
+    different lists that half overlap (`showResyncMenu`, and the four `switch` of
+    Import / Export / Convert / Clone). They are not made uniform.
 */
 
-/** Los tipos que ofrecen cada acción, tal cual los enumera zone.js:760-880. */
+/** The types that offer each action, exactly as zone.js:760-880 enumerates them. */
 const RESYNC = ['Secondary', 'SecondaryForwarder', 'SecondaryCatalog', 'Stub']
 const IMPORTAR = ['Primary', 'Forwarder']
 const EXPORTAR = ['Primary', 'Forwarder', 'Secondary', 'SecondaryForwarder', 'SecondaryCatalog', 'Catalog']
 const CONVERTIR = ['Primary', 'Secondary', 'SecondaryForwarder', 'Forwarder', 'SecondaryCatalog']
 const CLONAR = ['Primary', 'Forwarder']
-/** `hideOptionsMenu` es falso para los siete tipos conocidos (zone.js:774-790). */
+/** `hideOptionsMenu` is false for the seven known types (zone.js:774-790). */
 const CON_OPCIONES = [...TIPOS_ZONA] as string[]
 
 export interface AccionesDeZona {
@@ -69,7 +70,7 @@ export interface ListaZonasProps extends AccionesDeZona {
   onAviso: (a: Aviso) => void
   onConfirmar: (c: Confirmacion) => void
   onAnadir: () => void
-  /** Cambia cuando algo de fuera (un modal) obliga a releer la lista. */
+  /** Changes when something from outside (a modal) forces a re-read of the list. */
   refresco: number
 }
 
@@ -96,8 +97,8 @@ export function ListaZonas({
   const [ocupado, setOcupado] = useState(false)
   const [marcadas, setMarcadas] = useState<string[]>([])
 
-  // Los filtros son estado del formulario: no se aplican hasta pulsar «Go»,
-  // igual que en upstream, donde `refreshZones` los lee en ese momento.
+  // The filters are form state: they do not apply until "Go" is pressed,
+  // just like upstream, where `refreshZones` reads them at that moment.
   const [filtroNombre, setFiltroNombre] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('')
   const [porPagina, setPorPagina] = useState(10)
@@ -118,7 +119,7 @@ export function ListaZonas({
       setOcupado(false)
 
       if (r.kind !== 'ok') {
-        // El mensaje del servidor, no una suposición sobre la red.
+        // The server's message, not a guess about the network.
         onAviso(avisoDeFallo(r))
         return
       }
@@ -129,7 +130,7 @@ export function ListaZonas({
       setTotalPages(datos.totalPages)
       setTotalZones(datos.totalZones)
       setCampoPagina(String(datos.pageNumber))
-      // `chkZonesTableCheckAll` se desmarca en cada refresco (zone.js:938).
+      // `chkZonesTableCheckAll` is unchecked on every refresh (zone.js:938).
       setMarcadas([])
       nombreRef.current?.focus()
     },
@@ -137,10 +138,11 @@ export function ListaZonas({
   )
 
   /*
-  Al montar y cuando algo de fuera pide releer. Los filtros NO disparan recarga
-  por sí solos: hay que pulsar «Go», igual que en upstream, donde `refreshZones`
-  los lee en ese momento. Por eso `cargar` va por referencia y no en las
-  dependencias: si estuviera, teclear en el filtro recargaría la lista.
+  On mount and when something from outside asks for a re-read. The filters do
+  NOT trigger a reload on their own: "Go" has to be pressed, just like upstream,
+  where `refreshZones` reads them at that moment. That is why `cargar` goes by
+  ref and not in the dependencies: were it there, typing in the filter would
+  reload the list.
   */
   const cargarRef = useRef(cargar)
   useEffect(() => {
@@ -159,7 +161,7 @@ export function ListaZonas({
     void cargar(campoPagina === '' || Number.isNaN(n) ? 1 : n)
   }
 
-  /** Ejecuta una mutación y refresca, con el aviso literal de upstream. */
+  /** Runs a mutation and refreshes, with upstream's literal alert. */
   async function mutar(
     fn: () => Promise<{ kind: string; message?: string }>,
     exito: Aviso,
@@ -218,7 +220,7 @@ export function ListaZonas({
 
   function resincronizar(z: Zone) {
     const nombre = z.name === '' ? '.' : z.name
-    // Dos textos distintos: la secundaria habla de AXFR y el resto de refresco.
+    // Two different texts: the secondary talks about AXFR and the rest about refresh.
     const texto =
       z.type === 'Secondary'
         ? `The resync action will perform a full zone transfer (AXFR). You will need to check the logs to confirm if the resync action was successful.\n\nAre you sure you want to resync the '${nombre}' zone?`
@@ -246,7 +248,7 @@ export function ListaZonas({
 
   function borrarMarcadas() {
     if (marcadas.length === 0) {
-      // `alert()` sin más en upstream, no un `showAlert` de la pantalla.
+      // A plain `alert()` in upstream, not a `showAlert` of the screen.
       onAviso({ type: 'warning', title: 'Missing!', text: 'Please select one or more zones to delete.' })
       return
     }
@@ -298,7 +300,7 @@ export function ListaZonas({
 
   const todasMarcadas = zonas.length > 0 && marcadas.length === zonas.length
 
-  // La última página se pide con -1: el servidor la resuelve él.
+  // The last page is asked for with -1: the server works it out itself.
   const paginacion = <Paginacion ventana={pg} actual={pageNumber} ultima={-1} onIr={irA} />
 
   return (
@@ -381,7 +383,7 @@ export function ListaZonas({
       <Tabla
         cabecera={
           <>
-            {/* La casilla mide 18 px; se pulsa desde toda su celda. */}
+            {/* The checkbox is 18 px; it is pressed from anywhere in its cell. */}
             <th style={{ width: 38 }} className={tbl.celdaCheck}>
               <label>
                 <input
@@ -409,9 +411,9 @@ export function ListaZonas({
             <Th campo="modified" orden={orden} onOrdenar={alternar} style={{ width: 150 }}>
               Last Modified
             </Th>
-            {/* La columna de acciones reservaba 230 px con tres rótulos
-                dentro; con iconos le bastan 120 y los 110 que sobran se los
-                queda el dato, que es de lo que va la tabla. */}
+            {/* The actions column reserved 230 px with three labels inside;
+                with icons 120 is enough and the 110 left over go to the data,
+                which is what the table is about. */}
             <th style={{ width: 120 }} />
           </>
         }
@@ -481,9 +483,9 @@ interface FilaProps {
 }
 
 /*
-Lo que se ordena en cada columna es EL TEXTO QUE SE VE, igual que upstream
-(`sortTable('tableZonesBody', 1..8)`). Por eso `Serial` se lee como cadena y no
-como número: así el orden coincide con el de la consola vieja.
+What each column sorts by is THE TEXT YOU SEE, just like upstream
+(`sortTable('tableZonesBody', 1..8)`). That is why `Serial` is read as a string
+and not as a number: that way the order matches the old console's.
 */
 const CLAVES: Claves<Zone> = {
   zone: (z) => nombreDeZona(z),
@@ -516,13 +518,13 @@ function FilaZona(p: FilaProps) {
           : 'neutral'
 
   /*
-  El catálogo del que la zona es MIEMBRO, y sólo eso.
+  The catalog the zone is a MEMBER of, and nothing else.
 
-  Antes, si la zona era ella misma un catálogo, se le ponía una etiqueta con su
-  propio nombre: la celda decía `catalogo.test` dos veces seguidas y la columna
-  `Type` ya decía «Catalog». No informaba de nada. Upstream pinta la etiqueta
-  únicamente cuando hay pertenencia (`zone.js:796`: `if (zones[i].catalog != null)`),
-  así que aquello era un añadido nuestro, no paridad.
+  Before, if the zone was itself a catalog, it got a tag with its own name: the
+  cell said `catalogo.test` twice in a row and the `Type` column already said
+  "Catalog". It informed of nothing. Upstream draws the tag only when there is
+  membership (`zone.js:796`: `if (zones[i].catalog != null)`), so that was an
+  addition of ours, not parity.
   */
   const etiquetaCatalogo =
     z.catalog != null ? { texto: z.catalog, tono: 'neutral' as TagTone } : null
@@ -540,9 +542,9 @@ function FilaZona(p: FilaProps) {
         </label>
       </td>
       <td className={`${styles.num} ${tbl.numero}`}>{p.indice}</td>
-      {/* El monoespaciado va en la CELDA y el botón lo hereda: la clase
-          compartida dice `font-family: inherit` justo para esto, y ponerlo en
-          el botón dependía de qué módulo se emitiera después. */}
+      {/* The monospacing goes on the CELL and the button inherits it: the
+          shared class says `font-family: inherit` precisely for this, and putting
+          it on the button depended on which module was emitted last. */}
       <td className={`${tbl.apilada} ${styles.celdaZona}`}>
         <button
           type="button"
@@ -557,20 +559,21 @@ function FilaZona(p: FilaProps) {
           </div>
         )}
       </td>
-      {/* El tipo va en texto y no en cápsula: con Type, DNSSEC y Status en
-          cápsula, tres columnas seguidas de píldoras se leían como una sola
-          mancha y ninguna de las tres destacaba. */}
+      {/* The type goes as text and not as a capsule: with Type, DNSSEC and
+          Status all in capsules, three consecutive columns of pills read as a
+          single smear and none of the three stood out. */}
       <td className={tbl.meta}>{etiquetaTipo(z.type)}</td>
       <td>
         {/*
-        Upstream deja la celda VACÍA cuando la zona no está firmada
-        (zone.js:721-731), y una celda en blanco no dice «sin firmar»: dice «no
-        lo sé» o «no ha cargado». Con 240 zonas paginadas de diez en diez,
-        «cuáles me faltan por firmar» sólo se podía contestar desde la API.
+        Upstream leaves the cell EMPTY when the zone is not signed
+        (zone.js:721-731), and a blank cell does not say "unsigned": it says "I
+        do not know" or "it has not loaded". With 240 zones paginated ten at a
+        time, "which ones do I still have to sign" could only be answered from
+        the API.
 
-        Los tres estados se dicen con tres textos distintos, no con el mismo
-        texto en dos colores: sin claves privadas la zona está firmada pero este
-        servidor no puede re-firmarla, que no es lo mismo que estar firmada.
+        The three states are said with three different texts, not with the same
+        text in two colours: without private keys the zone is signed but this
+        server cannot re-sign it, which is not the same as being signed.
         */}
         {!firmada ? (
           <Tag>Unsigned</Tag>
@@ -594,8 +597,8 @@ function FilaZona(p: FilaProps) {
             disabled={!p.canModify || p.ocupado || !CON_OPCIONES.includes(z.type)}
             onClick={() => p.onOpciones(nombre)}
           />
-          {/* El mismo icono para los dos estados: cuál toca lo dice la columna
-              «Status», que está tres columnas a la izquierda. */}
+          {/* The same icon for both states: which one applies is said by the
+              "Status" column, three columns to the left. */}
           <AccionFila
             icono="energia"
             nombre={z.disabled ? 'Enable Zone' : 'Disable Zone'}
@@ -637,12 +640,12 @@ function FilaZona(p: FilaProps) {
                   Permissions
                 </button>
                 {/*
-                Borrar vuelve al menú, y esta vez con motivo. Estaba en la fila
-                para que costara un clic igual que en la pantalla de la zona,
-                pero una pantalla de detalle no es una fila: allí actúas sobre
-                UN objeto que estás mirando, y aquí sobre uno de doscientos
-                cuarenta, con «Disable» pegado al lado y sin deshacer en ninguna
-                parte de esta consola.
+                Delete goes back into the menu, and this time with a reason. It
+                was in the row so it would cost one click just as on the zone's
+                own screen, but a detail screen is not a row: there you act on
+                ONE object you are looking at, and here on one of two hundred and
+                forty, with "Disable" right next to it and with no undo anywhere
+                in this console.
                 */}
                 <Separador />
                 <button type="button" data-variant="danger" disabled={!p.canDelete} onClick={() => { cerrar(); p.onBorrar(z) }}>
