@@ -147,10 +147,20 @@ function firmasDeLaPantalla() {
     )
   }
 
-  /* El aviso «Note!»/«Warning!»: mismo bloque, misma sangría. */
+  /*
+  El aviso «Note!»/«Warning!»: mismo bloque y misma sangría dentro de su panel.
+
+  Se mide el RESULTADO —a cuántos píxeles del panel queda su borde— y no el
+  `margin-left` del padre, que fue el primer intento y dio una diferencia falsa:
+  en Settings el hueco lo pone un margen del envoltorio de avisos y en About un
+  relleno del cuerpo del panel, o sea el mismo sitio por dos mecanismos.
+  */
   for (const e of raiz.querySelectorAll('[class*="_alerta_"], [role=note], [class*="_alert"]')) {
-    const p = e.parentElement
-    anota('aviso', `${css(e).borderRadius} | sangría ${p ? css(p).marginLeft : '-'}`)
+    const panel = e.closest('[class*="_panel_"], [class*="_block_"]')
+    const sangria = panel
+      ? `${Math.round(e.getBoundingClientRect().left - panel.getBoundingClientRect().left)}px del panel`
+      : 'suelto en la página'
+    anota('aviso', `${css(e).borderRadius} | ${sangria}`)
   }
 
   /* El título de la pantalla. */
