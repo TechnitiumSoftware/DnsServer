@@ -1,8 +1,11 @@
 import { Fragment } from 'react'
-import { PIE } from '../app/pie'
+import { CREDITO_TEMA, PIE } from '../app/pie'
 import styles from './PieDeEnlaces.module.css'
 
-/** Los enlaces del pie de upstream. Ver `app/pie.ts` y el módulo de estilos. */
+/**
+ * Los enlaces del pie de upstream, y debajo el crédito del tema —lo único que
+ * esta consola añade aquí—. Ver `app/pie.ts` y el módulo de estilos.
+ */
 export function PieDeEnlaces({ className }: { className?: string }) {
   return (
     <div className={[styles.pie, className].filter(Boolean).join(' ')}>
@@ -14,6 +17,12 @@ export function PieDeEnlaces({ className }: { className?: string }) {
           </a>
         </Fragment>
       ))}
+      <div className={styles.credito}>
+        Theme by{' '}
+        <a href={CREDITO_TEMA.href} aria-label={CREDITO_TEMA.nombre} target="_blank" rel="noreferrer">
+          {CREDITO_TEMA.texto}
+        </a>
+      </div>
     </div>
   )
 }

@@ -35,3 +35,20 @@ export const PIE: EnlaceDePie[] = [
   { texto: 'DNS Client', href: 'https://dnsclient.net/', nombre: 'DNS Client at dnsclient.net' },
   { texto: 'GitHub', href: 'https://github.com/TechnitiumSoftware/DnsServer' },
 ]
+
+/*
+El crédito del tema. NO es de upstream: es lo único del pie que esta consola
+añade, y por eso vive fuera de `PIE` y no de la lista que compara
+`dev/check-paridad-controles.mjs`. Quien lea esto tiene que poder distinguir de
+un vistazo qué es paridad y qué es añadido nuestro.
+
+Va en su propia línea y no como sexto enlace: los cinco de arriba son destinos
+del PRODUCTO y esto es una autoría. Metido en la misma fila, con las mismas
+barras, se leería como un sitio más de Technitium.
+*/
+export const CREDITO_TEMA = {
+  texto: 'agarmoli',
+  href: 'https://github.com/agarmoli',
+  /* Empieza por el texto visible, que es lo que exige «label in name». */
+  nombre: 'agarmoli on GitHub',
+}

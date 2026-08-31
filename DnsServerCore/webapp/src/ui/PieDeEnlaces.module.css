@@ -29,3 +29,14 @@ contra el borde y en el login centrado bajo la tarjeta. Eso lo pone el
 .pie a:hover { color: var(--ink); text-decoration: underline; }
 
 .sep { color: var(--line); }
+
+/*
+El crédito del tema: línea propia bajo los enlaces. No comparte fila con ellos a
+propósito —ver `app/pie.ts`— y el enlace se trata igual que los de arriba, para
+no inventar un tercer tipo de enlace en el mismo bloque de seis líneas.
+
+La jerarquía la da la LÍNEA APARTE, no el color: el primer intento bajó el
+«Theme by» a `--line`, que es un color de borde, y medía 1,62:1 contra el fondo
+—el mínimo para texto es 4,5—. Hereda el `--faint` del pie, que da 5,61:1.
+*/
+.credito { margin-top: var(--s-3); }
