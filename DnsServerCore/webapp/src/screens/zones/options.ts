@@ -348,7 +348,7 @@ export interface OptionsForm {
 No `\r\n` on purpose: upstream builds the textareas with `\r\n`, but the browser
 normalises when reading them from the DOM and its cleanup only substitutes `\n`.
 In React there is no intermediate DOM, so here they are joined with `\n` and the
-result on the server is identical. It is noted in CONVENCIONES.md because it
+result on the server is identical. It is noted in CONVENTIONS.md because it
 bites any screen with lists in a textarea.
 */
 function text(list: readonly string[] | null | undefined): string {

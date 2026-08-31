@@ -1,34 +1,34 @@
-# Fuentes de la consola
+# The console's fonts
 
-- **Archivo** (Omnibus-Type) para el texto, variable 300-700 — `OFL-Archivo.txt`
-- **IBM Plex Mono** para el dato, pesos 400 y 600 — `OFL-IBMPlex.txt`
+- **Archivo** (Omnibus-Type) for the text, variable 300-700 — `OFL-Archivo.txt`
+- **IBM Plex Mono** for the data, weights 400 and 600 — `OFL-IBMPlex.txt`
 
-Las dos bajo SIL Open Font License 1.1, que permite empaquetarlas y
-redistribuirlas con el software. **65 KB en total.**
+Both under the SIL Open Font License 1.1, which allows packaging and
+redistributing them with the software. **65 KB in total.**
 
-## Por qué van aquí y no en un CDN
+## Why they live here and not on a CDN
 
-La CSP del servidor es `default-src 'self'` sin `font-src`
-(`DnsServerCore/DnsWebService.cs:1969-1974`): cualquier fuente que no salga del
-propio origen queda bloqueada. Tienen que viajar dentro de `www/`.
+The server's CSP is `default-src 'self'` with no `font-src`
+(`DnsServerCore/DnsWebService.cs:1969-1974`): any font that does not come from
+the origin itself is blocked. They have to travel inside `www/`.
 
-## Por qué estas dos
+## Why these two
 
-La consola usaba la fuente del sistema operativo, y ésa es la razón de fondo por
-la que se leía correcta pero anónima: la misma letra que cualquier otra cosa, y
-distinta en cada máquina.
+The console used the operating system's font, and that is the underlying reason
+it read as correct but anonymous: the same letterform as everything else, and a
+different one on every machine.
 
-Se descartaron Inter y Geist a propósito. Las dos son excelentes y las dos están
-en todas partes —Inter es la de NetBird, Geist la de Vercel— así que ponerlas
-habría sido cambiar una fuente prestada por otra.
+Inter and Geist were ruled out on purpose. Both are excellent and both are
+everywhere —Inter is NetBird's, Geist is Vercel's— so using them would have been
+swapping one borrowed font for another.
 
-**Archivo** es un grotesco ligeramente estrechado, de verticales marcadas: tiene
-presencia a tamaño pequeño, que es a lo que se lee una tabla de zonas, y un
-carácter de producto técnico que no es el de nadie más.
+**Archivo** is a slightly narrowed grotesque with marked verticals: it has
+presence at small sizes, which is where a zone table is read, and a technical
+product character that belongs to nobody else.
 
-**Plex Mono** es la mitad de lo que enseña esta consola —dominios, direcciones,
-seriales, TTL— y ahí lo que importa es que las cifras no se confundan: cero
-barrado, uno con base, ele y uno inconfundibles. En un DNS eso no es un detalle
-tipográfico, es leer bien una dirección.
+**Plex Mono** is half of what this console shows —domains, addresses, serials,
+TTLs— and there what matters is that the figures cannot be confused: slashed
+zero, one with a base, unmistakable l and 1. On a DNS that is not a typographic
+detail, it is reading an address correctly.
 
-Descargadas del subconjunto `latin` que publica Google Fonts.
+Downloaded from the `latin` subset Google Fonts publishes.

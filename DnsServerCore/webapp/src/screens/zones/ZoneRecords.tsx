@@ -78,7 +78,7 @@ export interface ZoneRecordsProps {
   `updateRecordState` reads it from the modal's field instead of the row, so
   disabling a record sends whatever was left there from last time —or empty if
   the modal has not been opened. It is a bug of upstream's and it is replicated;
-  see CONVENCIONES.md.
+  see CONVENTIONS.md.
   */
   expiryTtlDelModal: string
 }

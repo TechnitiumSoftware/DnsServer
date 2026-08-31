@@ -18,7 +18,7 @@ checked with an invented record: it has to be done with the real response.
 five, A, NS, SOA, DS and DNSKEY come out, and `responseMetadata`,
 `nameServerMetadata`, `dnssecRecords`, `glueRecords`, `disabled`, `lastModified`
 and `expiryTtl` appear. To capture it again: see the curl block in
-CONVENCIONES.md.
+CONVENTIONS.md.
 */
 
 const NODES = muestra as unknown as Record<string, ListNode>
