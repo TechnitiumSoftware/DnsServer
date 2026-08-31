@@ -13,6 +13,15 @@
 .prose p { margin: 0 0 var(--s-7); }
 .prose h4 { margin: var(--s-10) 0 var(--s-2); font-size: var(--t-4); color:var(--ink); }
 .prose a { color:var(--acc); }
+/*
+Un enlace DENTRO de una frase queda exento del tamaño mínimo de objetivo (WCAG
+2.2, «inline»), pero estos cinco no lo están: los cuatro títulos y el «Donate
+Now!» son destinos sueltos, y medían 14 px de alto. Se les da caja propia hasta
+los 24 px sin tocar el ritmo del texto —el relleno va dentro del renglón que ya
+ocupaban—.
+*/
+.prose h4 a,
+.prose .destino { display:inline-block; padding: var(--s-4) 0; }
 .kv { display:grid; grid-template-columns:auto 1fr; gap: var(--s-2) var(--s-8); margin: 0; }
 .kv dt { font-size: var(--t-3); color:var(--mute); }
 .kv dd { margin: 0; font-size: var(--t-4); color:var(--ink); font-family:var(--font-mono); }

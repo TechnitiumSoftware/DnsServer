@@ -27,6 +27,25 @@ describe('Login', () => {
     expect(await screen.findByText('Please enter an username.')).toBeInTheDocument()
   })
 
+  /*
+  Upstream tiene estos cinco enlaces en un `div#footer` colgado del `body`, así
+  que salen también en su pantalla de login. Aquí no había ninguno, y dos de
+  ellos —technitium.com y dnsclient.net— no aparecían en ninguna otra pantalla
+  de la consola.
+  */
+  it('enseña el pie de upstream, que también sale en su login', async () => {
+    render(<Login onSuccess={() => {}} />)
+    for (const [nombre, destino] of [
+      ['Technitium', 'https://technitium.com/'],
+      ['Blog', 'https://blog.technitium.com/'],
+      ['Donate', 'https://go.technitium.com/?id=35'],
+      ['DNS Client at dnsclient.net', 'https://dnsclient.net/'],
+      ['GitHub', 'https://github.com/TechnitiumSoftware/DnsServer'],
+    ]) {
+      expect(screen.getByRole('link', { name: nombre })).toHaveAttribute('href', destino)
+    }
+  })
+
   it('exige contraseña con el texto literal de upstream', async () => {
     render(<Login onSuccess={() => {}} />)
     await userEvent.type(screen.getByLabelText('Username'), 'admin')

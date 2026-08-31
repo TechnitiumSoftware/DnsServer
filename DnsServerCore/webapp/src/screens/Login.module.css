@@ -2,6 +2,12 @@
   min-height: 100vh;
   display: grid;
   place-items: center;
+  /* `align-content` además de `place-items`: con dos hijos —la tarjeta y el
+     pie— las filas se reparten el alto y cada uno queda centrado en SU mitad,
+     que dejaba 258 px entre ambos. Así se centra el grupo y el hueco lo pone
+     el `gap`. */
+  align-content: center;
+  gap: var(--s-10);
   background: var(--bg);
   padding: var(--s-11);
 }
@@ -33,3 +39,9 @@
 }
 .enlace:hover { color: var(--acc); }
 .oLogin { margin: var(--s-8) 0 var(--s-7); text-align: center; font-size: var(--t-3); color: var(--faint); }
+
+/* El pie, bajo la tarjeta y centrado: es de la página, no del formulario. */
+.pie { font-size: var(--t-3); line-height: 2; color:var(--faint); text-align:center; }
+.pie a { white-space:nowrap; color:var(--faint); text-decoration:none; padding: var(--s-2) var(--s-1); }
+.pie a:hover { color:var(--ink); text-decoration:underline; }
+.sep { color:var(--line); }

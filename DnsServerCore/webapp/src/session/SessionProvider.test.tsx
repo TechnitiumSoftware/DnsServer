@@ -188,6 +188,22 @@ describe('SessionProvider', () => {
     expect(empujar).not.toHaveBeenCalled()
   })
 
+  it('el pie de upstream sigue estando con la consola abierta, no sólo en el login', async () => {
+    localStorage.setItem('token', 'tok')
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
+    montar()
+    await screen.findByRole('navigation')
+    // En upstream el pie cuelga del `body`: se ve en TODAS las pantallas.
+    expect(screen.getByRole('link', { name: 'Donate' })).toHaveAttribute(
+      'href', 'https://go.technitium.com/?id=35',
+    )
+    /* «DNS Client» es también una sección del panel, así que aquí se busca por
+       el nombre desambiguado; ver `app/pie.ts`. */
+    expect(screen.getByRole('link', { name: 'DNS Client at dnsclient.net' })).toHaveAttribute(
+      'href', 'https://dnsclient.net/',
+    )
+  })
+
   it('a un usuario de SSO le oculta cambiar contraseña y configurar 2FA', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion({ isSsoUser: true }))

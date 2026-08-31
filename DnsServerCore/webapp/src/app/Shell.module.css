@@ -47,6 +47,18 @@ porque el lateral es un cajón cerrado y su disparador tiene que estar fuera.
 /* Al pie del lateral, y por eso `margin-top:auto`: es lo que lo empuja abajo
    por mucho que la lista de secciones sea corta. */
 .pieLateral { margin-top:auto; padding: var(--s-8) var(--s-9); border-top:1px solid var(--line); display:flex; flex-direction:column; gap: var(--s-4); }
+/* Los enlaces del pie: lo bastante pequeños para no competir con la
+   navegación y lo bastante altos para poder pulsarlos. */
+.pieEnlaces { font-size: var(--t-2); line-height: 1.9; color:var(--faint); margin-bottom: var(--s-4); }
+.pieEnlaces a { color:var(--faint); text-decoration:none; padding: var(--s-1) 0; }
+/* El nombre no se parte —«DNS Client» caía en dos renglones—, pero el corte
+   sigue siendo posible: el separador va suelto entre las anclas, con sus
+   espacios, igual que en upstream. Ponerle `nowrap` al envoltorio en vez de al
+   enlace dejaba la lista sin un solo punto de corte y el lateral desbordaba
+   47 px en horizontal. */
+.pieEnlaces a { white-space: nowrap; }
+.pieEnlaces a:hover { color:var(--ink); text-decoration:underline; }
+.sep { color:var(--line); }
 .host { font-family:var(--font-mono); font-size: var(--t-3); color:var(--faint); word-break:break-all; }
 .menu { position:relative; }
 .menuBtn { display:flex; align-items:center; justify-content:space-between; width:100%; gap: var(--s-3); padding: var(--s-4) var(--s-5); border-radius: var(--r-2); background:none; border:0; color:var(--ink); font:inherit; font-size: var(--t-4); cursor:pointer; }

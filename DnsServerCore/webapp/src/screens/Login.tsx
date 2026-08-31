@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { apiRequest } from '../api/client'
 import { getStatus } from '../api/status'
 import { Alert, type AlertType } from '../ui/Alert'
@@ -7,6 +7,7 @@ import { LabeledInput } from '../ui/Field'
 import { ForgotPassword } from './modals/ForgotPassword'
 import styles from './Login.module.css'
 import { urlPublica } from '../app/base'
+import { PIE } from '../app/pie'
 
 /*
 Pantalla de login. Réplica de `login()` en
@@ -255,6 +256,17 @@ export function Login({
             </>
           )}
         </div>
+      </div>
+
+      {/* El pie de upstream se ve también en su pantalla de login, porque cuelga
+          del `body` y no del panel. Ver `app/pie.ts`. */}
+      <div className={styles.pie}>
+        {PIE.map((e, i) => (
+          <Fragment key={e.href}>
+            {i > 0 && <span className={styles.sep}> | </span>}
+            <a href={e.href} aria-label={e.nombre} target="_blank" rel="noreferrer">{e.texto}</a>
+          </Fragment>
+        ))}
       </div>
 
       <ForgotPassword open={olvido} onOpenChange={setOlvido} />

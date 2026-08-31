@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { visibleSections, type Permission } from './sections'
 import { aCamino, escribirRuta, leerRuta } from './ruta'
 import { ChangePassword } from '../screens/modals/ChangePassword'
@@ -18,6 +18,7 @@ import { Admin } from '../screens/admin/Admin'
 import styles from './Shell.module.css'
 import { Icono, type NombreIcono } from '../ui/Icono'
 import { urlPublica } from './base'
+import { PIE } from './pie'
 
 type ModalId = 'profile' | 'password' | 'twofa' | 'token'
 
@@ -242,6 +243,26 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
 
         {/* El servidor y la cuenta, al pie. En estrecho se llega por el cajón. */}
         <div className={styles.pieLateral}>
+          {/*
+          Los enlaces del pie de upstream, recuperados.
+
+          Upstream los tiene en un `div#footer` colgando del `body`, así que se
+          ven en TODAS sus pantallas, incluida la de login: Technitium, Blog,
+          Donate, DNS Client y GitHub. Aquí no había ninguno, y dos de ellos
+          —technitium.com y dnsclient.net— no aparecían en ningún otro sitio de
+          la consola: se habían perdido del todo.
+
+          «About» no se repite porque en este rediseño es una sección del panel,
+          justo encima.
+          */}
+          <div className={styles.pieEnlaces}>
+            {PIE.map((e, i) => (
+              <Fragment key={e.href}>
+                {i > 0 && <span className={styles.sep}> | </span>}
+                <a href={e.href} aria-label={e.nombre} target="_blank" rel="noreferrer">{e.texto}</a>
+              </Fragment>
+            ))}
+          </div>
           {session.info && <span className={styles.host}>{session.info.dnsServerDomain}</span>}
           <div className={styles.menu}>
             <button
