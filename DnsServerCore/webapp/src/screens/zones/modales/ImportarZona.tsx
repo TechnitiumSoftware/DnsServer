@@ -7,6 +7,7 @@ import { LabeledTextarea } from '../../../ui/Field'
 import type { Aviso } from '../tipos'
 import styles from '../Zones.module.css'
 import frm from '../../../ui/Form.module.css'
+import { GroupRow, Row } from '../../../ui/Form'
 
 /*
 `modalImportZone` (zone.js:1227 y 1251). Dos formas de dar el fichero —subirlo
@@ -108,75 +109,66 @@ export function ImportarZona({
       )}
 
       <div className={styles.campos}>
-        <div className={frm.mrow}>
-          <div className={frm.mrowLabel}>Import Options</div>
-          <div className={frm.mrowCtl}>
-            <label className={styles.chk}>
-              <input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} />
-              Overwrite Existing Records
-            </label>
-            <div className={styles.ayuda}>
-              Enable this option to overwrite existing records for the record types being imported.
-            </div>
-            <label className={styles.chk}>
-              <input type="checkbox" checked={overwriteZone} onChange={(e) => setOverwriteZone(e.target.checked)} />
-              Overwrite Zone
-            </label>
-            <div className={styles.ayuda}>
-              Enable this option to delete all existing records from the zone before importing new records.
-            </div>
-            <label className={styles.chk}>
-              <input
-                type="checkbox"
-                checked={overwriteSoaSerial}
-                onChange={(e) => setOverwriteSoaSerial(e.target.checked)}
-              />
-              Overwrite SOA Serial
-            </label>
-            <div className={styles.ayuda}>
-              Enable this option to overwrite existing SOA record serial with the imported SOA record serial.
-            </div>
+        <GroupRow modal label="Import Options">
+          <label className={styles.chk}>
+            <input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} />
+            Overwrite Existing Records
+          </label>
+          <div className={styles.ayuda}>
+            Enable this option to overwrite existing records for the record types being imported.
           </div>
-        </div>
+          <label className={styles.chk}>
+            <input type="checkbox" checked={overwriteZone} onChange={(e) => setOverwriteZone(e.target.checked)} />
+            Overwrite Zone
+          </label>
+          <div className={styles.ayuda}>
+            Enable this option to delete all existing records from the zone before importing new records.
+          </div>
+          <label className={styles.chk}>
+            <input
+              type="checkbox"
+              checked={overwriteSoaSerial}
+              onChange={(e) => setOverwriteSoaSerial(e.target.checked)}
+            />
+            Overwrite SOA Serial
+          </label>
+          <div className={styles.ayuda}>
+            Enable this option to overwrite existing SOA record serial with the imported SOA record serial.
+          </div>
+        </GroupRow>
 
-        <div className={frm.mrow}>
-          <div className={frm.mrowLabel}>Import Type</div>
-          <div className={frm.mrowCtl}>
-            <label className={styles.chk}>
-              <input
-                type="radio"
-                name="importType"
-                checked={modo === 'File'}
-                onChange={() => setModo('File')}
-              />
-              Zone File
-            </label>
-            <label className={styles.chk}>
-              <input
-                type="radio"
-                name="importType"
-                checked={modo === 'Text'}
-                onChange={() => setModo('Text')}
-              />
-              Text Editor
-            </label>
-          </div>
-        </div>
+        <GroupRow modal label="Import Type">
+          <label className={styles.chk}>
+            <input
+              type="radio"
+              name="importType"
+              checked={modo === 'File'}
+              onChange={() => setModo('File')}
+            />
+            Zone File
+          </label>
+          <label className={styles.chk}>
+            <input
+              type="radio"
+              name="importType"
+              checked={modo === 'Text'}
+              onChange={() => setModo('Text')}
+            />
+            Text Editor
+          </label>
+        </GroupRow>
 
         {modo === 'File' ? (
-          <div className={frm.mrow}>
-            <div className={frm.mrowLabel}>
-              <label htmlFor="fileImportZone">Zone File</label>
-            </div>
-            <div className={frm.mrowCtl}>
+          <Row modal label="Zone File">
+            {(id) => (
               <input
-                id="fileImportZone"
+                id={id}
                 ref={fichero}
                 type="file"
                 onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
               />
-            </div>
-          </div>
+            )}
+          </Row>
         ) : (
           <div className={frm.mrowCtl}>
             <LabeledTextarea

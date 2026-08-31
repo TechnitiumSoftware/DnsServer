@@ -43,8 +43,7 @@ Es lo que hacen el dibujo y la tabla de Logs; aquí se había perdido.
 */
 .ctlLine { display: flex; align-items: center; gap: var(--s-6); flex-wrap: wrap; }
 .suffix { font-size: var(--t-3); color: var(--mute); }
-.help { font-size: var(--t-3); color: var(--mute); line-height: 1.55; max-width: 720px; }
-.help a { color: var(--acc); }
+.help { composes: ayuda from '../../ui/Form.module.css'; }
 .help code, .note code {
   font-family: var(--font-mono);
   font-size: var(--t-2);
@@ -91,7 +90,7 @@ Es lo que hacen el dibujo y la tabla de Logs; aquí se había perdido.
   font-family: var(--font-mono); font-size: var(--t-2); background: var(--field);
   border: 1px solid var(--line); border-radius: var(--r-1); padding: 0 var(--s-2);
 }
-.group { display: flex; flex-direction: column; gap: var(--s-6); }
+.group { composes: grupo from '../../ui/Form.module.css'; }
 
 .note { margin: var(--s-3) var(--s-9) 0 var(--s-9); display: flex; flex-direction: column; gap: var(--s-4); }
 .plain { font-size: var(--t-3); color: var(--mute); line-height: 1.55; padding: 0 var(--s-9); max-width: 860px; }

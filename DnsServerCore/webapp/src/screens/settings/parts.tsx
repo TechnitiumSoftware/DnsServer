@@ -1,11 +1,10 @@
-import { useId, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import { Alert } from '../../ui/Alert'
 import { Empty } from '../../ui/Empty'
 import { Button } from '../../ui/Button'
 import { Input } from '../../ui/Field'
 import styles from './Settings.module.css'
 import { Panel } from '../../ui/Panel'
-import frm from '../../ui/Form.module.css'
 import { TablaEditable } from '../../ui/TablaEditable'
 export { Check } from '../../ui/Check'
 
@@ -33,56 +32,19 @@ seguidas antes del primer control (h1, leyenda, rótulo del campo y el propio
 
 Sin `title` el panel sigue agrupando: lo que desaparece es el eco.
 */
+/*
+La fila y el grupo son los de `ui/Form`. Estaban aquí y en el otro módulo de
+partes, idénticos byte a byte, y ninguna de las otras doce pantallas usaba
+ninguno de los dos.
+*/
+import { GroupRow, Row } from '../../ui/Form'
+export { GroupRow, Row }
+
 export function Block({ title, children }: { title?: string; children: ReactNode }) {
   return (
     <Panel titulo={title} className={styles.block} agrupa>
       {children}
     </Panel>
-  )
-}
-
-export function Row({
-  label,
-  help,
-  children,
-}: {
-  label: string
-  help?: ReactNode
-  children: (id: string) => ReactNode
-}) {
-  const id = useId()
-  return (
-    <div className={frm.row}>
-      <label className={frm.rowLabel} htmlFor={id}>
-        {label}
-      </label>
-      <div className={frm.rowCtl}>
-        {children(id)}
-        {help && <div className={styles.help}>{help}</div>}
-      </div>
-    </div>
-  )
-}
-
-/** Fila cuya etiqueta no gobierna un control concreto (grupos de casillas y de
- *  radios): upstream usa ahí un `<label>` sin `for`. */
-export function GroupRow({
-  label,
-  help,
-  children,
-}: {
-  label: string
-  help?: ReactNode
-  children: ReactNode
-}) {
-  return (
-    <div className={frm.row}>
-      <div className={frm.rowLabel}>{label}</div>
-      <div className={frm.rowCtl}>
-        <div className={styles.group}>{children}</div>
-        {help && <div className={styles.help}>{help}</div>}
-      </div>
-    </div>
   )
 }
 
@@ -162,7 +124,6 @@ export function AreaRow({
     </Row>
   )
 }
-
 
 export interface OpcionRadio {
   value: string
@@ -266,9 +227,7 @@ export function EditableTable<T>({
   disabled?: boolean
 }) {
   return (
-    <div className={frm.row}>
-      <div className={frm.rowLabel}>{label}</div>
-      <div className={frm.rowCtl}>
+    <GroupRow label={label}>
         <TablaEditable
       className={styles.table}
           cabecera={
@@ -313,8 +272,7 @@ export function EditableTable<T>({
           </Button>
         </div>
         {help && <div className={styles.help}>{help}</div>}
-      </div>
-    </div>
+    </GroupRow>
   )
 }
 

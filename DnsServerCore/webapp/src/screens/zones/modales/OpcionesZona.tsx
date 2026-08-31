@@ -27,6 +27,7 @@ import styles from '../Zones.module.css'
 import { Externo } from '../../../ui/Externo'
 import { RFC_ZONEMD } from '../referencias'
 import frm from '../../../ui/Form.module.css'
+import { GroupRow } from '../../../ui/Form'
 
 /*
 `modalZoneOptions` (zone.js:1524 y 2380). Cinco pestañas y una matriz de
@@ -246,23 +247,20 @@ export function OpcionesZona({
                     </div>
 
                     {e.protocoloXfr && (
-                      <div className={frm.mrow}>
-                        <div className={frm.mrowLabel}>Zone Transfer Protocol</div>
-                        <div className={frm.mrowCtl}>
-                          {PROTOCOLOS_XFR.map((x) => (
-                            <label key={x.valor} className={styles.chk}>
-                              <input
-                                type="radio"
-                                name="zoneOptionsXfr"
-                                disabled={e.servidorPrimarioBloqueado}
-                                checked={f.primaryZoneTransferProtocol === x.valor}
-                                onChange={() => set('primaryZoneTransferProtocol', x.valor)}
-                              />
-                              {x.etiqueta}
-                            </label>
-                          ))}
-                        </div>
-                      </div>
+                      <GroupRow modal label="Zone Transfer Protocol">
+                        {PROTOCOLOS_XFR.map((x) => (
+                          <label key={x.valor} className={styles.chk}>
+                            <input
+                              type="radio"
+                              name="zoneOptionsXfr"
+                              disabled={e.servidorPrimarioBloqueado}
+                              checked={f.primaryZoneTransferProtocol === x.valor}
+                              onChange={() => set('primaryZoneTransferProtocol', x.valor)}
+                            />
+                            {x.etiqueta}
+                          </label>
+                        ))}
+                      </GroupRow>
                     )}
 
                     {e.tsigDelPrimario && (

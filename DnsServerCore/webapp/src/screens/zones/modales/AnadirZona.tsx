@@ -21,9 +21,9 @@ import {
   type FormularioAlta,
   type TipoAlta,
 } from './anadir-zona'
-import frm from '../../../ui/Form.module.css'
 import { Ayuda, Externo } from '../../../ui/Externo'
 import { RFC_ZONEMD } from '../referencias'
+import { GroupRow, Row } from '../../../ui/Form'
 
 /*
 `modalAddZone` (zone.js:2726 y 2911). Ocho tipos de zona, cada uno con su
@@ -153,46 +153,40 @@ export function AnadirZona({
           )}
         </Field>
 
-        <div className={frm.mrow}>
-          <div className={frm.mrowLabel}>Zone Type</div>
-          <div className={frm.mrowCtl}>
-            {TIPOS_ALTA.map((t) => (
-              <label key={t.valor} className={styles.chk}>
-                <input
-                  type="radio"
-                  name="addZoneType"
-                  checked={f.tipo === t.valor}
-                  onChange={() => cambiarTipo(t.valor)}
-                />
-                {/*
-                `.chk` es `display:flex`, así que cada hijo del rótulo es un
-                ítem: sin este `span` el enlace y los paréntesis se separaban en
-                tres cajas —«Secondary ROOT Zone ( RFC 8806 )»— y el enlace
-                dejaba de estar dentro de una frase, que es lo que le da la
-                excepción de tamaño de objetivo. Envuelto, vuelve a ser texto.
-                */}
-                <span>
-                  {t.etiqueta}
-                  {t.referencia && (
-                    <>
-                      {' ('}
-                      <Externo href={t.referencia.href}>{t.referencia.texto}</Externo>
-                      {')'}
-                    </>
-                  )}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
+        <GroupRow modal label="Zone Type">
+          {TIPOS_ALTA.map((t) => (
+            <label key={t.valor} className={styles.chk}>
+              <input
+                type="radio"
+                name="addZoneType"
+                checked={f.tipo === t.valor}
+                onChange={() => cambiarTipo(t.valor)}
+              />
+              {/*
+              `.chk` es `display:flex`, así que cada hijo del rótulo es un
+              ítem: sin este `span` el enlace y los paréntesis se separaban en
+              tres cajas —«Secondary ROOT Zone ( RFC 8806 )»— y el enlace
+              dejaba de estar dentro de una frase, que es lo que le da la
+              excepción de tamaño de objetivo. Envuelto, vuelve a ser texto.
+              */}
+              <span>
+                {t.etiqueta}
+                {t.referencia && (
+                  <>
+                    {' ('}
+                    <Externo href={t.referencia.href}>{t.referencia.texto}</Externo>
+                    {')'}
+                  </>
+                )}
+              </span>
+            </label>
+          ))}
+        </GroupRow>
 
         {v.catalogo && catalogos.length > 0 && (
-          <div className={frm.mrow}>
-            <div className={frm.mrowLabel}>
-              <label htmlFor="addZoneCatalog">Catalog Zone</label>
-            </div>
-            <div className={frm.mrowCtl}>
-              <Select id="addZoneCatalog" value={f.catalog} onChange={(e) => set('catalog', e.target.value)}>
+          <Row modal label="Catalog Zone" help={<>Select a Catalog zone to register as its member zone.</>}>
+            {(id) => (
+              <Select id={id} value={f.catalog} onChange={(e) => set('catalog', e.target.value)}>
                 <option value="" />
                 {catalogos.map((c) => (
                   <option key={c} value={c}>
@@ -200,113 +194,95 @@ export function AnadirZona({
                   </option>
                 ))}
               </Select>
-              <div className={styles.ayuda}>
-                Select a Catalog zone to register as its member zone.
-              </div>
-            </div>
-          </div>
+            )}
+          </Row>
         )}
 
         {v.casillaInicializarForwarder && (
-          <div className={frm.mrow}>
-            <div className={frm.mrowLabel}>Conditional Forwarder</div>
-            <div className={frm.mrowCtl}>
-              <label className={styles.chk}>
-                <input
-                  type="checkbox"
-                  checked={f.initializeForwarder}
-                  onChange={(e) => set('initializeForwarder', e.target.checked)}
-                />
-                Initialize Forwarder (FWD) Record
-              </label>
-            </div>
-          </div>
+          <GroupRow modal label="Conditional Forwarder">
+            <label className={styles.chk}>
+              <input
+                type="checkbox"
+                checked={f.initializeForwarder}
+                onChange={(e) => set('initializeForwarder', e.target.checked)}
+              />
+              Initialize Forwarder (FWD) Record
+            </label>
+          </GroupRow>
         )}
 
         {v.ficheroDeZona && (
-          <div className={frm.mrow}>
-            <div className={frm.mrowLabel}>
-              <label htmlFor="addZoneFile">Import Zone File (Optional)</label>
-            </div>
-            <div className={frm.mrowCtl}>
+          <Row modal label="Import Zone File (Optional)">
+            {(id) => (
               <input
-                id="addZoneFile"
+                id={id}
                 type="file"
                 onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
               />
-            </div>
-          </div>
+            )}
+          </Row>
         )}
 
         {v.serieSoa && (
-          <div className={frm.mrow}>
-            <div className={frm.mrowLabel}>Zone Serial</div>
-            <div className={frm.mrowCtl}>
-              <label className={styles.chk}>
-                <input
-                  type="checkbox"
-                  checked={f.useSoaSerialDateScheme}
-                  onChange={(e) => set('useSoaSerialDateScheme', e.target.checked)}
-                />
-                Use SOA Serial Date Scheme
-              </label>
-            </div>
-          </div>
+          <GroupRow modal label="Zone Serial">
+            <label className={styles.chk}>
+              <input
+                type="checkbox"
+                checked={f.useSoaSerialDateScheme}
+                onChange={(e) => set('useSoaSerialDateScheme', e.target.checked)}
+              />
+              Use SOA Serial Date Scheme
+            </label>
+          </GroupRow>
         )}
 
         {v.servidoresPrimarios && (
-          <div className={frm.mrow}>
-            <div className={frm.mrowLabel}>
-              <label htmlFor="addZonePrimaries">
-                {v.servidoresPrimariosObligatorios
-                  ? 'Primary Name Server Addresses'
-                  : 'Primary Name Server Addresses (Optional)'}
-              </label>
-            </div>
-            <div className={frm.mrowCtl}>
+          <Row
+            modal
+            label={
+              v.servidoresPrimariosObligatorios
+                ? 'Primary Name Server Addresses'
+                : 'Primary Name Server Addresses (Optional)'
+            }
+            help={
+              v.servidoresPrimariosObligatorios
+                ? 'Enter the primary name server addresses to sync the zone from.'
+                : 'Enter the primary name server addresses to sync the zone from. When unspecified, the SOA Primary Name Server will be resolved and used.'
+            }
+          >
+            {(id) => (
               <Textarea
-                id="addZonePrimaries"
+                id={id}
                 mono
                 className={styles.area}
                 spellCheck={false}
                 value={f.primaryNameServerAddresses}
                 onChange={(e) => set('primaryNameServerAddresses', e.target.value)}
               />
-              <div className={styles.ayuda}>
-                {v.servidoresPrimariosObligatorios
-                  ? 'Enter the primary name server addresses to sync the zone from.'
-                  : 'Enter the primary name server addresses to sync the zone from. When unspecified, the SOA Primary Name Server will be resolved and used.'}
-              </div>
-            </div>
-          </div>
+            )}
+          </Row>
         )}
 
         {v.protocoloTransferencia && (
-          <div className={frm.mrow}>
-            <div className={frm.mrowLabel}>Zone Transfer Protocol</div>
-            <div className={frm.mrowCtl}>
-              {PROTOCOLOS_TRANSFERENCIA.map((p) => (
-                <label key={p.valor} className={styles.chk}>
-                  <input
-                    type="radio"
-                    name="addZoneTransferProtocol"
-                    checked={f.zoneTransferProtocol === p.valor}
-                    onChange={() => set('zoneTransferProtocol', p.valor)}
-                  />
-                  {p.etiqueta}
-                </label>
-              ))}
-            </div>
-          </div>
+          <GroupRow modal label="Zone Transfer Protocol">
+            {PROTOCOLOS_TRANSFERENCIA.map((p) => (
+              <label key={p.valor} className={styles.chk}>
+                <input
+                  type="radio"
+                  name="addZoneTransferProtocol"
+                  checked={f.zoneTransferProtocol === p.valor}
+                  onChange={() => set('zoneTransferProtocol', p.valor)}
+                />
+                {p.etiqueta}
+              </label>
+            ))}
+          </GroupRow>
         )}
 
         {v.tsig && (
-          <div className={frm.mrow}>
-            <div className={frm.mrowLabel}>
-              <label htmlFor="addZoneTsig">TSIG Key Name (Optional)</label>
-            </div>
-            <div className={frm.mrowCtl}>
-              <Select id="addZoneTsig" value={f.tsigKeyName} onChange={(e) => set('tsigKeyName', e.target.value)}>
+          <Row modal label="TSIG Key Name (Optional)">
+            {(id) => (
+              <Select id={id} value={f.tsigKeyName} onChange={(e) => set('tsigKeyName', e.target.value)}>
                 <option value="" />
                 {tsigKeys.map((k) => (
                   <option key={k} value={k}>
@@ -314,160 +290,156 @@ export function AnadirZona({
                   </option>
                 ))}
               </Select>
-            </div>
-          </div>
+            )}
+          </Row>
         )}
 
         {v.validarZona && (
-          <div className={frm.mrow}>
-            <div className={frm.mrowLabel}>Zone Validation</div>
-            <div className={frm.mrowCtl}>
-              <label className={styles.chk}>
-                <input
-                  type="checkbox"
-                  checked={f.validateZone}
-                  onChange={(e) => set('validateZone', e.target.checked)}
-                />
-                Use <Externo href={RFC_ZONEMD}>ZONEMD</Externo> to Validate Zone
-              </label>
-              <div className={styles.ayuda}>
-                When enabled, the secondary zone will be validated using the ZONEMD record after every
-                zone transfer. The zone will get disabled if the validation fails. The zone must be DNSSEC
-                signed for the validation to work.
-              </div>
+          <GroupRow modal label="Zone Validation">
+            <label className={styles.chk}>
+              <input
+                type="checkbox"
+                checked={f.validateZone}
+                onChange={(e) => set('validateZone', e.target.checked)}
+              />
+              Use <Externo href={RFC_ZONEMD}>ZONEMD</Externo> to Validate Zone
+            </label>
+            <div className={styles.ayuda}>
+              When enabled, the secondary zone will be validated using the ZONEMD record after every
+              zone transfer. The zone will get disabled if the validation fails. The zone must be DNSSEC
+              signed for the validation to work.
             </div>
-          </div>
+          </GroupRow>
         )}
 
         {v.camposDeForwarder && (
           <>
-            <div className={frm.mrow}>
-              <div className={frm.mrowLabel}>Protocol</div>
-              <div className={frm.mrowCtl}>
-                {PROTOCOLOS_FORWARDER.map((p) => (
+            <GroupRow modal label="Protocol">
+              {PROTOCOLOS_FORWARDER.map((p) => (
+                <label key={p.valor} className={styles.chk}>
+                  <input
+                    type="radio"
+                    name="addZoneForwarderProtocol"
+                    disabled={f.usarEsteServidor}
+                    checked={f.forwarderProtocol === p.valor}
+                    onChange={() => set('forwarderProtocol', p.valor)}
+                  />
+                  {p.etiqueta}
+                </label>
+              ))}
+            </GroupRow>
+
+            {/* Dos párrafos de ayuda: los dos de upstream, uno sobre «This Server» y
+                otro sobre añadir más reenviadores después. */}
+            <Row
+              modal
+              label="Forwarder"
+              help={
+                <>
+                  <p>
+                    When using &quot;This Server&quot;, if a record does not exists in the zone then the
+                    request is forwarded to the DNS Server&apos;s resolver internally. This allows you to
+                    override any record for the forwarded domain name or control its DNSSEC validation.
+                  </p>
+                  <p>
+                    Enter a forwarder server address above. You can add more forwarders by adding FWD
+                    records after the zone is added.
+                  </p>
+                </>
+              }
+            >
+              {(id) => (
+                <>
+                  <Input
+                    id={id}
+                    mono
+                    disabled={f.usarEsteServidor}
+                    placeholder={ejemploDeForwarder(f.forwarderProtocol)}
+                    value={f.usarEsteServidor ? 'this-server' : f.forwarder}
+                    onChange={(e) => set('forwarder', e.target.value)}
+                  />
+                  <label className={styles.chk}>
+                    <input
+                      type="checkbox"
+                      checked={f.usarEsteServidor}
+                      onChange={(e) => set('usarEsteServidor', e.target.checked)}
+                    />
+                    Use &quot;This Server&quot;
+                  </label>
+                </>
+              )}
+            </Row>
+
+            <GroupRow modal label="DNSSEC">
+              <label className={styles.chk}>
+                <input
+                  type="checkbox"
+                  checked={f.dnssecValidation}
+                  onChange={(e) => set('dnssecValidation', e.target.checked)}
+                />
+                Enable DNSSEC Validation
+              </label>
+            </GroupRow>
+
+            {/* «this-server» no admite proxy: upstream esconde el bloque entero. */}
+            {!f.usarEsteServidor && (
+              <GroupRow modal label="Network Proxy">
+                {TIPOS_PROXY.map((p) => (
                   <label key={p.valor} className={styles.chk}>
                     <input
                       type="radio"
-                      name="addZoneForwarderProtocol"
-                      disabled={f.usarEsteServidor}
-                      checked={f.forwarderProtocol === p.valor}
-                      onChange={() => set('forwarderProtocol', p.valor)}
+                      name="addZoneProxyType"
+                      checked={f.proxyType === p.valor}
+                      onChange={() => set('proxyType', p.valor)}
                     />
                     {p.etiqueta}
                   </label>
                 ))}
-              </div>
-            </div>
-
-            <div className={frm.mrow}>
-              <div className={frm.mrowLabel}>
-                <label htmlFor="addZoneForwarder">Forwarder</label>
-              </div>
-              <div className={frm.mrowCtl}>
-                <Input
-                  id="addZoneForwarder"
-                  mono
-                  disabled={f.usarEsteServidor}
-                  placeholder={ejemploDeForwarder(f.forwarderProtocol)}
-                  value={f.usarEsteServidor ? 'this-server' : f.forwarder}
-                  onChange={(e) => set('forwarder', e.target.value)}
-                />
-                <label className={styles.chk}>
-                  <input
-                    type="checkbox"
-                    checked={f.usarEsteServidor}
-                    onChange={(e) => set('usarEsteServidor', e.target.checked)}
-                  />
-                  Use &quot;This Server&quot;
-                </label>
-                <div className={styles.ayuda}>
-                  When using &quot;This Server&quot;, if a record does not exists in the zone then the
-                  request is forwarded to the DNS Server&apos;s resolver internally. This allows you to
-                  override any record for the forwarded domain name or control its DNSSEC validation.
-                </div>
-                <div className={styles.ayuda}>
-                  Enter a forwarder server address above. You can add more forwarders by adding FWD records
-                  after the zone is added.
-                </div>
-              </div>
-            </div>
-
-            <div className={frm.mrow}>
-              <div className={frm.mrowLabel}>DNSSEC</div>
-              <div className={frm.mrowCtl}>
-                <label className={styles.chk}>
-                  <input
-                    type="checkbox"
-                    checked={f.dnssecValidation}
-                    onChange={(e) => set('dnssecValidation', e.target.checked)}
-                  />
-                  Enable DNSSEC Validation
-                </label>
-              </div>
-            </div>
-
-            {/* «this-server» no admite proxy: upstream esconde el bloque entero. */}
-            {!f.usarEsteServidor && (
-              <div className={frm.mrow}>
-                <div className={frm.mrowLabel}>Network Proxy</div>
-                <div className={frm.mrowCtl}>
-                  {TIPOS_PROXY.map((p) => (
-                    <label key={p.valor} className={styles.chk}>
-                      <input
-                        type="radio"
-                        name="addZoneProxyType"
-                        checked={f.proxyType === p.valor}
-                        onChange={() => set('proxyType', p.valor)}
-                      />
-                      {p.etiqueta}
-                    </label>
-                  ))}
-                  <Field label="Proxy Server Address">
-                    {(id) => (
-                      <Input
-                        id={id}
-                        mono
-                        disabled={!proxyEditable(f.proxyType)}
-                        value={f.proxyAddress}
-                        onChange={(e) => set('proxyAddress', e.target.value)}
-                      />
-                    )}
-                  </Field>
-                  <Field label="Proxy Server Port">
-                    {(id) => (
-                      <Input
-                        id={id}
-                        mono
-                        className={styles.corto}
-                        disabled={!proxyEditable(f.proxyType)}
-                        value={f.proxyPort}
-                        onChange={(e) => set('proxyPort', e.target.value)}
-                      />
-                    )}
-                  </Field>
-                  <Field label="Proxy Server Username">
-                    {(id) => (
-                      <Input
-                        id={id}
-                        disabled={!proxyEditable(f.proxyType)}
-                        value={f.proxyUsername}
-                        onChange={(e) => set('proxyUsername', e.target.value)}
-                      />
-                    )}
-                  </Field>
-                  <Field label="Proxy Server Password">
-                    {(id) => (
-                      <Input
-                        id={id}
-                        type="password"
-                        disabled={!proxyEditable(f.proxyType)}
-                        value={f.proxyPassword}
-                        onChange={(e) => set('proxyPassword', e.target.value)}
-                      />
-                    )}
-                  </Field>
-                </div>
-              </div>
+                <Field label="Proxy Server Address">
+                  {(id) => (
+                    <Input
+                      id={id}
+                      mono
+                      disabled={!proxyEditable(f.proxyType)}
+                      value={f.proxyAddress}
+                      onChange={(e) => set('proxyAddress', e.target.value)}
+                    />
+                  )}
+                </Field>
+                <Field label="Proxy Server Port">
+                  {(id) => (
+                    <Input
+                      id={id}
+                      mono
+                      className={styles.corto}
+                      disabled={!proxyEditable(f.proxyType)}
+                      value={f.proxyPort}
+                      onChange={(e) => set('proxyPort', e.target.value)}
+                    />
+                  )}
+                </Field>
+                <Field label="Proxy Server Username">
+                  {(id) => (
+                    <Input
+                      id={id}
+                      disabled={!proxyEditable(f.proxyType)}
+                      value={f.proxyUsername}
+                      onChange={(e) => set('proxyUsername', e.target.value)}
+                    />
+                  )}
+                </Field>
+                <Field label="Proxy Server Password">
+                  {(id) => (
+                    <Input
+                      id={id}
+                      type="password"
+                      disabled={!proxyEditable(f.proxyType)}
+                      value={f.proxyPassword}
+                      onChange={(e) => set('proxyPassword', e.target.value)}
+                    />
+                  )}
+                </Field>
+              </GroupRow>
             )}
           </>
         )}

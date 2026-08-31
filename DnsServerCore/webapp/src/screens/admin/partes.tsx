@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import { Alert, type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
@@ -7,6 +7,7 @@ import type { ClusterState } from '../../api/admin-cluster'
 import styles from './Admin.module.css'
 import frm from '../../ui/Form.module.css'
 import { Select } from '../../ui/Select'
+import { Row } from '../../ui/Form'
 export { Check } from '../../ui/Check'
 
 /* Las piezas que comparten las seis sub-pestañas de Administration. */
@@ -81,29 +82,14 @@ export function Confirmar({
   )
 }
 
-/** Fila etiqueta + control, como en Settings pero con la etiqueta más estrecha
- *  para que quepa dentro de un modal. */
-export function MRow({
-  label,
-  help,
-  children,
-}: {
-  label: string
-  help?: ReactNode
-  children: (id: string) => ReactNode
-}) {
-  const id = useId()
-  return (
-    <div className={frm.mrow}>
-      <label className={frm.mrowLabel} htmlFor={id}>
-        {label}
-      </label>
-      <div className={frm.rowCtl}>
-        {children(id)}
-        {help && <div className={styles.help}>{help}</div>}
-      </div>
-    </div>
-  )
+/*
+`MRow` es la fila de `ui/Form` en su variante de modal. Era una tercera copia
+—las otras dos vivían en las partes de Settings y de DHCP— y encima tenía un
+fallo propio: usaba `frm.rowCtl` en vez de `frm.mrowCtl`, así que el control de
+un modal de Administration se maquetaba con las reglas de una fila de página.
+*/
+export function MRow(props: Omit<Parameters<typeof Row>[0], 'modal'>) {
+  return <Row {...props} modal />
 }
 
 /** Fila de sólo lectura: «Type» y «2FA Status» del modal de detalles. */

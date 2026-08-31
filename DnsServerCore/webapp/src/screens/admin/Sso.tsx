@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Alert } from '../../ui/Alert'
 import { Panel } from '../../ui/Panel'
 import { Button } from '../../ui/Button'
@@ -14,8 +14,8 @@ import {
   adminStyles as styles,
   type Aviso,
 } from './partes'
-import frm from '../../ui/Form.module.css'
 import { TablaEditable } from '../../ui/TablaEditable'
+import { GroupRow, Row } from '../../ui/Form'
 
 /*
 `refreshAdminSsoConfig`, `loadAdminSsoConfig` y `saveAdminSsoConfig`
@@ -192,18 +192,15 @@ export function Sso({ token, onAviso }: Props) {
           primer control, y siendo el único bloque no agrupaba nada. */}
       <Panel className={styles.block}>
 
-        <div className={frm.row}>
-          <div className={frm.rowLabel}>Single Sign-On (SSO)</div>
-          <div className={frm.rowCtl}>
-            <Check
-              conmutador
-              label="Enable Single Sign-On (SSO)"
-              checked={enabled}
-              onChange={setEnabled}
-              help="Enable to allow Single Sign-On (SSO) with OpenID Connect (OIDC)."
-            />
-          </div>
-        </div>
+        <GroupRow label="Single Sign-On (SSO)">
+          <Check
+            conmutador
+            label="Enable Single Sign-On (SSO)"
+            checked={enabled}
+            onChange={setEnabled}
+            help="Enable to allow Single Sign-On (SSO) with OpenID Connect (OIDC)."
+          />
+        </GroupRow>
 
         <Fila
           label="Authority (Issuer)"
@@ -235,163 +232,154 @@ export function Sso({ token, onAviso }: Props) {
           onChange={setMetadata}
         />
 
-        <div className={frm.row}>
-          <div className={frm.rowLabel}>Scopes</div>
-          <div className={frm.rowCtl}>
-            <TablaEditable
-      className={styles.edit}
-              cabecera={
+        <GroupRow label="Scopes">
+                <TablaEditable
+          className={styles.edit}
+                  cabecera={
+                    <>
+                      <th>Scope Name</th>
+                      <th className={styles.tdel} />
+                    </>
+                  }
+                >
+                  {scopes.map((s, i) => (
+                    // eslint-disable-next-line react/no-array-index-key
+                    <tr key={i}>
+                      <td>
+                        <Input
+                          aria-label={`Scope Name ${i + 1}`}
+                          value={s}
+                          onChange={(e) =>
+                            setScopes((lista) => lista.map((v, j) => (j === i ? e.target.value : v)))
+                          }
+                        />
+                      </td>
+                      <td className={styles.tdel}>
+                        <Button
+                          variant="danger"
+                          onClick={() => setScopes((lista) => lista.filter((_, j) => j !== i))}
+                        >
+                          Delete
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </TablaEditable>
+                <div>
+                  <Button onClick={() => setScopes((lista) => [...lista, ''])}>Add</Button>
+                </div>
+                <div className={styles.help}>
+                  Enter the scopes to be sent to the Single Sign-On (SSO) provider. The scopes{' '}
+                  <code>openid</code> and <code>profile</code> are mandatory and will be automatically
+                  added if missing. Add the scope <code>email</code> if you want to use email address as
+                  the username for all SSO users that sign up for an account.
+                </div>
+        </GroupRow>
+
+        <GroupRow label="SSO User Sign Up">
+          <div className={styles.group}>
+            <Check
+              conmutador
+              label="Allow New User Sign Up"
+              checked={allowSignup}
+              onChange={setAllowSignup}
+              help="Enable to allow automatically provisioning of user accounts for new users signing in via Single Sign-On (SSO). Keep this option disabled if you do not expect new SSO users to sign up."
+            />
+            <Check
+              conmutador
+              label="Allow Sign Up Only For Mapped Users"
+              checked={onlyMapped}
+              onChange={setOnlyMapped}
+              help={
                 <>
-                  <th>Scope Name</th>
-                  <th className={styles.tdel} />
+                  Enable to allow a new user to sign up via Single Sign-On (SSO) only when the
+                  user is a member of at least one Remote Group that is mapped to a Local Group in
+                  the <b>Group Map</b> option below. This option allows SSO administrators to
+                  restrict SSO users to control who can sign up and get access based on their
+                  group memberships.
                 </>
               }
-            >
-              {scopes.map((s, i) => (
-                // eslint-disable-next-line react/no-array-index-key
-                <tr key={i}>
-                  <td>
-                    <Input
-                      aria-label={`Scope Name ${i + 1}`}
-                      value={s}
-                      onChange={(e) =>
-                        setScopes((lista) => lista.map((v, j) => (j === i ? e.target.value : v)))
-                      }
-                    />
-                  </td>
-                  <td className={styles.tdel}>
-                    <Button
-                      variant="danger"
-                      onClick={() => setScopes((lista) => lista.filter((_, j) => j !== i))}
-                    >
-                      Delete
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </TablaEditable>
-            <div>
-              <Button onClick={() => setScopes((lista) => [...lista, ''])}>Add</Button>
-            </div>
-            <div className={styles.help}>
-              Enter the scopes to be sent to the Single Sign-On (SSO) provider. The scopes{' '}
-              <code>openid</code> and <code>profile</code> are mandatory and will be automatically
-              added if missing. Add the scope <code>email</code> if you want to use email address as
-              the username for all SSO users that sign up for an account.
-            </div>
+            />
           </div>
-        </div>
+        </GroupRow>
 
-        <div className={frm.row}>
-          <div className={frm.rowLabel}>SSO User Sign Up</div>
-          <div className={frm.rowCtl}>
-            <div className={styles.group}>
-              <Check
-                conmutador
-                label="Allow New User Sign Up"
-                checked={allowSignup}
-                onChange={setAllowSignup}
-                help="Enable to allow automatically provisioning of user accounts for new users signing in via Single Sign-On (SSO). Keep this option disabled if you do not expect new SSO users to sign up."
-              />
-              <Check
-                conmutador
-                label="Allow Sign Up Only For Mapped Users"
-                checked={onlyMapped}
-                onChange={setOnlyMapped}
-                help={
-                  <>
-                    Enable to allow a new user to sign up via Single Sign-On (SSO) only when the
-                    user is a member of at least one Remote Group that is mapped to a Local Group in
-                    the <b>Group Map</b> option below. This option allows SSO administrators to
-                    restrict SSO users to control who can sign up and get access based on their
-                    group memberships.
-                  </>
-                }
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className={frm.row}>
-          <div className={frm.rowLabel}>Group Map (Optional)</div>
-          <div className={frm.rowCtl}>
-            <TablaEditable
-      className={styles.edit}
-              cabecera={
-                <>
-                  <th>Remote Group</th>
-                  <th>Local Group</th>
-                  <th className={styles.tdel} />
-                </>
-              }
-            >
-              {groupMap.map((f, i) => (
-                // eslint-disable-next-line react/no-array-index-key
-                <tr key={i}>
-                  <td>
-                    <Input
-                      aria-label={`Remote Group ${i + 1}`}
-                      value={f.remoteGroup}
-                      onChange={(e) =>
-                        setGroupMap((lista) =>
-                          lista.map((x, j) =>
-                            j === i ? { ...x, remoteGroup: e.target.value } : x,
-                          ),
-                        )
-                      }
-                    />
-                  </td>
-                  <td>
-                    <Select
-                      className={styles.select}
-                      aria-label={`Local Group ${i + 1}`}
-                      value={f.localGroup}
-                      onChange={(e) =>
-                        setGroupMap((lista) =>
-                          lista.map((x, j) => (j === i ? { ...x, localGroup: e.target.value } : x)),
-                        )
-                      }
-                    >
-                      {gruposLocales.map((g) => (
-                        <option key={g} value={g}>
-                          {g}
-                        </option>
-                      ))}
-                    </Select>
-                  </td>
-                  <td className={styles.tdel}>
-                    <Button
-                      variant="danger"
-                      onClick={() => setGroupMap((lista) => lista.filter((_, j) => j !== i))}
-                    >
-                      Delete
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </TablaEditable>
-            <div>
-              <Button
-                onClick={() =>
-                  setGroupMap((lista) => [
-                    ...lista,
-                    { remoteGroup: '', localGroup: gruposLocales[0] ?? '' },
-                  ])
-                }
-              >
-                Add
-              </Button>
-            </div>
-            <div className={styles.help}>
-              Map Remote Groups at Single Sign-On (SSO) provider to Local Groups for both new and
-              existing users signed up via Single Sign-On (SSO). A SSO user&apos;s group membership
-              will be automatically synced to the mapped Local Groups each time they log in. If your
-              SSO provider does not include group membership claim by default then you will have to
-              add <code>groups</code> or <code>roles</code> scope in the <b>Scopes</b> option above
-              as required by the SSO provider.
-            </div>
-          </div>
-        </div>
+        <GroupRow label="Group Map (Optional)">
+                <TablaEditable
+          className={styles.edit}
+                  cabecera={
+                    <>
+                      <th>Remote Group</th>
+                      <th>Local Group</th>
+                      <th className={styles.tdel} />
+                    </>
+                  }
+                >
+                  {groupMap.map((f, i) => (
+                    // eslint-disable-next-line react/no-array-index-key
+                    <tr key={i}>
+                      <td>
+                        <Input
+                          aria-label={`Remote Group ${i + 1}`}
+                          value={f.remoteGroup}
+                          onChange={(e) =>
+                            setGroupMap((lista) =>
+                              lista.map((x, j) =>
+                                j === i ? { ...x, remoteGroup: e.target.value } : x,
+                              ),
+                            )
+                          }
+                        />
+                      </td>
+                      <td>
+                        <Select
+                          className={styles.select}
+                          aria-label={`Local Group ${i + 1}`}
+                          value={f.localGroup}
+                          onChange={(e) =>
+                            setGroupMap((lista) =>
+                              lista.map((x, j) => (j === i ? { ...x, localGroup: e.target.value } : x)),
+                            )
+                          }
+                        >
+                          {gruposLocales.map((g) => (
+                            <option key={g} value={g}>
+                              {g}
+                            </option>
+                          ))}
+                        </Select>
+                      </td>
+                      <td className={styles.tdel}>
+                        <Button
+                          variant="danger"
+                          onClick={() => setGroupMap((lista) => lista.filter((_, j) => j !== i))}
+                        >
+                          Delete
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </TablaEditable>
+                <div>
+                  <Button
+                    onClick={() =>
+                      setGroupMap((lista) => [
+                        ...lista,
+                        { remoteGroup: '', localGroup: gruposLocales[0] ?? '' },
+                      ])
+                    }
+                  >
+                    Add
+                  </Button>
+                </div>
+                <div className={styles.help}>
+                  Map Remote Groups at Single Sign-On (SSO) provider to Local Groups for both new and
+                  existing users signed up via Single Sign-On (SSO). A SSO user&apos;s group membership
+                  will be automatically synced to the mapped Local Groups each time they log in. If your
+                  SSO provider does not include group membership claim by default then you will have to
+                  add <code>groups</code> or <code>roles</code> scope in the <b>Scopes</b> option above
+                  as required by the SSO provider.
+                </div>
+        </GroupRow>
 
         <div className={styles.notas}>
           <Alert type="info" title="Note!">
@@ -493,8 +481,12 @@ export function Sso({ token, onAviso }: Props) {
   )
 }
 
-/** Fila etiqueta + control con la misma rejilla que Settings (210 px), para
- *  que las dos pantallas de formulario de la consola se lean igual. */
+/*
+Un campo de texto de esta pantalla. La fila es la de `ui/Form`; aquí sólo queda
+lo propio: el `Input` y su ancho. Antes esto era una CUARTA copia de la fila
+—las otras tres estaban en las partes de Settings, de DHCP y de
+Administration—, cada una con su propio `useId` y su propia maquetación.
+*/
 function Fila({
   label,
   help,
@@ -510,13 +502,9 @@ function Fila({
   type?: 'password'
   onChange: (v: string) => void
 }) {
-  const id = useId()
   return (
-    <div className={frm.row}>
-      <label className={frm.rowLabel} htmlFor={id}>
-        {label}
-      </label>
-      <div className={frm.rowCtl}>
+    <Row label={label} help={help}>
+      {(id) => (
         <Input
           id={id}
           type={type}
@@ -526,8 +514,7 @@ function Fila({
           onChange={(e) => onChange(e.target.value)}
           style={{ width: '100%', maxWidth: 420 }}
         />
-        <div className={styles.help}>{help}</div>
-      </div>
-    </div>
+      )}
+    </Row>
   )
 }

@@ -34,9 +34,9 @@ import {
   type Aviso,
 } from './partes'
 import tbl from '../../ui/Table.module.css'
-import frm from '../../ui/Form.module.css'
 import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import { Menu, Separador } from '../../ui/Menu'
+import { GroupRow } from '../../ui/Form'
 
 /*
 La sub-pestaña Cluster (`cluster.js` entera, 1.055 líneas). Doce endpoints y
@@ -900,45 +900,42 @@ function UnirseCluster({
             )}
           </MRow>
 
-          <div className={frm.mrow}>
-            <div className={frm.mrowLabel}>Certificate Validation</div>
-            <div className={frm.rowCtl}>
-              <div className={styles.group}>
-                <div>
-                  <label className={styles.check}>
-                    <input
-                      type="radio"
-                      name="joinClusterCertificateValidation"
-                      value="false"
-                      checked={ignorar === 'false'}
-                      onChange={() => setIgnorar('false')}
-                    />
-                    <span>Validate Certificate With PKI and DANE (Recommended)</span>
-                  </label>
-                  <div className={styles.checkHelp}>
-                    The Primary node Web Service TLS certificate will be validated using PKI and DANE
-                    to ensure that your connection is secure.
-                  </div>
-                </div>
-                <div>
-                  <label className={styles.check}>
-                    <input
-                      type="radio"
-                      name="joinClusterCertificateValidation"
-                      value="true"
-                      checked={ignorar === 'true'}
-                      onChange={() => setIgnorar('true')}
-                    />
-                    <span>Ignore Certificate Validation Errors</span>
-                  </label>
-                  <div className={styles.checkHelp}>
-                    Use this options only when you know that the Primary node Web Service is using a
-                    self-signed TLS certificate and is reachable on a private network.
-                  </div>
-                </div>
+          {/* Iba con `frm.rowCtl` —la columna de una fila de PÁGINA— dentro de un
+              modal, que es el mismo descuido que tenía `MRow`. */}
+          <GroupRow modal label="Certificate Validation">
+            <div>
+              <label className={styles.check}>
+                <input
+                  type="radio"
+                  name="joinClusterCertificateValidation"
+                  value="false"
+                  checked={ignorar === 'false'}
+                  onChange={() => setIgnorar('false')}
+                />
+                <span>Validate Certificate With PKI and DANE (Recommended)</span>
+              </label>
+              <div className={styles.checkHelp}>
+                The Primary node Web Service TLS certificate will be validated using PKI and DANE
+                to ensure that your connection is secure.
               </div>
             </div>
-          </div>
+            <div>
+              <label className={styles.check}>
+                <input
+                  type="radio"
+                  name="joinClusterCertificateValidation"
+                  value="true"
+                  checked={ignorar === 'true'}
+                  onChange={() => setIgnorar('true')}
+                />
+                <span>Ignore Certificate Validation Errors</span>
+              </label>
+              <div className={styles.checkHelp}>
+                Use this options only when you know that the Primary node Web Service is using a
+                self-signed TLS certificate and is reachable on a private network.
+              </div>
+            </div>
+          </GroupRow>
 
           <MRow
             label="Primary Node Username"

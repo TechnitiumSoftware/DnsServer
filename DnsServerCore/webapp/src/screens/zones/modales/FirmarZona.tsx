@@ -18,7 +18,7 @@ import type { Aviso } from '../tipos'
 import styles from '../Zones.module.css'
 import { Ayuda, Externo } from '../../../ui/Externo'
 import { AYUDA_DNSSEC, RFC_NSEC3_ITERACIONES, RFC_NSEC3_SAL } from '../referencias'
-import frm from '../../../ui/Form.module.css'
+import { GroupRow } from '../../../ui/Form'
 
 /*
 `modalDnssecSignZone` (zone.js:6539 y 6578).
@@ -160,22 +160,19 @@ export function FirmarZona({
       )}
 
       <div className={styles.campos}>
-        <div className={frm.mrow}>
-          <div className={frm.mrowLabel}>DNSKEY Algorithm</div>
-          <div className={frm.mrowCtl}>
-            {ALGORITMOS.map((a) => (
-              <label key={a.valor} className={styles.chk}>
-                <input
-                  type="radio"
-                  name="signAlgorithm"
-                  checked={f.algorithm === a.valor}
-                  onChange={() => cambiarAlgoritmo(a.valor as Algoritmo)}
-                />
-                {a.etiqueta}
-              </label>
-            ))}
-          </div>
-        </div>
+        <GroupRow modal label="DNSKEY Algorithm">
+          {ALGORITMOS.map((a) => (
+            <label key={a.valor} className={styles.chk}>
+              <input
+                type="radio"
+                name="signAlgorithm"
+                checked={f.algorithm === a.valor}
+                onChange={() => cambiarAlgoritmo(a.valor as Algoritmo)}
+              />
+              {a.etiqueta}
+            </label>
+          ))}
+        </GroupRow>
 
         {esRsa ? (
           <Field label="Hash Algorithm">
@@ -233,26 +230,23 @@ export function FirmarZona({
           onPem={(v) => set('pemZskPrivateKey', v)}
         />
 
-        <div className={frm.mrow}>
-          <div className={frm.mrowLabel}>Proof of Non-Existence</div>
-          <div className={frm.mrowCtl}>
-            {PRUEBAS_NX.map((n) => (
-              <label key={n.valor} className={styles.chk}>
-                <input
-                  type="radio"
-                  name="signNxProof"
-                  checked={f.nxProof === n.valor}
-                  onChange={() => set('nxProof', n.valor as NxProof)}
-                />
-                {n.etiqueta}
-              </label>
-            ))}
-            <div className={styles.ayuda}>
-              With NSEC, all the records in your zone can be discovered by anyone using &quot;zone
-              walking&quot; technique. NSEC3 makes it difficult since it uses hashing with a random salt.
-            </div>
+        <GroupRow modal label="Proof of Non-Existence">
+          {PRUEBAS_NX.map((n) => (
+            <label key={n.valor} className={styles.chk}>
+              <input
+                type="radio"
+                name="signNxProof"
+                checked={f.nxProof === n.valor}
+                onChange={() => set('nxProof', n.valor as NxProof)}
+              />
+              {n.etiqueta}
+            </label>
+          ))}
+          <div className={styles.ayuda}>
+            With NSEC, all the records in your zone can be discovered by anyone using &quot;zone
+            walking&quot; technique. NSEC3 makes it difficult since it uses hashing with a random salt.
           </div>
-        </div>
+        </GroupRow>
 
         {f.nxProof === 'NSEC3' && (
           <>

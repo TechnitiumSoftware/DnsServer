@@ -14,7 +14,6 @@ import {
   Warning,
   settingsStyles as styles,
 } from '../parts'
-import frm from '../../../ui/Form.module.css'
 import type { PaneProps } from './tipos'
 
 /*
@@ -199,26 +198,23 @@ export function Blocking({ f, set, en, extra }: PaneProps & { extra: BlockingExt
         help="The interval in hours to automatically download and update the block lists."
       />
 
-      <div className={frm.row}>
-        <div className={frm.rowLabel}>Block List Next Update On</div>
-        <div className={frm.rowCtl}>
-          <div className={styles.inline}>
-            <span className={styles.val}>
-              {textoProximaActualizacion(extra.blockListNextUpdatedOn)}
-            </span>
-            <Button
-              disabled={!en.actualizarListasAhora || extra.ocupado}
-              onClick={extra.onUpdateNow}
-            >
-              Update Now
-            </Button>
-          </div>
-          <div className={styles.help}>
-            Click the 'Update Now' button to reset the next update schedule and force download and
-            update of the block lists.
-          </div>
+      <GroupRow label="Block List Next Update On">
+        <div className={styles.inline}>
+          <span className={styles.val}>
+            {textoProximaActualizacion(extra.blockListNextUpdatedOn)}
+          </span>
+          <Button
+            disabled={!en.actualizarListasAhora || extra.ocupado}
+            onClick={extra.onUpdateNow}
+          >
+            Update Now
+          </Button>
         </div>
-      </div>
+        <div className={styles.help}>
+          Click the 'Update Now' button to reset the next update schedule and force download and
+          update of the block lists.
+        </div>
+      </GroupRow>
 
       <Avisos>
         <Note>

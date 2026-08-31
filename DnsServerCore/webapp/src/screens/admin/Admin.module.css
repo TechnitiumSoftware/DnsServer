@@ -60,7 +60,7 @@ fondo, la sombra y la cabecera por su cuenta.
    `.block` no lleva padding superior porque esa banda la ocupaba ella. */
 .ctlLine { display:flex; align-items:center; gap: var(--s-6); flex-wrap:wrap; }
 .suffix { font-size: var(--t-3); color:var(--mute); }
-.help { font-size: var(--t-3); color:var(--mute); line-height:1.55; max-width:720px; }
+.help { composes: ayuda from '../../ui/Form.module.css'; }
 .help code, .plain code { font-family:var(--font-mono); font-size: var(--t-2); background:var(--field); border:1px solid var(--line); border-radius: var(--r-1); padding: 0 var(--s-2); }
 .plain { font-size: var(--t-3); color:var(--mute); line-height:1.55; padding: 0 var(--s-9); max-width:860px; }
 .notas { margin: var(--s-3) var(--s-9) 0 var(--s-9); display:flex; flex-direction:column; gap: var(--s-4); }
@@ -69,7 +69,7 @@ fondo, la sombra y la cabecera por su cuenta.
 .check { composes: check from '../../ui/Check.module.css'; }
 .check input { margin-top: var(--s-1); flex:none; }
 .checkHelp { font-size: var(--t-3); color:var(--mute); padding-left: var(--s-11); line-height:1.55; max-width:720px; }
-.group { display:flex; flex-direction:column; gap: var(--s-6); }
+.group { composes: grupo from '../../ui/Form.module.css'; }
 .area { font-family:var(--font-mono); font-size: var(--t-3); padding: var(--s-4) var(--s-6); border:1px solid var(--line); border-radius: var(--r-2); background:var(--field); color:var(--ink); resize:vertical; width:100%; max-width:560px; line-height:1.5; }
 .area:focus { outline:2px solid var(--acc); outline-offset:-1px; border-color:var(--acc); }
 .area:disabled { opacity:.5; }

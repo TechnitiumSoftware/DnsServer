@@ -28,7 +28,7 @@ import {
 import { tiposOcultosAlAnadir } from '../vista-zona'
 import type { Aviso } from '../tipos'
 import styles from '../Zones.module.css'
-import frm from '../../../ui/Form.module.css'
+import { GroupRow } from '../../../ui/Form'
 
 /*
 `modalAddEditRecord` (zone.js:4395 alta, 5295 edición). Un solo formulario para
@@ -585,22 +585,19 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
     case 'FWD':
       return (
         <>
-          <div className={frm.mrow}>
-            <div className={frm.mrowLabel}>Protocol</div>
-            <div className={frm.mrowCtl}>
-              {PROTOCOLOS_FORWARDER.map((x) => (
-                <label key={x.valor} className={styles.chk}>
-                  <input
-                    type="radio"
-                    name="recordForwarderProtocol"
-                    checked={f.forwarderProtocol === x.valor}
-                    onChange={() => set('forwarderProtocol', x.valor)}
-                  />
-                  {x.etiqueta}
-                </label>
-              ))}
-            </div>
-          </div>
+          <GroupRow modal label="Protocol">
+            {PROTOCOLOS_FORWARDER.map((x) => (
+              <label key={x.valor} className={styles.chk}>
+                <input
+                  type="radio"
+                  name="recordForwarderProtocol"
+                  checked={f.forwarderProtocol === x.valor}
+                  onChange={() => set('forwarderProtocol', x.valor)}
+                />
+                {x.etiqueta}
+              </label>
+            ))}
+          </GroupRow>
           {texto('Forwarder', 'forwarder', {
             mono: true,
             placeholder: ejemploDeForwarder(f.forwarderProtocol),
@@ -619,66 +616,63 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
             />
             Enable DNSSEC Validation
           </label>
-          <div className={frm.mrow}>
-            <div className={frm.mrowLabel}>Network Proxy</div>
-            <div className={frm.mrowCtl}>
-              {TIPOS_PROXY.map((x) => (
-                <label key={x.valor} className={styles.chk}>
-                  <input
-                    type="radio"
-                    name="recordProxyType"
-                    checked={f.proxyType === x.valor}
-                    onChange={() => set('proxyType', x.valor)}
-                  />
-                  {x.etiqueta}
-                </label>
-              ))}
-              <Field label="Proxy Server Address">
-                {(id) => (
-                  <Input
-                    id={id}
-                    mono
-                    disabled={!proxyEditable(f.proxyType)}
-                    value={f.proxyAddress}
-                    onChange={(e) => set('proxyAddress', e.target.value)}
-                  />
-                )}
-              </Field>
-              <Field label="Proxy Server Port">
-                {(id) => (
-                  <Input
-                    id={id}
-                    mono
-                    className={styles.corto}
-                    disabled={!proxyEditable(f.proxyType)}
-                    value={f.proxyPort}
-                    onChange={(e) => set('proxyPort', e.target.value)}
-                  />
-                )}
-              </Field>
-              <Field label="Proxy Server Username">
-                {(id) => (
-                  <Input
-                    id={id}
-                    disabled={!proxyEditable(f.proxyType)}
-                    value={f.proxyUsername}
-                    onChange={(e) => set('proxyUsername', e.target.value)}
-                  />
-                )}
-              </Field>
-              <Field label="Proxy Server Password">
-                {(id) => (
-                  <Input
-                    id={id}
-                    type="password"
-                    disabled={!proxyEditable(f.proxyType)}
-                    value={f.proxyPassword}
-                    onChange={(e) => set('proxyPassword', e.target.value)}
-                  />
-                )}
-              </Field>
-            </div>
-          </div>
+          <GroupRow modal label="Network Proxy">
+            {TIPOS_PROXY.map((x) => (
+              <label key={x.valor} className={styles.chk}>
+                <input
+                  type="radio"
+                  name="recordProxyType"
+                  checked={f.proxyType === x.valor}
+                  onChange={() => set('proxyType', x.valor)}
+                />
+                {x.etiqueta}
+              </label>
+            ))}
+            <Field label="Proxy Server Address">
+              {(id) => (
+                <Input
+                  id={id}
+                  mono
+                  disabled={!proxyEditable(f.proxyType)}
+                  value={f.proxyAddress}
+                  onChange={(e) => set('proxyAddress', e.target.value)}
+                />
+              )}
+            </Field>
+            <Field label="Proxy Server Port">
+              {(id) => (
+                <Input
+                  id={id}
+                  mono
+                  className={styles.corto}
+                  disabled={!proxyEditable(f.proxyType)}
+                  value={f.proxyPort}
+                  onChange={(e) => set('proxyPort', e.target.value)}
+                />
+              )}
+            </Field>
+            <Field label="Proxy Server Username">
+              {(id) => (
+                <Input
+                  id={id}
+                  disabled={!proxyEditable(f.proxyType)}
+                  value={f.proxyUsername}
+                  onChange={(e) => set('proxyUsername', e.target.value)}
+                />
+              )}
+            </Field>
+            <Field label="Proxy Server Password">
+              {(id) => (
+                <Input
+                  id={id}
+                  type="password"
+                  disabled={!proxyEditable(f.proxyType)}
+                  value={f.proxyPassword}
+                  onChange={(e) => set('proxyPassword', e.target.value)}
+                />
+              )}
+            </Field>
+          </GroupRow>
         </>
       )
 

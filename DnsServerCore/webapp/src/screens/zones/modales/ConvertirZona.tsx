@@ -5,7 +5,7 @@ import { Button } from '../../../ui/Button'
 import { Dialog } from '../../../ui/Dialog'
 import type { Aviso } from '../tipos'
 import styles from '../Zones.module.css'
-import frm from '../../../ui/Form.module.css'
+import { GroupRow } from '../../../ui/Form'
 
 /*
 `modalConvertZone` (zone.js:1387 y 1443).
@@ -118,23 +118,20 @@ export function ConvertirZona({
       )}
 
       <div className={styles.campos}>
-        <div className={frm.mrow}>
-          <div className={frm.mrowLabel}>Convert To</div>
-          <div className={frm.mrowCtl}>
-            {(['Primary', 'Forwarder', 'Catalog'] as DestinoConversion[]).map((d) => (
-              <label key={d} className={styles.chk}>
-                <input
-                  type="radio"
-                  name="convertTo"
-                  disabled={!tabla.habilitados.includes(d)}
-                  checked={destino === d}
-                  onChange={() => setDestino(d)}
-                />
-                {ETIQUETAS[d]}
-              </label>
-            ))}
-          </div>
-        </div>
+        <GroupRow modal label="Convert To">
+          {(['Primary', 'Forwarder', 'Catalog'] as DestinoConversion[]).map((d) => (
+            <label key={d} className={styles.chk}>
+              <input
+                type="radio"
+                name="convertTo"
+                disabled={!tabla.habilitados.includes(d)}
+                checked={destino === d}
+                onChange={() => setDestino(d)}
+              />
+              {ETIQUETAS[d]}
+            </label>
+          ))}
+        </GroupRow>
 
         <Alert type="info" title="Note!">
           The conversion process may take a while depending on the number of records the zone
