@@ -26,6 +26,7 @@ import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import styles from './Zones.module.css'
 import type { Aviso, Confirmacion } from './tipos'
 import { Paginacion } from '../../ui/Paginacion'
+import { avisoDeFallo } from '../../lib/aviso'
 
 /*
 La lista de zonas. Réplica de `refreshZones` (zone.js:649) y de las seis
@@ -117,12 +118,8 @@ export function ListaZonas({
       setOcupado(false)
 
       if (r.kind !== 'ok') {
-        onAviso({
-          type: 'danger',
-          title: 'Error!',
-          // El mensaje del servidor, no una suposición sobre la red.
-          text: r.kind === 'error' ? r.message : 'Invalid token or session expired.',
-        })
+        // El mensaje del servidor, no una suposición sobre la red.
+        onAviso(avisoDeFallo(r))
         return
       }
 
@@ -172,11 +169,7 @@ export function ListaZonas({
     setOcupado(false)
 
     if (outcome.kind !== 'ok') {
-      onAviso({
-        type: 'danger',
-        title: 'Error!',
-        text: outcome.kind === 'error' ? (outcome.message ?? '') : 'Invalid token or session expired.',
-      })
+      onAviso(avisoDeFallo(outcome))
       return
     }
     await cargar(pageNumber)
@@ -273,11 +266,7 @@ export function ListaZonas({
         setOcupado(false)
 
         if (outcome.kind !== 'ok') {
-          onAviso({
-            type: 'danger',
-            title: 'Error!',
-            text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-          })
+          onAviso(avisoDeFallo(outcome))
           return
         }
 

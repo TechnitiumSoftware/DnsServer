@@ -43,6 +43,7 @@ import { Externo } from '../../../ui/Externo'
 import { RFC_NSEC3_ITERACIONES, RFC_NSEC3_SAL } from '../referencias'
 import frm from '../../../ui/Form.module.css'
 import { Th, useOrden, type Claves, Tabla } from '../../../ui/Table'
+import { avisoDeFallo } from '../../../lib/aviso'
 
 /*
 `modalDnssecProperties` (zone.js:6799-7400). Es la pantalla más viva del
@@ -147,11 +148,7 @@ export function PropiedadesDnssec({
     setOcupado(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso({
-        type: 'danger',
-        title: 'Error!',
-        text: outcome.kind === 'error' ? (outcome.message ?? '') : 'Invalid token or session expired.',
-      })
+      setAviso(avisoDeFallo(outcome))
       return
     }
 

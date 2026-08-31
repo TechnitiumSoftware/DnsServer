@@ -15,6 +15,7 @@ import { Alert, type AlertType } from '../../ui/Alert'
 import { MenuBloqueo } from './MenuBloqueo'
 import { instantesDelRango, loQueFalta } from './rango-personalizado'
 import { Segmentado } from '../../ui/Segmentado'
+import { avisoDeFallo } from '../../lib/aviso'
 
 /*
 Las once métricas, en el orden de upstream y con sus etiquetas literales.
@@ -185,11 +186,7 @@ export function Dashboard({ token }: { token: string | null }) {
       pantalla contestaba en falso sobre lo único que se viene a mirar aquí.
       */
       setDatos(null)
-      setAviso({
-        type: 'danger',
-        title: 'Error!',
-        text: r.kind === 'error' ? r.message : 'Invalid token or session expired.',
-      })
+      setAviso(avisoDeFallo(r))
     })()
     return () => {
       cancelado = true

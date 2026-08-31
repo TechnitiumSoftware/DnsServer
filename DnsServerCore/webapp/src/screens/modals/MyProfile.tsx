@@ -10,6 +10,7 @@ import styles from './MyProfile.module.css'
 import tbl from '../../ui/Table.module.css'
 import { Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import { desdeAhora, fechaHora } from '../../lib/fechas'
+import { avisoDeFallo } from '../../lib/aviso'
 
 /*
 Réplica de `showMyProfileModal` / `saveMyProfile` (auth.js:642-794).
@@ -94,11 +95,7 @@ export function MyProfile({
       setReloadKey((k) => k + 1)
       return
     }
-    setAlert({
-      type: 'danger',
-      title: 'Error!',
-      text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-    })
+    setAlert(avisoDeFallo(outcome))
   }
 
   async function save() {
@@ -119,11 +116,7 @@ export function MyProfile({
       onSaved?.(displayName)
       return
     }
-    setAlert({
-      type: 'danger',
-      title: 'Error!',
-      text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-    })
+    setAlert(avisoDeFallo(outcome))
   }
 
   return (

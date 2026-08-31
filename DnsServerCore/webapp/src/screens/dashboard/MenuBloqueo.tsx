@@ -3,6 +3,7 @@ import { getSettings, setSettings, temporaryDisableBlocking } from '../../api/se
 import { Confirmar } from '../../ui/Confirmar'
 import { Menu } from '../../ui/Menu'
 import type { AlertType } from '../../ui/Alert'
+import { avisoDeFallo } from '../../lib/aviso'
 
 /*
 El menú «Blocking» del Dashboard.
@@ -71,7 +72,9 @@ export function MenuBloqueo({
       variante: encender ? 'primary' : 'danger',
       hacer: async () => {
         const r = await setSettings(token, { enableBlocking: String(encender) })
-        if (r.kind !== 'ok') throw new Error(r.kind === 'error' ? r.message : 'Session expired.')
+        // El mismo texto que las otras treinta y seis: era la única que decía
+        // «Session expired.» a secas para esta misma condición.
+        if (r.kind !== 'ok') throw new Error(avisoDeFallo(r).text)
         setActivo(encender)
         onAviso({
           type: 'success',

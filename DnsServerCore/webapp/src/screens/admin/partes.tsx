@@ -1,4 +1,4 @@
-import { Alert, type AlertType } from '../../ui/Alert'
+import { Alert } from '../../ui/Alert'
 import type { ClusterState } from '../../api/admin-cluster'
 import styles from './Admin.module.css'
 import frm from '../../ui/Form.module.css'
@@ -8,21 +8,9 @@ export { Check } from '../../ui/Check'
 
 /* Las piezas que comparten las seis sub-pestañas de Administration. */
 
-export interface Aviso {
-  type: AlertType
-  title: string
-  text: string
-}
-
-/** `showAlert("danger", "Error!", …)`: upstream lo saca SIEMPRE que la
- *  respuesta no es `ok`, con el mensaje que manda el servidor. */
-export function avisoDeFallo(outcome: { kind: string; message?: string }): Aviso {
-  return {
-    type: 'danger',
-    title: 'Error!',
-    text: outcome.kind === 'error' ? (outcome.message ?? 'Unknown error.') : 'Invalid token or session expired.',
-  }
-}
+export type { Aviso } from '../../lib/aviso'
+export { avisoDeFallo } from '../../lib/aviso'
+import type { Aviso } from '../../lib/aviso'
 
 export function Avisador({ aviso, onCerrar }: { aviso: Aviso | null; onCerrar: () => void }) {
   if (aviso == null) return null

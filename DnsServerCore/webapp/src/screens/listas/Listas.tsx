@@ -14,7 +14,7 @@ import {
   type ListaDominios,
   type NodoLista,
 } from '../../api/zonelists'
-import { Alert, type AlertType } from '../../ui/Alert'
+import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Confirmar } from '../../ui/Confirmar'
 import { Dialog } from '../../ui/Dialog'
@@ -24,6 +24,7 @@ import { Empty } from '../../ui/Empty'
 import { Arbol } from './Arbol'
 import { Registros } from './Registros'
 import styles from './Listas.module.css'
+import { avisoDeFallo, type Aviso } from '../../lib/aviso'
 
 /*
 Cache, Allowed y Blocked. Una sola pantalla porque en upstream son tres copias
@@ -41,7 +42,6 @@ depende de estar fuera de la raíz (other-zones.js:143-152) y en Allowed y
 Blocked de que el nodo tenga registros (líneas 319-327). Se replica tal cual.
 */
 
-interface Aviso { type: AlertType; title: string; text: string }
 
 interface Confirmacion {
   titulo: string
@@ -111,11 +111,7 @@ function Importar({
     setOcupado(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso({
-        type: 'danger',
-        title: 'Error!',
-        text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-      })
+      setAviso(avisoDeFallo(outcome))
       return
     }
 
@@ -184,11 +180,7 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
       }
       // El manejador de errores de upstream deja la lista donde estaba y pinta
       // el errorMessage del servidor; aquí igual.
-      setAviso({
-        type: 'danger',
-        title: 'Error!',
-        text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-      })
+      setAviso(avisoDeFallo(outcome))
     },
     [lista, token],
   )
@@ -208,11 +200,7 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
     setOcupado(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso({
-        type: 'danger',
-        title: 'Error!',
-        text: outcome.kind === 'error' ? (outcome.message ?? '') : 'Invalid token or session expired.',
-      })
+      setAviso(avisoDeFallo(outcome))
       return
     }
     await despues()

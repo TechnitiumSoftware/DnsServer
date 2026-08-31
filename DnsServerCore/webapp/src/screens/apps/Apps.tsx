@@ -17,6 +17,7 @@ import { UpdateApp } from './UpdateApp'
 import { Empty, Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import styles from './Apps.module.css'
+import { avisoDeFallo } from '../../lib/aviso'
 
 /*
 Réplica de la pestaña Apps (apps.js + index.html:807-835).
@@ -46,11 +47,7 @@ type Modal =
   | { kind: 'config'; name: string; config: string }
 
 export function error(outcome: { kind: string; message?: string }): AlertState {
-  return {
-    type: 'danger',
-    title: 'Error!',
-    text: outcome.kind === 'error' ? (outcome.message ?? '') : 'Invalid token or session expired.',
-  }
+  return avisoDeFallo(outcome)
 }
 
 export function Apps({ token }: { token: string | null }) {

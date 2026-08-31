@@ -4,6 +4,7 @@ import { Alert, type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { LabeledInput } from '../../ui/Field'
+import { avisoDeFallo } from '../../lib/aviso'
 
 /* Réplica de `createMyApiToken()` (auth.js:337-381). */
 export function CreateApiToken({
@@ -44,11 +45,7 @@ export function CreateApiToken({
       })
       return
     }
-    setAlert({
-      type: 'danger',
-      title: 'Error!',
-      text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-    })
+    setAlert(avisoDeFallo(outcome))
   }
 
   return (

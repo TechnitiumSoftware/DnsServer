@@ -21,6 +21,7 @@ import tbl from '../../ui/Table.module.css'
 import styles from './Dhcp.module.css'
 import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
+import { avisoDeFallo } from '../../lib/aviso'
 
 /*
 DHCP › Scopes (dhcp.js:201-684).
@@ -76,11 +77,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
       return
     }
     setScopes([])
-    setAviso({
-      type: 'danger',
-      title: 'Error!',
-      text: r.kind === 'error' ? r.message : 'Invalid token or session expired.',
-    })
+    setAviso(avisoDeFallo(r))
   }, [token, node])
 
   useEffect(() => {

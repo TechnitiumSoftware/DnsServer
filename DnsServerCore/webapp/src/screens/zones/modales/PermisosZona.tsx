@@ -8,6 +8,7 @@ import { Loading } from '../../../ui/Empty'
 import type { Aviso } from '../tipos'
 import { Tabla } from '../../../ui/Table'
 import styles from '../Zones.module.css'
+import { avisoDeFallo } from '../../../lib/aviso'
 
 /*
 `modalEditPermissions` para una zona (zone.js:2544 y 2616).
@@ -104,11 +105,7 @@ export function PermisosZona({
     setOcupado(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso({
-        type: 'danger',
-        title: 'Error!',
-        text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-      })
+      setAviso(avisoDeFallo(outcome))
       return
     }
 

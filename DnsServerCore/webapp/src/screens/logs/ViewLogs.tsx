@@ -8,13 +8,14 @@ import {
   type LogFile,
 } from '../../api/logs'
 import { deleteAllStats } from '../../api/dashboard'
-import { Alert, type AlertType } from '../../ui/Alert'
+import { Alert } from '../../ui/Alert'
 import { Confirmar } from '../../ui/Confirmar'
 import { Button } from '../../ui/Button'
 import { SectionHeader } from '../../ui/SectionHeader'
 import {Empty, Loading} from '../../ui/Empty'
 import styles from './Logs.module.css'
 import { Cuerpo, Panel } from '../../ui/Panel'
+import { avisoDeFallo, type Aviso } from '../../lib/aviso'
 
 /*
 Logs › View Logs (logs.js:105-268).
@@ -35,7 +36,6 @@ Cuatro cosas de upstream que gobiernan esta pantalla:
      devuelve texto y la única forma de enseñar el error es en el mismo hueco.
 */
 
-interface Aviso { type: AlertType; title: string; text: string }
 
 export interface ViewLogsProps {
   token: string | null
@@ -70,11 +70,7 @@ export function ViewLogs({
       return
     }
     setFicheros([])
-    setAviso({
-      type: 'danger',
-      title: 'Error!',
-      text: r.kind === 'error' ? r.message : 'Invalid token or session expired.',
-    })
+    setAviso(avisoDeFallo(r))
   }, [token, node])
 
   useEffect(() => {

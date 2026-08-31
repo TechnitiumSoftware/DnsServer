@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, type AlertType } from '../../ui/Alert'
+import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { openDownload } from '../../api/user'
@@ -28,6 +28,7 @@ import { BackupDialog, Confirmar, RestoreDialog } from './dialogs'
 import { Fallo, Loading } from '../../ui/Empty'
 import styles from './Settings.module.css'
 import formulario from '../../ui/Ajustes.module.css'
+import { avisoDeFallo, type Aviso } from '../../lib/aviso'
 
 /*
 Settings. La pantalla más grande de la consola: en upstream, sólo la sub-pestaña
@@ -64,7 +65,6 @@ export const SUBPESTANAS = [
 
 export type Subpestana = (typeof SUBPESTANAS)[number]
 
-interface AvisoState { type: AlertType; title: string; text: string }
 
 export interface SettingsProps {
   token: string | null
@@ -90,7 +90,7 @@ export function Settings({
   const [form, setForm] = useState<SettingsForm | null>(null)
   const [cargando, setCargando] = useState(true)
   const [ocupado, setOcupado] = useState(false)
-  const [aviso, setAviso] = useState<AvisoState | null>(null)
+  const [aviso, setAviso] = useState<Aviso | null>(null)
   // El salto por validación recuerda desde qué sub-pestaña se disparó: en cuanto
   // el Shell pide otra distinta, deja de valer. Derivarlo así evita un efecto
   // que sólo servía para ponerlo a null y el render de más que trae consigo.
@@ -151,11 +151,7 @@ export function Settings({
     setOcupado(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso({
-        type: 'danger',
-        title: 'Error!',
-        text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-      })
+      setAviso(avisoDeFallo(outcome))
       return
     }
 
@@ -262,10 +258,7 @@ export function Settings({
     setOcupado(false)
 
     if (outcome.kind !== 'ok') {
-      setAvisoModal({
-        title: 'Error!',
-        text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-      })
+      setAvisoModal(avisoDeFallo(outcome))
       return
     }
 

@@ -1,11 +1,4 @@
-import type { AlertType } from '../../ui/Alert'
-
-/** Un `showAlert` de upstream: tipo, título en negrita y texto. */
-export interface Aviso {
-  type: AlertType
-  title: string
-  text: string
-}
+export type { Aviso } from '../../lib/aviso'
 
 /**
  * Un `confirm()` de upstream convertido en diálogo. El texto puede llevar

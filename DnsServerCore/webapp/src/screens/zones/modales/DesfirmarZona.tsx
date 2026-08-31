@@ -5,6 +5,7 @@ import { Button } from '../../../ui/Button'
 import { Dialog } from '../../../ui/Dialog'
 import type { Aviso } from '../tipos'
 import styles from '../Zones.module.css'
+import { avisoDeFallo } from '../../../lib/aviso'
 
 /*
 `modalDnssecUnsignZone` (zone.js:6673 y 6681). No tiene formulario: es un modal
@@ -40,11 +41,7 @@ export function DesfirmarZona({
     setOcupado(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso({
-        type: 'danger',
-        title: 'Error!',
-        text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-      })
+      setAviso(avisoDeFallo(outcome))
       return
     }
 

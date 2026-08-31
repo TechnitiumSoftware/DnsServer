@@ -29,6 +29,7 @@ import { tiposOcultosAlAnadir } from '../vista-zona'
 import type { Aviso } from '../tipos'
 import styles from '../Zones.module.css'
 import { GroupRow } from '../../../ui/Form'
+import { avisoDeFallo } from '../../../lib/aviso'
 
 /*
 `modalAddEditRecord` (zone.js:4395 alta, 5295 edición). Un solo formulario para
@@ -144,11 +145,7 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
     setOcupado(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso({
-        type: 'danger',
-        title: 'Error!',
-        text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-      })
+      setAviso(avisoDeFallo(outcome))
       return
     }
 

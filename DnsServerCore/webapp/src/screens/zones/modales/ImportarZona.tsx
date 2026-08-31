@@ -8,6 +8,7 @@ import type { Aviso } from '../tipos'
 import styles from '../Zones.module.css'
 import frm from '../../../ui/Form.module.css'
 import { GroupRow, Row } from '../../../ui/Form'
+import { avisoDeFallo } from '../../../lib/aviso'
 
 /*
 `modalImportZone` (zone.js:1227 y 1251). Dos formas de dar el fichero —subirlo
@@ -74,11 +75,7 @@ export function ImportarZona({
     setOcupado(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso({
-        type: 'danger',
-        title: 'Error!',
-        text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-      })
+      setAviso(avisoDeFallo(outcome))
       return
     }
 

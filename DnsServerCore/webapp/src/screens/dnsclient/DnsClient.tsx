@@ -8,6 +8,7 @@ import { Empty } from '../../ui/Empty'
 import { Detalles } from '../../ui/Detalles'
 import styles from './DnsClient.module.css'
 import { Cuerpo, Panel } from '../../ui/Panel'
+import { avisoDeFallo } from '../../lib/aviso'
 
 /*
 Réplica de `resolveQuery()` (dnsclient.js:95-210). Los dos botones llaman al
@@ -67,11 +68,7 @@ export function DnsClient({ token }: { token: string | null }) {
     if (outcome.kind !== 'ok') {
       setSalida(null)
       setCrudas([])
-      setAlert({
-        type: 'danger',
-        title: 'Error!',
-        text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-      })
+      setAlert(avisoDeFallo(outcome))
       return
     }
 

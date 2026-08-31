@@ -6,6 +6,7 @@ import { Dialog } from '../../../ui/Dialog'
 import { LabeledInput } from '../../../ui/Field'
 import type { Aviso } from '../tipos'
 import styles from '../Zones.module.css'
+import { avisoDeFallo } from '../../../lib/aviso'
 
 /** `modalCloneZone` (zone.js:1332 y 1346). */
 export function ClonarZona({
@@ -47,11 +48,7 @@ export function ClonarZona({
     setOcupado(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso({
-        type: 'danger',
-        title: 'Error!',
-        text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-      })
+      setAviso(avisoDeFallo(outcome))
       return
     }
 

@@ -19,6 +19,7 @@ import tbl from '../../ui/Table.module.css'
 import styles from './Dhcp.module.css'
 import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
+import { avisoDeFallo } from '../../lib/aviso'
 
 /*
 DHCP › Leases (dhcp.js:37-199).
@@ -83,11 +84,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
       return
     }
     setLeases([])
-    setAviso({
-      type: 'danger',
-      title: 'Error!',
-      text: r.kind === 'error' ? r.message : 'Invalid token or session expired.',
-    })
+    setAviso(avisoDeFallo(r))
   }, [token, node])
 
   useEffect(() => {
@@ -140,11 +137,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
     setOcupado(false)
 
     if (outcome.kind !== 'ok') {
-      setAvisoModal({
-        type: 'danger',
-        title: 'Error!',
-        text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-      })
+      setAvisoModal(avisoDeFallo(outcome))
       return
     }
 

@@ -19,6 +19,7 @@ import styles from '../Zones.module.css'
 import { Ayuda, Externo } from '../../../ui/Externo'
 import { AYUDA_DNSSEC, RFC_NSEC3_ITERACIONES, RFC_NSEC3_SAL } from '../referencias'
 import { GroupRow } from '../../../ui/Form'
+import { avisoDeFallo } from '../../../lib/aviso'
 
 /*
 `modalDnssecSignZone` (zone.js:6539 y 6578).
@@ -123,11 +124,7 @@ export function FirmarZona({
     setOcupado(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso({
-        type: 'danger',
-        title: 'Error!',
-        text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-      })
+      setAviso(avisoDeFallo(outcome))
       return
     }
 

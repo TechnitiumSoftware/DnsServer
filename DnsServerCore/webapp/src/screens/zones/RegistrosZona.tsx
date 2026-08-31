@@ -36,6 +36,7 @@ import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import styles from './Zones.module.css'
 import type { Aviso, Confirmacion } from './tipos'
 import { Paginacion } from '../../ui/Paginacion'
+import { avisoDeFallo } from '../../lib/aviso'
 
 /*
 Los registros de una zona. Réplica de `showEditZone` (zone.js:3079) y
@@ -164,11 +165,7 @@ export function RegistrosZona(p: RegistrosZonaProps) {
     setOcupado(false)
 
     if (outcome.kind !== 'ok') {
-      onAviso({
-        type: 'danger',
-        title: 'Error!',
-        text: outcome.kind === 'error' ? (outcome.message ?? '') : 'Invalid token or session expired.',
-      })
+      onAviso(avisoDeFallo(outcome))
       return
     }
     await cargar()
@@ -233,11 +230,7 @@ export function RegistrosZona(p: RegistrosZonaProps) {
     setOcupado(false)
 
     if (outcome.kind !== 'ok') {
-      onAviso({
-        type: 'danger',
-        title: 'Error!',
-        text: outcome.kind === 'error' ? (outcome.message ?? '') : 'Invalid token or session expired.',
-      })
+      onAviso(avisoDeFallo(outcome))
       return
     }
     onAviso(exito)

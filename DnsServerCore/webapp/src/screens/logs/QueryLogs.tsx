@@ -12,7 +12,7 @@ import {
   type QueryLogPage,
   type QueryLogsParams,
 } from '../../api/logs'
-import { Alert, type AlertType } from '../../ui/Alert'
+import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Input, Select } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
@@ -23,6 +23,7 @@ import { Tabla } from '../../ui/Table'
 import styles from './Logs.module.css'
 import { ventanaDePaginas } from '../../lib/paginacion'
 import { Paginacion } from '../../ui/Paginacion'
+import { avisoDeFallo, type Aviso } from '../../lib/aviso'
 
 /*
 Logs › Query Logs (logs.js:20-101 y 270-710).
@@ -51,7 +52,6 @@ Lo que NO está: el menú de cada fila («Query DNS Server», «Allow Domain» /
 tocar el Shell. Queda anotado como hueco de integración, no resuelto a medias.
 */
 
-interface Aviso { type: AlertType; title: string; text: string }
 
 export const CLAVE_ENTRIES_PER_PAGE = 'optQueryLogsEntriesPerPage'
 
@@ -191,11 +191,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
         que la pantalla quedaba muerta sin decir por qué.
         */
         setApps([])
-        setAviso({
-          type: 'danger',
-          title: 'Error!',
-          text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-        })
+        setAviso(avisoDeFallo(outcome))
         return
       }
       const lista = appsConQueryLogs(outcome.data.response.apps ?? [])
@@ -285,11 +281,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
 
       if (outcome.kind !== 'ok') {
         if (!enVivo) {
-          setAviso({
-            type: 'danger',
-            title: 'Error!',
-            text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-          })
+          setAviso(avisoDeFallo(outcome))
         }
         return
       }

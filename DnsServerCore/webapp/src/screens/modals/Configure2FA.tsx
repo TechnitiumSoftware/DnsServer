@@ -4,6 +4,7 @@ import { Alert, type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { LabeledInput } from '../../ui/Field'
+import { avisoDeFallo } from '../../lib/aviso'
 
 /*
 Réplica de `showConfigure2FAModal` / `enable2FA` / `disable2FA`
@@ -65,11 +66,7 @@ export function Configure2FA({
       onChanged?.(true)
       return
     }
-    setAlert({
-      type: 'danger',
-      title: 'Error!',
-      text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-    })
+    setAlert(avisoDeFallo(outcome))
   }
 
   async function disable() {
@@ -85,11 +82,7 @@ export function Configure2FA({
       onChanged?.(false)
       return
     }
-    setAlert({
-      type: 'danger',
-      title: 'Error!',
-      text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-    })
+    setAlert(avisoDeFallo(outcome))
   }
 
   const enabled = init?.totpEnabled ?? false

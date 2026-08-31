@@ -28,6 +28,7 @@ import { RFC_ZONEMD } from '../referencias'
 import frm from '../../../ui/Form.module.css'
 import { GroupRow } from '../../../ui/Form'
 import { Segmentado } from '../../../ui/Segmentado'
+import { avisoDeFallo } from '../../../lib/aviso'
 
 /*
 `modalZoneOptions` (zone.js:1524 y 2380). Cinco pestañas y una matriz de
@@ -101,11 +102,7 @@ export function OpcionesZona({
     setOcupado(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso({
-        type: 'danger',
-        title: 'Error!',
-        text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-      })
+      setAviso(avisoDeFallo(outcome))
       return
     }
 

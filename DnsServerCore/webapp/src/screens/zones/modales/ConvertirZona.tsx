@@ -6,6 +6,7 @@ import { Dialog } from '../../../ui/Dialog'
 import type { Aviso } from '../tipos'
 import styles from '../Zones.module.css'
 import { GroupRow } from '../../../ui/Form'
+import { avisoDeFallo } from '../../../lib/aviso'
 
 /*
 `modalConvertZone` (zone.js:1387 y 1443).
@@ -84,11 +85,7 @@ export function ConvertirZona({
     setOcupado(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso({
-        type: 'danger',
-        title: 'Error!',
-        text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-      })
+      setAviso(avisoDeFallo(outcome))
       return
     }
 

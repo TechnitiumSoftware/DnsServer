@@ -24,6 +24,7 @@ import {
 import { Ayuda, Externo } from '../../../ui/Externo'
 import { RFC_ZONEMD } from '../referencias'
 import { GroupRow, Row } from '../../../ui/Form'
+import { avisoDeFallo } from '../../../lib/aviso'
 
 /*
 `modalAddZone` (zone.js:2726 y 2911). Ocho tipos de zona, cada uno con su
@@ -100,11 +101,7 @@ export function AnadirZona({
     setOcupado(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso({
-        type: 'danger',
-        title: 'Error!',
-        text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
-      })
+      setAviso(avisoDeFallo(outcome))
       return
     }
 
