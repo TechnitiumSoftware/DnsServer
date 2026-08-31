@@ -1,0 +1,34 @@
+/*
+La tabla de una lista que se edita en el sitio: las claves TSIG, los
+reenviadores, las rutas estáticas de un scope, los mapas de grupos de SSO.
+
+No es la tabla de datos de `ui/Table.module.css` y no debe parecerlo: aquella es
+el objeto principal de una pantalla —con su panel, su borde y su sombra— y ésta
+vive DENTRO de un panel, apretada contra sus campos. Por eso va sin caja, sin
+fondo en la cabecera y con la celda más estrecha.
+
+Lo que sí comparten es el rótulo: la cabecera de columna es la misma versalita
+que la de cualquier otra tabla (`--rotulo-*` en tokens). Antes no lo era —iba a
+0.07em— y además esta tabla estaba escrita TRES veces, en Settings, en DHCP y en
+Administration, con los mismos valores copiados a mano.
+*/
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tabla th {
+  text-align: left;
+  font-size: var(--rotulo-tam);
+  font-weight: var(--rotulo-peso);
+  letter-spacing: var(--rotulo-interletrado);
+  text-transform: uppercase;
+  color: var(--mute);
+  padding: 0 var(--s-5) var(--s-4) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.tabla td {
+  padding: var(--s-3) var(--s-5) var(--s-3) 0;
+  vertical-align: middle;
+}

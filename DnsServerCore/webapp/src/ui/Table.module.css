@@ -25,11 +25,14 @@ que se le da cuerpo —panel, borde y esquinas— en vez de dejarla flotando.
 .tabla thead th {
   background: var(--pan2);
   text-align: left;
-  font-size: var(--t-2);
+  /* El mismo rótulo que el título de un panel: ver `--rotulo-*` en tokens. La
+     cabecera de tabla iba a `--t-2` cuando el propio token `--t-1` dice, desde
+     que se escribió, «rótulo en versalitas, cabecera de tabla, píldora». */
+  font-size: var(--rotulo-tam);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--rotulo-interletrado);
   color: var(--mute);
-  font-weight: 600;
+  font-weight: var(--rotulo-peso);
   padding: var(--s-5) var(--s-7);
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
@@ -130,6 +133,24 @@ los datos y no decía nada, porque «se puede ordenar» es igual en todas.
 .orden:hover .flecha,
 [aria-sort='ascending'] .flecha,
 [aria-sort='descending'] .flecha { color: var(--acc); }
+
+/*
+La columna de acciones: pegada al final y del ancho de lo que lleva.
+
+Sin esta regla la celda heredaba `text-align: left` y la columna se quedaba con
+todo el ancho que le sobrara a la tabla, así que los botones flotaban en medio
+del hueco: medido antes de arreglarlo, entre el último control y el borde de la
+tabla había 51 px en Cache, 80 en Zones, 126 en Users, 196 en Scopes y 306 en
+Groups. Cinco tablas y cinco sitios distintos para lo mismo.
+
+`width: 1%` con `table-layout: auto` es la forma de decir «esta columna, lo
+mínimo»: el navegador reparte lo que sobra entre las demás.
+*/
+.celdaAcciones {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
 
 /*
 Las acciones de una fila, como UN grupo y no como cuatro fichas sueltas.

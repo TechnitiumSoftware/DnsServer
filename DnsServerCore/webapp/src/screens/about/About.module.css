@@ -1,9 +1,16 @@
 .grid { display:grid; grid-template-columns:1fr 300px; gap: var(--s-10); align-items:start; }
 .col { display:flex; flex-direction:column; gap: var(--s-9); }
-.panel { box-shadow: var(--e-1), var(--filo); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); overflow:hidden; }
-.ph { display:flex; align-items:center; justify-content:space-between; padding: var(--s-8) var(--s-9); border-bottom:1px solid var(--line); }
-.ph h2 { margin: 0; font-size: var(--t-4); font-weight: 550; color:var(--ink); }
-.pb { padding: var(--s-9); }
+/*
+El panel, la cabecera y el cuerpo son los de `ui/Panel.module.css`.
+
+Estaban escritos aquí, y en otros tres módulos más, con valores que se habían
+ido separando: sombra sí o no, fondo de cabecera sí o no, y dos tipografías de
+título distintas para el mismo objeto.
+*/
+.panel { composes: panel from '../../ui/Panel.module.css'; }
+.ph { composes: cabecera from '../../ui/Panel.module.css'; }
+
+.pb { composes: cuerpo from '../../ui/Panel.module.css'; }
 .head { display:flex; align-items:center; gap: var(--s-8); margin-bottom: var(--s-9); }
 /* El logo se enseña tal cual: ni recuadro de color ni recorte. */
 .mark { width:38px; height:38px; flex:none; }

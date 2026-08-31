@@ -1,0 +1,74 @@
+/*
+El panel: la caja con borde donde vive un trozo de pantalla.
+
+Estaba definido SIETE veces —`.panel` en Dashboard, DNS Client, Logs y About;
+`.block` en Settings, DHCP y Administration— y no había dos iguales:
+
+  · sombra sí en Dashboard, About y Settings; no en Logs, DNS Client, DHCP y Admin
+  · fondo de cabecera sí en Dashboard y Settings; no en los otros cinco
+  · y DOS tipografías de título para el mismo objeto: 12,5 px en caja baja unos,
+    10,5 px en versalitas otros
+
+Los valores no se eligen de cero: son los de la tabla (`ui/Table.module.css`),
+que es la superficie que más se ve en esta consola. Así un panel y una tabla son
+el mismo objeto —mismo borde, misma sombra, misma cabecera en el escalón
+elevado— en vez de dos cosas parecidas.
+*/
+.panel {
+  border: 1px solid var(--line);
+  border-radius: var(--r-4);
+  background: var(--pan);
+  box-shadow: var(--e-1), var(--filo);
+  overflow: hidden;
+  min-width: 0;
+}
+
+/*
+La cabecera va en el escalón elevado, igual que el `thead` de la tabla: separa
+el rótulo del contenido sin gastar una línea más.
+
+Es `flex` porque muchas llevan una acción a la derecha —«More», «Blocking»— y
+las que no, no lo notan.
+*/
+.cabecera {
+  /* `width` y `box-sizing` son para la variante `legend`: un `legend` no ocupa
+     el ancho de su `fieldset` por sí solo. */
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-7);
+  padding: var(--s-6) var(--s-9);
+  border-bottom: 1px solid var(--line);
+  background: var(--pan2);
+}
+
+.titulo {
+  composes: versalita from './rotulo.module.css';
+  margin: 0;
+}
+
+/*
+Y por descendiente, para las pantallas cuyo `.ph` COMPONE esta cabecera en vez
+de usar el componente: su `h2` no lleva clase, así que no hay dónde componer.
+Los valores son los mismos tokens, que es lo que impide que se separen.
+*/
+.cabecera h2,
+.cabecera h3 {
+  margin: 0;
+  font-size: var(--rotulo-tam);
+  font-weight: var(--rotulo-peso);
+  letter-spacing: var(--rotulo-interletrado);
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.cuerpo { padding: var(--s-9); }
+
+/* Un panel sin cabecera necesita recuperar arriba el aire que ponía ella. */
+.sinCabecera { padding-top: var(--s-9); }
+
+/* El `legend` como cabecera: además de las reglas de arriba, hay que quitarle
+   el hueco que el navegador le reserva a un `legend` normal. */
+legend.cabecera { margin: 0; float: left; }

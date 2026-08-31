@@ -219,7 +219,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
               <Th campo="network" orden={orden} onOrdenar={alternar}>Network/Broadcast</Th>
               <Th campo="interfaz" orden={orden} onOrdenar={alternar}>Interface</Th>
               <th>Status</th>
-              <th />
+              <th className={tbl.celdaAcciones} />
             </tr>
           </thead>
           <tbody>
@@ -252,7 +252,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
                     {s.enabled ? 'Enabled' : 'Disabled'}
                   </Tag>
                 </td>
-                <td>
+                <td className={tbl.celdaAcciones}>
                   <div className={tbl.acciones}>
                     <AccionFila
                       icono="editar"
@@ -297,7 +297,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
 
       <div className={styles.total}>
         {scopes.length > 0 ? (
-          <b>Total Scopes: {scopes.length}</b>
+          <span>{`Total Scopes: ${scopes.length}`}</span>
         ) : aviso?.type === 'danger' ? (
           'Unable to load the scopes.'
         ) : (

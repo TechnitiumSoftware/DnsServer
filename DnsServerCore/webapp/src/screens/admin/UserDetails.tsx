@@ -299,7 +299,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
                     <Th campo="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
                     <Th campo="address" orden={orden} onOrdenar={alternar}>Remote Address</Th>
                     <Th campo="agent" orden={orden} onOrdenar={alternar}>User Agent</Th>
-                    <th />
+                    <th className={tbl.celdaAcciones} />
                   </tr>
                 </thead>
                 <tbody>
@@ -316,7 +316,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
                       <td>
                         <span className={styles.ua}>{s.lastSeenUserAgent}</span>
                       </td>
-                      <td>
+                      <td className={tbl.celdaAcciones}>
                         <div className={tbl.acciones}>
                           <Button
                             size="sm"

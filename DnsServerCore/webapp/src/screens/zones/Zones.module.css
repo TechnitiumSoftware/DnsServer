@@ -11,7 +11,8 @@
 .filtCorto { width:120px; }
 
 /* Cuenta y paginación */
-.count { display:flex; align-items:center; justify-content:space-between; gap: var(--s-7); font-size: var(--t-4); color:var(--mute); margin-bottom: var(--hueco-pegado); flex-wrap:wrap; }
+/* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
+.count { composes: barra from '../../ui/recuento.module.css'; margin-bottom: var(--hueco-pegado); }
 .countPie { margin-top: var(--hueco-grupo); margin-bottom: 0; }
 .mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
 

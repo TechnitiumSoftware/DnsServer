@@ -1,0 +1,29 @@
+/*
+El recuento que acompaña a una tabla: «Total Users: 3», «2 zones», «1-6 (6) of 6
+zones (page 1 of 1)».
+
+El TEXTO no se toca —los tres son literales de upstream, de `auth.js`, `dhcp.js`,
+`apps.js` y `zone.js:923`—; lo que estaba suelto era cómo se pinta. Ocho módulos
+lo definían por su cuenta y salían cuatro tratamientos: `Total Scopes` en
+negrita, `Total Users` en normal, `Total Groups` de «My Profile» un punto más
+pequeño, y el de Apps a medio camino con peso 550.
+
+Dónde va —encima de la tabla, debajo, o las dos cosas— sigue siendo decisión de
+cada pantalla: en Zones acompaña a la paginación y hay una arriba y otra abajo.
+Lo que no puede cambiar es el aspecto.
+*/
+.recuento {
+  font-size: var(--t-4);
+  font-weight: 400;
+  color: var(--mute);
+}
+
+/* Cuando comparte renglón con controles —la paginación, un par de botones—. */
+.barra {
+  composes: recuento;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-7);
+  flex-wrap: wrap;
+}

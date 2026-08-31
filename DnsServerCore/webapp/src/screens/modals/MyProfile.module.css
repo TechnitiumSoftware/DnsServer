@@ -22,4 +22,5 @@ en un `col-sm-7`.
   margin-left: var(--s-3); font-size: var(--t-1); padding: 1px var(--s-3); border-radius: var(--r-full);
   background: var(--pan2); color: var(--ok); border: 1px solid var(--ok);
 }
-.total { margin-top: var(--s-5); font-size: var(--t-3); color: var(--mute); }
+/* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
+.total { composes: recuento from '../../ui/recuento.module.css'; margin-top: var(--s-5); }

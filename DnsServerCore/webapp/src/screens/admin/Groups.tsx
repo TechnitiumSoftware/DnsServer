@@ -106,7 +106,7 @@ export function Groups({ token, onAviso }: Props) {
                 <tr>
                   <Th campo="name" orden={orden} onOrdenar={alternar}>Name</Th>
                   <Th campo="description" orden={orden} onOrdenar={alternar}>Description</Th>
-                  <th />
+                  <th className={tbl.celdaAcciones} />
                 </tr>
               </thead>
               <tbody>
@@ -127,7 +127,7 @@ export function Groups({ token, onAviso }: Props) {
                         <div key={i}>{linea}</div>
                       ))}
                     </td>
-                    <td>
+                    <td className={tbl.celdaAcciones}>
                       <div className={tbl.acciones}>
                         <AccionFila
                           icono="ficha"

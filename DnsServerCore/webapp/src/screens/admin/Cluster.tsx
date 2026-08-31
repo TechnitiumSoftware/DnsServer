@@ -205,7 +205,7 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
                   <Th campo="upSince" orden={orden} onOrdenar={alternar}>Up Since</Th>
                   <Th campo="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
                   <Th campo="synced" orden={orden} onOrdenar={alternar}>Last Synced</Th>
-                  <th />
+                  <th className={tbl.celdaAcciones} />
                 </tr>
               </thead>
               <tbody>
@@ -249,7 +249,7 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
                         <FechaRelativa iso={n.configLastSynced} />
                       )}
                     </td>
-                    <td>
+                    <td className={tbl.celdaAcciones}>
                       <div className={tbl.acciones}>
                         {/* Qué se puede hacer con un nodo depende de si esta
                             consola habla con el primario o con un secundario

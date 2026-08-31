@@ -1,0 +1,24 @@
+/*
+El rótulo en versalitas, UNA vez.
+
+Es la etiqueta pequeña que dice «esto de aquí es X»: la cabecera de una columna,
+el título de un panel, el nombre de un grupo de campos. Estaba escrita en
+catorce sitios con tres tamaños (`--t-1`, `--t-2`, `--t-3`) y cuatro
+interletrados (.04, .05, .07 y .09 em), así que dos paneles vecinos no se
+parecían y las cabeceras de tabla no se parecían a los títulos de bloque —siendo
+lo mismo: el rótulo de una caja—.
+
+Los valores son los que ya decía el fichero de tokens: `--t-1` está definido
+como «rótulo en versalitas, cabecera de tabla, píldora», y era justo lo que la
+cabecera de tabla NO usaba. El interletrado es el que más se repetía (.05em, en
+siete de los catorce).
+
+Se aplica con `composes:`, no copiándolo.
+*/
+.versalita {
+  font-size: var(--rotulo-tam);
+  font-weight: var(--rotulo-peso);
+  letter-spacing: var(--rotulo-interletrado);
+  text-transform: uppercase;
+  color: var(--mute);
+}

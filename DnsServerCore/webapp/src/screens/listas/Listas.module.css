@@ -15,7 +15,8 @@
 .lvl { margin-left: var(--s-9); border-left:1px solid var(--line); padding-left: var(--s-3); }
 
 /* Panel de registros */
-.count { display:flex; align-items:center; justify-content:space-between; gap: var(--s-7); font-size: var(--t-4); color:var(--mute); margin-bottom: var(--hueco-pegado); }
+/* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
+.count { composes: barra from '../../ui/recuento.module.css'; margin-bottom: var(--hueco-pegado); }
 .countActs { display:flex; gap: var(--s-3); }
 .mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
 

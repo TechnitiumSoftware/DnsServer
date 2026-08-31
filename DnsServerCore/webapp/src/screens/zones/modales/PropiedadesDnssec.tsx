@@ -774,7 +774,7 @@ function FilaClave({
           '—'
         )}
       </td>
-      <td>
+      <td className={tbl.celdaAcciones}>
         <div className={tbl.acciones}>
           {a.borrar && (
             <Button size="sm" disabled={ocupado} onClick={onBorrar}>

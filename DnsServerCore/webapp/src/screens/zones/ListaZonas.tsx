@@ -632,7 +632,7 @@ function FilaZona(p: FilaProps) {
       <td className={styles.mono}>{z.soaSerial ?? ' '}</td>
       <td className={styles.mono}>{fecha(z.expiry)}</td>
       <td className={`${styles.mono} ${tbl.meta}`}>{fecha(z.lastModified)}</td>
-      <td>
+      <td className={tbl.celdaAcciones}>
         <div className={tbl.acciones}>
           <AccionFila
             icono="settings"

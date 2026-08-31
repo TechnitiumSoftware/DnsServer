@@ -84,7 +84,7 @@ function Fila({ r, conDnssec, nodo }: { r: RegistroDns; conDnssec: boolean; nodo
           </Tag>
         </td>
       )}
-      <td>
+      <td className={tbl.celdaAcciones}>
         <div className={tbl.acciones}>
           {r.glueRecords && (
             <Button

@@ -5,32 +5,24 @@
 
 .wrap { display: flex; flex-direction: column; gap: var(--s-9); }
 
+/*
+El bloque es el mismo panel que el resto de la consola (`ui/Panel.module.css`),
+y hasta ahora era otra cosa: los tres módulos que lo definían no coincidían
+entre sí ni con los cuatro `.panel` de las otras pantallas.
+*/
 .block {
-  border: 1px solid var(--line);
-  border-radius: var(--r-4);
-  background: var(--pan);
+  composes: panel from '../../ui/Panel.module.css';
   margin: 0 0 var(--s-9) 0;
-  padding: 0 0 var(--s-9) 0;
-  min-width: 0;
-  box-shadow: var(--e-1), var(--filo);
+  padding-bottom: var(--s-9);
 }
 
 /* Un bloque sin leyenda necesita recuperar arriba el aire que ponía la leyenda:
    `.block` no lleva padding superior porque esa banda la ocupaba ella. */
-.blockSinTitulo { padding-top: var(--s-9); }
+.blockSinTitulo { composes: sinCabecera from '../../ui/Panel.module.css'; }
 .blockTitle {
-  display: block;
-  width: 100%;
-  padding: var(--s-7) var(--s-9);
-  margin: 0 0 var(--s-8) 0;
-  border-bottom: 1px solid var(--line);
-  background: var(--pan2);
-  border-radius: var(--r-4) var(--r-4) 0 0;
-  font-size: var(--t-1);
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--mute);
+  composes: cabecera from '../../ui/Panel.module.css';
+  composes: titulo from '../../ui/Panel.module.css';
+  margin-bottom: var(--s-8);
 }
 
 /*
@@ -102,12 +94,12 @@ Es lo que hacen el dibujo y la tabla de Logs; aquí se había perdido.
 
 /* Listas editables: límites QPM y claves TSIG. Cabecera, una fila por entrada
    con su botón «Delete», y un «Add» debajo. */
-.table { width: 100%; max-width: 620px; border-collapse: collapse; }
-.table th {
-  text-align: left; font-size: var(--t-1); font-weight: 600; letter-spacing: 0.07em;
-  text-transform: uppercase; color: var(--mute); padding: 0 var(--s-5) var(--s-4) 0; border-bottom: 1px solid var(--line);
-}
-.table td { padding: var(--s-3) var(--s-5) var(--s-3) 0; vertical-align: middle; }
+/*
+La tabla editable es la de `ui/TablaEditable.module.css`. Estaba escrita aquí y
+en otros dos módulos con los mismos valores copiados a mano.
+*/
+.table { composes: tabla from '../../ui/TablaEditable.module.css'; }
+
 .table input, .table select { width: 100%; }
 .tdel { width: 74px; }
 .bar {

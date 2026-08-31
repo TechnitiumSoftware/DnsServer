@@ -6,6 +6,7 @@ import { Dialog } from '../../ui/Dialog'
 import { LabeledInput } from '../../ui/Field'
 import { deleteSession, type SessionRow } from '../../api/user'
 import styles from './MyProfile.module.css'
+import tbl from '../../ui/Table.module.css'
 import { Th, useOrden, type Claves } from '../../ui/Table'
 import { desdeAhora, fechaHora } from '../../lib/fechas'
 
@@ -174,7 +175,12 @@ export function MyProfile({
 
       <div>
         <div className={styles.caption}>Member Of</div>
-        <table className={`${styles.table} ${styles.estrecha}`}>
+        {/* La tabla de la consola, no una propia: `ui/Table.module.css`. Este
+            módulo tenía la suya con una cuarta densidad de celda y sin el panel
+            que la envuelve, así que la misma tabla de sesiones se veía de dos
+            maneras según se abriera desde «My Profile» o desde «User Details». */}
+        <div className={`${tbl.wrap} ${styles.estrecha}`}>
+        <table className={tbl.tabla}>
           <thead>
             <tr>
               <Th campo="group" orden={grupos.orden} onOrdenar={grupos.alternar}>Group</Th>
@@ -188,12 +194,14 @@ export function MyProfile({
             ))}
           </tbody>
         </table>
+        </div>
         <div className={styles.total}>{`Total Groups: ${profile?.memberOfGroups?.length ?? 0}`}</div>
       </div>
 
       <div>
         <div className={styles.caption}>Active Sessions</div>
-        <table className={styles.table}>
+        <div className={tbl.wrap}>
+        <table className={tbl.tabla}>
           <thead>
             <tr>
               <Th campo="type" orden={orden} onOrdenar={alternar}>Type</Th>
@@ -204,7 +212,7 @@ export function MyProfile({
                   perdido: era la única de las tres tablas de sesiones de la consola
                   sin ella, y es la que dice DESDE DÓNDE está abierta cada sesión. */}
               <Th campo="agent" orden={orden} onOrdenar={alternar}>User Agent</Th>
-              <th />
+              <th className={tbl.celdaAcciones} />
             </tr>
           </thead>
           <tbody>
@@ -236,6 +244,7 @@ export function MyProfile({
             ))}
           </tbody>
         </table>
+        </div>
         <div className={styles.total}>Total Sessions: {profile?.sessions?.length ?? 0}</div>
       </div>
     </Dialog>

@@ -33,11 +33,18 @@ puesto a mano en cada botón, que es el síntoma de que la fila no alineaba.
   min-height: var(--campo-alto);
   cursor: pointer;
 }
-.panel { background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); overflow:hidden; margin-bottom: var(--s-9); }
-.ph { display:flex; align-items:center; justify-content:space-between; padding: var(--s-8) var(--s-9); border-bottom:1px solid var(--line); }
-.ph h2 { margin: 0; font-size: var(--t-4); font-weight: 550; color:var(--ink); }
+/*
+El panel, la cabecera y el cuerpo son los de `ui/Panel.module.css`.
+
+Estaban escritos aquí, y en otros tres módulos más, con valores que se habían
+ido separando: sombra sí o no, fondo de cabecera sí o no, y dos tipografías de
+título distintas para el mismo objeto.
+*/
+.panel { composes: panel from '../../ui/Panel.module.css'; margin-bottom: var(--s-9); }
+.ph { composes: cabecera from '../../ui/Panel.module.css'; }
+
 .meta { font-family:var(--font-mono); font-size: var(--t-2); color:var(--faint); }
-.pb { padding: var(--s-9); }
+.pb { composes: cuerpo from '../../ui/Panel.module.css'; }
 .out { margin: 0; padding: var(--s-8); background:var(--field); border:1px solid var(--line); border-radius: var(--r-3); font-family:var(--font-mono); font-size: var(--t-3); color:var(--ink); overflow:auto; line-height:1.55; max-height:460px; white-space:pre-wrap; word-break:break-word; }
 
 /*

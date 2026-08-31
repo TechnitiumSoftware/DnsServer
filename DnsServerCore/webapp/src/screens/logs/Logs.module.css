@@ -9,10 +9,17 @@
 /* ---- View Logs ---- */
 
 .dos { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: var(--s-10); align-items: start; }
-.panel { background: var(--pan); border: 1px solid var(--line); border-radius: var(--r-4); overflow: hidden; }
-.ph { display: flex; align-items: center; justify-content: space-between; gap: var(--s-7); padding: var(--s-8) var(--s-9); border-bottom: 1px solid var(--line); }
-.ph h2 { margin: 0; font-size: var(--t-4); font-weight: 550; color: var(--ink); }
-.pb { padding: var(--s-9); }
+/*
+El panel, la cabecera y el cuerpo son los de `ui/Panel.module.css`.
+
+Estaban escritos aquí, y en otros tres módulos más, con valores que se habían
+ido separando: sombra sí o no, fondo de cabecera sí o no, y dos tipografías de
+título distintas para el mismo objeto.
+*/
+.panel { composes: panel from '../../ui/Panel.module.css'; }
+.ph { composes: cabecera from '../../ui/Panel.module.css'; }
+
+.pb { composes: cuerpo from '../../ui/Panel.module.css'; }
 .pbLista { padding: var(--s-5); }
 
 .logfiles { display: flex; flex-direction: column; gap: var(--s-1); }
@@ -49,7 +56,8 @@
 .campo label { font-size: var(--t-2); color: var(--mute); font-weight: 550; }
 .campo input, .campo select { width: 100%; }
 
-.count { display: flex; align-items: center; justify-content: space-between; gap: var(--s-7); font-size: var(--t-4); color: var(--mute); margin-bottom: var(--hueco-pegado); flex-wrap: wrap; }
+/* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
+.count { composes: barra from '../../ui/recuento.module.css'; margin-bottom: var(--hueco-pegado); }
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .nowrap { white-space: nowrap; }
 .romper { word-break: break-all; }

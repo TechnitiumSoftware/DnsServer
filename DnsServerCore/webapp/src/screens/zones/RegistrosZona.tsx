@@ -579,7 +579,7 @@ export function RegistrosZona(p: RegistrosZonaProps) {
                     <td>
                       <CeldaDatos registro={r} notifyFailedFor={zona.notifyFailedFor} />
                     </td>
-                    <td>
+                    <td className={tbl.celdaAcciones}>
                       {!acciones.ocultas && (
                         <div className={tbl.acciones}>
                           <AccionFila

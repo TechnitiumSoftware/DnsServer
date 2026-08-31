@@ -8,7 +8,8 @@
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .nombre { font-weight: 550; color: var(--ink); white-space: nowrap; }
 .fecha { white-space: nowrap; font-family: var(--font-mono); font-size: var(--t-3); }
-.total { font-size: var(--t-4); color: var(--mute); margin-top: var(--hueco-grupo); }
+/* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
+.total { composes: recuento from '../../ui/recuento.module.css'; margin-top: var(--hueco-grupo); }
 .kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--s-1) var(--s-8); margin: 0; }
 .kv dt { font-size: var(--t-3); color: var(--mute); white-space: nowrap; }
 .kv dd { margin: 0; font: var(--t-4)/1.45 var(--font-mono); color: var(--ink); min-width: 0; }
@@ -20,14 +21,20 @@
 
 /* ---- Formulario de scope ---- */
 
+/*
+El bloque es el mismo panel que el resto de la consola (`ui/Panel.module.css`),
+y hasta ahora era otra cosa: los tres módulos que lo definían no coincidían
+entre sí ni con los cuatro `.panel` de las otras pantallas.
+*/
 .block {
-  border: 1px solid var(--line); border-radius: var(--r-4); background: var(--pan);
-  margin: 0 0 var(--s-9) 0; padding: 0 0 var(--s-9) 0; min-width: 0;
+  composes: panel from '../../ui/Panel.module.css';
+  margin: 0 0 var(--s-9) 0;
+  padding-bottom: var(--s-9);
 }
 .blockTitle {
-  display: block; width: 100%; padding: var(--s-7) var(--s-9); margin: 0 0 var(--s-8) 0;
-  border-bottom: 1px solid var(--line); font-size: var(--t-1); font-weight: 600;
-  letter-spacing: 0.09em; text-transform: uppercase; color: var(--mute);
+  composes: cabecera from '../../ui/Panel.module.css';
+  composes: titulo from '../../ui/Panel.module.css';
+  margin-bottom: var(--s-8);
 }
 .ctlLine { display: flex; align-items: center; gap: var(--s-6); flex-wrap: wrap; }
 .suffix { font-size: var(--t-3); color: var(--mute); }
@@ -54,13 +61,12 @@
 .group { display: flex; flex-direction: column; gap: var(--s-6); }
 .note { margin: var(--s-3) var(--s-9) 0 var(--s-9); display: flex; flex-direction: column; gap: var(--s-4); }
 
-.editable { width: 100%; max-width: 760px; border-collapse: collapse; }
-.editable th {
-  text-align: left; font-size: var(--t-1); font-weight: 600; letter-spacing: 0.07em;
-  text-transform: uppercase; color: var(--mute); padding: 0 var(--s-5) var(--s-4) 0;
-  border-bottom: 1px solid var(--line);
-}
-.editable td { padding: var(--s-3) var(--s-5) var(--s-3) 0; vertical-align: middle; }
+/*
+La tabla editable es la de `ui/TablaEditable.module.css`. Estaba escrita aquí y
+en otros dos módulos con los mismos valores copiados a mano.
+*/
+.editable { composes: tabla from '../../ui/TablaEditable.module.css'; }
+
 .editable input { width: 100%; }
 .tdel { width: 74px; }
 .bar {

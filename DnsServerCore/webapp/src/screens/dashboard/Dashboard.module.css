@@ -1,5 +1,10 @@
 .seg { display:inline-flex; padding: var(--s-1); background:var(--pan2); border:1px solid var(--line); border-radius: var(--r-3); gap: var(--s-1); }
-.seg button { font:500 var(--t-4)/1 inherit; padding: var(--s-4) var(--s-8); border:0; border-radius: var(--r-2); background:transparent; color:var(--mute); cursor:pointer; }
+.seg button { /* Ver `ui/Menu.module.css`: el atajo con `inherit` dentro es inválido y el
+     segmentado se pintaba a 13 px, el tamaño del cuerpo. */
+  font-family: inherit;
+  font-size: var(--t-4);
+  font-weight: 500;
+  line-height: 1; padding: var(--s-4) var(--s-8); border:0; border-radius: var(--r-2); background:transparent; color:var(--mute); cursor:pointer; }
 .seg button[aria-pressed='true'] { background:var(--acc); color:var(--on-acc); font-weight: 550; }
 .tiles { display:grid; grid-template-columns:repeat(auto-fill, minmax(148px, 1fr)); gap: var(--s-7); margin-bottom: var(--hueco-bloque); }
 /*
@@ -23,10 +28,17 @@ remite a ninguna línea es decoración.
 .counters .k::before { display:none; }
 .grid { display:grid; grid-template-columns:1fr 310px; gap: var(--s-9); align-items:start; }
 .col { display:flex; flex-direction:column; gap: var(--s-9); }
-.panel { background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); overflow:hidden; box-shadow: var(--e-1), var(--filo); }
-.ph { display:flex; align-items:center; justify-content:space-between; padding: var(--s-8) var(--s-9); border-bottom:1px solid var(--line); background:var(--pan2); }
-.ph h2 { margin: 0; font-size: var(--t-4); font-weight: 550; color:var(--ink); }
-.pb { padding: var(--s-9); }
+/*
+El panel, la cabecera y el cuerpo son los de `ui/Panel.module.css`.
+
+Estaban escritos aquí, y en otros tres módulos más, con valores que se habían
+ido separando: sombra sí o no, fondo de cabecera sí o no, y dos tipografías de
+título distintas para el mismo objeto.
+*/
+.panel { composes: panel from '../../ui/Panel.module.css'; }
+.ph { composes: cabecera from '../../ui/Panel.module.css'; }
+
+.pb { composes: cuerpo from '../../ui/Panel.module.css'; }
 .counters { display:grid; grid-template-columns:repeat(auto-fill, minmax(92px, 1fr)); gap: var(--s-6); }
 .cnt { padding: var(--s-8); background:var(--pan2); border:1px solid var(--line2); border-radius: var(--r-3); }
 .cnt .v { font:600 var(--t-6)/1 var(--font-mono); color:var(--ink); }
@@ -37,15 +49,34 @@ remite a ninguna línea es decoración.
 .toprow .c { color:var(--mute); font-family:var(--font-mono); flex:none; }
 /* Modal «Top Stats»: la lista larga detrás de los botones «More». */
 .topTablaWrap { overflow-x: auto; max-height: 460px; overflow-y: auto; }
-.topTabla { width: 100%; border-collapse: collapse; font-size: var(--t-4); }
-.topTabla thead th {
-  position: sticky; top: 0; background: var(--pan); text-align: left;
-  font-size: var(--t-2); text-transform: uppercase; letter-spacing: .05em;
-  color: var(--mute); font-weight: 600; padding: 0 var(--s-7) var(--s-5);
-  border-bottom: 1px solid var(--line);
+/*
+La tabla del diálogo «More» es la tabla de la consola, con una diferencia que sí
+tiene razón de ser: la cabecera se queda pegada arriba porque la lista puede
+tener trescientas filas dentro de un diálogo que rueda.
+
+Antes era una tabla aparte —cabecera a `--t-2` y sobre `--pan` en vez de
+`--pan2`— y por eso el mismo dato se veía distinto en el panel del Dashboard y
+en el diálogo que lo amplía.
+*/
+.topTabla { composes: tabla from '../../ui/Table.module.css'; }
+.topTabla thead th { position: sticky; top: 0; }
+.topTabla td { vertical-align: top; }
+/*
+El «Total Domains: N» del pie es el mismo recuento que lleva cualquier otra
+tabla de la consola (`ui/recuento.module.css`), aunque aquí viaje en un `tfoot`
+en vez de en un `div`: iba a 11,5 px y peso 550 cuando en las otras nueve
+pantallas va a 12,5 y peso normal.
+*/
+.topTabla tfoot th {
+  padding: var(--s-6) var(--s-7);
+  text-align: left;
+  font-size: var(--t-4);
+  font-weight: 400;
+  color: var(--mute);
+  text-transform: none;
+  letter-spacing: normal;
+  background: transparent;
 }
-.topTabla td { padding: var(--s-6) var(--s-7); border-bottom: 1px solid var(--line2); color: var(--ink); vertical-align: top; }
-.topTabla tfoot th { padding: var(--s-6) var(--s-7); text-align: left; font-size: var(--t-3); color: var(--mute); font-weight: 550; }
 /* Upstream pinta la fila entera en naranja cuando el cliente está limitado. */
 .limitada td { color: var(--warn); }
 .topNombre { display: block; font-family: var(--font-mono); word-break: break-all; }

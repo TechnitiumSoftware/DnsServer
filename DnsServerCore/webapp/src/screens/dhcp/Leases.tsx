@@ -183,7 +183,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
               <Th campo="host" orden={orden} onOrdenar={alternar}>Host Name</Th>
               <Th campo="obtained" orden={orden} onOrdenar={alternar}>Lease Obtained</Th>
               <Th campo="expires" orden={orden} onOrdenar={alternar}>Lease Expires</Th>
-              <th />
+              <th className={tbl.celdaAcciones} />
             </tr>
           </thead>
           <tbody>
@@ -200,7 +200,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
                 <td className={styles.mono}>{l.hostName}</td>
                 <td className={styles.fecha}>{fechaMinuto(l.leaseObtained)}</td>
                 <td className={styles.fecha}>{fechaMinuto(l.leaseExpires)}</td>
-                <td>
+                <td className={tbl.celdaAcciones}>
                   <div className={tbl.acciones}>
                     {/* dhcp.js:63-64 — cuál de las dos conversiones se ofrece
                         depende del tipo actual de la concesión. */}
@@ -242,7 +242,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
 
       <div className={styles.total}>
         {leases.length > 0 ? (
-          <b>Total Leases: {leases.length}</b>
+          <span>{`Total Leases: ${leases.length}`}</span>
         ) : aviso?.type === 'danger' ? (
           // Se ha ido a buscar y no se ha podido: eso no es «no hay ninguna».
           'Unable to load the leases.'

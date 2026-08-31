@@ -156,7 +156,7 @@ export function Users({ token, cluster, onAviso }: Props) {
                   <Th campo="status" orden={orden} onOrdenar={alternar}>Status</Th>
                   <Th campo="recent" orden={orden} onOrdenar={alternar}>Recent Login</Th>
                   <Th campo="previous" orden={orden} onOrdenar={alternar}>Previous Login</Th>
-                  <th />
+                  <th className={tbl.celdaAcciones} />
                 </tr>
               </thead>
               <tbody>
@@ -200,7 +200,7 @@ export function Users({ token, cluster, onAviso }: Props) {
                     */}
                     <td className={styles.mono}>{acceso(u.recentSessionLoggedOn, u.recentSessionRemoteAddress)}</td>
                     <td className={styles.mono}>{acceso(u.previousSessionLoggedOn, u.previousSessionRemoteAddress)}</td>
-                    <td>
+                    <td className={tbl.celdaAcciones}>
                       <div className={tbl.acciones}>
                         <AccionFila
                           icono="ficha"

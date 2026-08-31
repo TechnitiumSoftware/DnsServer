@@ -111,6 +111,21 @@ que no sea uno de estos tokens.** Un valor suelto es deriva futura.
   Siete escalones. Entre paréntesis, los usos que absorbe cada uno al converger.
   El dominante es `--t-3` (12,5 px): es el cuerpo de la consola.
   */
+  /*
+  El rótulo en versalitas: la etiqueta pequeña que dice «esto de aquí es X».
+  Cabecera de columna, título de panel, nombre de un grupo de campos.
+
+  Está en tokens y no en una clase porque quien lo pinta no siempre es una
+  clase: el `thead th` de la tabla y el `h2` de una cabecera de panel son
+  selectores de descendiente, y `composes:` no llega ahí. Con los valores aquí,
+  la lista de propiedades se repite pero no puede DERIVAR, que es lo que había
+  pasado: catorce sitios, tres tamaños y cuatro interletrados para la misma
+  idea.
+  */
+  --rotulo-tam: 10.5px;
+  --rotulo-peso: 600;
+  --rotulo-interletrado: 0.05em;
+
   --t-1: 10.5px;  /* rótulo en versalitas, cabecera de tabla, píldora  (10) */
   --t-2: 11px;    /* metadatos, ayuda bajo un campo                         */
   --t-3: 11.5px;  /* etiqueta de campo, texto secundario                    */
