@@ -6,6 +6,7 @@ import { Field } from '../../ui/Field'
 import styles from './Settings.module.css'
 import { ELEMENTOS_BACKUP } from '../../api/settings'
 import { Check } from './parts'
+import { Input } from '../../ui/Field'
 
 /*
 El paso de «¿seguro?» es `ui/Confirmar`, que es el mismo diálogo que usan las
@@ -122,7 +123,7 @@ export function RestoreDialog({
       )}
       <Field label="Backup Zip File">
         {(id) => (
-          <input id={id} type="file" onChange={(e) => setFichero(e.target.files?.[0] ?? null)} />
+          <Input id={id} type="file" onChange={(e) => setFichero(e.target.files?.[0] ?? null)} />
         )}
       </Field>
       <p>The restore process will restore all the selected items from the backup zip file:</p>

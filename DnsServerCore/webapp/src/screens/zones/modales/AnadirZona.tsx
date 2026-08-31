@@ -205,7 +205,7 @@ export function AnadirZona({
         {v.ficheroDeZona && (
           <Row modal label="Import Zone File (Optional)">
             {(id) => (
-              <input
+              <Input
                 id={id}
                 type="file"
                 onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}

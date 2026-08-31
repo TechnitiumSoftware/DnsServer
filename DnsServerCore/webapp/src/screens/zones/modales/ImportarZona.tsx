@@ -10,6 +10,7 @@ import frm from '../../../ui/Form.module.css'
 import { GroupRow, Row } from '../../../ui/Form'
 import { avisoDeFallo } from '../../../lib/aviso'
 import { Avisador } from '../../../ui/Avisador'
+import { Input } from '../../../ui/Field'
 
 /*
 `modalImportZone` (zone.js:1227 y 1251). Dos formas de dar el fichero —subirlo
@@ -153,7 +154,7 @@ export function ImportarZona({
         {modo === 'File' ? (
           <Row modal label="Zone File">
             {(id) => (
-              <input
+              <Input
                 id={id}
                 ref={fichero}
                 type="file"

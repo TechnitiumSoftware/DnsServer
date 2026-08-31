@@ -114,6 +114,13 @@ una interfaz está montada y no construida.
 en una consola oscura, y en el modal «Add Zone» convivían tres controles con
 tres aspectos distintos. Se les da aquí el mismo aspecto que a `ui/Field`,
 porque son elementos nativos y no pasan por ningún componente.
+
+Esto es una COPIA de `ui/Field.module.css`, y no se puede evitar: `composes` sólo
+funciona entre clases de módulos y aquí el selector es de elemento. Lo que sí se
+puede es que no se separe, y ya se había separado: al `input[type=file]` le
+faltaba la regla de hover, así que era el único campo de la consola que no
+respondía al puntero, y su opacidad al deshabilitarse era 0,5 contra el 0,45 de
+todos los demás. Si se toca la caja de `ui/Field`, hay que tocar ésta.
 */
 select,
 input[type='file'] {
@@ -150,10 +157,11 @@ select {
   cursor: pointer;
 }
 
-select:hover:not(:disabled) { border-color: #3a465b; }
+select:hover:not(:disabled),
+input[type='file']:hover:not(:disabled) { border-color: #3a465b; }
 
 select:disabled,
-input[type='file']:disabled { opacity: 0.5; cursor: default; }
+input[type='file']:disabled { opacity: 0.45; cursor: default; }
 
 input[type='file']::file-selector-button {
   font: inherit;
