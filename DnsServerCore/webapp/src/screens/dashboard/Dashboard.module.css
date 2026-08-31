@@ -69,3 +69,16 @@ remite a ninguna línea es decoración.
 .aviso { margin-bottom: var(--s-9); }
 /* La cabecera de un panel puede llevar más de un control. */
 .accionesPanel { display: flex; align-items: center; gap: var(--s-4); }
+
+/* El rango personalizado: dos fechas y el botón, en una línea. */
+.rangoPropio { display:flex; align-items:flex-end; gap: var(--s-7); flex-wrap:wrap; margin-bottom: var(--s-9); }
+.rangoPropio label { display:flex; flex-direction:column; gap: var(--s-3); font-size: var(--t-3); color:var(--mute); }
+.rangoPropio input {
+  padding: var(--s-4) var(--s-6);
+  background: var(--pan2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  color: var(--ink);
+  font: 400 var(--t-4)/1.2 var(--font-mono);
+  color-scheme: dark;
+}

@@ -38,7 +38,14 @@ de dos maneras según la tabla.
   color: var(--mute);
 }
 
-.sm:hover:not(:disabled) { color: var(--ink); }
+/*
+Sólo para el pequeño SIN variante. `.sm:hover` es una clase más una
+pseudo-clase, así que le ganaba a `.primary` —una clase sola— y un primario
+pequeño se aclaraba al pasar el ratón: texto `--ink` sobre el ámbar, 1.69:1. No
+se vio hasta que hubo el primer `size="sm" variant="primary"` de la consola, en
+el «Show» del rango personalizado del Dashboard.
+*/
+.sm:not(.primary):not(.danger):hover:not(:disabled) { color: var(--ink); }
 
 /* Un botón que se queda pulsado —los filtros «Glue» y «RRSIG»— lo dice con el
    color de acento, no sólo con `aria-pressed`. */

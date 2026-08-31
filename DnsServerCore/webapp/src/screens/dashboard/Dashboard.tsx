@@ -12,6 +12,7 @@ import styles from './Dashboard.module.css'
 import { Button } from '../../ui/Button'
 import { Alert, type AlertType } from '../../ui/Alert'
 import { MenuBloqueo } from './MenuBloqueo'
+import { instantesDelRango, loQueFalta } from './rango-personalizado'
 
 /*
 Las once métricas, en el orden de upstream y con sus etiquetas literales.
@@ -148,12 +149,26 @@ export function Dashboard({ token }: { token: string | null }) {
   const [cargando, setCargando] = useState(true)
   const [top, setTop] = useState<TipoTop | null>(null)
   const [aviso, setAviso] = useState<{ type: AlertType; title: string; text: string } | null>(null)
+  /*
+  El rango personalizado. `inicio`/`fin` son lo que hay escrito en los dos
+  campos; `pedido` es lo último que se pulsó en «Show», que es lo que dispara la
+  consulta. Van separados porque escribir una fecha no debe recargar el
+  Dashboard: upstream tampoco lo hace, espera al botón (`main.js:646`).
+  */
+  const [inicio, setInicio] = useState('')
+  const [fin, setFin] = useState('')
+  const [pedido, setPedido] = useState<{ start: string; end: string } | null>(null)
 
   useEffect(() => {
     let cancelado = false
+    // Con «Custom» elegido y sin fechas todavía no hay nada que pedir.
+    if (rango === 'Custom' && pedido == null) {
+      setCargando(false)
+      return
+    }
     setCargando(true)
     void (async () => {
-      const d = await getDashboardStats(token, rango)
+      const d = await getDashboardStats(token, rango, pedido ?? undefined)
       if (!cancelado) {
         setDatos(d)
         setCargando(false)
@@ -162,7 +177,17 @@ export function Dashboard({ token }: { token: string | null }) {
     return () => {
       cancelado = true
     }
-  }, [token, rango])
+  }, [token, rango, pedido])
+
+  function mostrarRango() {
+    const falta = loQueFalta(inicio, fin)
+    if (falta != null) {
+      setAviso({ type: 'warning', title: 'Missing!', text: falta })
+      return
+    }
+    setAviso(null)
+    setPedido(instantesDelRango(inicio, fin))
+  }
 
   const s = datos?.stats
   const total = s?.totalQueries ?? 0
@@ -174,13 +199,34 @@ export function Dashboard({ token }: { token: string | null }) {
         acciones={
           <div className={styles.seg} role="group" aria-label="Period">
         {RANGOS.map((r) => (
-          <button key={r} type="button" aria-pressed={r === rango} onClick={() => setRango(r)}>
+          <button
+            key={r}
+            type="button"
+            aria-pressed={r === rango}
+            onClick={() => { setRango(r); if (r !== 'Custom') setPedido(null) }}
+          >
             {ETIQUETA_RANGO[r]}
           </button>
         ))}
           </div>
         }
       />
+
+      {rango === 'Custom' && (
+        <div className={styles.rangoPropio}>
+          <label>
+            Start
+            <input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} />
+          </label>
+          <label>
+            End
+            <input type="date" value={fin} onChange={(e) => setFin(e.target.value)} />
+          </label>
+          <Button size="sm" variant="primary" onClick={mostrarRango}>
+            Show
+          </Button>
+        </div>
+      )}
 
       {aviso && (
         <div className={styles.aviso}>

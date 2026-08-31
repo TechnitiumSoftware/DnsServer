@@ -76,8 +76,8 @@ describe('navegación del árbol', () => {
   it('obedece al dominio que devuelve el servidor, no al que se pidió', async () => {
     conNodo(nodo(), nodo({ domain: 'example.org', zones: ['foo.example.org'], records: [REG_AUTH] }))
     render(<Allowed token="t" />)
-    await userEvent.type(await screen.findByLabelText('Browse'), 'org')
-    await userEvent.click(screen.getByRole('button', { name: 'Go' }))
+    await userEvent.type(await screen.findByLabelText('Domain'), 'org')
+    await userEvent.click(screen.getByRole('button', { name: 'Browse' }))
     expect(await screen.findByText('foo.example.org')).toBeInTheDocument()
     expect(screen.getByText(/1 records at/)).toBeInTheDocument()
   })
@@ -85,8 +85,8 @@ describe('navegación del árbol', () => {
   it('el campo Browse navega al dominio escrito', async () => {
     const spy = conNodo(nodo(), nodo({ domain: 'casa.test' }))
     render(<Cache token="t" />)
-    await userEvent.type(await screen.findByLabelText('Browse'), 'casa.test')
-    await userEvent.click(screen.getByRole('button', { name: 'Go' }))
+    await userEvent.type(await screen.findByLabelText('Domain'), 'casa.test')
+    await userEvent.click(screen.getByRole('button', { name: 'Browse' }))
     expect(spy.mock.calls.some((c) => c[2] === 'casa.test')).toBe(true)
   })
 
@@ -217,7 +217,7 @@ describe('Allowed', () => {
     const spy = vi.spyOn(api, 'anadirDominio').mockResolvedValue(OK)
     conNodo(nodo())
     render(<Allowed token="t" />)
-    const campo = await screen.findByLabelText('Browse')
+    const campo = await screen.findByLabelText('Domain')
     await userEvent.type(campo, 'casa.test')
     await userEvent.click(screen.getByRole('button', { name: 'Allow' }))
     expect(spy.mock.calls[0][0]).toBe('allowed')
@@ -315,7 +315,7 @@ describe('Blocked', () => {
     vi.spyOn(api, 'anadirDominio').mockResolvedValue(OK)
     conNodo(nodo())
     render(<Blocked token="t" />)
-    await userEvent.type(await screen.findByLabelText('Browse'), 'ads.test')
+    await userEvent.type(await screen.findByLabelText('Domain'), 'ads.test')
     await userEvent.click(screen.getByRole('button', { name: 'Block' }))
     expect(
       await screen.findByText("Domain 'ads.test' was added to Blocked Zone successfully."),

@@ -448,7 +448,12 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
         <div className={styles.tree}>
           <div className={styles.browse}>
             <div className={styles.browseRow}>
-              <Field label="Browse">
+              {/* El campo se llama «Domain» y el botón «Browse». Upstream no pone
+                  rótulo aquí —sólo el `placeholder`—, así que este es añadido
+                  nuestro y puede llamarse como convenga; lo que no puede es
+                  llamarse igual que el botón de al lado, que sí lleva el
+                  literal de upstream. */}
+              <Field label="Domain">
                 {(id) => (
                   <Input
                     id={id}
@@ -463,8 +468,12 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
                   />
                 )}
               </Field>
+              {/* «Browse» y no «Go»: es el literal de upstream en las tres
+                  pantallas de lista (Cache, Allowed y Blocked), y además dice
+                  mejor lo que hace —te lleva a ese punto del árbol, no envía
+                  nada—. */}
               <Button variant="primary" onClick={() => navegar(campo)}>
-                Go
+                Browse
               </Button>
             </div>
           </div>
