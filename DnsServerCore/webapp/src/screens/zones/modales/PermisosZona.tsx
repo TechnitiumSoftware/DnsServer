@@ -6,7 +6,7 @@ import { Dialog } from '../../../ui/Dialog'
 import { Field, Select } from '../../../ui/Field'
 import { Loading } from '../../../ui/Empty'
 import type { Aviso } from '../tipos'
-import tbl from '../../../ui/Table.module.css'
+import { Tabla } from '../../../ui/Table'
 import styles from '../Zones.module.css'
 
 /*
@@ -189,45 +189,42 @@ function TablaPermisos({
       {filas.length === 0 ? (
         <div className={styles.ayuda}>No permissions assigned.</div>
       ) : (
-        <div className={tbl.wrap}>
-          <table className={tbl.tabla}>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th style={{ width: 70 }}>View</th>
-                <th style={{ width: 70 }}>Modify</th>
-                <th style={{ width: 70 }}>Delete</th>
-                <th style={{ width: 90 }} />
-              </tr>
-            </thead>
-            <tbody>
-              {filas.map((f, i) => (
-                <tr key={f.nombre}>
-                  <td className={styles.mono}>{f.nombre}</td>
-                  {(['canView', 'canModify', 'canDelete'] as const).map((clave) => (
-                    <td key={clave}>
-                      <input
-                        type="checkbox"
-                        className={styles.chkPerm}
-                        aria-label={`${clave} for ${f.nombre}`}
-                        checked={f[clave]}
-                        onChange={(e) => cambiar(i, clave, e.target.checked)}
-                      />
-                    </td>
-                  ))}
-                  <td>
-                    <Button
-                      size="sm"
-                      onClick={() => onCambiar(filas.filter((_, j) => j !== i))}
-                    >
-                      Remove
-                    </Button>
-                  </td>
-                </tr>
+        <Tabla
+          cabecera={
+            <>
+              <th>Name</th>
+              <th style={{ width: 70 }}>View</th>
+              <th style={{ width: 70 }}>Modify</th>
+              <th style={{ width: 70 }}>Delete</th>
+              <th style={{ width: 90 }} />
+            </>
+          }
+        >
+          {filas.map((f, i) => (
+            <tr key={f.nombre}>
+              <td className={styles.mono}>{f.nombre}</td>
+              {(['canView', 'canModify', 'canDelete'] as const).map((clave) => (
+                <td key={clave}>
+                  <input
+                    type="checkbox"
+                    className={styles.chkPerm}
+                    aria-label={`${clave} for ${f.nombre}`}
+                    checked={f[clave]}
+                    onChange={(e) => cambiar(i, clave, e.target.checked)}
+                  />
+                </td>
               ))}
-            </tbody>
-          </table>
-        </div>
+              <td>
+                <Button
+                  size="sm"
+                  onClick={() => onCambiar(filas.filter((_, j) => j !== i))}
+                >
+                  Remove
+                </Button>
+              </td>
+            </tr>
+          ))}
+        </Tabla>
       )}
 
       <Field label={etiquetaAnadir}>

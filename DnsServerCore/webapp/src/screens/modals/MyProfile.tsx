@@ -7,7 +7,7 @@ import { LabeledInput } from '../../ui/Field'
 import { deleteSession, type SessionRow } from '../../api/user'
 import styles from './MyProfile.module.css'
 import tbl from '../../ui/Table.module.css'
-import { Th, useOrden, type Claves } from '../../ui/Table'
+import { Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import { desdeAhora, fechaHora } from '../../lib/fechas'
 
 /*
@@ -179,31 +179,29 @@ export function MyProfile({
             módulo tenía la suya con una cuarta densidad de celda y sin el panel
             que la envuelve, así que la misma tabla de sesiones se veía de dos
             maneras según se abriera desde «My Profile» o desde «User Details». */}
-        <div className={`${tbl.wrap} ${styles.estrecha}`}>
-        <table className={tbl.tabla}>
-          <thead>
-            <tr>
-              <Th campo="group" orden={grupos.orden} onOrdenar={grupos.alternar}>Group</Th>
+        <Tabla
+          className={styles.estrecha}
+          cabecera={
+            <Th campo="group" orden={grupos.orden} onOrdenar={grupos.alternar}>Group</Th>
+          }
+          vacia={grupos.filas.length === 0}
+          vacio="No Group Found"
+          columnas={1}
+        >
+          {grupos.filas.map((g) => (
+            <tr key={g}>
+              <td>{g}</td>
             </tr>
-          </thead>
-          <tbody>
-            {grupos.filas.map((g) => (
-              <tr key={g}>
-                <td>{g}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
+          ))}
+        </Tabla>
         <div className={styles.total}>{`Total Groups: ${profile?.memberOfGroups?.length ?? 0}`}</div>
       </div>
 
       <div>
         <div className={styles.caption}>Active Sessions</div>
-        <div className={tbl.wrap}>
-        <table className={tbl.tabla}>
-          <thead>
-            <tr>
+        <Tabla
+          cabecera={
+            <>
               <Th campo="type" orden={orden} onOrdenar={alternar}>Type</Th>
               <Th campo="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
               <Th campo="address" orden={orden} onOrdenar={alternar}>Address</Th>
@@ -213,38 +211,36 @@ export function MyProfile({
                   sin ella, y es la que dice DESDE DÓNDE está abierta cada sesión. */}
               <Th campo="agent" orden={orden} onOrdenar={alternar}>User Agent</Th>
               <th className={tbl.celdaAcciones} />
+            </>
+          }
+        >
+          {sesionesVisibles.map((row) => (
+            <tr key={row.partialToken}>
+              <td>
+                {row.type}
+                {row.tokenName ? ` (${row.tokenName})` : ''}
+                {row.isCurrentSession && <span className={styles.current}>current</span>}
+              </td>
+              <td>
+                <div className={styles.mono}>{fechaHora(row.lastSeen)}</div>
+                <div className={styles.meta}>{`(${desdeAhora(row.lastSeen)})`}</div>
+              </td>
+              <td className={styles.mono}>{row.lastSeenRemoteAddress}</td>
+              <td>
+                <span className={styles.ua}>{row.lastSeenUserAgent}</span>
+              </td>
+              <td>
+                <Button
+                  variant="danger"
+                  onClick={() => void borrarSesion(row)}
+                  aria-label={`Delete session ${row.partialToken}`}
+                >
+                  Delete Session
+                </Button>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {sesionesVisibles.map((row) => (
-              <tr key={row.partialToken}>
-                <td>
-                  {row.type}
-                  {row.tokenName ? ` (${row.tokenName})` : ''}
-                  {row.isCurrentSession && <span className={styles.current}>current</span>}
-                </td>
-                <td>
-                  <div className={styles.mono}>{fechaHora(row.lastSeen)}</div>
-                  <div className={styles.meta}>{`(${desdeAhora(row.lastSeen)})`}</div>
-                </td>
-                <td className={styles.mono}>{row.lastSeenRemoteAddress}</td>
-                <td>
-                  <span className={styles.ua}>{row.lastSeenUserAgent}</span>
-                </td>
-                <td>
-                  <Button
-                    variant="danger"
-                    onClick={() => void borrarSesion(row)}
-                    aria-label={`Delete session ${row.partialToken}`}
-                  >
-                    Delete Session
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
+          ))}
+        </Tabla>
         <div className={styles.total}>Total Sessions: {profile?.sessions?.length ?? 0}</div>
       </div>
     </Dialog>

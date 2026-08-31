@@ -20,7 +20,7 @@ import { aIso, fechaHora } from './fechas'
 import { Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import pag from '../../ui/Pagination.module.css'
-import tbl from '../../ui/Table.module.css'
+import { Tabla } from '../../ui/Table'
 import styles from './Logs.module.css'
 import { Icono } from '../../ui/Icono'
 
@@ -692,48 +692,45 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
             </span>
           </div>
 
-          <div className={tbl.wrap}>
-            <table className={tbl.tabla}>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Timestamp</th>
-                  <th>Client IP Address</th>
-                  <th>Protocol</th>
-                  <th>Response Type</th>
-                  <th>RCODE</th>
-                  <th>Domain</th>
-                  <th>Type</th>
-                  <th>Class</th>
-                  <th>Answer</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagina.entries.map((e) => (
-                  <tr key={e.rowNumber} className={claseFila(e)}>
-                    <td className={styles.mono}>{e.rowNumber}</td>
-                    <td className={`${styles.mono} ${styles.nowrap}`}>{fechaHora(e.timestamp)}</td>
-                    <td className={`${styles.mono} ${styles.romper}`}>{e.clientIpAddress}</td>
-                    <td>{e.protocol}</td>
-                    <td>
-                      {e.responseType}
-                      {e.responseRtt != null && (
-                        <div className={styles.rtt}>({e.responseRtt.toFixed(2)} ms)</div>
-                      )}
-                    </td>
-                    <td>{e.rcode}</td>
-                    {/* logs.js:518 — la raíz se escribe con un punto. */}
-                    <td className={`${styles.mono} ${styles.romper}`}>
-                      {e.qname === '' ? '.' : (e.qname ?? '')}
-                    </td>
-                    <td>{e.qtype ?? ''}</td>
-                    <td>{e.qclass ?? ''}</td>
-                    <td className={`${styles.mono} ${styles.romper}`}>{e.answer ?? ''}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Tabla
+            cabecera={
+              <>
+                <th>#</th>
+                <th>Timestamp</th>
+                <th>Client IP Address</th>
+                <th>Protocol</th>
+                <th>Response Type</th>
+                <th>RCODE</th>
+                <th>Domain</th>
+                <th>Type</th>
+                <th>Class</th>
+                <th>Answer</th>
+              </>
+            }
+          >
+            {pagina.entries.map((e) => (
+              <tr key={e.rowNumber} className={claseFila(e)}>
+                <td className={styles.mono}>{e.rowNumber}</td>
+                <td className={`${styles.mono} ${styles.nowrap}`}>{fechaHora(e.timestamp)}</td>
+                <td className={`${styles.mono} ${styles.romper}`}>{e.clientIpAddress}</td>
+                <td>{e.protocol}</td>
+                <td>
+                  {e.responseType}
+                  {e.responseRtt != null && (
+                    <div className={styles.rtt}>({e.responseRtt.toFixed(2)} ms)</div>
+                  )}
+                </td>
+                <td>{e.rcode}</td>
+                {/* logs.js:518 — la raíz se escribe con un punto. */}
+                <td className={`${styles.mono} ${styles.romper}`}>
+                  {e.qname === '' ? '.' : (e.qname ?? '')}
+                </td>
+                <td>{e.qtype ?? ''}</td>
+                <td>{e.qclass ?? ''}</td>
+                <td className={`${styles.mono} ${styles.romper}`}>{e.answer ?? ''}</td>
+              </tr>
+            ))}
+          </Tabla>
 
           <div className={styles.count}>
             <span>{textoEstado(pagina)}</span>

@@ -26,7 +26,7 @@ import {
   type Aviso,
 } from './partes'
 import tbl from '../../ui/Table.module.css'
-import { AccionFila, Th, useOrden, type Claves } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
 
 /*
@@ -131,69 +131,62 @@ export function Sessions({ token, cluster, onAviso }: Props) {
         <Loading />
       ) : (
         <>
-          <div className={tbl.wrap}>
-            <table className={tbl.tabla}>
-              <thead>
-                <tr>
-                  <Th campo="username" orden={orden} onOrdenar={alternar}>Username</Th>
-                  <Th campo="session" orden={orden} onOrdenar={alternar}>Session</Th>
-                  <Th campo="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
-                  <Th campo="address" orden={orden} onOrdenar={alternar}>Remote Address</Th>
-                  <Th campo="agent" orden={orden} onOrdenar={alternar}>User Agent</Th>
-                  <th className={tbl.celdaAcciones} />
-                </tr>
-              </thead>
-              <tbody>
-                {sesionesVisibles.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className={tbl.sinFilas}>
-                      No Session Found
-                    </td>
-                  </tr>
-                )}
-                {sesionesVisibles.map((s) => (
-                  <tr key={s.partialToken}>
-                    <td>
-                      <button
-                        type="button"
-                        className={styles.link}
-                        onClick={() => setVerUsuario(s.username)}
-                      >
-                        {s.username}
-                      </button>
-                    </td>
-                    <td>
-                      <CeldaSesion sesion={s} />
-                    </td>
-                    <td className={styles.nowrap}>
-                      <div className={styles.mono}>{fechaHora(s.lastSeen)}</div>
-                      <div className={styles.meta}>{`(${desdeAhora(s.lastSeen)})`}</div>
-                    </td>
-                    <td className={styles.mono}>{s.lastSeenRemoteAddress}</td>
-                    <td>
-                      <span className={styles.ua}>{s.lastSeenUserAgent}</span>
-                    </td>
-                    <td className={tbl.celdaAcciones}>
-                      <div className={tbl.acciones}>
-                        <AccionFila
-                          icono="ficha"
-                          nombre="View Details"
-                          onClick={() => setVerUsuario(s.username)}
-                        />
-                        <Menu etiqueta={`Actions for ${s.partialToken}`}>
-                          {(cerrar) => (
-                            <button type="button" data-variant="danger" onClick={() => { cerrar(); setPorBorrar(s) }}>
-                              Delete Session
-                            </button>
-                          )}
-                        </Menu>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Tabla
+            cabecera={
+              <>
+                <Th campo="username" orden={orden} onOrdenar={alternar}>Username</Th>
+                <Th campo="session" orden={orden} onOrdenar={alternar}>Session</Th>
+                <Th campo="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
+                <Th campo="address" orden={orden} onOrdenar={alternar}>Remote Address</Th>
+                <Th campo="agent" orden={orden} onOrdenar={alternar}>User Agent</Th>
+                <th className={tbl.celdaAcciones} />
+              </>
+            }
+            vacia={sesionesVisibles.length === 0}
+            vacio="No Session Found"
+            columnas={6}
+          >
+            {sesionesVisibles.map((s) => (
+              <tr key={s.partialToken}>
+                <td>
+                  <button
+                    type="button"
+                    className={styles.link}
+                    onClick={() => setVerUsuario(s.username)}
+                  >
+                    {s.username}
+                  </button>
+                </td>
+                <td>
+                  <CeldaSesion sesion={s} />
+                </td>
+                <td className={styles.nowrap}>
+                  <div className={styles.mono}>{fechaHora(s.lastSeen)}</div>
+                  <div className={styles.meta}>{`(${desdeAhora(s.lastSeen)})`}</div>
+                </td>
+                <td className={styles.mono}>{s.lastSeenRemoteAddress}</td>
+                <td>
+                  <span className={styles.ua}>{s.lastSeenUserAgent}</span>
+                </td>
+                <td className={tbl.celdaAcciones}>
+                  <div className={tbl.acciones}>
+                    <AccionFila
+                      icono="ficha"
+                      nombre="View Details"
+                      onClick={() => setVerUsuario(s.username)}
+                    />
+                    <Menu etiqueta={`Actions for ${s.partialToken}`}>
+                      {(cerrar) => (
+                        <button type="button" data-variant="danger" onClick={() => { cerrar(); setPorBorrar(s) }}>
+                          Delete Session
+                        </button>
+                      )}
+                    </Menu>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </Tabla>
           <div className={styles.count}>
             <span>{`Total Sessions: ${sesiones.length}`}</span>
           </div>

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { getTop, type Rango, type TipoTop, type TopEntry } from '../../api/dashboard'
 import { Dialog } from '../../ui/Dialog'
+import { Tabla } from '../../ui/Table'
 import { Loading } from '../../ui/Empty'
 import styles from './Dashboard.module.css'
-import tbl from '../../ui/Table.module.css'
 
 /*
 `modalTopStats` (main.js:2879). Es lo que hay detrás de los tres botones «More»
@@ -81,49 +81,41 @@ export function TopStats({
       {cargando ? (
         <Loading compacto />
       ) : (
-        <div className={styles.topTablaWrap}>
-          <table className={styles.topTabla}>
-            <thead>
-              <tr>
-                <th>{tipo == null ? '' : CABECERA[tipo]}</th>
-                <th style={{ width: 110 }}>{tipo == null ? '' : CONTEO[tipo]}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filas.length === 0 ? (
-                <tr>
-                  <td colSpan={2} className={tbl.sinFilas}>
-                    No Data
-                  </td>
-                </tr>
-              ) : (
-                filas.map((f, i) => (
-                  <tr key={`${f.name}|${i}`} className={f.rateLimited ? styles.limitada : undefined}>
-                    <td>
-                      <span className={styles.topNombre}>
-                        {f.name}
-                        {f.rateLimited ? ' (rate limited)' : ''}
-                      </span>
-                      {esCliente && (
-                        <span className={styles.topDominio}>
-                          {f.domain === '' || f.domain == null ? '.' : f.domain}
-                        </span>
-                      )}
-                    </td>
-                    <td className={styles.topConteo}>{f.hits.toLocaleString()}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-            <tfoot>
-              <tr>
-                <th colSpan={2}>
-                  {tipo == null ? '' : `Total ${TITULOS[tipo]}: ${filas.length.toLocaleString()}`}
-                </th>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+        <Tabla
+          className={styles.topTablaWrap}
+          claseTabla={styles.topTabla}
+          cabecera={
+            <>
+              <th>{tipo == null ? '' : CABECERA[tipo]}</th>
+              <th style={{ width: 110 }}>{tipo == null ? '' : CONTEO[tipo]}</th>
+            </>
+          }
+          vacia={filas.length === 0}
+          vacio="No Data"
+          columnas={2}
+          pie={
+            <th colSpan={2}>
+              {tipo == null ? '' : `Total ${TITULOS[tipo]}: ${filas.length.toLocaleString()}`}
+            </th>
+          }
+        >
+          {filas.map((f, i) => (
+            <tr key={`${f.name}|${i}`} className={f.rateLimited ? styles.limitada : undefined}>
+              <td>
+                <span className={styles.topNombre}>
+                  {f.name}
+                  {f.rateLimited ? ' (rate limited)' : ''}
+                </span>
+                {esCliente && (
+                  <span className={styles.topDominio}>
+                    {f.domain === '' || f.domain == null ? '.' : f.domain}
+                  </span>
+                )}
+              </td>
+              <td className={styles.topConteo}>{f.hits.toLocaleString()}</td>
+            </tr>
+          ))}
+        </Tabla>
       )}
     </Dialog>
   )

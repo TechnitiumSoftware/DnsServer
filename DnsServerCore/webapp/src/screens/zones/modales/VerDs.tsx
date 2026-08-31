@@ -5,7 +5,7 @@ import { Dialog } from '../../../ui/Dialog'
 import { Empty, Loading } from '../../../ui/Empty'
 import { fechaMinuto as fechaCorta } from '../../../lib/fechas'
 import type { Aviso } from '../tipos'
-import tbl from '../../../ui/Table.module.css'
+import { Tabla } from '../../../ui/Table'
 import styles from '../Zones.module.css'
 
 /*
@@ -129,28 +129,25 @@ export function VerDs({
               </dd>
             </dl>
 
-            <div className={tbl.wrap}>
-              <table className={tbl.tabla}>
-                <thead>
-                  <tr>
-                    <th style={{ width: 140 }}>Digest Type</th>
-                    <th>Digest</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ds.digests.map((d) => (
-                    <tr key={d.digestType}>
-                      <td className={styles.mono}>
-                        {d.digestType} ({d.digestTypeNumber})
-                      </td>
-                      <td>
-                        <Largo valor={d.digest} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Tabla
+              cabecera={
+                <>
+                  <th style={{ width: 140 }}>Digest Type</th>
+                  <th>Digest</th>
+                </>
+              }
+            >
+              {ds.digests.map((d) => (
+                <tr key={d.digestType}>
+                  <td className={styles.mono}>
+                    {d.digestType} ({d.digestTypeNumber})
+                  </td>
+                  <td>
+                    <Largo valor={d.digest} />
+                  </td>
+                </tr>
+              ))}
+            </Tabla>
           </div>
         ))
       )}

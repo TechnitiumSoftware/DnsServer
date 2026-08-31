@@ -33,7 +33,7 @@ import { Empty, Loading } from '../../ui/Empty'
 import { Chip, Tag } from '../../ui/Tag'
 import pag from '../../ui/Pagination.module.css'
 import tbl from '../../ui/Table.module.css'
-import { AccionFila, Th, useOrden, type Claves } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import styles from './Zones.module.css'
 import { Icono } from '../../ui/Icono'
 import type { Aviso, Confirmacion } from './tipos'
@@ -536,87 +536,84 @@ export function RegistrosZona(p: RegistrosZonaProps) {
         {paginacion}
       </div>
 
-      <div className={tbl.wrap}>
-        <table className={tbl.tabla}>
-          <thead>
-            <tr>
-              <th style={{ width: 34 }}>#</th>
-              <Th campo="name" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>Name</Th>
-              <Th campo="type" orden={orden} onOrdenar={alternar} style={{ width: 80 }}>Type</Th>
-              <Th campo="ttl" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>TTL</Th>
-              <Th campo="data" orden={orden} onOrdenar={alternar}>Data</Th>
-              {/* La columna de acciones reservaba 230 px con tres rótulos
-                  dentro; con iconos le bastan 120 y los 110 que sobran se los
-                  queda el dato, que es de lo que va la tabla. */}
-              <th style={{ width: 120 }} />
-            </tr>
-          </thead>
-          <tbody>
-            {enPagina.length === 0 ? (
-              <tr>
-                <td colSpan={6} className={tbl.sinFilas}>
-                  No Record Found
+      <Tabla
+        cabecera={
+          <>
+            <th style={{ width: 34 }}>#</th>
+            <Th campo="name" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>Name</Th>
+            <Th campo="type" orden={orden} onOrdenar={alternar} style={{ width: 80 }}>Type</Th>
+            <Th campo="ttl" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>TTL</Th>
+            <Th campo="data" orden={orden} onOrdenar={alternar}>Data</Th>
+            {/* La columna de acciones reservaba 230 px con tres rótulos
+                dentro; con iconos le bastan 120 y los 110 que sobran se los
+                queda el dato, que es de lo que va la tabla. */}
+            <th style={{ width: 120 }} />
+          </>
+        }
+      >
+        {enPagina.length === 0 ? (
+          <tr>
+            <td colSpan={6} className={tbl.sinFilas}>
+              No Record Found
+            </td>
+          </tr>
+        ) : (
+          enPagina.map((r, i) => {
+            const acciones = accionesDeFila(zona.type, r.type)
+            return (
+              <tr key={`${r.name}|${r.type}|${inicio + i}`}>
+                <td className={styles.num}>{inicio + i + 1}</td>
+                <td className={`${styles.mono}`}>{nombreRelativo(r.name, zone)}</td>
+                <td>
+                  <Chip>{r.type}</Chip>
+                  {r.disabled && (
+                    <div className={styles.tags}>
+                      <Tag>Disabled</Tag>
+                    </div>
+                  )}
+                </td>
+                <td className={styles.ttl}>
+                  {r.ttl} <small>({r.ttlString})</small>
+                </td>
+                <td>
+                  <CeldaDatos registro={r} notifyFailedFor={zona.notifyFailedFor} />
+                </td>
+                <td className={tbl.celdaAcciones}>
+                  {!acciones.ocultas && (
+                    <div className={tbl.acciones}>
+                      <AccionFila
+                        icono="editar"
+                        nombre="Edit Record"
+                        disabled={!p.canModify || ocupado}
+                        onClick={() => p.onEditarRegistro(zona, r, registros)}
+                      />
+                      <AccionFila
+                        icono="energia"
+                        nombre={r.disabled ? 'Enable Record' : 'Disable Record'}
+                        disabled={acciones.soloEdicion || !p.canModify || ocupado}
+                        onClick={() => cambiarEstado(r, !r.disabled)}
+                      />
+                      {/* Borrar, dentro del menú: la misma regla que en la
+                          lista de zonas. */}
+                      <Menu etiqueta={`Actions for ${nombreRelativo(r.name, zone)} ${r.type}`}>
+                        {(cerrar) => (
+                          <button
+                            type="button"
+                            disabled={acciones.soloEdicion || !p.canDelete || ocupado}
+                            onClick={() => { cerrar(); borrarRegistro(r) }}
+                          >
+                            Delete Record
+                          </button>
+                        )}
+                      </Menu>
+                    </div>
+                  )}
                 </td>
               </tr>
-            ) : (
-              enPagina.map((r, i) => {
-                const acciones = accionesDeFila(zona.type, r.type)
-                return (
-                  <tr key={`${r.name}|${r.type}|${inicio + i}`}>
-                    <td className={styles.num}>{inicio + i + 1}</td>
-                    <td className={`${styles.mono}`}>{nombreRelativo(r.name, zone)}</td>
-                    <td>
-                      <Chip>{r.type}</Chip>
-                      {r.disabled && (
-                        <div className={styles.tags}>
-                          <Tag>Disabled</Tag>
-                        </div>
-                      )}
-                    </td>
-                    <td className={styles.ttl}>
-                      {r.ttl} <small>({r.ttlString})</small>
-                    </td>
-                    <td>
-                      <CeldaDatos registro={r} notifyFailedFor={zona.notifyFailedFor} />
-                    </td>
-                    <td className={tbl.celdaAcciones}>
-                      {!acciones.ocultas && (
-                        <div className={tbl.acciones}>
-                          <AccionFila
-                            icono="editar"
-                            nombre="Edit Record"
-                            disabled={!p.canModify || ocupado}
-                            onClick={() => p.onEditarRegistro(zona, r, registros)}
-                          />
-                          <AccionFila
-                            icono="energia"
-                            nombre={r.disabled ? 'Enable Record' : 'Disable Record'}
-                            disabled={acciones.soloEdicion || !p.canModify || ocupado}
-                            onClick={() => cambiarEstado(r, !r.disabled)}
-                          />
-                          {/* Borrar, dentro del menú: la misma regla que en la
-                              lista de zonas. */}
-                          <Menu etiqueta={`Actions for ${nombreRelativo(r.name, zone)} ${r.type}`}>
-                            {(cerrar) => (
-                              <button
-                                type="button"
-                                disabled={acciones.soloEdicion || !p.canDelete || ocupado}
-                                onClick={() => { cerrar(); borrarRegistro(r) }}
-                              >
-                                Delete Record
-                              </button>
-                            )}
-                          </Menu>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+            )
+          })
+        )}
+      </Tabla>
 
       <div className={`${styles.count} ${styles.countPie}`}>
         <span>{texto}</span>

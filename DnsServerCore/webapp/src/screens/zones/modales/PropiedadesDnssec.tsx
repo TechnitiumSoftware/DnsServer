@@ -42,7 +42,7 @@ import styles from '../Zones.module.css'
 import { Externo } from '../../../ui/Externo'
 import { RFC_NSEC3_ITERACIONES, RFC_NSEC3_SAL } from '../referencias'
 import frm from '../../../ui/Form.module.css'
-import { Th, useOrden, type Claves } from '../../../ui/Table'
+import { Th, useOrden, type Claves, Tabla } from '../../../ui/Table'
 
 /*
 `modalDnssecProperties` (zone.js:6799-7400). Es la pantalla más viva del
@@ -342,49 +342,46 @@ export function PropiedadesDnssec({
         <Loading>Loading DNSSEC properties…</Loading>
       ) : (
         <div className={styles.campos}>
-          <div className={tbl.wrap}>
-            <table className={tbl.tabla}>
-              <thead>
-                <tr>
-                  <Th campo="keyTag" orden={orden} onOrdenar={alternar} style={{ width: 80 }}>Key Tag</Th>
-                  <Th campo="keyType" orden={orden} onOrdenar={alternar} style={{ width: 130 }}>Key Type</Th>
-                  <Th campo="algorithm" orden={orden} onOrdenar={alternar} style={{ width: 150 }}>Algorithm</Th>
-                  <Th campo="state" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>State</Th>
-                  <Th campo="changed" orden={orden} onOrdenar={alternar} style={{ width: 150 }}>
-                    State Changed
-                  </Th>
-                  <Th campo="rollover" orden={orden} onOrdenar={alternar} style={{ width: 150 }}>
-                    Rollover (days)
-                  </Th>
-                  <th style={{ width: 190 }} />
-                </tr>
-              </thead>
-              <tbody>
-                {clavesVisibles.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className={tbl.sinFilas}>
-                      No Key Found
-                    </td>
-                  </tr>
-                ) : (
-                  clavesVisibles.map((k) => (
-                    <FilaClave
-                      key={k.keyTag}
-                      clave={k}
-                      ocupado={ocupado}
-                      rollover={rollovers[k.keyTag] ?? String(k.rolloverDays)}
-                      onRollover={(v) => setRollovers((r) => ({ ...r, [k.keyTag]: v }))}
-                      onGuardarRollover={() => guardarRollover(k)}
-                      onBorrar={() => borrarClave(k)}
-                      onActivar={() => activar(k)}
-                      onRolloverAhora={() => rollover(k)}
-                      onRetirar={() => retirar(k)}
-                    />
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <Tabla
+            cabecera={
+              <>
+                <Th campo="keyTag" orden={orden} onOrdenar={alternar} style={{ width: 80 }}>Key Tag</Th>
+                <Th campo="keyType" orden={orden} onOrdenar={alternar} style={{ width: 130 }}>Key Type</Th>
+                <Th campo="algorithm" orden={orden} onOrdenar={alternar} style={{ width: 150 }}>Algorithm</Th>
+                <Th campo="state" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>State</Th>
+                <Th campo="changed" orden={orden} onOrdenar={alternar} style={{ width: 150 }}>
+                  State Changed
+                </Th>
+                <Th campo="rollover" orden={orden} onOrdenar={alternar} style={{ width: 150 }}>
+                  Rollover (days)
+                </Th>
+                <th style={{ width: 190 }} />
+              </>
+            }
+          >
+            {clavesVisibles.length === 0 ? (
+              <tr>
+                <td colSpan={7} className={tbl.sinFilas}>
+                  No Key Found
+                </td>
+              </tr>
+            ) : (
+              clavesVisibles.map((k) => (
+                <FilaClave
+                  key={k.keyTag}
+                  clave={k}
+                  ocupado={ocupado}
+                  rollover={rollovers[k.keyTag] ?? String(k.rolloverDays)}
+                  onRollover={(v) => setRollovers((r) => ({ ...r, [k.keyTag]: v }))}
+                  onGuardarRollover={() => guardarRollover(k)}
+                  onBorrar={() => borrarClave(k)}
+                  onActivar={() => activar(k)}
+                  onRolloverAhora={() => rollover(k)}
+                  onRetirar={() => retirar(k)}
+                />
+              ))
+            )}
+          </Tabla>
 
           {notas.map((n) => (
             <Alert key={n} type="info" title="Note!">

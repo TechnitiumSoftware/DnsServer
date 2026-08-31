@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { RegistroDns } from '../../api/zonelists'
 import { entradasRData, extras, meta, ttlPartido, type Entrada } from './registro'
 import tbl from '../../ui/Table.module.css'
+import { Tabla } from '../../ui/Table'
 import styles from './Listas.module.css'
 
 /*
@@ -121,25 +122,22 @@ export function Registros({
   nodo: string
 }) {
   return (
-    <div className={tbl.wrap}>
-      <table className={tbl.tabla}>
-        <thead>
-          <tr>
-            <th style={{ width: 110 }}>Type</th>
-            <th style={{ width: 120 }}>TTL</th>
-            <th>Data</th>
-            {conDnssec && <th style={{ width: 100 }}>DNSSEC</th>}
-            <th style={{ width: 120 }}>
-              <span className="sr-only" />
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {records.map((r, i) => (
-            <Fila key={`${r.name}|${r.type}|${i}`} r={r} conDnssec={conDnssec} nodo={nodo} />
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Tabla
+      cabecera={
+        <>
+          <th style={{ width: 110 }}>Type</th>
+          <th style={{ width: 120 }}>TTL</th>
+          <th>Data</th>
+          {conDnssec && <th style={{ width: 100 }}>DNSSEC</th>}
+          <th style={{ width: 120 }}>
+            <span className="sr-only" />
+          </th>
+        </>
+      }
+    >
+      {records.map((r, i) => (
+        <Fila key={`${r.name}|${r.type}|${i}`} r={r} conDnssec={conDnssec} nodo={nodo} />
+      ))}
+    </Tabla>
   )
 }

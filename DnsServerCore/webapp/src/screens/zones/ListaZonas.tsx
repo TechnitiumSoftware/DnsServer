@@ -23,7 +23,7 @@ import { fechaMinuto as fecha } from '../../lib/fechas'
 import { textoDeEstado, ventanaDePaginas } from './paginacion'
 import pag from '../../ui/Pagination.module.css'
 import tbl from '../../ui/Table.module.css'
-import { AccionFila, Th, useOrden, type Claves } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import styles from './Zones.module.css'
 import { Icono } from '../../ui/Icono'
 import type { Aviso, Confirmacion } from './tipos'
@@ -424,81 +424,78 @@ export function ListaZonas({
         {paginacion}
       </div>
 
-      <div className={tbl.wrap}>
-        <table className={tbl.tabla}>
-          <thead>
-            <tr>
-              {/* La casilla mide 18 px; se pulsa desde toda su celda. */}
-              <th style={{ width: 38 }} className={tbl.celdaCheck}>
-                <label>
-                  <input
-                    type="checkbox"
-                    aria-label="Select all zones"
-                    checked={todasMarcadas}
-                    onChange={(e) => setMarcadas(e.target.checked ? zonas.map((z) => z.name) : [])}
-                  />
-                </label>
-              </th>
-              <th style={{ width: 34 }}>#</th>
-              <Th campo="zone" orden={orden} onOrdenar={alternar}>Zone</Th>
-              <Th campo="type" orden={orden} onOrdenar={alternar} style={{ width: 120 }}>Type</Th>
-              <Th campo="dnssec" orden={orden} onOrdenar={alternar} style={{ width: 90 }}>DNSSEC</Th>
-              <Th campo="status" orden={orden} onOrdenar={alternar} style={{ width: 120 }}>Status</Th>
-              <Th
-                campo="serial"
-                orden={orden}
-                onOrdenar={alternar}
-                style={{ width: 110, textAlign: 'right' }}
-              >
-                Serial
-              </Th>
-              <Th campo="expiry" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>Expiry</Th>
-              <Th campo="modified" orden={orden} onOrdenar={alternar} style={{ width: 150 }}>
-                Last Modified
-              </Th>
-              {/* La columna de acciones reservaba 230 px con tres rótulos
-                  dentro; con iconos le bastan 120 y los 110 que sobran se los
-                  queda el dato, que es de lo que va la tabla. */}
-              <th style={{ width: 120 }} />
-            </tr>
-          </thead>
-          <tbody>
-            {zonasVisibles.length === 0 ? (
-              <tr>
-                <td colSpan={10} className={tbl.sinFilas}>
-                  No Zone Found
-                </td>
-              </tr>
-            ) : (
-              zonasVisibles.map((z, i) => (
-                <FilaZona
-                  key={z.name}
-                  zona={z}
-                  indice={primeraFila + i}
-                  marcada={marcadas.includes(z.name)}
-                  ocupado={ocupado}
-                  canModify={canModify}
-                  canDelete={canDelete}
-                  onMarcar={(v) =>
-                    setMarcadas((m) => (v ? [...m, z.name] : m.filter((n) => n !== z.name)))
-                  }
-                  onAbrir={onAbrir}
-                  onHabilitar={habilitar}
-                  onDeshabilitar={deshabilitar}
-                  onBorrar={borrar}
-                  onResync={resincronizar}
-                  onImportar={onImportar}
-                  onExportar={exportar}
-                  onConvertir={onConvertir}
-                  onClonar={onClonar}
-                  onPermisos={onPermisos}
-                  onOpciones={onOpciones}
+      <Tabla
+        cabecera={
+          <>
+            {/* La casilla mide 18 px; se pulsa desde toda su celda. */}
+            <th style={{ width: 38 }} className={tbl.celdaCheck}>
+              <label>
+                <input
+                  type="checkbox"
+                  aria-label="Select all zones"
+                  checked={todasMarcadas}
+                  onChange={(e) => setMarcadas(e.target.checked ? zonas.map((z) => z.name) : [])}
                 />
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              </label>
+            </th>
+            <th style={{ width: 34 }}>#</th>
+            <Th campo="zone" orden={orden} onOrdenar={alternar}>Zone</Th>
+            <Th campo="type" orden={orden} onOrdenar={alternar} style={{ width: 120 }}>Type</Th>
+            <Th campo="dnssec" orden={orden} onOrdenar={alternar} style={{ width: 90 }}>DNSSEC</Th>
+            <Th campo="status" orden={orden} onOrdenar={alternar} style={{ width: 120 }}>Status</Th>
+            <Th
+              campo="serial"
+              orden={orden}
+              onOrdenar={alternar}
+              style={{ width: 110, textAlign: 'right' }}
+            >
+              Serial
+            </Th>
+            <Th campo="expiry" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>Expiry</Th>
+            <Th campo="modified" orden={orden} onOrdenar={alternar} style={{ width: 150 }}>
+              Last Modified
+            </Th>
+            {/* La columna de acciones reservaba 230 px con tres rótulos
+                dentro; con iconos le bastan 120 y los 110 que sobran se los
+                queda el dato, que es de lo que va la tabla. */}
+            <th style={{ width: 120 }} />
+          </>
+        }
+      >
+        {zonasVisibles.length === 0 ? (
+          <tr>
+            <td colSpan={10} className={tbl.sinFilas}>
+              No Zone Found
+            </td>
+          </tr>
+        ) : (
+          zonasVisibles.map((z, i) => (
+            <FilaZona
+              key={z.name}
+              zona={z}
+              indice={primeraFila + i}
+              marcada={marcadas.includes(z.name)}
+              ocupado={ocupado}
+              canModify={canModify}
+              canDelete={canDelete}
+              onMarcar={(v) =>
+                setMarcadas((m) => (v ? [...m, z.name] : m.filter((n) => n !== z.name)))
+              }
+              onAbrir={onAbrir}
+              onHabilitar={habilitar}
+              onDeshabilitar={deshabilitar}
+              onBorrar={borrar}
+              onResync={resincronizar}
+              onImportar={onImportar}
+              onExportar={exportar}
+              onConvertir={onConvertir}
+              onClonar={onClonar}
+              onPermisos={onPermisos}
+              onOpciones={onOpciones}
+            />
+          ))
+        )}
+      </Tabla>
 
       <div className={`${styles.count} ${styles.countPie}`}>
         <span>{estado}</span>

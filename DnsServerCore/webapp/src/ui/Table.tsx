@@ -23,6 +23,85 @@ carácter, igual que upstream: así una columna de fechas `2026-08-26 10:48` sal
 bien sin tratarla como fecha, y el orden es el mismo que daba la consola vieja.
 */
 
+/*
+La tabla: el andamiaje, no sólo los estilos.
+
+Este módulo exportaba `useOrden`, `Th` y `AccionFila` —los ayudantes— y dejaba
+que cada pantalla escribiera a mano el envoltorio, la `table`, el `thead` y el
+`tbody`. Dieciocho tablas con la misma estructura tecleada dieciocho veces, y
+todo lo que la copia permite: seis de las siete tablas de datos se habían
+quedado sin la fila de «no hay nada», y la de «My Profile» acabó con una
+densidad de celda propia porque nadie la ató a la compartida.
+
+Lo que se comparte ahora es la PIEZA. Lo que sigue siendo de cada pantalla es lo
+único que de verdad cambia: qué columnas hay y qué va en cada fila.
+
+    <Tabla
+      cabecera={<><Th …>Username</Th>…</>}
+      vacia={usuarios.length === 0}
+      vacio="No User Found"
+      columnas={8}
+    >
+      {usuarios.map((u) => <tr key={u.username}>…</tr>)}
+    </Tabla>
+
+`vacia` va explícito y no se adivina contando hijos: un `.map()` sobre una lista
+vacía entrega un array vacío, no cero hijos, y una detección que acierta por
+accidente es peor que un parámetro.
+*/
+export function Tabla({
+  cabecera,
+  children,
+  vacia = false,
+  vacio,
+  columnas,
+  className,
+  claseTabla,
+  pie,
+}: {
+  /** Las celdas del `thead`; normalmente `Th` de este mismo módulo. */
+  cabecera: ReactNode
+  children: ReactNode
+  /** Si no hay filas que pintar. */
+  vacia?: boolean
+  /** Qué decir entonces. Sin esto, una tabla vacía enseña el cuerpo en blanco. */
+  vacio?: ReactNode
+  /** Cuántas columnas ocupa esa fila. */
+  columnas?: number
+  /** Para el envoltorio: el ancho máximo de una tabla estrecha, por ejemplo. */
+  className?: string
+  /** Para la tabla: la cabecera pegajosa del diálogo «More», por ejemplo. */
+  claseTabla?: string
+  /** La fila de pie, cuando la tabla lleva su recuento dentro. */
+  pie?: ReactNode
+}) {
+  return (
+    <div className={[styles.wrap, className].filter(Boolean).join(' ')}>
+      <table className={[styles.tabla, claseTabla].filter(Boolean).join(' ')}>
+        <thead>
+          <tr>{cabecera}</tr>
+        </thead>
+        <tbody>
+          {vacia && vacio != null ? (
+            <tr>
+              <td colSpan={columnas} className={styles.sinFilas}>
+                {vacio}
+              </td>
+            </tr>
+          ) : (
+            children
+          )}
+        </tbody>
+        {pie != null && (
+          <tfoot>
+            <tr>{pie}</tr>
+          </tfoot>
+        )}
+      </table>
+    </div>
+  )
+}
+
 export interface Orden {
   campo: string
   desc: boolean

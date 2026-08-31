@@ -35,7 +35,7 @@ import {
 } from './partes'
 import tbl from '../../ui/Table.module.css'
 import frm from '../../ui/Form.module.css'
-import { AccionFila, Th, useOrden, type Claves } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import { Menu, Separador } from '../../ui/Menu'
 
 /*
@@ -193,116 +193,109 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
         </Empty>
       ) : (
         <>
-          <div className={tbl.wrap}>
-            <table className={tbl.tabla}>
-              <thead>
-                <tr>
-                  <Th campo="name" orden={orden} onOrdenar={alternar}>Node Name</Th>
-                  <Th campo="ip" orden={orden} onOrdenar={alternar}>IP Address</Th>
-                  <Th campo="url" orden={orden} onOrdenar={alternar}>URL</Th>
-                  <Th campo="type" orden={orden} onOrdenar={alternar}>Type</Th>
-                  <Th campo="state" orden={orden} onOrdenar={alternar}>State</Th>
-                  <Th campo="upSince" orden={orden} onOrdenar={alternar}>Up Since</Th>
-                  <Th campo="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
-                  <Th campo="synced" orden={orden} onOrdenar={alternar}>Last Synced</Th>
-                  <th className={tbl.celdaAcciones} />
-                </tr>
-              </thead>
-              <tbody>
-                {nodosVisibles.length === 0 && (
-                  <tr>
-                    <td colSpan={9} className={tbl.sinFilas}>
-                      No Node Found
-                    </td>
-                  </tr>
-                )}
-                {nodosVisibles.map((n) => (
-                  <tr key={n.id}>
-                    <td>{n.name}</td>
-                    <td className={styles.mono}>
-                      {n.ipAddresses.map((ip) => (
-                        <div key={ip}>{ip}</div>
-                      ))}
-                    </td>
-                    <td className={styles.mono}>{n.url}</td>
-                    <td>
-                      {n.type === 'Primary' || n.type === 'Secondary' ? (
-                        <Tag tone="info">{n.type}</Tag>
-                      ) : (
-                        <Tag tone="warn">Unknown</Tag>
-                      )}
-                    </td>
-                    <td>
-                      {n.state === 'Self' ? (
-                        <Tag>Self</Tag>
-                      ) : n.state === 'Connected' ? (
-                        <Tag tone="ok">Connected</Tag>
-                      ) : n.state === 'Unreachable' ? (
-                        <Tag tone="warn">Unreachable</Tag>
-                      ) : (
-                        <Tag tone="warn">Unknown</Tag>
-                      )}
-                    </td>
-                    <td className={styles.nowrap}>
-                      <FechaRelativa iso={n.upSince} />
-                    </td>
-                    <td className={styles.nowrap}>
-                      {/* El nodo propio no tiene «Last Seen»: en su fila esa
-                          columna va siempre vacía (cluster.js:177-193). */}
-                      {n.state !== 'Self' && <FechaRelativa iso={n.lastSeen} />}
-                    </td>
-                    <td className={styles.nowrap}>
-                      {n.state === 'Self' && n.type === 'Secondary' && (
-                        <FechaRelativa iso={n.configLastSynced} />
-                      )}
-                    </td>
-                    <td className={tbl.celdaAcciones}>
-                      <div className={tbl.acciones}>
-                        {/* Qué se puede hacer con un nodo depende de si esta
-                            consola habla con el primario o con un secundario
-                            (cluster.js:248-264). Editar es lo frecuente y va en
-                            la fila; quitar y promocionar, dentro del menú. */}
-                        {(esPrimario ? n.state === 'Self' : n.state === 'Self' || n.type === 'Primary') && (
-                          <AccionFila
-                            icono="editar"
-                            nombre="Edit Node"
-                            onClick={() =>
-                              setModal({
-                                tipo: n.state === 'Self' ? 'editSelf' : 'editPrimary',
-                                nodo: n,
-                              })
-                            }
-                          />
-                        )}
-                        {((esPrimario && n.type === 'Secondary') ||
-                          (tipoPropio === 'Secondary' && n.state === 'Self')) && (
-                          <Menu etiqueta={`Actions for ${n.name}`}>
-                            {(cerrar) => (
+          <Tabla
+            cabecera={
+              <>
+                <Th campo="name" orden={orden} onOrdenar={alternar}>Node Name</Th>
+                <Th campo="ip" orden={orden} onOrdenar={alternar}>IP Address</Th>
+                <Th campo="url" orden={orden} onOrdenar={alternar}>URL</Th>
+                <Th campo="type" orden={orden} onOrdenar={alternar}>Type</Th>
+                <Th campo="state" orden={orden} onOrdenar={alternar}>State</Th>
+                <Th campo="upSince" orden={orden} onOrdenar={alternar}>Up Since</Th>
+                <Th campo="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
+                <Th campo="synced" orden={orden} onOrdenar={alternar}>Last Synced</Th>
+                <th className={tbl.celdaAcciones} />
+              </>
+            }
+            vacia={nodosVisibles.length === 0}
+            vacio="No Node Found"
+            columnas={9}
+          >
+            {nodosVisibles.map((n) => (
+              <tr key={n.id}>
+                <td>{n.name}</td>
+                <td className={styles.mono}>
+                  {n.ipAddresses.map((ip) => (
+                    <div key={ip}>{ip}</div>
+                  ))}
+                </td>
+                <td className={styles.mono}>{n.url}</td>
+                <td>
+                  {n.type === 'Primary' || n.type === 'Secondary' ? (
+                    <Tag tone="info">{n.type}</Tag>
+                  ) : (
+                    <Tag tone="warn">Unknown</Tag>
+                  )}
+                </td>
+                <td>
+                  {n.state === 'Self' ? (
+                    <Tag>Self</Tag>
+                  ) : n.state === 'Connected' ? (
+                    <Tag tone="ok">Connected</Tag>
+                  ) : n.state === 'Unreachable' ? (
+                    <Tag tone="warn">Unreachable</Tag>
+                  ) : (
+                    <Tag tone="warn">Unknown</Tag>
+                  )}
+                </td>
+                <td className={styles.nowrap}>
+                  <FechaRelativa iso={n.upSince} />
+                </td>
+                <td className={styles.nowrap}>
+                  {/* El nodo propio no tiene «Last Seen»: en su fila esa
+                      columna va siempre vacía (cluster.js:177-193). */}
+                  {n.state !== 'Self' && <FechaRelativa iso={n.lastSeen} />}
+                </td>
+                <td className={styles.nowrap}>
+                  {n.state === 'Self' && n.type === 'Secondary' && (
+                    <FechaRelativa iso={n.configLastSynced} />
+                  )}
+                </td>
+                <td className={tbl.celdaAcciones}>
+                  <div className={tbl.acciones}>
+                    {/* Qué se puede hacer con un nodo depende de si esta
+                        consola habla con el primario o con un secundario
+                        (cluster.js:248-264). Editar es lo frecuente y va en
+                        la fila; quitar y promocionar, dentro del menú. */}
+                    {(esPrimario ? n.state === 'Self' : n.state === 'Self' || n.type === 'Primary') && (
+                      <AccionFila
+                        icono="editar"
+                        nombre="Edit Node"
+                        onClick={() =>
+                          setModal({
+                            tipo: n.state === 'Self' ? 'editSelf' : 'editPrimary',
+                            nodo: n,
+                          })
+                        }
+                      />
+                    )}
+                    {((esPrimario && n.type === 'Secondary') ||
+                      (tipoPropio === 'Secondary' && n.state === 'Self')) && (
+                      <Menu etiqueta={`Actions for ${n.name}`}>
+                        {(cerrar) => (
+                          <>
+                            {tipoPropio === 'Secondary' && n.state === 'Self' && (
+                              <button type="button" onClick={() => { cerrar(); setModal({ tipo: 'promote', nodo: n }) }}>
+                                Promote To Primary
+                              </button>
+                            )}
+                            {esPrimario && n.type === 'Secondary' && (
                               <>
-                                {tipoPropio === 'Secondary' && n.state === 'Self' && (
-                                  <button type="button" onClick={() => { cerrar(); setModal({ tipo: 'promote', nodo: n }) }}>
-                                    Promote To Primary
-                                  </button>
-                                )}
-                                {esPrimario && n.type === 'Secondary' && (
-                                  <>
-                                    <Separador />
-                                    <button type="button" data-variant="danger" onClick={() => { cerrar(); setModal({ tipo: 'remove', nodo: n }) }}>
-                                      Remove Node
-                                    </button>
-                                  </>
-                                )}
+                                <Separador />
+                                <button type="button" data-variant="danger" onClick={() => { cerrar(); setModal({ tipo: 'remove', nodo: n }) }}>
+                                  Remove Node
+                                </button>
                               </>
                             )}
-                          </Menu>
+                          </>
                         )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      </Menu>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </Tabla>
           <div className={styles.count}>
             <span>{`Total Nodes: ${nodos.length}`}</span>
           </div>

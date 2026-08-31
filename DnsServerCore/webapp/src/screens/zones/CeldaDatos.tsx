@@ -2,7 +2,7 @@ import { Tag } from '../../ui/Tag'
 import { useState } from 'react'
 import type { Registro } from '../../api/registros'
 import { celdasDeRegistro, pieDeRegistro, type Celda } from './registro-vista'
-import tbl from '../../ui/Table.module.css'
+import { Tabla } from '../../ui/Table'
 import styles from './Zones.module.css'
 
 /*
@@ -61,28 +61,25 @@ function Bloque({ celda }: { celda: Celda }) {
 
     case 'tabla':
       return (
-        <div className={tbl.wrap}>
-          <table className={tbl.tabla}>
-            <thead>
-              <tr>
-                {celda.cabeceras.map((c) => (
-                  <th key={c}>{c}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {celda.filas.map((fila, i) => (
-                <tr key={i}>
-                  {fila.map((v, j) => (
-                    <td key={j} className={styles.mono}>
-                      {v}
-                    </td>
-                  ))}
-                </tr>
+        <Tabla
+          cabecera={
+            <>
+              {celda.cabeceras.map((c) => (
+                <th key={c}>{c}</th>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </>
+          }
+        >
+          {celda.filas.map((fila, i) => (
+            <tr key={i}>
+              {fila.map((v, j) => (
+                <td key={j} className={styles.mono}>
+                  {v}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </Tabla>
       )
 
     case 'pares':

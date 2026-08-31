@@ -23,7 +23,7 @@ import {
   type Aviso,
 } from './partes'
 import tbl from '../../ui/Table.module.css'
-import { AccionFila, Th, useOrden, type Claves } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
 
 /*
@@ -100,61 +100,54 @@ export function Groups({ token, onAviso }: Props) {
         <Loading />
       ) : (
         <>
-          <div className={tbl.wrap}>
-            <table className={tbl.tabla}>
-              <thead>
-                <tr>
-                  <Th campo="name" orden={orden} onOrdenar={alternar}>Name</Th>
-                  <Th campo="description" orden={orden} onOrdenar={alternar}>Description</Th>
-                  <th className={tbl.celdaAcciones} />
-                </tr>
-              </thead>
-              <tbody>
-                {gruposVisibles.length === 0 && (
-                  <tr>
-                    <td colSpan={3} className={tbl.sinFilas}>
-                      No Group Found
-                    </td>
-                  </tr>
-                )}
-                {gruposVisibles.map((g) => (
-                  <tr key={g.name}>
-                    <td>
-                      <button
-                        type="button"
-                        className={styles.link}
-                        onClick={() => setDetalle(g.name)}
-                      >
-                        {g.name}
-                      </button>
-                    </td>
-                    <td>
-                      {g.description.split('\n').map((linea, i) => (
-                        // eslint-disable-next-line react/no-array-index-key
-                        <div key={i}>{linea}</div>
-                      ))}
-                    </td>
-                    <td className={tbl.celdaAcciones}>
-                      <div className={tbl.acciones}>
-                        <AccionFila
-                          icono="ficha"
-                          nombre="View Details"
-                          onClick={() => setDetalle(g.name)}
-                        />
-                        <Menu etiqueta={`Actions for ${g.name}`}>
-                          {(cerrar) => (
-                            <button type="button" data-variant="danger" onClick={() => { cerrar(); setPorBorrar(g) }}>
-                              Delete Group
-                            </button>
-                          )}
-                        </Menu>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Tabla
+            cabecera={
+              <>
+                <Th campo="name" orden={orden} onOrdenar={alternar}>Name</Th>
+                <Th campo="description" orden={orden} onOrdenar={alternar}>Description</Th>
+                <th className={tbl.celdaAcciones} />
+              </>
+            }
+            vacia={gruposVisibles.length === 0}
+            vacio="No Group Found"
+            columnas={3}
+          >
+            {gruposVisibles.map((g) => (
+              <tr key={g.name}>
+                <td>
+                  <button
+                    type="button"
+                    className={styles.link}
+                    onClick={() => setDetalle(g.name)}
+                  >
+                    {g.name}
+                  </button>
+                </td>
+                <td>
+                  {g.description.split('\n').map((linea, i) => (
+                    // eslint-disable-next-line react/no-array-index-key
+                    <div key={i}>{linea}</div>
+                  ))}
+                </td>
+                <td className={tbl.celdaAcciones}>
+                  <div className={tbl.acciones}>
+                    <AccionFila
+                      icono="ficha"
+                      nombre="View Details"
+                      onClick={() => setDetalle(g.name)}
+                    />
+                    <Menu etiqueta={`Actions for ${g.name}`}>
+                      {(cerrar) => (
+                        <button type="button" data-variant="danger" onClick={() => { cerrar(); setPorBorrar(g) }}>
+                          Delete Group
+                        </button>
+                      )}
+                    </Menu>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </Tabla>
           <div className={styles.count}>
             <span>{`Total Groups: ${grupos.length}`}</span>
           </div>

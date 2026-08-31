@@ -15,6 +15,7 @@ import {
   type Aviso,
 } from './partes'
 import frm from '../../ui/Form.module.css'
+import { TablaEditable } from '../../ui/TablaEditable'
 
 /*
 `refreshAdminSsoConfig`, `loadAdminSsoConfig` y `saveAdminSsoConfig`
@@ -237,38 +238,38 @@ export function Sso({ token, onAviso }: Props) {
         <div className={frm.row}>
           <div className={frm.rowLabel}>Scopes</div>
           <div className={frm.rowCtl}>
-            <table className={styles.edit}>
-              <thead>
-                <tr>
+            <TablaEditable
+      className={styles.edit}
+              cabecera={
+                <>
                   <th>Scope Name</th>
                   <th className={styles.tdel} />
+                </>
+              }
+            >
+              {scopes.map((s, i) => (
+                // eslint-disable-next-line react/no-array-index-key
+                <tr key={i}>
+                  <td>
+                    <Input
+                      aria-label={`Scope Name ${i + 1}`}
+                      value={s}
+                      onChange={(e) =>
+                        setScopes((lista) => lista.map((v, j) => (j === i ? e.target.value : v)))
+                      }
+                    />
+                  </td>
+                  <td className={styles.tdel}>
+                    <Button
+                      variant="danger"
+                      onClick={() => setScopes((lista) => lista.filter((_, j) => j !== i))}
+                    >
+                      Delete
+                    </Button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {scopes.map((s, i) => (
-                  // eslint-disable-next-line react/no-array-index-key
-                  <tr key={i}>
-                    <td>
-                      <Input
-                        aria-label={`Scope Name ${i + 1}`}
-                        value={s}
-                        onChange={(e) =>
-                          setScopes((lista) => lista.map((v, j) => (j === i ? e.target.value : v)))
-                        }
-                      />
-                    </td>
-                    <td className={styles.tdel}>
-                      <Button
-                        variant="danger"
-                        onClick={() => setScopes((lista) => lista.filter((_, j) => j !== i))}
-                      >
-                        Delete
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              ))}
+            </TablaEditable>
             <div>
               <Button onClick={() => setScopes((lista) => [...lista, ''])}>Add</Button>
             </div>
@@ -314,61 +315,61 @@ export function Sso({ token, onAviso }: Props) {
         <div className={frm.row}>
           <div className={frm.rowLabel}>Group Map (Optional)</div>
           <div className={frm.rowCtl}>
-            <table className={styles.edit}>
-              <thead>
-                <tr>
+            <TablaEditable
+      className={styles.edit}
+              cabecera={
+                <>
                   <th>Remote Group</th>
                   <th>Local Group</th>
                   <th className={styles.tdel} />
+                </>
+              }
+            >
+              {groupMap.map((f, i) => (
+                // eslint-disable-next-line react/no-array-index-key
+                <tr key={i}>
+                  <td>
+                    <Input
+                      aria-label={`Remote Group ${i + 1}`}
+                      value={f.remoteGroup}
+                      onChange={(e) =>
+                        setGroupMap((lista) =>
+                          lista.map((x, j) =>
+                            j === i ? { ...x, remoteGroup: e.target.value } : x,
+                          ),
+                        )
+                      }
+                    />
+                  </td>
+                  <td>
+                    <Select
+                      className={styles.select}
+                      aria-label={`Local Group ${i + 1}`}
+                      value={f.localGroup}
+                      onChange={(e) =>
+                        setGroupMap((lista) =>
+                          lista.map((x, j) => (j === i ? { ...x, localGroup: e.target.value } : x)),
+                        )
+                      }
+                    >
+                      {gruposLocales.map((g) => (
+                        <option key={g} value={g}>
+                          {g}
+                        </option>
+                      ))}
+                    </Select>
+                  </td>
+                  <td className={styles.tdel}>
+                    <Button
+                      variant="danger"
+                      onClick={() => setGroupMap((lista) => lista.filter((_, j) => j !== i))}
+                    >
+                      Delete
+                    </Button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {groupMap.map((f, i) => (
-                  // eslint-disable-next-line react/no-array-index-key
-                  <tr key={i}>
-                    <td>
-                      <Input
-                        aria-label={`Remote Group ${i + 1}`}
-                        value={f.remoteGroup}
-                        onChange={(e) =>
-                          setGroupMap((lista) =>
-                            lista.map((x, j) =>
-                              j === i ? { ...x, remoteGroup: e.target.value } : x,
-                            ),
-                          )
-                        }
-                      />
-                    </td>
-                    <td>
-                      <Select
-                        className={styles.select}
-                        aria-label={`Local Group ${i + 1}`}
-                        value={f.localGroup}
-                        onChange={(e) =>
-                          setGroupMap((lista) =>
-                            lista.map((x, j) => (j === i ? { ...x, localGroup: e.target.value } : x)),
-                          )
-                        }
-                      >
-                        {gruposLocales.map((g) => (
-                          <option key={g} value={g}>
-                            {g}
-                          </option>
-                        ))}
-                      </Select>
-                    </td>
-                    <td className={styles.tdel}>
-                      <Button
-                        variant="danger"
-                        onClick={() => setGroupMap((lista) => lista.filter((_, j) => j !== i))}
-                      >
-                        Delete
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              ))}
+            </TablaEditable>
             <div>
               <Button
                 onClick={() =>

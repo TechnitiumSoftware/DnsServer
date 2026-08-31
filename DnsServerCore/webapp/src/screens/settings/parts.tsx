@@ -6,6 +6,7 @@ import { Input } from '../../ui/Field'
 import styles from './Settings.module.css'
 import { Panel } from '../../ui/Panel'
 import frm from '../../ui/Form.module.css'
+import { TablaEditable } from '../../ui/TablaEditable'
 export { Check } from '../../ui/Check'
 
 /*
@@ -268,40 +269,40 @@ export function EditableTable<T>({
     <div className={frm.row}>
       <div className={frm.rowLabel}>{label}</div>
       <div className={frm.rowCtl}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
+        <TablaEditable
+      className={styles.table}
+          cabecera={
+            <>
               {columns.map((c) => (
                 <th key={c}>{c}</th>
               ))}
               <th className={styles.tdel} />
+            </>
+          }
+        >
+          {rows.map((fila, i) => (
+            // Las filas no tienen identidad estable en upstream (se numeran
+            // con un aleatorio); el índice es el mismo criterio.
+            // eslint-disable-next-line react/no-array-index-key
+            <tr key={i}>
+              {cell(fila, i, (parcial) =>
+                onChange(rows.map((r, j) => (j === i ? { ...r, ...parcial } : r))),
+              ).map((c, j) => (
+                // eslint-disable-next-line react/no-array-index-key
+                <td key={j}>{c}</td>
+              ))}
+              <td className={styles.tdel}>
+                <Button
+                  variant="danger"
+                  disabled={disabled}
+                  onClick={() => onChange(rows.filter((_, j) => j !== i))}
+                >
+                  Delete
+                </Button>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {rows.map((fila, i) => (
-              // Las filas no tienen identidad estable en upstream (se numeran
-              // con un aleatorio); el índice es el mismo criterio.
-              // eslint-disable-next-line react/no-array-index-key
-              <tr key={i}>
-                {cell(fila, i, (parcial) =>
-                  onChange(rows.map((r, j) => (j === i ? { ...r, ...parcial } : r))),
-                ).map((c, j) => (
-                  // eslint-disable-next-line react/no-array-index-key
-                  <td key={j}>{c}</td>
-                ))}
-                <td className={styles.tdel}>
-                  <Button
-                    variant="danger"
-                    disabled={disabled}
-                    onClick={() => onChange(rows.filter((_, j) => j !== i))}
-                  >
-                    Delete
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          ))}
+        </TablaEditable>
         {/* Sin filas, la tabla enseñaba las cabeceras y nada debajo: en blanco no
             dice «no hay ninguna», dice «no lo sé». La gemela de DHCP
             (`screens/dhcp/parts.tsx:258`) ya lo decía; ésta no. */}

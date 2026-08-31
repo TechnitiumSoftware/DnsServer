@@ -19,7 +19,7 @@ import { Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import tbl from '../../ui/Table.module.css'
 import styles from './Dhcp.module.css'
-import { AccionFila, Th, useOrden, type Claves } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
 
 /*
@@ -210,97 +210,90 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
         </Alert>
       )}
 
-      <div className={tbl.wrap}>
-        <table className={tbl.tabla}>
-          <thead>
-            <tr>
-              <Th campo="name" orden={orden} onOrdenar={alternar}>Name</Th>
-              <Th campo="range" orden={orden} onOrdenar={alternar}>Scope Range/Subnet Mask</Th>
-              <Th campo="network" orden={orden} onOrdenar={alternar}>Network/Broadcast</Th>
-              <Th campo="interfaz" orden={orden} onOrdenar={alternar}>Interface</Th>
-              <th>Status</th>
-              <th className={tbl.celdaAcciones} />
-            </tr>
-          </thead>
-          <tbody>
-            {scopesVisibles.length === 0 && (
-              <tr>
-                <td colSpan={6} className={tbl.sinFilas}>
-                  No Scope Found
-                </td>
-              </tr>
-            )}
-            {scopesVisibles.map((s) => (
-              <tr key={s.name}>
-                <td className={styles.nombre}>{s.name}</td>
-                <td>
-                  <dl className={styles.kv}>
-                    <dt>Range</dt>
-                    <dd>
-                      {s.startingAddress} - {s.endingAddress}
-                    </dd>
-                    <dt>Mask</dt>
-                    <dd>{s.subnetMask}</dd>
-                  </dl>
-                </td>
-                <td>
-                  <dl className={styles.kv}>
-                    <dt>Network</dt>
-                    <dd>{s.networkAddress}</dd>
-                    <dt>Broadcast</dt>
-                    <dd>{s.broadcastAddress}</dd>
-                  </dl>
-                </td>
-                {/* `interfaceAddress` se OMITE cuando es nulo; upstream pinta
-                    una celda vacía (dhcp.js:228). */}
-                <td className={styles.mono}>{s.interfaceAddress ?? ''}</td>
-                <td>
-                  <Tag tone={s.enabled ? 'ok' : 'neutral'}>
-                    {s.enabled ? 'Enabled' : 'Disabled'}
-                  </Tag>
-                </td>
-                <td className={tbl.celdaAcciones}>
-                  <div className={tbl.acciones}>
-                    <AccionFila
-                      icono="editar"
-                      nombre="Edit Scope"
-                      disabled={ocupado}
-                      onClick={() => void editar(s.name)}
-                    />
-                    {canModify && (
-                      /* dhcp.js:615 — habilitar no pregunta nada; deshabilitar sí. */
-                      <AccionFila
-                        icono="energia"
-                        nombre={s.enabled ? 'Disable Scope' : 'Enable Scope'}
+      <Tabla
+        cabecera={
+          <>
+            <Th campo="name" orden={orden} onOrdenar={alternar}>Name</Th>
+            <Th campo="range" orden={orden} onOrdenar={alternar}>Scope Range/Subnet Mask</Th>
+            <Th campo="network" orden={orden} onOrdenar={alternar}>Network/Broadcast</Th>
+            <Th campo="interfaz" orden={orden} onOrdenar={alternar}>Interface</Th>
+            <th>Status</th>
+            <th className={tbl.celdaAcciones} />
+          </>
+        }
+        vacia={scopesVisibles.length === 0}
+        vacio="No Scope Found"
+        columnas={6}
+      >
+        {scopesVisibles.map((s) => (
+          <tr key={s.name}>
+            <td className={styles.nombre}>{s.name}</td>
+            <td>
+              <dl className={styles.kv}>
+                <dt>Range</dt>
+                <dd>
+                  {s.startingAddress} - {s.endingAddress}
+                </dd>
+                <dt>Mask</dt>
+                <dd>{s.subnetMask}</dd>
+              </dl>
+            </td>
+            <td>
+              <dl className={styles.kv}>
+                <dt>Network</dt>
+                <dd>{s.networkAddress}</dd>
+                <dt>Broadcast</dt>
+                <dd>{s.broadcastAddress}</dd>
+              </dl>
+            </td>
+            {/* `interfaceAddress` se OMITE cuando es nulo; upstream pinta
+                una celda vacía (dhcp.js:228). */}
+            <td className={styles.mono}>{s.interfaceAddress ?? ''}</td>
+            <td>
+              <Tag tone={s.enabled ? 'ok' : 'neutral'}>
+                {s.enabled ? 'Enabled' : 'Disabled'}
+              </Tag>
+            </td>
+            <td className={tbl.celdaAcciones}>
+              <div className={tbl.acciones}>
+                <AccionFila
+                  icono="editar"
+                  nombre="Edit Scope"
+                  disabled={ocupado}
+                  onClick={() => void editar(s.name)}
+                />
+                {canModify && (
+                  /* dhcp.js:615 — habilitar no pregunta nada; deshabilitar sí. */
+                  <AccionFila
+                    icono="energia"
+                    nombre={s.enabled ? 'Disable Scope' : 'Enable Scope'}
+                    disabled={ocupado}
+                    onClick={() =>
+                      s.enabled
+                        ? setConfirmar({ accion: 'disable', nombre: s.name })
+                        : void habilitar(s.name)
+                    }
+                  />
+                )}
+                {canDelete && (
+                  <Menu etiqueta={`Actions for ${s.name}`}>
+                    {(cerrar) => (
+                      <button
+                        type="button"
+                        data-variant="danger"
                         disabled={ocupado}
-                        onClick={() =>
-                          s.enabled
-                            ? setConfirmar({ accion: 'disable', nombre: s.name })
-                            : void habilitar(s.name)
-                        }
-                      />
+                        onClick={() => { cerrar(); setConfirmar({ accion: 'delete', nombre: s.name }) }}
+                      >
+                        Delete Scope
+                      </button>
                     )}
-                    {canDelete && (
-                      <Menu etiqueta={`Actions for ${s.name}`}>
-                        {(cerrar) => (
-                          <button
-                            type="button"
-                            data-variant="danger"
-                            disabled={ocupado}
-                            onClick={() => { cerrar(); setConfirmar({ accion: 'delete', nombre: s.name }) }}
-                          >
-                            Delete Scope
-                          </button>
-                        )}
-                      </Menu>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                  </Menu>
+                )}
+              </div>
+            </td>
+          </tr>
+        ))}
+      </Tabla>
 
       <div className={styles.total}>
         {/* El pie es el recuento y nada más. Cuando no hay filas, quien lo dice

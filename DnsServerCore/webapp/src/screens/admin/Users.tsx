@@ -25,7 +25,7 @@ import {
   type Aviso,
 } from './partes'
 import tbl from '../../ui/Table.module.css'
-import { AccionFila, Th, useOrden, type Claves } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import { Menu, Separador } from '../../ui/Menu'
 import { nuncaUsado } from '../../api/zones'
 
@@ -145,115 +145,108 @@ export function Users({ token, cluster, onAviso }: Props) {
         <Loading />
       ) : (
         <>
-          <div className={tbl.wrap}>
-            <table className={tbl.tabla}>
-              <thead>
-                <tr>
-                  <Th campo="username" orden={orden} onOrdenar={alternar}>Username</Th>
-                  <Th campo="display" orden={orden} onOrdenar={alternar}>Display Name</Th>
-                  <Th campo="type" orden={orden} onOrdenar={alternar}>Type</Th>
-                  <Th campo="totp" orden={orden} onOrdenar={alternar}>2FA Status</Th>
-                  <Th campo="status" orden={orden} onOrdenar={alternar}>Status</Th>
-                  <Th campo="recent" orden={orden} onOrdenar={alternar}>Recent Login</Th>
-                  <Th campo="previous" orden={orden} onOrdenar={alternar}>Previous Login</Th>
-                  <th className={tbl.celdaAcciones} />
-                </tr>
-              </thead>
-              <tbody>
-                {usuariosVisibles.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className={tbl.sinFilas}>
-                      No User Found
-                    </td>
-                  </tr>
-                )}
-                {usuariosVisibles.map((u) => (
-                  <tr key={u.username}>
-                    <td>
-                      <button
-                        type="button"
-                        className={styles.link}
-                        onClick={() => setDetalle(u.username)}
-                      >
-                        {u.username}
-                      </button>
-                    </td>
-                    <td>{u.displayName}</td>
-                    <td>{u.isSsoUser ? 'Remote/SSO' : 'Local'}</td>
-                    <td>
-                      {u.isSsoUser ? (
-                        <Tag tone="info">SSO Managed</Tag>
-                      ) : u.totpEnabled ? (
-                        <Tag tone="ok">Enabled</Tag>
-                      ) : (
-                        <Tag>Disabled</Tag>
-                      )}
-                    </td>
-                    <td>
-                      {u.disabled ? (
-                        <Tag>Disabled</Tag>
-                      ) : (
-                        <Tag tone="ok">Enabled</Tag>
-                      )}
-                    </td>
-                    {/*
-                    Upstream formatea la fecha sin mirar si es el mínimo de .NET
-                    (auth.js:1141), así que a un usuario que no ha entrado nunca
-                    le enseña «0000-12-31 23:45:16 from 0.0.0.0» —el año cero,
-                    porque convierte a hora local una fecha anterior a los husos—
-                    y una dirección que no existe. Eso no es un dato: es un valor
-                    centinela filtrándose a la pantalla. Se dice «Never», que es
-                    lo que significa, igual que se hizo con la columna DNSSEC.
-                    */}
-                    <td className={styles.mono}>{acceso(u.recentSessionLoggedOn, u.recentSessionRemoteAddress)}</td>
-                    <td className={styles.mono}>{acceso(u.previousSessionLoggedOn, u.previousSessionRemoteAddress)}</td>
-                    <td className={tbl.celdaAcciones}>
-                      <div className={tbl.acciones}>
-                        <AccionFila
-                          icono="ficha"
-                          nombre="View Details"
-                          onClick={() => setDetalle(u.username)}
-                        />
-                        <AccionFila
-                          icono="energia"
-                          nombre={u.disabled ? 'Enable User' : 'Disable User'}
-                          onClick={() =>
-                            u.disabled
-                              ? void cambiar(u, { disabled: 'false' }, {
-                                  type: 'success',
-                                  title: 'User Enabled!',
-                                  text: `User [${u.username}] account was enabled successfully.`,
-                                })
-                              : setAccion({ tipo: 'disable', user: u })
-                          }
-                        />
-                        <Menu etiqueta={`Actions for ${u.username}`}>
-                          {(cerrar) => (
-                            <>
-                              {!u.isSsoUser && (
-                                <button type="button" onClick={() => { cerrar(); setReset(u.username) }}>
-                                  Reset Password
-                                </button>
-                              )}
-                              {!u.isSsoUser && u.totpEnabled && (
-                                <button type="button" onClick={() => { cerrar(); setAccion({ tipo: '2fa', user: u }) }}>
-                                  Disable 2FA
-                                </button>
-                              )}
-                              <Separador />
-                              <button type="button" data-variant="danger" onClick={() => { cerrar(); setAccion({ tipo: 'delete', user: u }) }}>
-                                Delete User
-                              </button>
-                            </>
+          <Tabla
+            cabecera={
+              <>
+                <Th campo="username" orden={orden} onOrdenar={alternar}>Username</Th>
+                <Th campo="display" orden={orden} onOrdenar={alternar}>Display Name</Th>
+                <Th campo="type" orden={orden} onOrdenar={alternar}>Type</Th>
+                <Th campo="totp" orden={orden} onOrdenar={alternar}>2FA Status</Th>
+                <Th campo="status" orden={orden} onOrdenar={alternar}>Status</Th>
+                <Th campo="recent" orden={orden} onOrdenar={alternar}>Recent Login</Th>
+                <Th campo="previous" orden={orden} onOrdenar={alternar}>Previous Login</Th>
+                <th className={tbl.celdaAcciones} />
+              </>
+            }
+            vacia={usuariosVisibles.length === 0}
+            vacio="No User Found"
+            columnas={8}
+          >
+            {usuariosVisibles.map((u) => (
+              <tr key={u.username}>
+                <td>
+                  <button
+                    type="button"
+                    className={styles.link}
+                    onClick={() => setDetalle(u.username)}
+                  >
+                    {u.username}
+                  </button>
+                </td>
+                <td>{u.displayName}</td>
+                <td>{u.isSsoUser ? 'Remote/SSO' : 'Local'}</td>
+                <td>
+                  {u.isSsoUser ? (
+                    <Tag tone="info">SSO Managed</Tag>
+                  ) : u.totpEnabled ? (
+                    <Tag tone="ok">Enabled</Tag>
+                  ) : (
+                    <Tag>Disabled</Tag>
+                  )}
+                </td>
+                <td>
+                  {u.disabled ? (
+                    <Tag>Disabled</Tag>
+                  ) : (
+                    <Tag tone="ok">Enabled</Tag>
+                  )}
+                </td>
+                {/*
+                Upstream formatea la fecha sin mirar si es el mínimo de .NET
+                (auth.js:1141), así que a un usuario que no ha entrado nunca
+                le enseña «0000-12-31 23:45:16 from 0.0.0.0» —el año cero,
+                porque convierte a hora local una fecha anterior a los husos—
+                y una dirección que no existe. Eso no es un dato: es un valor
+                centinela filtrándose a la pantalla. Se dice «Never», que es
+                lo que significa, igual que se hizo con la columna DNSSEC.
+                */}
+                <td className={styles.mono}>{acceso(u.recentSessionLoggedOn, u.recentSessionRemoteAddress)}</td>
+                <td className={styles.mono}>{acceso(u.previousSessionLoggedOn, u.previousSessionRemoteAddress)}</td>
+                <td className={tbl.celdaAcciones}>
+                  <div className={tbl.acciones}>
+                    <AccionFila
+                      icono="ficha"
+                      nombre="View Details"
+                      onClick={() => setDetalle(u.username)}
+                    />
+                    <AccionFila
+                      icono="energia"
+                      nombre={u.disabled ? 'Enable User' : 'Disable User'}
+                      onClick={() =>
+                        u.disabled
+                          ? void cambiar(u, { disabled: 'false' }, {
+                              type: 'success',
+                              title: 'User Enabled!',
+                              text: `User [${u.username}] account was enabled successfully.`,
+                            })
+                          : setAccion({ tipo: 'disable', user: u })
+                      }
+                    />
+                    <Menu etiqueta={`Actions for ${u.username}`}>
+                      {(cerrar) => (
+                        <>
+                          {!u.isSsoUser && (
+                            <button type="button" onClick={() => { cerrar(); setReset(u.username) }}>
+                              Reset Password
+                            </button>
                           )}
-                        </Menu>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                          {!u.isSsoUser && u.totpEnabled && (
+                            <button type="button" onClick={() => { cerrar(); setAccion({ tipo: '2fa', user: u }) }}>
+                              Disable 2FA
+                            </button>
+                          )}
+                          <Separador />
+                          <button type="button" data-variant="danger" onClick={() => { cerrar(); setAccion({ tipo: 'delete', user: u }) }}>
+                            Delete User
+                          </button>
+                        </>
+                      )}
+                    </Menu>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </Tabla>
           <div className={styles.count}>
             <span>{`Total Users: ${usuarios.length}`}</span>
           </div>

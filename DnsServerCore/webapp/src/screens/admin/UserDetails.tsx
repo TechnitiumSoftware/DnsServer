@@ -27,7 +27,7 @@ import {
 } from './partes'
 import tbl from '../../ui/Table.module.css'
 import frm from '../../ui/Form.module.css'
-import { Th, useOrden, type Claves } from '../../ui/Table'
+import { Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 
 /*
 `showUserDetailsModal` / `saveUserDetails` / `deleteUserSession`
@@ -291,47 +291,44 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
             </MRow>
 
             <p className={styles.sub}>Active Sessions</p>
-            <div className={tbl.wrap}>
-              <table className={tbl.tabla}>
-                <thead>
-                  <tr>
-                    <Th campo="session" orden={orden} onOrdenar={alternar}>Session</Th>
-                    <Th campo="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
-                    <Th campo="address" orden={orden} onOrdenar={alternar}>Remote Address</Th>
-                    <Th campo="agent" orden={orden} onOrdenar={alternar}>User Agent</Th>
-                    <th className={tbl.celdaAcciones} />
-                  </tr>
-                </thead>
-                <tbody>
-                  {sesionesVisibles.map((s) => (
-                    <tr key={s.partialToken}>
-                      <td>
-                        <CeldaSesion sesion={s} />
-                      </td>
-                      <td className={styles.nowrap}>
-                        <div className={styles.mono}>{fechaHora(s.lastSeen)}</div>
-                        <div className={styles.meta}>{`(${desdeAhora(s.lastSeen)})`}</div>
-                      </td>
-                      <td className={styles.mono}>{s.lastSeenRemoteAddress}</td>
-                      <td>
-                        <span className={styles.ua}>{s.lastSeenUserAgent}</span>
-                      </td>
-                      <td className={tbl.celdaAcciones}>
-                        <div className={tbl.acciones}>
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            onClick={() => setPorBorrar(s)}
-                          >
-                            Delete Session
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Tabla
+              cabecera={
+                <>
+                  <Th campo="session" orden={orden} onOrdenar={alternar}>Session</Th>
+                  <Th campo="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
+                  <Th campo="address" orden={orden} onOrdenar={alternar}>Remote Address</Th>
+                  <Th campo="agent" orden={orden} onOrdenar={alternar}>User Agent</Th>
+                  <th className={tbl.celdaAcciones} />
+                </>
+              }
+            >
+              {sesionesVisibles.map((s) => (
+                <tr key={s.partialToken}>
+                  <td>
+                    <CeldaSesion sesion={s} />
+                  </td>
+                  <td className={styles.nowrap}>
+                    <div className={styles.mono}>{fechaHora(s.lastSeen)}</div>
+                    <div className={styles.meta}>{`(${desdeAhora(s.lastSeen)})`}</div>
+                  </td>
+                  <td className={styles.mono}>{s.lastSeenRemoteAddress}</td>
+                  <td>
+                    <span className={styles.ua}>{s.lastSeenUserAgent}</span>
+                  </td>
+                  <td className={tbl.celdaAcciones}>
+                    <div className={tbl.acciones}>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() => setPorBorrar(s)}
+                      >
+                        Delete Session
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </Tabla>
             <div className={styles.count}>
               <span>{`Total Sessions: ${sesiones.length}`}</span>
             </div>

@@ -14,9 +14,9 @@ import {
 import { primaryNodeName, type ClusterState } from '../../api/admin-cluster'
 import { anadirALaTabla, OPCION_BLANK, OPCION_NONE, serializarTabla, type Celda } from './tabla'
 import { avisoDeFallo, MRow, adminStyles as styles, type Aviso } from './partes'
-import tbl from '../../ui/Table.module.css'
 import { Th, useOrden, type Claves } from '../../ui/Table'
 import { Select } from '../../ui/Select'
+import { TablaEditable } from '../../ui/TablaEditable'
 
 /*
 `refreshAdminPermissions`, `showEditSectionPermissionsModal` y
@@ -402,55 +402,57 @@ function TablaPermisos({
   return (
     <>
       <p className={styles.sub}>{titulo}</p>
-      <div className={tbl.wrap}>
-        <table className={styles.edit}>
-          <thead>
-            <tr>
+      {/* La editable no lleva el envoltorio con panel de la tabla de datos: es
+          otra pieza (`ui/TablaEditable.module.css`) y vive DENTRO de un panel. */}
+      <div>
+        <TablaEditable
+      className={styles.edit}
+          cabecera={
+            <>
               <Th campo="nombre" orden={orden} onOrdenar={alternar}>{cabecera}</Th>
               <th>View</th>
               <th>Modify</th>
               <th>Delete</th>
               <th className={styles.tdel} />
+            </>
+          }
+        >
+          {visibles.map((f) => (
+            <tr key={f.nombre}>
+              <td className={styles.who}>{f.nombre}</td>
+              <td>
+                <input
+                  type="checkbox"
+                  className={styles.chkPerm}
+                  aria-label={`${f.nombre} View`}
+                  checked={f.canView}
+                  onChange={(e) => set(f, { canView: e.target.checked })}
+                />
+              </td>
+              <td>
+                <input
+                  type="checkbox"
+                  className={styles.chkPerm}
+                  aria-label={`${f.nombre} Modify`}
+                  checked={f.canModify}
+                  onChange={(e) => set(f, { canModify: e.target.checked })}
+                />
+              </td>
+              <td>
+                <input
+                  type="checkbox"
+                  className={styles.chkPerm}
+                  aria-label={`${f.nombre} Delete`}
+                  checked={f.canDelete}
+                  onChange={(e) => set(f, { canDelete: e.target.checked })}
+                />
+              </td>
+              <td className={styles.tdel}>
+                <Button onClick={() => onChange(filas.filter((x) => x.nombre !== f.nombre))}>Remove</Button>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {visibles.map((f) => (
-              <tr key={f.nombre}>
-                <td className={styles.who}>{f.nombre}</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    className={styles.chkPerm}
-                    aria-label={`${f.nombre} View`}
-                    checked={f.canView}
-                    onChange={(e) => set(f, { canView: e.target.checked })}
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    className={styles.chkPerm}
-                    aria-label={`${f.nombre} Modify`}
-                    checked={f.canModify}
-                    onChange={(e) => set(f, { canModify: e.target.checked })}
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    className={styles.chkPerm}
-                    aria-label={`${f.nombre} Delete`}
-                    checked={f.canDelete}
-                    onChange={(e) => set(f, { canDelete: e.target.checked })}
-                  />
-                </td>
-                <td className={styles.tdel}>
-                  <Button onClick={() => onChange(filas.filter((x) => x.nombre !== f.nombre))}>Remove</Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          ))}
+        </TablaEditable>
         {/* Upstream no pone ningún texto cuando la tabla del modal está vacía;
             aquí tampoco, para no inventar un literal que no existe. */}
       </div>

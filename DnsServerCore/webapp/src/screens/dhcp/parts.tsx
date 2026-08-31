@@ -6,6 +6,7 @@ import styles from './Dhcp.module.css'
 import { Panel } from '../../ui/Panel'
 import { Empty } from '../../ui/Empty'
 import frm from '../../ui/Form.module.css'
+import { TablaEditable } from '../../ui/TablaEditable'
 export { Check } from '../../ui/Check'
 
 /*
@@ -208,53 +209,53 @@ export function EditableTable<T extends Record<string, string>>({
     <div className={frm.row}>
       <div className={frm.rowLabel}>{label}</div>
       <div className={frm.rowCtl}>
-        <table className={styles.editable}>
-          <thead>
-            <tr>
+        <TablaEditable
+      className={styles.editable}
+          cabecera={
+            <>
               {columnas.map((c) => (
                 <th key={c.key}>{c.label}</th>
               ))}
               <th className={styles.tdel} />
+            </>
+          }
+        >
+          {filas.map((fila, i) => (
+            // Las filas no tienen identidad estable en upstream: se numeran
+            // con un aleatorio. El índice es el mismo criterio.
+            // eslint-disable-next-line react/no-array-index-key
+            <tr key={i}>
+              {columnas.map((c) => {
+                const id = idCelda(tabla, i, c.key)
+                return (
+                  <td key={c.key}>
+                    <Input
+                      id={id}
+                      aria-label={`${label} ${i + 1} ${c.label}`}
+                      type={c.type ?? 'text'}
+                      min={c.min}
+                      max={c.max}
+                      value={fila[c.key]}
+                      onChange={(e) =>
+                        onChange(
+                          filas.map((r, j) => (j === i ? { ...r, [c.key]: e.target.value } : r)),
+                        )
+                      }
+                    />
+                  </td>
+                )
+              })}
+              <td className={styles.tdel}>
+                <Button
+                  variant="danger"
+                  onClick={() => onChange(filas.filter((_, j) => j !== i))}
+                >
+                  Delete
+                </Button>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {filas.map((fila, i) => (
-              // Las filas no tienen identidad estable en upstream: se numeran
-              // con un aleatorio. El índice es el mismo criterio.
-              // eslint-disable-next-line react/no-array-index-key
-              <tr key={i}>
-                {columnas.map((c) => {
-                  const id = idCelda(tabla, i, c.key)
-                  return (
-                    <td key={c.key}>
-                      <Input
-                        id={id}
-                        aria-label={`${label} ${i + 1} ${c.label}`}
-                        type={c.type ?? 'text'}
-                        min={c.min}
-                        max={c.max}
-                        value={fila[c.key]}
-                        onChange={(e) =>
-                          onChange(
-                            filas.map((r, j) => (j === i ? { ...r, [c.key]: e.target.value } : r)),
-                          )
-                        }
-                      />
-                    </td>
-                  )
-                })}
-                <td className={styles.tdel}>
-                  <Button
-                    variant="danger"
-                    onClick={() => onChange(filas.filter((_, j) => j !== i))}
-                  >
-                    Delete
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          ))}
+        </TablaEditable>
         {filas.length === 0 && <Empty compacto>No entries.</Empty>}
         <div>
           <Button onClick={() => onChange([...filas, nueva()])}>Add</Button>

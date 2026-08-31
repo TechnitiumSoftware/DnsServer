@@ -16,7 +16,7 @@ import { Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import tbl from '../../ui/Table.module.css'
 import styles from './Dhcp.module.css'
-import { AccionFila, Th, useOrden, type Claves } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
 
 /*
@@ -172,80 +172,73 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
         </Alert>
       )}
 
-      <div className={tbl.wrap}>
-        <table className={tbl.tabla}>
-          <thead>
-            <tr>
-              <Th campo="scope" orden={orden} onOrdenar={alternar}>Scope</Th>
-              <Th campo="mac" orden={orden} onOrdenar={alternar}>MAC Address</Th>
-              <Th campo="address" orden={orden} onOrdenar={alternar}>IP Address</Th>
-              <Th campo="type" orden={orden} onOrdenar={alternar} nombre="Type" />
-              <Th campo="host" orden={orden} onOrdenar={alternar}>Host Name</Th>
-              <Th campo="obtained" orden={orden} onOrdenar={alternar}>Lease Obtained</Th>
-              <Th campo="expires" orden={orden} onOrdenar={alternar}>Lease Expires</Th>
-              <th className={tbl.celdaAcciones} />
-            </tr>
-          </thead>
-          <tbody>
-            {leasesVisibles.length === 0 && (
-              <tr>
-                <td colSpan={8} className={tbl.sinFilas}>
-                  No Lease Found
-                </td>
-              </tr>
-            )}
-            {leasesVisibles.map((l, i) => (
-              <tr key={`${l.scope}/${l.clientIdentifier}`}>
-                <td className={styles.mono}>{l.scope}</td>
-                <td className={styles.mono}>{l.hardwareAddress}</td>
-                <td className={styles.mono}>{l.address}</td>
-                <td>
-                  <Tag tone={l.type === 'Reserved' ? 'neutral' : 'ok'}>
-                    {l.type}
-                  </Tag>
-                </td>
-                <td className={styles.mono}>{l.hostName}</td>
-                <td className={styles.fecha}>{fechaMinuto(l.leaseObtained)}</td>
-                <td className={styles.fecha}>{fechaMinuto(l.leaseExpires)}</td>
-                <td className={tbl.celdaAcciones}>
-                  <div className={tbl.acciones}>
-                    {/* dhcp.js:63-64 — cuál de las dos conversiones se ofrece
-                        depende del tipo actual de la concesión. */}
-                    {canModify && (
-                      <AccionFila
-                        icono="convertir"
-                        nombre={
-                          l.type === 'Dynamic'
-                            ? 'Convert To Reserved Lease'
-                            : 'Convert To Dynamic Lease'
-                        }
+      <Tabla
+        cabecera={
+          <>
+            <Th campo="scope" orden={orden} onOrdenar={alternar}>Scope</Th>
+            <Th campo="mac" orden={orden} onOrdenar={alternar}>MAC Address</Th>
+            <Th campo="address" orden={orden} onOrdenar={alternar}>IP Address</Th>
+            <Th campo="type" orden={orden} onOrdenar={alternar} nombre="Type" />
+            <Th campo="host" orden={orden} onOrdenar={alternar}>Host Name</Th>
+            <Th campo="obtained" orden={orden} onOrdenar={alternar}>Lease Obtained</Th>
+            <Th campo="expires" orden={orden} onOrdenar={alternar}>Lease Expires</Th>
+            <th className={tbl.celdaAcciones} />
+          </>
+        }
+        vacia={leasesVisibles.length === 0}
+        vacio="No Lease Found"
+        columnas={8}
+      >
+        {leasesVisibles.map((l, i) => (
+          <tr key={`${l.scope}/${l.clientIdentifier}`}>
+            <td className={styles.mono}>{l.scope}</td>
+            <td className={styles.mono}>{l.hardwareAddress}</td>
+            <td className={styles.mono}>{l.address}</td>
+            <td>
+              <Tag tone={l.type === 'Reserved' ? 'neutral' : 'ok'}>
+                {l.type}
+              </Tag>
+            </td>
+            <td className={styles.mono}>{l.hostName}</td>
+            <td className={styles.fecha}>{fechaMinuto(l.leaseObtained)}</td>
+            <td className={styles.fecha}>{fechaMinuto(l.leaseExpires)}</td>
+            <td className={tbl.celdaAcciones}>
+              <div className={tbl.acciones}>
+                {/* dhcp.js:63-64 — cuál de las dos conversiones se ofrece
+                    depende del tipo actual de la concesión. */}
+                {canModify && (
+                  <AccionFila
+                    icono="convertir"
+                    nombre={
+                      l.type === 'Dynamic'
+                        ? 'Convert To Reserved Lease'
+                        : 'Convert To Dynamic Lease'
+                    }
+                    disabled={ocupado}
+                    onClick={() =>
+                      setConfirmar({ tipo: l.type === 'Dynamic' ? 'reserve' : 'dynamic', i })
+                    }
+                  />
+                )}
+                {canDelete && (
+                  <Menu etiqueta={`Actions for ${l.address}`}>
+                    {(cerrar) => (
+                      <button
+                        type="button"
+                        data-variant="danger"
                         disabled={ocupado}
-                        onClick={() =>
-                          setConfirmar({ tipo: l.type === 'Dynamic' ? 'reserve' : 'dynamic', i })
-                        }
-                      />
+                        onClick={() => { cerrar(); setAvisoModal(null); setQuitar(i) }}
+                      >
+                        Remove Lease
+                      </button>
                     )}
-                    {canDelete && (
-                      <Menu etiqueta={`Actions for ${l.address}`}>
-                        {(cerrar) => (
-                          <button
-                            type="button"
-                            data-variant="danger"
-                            disabled={ocupado}
-                            onClick={() => { cerrar(); setAvisoModal(null); setQuitar(i) }}
-                          >
-                            Remove Lease
-                          </button>
-                        )}
-                      </Menu>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                  </Menu>
+                )}
+              </div>
+            </td>
+          </tr>
+        ))}
+      </Tabla>
 
       <div className={styles.total}>
         {/* El pie es el recuento y nada más. Cuando no hay filas, quien lo dice
