@@ -29,6 +29,7 @@ import tbl from '../../ui/Table.module.css'
 import frm from '../../ui/Form.module.css'
 import { Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import { Avisador } from '../../ui/Avisador'
+import { Menu } from '../../ui/Menu'
 
 /*
 `showUserDetailsModal` / `saveUserDetails` / `deleteUserSession`
@@ -314,13 +315,22 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
                   </td>
                   <td className={tbl.celdaAcciones}>
                     <div className={tbl.acciones}>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onClick={() => setPorBorrar(s)}
-                      >
-                        Delete Session
-                      </Button>
+                      {/* Dentro del menú, como en «Administration > Sessions» y
+                          como upstream, que también lo pone en un desplegable
+                          (`auth.js`, `deleteUserSession`). Suelto era el único
+                          «Delete» de una fila sin la fricción que la regla
+                          exige, en una consola sin deshacer. */}
+                      <Menu etiqueta={`Actions for ${s.partialToken}`}>
+                        {(cerrar) => (
+                          <button
+                            type="button"
+                            data-variant="danger"
+                            onClick={() => { cerrar(); setPorBorrar(s) }}
+                          >
+                            Delete Session
+                          </button>
+                        )}
+                      </Menu>
                     </div>
                   </td>
                 </tr>

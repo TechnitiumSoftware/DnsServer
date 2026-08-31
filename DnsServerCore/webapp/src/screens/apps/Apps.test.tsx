@@ -140,23 +140,29 @@ describe('Apps — lista de instaladas', () => {
 })
 
 describe('Apps — desinstalar', () => {
+  /*
+  La confirmación es el diálogo de la consola, no el `confirm()` nativo del
+  navegador: desinstalar una app era uno de los tres pasos que seguían abriendo
+  el del sistema operativo. El texto sigue siendo el literal de upstream
+  (`apps.js:425`).
+  */
   it('pide confirmación con el texto literal de upstream', async () => {
     conApps([AL_DIA])
-    const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false)
     const spy = vi.spyOn(api, 'uninstallApp')
     render(<Apps token="t" />)
     await screen.findByRole('listitem', { name: 'What Is My Dns' })
 
     await userEvent.click(tarjeta('What Is My Dns').getByRole('button', { name: 'Uninstall' }))
-    expect(confirmar).toHaveBeenCalledWith(
-      "Are you sure you want to uninstall the DNS application 'What Is My Dns'?",
-    )
+    expect(
+      screen.getByText(
+        "Are you sure you want to uninstall the DNS application 'What Is My Dns'?",
+      ),
+    ).toBeInTheDocument()
     expect(spy).not.toHaveBeenCalled()
   })
 
   it('al confirmar desinstala y avisa con el texto literal', async () => {
     conApps([AL_DIA])
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     const spy = vi
       .spyOn(api, 'uninstallApp')
       .mockResolvedValue({ kind: 'ok', data: { status: 'ok' } } as never)
@@ -164,6 +170,9 @@ describe('Apps — desinstalar', () => {
     await screen.findByRole('listitem', { name: 'What Is My Dns' })
 
     await userEvent.click(tarjeta('What Is My Dns').getByRole('button', { name: 'Uninstall' }))
+    await userEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Uninstall' }),
+    )
     expect(spy.mock.calls[0][1]).toBe('What Is My Dns')
     expect(
       await screen.findByText("DNS application 'What Is My Dns' was uninstalled successfully."),
@@ -384,16 +393,19 @@ describe('Apps — tienda', () => {
   it('desinstalar desde la tienda confirma con el literal y avisa con el suyo propio', async () => {
     conApps([CON_UPDATE])
     conTienda(TIENDA)
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     vi.spyOn(api, 'uninstallApp').mockResolvedValue({ kind: 'ok', data: { status: 'ok' } } as never)
     render(<Apps token="t" />)
     await screen.findByRole('listitem', { name: 'NO DATA' })
     await abrirTienda()
 
     const fila = within(
-      await within(screen.getByRole('dialog')).findByRole('listitem', { name: 'NO DATA' }),
+      await within(screen.getAllByRole('dialog')[0]).findByRole('listitem', { name: 'NO DATA' }),
     )
     await userEvent.click(fila.getByRole('button', { name: 'Uninstall' }))
+    // La confirmación se apila sobre el diálogo de la tienda.
+    await userEvent.click(
+      within(screen.getAllByRole('dialog').at(-1)!).getByRole('button', { name: 'Uninstall' }),
+    )
     expect(
       await screen.findByText("DNS application 'NO DATA' was uninstalled successfully."),
     ).toBeInTheDocument()

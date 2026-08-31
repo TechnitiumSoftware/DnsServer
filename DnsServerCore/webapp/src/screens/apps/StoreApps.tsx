@@ -7,6 +7,7 @@ import { Empty, Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import styles from './Apps.module.css'
 import { Avisador } from '../../ui/Avisador'
+import { Confirmar } from '../../ui/Confirmar'
 
 /*
 Réplica de `modalStoreApps` (index.html:6148-6183) y de las tres acciones que
@@ -37,6 +38,7 @@ export function StoreApps({
   const [storeApps, setStoreApps] = useState<StoreApp[] | null>(null)
   const [alert, setAlert] = useState<AlertState | null>(null)
   const [ocupado, setOcupado] = useState<string | null>(null)
+  const [porDesinstalar, setPorDesinstalar] = useState<StoreApp | null>(null)
 
   const cargar = useCallback(async () => {
     const outcome = await listStoreApps(token)
@@ -93,11 +95,14 @@ export function StoreApps({
     )
   }
 
-  // apps.js:292-294 — misma confirmación literal que la de la pestaña.
+  /*
+  apps.js:292-294 — misma confirmación literal que la de la pestaña.
+
+  Se apila sobre este diálogo, que es lo que hace Radix con un modal dentro de
+  otro. Antes era el `confirm()` nativo del navegador, el único paso de esta
+  consola que seguía abriendo el diálogo del sistema operativo.
+  */
   function desinstalar(app: StoreApp) {
-    if (!window.confirm(`Are you sure you want to uninstall the DNS application '${app.name}'?`)) {
-      return Promise.resolve()
-    }
     return tras(
       app,
       {
@@ -117,6 +122,15 @@ export function StoreApps({
       title="DNS App Store"
     >
       <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
+
+      <Confirmar
+        abierto={porDesinstalar !== null}
+        titulo="Uninstall App"
+        texto={`Are you sure you want to uninstall the DNS application '${porDesinstalar?.name ?? ''}'?`}
+        etiqueta="Uninstall"
+        onCerrar={() => setPorDesinstalar(null)}
+        onConfirmar={() => porDesinstalar && desinstalar(porDesinstalar)}
+      />
 
       {storeApps === null ? (
         <Loading />
@@ -170,7 +184,7 @@ export function StoreApps({
                       <Button
                         variant="danger"
                         disabled={ocupado === app.name}
-                        onClick={() => void desinstalar(app)}
+                        onClick={() => setPorDesinstalar(app)}
                       >
                         Uninstall
                       </Button>

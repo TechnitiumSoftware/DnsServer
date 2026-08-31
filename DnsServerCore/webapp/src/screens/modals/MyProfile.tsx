@@ -12,6 +12,8 @@ import { Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import { desdeAhora, fechaHora } from '../../lib/fechas'
 import { avisoDeFallo } from '../../lib/aviso'
 import { Avisador } from '../../ui/Avisador'
+import { Confirmar } from '../../ui/Confirmar'
+import { Menu } from '../../ui/Menu'
 
 /*
 Réplica de `showMyProfileModal` / `saveMyProfile` (auth.js:642-794).
@@ -61,6 +63,7 @@ export function MyProfile({
   const [alert, setAlert] = useState<{ type: AlertType; title: string; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [porBorrar, setPorBorrar] = useState<SessionRow | null>(null)
 
   // Limpiar el aviso SÓLO al abrir. Si se limpiara también al recargar, el
   // mensaje de «sesión borrada» se perdería, porque borrar dispara una recarga.
@@ -83,9 +86,12 @@ export function MyProfile({
   /*
   auth.js:795-838 — antes de borrar una sesión upstream pide confirmación con
   este texto exacto, y el mensaje de éxito también es literal.
+
+  La confirmación es `ui/Confirmar`, la misma que usan «Administration >
+  Sessions» y «User Details» para esta misma acción. Aquí se había quedado el
+  `confirm()` nativo del navegador.
   */
   async function borrarSesion(row: SessionRow) {
-    if (!window.confirm(`Are you sure you want to delete the session [${row.partialToken}] ?`)) return
     const outcome = await deleteSession(token, row.partialToken)
     if (outcome.kind === 'ok') {
       setAlert({
@@ -217,20 +223,37 @@ export function MyProfile({
               <td>
                 <CeldaAgente>{row.lastSeenUserAgent}</CeldaAgente>
               </td>
-              <td>
-                <Button
-                  variant="danger"
-                  onClick={() => void borrarSesion(row)}
-                  aria-label={`Delete session ${row.partialToken}`}
-                >
-                  Delete Session
-                </Button>
+              <td className={tbl.celdaAcciones}>
+                <div className={tbl.acciones}>
+                  {/* En un desplegable, como en las otras dos tablas de sesiones
+                      y como upstream (`auth.js`, `deleteMySession`). */}
+                  <Menu etiqueta={`Actions for ${row.partialToken}`}>
+                    {(cerrar) => (
+                      <button
+                        type="button"
+                        data-variant="danger"
+                        onClick={() => { cerrar(); setPorBorrar(row) }}
+                      >
+                        Delete Session
+                      </button>
+                    )}
+                  </Menu>
+                </div>
               </td>
             </tr>
           ))}
         </Tabla>
         <div className={styles.total}>Total Sessions: {profile?.sessions?.length ?? 0}</div>
       </div>
+
+      <Confirmar
+        abierto={porBorrar !== null}
+        titulo="Delete Session"
+        texto={`Are you sure you want to delete the session [${porBorrar?.partialToken ?? ''}] ?`}
+        etiqueta="Delete Session"
+        onCerrar={() => setPorBorrar(null)}
+        onConfirmar={() => porBorrar && borrarSesion(porBorrar)}
+      />
     </Dialog>
   )
 }

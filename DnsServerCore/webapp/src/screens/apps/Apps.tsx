@@ -19,6 +19,7 @@ import { Tag } from '../../ui/Tag'
 import styles from './Apps.module.css'
 import { avisoDeFallo } from '../../lib/aviso'
 import { Avisador } from '../../ui/Avisador'
+import { Confirmar } from '../../ui/Confirmar'
 
 /*
 Réplica de la pestaña Apps (apps.js + index.html:807-835).
@@ -56,6 +57,7 @@ export function Apps({ token }: { token: string | null }) {
   const [alert, setAlert] = useState<AlertState | null>(null)
   const [modal, setModal] = useState<Modal | null>(null)
   const [ocupado, setOcupado] = useState<string | null>(null)
+  const [porDesinstalar, setPorDesinstalar] = useState<string | null>(null)
 
   const recargar = useCallback(async () => {
     const outcome = await listApps(token)
@@ -71,10 +73,15 @@ export function Apps({ token }: { token: string | null }) {
     void recargar()
   }, [recargar])
 
-  // apps.js:425-449 — la confirmación y el aviso son literales de upstream.
-  async function desinstalar(name: string) {
-    if (!window.confirm(`Are you sure you want to uninstall the DNS application '${name}'?`)) return
+  /*
+  apps.js:425-449 — la confirmación y el aviso son literales de upstream.
 
+  El paso de confirmar es `ui/Confirmar`, como en las otras once acciones
+  destructivas de la consola. Aquí se había quedado el `confirm()` nativo del
+  navegador: el mismo diálogo del sistema operativo que el rediseño sustituyó en
+  todas partes, en una acción que desinstala una aplicación del servidor.
+  */
+  async function desinstalar(name: string) {
     setOcupado(name)
     const outcome = await uninstallApp(token, name)
     setOcupado(null)
@@ -177,11 +184,20 @@ export function Apps({ token }: { token: string | null }) {
               onConfig={() => void abrirConfig(app.name)}
               onUpdate={() => setModal({ kind: 'update', name: app.name })}
               onStoreUpdate={() => void actualizarDesdeTienda(app)}
-              onUninstall={() => void desinstalar(app.name)}
+              onUninstall={() => setPorDesinstalar(app.name)}
             />
           ))}
         </ul>
       )}
+
+      <Confirmar
+        abierto={porDesinstalar !== null}
+        titulo="Uninstall App"
+        texto={`Are you sure you want to uninstall the DNS application '${porDesinstalar ?? ''}'?`}
+        etiqueta="Uninstall"
+        onCerrar={() => setPorDesinstalar(null)}
+        onConfirmar={() => porDesinstalar && desinstalar(porDesinstalar)}
+      />
 
       <StoreApps
         open={modal?.kind === 'store'}

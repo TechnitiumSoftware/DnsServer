@@ -208,23 +208,35 @@ describe('My Profile — sesiones activas', () => {
     expect(screen.getByText('API Token')).toBeInTheDocument()
   })
 
+  /*
+  La confirmación es el diálogo de la consola, no el `confirm()` nativo del
+  navegador: era el único paso de todo el rediseño que seguía abriendo el del
+  sistema operativo. El texto sigue siendo el literal de upstream
+  (`auth.js:803`), que es lo que estas dos pruebas cuidan.
+  */
+  async function abrirBorradoDeSesion() {
+    await userEvent.click(screen.getByRole('button', { name: 'Actions for bbb222' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Delete Session' }))
+  }
+
   it('pide confirmación con el texto literal antes de borrar', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(conSesiones)
-    const confirmar = vi.fn().mockReturnValue(false)
-    vi.stubGlobal('confirm', confirmar)
     render(<MyProfile open onOpenChange={() => {}} token="t" />)
     await screen.findByText('Total Sessions: 2')
-    await userEvent.click(screen.getByLabelText('Delete session bbb222'))
-    expect(confirmar).toHaveBeenCalledWith('Are you sure you want to delete the session [bbb222] ?')
-    vi.unstubAllGlobals()
+    await abrirBorradoDeSesion()
+    expect(
+      screen.getByText('Are you sure you want to delete the session [bbb222] ?'),
+    ).toBeInTheDocument()
   })
 
   it('si se confirma, borra y avisa con el texto literal', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(conSesiones)
-    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
     render(<MyProfile open onOpenChange={() => {}} token="t" />)
     await screen.findByText('Total Sessions: 2')
-    await userEvent.click(screen.getByLabelText('Delete session bbb222'))
+    await abrirBorradoDeSesion()
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Delete Session', hidden: false }),
+    )
     expect(spy.mock.calls.some((c) => c[0] === 'user/session/delete')).toBe(true)
     expect(await screen.findByText('The user session was deleted successfully.')).toBeInTheDocument()
     vi.unstubAllGlobals()
