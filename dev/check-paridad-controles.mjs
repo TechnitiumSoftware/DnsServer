@@ -64,9 +64,24 @@ const decodifica = (t) =>
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
 
+/*
+La fuente SIN comentarios.
+
+Un comentario no es interfaz: nadie lo lee en la pantalla. Mientras estuvieron en
+castellano daba igual, porque no podían casar con una frase inglesa de upstream;
+al traducirlos al inglés dejó de dar igual — un comentario que citara el texto de
+ayuda que explica haría casar una ayuda REALMENTE perdida, y esta comprobación
+pasaría a verde por el motivo contrario al que existe.
+
+Se recortan antes de comparar. Las cadenas del código se quedan, que ahí es
+justamente donde vive el texto que se busca.
+*/
+const sinComentarios = (t) =>
+  t.replaceAll(/\/\*[\s\S]*?\*\//g, ' ').replaceAll(/^\s*\/\/[^\n]*/gm, ' ')
+
 const nuestro = ficheros(FUENTE)
   .filter((f) => !/\.test\./.test(f))
-  .map((f) => readFileSync(f, 'utf8'))
+  .map((f) => sinComentarios(readFileSync(f, 'utf8')))
   .join('\n')
 
 const html = await fetch(`${REF}/`).then((r) => {
