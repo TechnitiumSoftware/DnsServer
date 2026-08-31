@@ -76,6 +76,7 @@ export function ClonarZona({
         <LabeledInput label="Source Zone" mono readOnly value={zone} />
         <LabeledInput
           label="New Zone"
+          placeholder="example.com"
           mono
           ref={campo}
           value={nueva}

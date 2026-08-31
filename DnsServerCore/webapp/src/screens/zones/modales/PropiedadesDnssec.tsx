@@ -504,6 +504,9 @@ export function PropiedadesDnssec({
                   <Field label="Private Key">
                     {(id) => (
                       <Textarea
+                        placeholder={`-----BEGIN PRIVATE KEY-----
+MII...
+-----END PRIVATE KEY-----`}
                         id={id}
                         mono
                         className={styles.area}
@@ -521,6 +524,7 @@ export function PropiedadesDnssec({
                 {(id) => (
                   <div className={styles.enLinea}>
                     <Input
+                      placeholder="days"
                       id={id}
                       mono
                       className={styles.corto}
@@ -564,6 +568,7 @@ export function PropiedadesDnssec({
                 <Field label="NSEC3 Iterations">
                   {(id) => (
                     <Input
+                      placeholder="iterations"
                       id={id}
                       mono
                       className={styles.corto}
@@ -581,6 +586,7 @@ export function PropiedadesDnssec({
                 <Field label="NSEC3 Salt Length">
                   {(id) => (
                     <Input
+                      placeholder="length"
                       id={id}
                       mono
                       className={styles.corto}
@@ -609,6 +615,7 @@ export function PropiedadesDnssec({
               {(id) => (
                 <div className={styles.enLinea}>
                   <Input
+                    placeholder="ttl"
                     id={id}
                     mono
                     className={styles.corto}

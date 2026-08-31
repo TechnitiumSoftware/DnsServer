@@ -164,4 +164,53 @@ console.log(
     : `PARIDAD DE AYUDAS: faltan ${sinAyuda.length} de ${AYUDAS.length}.`,
 )
 
-process.exit(faltan.length + sinAyuda.length === 0 ? 0 : 1)
+/*
+Y los EJEMPLOS de cada campo, que es lo que upstream pone en `placeholder`.
+
+Se añadió después de encontrar treinta y cuatro perdidos, y algunos no eran
+adorno: el de «Add Zone» decía `example.com or 192.168.0.0/24 or 2001:db8::/64`,
+que es cómo se descubre que ahí cabe una zona inversa en CIDR, y el de
+«Certificate Association Data» traía el hexadecimal de ejemplo y la alternativa
+en PEM. Sin ellos el campo no explica qué espera.
+
+Se compara por VALOR contra toda la fuente, con la misma limitación que las
+otras dos comprobaciones y por el mismo motivo: encontrar en qué componente
+acaba cada campo exigiría entender el JSX. Eso deja pasar el caso en que el
+ejemplo está, pero en otro campo —pasó con «confirm password», que existía en
+«Add User» y faltaba en «Change Password»—, así que un valor repetido en varios
+campos hay que mirarlo a ojo. Lo que sí caza, y es lo que hacía falta, es la
+pérdida entera.
+*/
+const EJEMPLOS = new Map()
+for (const m of html.matchAll(/<(?:input|textarea)[^>]*>/g)) {
+  const ph = /placeholder="([^"]*)"/.exec(m[0])
+  if (!ph) continue
+  const id = /id="([^"]*)"/.exec(m[0])
+  /* La imagen de upstream se construyó en Windows y sus ejemplos de varias
+     líneas traen CRLF; nuestro árbol es LF. Es la misma normalización que hace
+     `dev/check-paridad.sh`, y sin ella los cuatro ejemplos multilínea salían
+     como perdidos por un retorno de carro. */
+  const valor = decodifica(ph[1]).replace(/\r\n/g, '\n')
+  if (valor.trim().length < 1) continue
+  if (!EJEMPLOS.has(valor)) EJEMPLOS.set(valor, id ? id[1] : '?')
+}
+
+/* El ejemplo del forwarder lo reescribe `zone.js:139-152` según el protocolo, y
+   aquí se hace lo mismo en `ejemploDeForwarder`: el del HTML es sólo el inicial. */
+const DINAMICOS = new Set(['8.8.8.8'])
+
+const sinEjemplo = [...EJEMPLOS].filter(
+  ([valor]) => !DINAMICOS.has(valor) && !nuestro.includes(valor.split('\n')[0]),
+)
+
+console.log('')
+for (const [valor, id] of sinEjemplo) {
+  console.log(`  FALTA    ejemplo de ${id}: ${valor.split('\n')[0].slice(0, 60)}`)
+}
+console.log(
+  sinEjemplo.length === 0
+    ? `PARIDAD DE EJEMPLOS: los ${EJEMPLOS.size} de upstream están.`
+    : `PARIDAD DE EJEMPLOS: faltan ${sinEjemplo.length} de ${EJEMPLOS.size}.`,
+)
+
+process.exit(faltan.length + sinAyuda.length + sinEjemplo.length === 0 ? 0 : 1)

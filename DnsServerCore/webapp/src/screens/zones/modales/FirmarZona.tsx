@@ -245,6 +245,7 @@ export function FirmarZona({
               {(id) => (
                 <div className={styles.enLinea}>
                   <Input
+                    placeholder="iterations"
                     id={id}
                     mono
                     className={styles.corto}
@@ -265,6 +266,7 @@ export function FirmarZona({
               {(id) => (
                 <div className={styles.enLinea}>
                   <Input
+                    placeholder="length"
                     id={id}
                     mono
                     className={styles.corto}
@@ -287,6 +289,7 @@ export function FirmarZona({
           {(id) => (
             <div className={styles.enLinea}>
               <Input
+                placeholder="ttl"
                 id={id}
                 mono
                 className={styles.corto}
@@ -307,6 +310,7 @@ export function FirmarZona({
           {(id) => (
             <div className={styles.enLinea}>
               <Input
+                placeholder="days"
                 id={id}
                 mono
                 className={styles.corto}

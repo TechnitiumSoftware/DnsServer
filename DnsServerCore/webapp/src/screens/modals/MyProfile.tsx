@@ -159,12 +159,14 @@ export function MyProfile({
       />
       <LabeledInput
         label="Display Name"
+        placeholder="display name"
         value={displayName}
         disabled={profile?.isSsoUser ?? false}
         onChange={(e) => setDisplayName(e.target.value)}
       />
       <LabeledInput
         label="Session Timeout"
+        placeholder="1800"
         mono
         value={timeout}
         onChange={(e) => setTimeoutSeconds(e.target.value)}

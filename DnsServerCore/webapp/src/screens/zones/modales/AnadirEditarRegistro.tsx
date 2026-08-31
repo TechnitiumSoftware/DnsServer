@@ -344,6 +344,8 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
           <Field label="Glue Addresses">
             {(id) => (
               <Textarea
+                placeholder={`192.168.1.1
+2001:db8::`}
                 id={id}
                 mono
                 className={styles.area}
@@ -359,7 +361,7 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
       return (
         <>
           {texto('Primary Name Server', 'soaPrimaryNameServer', { mono: true })}
-          {texto('Responsible Person', 'soaResponsiblePerson', { mono: true })}
+          {texto('Responsible Person', 'soaResponsiblePerson', { mono: true, placeholder: 'email address' })}
           {texto('Serial', 'soaSerial', { mono: true, corto: true })}
           {texto('Refresh', 'soaRefresh', { mono: true, corto: true })}
           {texto('Retry', 'soaRetry', { mono: true, corto: true })}
@@ -424,8 +426,8 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
     case 'RP':
       return (
         <>
-          {texto('Mailbox', 'rpMailbox', { mono: true })}
-          {texto('TXT Domain', 'rpTxtDomain', { mono: true })}
+          {texto('Mailbox', 'rpMailbox', { mono: true, placeholder: 'email address' })}
+          {texto('TXT Domain', 'rpTxtDomain', { mono: true, placeholder: '.' })}
         </>
       )
 
@@ -454,10 +456,10 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
     case 'DS':
       return (
         <>
-          {texto('Key Tag', 'dsKeyTag', { mono: true, corto: true })}
+          {texto('Key Tag', 'dsKeyTag', { mono: true, corto: true, placeholder: 'key tag' })}
           {desplegable('DNSSEC Algorithm', 'dsAlgorithm', ALGORITMOS_DS)}
           {desplegable('Digest Type', 'dsDigestType', DIGESTS_DS)}
-          {texto('Digest', 'dsDigest', { mono: true })}
+          {texto('Digest', 'dsDigest', { mono: true, placeholder: 'hash string' })}
         </>
       )
 
@@ -466,7 +468,7 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
         <>
           {desplegable('Algorithm', 'sshfpAlgorithm', ALGORITMOS_SSHFP)}
           {desplegable('Fingerprint Type', 'sshfpFingerprintType', HUELLAS_SSHFP)}
-          {texto('Fingerprint', 'sshfpFingerprint', { mono: true })}
+          {texto('Fingerprint', 'sshfpFingerprint', { mono: true, placeholder: 'hash string' })}
         </>
       )
 
@@ -479,6 +481,12 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
           <Field label="Certificate Association Data">
             {(id) => (
               <Textarea
+                placeholder={`5F95253A20A0957648DEBAAEB032F7C5720CD4F0DCF928840C55650687921DAE
+          OR
+-----BEGIN CERTIFICATE-----
+MII...
+-----END CERTIFICATE-----
+`}
                 id={id}
                 mono
                 className={styles.area}
@@ -593,7 +601,7 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
             mono: true,
             placeholder: ejemploDeForwarder(f.forwarderProtocol),
           })}
-          {texto('Forwarder Priority', 'forwarderPriority', { mono: true, corto: true })}
+          {texto('Forwarder Priority', 'forwarderPriority', { mono: true, corto: true, placeholder: '0' })}
           <div className={styles.ayuda}>
             Forwarders are sorted by priority value i.e. forwarder with low priority value will be
             queried before trying for forwarder with high priority value. Forwarders with the same
@@ -622,6 +630,7 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
             <Field label="Proxy Server Address">
               {(id) => (
                 <Input
+                  placeholder="domain name or IP address"
                   id={id}
                   mono
                   disabled={!proxyEditable(f.proxyType)}
@@ -633,6 +642,7 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
             <Field label="Proxy Server Port">
               {(id) => (
                 <Input
+                  placeholder="port"
                   id={id}
                   mono
                   className={styles.corto}
@@ -645,6 +655,7 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
             <Field label="Proxy Server Username">
               {(id) => (
                 <Input
+                  placeholder="username"
                   id={id}
                   disabled={!proxyEditable(f.proxyType)}
                   value={f.proxyUsername}
@@ -655,6 +666,7 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
             <Field label="Proxy Server Password">
               {(id) => (
                 <Input
+                  placeholder="password"
                   id={id}
                   type="password"
                   disabled={!proxyEditable(f.proxyType)}
@@ -722,7 +734,7 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
     default:
       return (
         <>
-          {texto('RR Type', 'unknownType', { mono: true, corto: true })}
+          {texto('RR Type', 'unknownType', { mono: true, corto: true, placeholder: 'type' })}
           {texto('Value', 'valor', { mono: true })}
         </>
       )

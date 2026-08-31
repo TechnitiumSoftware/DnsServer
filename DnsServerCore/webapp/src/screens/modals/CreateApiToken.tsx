@@ -65,7 +65,7 @@ export function CreateApiToken({
     >
       <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
       <LabeledInput label="Username" value={username} readOnly />
-      <LabeledInput label="Token Name" value={name} onChange={(e) => setName(e.target.value)} />
+      <LabeledInput label="Token Name" placeholder="token name" value={name} onChange={(e) => setName(e.target.value)} />
       {created && <LabeledInput label="Token" mono value={created} readOnly />}
     </Dialog>
   )

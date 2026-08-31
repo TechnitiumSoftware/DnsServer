@@ -84,18 +84,21 @@ export function ChangePassword({
       <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
       <LabeledInput
         label="Current Password"
+        placeholder="current password"
         type="password"
         value={current}
         onChange={(e) => setCurrent(e.target.value)}
       />
       <LabeledInput
         label="New Password"
+        placeholder="new password"
         type="password"
         value={next}
         onChange={(e) => setNext(e.target.value)}
       />
       <LabeledInput
         label="Confirm Password"
+        placeholder="confirm password"
         type="password"
         value={confirm}
         onChange={(e) => setConfirm(e.target.value)}

@@ -134,6 +134,7 @@ export function AnadirZona({
         <Field label="Zone">
           {(id) => (
             <Input
+              placeholder="example.com or 192.168.0.0/24 or 2001:db8::/64"
               id={id}
               mono
               ref={zonaRef}
@@ -389,6 +390,7 @@ export function AnadirZona({
                 <Field label="Proxy Server Address">
                   {(id) => (
                     <Input
+                      placeholder="domain name or IP address"
                       id={id}
                       mono
                       disabled={!proxyEditable(f.proxyType)}
@@ -400,6 +402,7 @@ export function AnadirZona({
                 <Field label="Proxy Server Port">
                   {(id) => (
                     <Input
+                      placeholder="port"
                       id={id}
                       mono
                       className={styles.corto}
@@ -412,6 +415,7 @@ export function AnadirZona({
                 <Field label="Proxy Server Username">
                   {(id) => (
                     <Input
+                      placeholder="username"
                       id={id}
                       disabled={!proxyEditable(f.proxyType)}
                       value={f.proxyUsername}
@@ -422,6 +426,7 @@ export function AnadirZona({
                 <Field label="Proxy Server Password">
                   {(id) => (
                     <Input
+                      placeholder="password"
                       id={id}
                       type="password"
                       disabled={!proxyEditable(f.proxyType)}

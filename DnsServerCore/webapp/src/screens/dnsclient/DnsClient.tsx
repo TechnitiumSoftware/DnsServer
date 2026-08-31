@@ -105,7 +105,7 @@ export function DnsClient({ token }: { token: string | null }) {
           <LabeledInput label="Server" mono value={server} onChange={(e) => setServer(e.target.value)} />
         </div>
         <div className={styles.medio}>
-          <LabeledInput label="Domain" mono value={domain} onChange={(e) => setDomain(e.target.value)} />
+          <LabeledInput label="Domain" placeholder="example.com" mono value={domain} onChange={(e) => setDomain(e.target.value)} />
         </div>
         <div className={styles.corto}>
           <LabeledSelect label="Type" value={type} onChange={(e) => setType(e.target.value)}>
