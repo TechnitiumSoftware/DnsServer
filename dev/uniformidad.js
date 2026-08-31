@@ -20,6 +20,11 @@ Lo que devuelve son GRUPOS, no un veredicto: dos firmas pueden estar bien
 estar mal si es fea. Lo que no puede pasar es que haya cinco sin que nadie lo
 haya decidido.
 
+Y hay que saber leerlo. Una firma que acaba en «td —» no es una densidad
+distinta: es una tabla de la que no se pudo tomar muestra de celda, así que la
+misma tabla aparece dos veces. Con los datos de hoy, `tabla: 4` son en realidad
+dos —la de datos y la editable—, cada una con y sin muestra.
+
 Se pega en la consola del navegador o se pasa a `browser_evaluate`, pantalla por
 pantalla, acumulando el resultado.
 */
@@ -39,7 +44,10 @@ function firmasDeLaPantalla() {
   for (const c of raiz.querySelectorAll('[class*="_panel_"], [class*="_block_"]')) {
     const s = css(c)
     const cab = c.querySelector('[class*="_ph_"], [class*="_blockTitle_"], [class*="_cabecera_"]')
-    const t = cab?.tagName === 'LEGEND' ? cab : cab?.querySelector('h2, h3')
+    /* El título no siempre es un `h2`: en Permissions es un `span` dentro de un
+       `h4`, y en un `fieldset` es el propio `legend`. */
+    const t =
+      cab?.tagName === 'LEGEND' ? cab : (cab?.querySelector('h2, h3') ?? cab?.firstElementChild)
     anota(
       'panel',
       [
@@ -54,7 +62,9 @@ function firmasDeLaPantalla() {
   /* La tabla: cabecera y densidad de celda. */
   for (const t of raiz.querySelectorAll('table')) {
     const th = t.querySelector('thead th')
-    const td = t.querySelector('tbody td')
+    /* La celda de muestra, saltándose la fila de «no hay nada»: su relleno es
+       el suyo, más alto a propósito, y salía como una densidad más. */
+    const td = [...t.querySelectorAll('tbody td')].find((c) => !/_sinFilas_/.test(c.className))
     if (!th) continue
     anota(
       'tabla',
@@ -76,7 +86,10 @@ function firmasDeLaPantalla() {
      vocabularios son literales de upstream—; su aspecto, no. */
   for (const n of raiz.querySelectorAll('div, span, b')) {
     if (n.children.length > 0) continue
-    if (!/^(Total [A-Z]|\d+ zones|\d+-\d+ \()/.test((n.textContent || '').trim())) continue
+    /* Con los dos puntos y el número: sin ellos, «Total Queries» —el rótulo de
+       una baldosa del Dashboard— pasaba por recuento y aparecía como una firma
+       distinta que no existía. */
+    if (!/^(Total [A-Za-z ]+: ?\d|\d+ zones|\d+-\d+ \()/.test((n.textContent || '').trim())) continue
     anota('recuento', `${css(n).fontSize}/${css(n).fontWeight}/${css(n).color}`)
   }
 
