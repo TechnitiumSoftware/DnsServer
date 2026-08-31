@@ -61,8 +61,19 @@ export function ViewLogs({
   const [ocupado, setOcupado] = useState(false)
   const [confirmar, setConfirmar] = useState<Confirmacion | null>(null)
 
+  // Un fallo al cargar no se pinta como lista vacía; ver `dhcp/Leases`.
   const cargar = useCallback(async () => {
-    setFicheros(await listLogFiles(token, node))
+    const r = await listLogFiles(token, node)
+    if (r.kind === 'ok') {
+      setFicheros(r.data)
+      return
+    }
+    setFicheros([])
+    setAviso({
+      type: 'danger',
+      title: 'Error!',
+      text: r.kind === 'error' ? r.message : 'Invalid token or session expired.',
+    })
   }, [token, node])
 
   useEffect(() => {
@@ -186,7 +197,11 @@ export function ViewLogs({
           </div>
           <div className={styles.pbLista}>
             {ficheros.length === 0 ? (
-              <Empty>No Log File Was Found</Empty>
+              <Empty>
+                {aviso?.type === 'danger'
+                  ? 'Unable to load the log files.'
+                  : 'No Log File Was Found'}
+              </Empty>
             ) : (
               <div className={styles.logfiles}>
                 {ficheros.map((f) => (

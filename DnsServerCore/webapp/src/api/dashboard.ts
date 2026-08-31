@@ -78,14 +78,24 @@ export async function getDashboardStats(
   token: string | null,
   type: Rango = 'LastHour',
   rango?: { start: string; end: string },
-): Promise<DashboardStats | null> {
+): Promise<ApiOutcome<DashboardStats>> {
   const body: Record<string, string> = { type }
   if (type === 'Custom' && rango) {
     body.start = rango.start
     body.end = rango.end
   }
   const outcome = await apiRequest<{ response: DashboardStats }>('dashboard/stats/get', { token, body })
-  return outcome.kind === 'ok' ? outcome.data.response : null
+  /*
+  Devuelve el resultado entero y no `DashboardStats | null`.
+
+  Con `null` el Dashboard no podía distinguir «el servidor no ha atendido
+  consultas» de «la llamada se cayó», y las dos cosas se pintaban igual: once
+  baldosas a cero y «No queries for this period.». Es la peor mentira de la
+  consola —quien administra un DNS y lee eso concluye que su servidor no está
+  recibiendo tráfico—, y la más fácil de creer, porque tiene toda la pinta de una
+  respuesta normal.
+  */
+  return outcome.kind === 'ok' ? { kind: 'ok', data: outcome.data.response } : outcome
 }
 
 export type TipoTop = 'TopClients' | 'TopDomains' | 'TopBlockedDomains'

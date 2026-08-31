@@ -18,7 +18,7 @@ describe('dashboard', () => {
     const r = await getDashboardStats('t', 'LastDay')
     expect(spy.mock.calls[0][0]).toBe('dashboard/stats/get')
     expect(spy.mock.calls[0][1]?.body).toEqual({ type: 'LastDay' })
-    expect(r?.stats.totalQueries).toBe(7)
+    expect(r.kind === 'ok' && r.data.stats.totalQueries).toBe(7)
   })
 
   it('sólo manda start y end cuando el rango es Custom', async () => {
@@ -30,9 +30,14 @@ describe('dashboard', () => {
     expect(spy.mock.calls[0][1]?.body).toEqual({ type: 'Custom', start: 'a', end: 'b' })
   })
 
-  it('devuelve null si falla, para que la pantalla no reviente', async () => {
-    vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'invalid-token' })
-    expect(await getDashboardStats('t')).toBeNull()
+  /*
+  Antes esta prueba pedía `null` «para que la pantalla no reviente». No
+  reventar era el problema: con `null` el Dashboard no distinguía un fallo de un
+  servidor sin tráfico y pintaba once ceros.
+  */
+  it('sube el fallo del servidor, para que el Dashboard pueda decirlo', async () => {
+    vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'boom' })
+    expect(await getDashboardStats('t')).toEqual({ kind: 'error', message: 'boom' })
   })
 
   it('getTop pide el tipo de lista y el límite', async () => {

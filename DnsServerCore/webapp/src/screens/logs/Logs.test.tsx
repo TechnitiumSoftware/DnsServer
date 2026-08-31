@@ -72,7 +72,7 @@ function conApps(lista: InstalledApp[]) {
 
 describe('Logs › View Logs', () => {
   it('lista los ficheros con su tamaño y ofrece borrarlos todos', async () => {
-    vi.spyOn(api, 'listLogFiles').mockResolvedValue(FICHEROS)
+    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
     render(<Logs token="t" sub="View Logs" />)
 
     expect(await screen.findByText('2026-08-26')).toBeInTheDocument()
@@ -82,7 +82,7 @@ describe('Logs › View Logs', () => {
   })
 
   it('sin ficheros dice «No Log File Was Found» y desaparece «Delete All Logs», pero NO «Delete All Stats»', async () => {
-    vi.spyOn(api, 'listLogFiles').mockResolvedValue([])
+    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: [] })
     render(<Logs token="t" sub="View Logs" />)
 
     expect(await screen.findByText('No Log File Was Found')).toBeInTheDocument()
@@ -92,7 +92,7 @@ describe('Logs › View Logs', () => {
 
   it('abrir un fichero pide sólo los 2 primeros MB y lo pinta', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listLogFiles').mockResolvedValue(FICHEROS)
+    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
     const spy = vi.spyOn(api, 'downloadLogText').mockResolvedValue('[2026-08-26] Logging started.')
     render(<Logs token="t" sub="View Logs" />)
     await screen.findByText('2026-08-26')
@@ -105,7 +105,7 @@ describe('Logs › View Logs', () => {
 
   it('«Download» pide el fichero entero por token de un solo uso', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listLogFiles').mockResolvedValue(FICHEROS)
+    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
     vi.spyOn(api, 'downloadLogText').mockResolvedValue('x')
     const spy = vi.spyOn(api, 'openLogDownload').mockResolvedValue({ ok: true })
     render(<Logs token="t" sub="View Logs" />)
@@ -120,7 +120,7 @@ describe('Logs › View Logs', () => {
 
   it('borrar un fichero confirma con su nombre y avisa con el texto literal', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listLogFiles').mockResolvedValue(FICHEROS)
+    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
     vi.spyOn(api, 'downloadLogText').mockResolvedValue('x')
     const spy = vi.spyOn(api, 'deleteLog').mockResolvedValue(OK)
     render(<Logs token="t" sub="View Logs" />)
@@ -141,7 +141,7 @@ describe('Logs › View Logs', () => {
 
   it('«Delete All Logs» confirma y avisa con «Logs Deleted!»', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listLogFiles').mockResolvedValue(FICHEROS)
+    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
     const spy = vi.spyOn(api, 'deleteAllLogs').mockResolvedValue(OK)
     render(<Logs token="t" sub="View Logs" />)
     await screen.findByText('2026-08-26')
@@ -161,7 +161,7 @@ describe('Logs › View Logs', () => {
 
   it('«Delete All Stats» llama al endpoint del DASHBOARD, no al de logs', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listLogFiles').mockResolvedValue(FICHEROS)
+    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
     const spy = vi.spyOn(dashboard, 'deleteAllStats').mockResolvedValue(OK)
     render(<Logs token="t" sub="View Logs" />)
     await screen.findByText('2026-08-26')
@@ -180,7 +180,7 @@ describe('Logs › View Logs', () => {
   })
 
   it('los dos permisos de borrado son distintos y se aplican por separado', async () => {
-    vi.spyOn(api, 'listLogFiles').mockResolvedValue(FICHEROS)
+    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
     const { unmount } = render(
       <Logs token="t" sub="View Logs" canDeleteLogs={false} canDeleteStats />,
     )

@@ -60,12 +60,24 @@ describe('api/dhcp — concesiones', () => {
 
     const llamada = spy.mock.calls.find((c) => c[0] === 'dhcp/leases/list')!
     expect(llamada[1]).toMatchObject({ token: 'tok', body: { node: '' } })
-    expect(leases).toHaveLength(1)
+    expect(leases.kind === 'ok' && leases.data).toHaveLength(1)
   })
 
-  it('leases/list devuelve lista vacía si el servidor falla, en vez de reventar', async () => {
+  /*
+  Esta prueba afirmaba lo contrario —«devuelve lista vacía si el servidor
+  falla»— y estaba fijando el fallo: una lista vacía y una llamada caída se
+  pintan igual, así que la pantalla decía «No Lease Found» cuando lo que
+  había pasado es que no había respuesta. Ahora el fallo sube tal cual, con su
+  mensaje, y es la pantalla la que decide qué enseñar.
+  */
+  it('leases/list sube el fallo del servidor, no una lista vacía', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'boom' })
-    expect(await listLeases('tok')).toEqual([])
+    expect(await listLeases('tok')).toEqual({ kind: 'error', message: 'boom' })
+  })
+
+  it('y una lista vacía de verdad sigue siendo una lista vacía', async () => {
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(ok({ response: { leases: [] } }))
+    expect(await listLeases('tok')).toEqual({ kind: 'ok', data: [] })
   })
 
   it('las tres acciones sobre una concesión mandan scope y clientIdentifier', async () => {
@@ -95,12 +107,19 @@ describe('api/dhcp — scopes', () => {
     const scopes = await listScopes('tok')
 
     expect(spy.mock.calls.find((c) => c[0] === 'dhcp/scopes/list')![1]?.body).toEqual({ node: '' })
-    expect(scopes[0].name).toBe('Default')
+    expect(scopes.kind === 'ok' && scopes.data[0].name).toBe('Default')
   })
 
-  it('scopes/list devuelve lista vacía si el servidor falla', async () => {
+  /*
+  Esta prueba afirmaba lo contrario —«devuelve lista vacía si el servidor
+  falla»— y estaba fijando el fallo: una lista vacía y una llamada caída se
+  pintan igual, así que la pantalla decía «No Scope Found» cuando lo que
+  había pasado es que no había respuesta. Ahora el fallo sube tal cual, con su
+  mensaje, y es la pantalla la que decide qué enseñar.
+  */
+  it('scopes/list sube el fallo del servidor, no una lista vacía', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'boom' })
-    expect(await listScopes('tok')).toEqual([])
+    expect(await listScopes('tok')).toEqual({ kind: 'error', message: 'boom' })
   })
 
   it('scopes/get pide el nombre y devuelve el scope sin desenvolver de más', async () => {

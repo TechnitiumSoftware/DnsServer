@@ -131,14 +131,31 @@ export interface DhcpScope {
   ignoreClientIdentifierOption: boolean
 }
 
-/** `dhcp/leases/list` (dhcp.js:46). Lista vacía si el servidor falla: la
- *  pantalla no debe reventar porque la petición se caiga. */
-export async function listLeases(token: string | null, node = ''): Promise<DhcpLease[]> {
+/*
+Devuelve el resultado entero, no una lista.
+
+Antes devolvía `[]` cuando el servidor fallaba, y eso parecía prudente —«la
+pantalla no revienta si la petición se cae»—. Era lo contrario: la lista vacía y
+el fallo se pintan igual, así que la pantalla decía «No Lease Found» cuando lo que había
+pasado es que la llamada no llegó. Eso es peor que un error, porque nadie
+sospecha de una respuesta que parece normal.
+
+Devolviendo el `ApiOutcome` —como ya hacían las pantallas de listas, que sí
+avisaban— el tipo obliga a distinguirlos y además se conserva el mensaje que
+mandó el servidor, que es lo que enseña upstream.
+*/
+/** `dhcp/leases/list` (dhcp.js:46). */
+export async function listLeases(
+  token: string | null,
+  node = '',
+): Promise<ApiOutcome<DhcpLease[]>> {
   const outcome = await apiRequest<{ response: { leases: DhcpLease[] } }>('dhcp/leases/list', {
     token,
     body: { node },
   })
-  return outcome.kind === 'ok' ? (outcome.data.response.leases ?? []) : []
+  return outcome.kind === 'ok'
+    ? { kind: 'ok', data: outcome.data.response.leases ?? [] }
+    : outcome
 }
 
 /*
@@ -180,13 +197,19 @@ export function convertToDynamicLease(
   })
 }
 
-/** `dhcp/scopes/list` (dhcp.js:220). Lista vacía si el servidor falla. */
-export async function listScopes(token: string | null, node = ''): Promise<DhcpScopeRow[]> {
+/** `dhcp/scopes/list` (dhcp.js:220). Ver `listLeases` para por qué devuelve
+ *  el resultado entero y no una lista. */
+export async function listScopes(
+  token: string | null,
+  node = '',
+): Promise<ApiOutcome<DhcpScopeRow[]>> {
   const outcome = await apiRequest<{ response: { scopes: DhcpScopeRow[] } }>('dhcp/scopes/list', {
     token,
     body: { node },
   })
-  return outcome.kind === 'ok' ? (outcome.data.response.scopes ?? []) : []
+  return outcome.kind === 'ok'
+    ? { kind: 'ok', data: outcome.data.response.scopes ?? [] }
+    : outcome
 }
 
 /** `dhcp/scopes/get` (dhcp.js:377). `null` si el servidor falla. */

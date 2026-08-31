@@ -61,6 +61,20 @@ describe('About', () => {
     expect(await screen.findByText('Update notifications are turned off for this server.')).toBeInTheDocument()
   })
 
+  /*
+  «Los avisos están apagados» es una afirmación sobre la configuración del
+  servidor. Decirla cuando lo que ha pasado es que la llamada se cayó no es un
+  matiz: es contestar por el servidor sin haber hablado con él.
+  */
+  it('un fallo al comprobar no se cuenta como «avisos apagados»', async () => {
+    vi.spyOn(userApi, 'checkForUpdate').mockResolvedValue({ kind: 'error', message: 'boom' } as never)
+    render(<About token="t" info={info} />)
+    expect(await screen.findByText('Unable to check for updates.')).toBeInTheDocument()
+    expect(
+      screen.queryByText('Update notifications are turned off for this server.'),
+    ).not.toBeInTheDocument()
+  })
+
   it('dice que estás al día cuando el servidor lo confirma', async () => {
     vi.spyOn(userApi, 'checkForUpdate').mockResolvedValue({
       kind: 'ok', data: { status: 'ok', response: { updateAvailable: false } },

@@ -168,11 +168,25 @@ export function Dashboard({ token }: { token: string | null }) {
     }
     setCargando(true)
     void (async () => {
-      const d = await getDashboardStats(token, rango, pedido ?? undefined)
-      if (!cancelado) {
-        setDatos(d)
-        setCargando(false)
+      const r = await getDashboardStats(token, rango, pedido ?? undefined)
+      if (cancelado) return
+      setCargando(false)
+      if (r.kind === 'ok') {
+        setDatos(r.data)
+        return
       }
+      /*
+      Un fallo NO se pinta como un servidor tranquilo. Sin esto, las once
+      baldosas salían a cero y los paneles decían «No queries for this period.»,
+      que es exactamente lo que enseña un DNS que no ha recibido nada: la
+      pantalla contestaba en falso sobre lo único que se viene a mirar aquí.
+      */
+      setDatos(null)
+      setAviso({
+        type: 'danger',
+        title: 'Error!',
+        text: r.kind === 'error' ? r.message : 'Invalid token or session expired.',
+      })
     })()
     return () => {
       cancelado = true

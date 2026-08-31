@@ -71,7 +71,7 @@ function fila(nombre: string) {
 
 describe('DHCP › Leases', () => {
   it('pinta una fila por concesión y el total al pie', async () => {
-    vi.spyOn(api, 'listLeases').mockResolvedValue([DINAMICA, RESERVADA])
+    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA, RESERVADA] })
     render(<Dhcp token="t" sub="Leases" />)
 
     expect(await screen.findByText('192.168.1.42')).toBeInTheDocument()
@@ -80,7 +80,7 @@ describe('DHCP › Leases', () => {
   })
 
   it('sin concesiones dice «No Lease Found», el texto de upstream', async () => {
-    vi.spyOn(api, 'listLeases').mockResolvedValue([])
+    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [] })
     render(<Dhcp token="t" sub="Leases" />)
 
     expect(await screen.findByText('No Lease Found')).toBeInTheDocument()
@@ -88,7 +88,7 @@ describe('DHCP › Leases', () => {
   })
 
   it('cada fila ofrece sólo la conversión que le toca por su tipo', async () => {
-    vi.spyOn(api, 'listLeases').mockResolvedValue([DINAMICA, RESERVADA])
+    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA, RESERVADA] })
     render(<Dhcp token="t" sub="Leases" />)
     await screen.findByText('192.168.1.42')
 
@@ -106,7 +106,7 @@ describe('DHCP › Leases', () => {
 
   it('reservar confirma, llama al endpoint con el clientIdentifier y avisa con el texto literal', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listLeases').mockResolvedValue([DINAMICA])
+    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA] })
     const spy = vi.spyOn(api, 'convertToReservedLease').mockResolvedValue(OK)
     render(<Dhcp token="t" sub="Leases" />)
     await screen.findByText('192.168.1.42')
@@ -130,7 +130,7 @@ describe('DHCP › Leases', () => {
 
   it('desreservar avisa con «Unreserved!»', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listLeases').mockResolvedValue([RESERVADA])
+    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [RESERVADA] })
     vi.spyOn(api, 'convertToDynamicLease').mockResolvedValue(OK)
     render(<Dhcp token="t" sub="Leases" />)
     await screen.findByText('192.168.1.50')
@@ -149,7 +149,7 @@ describe('DHCP › Leases', () => {
 
   it('quitar una concesión abre el modal completo y la borra de la tabla', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listLeases').mockResolvedValue([DINAMICA])
+    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA] })
     const spy = vi.spyOn(api, 'removeLease').mockResolvedValue(OK)
     render(<Dhcp token="t" sub="Leases" />)
     await screen.findByText('192.168.1.42')
@@ -171,7 +171,7 @@ describe('DHCP › Leases', () => {
 
   it('si quitar falla, el aviso sale DENTRO del modal y la fila sigue ahí', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listLeases').mockResolvedValue([DINAMICA])
+    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA] })
     vi.spyOn(api, 'removeLease').mockResolvedValue({ kind: 'error', message: 'DHCP scope does not exists: Default' })
     render(<Dhcp token="t" sub="Leases" />)
     await screen.findByText('192.168.1.42')
@@ -186,7 +186,7 @@ describe('DHCP › Leases', () => {
   })
 
   it('sin permiso de borrado no se ofrece quitar; sin permiso de modificación, ni convertir', async () => {
-    vi.spyOn(api, 'listLeases').mockResolvedValue([DINAMICA])
+    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA] })
     render(<Dhcp token="t" sub="Leases" canModify={false} canDelete={false} />)
     await screen.findByText('192.168.1.42')
 
@@ -199,7 +199,7 @@ describe('DHCP › Leases', () => {
 
 describe('DHCP › Scopes', () => {
   it('pinta el rango, la red y el total al pie', async () => {
-    vi.spyOn(api, 'listScopes').mockResolvedValue([SCOPE])
+    vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [SCOPE] })
     render(<Dhcp token="t" sub="Scopes" />)
 
     expect(await screen.findByText('Default')).toBeInTheDocument()
@@ -209,14 +209,14 @@ describe('DHCP › Scopes', () => {
   })
 
   it('sin scopes dice «No Scope Found»', async () => {
-    vi.spyOn(api, 'listScopes').mockResolvedValue([])
+    vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [] })
     render(<Dhcp token="t" sub="Scopes" />)
     expect(await screen.findByText('No Scope Found')).toBeInTheDocument()
   })
 
   it('habilitar NO pregunta nada: llama al endpoint directamente', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listScopes').mockResolvedValue([{ ...SCOPE, enabled: false }])
+    vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [{ ...SCOPE, enabled: false }] })
     const spy = vi.spyOn(api, 'enableScope').mockResolvedValue(OK)
     render(<Dhcp token="t" sub="Scopes" />)
     await screen.findByText('Default')
@@ -230,7 +230,7 @@ describe('DHCP › Scopes', () => {
 
   it('deshabilitar SÍ pregunta, con el nombre del scope en el texto', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listScopes').mockResolvedValue([SCOPE])
+    vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [SCOPE] })
     const spy = vi.spyOn(api, 'disableScope').mockResolvedValue(OK)
     render(<Dhcp token="t" sub="Scopes" />)
     await screen.findByText('Default')
@@ -247,7 +247,7 @@ describe('DHCP › Scopes', () => {
 
   it('borrar pregunta y quita la fila sin recargar la lista', async () => {
     const user = userEvent.setup()
-    const lista = vi.spyOn(api, 'listScopes').mockResolvedValue([SCOPE])
+    const lista = vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [SCOPE] })
     const spy = vi.spyOn(api, 'deleteScope').mockResolvedValue(OK)
     render(<Dhcp token="t" sub="Scopes" />)
     await screen.findByText('Default')
@@ -267,7 +267,7 @@ describe('DHCP › Scopes', () => {
   })
 
   it('sin permisos no salen ni «Add Scope», ni «Enable»/«Disable», ni «Delete»', async () => {
-    vi.spyOn(api, 'listScopes').mockResolvedValue([SCOPE])
+    vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [SCOPE] })
     render(<Dhcp token="t" sub="Scopes" canModify={false} canDelete={false} />)
     await screen.findByText('Default')
 
@@ -282,7 +282,7 @@ describe('DHCP › Scopes', () => {
 describe('DHCP › Scopes — el formulario', () => {
   it('«Add Scope» abre el formulario vacío con «Use This DNS Server» marcado', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listScopes').mockResolvedValue([])
+    vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [] })
     render(<Dhcp token="t" sub="Scopes" />)
     await screen.findByText('No Scope Found')
 
@@ -296,7 +296,7 @@ describe('DHCP › Scopes — el formulario', () => {
 
   it('«Edit» carga el scope y rellena el formulario', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listScopes').mockResolvedValue([SCOPE])
+    vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [SCOPE] })
     const spy = vi.spyOn(api, 'getScope').mockResolvedValue(DETALLE)
     render(<Dhcp token="t" sub="Scopes" />)
     await screen.findByText('Default')
@@ -313,7 +313,7 @@ describe('DHCP › Scopes — el formulario', () => {
 
   it('«Enable DNS Updates» desmarcado deshabilita la casilla de sobrescritura', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listScopes').mockResolvedValue([])
+    vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [] })
     render(<Dhcp token="t" sub="Scopes" />)
     await screen.findByText('No Scope Found')
     await user.click(screen.getByRole('button', { name: 'Add Scope' }))
@@ -327,7 +327,7 @@ describe('DHCP › Scopes — el formulario', () => {
 
   it('guardar manda el cuerpo por POST y avisa con el texto literal', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listScopes').mockResolvedValue([])
+    vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [] })
     const spy = vi.spyOn(api, 'setScope').mockResolvedValue(OK)
     render(<Dhcp token="t" sub="Scopes" />)
     await screen.findByText('No Scope Found')
@@ -347,7 +347,7 @@ describe('DHCP › Scopes — el formulario', () => {
 
   it('cambiar el nombre de un scope existente manda el viejo en `name` y el nuevo en `newName`', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listScopes').mockResolvedValue([SCOPE])
+    vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [SCOPE] })
     vi.spyOn(api, 'getScope').mockResolvedValue(DETALLE)
     const spy = vi.spyOn(api, 'setScope').mockResolvedValue(OK)
     render(<Dhcp token="t" sub="Scopes" />)
@@ -364,7 +364,7 @@ describe('DHCP › Scopes — el formulario', () => {
 
   it('una celda obligatoria vacía frena el guardado, avisa y enfoca esa celda', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listScopes').mockResolvedValue([])
+    vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [] })
     const spy = vi.spyOn(api, 'setScope').mockResolvedValue(OK)
     render(<Dhcp token="t" sub="Scopes" />)
     await screen.findByText('No Scope Found')
@@ -385,7 +385,7 @@ describe('DHCP › Scopes — el formulario', () => {
 
   it('un `|` en una celda da «Invalid Character!» con su texto literal', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listScopes').mockResolvedValue([])
+    vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [] })
     const spy = vi.spyOn(api, 'setScope').mockResolvedValue(OK)
     render(<Dhcp token="t" sub="Scopes" />)
     await screen.findByText('No Scope Found')
@@ -406,7 +406,7 @@ describe('DHCP › Scopes — el formulario', () => {
 
   it('«Cancel» vuelve a la tabla y la recarga', async () => {
     const user = userEvent.setup()
-    const lista = vi.spyOn(api, 'listScopes').mockResolvedValue([SCOPE])
+    const lista = vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [SCOPE] })
     render(<Dhcp token="t" sub="Scopes" />)
     await screen.findByText('Default')
     await user.click(screen.getByRole('button', { name: 'Add Scope' }))

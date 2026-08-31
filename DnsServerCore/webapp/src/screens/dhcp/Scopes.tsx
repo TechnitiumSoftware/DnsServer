@@ -67,9 +67,20 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
     null,
   )
 
+  // Un fallo al cargar no se pinta como lista vacía; ver `Leases`.
   const cargar = useCallback(async () => {
     setScopes(null)
-    setScopes(await listScopes(token, node))
+    const r = await listScopes(token, node)
+    if (r.kind === 'ok') {
+      setScopes(r.data)
+      return
+    }
+    setScopes([])
+    setAviso({
+      type: 'danger',
+      title: 'Error!',
+      text: r.kind === 'error' ? r.message : 'Invalid token or session expired.',
+    })
   }, [token, node])
 
   useEffect(() => {
@@ -285,7 +296,13 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
       </div>
 
       <div className={styles.total}>
-        {scopes.length > 0 ? <b>Total Scopes: {scopes.length}</b> : 'No Scope Found'}
+        {scopes.length > 0 ? (
+          <b>Total Scopes: {scopes.length}</b>
+        ) : aviso?.type === 'danger' ? (
+          'Unable to load the scopes.'
+        ) : (
+          'No Scope Found'
+        )}
       </div>
 
       <Dialog

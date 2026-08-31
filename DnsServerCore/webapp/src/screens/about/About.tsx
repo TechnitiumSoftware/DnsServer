@@ -32,7 +32,16 @@ function Enlace({
 }
 
 export function About({ token, info }: { token: string | null; info?: Info }) {
-  const [update, setUpdate] = useState<'sin-mirar' | 'mirando' | 'al-dia' | 'hay'>('sin-mirar')
+  /*
+  «sin-mirar» es un estado REAL —el servidor dice que tiene los avisos de
+  actualización apagados— y por eso no vale para contar un fallo: con la
+  llamada caída la pantalla decía «Update notifications are turned off for this
+  server.», que es una afirmación sobre la configuración del servidor y no sobre
+  lo que acaba de pasar. De ahí el quinto estado.
+  */
+  const [update, setUpdate] = useState<'sin-mirar' | 'mirando' | 'al-dia' | 'hay' | 'fallo'>(
+    'sin-mirar',
+  )
 
   useEffect(() => {
     void (async () => {
@@ -41,7 +50,9 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
       if (r.kind === 'ok') {
         const d = r.data as { response?: { updateAvailable?: boolean } }
         setUpdate(d.response?.updateAvailable ? 'hay' : 'al-dia')
+        return
       }
+      setUpdate('fallo')
     })()
   }, [token])
 
@@ -51,7 +62,7 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
     if (r.kind === 'ok') {
       const d = r.data as { response?: { updateAvailable?: boolean } }
       setUpdate(d.response?.updateAvailable ? 'hay' : 'al-dia')
-    } else setUpdate('sin-mirar')
+    } else setUpdate(r.kind === 'skipped' ? 'sin-mirar' : 'fallo')
   }
 
   return (
@@ -168,6 +179,9 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
             */}
             {update === 'hay' && <Alert type="success" title="New Update Available!" />}
             {update === 'sin-mirar' && <Empty compacto>Update notifications are turned off for this server.</Empty>}
+            {update === 'fallo' && (
+              <Alert type="danger" title="Error!">Unable to check for updates.</Alert>
+            )}
             <div className={styles.accion}>
               <Button disabled={update === 'mirando'} onClick={() => void mirar()}>Check for Update</Button>
             </div>

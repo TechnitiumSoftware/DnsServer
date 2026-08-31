@@ -47,12 +47,19 @@ describe('api/logs — ficheros', () => {
     const ficheros = await listLogFiles('tok')
 
     expect(spy.mock.calls.find((c) => c[0] === 'logs/list')![1]?.body).toEqual({ node: '' })
-    expect(ficheros[0].fileName).toBe('2026-08-26')
+    expect(ficheros.kind === 'ok' && ficheros.data[0].fileName).toBe('2026-08-26')
   })
 
-  it('logs/list devuelve lista vacía si el servidor falla', async () => {
+  /*
+  Esta prueba afirmaba lo contrario —«devuelve lista vacía si el servidor
+  falla»— y estaba fijando el fallo: una lista vacía y una llamada caída se
+  pintan igual, así que la pantalla decía «No Log File Was Found» cuando lo que
+  había pasado es que no había respuesta. Ahora el fallo sube tal cual, con su
+  mensaje, y es la pantalla la que decide qué enseñar.
+  */
+  it('logs/list sube el fallo del servidor, no una lista vacía', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'boom' })
-    expect(await listLogFiles('tok')).toEqual([])
+    expect(await listLogFiles('tok')).toEqual({ kind: 'error', message: 'boom' })
   })
 
   it('logs/delete manda el fichero en `log`, NO en `fileName`', async () => {

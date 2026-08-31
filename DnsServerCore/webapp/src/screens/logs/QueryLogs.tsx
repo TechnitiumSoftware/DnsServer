@@ -190,7 +190,22 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
     void (async () => {
       const outcome = await listApps(token)
       if (!vivo) return
-      const lista = outcome.kind === 'ok' ? appsConQueryLogs(outcome.data.response.apps ?? []) : []
+      if (outcome.kind !== 'ok') {
+        /*
+        Sin esto, un fallo aquí dejaba el desplegable de «Source App Name» a
+        «—», que es lo mismo que enseña un servidor sin ninguna app de registro
+        instalada. Y de ahí no se sale: sin app no hay consulta que hacer, así
+        que la pantalla quedaba muerta sin decir por qué.
+        */
+        setApps([])
+        setAviso({
+          type: 'danger',
+          title: 'Error!',
+          text: outcome.kind === 'error' ? outcome.message : 'Invalid token or session expired.',
+        })
+        return
+      }
+      const lista = appsConQueryLogs(outcome.data.response.apps ?? [])
       setApps(lista)
       const primero = lista[0]
       setF(filtrosPorDefecto(primero?.name ?? '', primero?.classPaths[0] ?? ''))

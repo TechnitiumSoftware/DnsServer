@@ -66,9 +66,27 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
   const [quitar, setQuitar] = useState<number | null>(null)
   const [avisoModal, setAvisoModal] = useState<Aviso | null>(null)
 
+  /*
+  Un fallo al cargar NO se pinta como una lista vacía.
+
+  Antes se decía «No Lease Found» cuando la llamada se había caído, que es lo
+  mismo que enseña un servidor sin concesiones: la pantalla contestaba en falso y
+  nadie sospecha de una respuesta que parece normal. Ahora el fallo se dice, con
+  el mensaje que mandó el servidor.
+  */
   const cargar = useCallback(async () => {
     setLeases(null)
-    setLeases(await listLeases(token, node))
+    const r = await listLeases(token, node)
+    if (r.kind === 'ok') {
+      setLeases(r.data)
+      return
+    }
+    setLeases([])
+    setAviso({
+      type: 'danger',
+      title: 'Error!',
+      text: r.kind === 'error' ? r.message : 'Invalid token or session expired.',
+    })
   }, [token, node])
 
   useEffect(() => {
@@ -223,7 +241,14 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
       </div>
 
       <div className={styles.total}>
-        {leases.length > 0 ? <b>Total Leases: {leases.length}</b> : 'No Lease Found'}
+        {leases.length > 0 ? (
+          <b>Total Leases: {leases.length}</b>
+        ) : aviso?.type === 'danger' ? (
+          // Se ha ido a buscar y no se ha podido: eso no es «no hay ninguna».
+          'Unable to load the leases.'
+        ) : (
+          'No Lease Found'
+        )}
       </div>
 
       <Dialog

@@ -36,7 +36,7 @@ describe('porcentaje', () => {
 
 describe('Dashboard', () => {
   it('pinta las once métricas con sus etiquetas literales', async () => {
-    vi.spyOn(api, 'getDashboardStats').mockResolvedValue(datos as never)
+    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
     render(<Dashboard token="t" />)
     // «Blocked» y «Cache» salen también como contador del servidor, así que se
     // busca dentro de las tarjetas de métrica, no en toda la pantalla.
@@ -57,7 +57,7 @@ describe('Dashboard', () => {
   no tiene parte de sí mismo.
   */
   it('la baldosa del total no lleva porcentaje, como la de clientes', async () => {
-    vi.spyOn(api, 'getDashboardStats').mockResolvedValue(datos as never)
+    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
     render(<Dashboard token="t" />)
     const tiles = within(await screen.findByTestId('metricas'))
     expect(tiles.queryByText('100.00%')).not.toBeInTheDocument()
@@ -67,7 +67,7 @@ describe('Dashboard', () => {
   })
 
   it('pinta los seis contadores del servidor', async () => {
-    vi.spyOn(api, 'getDashboardStats').mockResolvedValue(datos as never)
+    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
     render(<Dashboard token="t" />)
     const c = within(await screen.findByTestId('contadores'))
     for (const l of ['Zones','Cache','Allowed','Blocked','Allow List','Block List']) {
@@ -77,7 +77,7 @@ describe('Dashboard', () => {
   })
 
   it('ofrece los seis rangos con sus etiquetas y arranca en Last Hour', async () => {
-    vi.spyOn(api, 'getDashboardStats').mockResolvedValue(datos as never)
+    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
     render(<Dashboard token="t" />)
     const b = await screen.findByRole('button', { name: 'Last Hour' })
     expect(b).toHaveAttribute('aria-pressed', 'true')
@@ -87,7 +87,7 @@ describe('Dashboard', () => {
   })
 
   it('cambiar de rango vuelve a pedir los datos con ese tipo', async () => {
-    const spy = vi.spyOn(api, 'getDashboardStats').mockResolvedValue(datos as never)
+    const spy = vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
     render(<Dashboard token="t" />)
     await screen.findByText('Total Queries')
     spy.mockClear()
@@ -96,7 +96,7 @@ describe('Dashboard', () => {
   })
 
   it('pinta las CUATRO gráficas, no dos', async () => {
-    vi.spyOn(api, 'getDashboardStats').mockResolvedValue(datos as never)
+    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
     render(<Dashboard token="t" />)
     expect(await screen.findByLabelText('Queries over time')).toBeInTheDocument()
     expect(screen.getByLabelText('Query Response Types')).toBeInTheDocument()
@@ -115,16 +115,28 @@ describe('Dashboard', () => {
   })
 
   it('una lista Top vacía lo dice en vez de quedarse en blanco', async () => {
-    vi.spyOn(api, 'getDashboardStats').mockResolvedValue(datos as never)
+    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
     render(<Dashboard token="t" />)
     expect(await screen.findByText('No data for this period.')).toBeInTheDocument()
   })
 
-  it('si la llamada falla, la pantalla no revienta', async () => {
-    vi.spyOn(api, 'getDashboardStats').mockResolvedValue(null)
+  /*
+  Esta prueba se conformaba con «no revienta», y no reventar era justo el
+  problema: con la llamada caída la pantalla enseñaba once ceros y «No queries
+  for this period.», que es lo mismo que enseña un DNS que no ha recibido nada.
+  Quien administra un servidor y lee eso concluye que no le llega tráfico.
+  */
+  it('si la llamada falla, lo DICE, y no se hace pasar por un servidor tranquilo', async () => {
+    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'error', message: 'boom' })
     render(<Dashboard token="t" />)
-    expect(await screen.findByText('Total Queries')).toBeInTheDocument()
-    // sin datos, los valores salen como raya en vez de romper
+    expect(await screen.findByText('boom')).toBeInTheDocument()
+    // y los valores salen como raya, que es lo honesto: no se saben
     expect(within(screen.getByTestId('metricas')).getAllByText('—').length).toBe(11)
+  })
+
+  it('una sesión caducada se dice con su propio texto', async () => {
+    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'invalid-token' })
+    render(<Dashboard token="t" />)
+    expect(await screen.findByText('Invalid token or session expired.')).toBeInTheDocument()
   })
 })

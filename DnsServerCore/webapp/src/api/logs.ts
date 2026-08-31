@@ -88,13 +88,31 @@ export interface QueryLogsParams {
   node?: string
 }
 
-/** `logs/list` (logs.js:112). Lista vacía si el servidor falla. */
-export async function listLogFiles(token: string | null, node = ''): Promise<LogFile[]> {
+/*
+Devuelve el resultado entero, no una lista.
+
+Antes devolvía `[]` cuando el servidor fallaba, y eso parecía prudente —«la
+pantalla no revienta si la petición se cae»—. Era lo contrario: la lista vacía y
+el fallo se pintan igual, así que la pantalla decía «No Log File Was Found» cuando lo que había
+pasado es que la llamada no llegó. Eso es peor que un error, porque nadie
+sospecha de una respuesta que parece normal.
+
+Devolviendo el `ApiOutcome` —como ya hacían las pantallas de listas, que sí
+avisaban— el tipo obliga a distinguirlos y además se conserva el mensaje que
+mandó el servidor, que es lo que enseña upstream.
+*/
+/** `logs/list` (logs.js:112). */
+export async function listLogFiles(
+  token: string | null,
+  node = '',
+): Promise<ApiOutcome<LogFile[]>> {
   const outcome = await apiRequest<{ response: { logFiles: LogFile[] } }>('logs/list', {
     token,
     body: { node },
   })
-  return outcome.kind === 'ok' ? (outcome.data.response.logFiles ?? []) : []
+  return outcome.kind === 'ok'
+    ? { kind: 'ok', data: outcome.data.response.logFiles ?? [] }
+    : outcome
 }
 
 /*

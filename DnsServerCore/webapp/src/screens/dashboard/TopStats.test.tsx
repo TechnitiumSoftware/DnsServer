@@ -116,7 +116,7 @@ describe('los tres botones «More» del Dashboard', () => {
   it('«More» de Top Clients abre el modal y pide TopClients', async () => {
     // Antes de la fase 10 los tres botones estaban puestos y no hacían nada.
     const usuario = userEvent.setup()
-    vi.spyOn(api, 'getDashboardStats').mockResolvedValue(DATOS as never)
+    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: DATOS } as never)
     const top = vi.spyOn(api, 'getTop').mockResolvedValue(CLIENTES as never)
     render(<Dashboard token="t" />)
 
@@ -128,7 +128,7 @@ describe('los tres botones «More» del Dashboard', () => {
   })
 
   it('la lista corta de clientes ya enseña el dominio y el marcado de limitado', async () => {
-    vi.spyOn(api, 'getDashboardStats').mockResolvedValue(DATOS as never)
+    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: DATOS } as never)
     render(<Dashboard token="t" />)
     expect(await screen.findByText('pc.casa.test')).toBeTruthy()
     expect(screen.getByText(/10\.0\.0\.9 \(rate limited\)/)).toBeTruthy()
