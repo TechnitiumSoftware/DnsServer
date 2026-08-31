@@ -40,3 +40,20 @@ paginación se llevaba las pestañas por delante.
   color: var(--on-acc);
   font-weight: 550;
 }
+
+/*
+En estrecho envuelve.
+
+Esta regla estaba escrita —el commit «la consola se puede usar a 390 px» la
+añadió— pero en `screens/dashboard/Dashboard.module.css`, apuntando a una clase
+que es de ESTE módulo. Con CSS Modules cada uno tiene su hash, así que nunca
+llegó a aplicarse: el selector de periodo seguía midiendo 495 px dentro de una
+ventana de 390 y sacaba el Dashboard 115 px por la derecha. Lo destapó el
+detector de clases muertas al resolver de qué módulo es cada `styles`.
+
+Va aquí, que es donde vive la clase y donde sirve para los dos sitios que usan
+el control: el periodo del Dashboard y las pestañas del diálogo de opciones.
+*/
+@media (max-width: 720px) {
+  .seg { flex-wrap: wrap; }
+}
