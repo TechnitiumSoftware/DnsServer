@@ -57,3 +57,31 @@ no en el `<code>`, porque quien lo escribe es la prosa: `{'…'} <code>x</code>`
   line-height: 1.55;
   max-width: 860px;
 }
+
+/*
+La anotación monoespaciada y apagada. Hay dos tamaños y la diferencia es real,
+así que se nombran los dos en vez de fundirlos: `.anotacion` es contenido que
+hay que poder leer —el dominio del servidor, la ruta de una clase de app, el
+agente de una sesión—; `.anotacionMinima` acompaña a otra cosa y no debe
+competir con ella —la unidad de una baldosa, el tamaño de un fichero—.
+
+Estaban escritas en seis módulos, con los dos tamaños repartidos sin criterio.
+*/
+.anotacion {
+  font-family: var(--font-mono);
+  font-size: var(--t-3);
+  color: var(--faint);
+}
+
+.anotacionMinima {
+  font-family: var(--font-mono);
+  font-size: var(--t-2);
+  color: var(--faint);
+}
+
+/* Una línea que no cabe y se corta con puntos suspensivos. */
+.truncado {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

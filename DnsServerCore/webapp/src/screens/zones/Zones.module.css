@@ -1,5 +1,5 @@
 /* Cabecera de sección */
-.tags { display:flex; gap: var(--s-3); margin-top: var(--s-5); flex-wrap:wrap; }
+.tags { composes: tags from '../../ui/SectionHeader.module.css'; }
 .acts { display:flex; gap: var(--s-4); flex-wrap:wrap; justify-content:flex-end; }
 
 /* Migas de pan: volver a la lista desde una zona */
@@ -12,7 +12,7 @@
 
 /* Cuenta y paginación */
 /* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
-.count { composes: barra from '../../ui/recuento.module.css'; margin-bottom: var(--hueco-pegado); }
+.count { composes: barra encima from '../../ui/recuento.module.css'; }
 .countPie { margin-top: var(--hueco-grupo); margin-bottom: 0; }
 .mono { composes: mono from '../../ui/texto.module.css'; }
 
@@ -39,7 +39,7 @@
 
 /* Formularios de modal */
 .campos { display:flex; flex-direction:column; gap: var(--s-8); }
-.enLinea { display:flex; gap: var(--s-6); align-items:center; flex-wrap:wrap; }
+.enLinea { composes: enLinea from '../../ui/Ajustes.module.css'; }
 .sufijo { composes: coletilla from '../../ui/texto.module.css'; }
 /* La misma fila que `ui/Check.module.css`, que es donde vive el alto mínimo:
    sin él, los radios de «Add Zone», «Import» y «Convert» medían 19 px. */

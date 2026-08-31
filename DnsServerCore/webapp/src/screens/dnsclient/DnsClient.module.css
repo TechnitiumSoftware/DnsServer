@@ -35,7 +35,7 @@ puesto a mano en cada botón, que es el síntoma de que la fila no alineaba.
 }
 .panel { margin-bottom: var(--s-9); }
 
-.meta { font-family:var(--font-mono); font-size: var(--t-2); color:var(--faint); }
+.meta { composes: anotacionMinima from '../../ui/texto.module.css'; }
 .out { margin: 0; padding: var(--s-8); background:var(--field); border:1px solid var(--line); border-radius: var(--r-3); font-family:var(--font-mono); font-size: var(--t-3); color:var(--ink); overflow:auto; line-height:1.55; max-height:460px; white-space:pre-wrap; word-break:break-word; }
 
 /*

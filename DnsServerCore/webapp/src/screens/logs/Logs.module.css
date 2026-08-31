@@ -15,7 +15,7 @@
 .logfiles { display: flex; flex-direction: column; gap: var(--s-1); }
 .logfile { composes: fila from '../../ui/lista.module.css'; justify-content: space-between; }
 .logfile .nombre { font-family: var(--font-mono); }
-.sz { font-family: var(--font-mono); font-size: var(--t-2); color: var(--faint); }
+.sz { composes: anotacionMinima from '../../ui/texto.module.css'; }
 .out {
   margin: 0; padding: var(--s-8); background: var(--field); border: 1px solid var(--line);
   border-radius: var(--r-3); font-family: var(--font-mono); font-size: var(--t-3); color: var(--ink);
@@ -40,7 +40,7 @@
 .campo input, .campo select { width: 100%; }
 
 /* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
-.count { composes: barra from '../../ui/recuento.module.css'; margin-bottom: var(--hueco-pegado); }
+.count { composes: barra encima from '../../ui/recuento.module.css'; }
 .mono { composes: mono from '../../ui/texto.module.css'; }
 .nowrap { white-space: nowrap; }
 .romper { word-break: break-all; }

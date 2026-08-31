@@ -9,12 +9,12 @@
 
 .node { composes: compacta from '../../ui/lista.module.css'; font-family: var(--font-mono); }
 .car { display:inline-flex; color:var(--mute); flex:none; }
-.etiqueta { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.etiqueta { composes: truncado from '../../ui/texto.module.css'; }
 .lvl { margin-left: var(--s-9); border-left:1px solid var(--line); padding-left: var(--s-3); }
 
 /* Panel de registros */
 /* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
-.count { composes: barra from '../../ui/recuento.module.css'; margin-bottom: var(--hueco-pegado); }
+.count { composes: barra encima from '../../ui/recuento.module.css'; }
 .countActs { display:flex; gap: var(--s-3); }
 .mono { composes: mono from '../../ui/texto.module.css'; }
 

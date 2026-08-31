@@ -59,7 +59,7 @@ porque el lateral es un cajón cerrado y su disparador tiene que estar fuera.
 .pieEnlaces a { white-space: nowrap; }
 .pieEnlaces a:hover { color:var(--ink); text-decoration:underline; }
 .sep { color:var(--line); }
-.host { font-family:var(--font-mono); font-size: var(--t-3); color:var(--faint); word-break:break-all; }
+.host { composes: anotacion from '../ui/texto.module.css'; word-break: break-all; }
 /* Se abre hacia arriba: está al pie de la ventana, no bajo un cabecero. */
 .body { padding: var(--s-11) var(--s-11) var(--s-11); min-width:0; }
 

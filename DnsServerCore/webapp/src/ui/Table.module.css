@@ -77,7 +77,7 @@ que está en una columna.
 }
 
 /* Metadatos: la fecha, el «hace tanto», el contador. Acompañan, no compiten. */
-.meta { color: var(--mute); font-size: var(--t-3); }
+.meta { composes: coletilla from './texto.module.css'; }
 
 /* Una celda con varias líneas dentro se alinea arriba; el resto, al centro. */
 .apilada { vertical-align: top; }

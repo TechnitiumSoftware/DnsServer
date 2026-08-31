@@ -8,9 +8,13 @@ lo definían por su cuenta y salían cuatro tratamientos: `Total Scopes` en
 negrita, `Total Users` en normal, `Total Groups` de «My Profile» un punto más
 pequeño, y el de Apps a medio camino con peso 550.
 
-Dónde va —encima de la tabla, debajo, o las dos cosas— sigue siendo decisión de
-cada pantalla: en Zones acompaña a la paginación y hay una arriba y otra abajo.
-Lo que no puede cambiar es el aspecto.
+CUÁL de las dos posiciones usa cada pantalla sigue siendo suyo —en Zones
+acompaña a la paginación y hay una arriba y otra abajo—, pero la DISTANCIA no:
+el recuento de encima iba a `--hueco-pegado` en las tres pantallas que lo tienen,
+y el de debajo a cuatro distancias distintas (`--s-8`, `--s-5`, `--hueco-grupo` y
+un `padding-top` de `--s-7`) en las cuatro que lo tienen. `--hueco-grupo` es el
+token que nombra esa distancia; su propia definición dice «entre cosas que se
+leen juntas: el pie de una tabla».
 */
 .recuento {
   font-size: var(--t-4);
@@ -27,3 +31,9 @@ Lo que no puede cambiar es el aspecto.
   gap: var(--s-7);
   flex-wrap: wrap;
 }
+
+/* Encima de la tabla: pegado a ella, que es a lo que se refiere. */
+.encima { margin-bottom: var(--hueco-pegado); }
+
+/* Debajo: el pie de la tabla, que se lee junto a la última fila. */
+.debajo { margin-top: var(--hueco-grupo); }

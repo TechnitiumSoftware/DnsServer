@@ -19,7 +19,7 @@ descuadrar el título.
 .nombre { font-weight: 550; color: var(--ink); white-space: nowrap; }
 .fecha { white-space: nowrap; font-family: var(--font-mono); font-size: var(--t-3); }
 /* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
-.total { composes: recuento from '../../ui/recuento.module.css'; margin-top: var(--hueco-grupo); }
+.total { composes: recuento debajo from '../../ui/recuento.module.css'; }
 .kv { composes: kv from '../../ui/kv.module.css'; }
 
 .parrafo { composes: parrafo from '../../ui/texto.module.css'; }

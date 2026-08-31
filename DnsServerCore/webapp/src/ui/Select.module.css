@@ -34,7 +34,7 @@ y escribir tienen que pesar lo mismo. Lo que cambia es que éste se abre.
 
 .disparador:disabled { opacity: 0.45; cursor: default; }
 
-.valor { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.valor { composes: truncado from './texto.module.css'; }
 .vacio { color: var(--faint); }
 
 .chevron { color: var(--mute); flex: none; transition: transform var(--t-rapido); }

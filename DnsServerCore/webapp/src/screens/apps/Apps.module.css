@@ -29,11 +29,11 @@
 .sname { font-size: var(--t-4); font-weight: 550; color:var(--ink); }
 .slabels { display:flex; gap: var(--s-3); margin: var(--s-3) 0 var(--s-5); flex-wrap:wrap; }
 .sdesc { margin: 0 0 var(--s-5); font-size: var(--t-4); line-height:1.55; color:var(--mute); white-space:pre-line; }
-.smeta { font-size: var(--t-3); color:var(--faint); font-family:var(--font-mono); word-break:break-all; }
+.smeta { composes: anotacion from '../../ui/texto.module.css'; word-break: break-all; }
 .smeta b { color:var(--mute); font-family:var(--font-ui); }
 .sacts { display:flex; flex-direction:column; gap: var(--s-3); flex:none; }
 /* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
-.total { composes: recuento from '../../ui/recuento.module.css'; padding-top: var(--s-7); }
+.total { composes: recuento debajo from '../../ui/recuento.module.css'; }
 /* --- Config --- */
 .nota { font-size: var(--t-3); line-height:1.6; color:var(--mute); margin: 0 0 var(--s-7); }
 .nota code { font-family:var(--font-mono); color:var(--acc); }

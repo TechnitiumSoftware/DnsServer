@@ -13,7 +13,7 @@ viene la relación.
 */
 .tile { padding: var(--s-8) var(--s-8); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); box-shadow: var(--e-1), var(--filo); }
 .tile .v { font:600 var(--t-7)/1.1 var(--font-mono); letter-spacing:-.02em; color:var(--ink); }
-.tile .p { font-size: var(--t-2); color:var(--faint); font-family:var(--font-mono); }
+.p { composes: anotacionMinima from '../../ui/texto.module.css'; }
 .tile .k { display:flex; align-items:center; gap: var(--s-4); font-size: var(--t-1); color:var(--mute); margin-top: var(--s-3); text-transform:uppercase; letter-spacing:.05em; font-weight: 550; }
 /*
 La muestra de color sólo la llevan las once métricas, que SON series de la

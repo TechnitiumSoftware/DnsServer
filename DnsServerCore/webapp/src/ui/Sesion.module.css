@@ -22,9 +22,7 @@ mano, y se le notaba:
 
 /* La cadena del agente es larga y no tiene por dónde partir: se parte igual. */
 .agente {
-  font-family: var(--font-mono);
-  font-size: var(--t-2);
-  color: var(--faint);
+  composes: anotacionMinima from './texto.module.css';
   word-break: break-all;
 }
 

@@ -10,7 +10,7 @@
 
 
 /* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
-.count { composes: barra from '../../ui/recuento.module.css'; margin-top: var(--s-8); }
+.count { composes: barra debajo from '../../ui/recuento.module.css'; }
 
 /* El nombre de usuario / grupo / sección de la primera columna abre su ficha. */
 .link {
