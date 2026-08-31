@@ -312,6 +312,11 @@ export function FirmarZona({
             </div>
           )}
         </Field>
+        <div className={styles.ayuda}>
+          The TTL value to be used for DNSKEY records. A lower value will allow quicker addition or
+          rollover to a new DNS Key at the cost of increased frequency of DNSKEY queries by
+          resolvers.
+        </div>
 
         <Field label="ZSK Automatic Rollover">
           {(id) => (
@@ -327,6 +332,10 @@ export function FirmarZona({
             </div>
           )}
         </Field>
+        <div className={styles.ayuda}>
+          The frequency at which the DNS Server must automatically rollover the Zone Signing Key
+          (ZSK).
+        </div>
 
         {/* El enlace con el que upstream cierra `modalDnssecSignZone`. */}
         <Ayuda href={AYUDA_DNSSEC}>Help: How To Secure Your Domain Name With DNSSEC</Ayuda>

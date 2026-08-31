@@ -606,6 +606,11 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
             placeholder: ejemploDeForwarder(f.forwarderProtocol),
           })}
           {texto('Forwarder Priority', 'forwarderPriority', { mono: true, corto: true })}
+          <div className={styles.ayuda}>
+            Forwarders are sorted by priority value i.e. forwarder with low priority value will be
+            queried before trying for forwarder with high priority value. Forwarders with the same
+            priority value will be queried concurrently.
+          </div>
           <label className={styles.chk}>
             <input
               type="checkbox"
