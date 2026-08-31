@@ -8,13 +8,13 @@ import { avisoDeFallo } from '../../lib/aviso'
 import { Avisador } from '../../ui/Avisador'
 
 /*
-Réplica de `showConfigure2FAModal` / `enable2FA` / `disable2FA`
+A replica of `showConfigure2FAModal` / `enable2FA` / `disable2FA`
 (auth.js:498-641).
 
-`user/2fa/init` devuelve `qrCodePngImage` (PNG en base64) y `secret`. El QR se
-pinta como `data:` URI, lo cual SÍ permite la CSP del servidor: declara
-`img-src 'self' data:`. Lo que no permite es `data:` para fuentes, porque no
-declara `font-src`.
+`user/2fa/init` returns `qrCodePngImage` (base64 PNG) and `secret`. The QR is
+drawn as a `data:` URI, which the server's CSP DOES allow: it declares
+`img-src 'self' data:`. What it does not allow is `data:` for fonts, because it
+does not declare `font-src`.
 */
 interface InitResponse {
   response: { totpEnabled: boolean; qrCodePngImage: string; secret: string }
@@ -92,8 +92,8 @@ export function Configure2FA({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      // El título del modal es la forma LARGA; «Configure 2FA» es sólo la
-      // entrada del menú de usuario (index.html:3761). No son la misma cadena.
+      // The modal's title is the LONG form; "Configure 2FA" is only the user
+      // menu's entry (index.html:3761). They are not the same string.
       tamano="medio"
       title="Configure Two-factor Authentication (2FA)"
       acciones={

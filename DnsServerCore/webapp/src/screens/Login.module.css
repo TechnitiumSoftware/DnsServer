@@ -2,10 +2,10 @@
   min-height: 100vh;
   display: grid;
   place-items: center;
-  /* `align-content` además de `place-items`: con dos hijos —la tarjeta y el
-     pie— las filas se reparten el alto y cada uno queda centrado en SU mitad,
-     que dejaba 258 px entre ambos. Así se centra el grupo y el hueco lo pone
-     el `gap`. */
+  /* `align-content` as well as `place-items`: with two children —the card and
+     the footer— the rows split the height and each ends up centred in ITS half,
+     which left 258 px between them. This way the group is centred and the space
+     is set by the `gap`. */
   align-content: center;
   gap: var(--s-10);
   background: var(--bg);
@@ -17,7 +17,7 @@
   padding: var(--s-11) var(--s-11);
 }
 .brand { display: flex; align-items: center; gap: var(--s-7); margin-bottom: var(--s-11); }
-/* El logo de Technitium, no una inicial nuestra. Ver `app/Shell.module.css`. */
+/* Technitium's logo, not an initial of ours. See `app/Shell.module.css`. */
 .mark { width: 28px; height: 28px; flex: none; }
 .name { font-weight: 600; letter-spacing: -0.01em; color: var(--ink); font-size: var(--t-5); }
 .form { display: flex; flex-direction: column; gap: var(--s-9); }
@@ -27,8 +27,8 @@
   font-size: var(--t-4); color: var(--mute); text-decoration: none;
   border: 1px solid var(--line); border-radius: var(--r-2); padding: var(--s-5);
 }
-/* «Forgot Password?» es un enlace pelado, no un botón con caja: en upstream va
-   suelto encima del bloque de SSO (index.html:119). */
+/* "Forgot Password?" is a bare link, not a button with a box: in upstream it
+   sits loose above the SSO block (index.html:119). */
 .enlace {
   display: block; width: 100%; text-align: center;
   background: none; border: 0; padding: 0;
@@ -37,5 +37,5 @@
 .enlace:hover { color: var(--acc); }
 .oLogin { margin: var(--s-8) 0 var(--s-7); text-align: center; font-size: var(--t-3); color: var(--faint); }
 
-/* El pie, bajo la tarjeta y centrado: es de la página, no del formulario. */
+/* The footer, under the card and centred: it belongs to the page, not the form. */
 .pie { font-size: var(--t-3); line-height: 2; text-align: center; }

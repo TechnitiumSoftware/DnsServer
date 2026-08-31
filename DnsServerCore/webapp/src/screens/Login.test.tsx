@@ -5,7 +5,7 @@ import { Login } from './Login'
 import * as client from '../api/client'
 import * as status from '../api/status'
 
-/** Busca la llamada al login sin asumir que es la primera: antes va `api/status`. */
+/** Finds the login call without assuming it is the first: `api/status` goes before. */
 function llamadaLogin(spy: { mock: { calls: unknown[][] } }) {
   return spy.mock.calls.find((c) => c[0] === 'user/login') as
     | [string, { method?: string; body?: Record<string, string> }]
@@ -28,10 +28,9 @@ describe('Login', () => {
   })
 
   /*
-  Upstream tiene estos cinco enlaces en un `div#footer` colgado del `body`, así
-  que salen también en su pantalla de login. Aquí no había ninguno, y dos de
-  ellos —technitium.com y dnsclient.net— no aparecían en ninguna otra pantalla
-  de la consola.
+  Upstream has these five links in a `div#footer` hanging off the `body`, so
+  they show on its login screen too. Here there were none, and two of them
+  —technitium.com and dnsclient.net— appeared on no other screen of the console.
   */
   it('enseña el pie de upstream, que también sale en su login', async () => {
     render(<Login onSuccess={() => {}} />)
@@ -146,8 +145,8 @@ describe('Login', () => {
 
 describe('Forgot Password?', () => {
   it('el enlace abre el modal, que explica el único procedimiento que existe', async () => {
-    // Faltaba entero hasta el barrido de inventario de la fase 10: era el único
-    // de los 40 modales de upstream sin contraparte.
+    // It was missing entirely until the phase 10 inventory sweep: it was the only
+    // one of upstream's 40 modals with no counterpart.
     const usuario = userEvent.setup()
     vi.spyOn(status, 'getStatus').mockResolvedValue(null as never)
     render(<Login onSuccess={() => {}} />)

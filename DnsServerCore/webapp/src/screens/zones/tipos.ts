@@ -1,8 +1,8 @@
 export type { Aviso } from '../../lib/aviso'
 
 /**
- * Un `confirm()` de upstream convertido en diálogo. El texto puede llevar
- * saltos de línea (los de `\n\n` del borrado en bloque y del resync).
+ * An upstream `confirm()` turned into a dialog. The text may carry newlines (the
+ * `\n\n` of the bulk delete and of the resync).
  */
 export interface Confirmacion {
   titulo: string

@@ -69,7 +69,7 @@ function clicSimple(e: React.MouseEvent): boolean {
 
 export function Shell({ session, onLogout }: { session: ShellSession; onLogout: () => void }) {
   const permisos = session.info?.permissions
-  // Memorizada: si se recrea en cada render, el `hashchange` se resuscribe en cada uno.
+  // Memoised: if it is recreated on every render, the `hashchange` resubscribes on each.
   const sections = useMemo(() => visibleSections(permisos), [permisos])
   /* The starting section comes from the address bar if it carries one, and only
      if not, from the first visible one. See `app/ruta.ts` for the reasoning. */

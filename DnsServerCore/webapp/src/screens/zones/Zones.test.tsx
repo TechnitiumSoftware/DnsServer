@@ -33,7 +33,7 @@ const REGISTRO_A = {
   expiryTtlString: '',
 }
 
-/** Un servidor de mentira que responde por ruta. */
+/** A fake server that answers by path. */
 function servidor(respuestas: Record<string, unknown> = {}) {
   return vi.spyOn(client, 'apiRequest').mockImplementation(async (ruta) => {
     const base = ruta.split('?')[0]
@@ -74,7 +74,7 @@ describe('lista de zonas', () => {
     servidor({ 'zones/list': { zones: [], pageNumber: 1, totalPages: 1, totalZones: 0 } })
     pintar()
     expect(await screen.findByText('No Zone Found')).toBeTruthy()
-    // El estado se pinta arriba Y abajo de la tabla, como en upstream.
+    // The status is drawn above AND below the table, as in upstream.
     expect(screen.getAllByText('0 zones')).toHaveLength(2)
   })
 
@@ -127,8 +127,8 @@ describe('lista de zonas', () => {
     pintar()
     await screen.findByRole('button', { name: 'casa.test' })
 
-    // En una fila —una de doscientas cuarenta, con «Disable» al lado y sin
-    // deshacer en ninguna parte— borrar no puede estar a un clic despistado.
+    // In a row —one of two hundred and forty, with "Disable" next to it and no
+    // undo anywhere— delete cannot sit one careless click away.
     expect(screen.queryByRole('button', { name: 'Delete Zone' })).toBeNull()
 
     await usuario.click(screen.getByRole('button', { name: 'Actions for casa.test' }))
@@ -252,8 +252,8 @@ describe('registros de una zona', () => {
   })
 
   it('una Primary sin firmar SÍ tiene menú DNSSEC, pero dentro sólo «Sign Zone»', async () => {
-    // `divZoneDnssecOptions` se enseña para toda Primary; lo que cambia es lo
-    // que hay dentro (zone.js:3374). Una Secondary sin firmar no lo enseña.
+    // `divZoneDnssecOptions` is shown for every Primary; what changes is what is
+    // inside it (zone.js:3374). An unsigned Secondary does not show it.
     const { usuario } = await abrirZona()
     await usuario.click(screen.getByRole('button', { name: 'DNSSEC actions' }))
 
@@ -265,7 +265,7 @@ describe('registros de una zona', () => {
 
   it('el camino de vuelta lleva a la lista', async () => {
     const { usuario } = await abrirZona()
-    // El tramo «Zones» del camino ES el botón de vuelta: antes había además un
+    // The "Zones" segment of the path IS the back button: before there was also a
     // «← Zones» suelto encima diciendo lo mismo.
     await usuario.click(within(screen.getByLabelText('Breadcrumb')).getByRole('button'))
     expect(await screen.findByRole('heading', { name: 'Zones' })).toBeTruthy()
@@ -303,7 +303,7 @@ describe('modales', () => {
       expect(String(call![0])).toContain('useSoaSerialDateScheme=false')
       expect(call![1]?.method).toBe('POST')
     })
-    // Upstream abre la zona recién creada.
+    // Upstream opens the newly created zone.
     expect(await screen.findByRole('heading', { name: 'nueva.test' })).toBeTruthy()
   })
 

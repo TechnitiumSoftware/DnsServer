@@ -13,7 +13,7 @@ it showed:
     neither of the other two.
 */
 
-/* La antigüedad, bajo la fecha: «(2 hours ago)». */
+/* The age, under the date: "(2 hours ago)". */
 .antiguedad {
   margin-top: var(--s-1);
   font-size: var(--t-2);

@@ -46,10 +46,10 @@ describe('DNS Client', () => {
   })
 
   /*
-  El segundo panel del acordeón de upstream («Raw Responses (N)»,
-  `dnsclient.js:178-194`) faltaba entero: el tipo de la API ya declaraba
-  `rawResponses` y no lo pintaba nadie. Es lo que deja ver qué contestó cada
-  servidor por el camino cuando una consulta recursiva sale mal.
+  The second panel of upstream's accordion ("Raw Responses (N)",
+  `dnsclient.js:178-194`) was missing entirely: the API type already declared
+  `rawResponses` and nobody drew it. It is what lets you see what each server
+  answered along the way when a recursive query goes wrong.
   */
   it('enseña las respuestas en crudo, plegadas y con su recuento', async () => {
     vi.spyOn(api, 'resolve').mockResolvedValue({
@@ -61,7 +61,7 @@ describe('DNS Client', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Resolve' }))
 
     const resumen = await screen.findByText('Raw Responses (3)')
-    // Plegadas, como en upstream: la respuesta final es lo que se mira primero.
+    // Collapsed, as in upstream: the final answer is what gets looked at first.
     expect(resumen.closest('details')).not.toHaveAttribute('open')
   })
 

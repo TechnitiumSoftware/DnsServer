@@ -13,9 +13,9 @@ import {
 import type { PaneProps } from './tipos'
 
 /*
-Settings > General. Diez bloques, en el orden de los `div.well` de upstream
-(index.html:979-1414). Todas las etiquetas, sufijos, ayudas y avisos son
-literales de upstream, en inglés.
+Settings > General. Ten blocks, in the order of upstream's `div.well`
+(index.html:979-1414). Every label, suffix, help text and warning is an upstream
+literal.
 */
 export function General({ f, set, en }: PaneProps) {
   return (

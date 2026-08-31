@@ -1,6 +1,6 @@
-/* Logs. Dos sub-pantallas muy distintas: un visor de ficheros a dos columnas y
-   una tabla con quince filtros. Las clases de tabla son las mismas que en
-   Cache, Allowed y Blocked. */
+/* Logs. Two very different sub-screens: a two-column file viewer and a table with
+   fifteen filters. The table classes are the same as in Cache, Allowed and
+   Blocked. */
 
 .wrap { composes: pantalla from '../../ui/SectionHeader.module.css'; }
 
@@ -39,7 +39,7 @@
 .campo label { font-size: var(--t-2); color: var(--mute); font-weight: 550; }
 .campo input, .campo select { width: 100%; }
 
-/* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
+/* The count is `ui/recuento.module.css`'s: see there for why. */
 .count { composes: barra encima from '../../ui/recuento.module.css'; }
 .mono { composes: mono from '../../ui/texto.module.css'; }
 .nowrap { white-space: nowrap; }
@@ -55,8 +55,8 @@
 .rRecursive { background: rgba(23, 162, 184, 0.1); }
 .rCached { background: rgba(111, 84, 153, 0.1); }
 
-/* Centrada a propósito: es un filtro de barra, no una fila de ajuste. Pero el
-   alto mínimo es el mismo que el de `ui/Check.module.css`. */
+/* Centred on purpose: it is a bar filter, not a settings row. But the minimum
+   height is the same as `ui/Check.module.css`'s. */
 .check { display: flex; align-items: center; gap: var(--s-5); font-size: var(--t-4); cursor: pointer; min-height: 26px; padding: var(--s-2) 0; color: var(--ink); }
 .check input { flex: none; }
 

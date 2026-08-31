@@ -7,10 +7,10 @@ import { error, type AlertState } from './Apps'
 import { Avisador } from '../../ui/Avisador'
 
 /*
-Réplica de `showInstallAppModal` / `installApp` (apps.js:198-209 y 330-379).
+A replica of `showInstallAppModal` / `installApp` (apps.js:198-209 and 330-379).
 
-El orden de validación es el de upstream y no se toca: PRIMERO el nombre,
-DESPUÉS el fichero. Los dos avisos son literales.
+The validation order is upstream's and is not touched: the name FIRST, the file
+SECOND. Both alerts are literals.
 */
 export function InstallApp({
   open,

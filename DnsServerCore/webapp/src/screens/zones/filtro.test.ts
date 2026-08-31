@@ -34,7 +34,7 @@ describe('filtro de nombre', () => {
       'www.casa.test',
       'www.casa.test',
     ])
-    // `w` no encuentra `www`: sin comodín no hay prefijo que valga.
+    // `w` does not find `www`: without a wildcard no prefix counts.
     expect(filtrar(REGISTROS, { nombre: 'w', tipo: '' }, 'casa.test')).toEqual([])
   })
 
@@ -50,7 +50,7 @@ describe('filtro de nombre', () => {
   })
 
   it('`*` busca el registro COMODÍN literal, no lista todo', () => {
-    // La línea de zone.js:3548 que parece un error y no lo es.
+    // The zone.js:3548 line that looks like a bug and is not.
     expect(filtrar(REGISTROS, { nombre: '*', tipo: '' }, 'casa.test').map((r) => r.name)).toEqual([
       '*.casa.test',
     ])
@@ -71,8 +71,8 @@ describe('filtro de nombre', () => {
   })
 
   it('lo escrito se pasa a minúsculas; el nombre de la zona NO', () => {
-    // `filterName.toLowerCase()` sí, `zone` no (zone.js:3533). Con el nombre de
-    // zona que devuelve el servidor da igual, pero es lo que hace el original.
+    // `filterName.toLowerCase()` yes, `zone` no (zone.js:3533). With the zone name
+    // the server returns it makes no difference, but it is what the original does.
     expect(filtrar(REGISTROS, { nombre: 'WWW', tipo: '' }, 'casa.test')).toHaveLength(2)
     expect(compilarFiltroDeNombre('WWW', 'CASA.TEST').dominio).toBe('www.CASA.TEST')
   })

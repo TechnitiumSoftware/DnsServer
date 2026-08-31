@@ -1,10 +1,10 @@
 /*
-Las piezas con las que se dibujan las nueve sub-pestañas son las del kit de
-formulario-de-panel, `ui/Ajustes`. Estaban aquí y, otra vez, en DHCP; ver allí
-qué costó tenerlas dos veces.
+The pieces the nine sub-tabs are drawn with are the panel-form kit's,
+`ui/Ajustes`. They were here and, again, in DHCP; see there what having them
+twice cost.
 
-Este fichero se queda como el punto por el que las nueve sub-pestañas las piden,
-para no repetir la ruta en once ficheros.
+This file stays as the door through which the nine sub-tabs ask for them, so as
+not to repeat the path in eleven files.
 */
 export {
   AreaRow,

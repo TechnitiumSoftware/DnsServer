@@ -7,9 +7,10 @@ import * as api from '../../api/settings'
 afterEach(() => vi.restoreAllMocks())
 
 /*
-El menú «Blocking» de la cabecera de «Top Blocked Domains». Upstream lo tiene y
-aquí faltaba entero: apagar el bloqueo un rato es de lo que más se hace en esta
-consola y obligaba a irse a Settings a buscarlo.
+The "Blocking" menu in the header of "Top Blocked Domains". Upstream has it and
+here it was missing entirely: turning blocking off for a while is one of the most
+frequent things done in this console and it forced a trip to Settings to find
+it.
 */
 const abrir = async () =>
   await userEvent.click(await screen.findByRole('button', { name: 'Blocking options' }))
@@ -18,7 +19,7 @@ describe('MenuBloqueo', () => {
   it('pregunta el estado AL ABRIR, no al pintar', async () => {
     const spy = vi.spyOn(api, 'getSettings').mockResolvedValue({ enableBlocking: true } as never)
     render(<MenuBloqueo token="t" onAviso={() => {}} />)
-    // Entre pintar y abrir, el ajuste puede haber cambiado en otra pestaña.
+    // Between drawing and opening, the setting may have changed in another tab.
     expect(spy).not.toHaveBeenCalled()
     await abrir()
     expect(spy).toHaveBeenCalledTimes(1)
@@ -66,7 +67,7 @@ describe('MenuBloqueo', () => {
     await abrir()
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Disable Blocking For 15 Minutes' }))
 
-    // Nada ha pasado todavía: primero se pregunta, con el texto de upstream.
+    // Nothing has happened yet: it asks first, with upstream's text.
     expect(spy).not.toHaveBeenCalled()
     expect(
       await screen.findByText('Are you sure to temporarily disable blocking for 15 minute(s)?'),

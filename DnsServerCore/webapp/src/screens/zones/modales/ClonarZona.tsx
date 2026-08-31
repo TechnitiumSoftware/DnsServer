@@ -53,7 +53,7 @@ export function ClonarZona({
     }
 
     onCerrar()
-    // El texto de upstream está así, con esa frase a medias. Se copia literal.
+    // Upstream's text is like this, with that half-finished sentence. Copied literally.
     onHecho({ type: 'success', title: 'Zone Cloned!', text: 'Zone was cloned from successfully.' })
   }
 
@@ -72,7 +72,7 @@ export function ClonarZona({
     >
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
       <div className={styles.campos}>
-        {/* El origen es de sólo lectura: upstream lo guarda en un input oculto. */}
+        {/* The source is read-only: upstream keeps it in a hidden input. */}
         <LabeledInput label="Source Zone" mono readOnly value={zone} />
         <LabeledInput
           label="New Zone"

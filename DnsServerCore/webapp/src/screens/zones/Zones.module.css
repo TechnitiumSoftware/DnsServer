@@ -1,4 +1,4 @@
-/* Cabecera de sección */
+/* Section header */
 .tags { composes: tags from '../../ui/SectionHeader.module.css'; }
 .acts { display:flex; gap: var(--s-4); flex-wrap:wrap; justify-content:flex-end; }
 
@@ -10,7 +10,7 @@
 .filtMedio { width:190px; }
 .filtCorto { width:120px; }
 
-/* Cuenta y paginación */
+/* Count and pagination */
 /* The count is `ui/recuento.module.css`'s: see there for why. */
 .count { composes: barra encima from '../../ui/recuento.module.css'; }
 .countPie { margin-top: var(--hueco-grupo); margin-bottom: 0; }

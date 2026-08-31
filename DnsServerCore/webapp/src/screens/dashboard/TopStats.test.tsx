@@ -114,7 +114,7 @@ describe('los tres botones «More» del Dashboard', () => {
   }
 
   it('«More» de Top Clients abre el modal y pide TopClients', async () => {
-    // Antes de la fase 10 los tres botones estaban puestos y no hacían nada.
+    // Before phase 10 the three buttons were in place and did nothing.
     const usuario = userEvent.setup()
     vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: DATOS } as never)
     const top = vi.spyOn(api, 'getTop').mockResolvedValue(CLIENTES as never)

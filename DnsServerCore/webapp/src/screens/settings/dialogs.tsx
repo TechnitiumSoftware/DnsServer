@@ -9,8 +9,8 @@ import { Check } from './parts'
 import { Input } from '../../ui/Field'
 
 /*
-El paso de «¿seguro?» es `ui/Confirmar`, que es el mismo diálogo que usan las
-otras cinco pantallas. Se re-exporta con el nombre con el que lo piden aquí.
+The "are you sure?" step is `ui/Confirmar`, the same dialog the other five
+screens use. It is re-exported under the name it is asked for by here.
 */
 export { Confirmar } from '../../ui/Confirmar'
 

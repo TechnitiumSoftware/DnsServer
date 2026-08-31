@@ -4,8 +4,8 @@ import type { PaneProps } from './tipos'
 /*
 Settings > Web Service (index.html:1416-1560).
 
-Upstream lo pinta en un único `div.well`; aquí se trocea en bloques con título
-sin mover ni un campo de sitio ni cambiar su orden.
+Upstream draws it in a single `div.well`; here it is split into titled blocks
+without moving a single field or changing their order.
 */
 export function WebService({ f, set, en }: PaneProps) {
   return (

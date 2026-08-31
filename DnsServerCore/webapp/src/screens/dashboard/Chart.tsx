@@ -12,10 +12,10 @@ import type { ChartData } from '../../api/dashboard'
 ChartJS.register(LineController, DoughnutController, LineElement, PointElement, ArcElement, CategoryScale, LinearScale, Legend, Tooltip, Filler)
 
 /*
-Se usa Chart.js, no SVG a mano, por dos razones de comportamiento:
-  · el servidor devuelve los datos YA en formato Chart.js (labels + datasets);
-  · pulsar una serie de la leyenda la oculta, y eso es una interacción que
-    existe hoy. Con SVG se perdería.
+Chart.js is used, not hand-written SVG, for two behavioural reasons:
+  · the server returns the data ALREADY in Chart.js format (labels + datasets);
+  · clicking a series in the legend hides it, and that is an interaction that
+    exists today. With SVG it would be lost.
 */
 export function Chart({
   tipo,

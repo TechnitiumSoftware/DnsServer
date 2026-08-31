@@ -14,16 +14,16 @@ import { Textarea } from '../../../ui/Field'
 import type { PaneProps } from './tipos'
 
 /*
-Settings > Recursion (index.html:1794-1910). Tres bloques.
+Settings > Recursion (index.html:1794-1910). Three blocks.
 
-La ACL sólo se puede editar con la cuarta opción marcada
-(`Use Specified Network Access Control List (ACL)`); con las otras tres upstream
-la deja deshabilitada pero visible, no la oculta.
+The ACL can only be edited with the fourth option selected (`Use Specified
+Network Access Control List (ACL)`); with the other three upstream leaves it
+disabled but visible, it does not hide it.
 */
 export function Recursion({ f, set, en }: PaneProps) {
   return (
     <>
-      {/* Sin leyenda: repetía el título del panel. */}
+      {/* No legend: it repeated the panel's title. */}
       <Block>
         <GroupRow label="Recursion">
           <Radios

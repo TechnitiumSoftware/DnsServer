@@ -10,8 +10,8 @@ afterEach(() => vi.restoreAllMocks())
 
 const ok = (data: unknown) => ({ kind: 'ok' as const, data })
 
-/** Devuelve el espía de `apiRequest` ya cargado con la respuesta real de
- *  `settings/get` para que la pantalla arranque con datos de verdad. */
+/** Returns the `apiRequest` spy already loaded with the real `settings/get`
+ *  response so the screen starts with real data. */
 function servidor(overrides: Record<string, unknown> = {}) {
   return vi.spyOn(client, 'apiRequest').mockImplementation(async (path: string) => {
     if (path === 'settings/get') return ok({ response: { ...AJUSTES, ...overrides } })
@@ -122,7 +122,7 @@ describe('Settings — guardar', () => {
     const onSubChange = vi.fn()
     await montar({ sub: 'Recursion', onSubChange })
     await userEvent.clear(screen.getByLabelText('Resolver Retries'))
-    // Se cambia a otra sub-pestaña antes de guardar para probar el salto.
+    // It switches to another sub-tab before saving to exercise the jump.
     await userEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
 
     expect(await screen.findByText('Please enter a value for Resolver Retries.')).toBeInTheDocument()
@@ -202,7 +202,7 @@ describe('Settings — Blocking', () => {
     expect(
       screen.getByText('Blocking was successfully disabled temporarily for 15 minute(s).'),
     ).toBeInTheDocument()
-    // main.js:2393 — el éxito además desmarca «Enable Blocking».
+    // main.js:2393 — success also unchecks "Enable Blocking".
     expect(screen.getByLabelText('Enable Blocking')).not.toBeChecked()
   })
 
@@ -312,7 +312,7 @@ describe('Settings — reglas de habilitado del resto de sub-pestañas', () => {
     expect(screen.queryByLabelText('TSIG Keys 1 Key Name')).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Add' }))
     expect(screen.getByLabelText('TSIG Keys 1 Key Name')).toBeInTheDocument()
-    // El algoritmo por defecto de una fila nueva es hmac-sha256.
+    // The default algorithm of a new row is hmac-sha256.
     expect(valorDe(screen.getByLabelText('TSIG Keys 1 Algorithm'))).toBe('HMAC-SHA256 (recommended)')
     await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
     expect(screen.queryByLabelText('TSIG Keys 1 Key Name')).not.toBeInTheDocument()

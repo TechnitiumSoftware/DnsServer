@@ -12,12 +12,13 @@ import {
 import type { PaneProps } from './tipos'
 
 /*
-Settings > Proxy & Forwarders (index.html:2192-2358). Tres bloques.
+Settings > Proxy & Forwarders (index.html:2192-2358). Three blocks.
 
-Cuidado con el proxy: al leer llega como objeto anidado y al guardar se manda
-plano, y con «No Proxy» upstream NO manda dirección, puerto, usuario, contraseña
-ni lista de bypass (main.js:2122). Cambiar a «No Proxy» y guardar borra esos
-datos en el servidor: es el comportamiento de upstream y se replica.
+Careful with the proxy: when reading it arrives as a nested object and when
+saving it is sent flat, and with "No Proxy" upstream does NOT send the address,
+port, username, password or bypass list (main.js:2122). Switching to "No Proxy"
+and saving deletes that data on the server: it is upstream's behaviour and it is
+replicated.
 */
 export function ProxyForwarders({ f, set, en }: PaneProps) {
   return (

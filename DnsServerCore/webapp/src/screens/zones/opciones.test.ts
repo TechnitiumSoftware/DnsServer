@@ -47,7 +47,7 @@ describe('qué pestañas se ven', () => {
   it('una Catalog abre «Query Access» aunque haya más pestañas', () => {
     const e = estadoOpciones(opciones({ type: 'Catalog' }))
     expect(e.pestanaInicial).toBe('Query Access')
-    // Una Catalog no tiene actualizaciones dinámicas.
+    // A Catalog has no dynamic updates.
     expect(e.pestanas).not.toContain('Dynamic Updates')
   })
 
@@ -136,13 +136,13 @@ describe('el cuerpo de options/set', () => {
     const r = construirCuerpoOpciones(f(), 'Primary')
     if ('error' in r) throw new Error('esperaba cuerpo')
 
-    // Cuatro caen a la cadena «false»…
+    // Four fall to the string "false"…
     expect(r.body.zoneTransferNetworkACL).toBe('false')
     expect(r.body.zoneTransferTsigKeyNames).toBe('false')
     expect(r.body.notifyNameServers).toBe('false')
     expect(r.body.updateNetworkACL).toBe('false')
     expect(r.body.updateSecurityPolicies).toBe('false')
-    // …y dos viajan vacías tal cual.
+    // …and two travel empty as they are.
     expect(r.body.primaryNameServerAddresses).toBe('')
     expect(r.body.queryAccessNetworkACL).toBe('')
   })

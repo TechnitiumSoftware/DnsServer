@@ -73,8 +73,8 @@ describe('Apps — lista de instaladas', () => {
     render(<Apps token="t" />)
 
     expect(await screen.findByText('1 update available')).toBeInTheDocument()
-    // El recuento de instaladas ya no está: la píldora de cabecera es para
-    // ESTADO, y contar filas con ese mismo aspecto era una incongruencia.
+    // The installed count is gone: the header pill is for STATE, and counting
+    // rows with that same look was an inconsistency.
     expect(screen.queryByText(/^\d+ instaladas?$/)).not.toBeInTheDocument()
   })
 
@@ -98,8 +98,8 @@ describe('Apps — lista de instaladas', () => {
     ).not.toBeInTheDocument()
   })
 
-  /* apps.js:129-132 — «Update» (zip propio) y «Store Update» son dos acciones
-     distintas, no dos nombres de la misma. */
+  /* apps.js:129-132 — "Update" (your own zip) and "Store Update" are two
+     different actions, not two names for the same one. */
   it('cada tarjeta ofrece Config, Update y Uninstall', async () => {
     conApps([AL_DIA])
     render(<Apps token="t" />)
@@ -141,10 +141,9 @@ describe('Apps — lista de instaladas', () => {
 
 describe('Apps — desinstalar', () => {
   /*
-  La confirmación es el diálogo de la consola, no el `confirm()` nativo del
-  navegador: desinstalar una app era uno de los tres pasos que seguían abriendo
-  el del sistema operativo. El texto sigue siendo el literal de upstream
-  (`apps.js:425`).
+  The confirmation is the console's dialog, not the browser's native
+  `confirm()`: uninstalling an app was one of the three steps that still opened
+  the operating system's. The text is still upstream's literal (`apps.js:425`).
   */
   it('pide confirmación con el texto literal de upstream', async () => {
     conApps([AL_DIA])
@@ -216,7 +215,7 @@ describe('Apps — config de la app', () => {
     expect(screen.getByLabelText('Config File')).toHaveValue('{ "a": 1 }')
   })
 
-  /* El servidor devuelve `config: null` en cuanto alguien guarda una vacía. */
+  /* The server returns `config: null` as soon as someone saves an empty one. */
   it('una config nula abre el editor vacío, no con «null»', async () => {
     conApps([AL_DIA])
     vi.spyOn(api, 'getAppConfig').mockResolvedValue({
@@ -402,7 +401,7 @@ describe('Apps — tienda', () => {
       await within(screen.getAllByRole('dialog')[0]).findByRole('listitem', { name: 'NO DATA' }),
     )
     await userEvent.click(fila.getByRole('button', { name: 'Uninstall' }))
-    // La confirmación se apila sobre el diálogo de la tienda.
+    // The confirmation stacks over the store's dialog.
     await userEvent.click(
       within(screen.getAllByRole('dialog').at(-1)!).getByRole('button', { name: 'Uninstall' }),
     )

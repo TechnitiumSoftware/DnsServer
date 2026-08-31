@@ -27,15 +27,15 @@ import { Menu } from '../../ui/Menu'
 import { Avisador } from '../../ui/Avisador'
 
 /*
-`refreshAdminGroups`, `addGroup`, `showGroupDetailsModal`, `saveGroupDetails` y
+`refreshAdminGroups`, `addGroup`, `showGroupDetailsModal`, `saveGroupDetails` and
 `deleteGroup` (auth.js:1699-1937).
 
-Un detalle de la tabla que no es adorno: la descripción se pinta con los saltos
-de línea convertidos en `<br />` (auth.js:1731), porque el campo es un textarea
-de hasta 255 caracteres y puede traerlos.
+One table detail that is not decoration: the description is drawn with its
+newlines turned into `<br />` (auth.js:1731), because the field is a textarea of
+up to 255 characters and can carry them.
 
-Y uno del guardado: `newGroup` sólo viaja si el nombre CAMBIÓ. Mandarlo siempre
-haría que el servidor intentase renombrar el grupo a sí mismo.
+And one about saving: `newGroup` only travels if the name CHANGED. Always sending
+it would make the server try to rename the group to itself.
 */
 
 interface Props {
@@ -192,7 +192,7 @@ export function Groups({ token, onAviso }: Props) {
   )
 }
 
-/** `addGroup` (auth.js:1755). Sólo una validación: el nombre. */
+/** `addGroup` (auth.js:1755). Only one validation: the name. */
 function AnadirGrupo({
   abierto,
   token,

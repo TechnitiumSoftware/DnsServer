@@ -333,7 +333,7 @@ export function getSsoConfig(token: string | null): Promise<ApiOutcome<Env<SsoCo
   return apiRequest('admin/sso/get', { token, body: { includeGroups: 'true' } })
 }
 
-/** `saveAdminSsoConfig` (auth.js:2233). Por POST porque lleva el secreto. */
+/** `saveAdminSsoConfig` (auth.js:2233). By POST because it carries the secret. */
 export function setSsoConfig(
   token: string | null,
   body: Record<string, string>,

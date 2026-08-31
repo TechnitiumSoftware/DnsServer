@@ -63,7 +63,7 @@ export function Tabla({
   /** The `thead` cells; normally `Th` from this same module. */
   cabecera: ReactNode
   children: ReactNode
-  /** Si no hay filas que pintar. */
+  /** Whether there are no rows to draw. */
   vacia?: boolean
   /** What to say then. Without this, an empty table shows a blank body. */
   vacio?: ReactNode
@@ -73,7 +73,7 @@ export function Tabla({
   className?: string
   /** For the table: the sticky header of the "More" dialog, for example. */
   claseTabla?: string
-  /** La fila de pie, cuando la tabla lleva su recuento dentro. */
+  /** The footer row, when the table carries its count inside. */
   pie?: ReactNode
 }) {
   return (
@@ -132,7 +132,7 @@ export function useOrden<T>(claves: Claves<T>, filas: T[]) {
   function alternar(campo: string) {
     const leer = claves[campo]
     if (leer == null) return
-    // Se mira la lista TAL COMO ESTÁ PINTADA, que es lo que mira upstream.
+    // The list is looked at AS IT IS DRAWN, which is what upstream looks at.
     const yaAsc = ordenadas.every((f, i) => i === 0 || texto(leer(ordenadas[i - 1])) <= texto(leer(f)))
     setOrden({ campo, desc: yaAsc })
   }
@@ -140,7 +140,7 @@ export function useOrden<T>(claves: Claves<T>, filas: T[]) {
   return { filas: ordenadas, orden, alternar }
 }
 
-/** Cabecera de columna ordenable. Sin `campo` es una cabecera normal. */
+/** A sortable column header. Without `campo` it is an ordinary header. */
 export function Th({
   campo,
   orden,

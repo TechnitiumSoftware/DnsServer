@@ -23,15 +23,15 @@ import type { PaneProps } from './tipos'
 /*
 Settings > Blocking (index.html:2066-2190).
 
-Aquí está la única regla de habilitado en cascada de toda la pantalla
-(`updateBlockingState`, main.js:2412): con «Enable Blocking» desmarcado se
-apagan TODOS los controles de la sub-pestaña, y «Update Now» además exige que la
-lista de URLs no esté vacía.
+This is where the screen's only cascading enablement rule lives
+(`updateBlockingState`, main.js:2412): with "Enable Blocking" unchecked, ALL the
+sub-tab's controls go off, and "Update Now" additionally requires the URL list
+not to be empty.
 */
 export interface BlockingExtra {
-  /** `temporaryDisableBlockingTill` de `settings/get`. Ausente o null = «Not Set». */
+  /** `temporaryDisableBlockingTill` from `settings/get`. Absent or null = "Not Set". */
   temporaryDisableBlockingTill?: string | null
-  /** `blockListNextUpdatedOn`. Ausente o null = «Not Scheduled»; pasado = «Updating Now». */
+  /** `blockListNextUpdatedOn`. Absent or null = "Not Scheduled"; past = "Updating Now". */
   blockListNextUpdatedOn?: string | null
   onTemporaryDisable: () => void
   onUpdateNow: () => void
@@ -46,7 +46,7 @@ export function textoProximaActualizacion(iso: string | null | undefined): strin
 export function Blocking({ f, set, en, extra }: PaneProps & { extra: BlockingExtra }) {
   const off = !en.blocking
 
-  // Sin leyenda: repetía el título del panel.
+  // No legend: it repeated the panel's title.
   return (
     <Block>
       <GroupRow label="Blocking">

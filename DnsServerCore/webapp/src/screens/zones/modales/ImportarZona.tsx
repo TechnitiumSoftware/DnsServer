@@ -13,10 +13,10 @@ import { Avisador } from '../../../ui/Avisador'
 import { Input } from '../../../ui/Field'
 
 /*
-`modalImportZone` (zone.js:1227 y 1251). Dos formas de dar el fichero —subirlo
-o pegarlo— y **el aviso de que falta el fichero sólo existe en la primera**: si
-el editor de texto está vacío, upstream manda la petición igual y deja que
-falle el servidor. Se replica.
+`modalImportZone` (zone.js:1227 and 1251). Two ways of handing over the file
+—uploading it or pasting it— and **the "file is missing" alert only exists in the
+first**: if the text editor is empty, upstream sends the request all the same and
+lets the server fail. It is replicated.
 */
 
 type Modo = 'File' | 'Text'
@@ -46,7 +46,7 @@ export function ImportarZona({
   const [ocupado, setOcupado] = useState(false)
   const fichero = useRef<HTMLInputElement>(null)
 
-  // `showImportZoneModal`: al abrir vuelve a los valores por defecto, que NO
+  // `showImportZoneModal`: on opening it returns to the defaults, which are NOT
   // son todos falsos — «Overwrite Existing Records» empieza marcado.
   useEffect(() => {
     if (!abierto) return

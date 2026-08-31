@@ -1,11 +1,11 @@
 import type { DnsSettings } from '../../api/settings'
 
 /*
-La respuesta REAL de `settings/get` de una instancia v15.4 recién instalada
-(la de `dev/`, servida en 127.0.0.1:5381). Se copia tal cual, con sus claves
-ausentes incluidas: `temporaryDisableBlockingTill`, `blockListNextUpdatedOn` y
-`clusterNodes` NO vienen cuando son nulas, y ese es justo el caso que hay que
-saber pintar («Not Set», «Not Scheduled»).
+The REAL `settings/get` response of a freshly installed v15.4 instance (the one
+in `dev/`, served at 127.0.0.1:5381). It is copied as it stands, absent keys
+included: `temporaryDisableBlockingTill`, `blockListNextUpdatedOn` and
+`clusterNodes` do NOT come when they are null, and that is exactly the case that
+has to be drawn correctly ("Not Set", "Not Scheduled").
 */
 export const AJUSTES: DnsSettings = {
   "version": "15.4",

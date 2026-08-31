@@ -8,16 +8,15 @@ import styles from './Apps.module.css'
 import { Avisador } from '../../ui/Avisador'
 
 /*
-Réplica de `modalAppConfig` (index.html:6255-6280) y `saveAppConfig`
+A replica of `modalAppConfig` (index.html:6255-6280) and `saveAppConfig`
 (apps.js:493-522).
 
-Es un EDITOR DE TEXTO, no un formulario: el contenido de `dnsApp.config` lo
-define cada app y la consola no sabe qué campos tiene. Upstream pone un
-`<textarea>` de 15 filas con el corrector ortográfico apagado, y eso es lo que
-hay aquí.
+It is a TEXT EDITOR, not a form: the content of `dnsApp.config` is defined by each
+app and the console does not know what fields it has. Upstream puts a 15-row
+`<textarea>` with the spellchecker off, and that is what is here.
 
-La config llega ya leída desde la pantalla, porque upstream también la pide
-ANTES de abrir el modal (el botón «Config» se queda en «Loading...»).
+The config arrives already read from the screen, because upstream also asks for it
+BEFORE opening the modal (the "Config" button sits at "Loading...").
 */
 export function AppConfig({
   open,

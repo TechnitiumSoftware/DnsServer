@@ -1,2 +1,2 @@
-/* Se unificó en `src/lib/fechas.ts` al integrar las fases 4, 8 y 9. */
+/* It was unified into `src/lib/fechas.ts` when integrating phases 4, 8 and 9. */
 export { fechaHora, fechaMinuto, desdeAhora } from '../../lib/fechas'

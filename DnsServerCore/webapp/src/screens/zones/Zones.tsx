@@ -185,7 +185,7 @@ export function Zones({
         dnssecValidation={dnssecValidation}
         onCerrar={() => setModal(null)}
         onCreada={(domain, a) => {
-          // Upstream abre la zona recién creada, no vuelve a la lista.
+          // Upstream opens the newly created zone, it does not go back to the list.
           setAbierta(domain === '' ? '.' : domain)
           setAviso(a)
         }}

@@ -7,7 +7,7 @@ import { LabeledInput } from '../../ui/Field'
 import { avisoDeFallo } from '../../lib/aviso'
 import { Avisador } from '../../ui/Avisador'
 
-/* Réplica de `createMyApiToken()` (auth.js:337-381). */
+/* A replica of `createMyApiToken()` (auth.js:337-381). */
 export function CreateApiToken({
   open,
   onOpenChange,

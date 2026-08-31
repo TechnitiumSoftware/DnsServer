@@ -9,9 +9,9 @@ import { avisoDeFallo } from '../../../lib/aviso'
 import { Avisador } from '../../../ui/Avisador'
 
 /*
-`modalDnssecUnsignZone` (zone.js:6673 y 6681). No tiene formulario: es un modal
-de confirmación con tres avisos que se copian enteros, porque explican una
-secuencia que si se hace mal deja la zona irresoluble.
+`modalDnssecUnsignZone` (zone.js:6673 and 6681). It has no form: it is a
+confirmation modal with three warnings copied whole, because they explain a
+sequence that, done wrong, leaves the zone unresolvable.
 */
 
 export function DesfirmarZona({

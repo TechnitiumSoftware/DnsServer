@@ -5,13 +5,13 @@ import { Chip } from '../../ui/Tag'
 import styles from './Apps.module.css'
 
 /*
-Una tarjeta por app instalada. En upstream es una fila de tabla (apps.js:63-135);
-el rediseño la convierte en tarjeta porque la descripción es larga. Lo que se
-enseña es lo mismo, y en el mismo orden.
+One card per installed app. In upstream it is a table row (apps.js:63-135); the
+redesign turns it into a card because the description is long. What is shown is
+the same, and in the same order.
 
-`updateAvailable` puede no venir: el servidor sólo escribe los tres campos de
-actualización si el app está en el catálogo de la tienda. Por eso se comprueba
-como opcional y no como booleano.
+`updateAvailable` may not come: the server only writes the three update fields if
+the app is in the store's catalog. That is why it is checked as optional and not
+as a boolean.
 */
 export function AppCard({
   app,
@@ -59,8 +59,8 @@ export function AppCard({
                 ))}
               </div>
               <p className={styles.claseDesc}>{d.description}</p>
-              {/* apps.js:82 — la plantilla sólo se enseña para las clases que
-                  atienden registros APP, que son las que la traen. */}
+              {/* apps.js:82 — the template is only shown for the classes that
+                  serve APP records, which are the ones that bring it. */}
               {d.isAppRecordRequestHandler && d.recordDataTemplate != null && (
                 <>
                   <div className={styles.plantillaK}>Record Data Template</div>

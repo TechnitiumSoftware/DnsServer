@@ -107,8 +107,8 @@ describe('SSO — validaciones', () => {
     const user = userEvent.setup()
     render(<Sso {...props} onAviso={onAviso} />)
 
-    // Hay dos «Add»: el de los scopes y el del mapa de grupos. Upstream rotula
-    // los dos igual; aquí se usa el primero, que es el de los scopes.
+    // There are two "Add": the scopes one and the group map one. Upstream labels
+    // both the same; the first is used here, which is the scopes one.
     await screen.findByLabelText('Scope Name 1')
     await user.click(screen.getAllByRole('button', { name: 'Add' })[0])
     await user.click(screen.getByRole('button', { name: 'Save Config' }))

@@ -8,12 +8,11 @@ import { avisoDeFallo } from '../../lib/aviso'
 import { Avisador } from '../../ui/Avisador'
 
 /*
-Réplica de `changePassword()` (auth.js:426-497).
+A replica of `changePassword()` (auth.js:426-497).
 
-El ORDEN de las validaciones es contrato, igual que los textos: upstream
-comprueba primero la contraseña actual, luego la nueva, luego la confirmación,
-luego que coincidan, y sólo entonces el OTP —y el OTP sólo si el usuario tiene
-2FA activo.
+The ORDER of the validations is contract, just like the texts: upstream checks
+the current password first, then the new one, then the confirmation, then that
+they match, and only then the OTP —and the OTP only if the user has 2FA on.
 */
 export function ChangePassword({
   open,

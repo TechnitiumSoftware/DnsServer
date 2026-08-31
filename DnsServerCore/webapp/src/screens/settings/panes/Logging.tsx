@@ -5,7 +5,7 @@ import type { PaneProps } from './tipos'
 export function Logging({ f, set, en }: PaneProps) {
   return (
     <>
-      {/* Sin leyenda: repetía el título del panel. */}
+      {/* No legend: it repeated the panel's title. */}
       <Block>
         <GroupRow label="Enable Logging To">
           <Radios

@@ -40,8 +40,8 @@ const ALLOWED_NS: RegistroDns = {
 }
 
 describe('ttlPartido', () => {
-  /* En cache el servidor manda el TTL ya compuesto como CADENA («218 (3m38s)»);
-     en allowed y blocked manda el número y `ttlString` aparte. */
+  /* In cache the server sends the TTL already composed as a STRING ("218
+     (3m38s)"); in allowed and blocked it sends the number and `ttlString` apart. */
   it('parte la cadena de cache en número y forma humana', () => {
     expect(ttlPartido(CACHE_DNSKEY)).toEqual({ valor: '2000', humano: '33m20s' })
   })
@@ -58,7 +58,7 @@ describe('ttlPartido', () => {
 describe('entradasRData', () => {
   it('no pierde ningún campo de rData', () => {
     const claves = entradasRData(CACHE_DNSKEY.rData).map((e) => e.clave)
-    // 6 campos, pero algorithmNumber se funde con algorithm: quedan 5 filas.
+    // 6 fields, but algorithmNumber merges into algorithm: 5 rows are left.
     expect(claves).toEqual(['Flags', 'Protocol', 'Algorithm', 'Public key', 'Key tag'])
   })
 
@@ -148,7 +148,7 @@ describe('extras', () => {
     expect(e.map((x) => x.clave)).toContain('Answer rate')
   })
 
-  /* La red de seguridad: si el servidor añade un campo mañana, sale igual. */
+  /* The safety net: if the server adds a field tomorrow, it comes out anyway. */
   it('un campo desconocido del registro no se pierde', () => {
     const e = extras({ ...ALLOWED_NS, campoNuevo: 'valor' })
     expect(e).toContainEqual({ clave: 'Campo nuevo', valor: 'valor', largo: false })

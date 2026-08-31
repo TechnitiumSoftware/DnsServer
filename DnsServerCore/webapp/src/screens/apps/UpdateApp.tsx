@@ -7,11 +7,11 @@ import { error, type AlertState } from './Apps'
 import { Avisador } from '../../ui/Avisador'
 
 /*
-Réplica de `showUpdateAppModal` / `updateApp` (apps.js:211-218 y 381-423).
+A replica of `showUpdateAppModal` / `updateApp` (apps.js:211-218 and 381-423).
 
-El nombre viene puesto y DESHABILITADO (index.html:6232): actualizar es
-reemplazar el zip de un app que ya existe, no renombrarlo. Aquí sólo se valida
-el fichero, igual que en upstream.
+The name comes filled in and DISABLED (index.html:6232): updating is replacing
+the zip of an app that already exists, not renaming it. Only the file is
+validated here, just as in upstream.
 */
 export function UpdateApp({
   open,

@@ -1,5 +1,5 @@
-/* El hueco entre un aviso y lo que viene debajo. Estaba a mano en cada
-   pantalla con un `style` en línea. */
+/* The gap between an alert and what comes below. It was done by hand on each
+   screen with an inline `style`. */
 
 .apps { display:grid; grid-template-columns:repeat(2,1fr); gap: var(--s-8); list-style:none; margin: 0; padding: 0; }
 @media (max-width: 1040px) { .apps { grid-template-columns:1fr; } }
@@ -31,7 +31,7 @@
 .smeta { composes: anotacion from '../../ui/texto.module.css'; word-break: break-all; }
 .smeta b { color:var(--mute); font-family:var(--font-ui); }
 .sacts { display:flex; flex-direction:column; gap: var(--s-3); flex:none; }
-/* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
+/* The count is `ui/recuento.module.css`'s: see there for why. */
 .total { composes: recuento debajo from '../../ui/recuento.module.css'; }
 /* --- Config --- */
 .nota { font-size: var(--t-3); line-height:1.6; color:var(--mute); margin: 0 0 var(--s-7); }

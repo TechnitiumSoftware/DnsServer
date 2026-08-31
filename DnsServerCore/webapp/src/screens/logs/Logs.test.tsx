@@ -434,7 +434,7 @@ describe('Logs › Query Logs — la tabla', () => {
 
     const fila = within(await screen.findByRole('row', { name: /127\.0\.0\.1/ }))
     expect(fila.getByText('.')).toBeInTheDocument()
-    // Sin `responseRtt` no se pinta el paréntesis con los milisegundos.
+    // Without `responseRtt` the bracket with the milliseconds is not drawn.
     expect(screen.queryByText(/ ms\)/)).not.toBeInTheDocument()
   })
 
@@ -493,7 +493,7 @@ describe('Query Logs — piezas puras', () => {
     expect(rangoPaginas(1, 3)).toEqual([1, 2, 3])
     expect(rangoPaginas(1, 100)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     expect(rangoPaginas(20, 100)).toEqual([15, 16, 17, 18, 19, 20, 21, 22, 23, 24])
-    // Al final, la ventana se desplaza hacia atrás para seguir siendo de diez.
+    // At the end, the window slides backwards so it keeps being ten wide.
     expect(rangoPaginas(100, 100)).toEqual([91, 92, 93, 94, 95, 96, 97, 98, 99, 100])
   })
 

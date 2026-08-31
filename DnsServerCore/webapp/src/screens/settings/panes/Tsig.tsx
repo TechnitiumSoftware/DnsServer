@@ -2,9 +2,9 @@ import { Select } from '../../../ui/Field'
 import { Avisos, Block, EditableTable, Note } from '../parts'
 import type { PaneProps } from './tipos'
 
-/** Los ocho algoritmos del desplegable, con su etiqueta literal
- *  (`addTsigKeyRow`, main.js:2260). El valor por defecto de una clave nueva es
- *  `hmac-sha256`, igual que el botón «Add» de upstream. */
+/** The dropdown's eight algorithms, with their literal labels (`addTsigKeyRow`,
+ *  main.js:2260). A new key's default value is `hmac-sha256`, same as upstream's
+ *  "Add" button. */
 export const ALGORITMOS_TSIG: { value: string; label: string }[] = [
   { value: 'hmac-md5.sig-alg.reg.int', label: 'HMAC-MD5 (obsolete)' },
   { value: 'hmac-sha1', label: 'HMAC-SHA1' },
@@ -16,11 +16,11 @@ export const ALGORITMOS_TSIG: { value: string; label: string }[] = [
   { value: 'hmac-sha512-256', label: 'HMAC-SHA512 (256 bits)' },
 ]
 
-/* Settings > TSIG (index.html:1770-1792). El secreto compartido es el ÚNICO
-   campo de tabla de toda la consola marcado `data-optional`: se puede dejar
-   vacío y el servidor genera una clave fuerte. */
+/* Settings > TSIG (index.html:1770-1792). The shared secret is the ONLY table
+   field in the whole console marked `data-optional`: it can be left empty and the
+   server generates a strong key. */
 export function Tsig({ f, set }: PaneProps) {
-  // Sin leyenda: repetía el título del panel.
+  // No legend: it repeated the panel's title.
   return (
     <Block>
       <EditableTable

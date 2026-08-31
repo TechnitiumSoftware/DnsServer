@@ -98,7 +98,7 @@ export interface OpcionesFirma {
   dnsKeyTtl: string
   zskRolloverDays: string
   nxProof: NxProof
-  /** Sólo con NSEC3. */
+  /** Only with NSEC3. */
   iterations?: string
   saltLength?: string
 }

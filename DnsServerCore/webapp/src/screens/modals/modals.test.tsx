@@ -157,7 +157,7 @@ describe('My Profile', () => {
     await screen.findByDisplayValue('Administrator')
     expect(screen.getByLabelText('User Type')).toHaveValue('Local')
     expect(screen.getByLabelText('Display Name')).toBeEnabled()
-    // auth.js:678-687 — la ficha lista los grupos y su total; se había perdido.
+    // auth.js:678-687 — the record lists the groups and their total; it had been lost.
     expect(screen.getByLabelText('2FA Status')).toHaveValue('Disabled')
     expect(screen.getByText('Total Groups: 2')).toBeInTheDocument()
     expect(screen.getByText('Administrators')).toBeInTheDocument()
@@ -202,17 +202,17 @@ describe('My Profile — sesiones activas', () => {
     expect(await screen.findByText('Total Sessions: 2')).toBeInTheDocument()
     expect(screen.getByText('10.0.1.42')).toBeInTheDocument()
     expect(screen.getByText('(current)')).toBeInTheDocument()
-    // La etiqueta de tipo la pinta upstream (`auth.js:703-719`) y esta tabla la
-    // había perdido al escribirse a mano en vez de con la celda compartida.
+    // The type tag is drawn by upstream (`auth.js:703-719`) and this table had lost
+    // it by being written by hand instead of with the shared cell.
     expect(screen.getByText('Standard')).toBeInTheDocument()
     expect(screen.getByText('API Token')).toBeInTheDocument()
   })
 
   /*
-  La confirmación es el diálogo de la consola, no el `confirm()` nativo del
-  navegador: era el único paso de todo el rediseño que seguía abriendo el del
-  sistema operativo. El texto sigue siendo el literal de upstream
-  (`auth.js:803`), que es lo que estas dos pruebas cuidan.
+  The confirmation is the console's dialog, not the browser's native
+  `confirm()`: it was the only step of the whole redesign that still opened the
+  operating system's. The text is still upstream's literal (`auth.js:803`), which
+  is what these two tests guard.
   */
   async function abrirBorradoDeSesion() {
     await userEvent.click(screen.getByRole('button', { name: 'Actions for bbb222' }))

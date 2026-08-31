@@ -1,12 +1,12 @@
 .caption { font-size: var(--t-2); color: var(--mute); font-weight: 550; margin-bottom: var(--s-3); }
 
 /*
-La de «Member Of» es de UNA columna —el nombre del grupo— y se estiraba a 831 px
-para un dato de 82. El diálogo es ancho por su tabla de sesiones, que sí lo
-necesita; ésta no tiene por qué acompañarla. Upstream tampoco la estira: la mete
-en un `col-sm-7`.
+The "Member Of" one has ONE column —the group's name— and it stretched to 831 px
+for a datum of 82. The dialog is wide because of its sessions table, which does
+need it; this one has no reason to go along. Upstream does not stretch it either:
+it puts it in a `col-sm-7`.
 */
 .estrecha { max-width: 420px; }
 .mono { composes: mono from '../../ui/texto.module.css'; }
-/* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
+/* The count is `ui/recuento.module.css`'s: see there for why. */
 .total { composes: recuento debajo from '../../ui/recuento.module.css'; }

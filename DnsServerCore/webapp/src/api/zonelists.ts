@@ -75,12 +75,12 @@ export interface RegistroDns {
   ttlString?: string
   rData: Record<string, unknown>
   dnssecStatus?: string
-  // Sólo cache
+  // cache only
   dnssecRecords?: string[]
   eDnsClientSubnet?: string
   nameServerMetadata?: NameServerMetadata
   responseMetadata?: ResponseMetadata
-  // Sólo allowed y blocked
+  // allowed and blocked only
   disabled?: boolean
   comments?: string
   lastModified?: string

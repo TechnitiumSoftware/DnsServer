@@ -174,7 +174,7 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
       <path d="M18.4 6.6a9 9 0 1 1-12.8 0" />
     </>
   ),
-  /* La ficha de alguien: «View Details». */
+  /* Someone's record: "View Details". */
   ficha: (
     <>
       <rect x="3" y="4" width="18" height="16" rx="2" />

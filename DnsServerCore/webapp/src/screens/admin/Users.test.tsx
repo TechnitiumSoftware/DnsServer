@@ -38,9 +38,9 @@ describe('Users — la tabla', () => {
     expect(await screen.findByText('Administrator')).toBeInTheDocument()
     expect(screen.getAllByText('Local')).toHaveLength(2)
     expect(screen.getByText('Total Users: 2')).toBeInTheDocument()
-    // `0001-01-01T00:00:00` es el «nunca» de .NET. Upstream lo formatea sin
-    // mirarlo y saca «0000-12-31 23:45:16 from 0.0.0.0»; aquí se dice «Never»,
-    // que es lo que ese valor significa.
+    // `0001-01-01T00:00:00` is .NET's "never". Upstream formats it without
+    // looking and produces "0000-12-31 23:45:16 from 0.0.0.0"; here it says
+    // "Never", which is what that value means.
     expect(screen.getAllByText('Never')).toHaveLength(2)
     expect(screen.queryByText(/from 0\.0\.0\.0/)).toBeNull()
   })
@@ -301,7 +301,7 @@ describe('Users — el modal de detalles', () => {
 
     await user.click(screen.getByRole('button', { name: 'Save' }))
     const body = spy.mock.calls.find((c) => c[0] === 'admin/users/set')?.[1]?.body as Record<string, string>
-    // `cleanTextList`: saltos a comas, sin coma final.
+    // `cleanTextList`: newlines to commas, no trailing comma.
     expect(body.memberOfGroups).toBe('Administrators,DNS Administrators')
   })
 
@@ -317,8 +317,8 @@ describe('Users — el modal de detalles', () => {
     await user.click(await screen.findByRole('button', { name: 'View Details' }))
     expect(await screen.findByLabelText('Display Name')).toBeDisabled()
     expect(screen.getByLabelText('Username')).toBeDisabled()
-    // Con `ssoManagedGroups` a falso los grupos SÍ se pueden tocar: son dos
-    // condiciones distintas, no una.
+    // With `ssoManagedGroups` false the groups CAN be touched: they are two
+    // different conditions, not one.
     expect(screen.getByLabelText('Member Of')).not.toBeDisabled()
 
     await user.click(screen.getByRole('button', { name: 'Save' }))

@@ -3,10 +3,10 @@ import { instantesDelRango, loQueFalta } from './rango-personalizado'
 
 describe('instantesDelRango', () => {
   /*
-  La regla de los siete días de upstream (`main.js:2604-2612`): hasta una
-  semana, la fecha se interpreta en la zona local —el servidor devuelve por
-  horas y hay que alinearlas con el reloj de quien mira—; a partir de ahí, en
-  UTC, que es como agrupa los días.
+  Upstream's seven-day rule (`main.js:2604-2612`): up to a week, the date is read
+  in the local zone —the server returns by the hour and those have to line up with
+  the clock of whoever is looking— and beyond that, in UTC, which is how it groups
+  the days.
   */
   it('a partir de siete días interpreta las fechas en UTC', () => {
     const r = instantesDelRango('2026-08-01', '2026-08-20')
@@ -16,7 +16,7 @@ describe('instantesDelRango', () => {
 
   it('hasta siete días las interpreta en la zona local', () => {
     const r = instantesDelRango('2026-08-01', '2026-08-05')
-    // No se clava una zona: se afirma que coincide con la medianoche LOCAL.
+    // No zone is pinned: it asserts that it matches LOCAL midnight.
     expect(r.start).toBe(new Date('2026-08-01T00:00:00').toISOString())
     expect(r.end).toBe(new Date('2026-08-05T00:00:00').toISOString())
   })

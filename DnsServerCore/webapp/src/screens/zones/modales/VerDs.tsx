@@ -9,15 +9,15 @@ import styles from '../Zones.module.css'
 import { Avisador } from '../../../ui/Avisador'
 
 /*
-`modalDnssecViewDs` (zone.js:6734). Es un visor: no hay nada que guardar.
+`modalDnssecViewDs` (zone.js:6734). It is a viewer: there is nothing to save.
 
-La tabla original usa `rowspan` para agrupar los digests de una misma clave.
-Aquí cada clave es un bloque con su propia tabla de digests, que dice lo mismo
-sin depender de un `rowspan` calculado a mano.
+The original table uses `rowspan` to group the digests of one key. Here each key
+is a block with its own digest table, which says the same thing without depending
+on a `rowspan` calculated by hand.
 
-**Las claves públicas se truncan** con un enlace «show full» (decisión de
-Adrián, 2026-08-25): son 400 caracteres en base64 y enteras hacen ilegible el
-nodo raíz.
+**Public keys are truncated** with a "show full" link (Adrián's decision,
+2026-08-25): they are 400 base64 characters and in full they make the root node
+unreadable.
 */
 
 const CORTE = 64

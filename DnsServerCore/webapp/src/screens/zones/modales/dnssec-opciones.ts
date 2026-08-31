@@ -1,8 +1,8 @@
 /*
-Los desplegables de los dos formularios de DNSSEC (firmar una zona y añadir una
-clave). **La etiqueta y el valor NO coinciden**: se ve «SHA256 (default)» y
-viaja `SHA256`, se ve «Ed25519 (default)» y viaja `ED25519` en mayúsculas.
-Copiar la etiqueta como valor rompería la petición sin que se note en pantalla.
+The dropdowns of the two DNSSEC forms (signing a zone and adding a key). **The
+label and the value do NOT match**: you see "SHA256 (default)" and `SHA256`
+travels, you see "Ed25519 (default)" and `ED25519` travels in uppercase. Copying
+the label as the value would break the request without it showing on screen.
 */
 
 export const ALGORITMOS = [
@@ -45,7 +45,7 @@ export const GENERACIONES = [
   { valor: 'UseSpecified', etiqueta: 'Use Specified Private Key' },
 ]
 
-/** La curva por defecto de cada algoritmo, tal como la deja `showSignZoneModal`. */
+/** Each algorithm's default curve, exactly as `showSignZoneModal` leaves it. */
 export function curvaPorDefecto(algoritmo: string): string {
   return algoritmo === 'EDDSA' ? 'ED25519' : 'P256'
 }

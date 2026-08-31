@@ -10,12 +10,12 @@ const PROXY_PROTOCOL = (
 /*
 Settings > Optional Protocols (index.html:1562-1768).
 
-Aquí vive la incoherencia de upstream con `Enable DNS-over-HTTP/3`: al cargar,
-`loadDnsSettings` lo deshabilita si `enableDnsOverHttps` está apagado
-(main.js:1318), pero ningún manejador de `click` lo vuelve a evaluar al marcar
-`Enable DNS-over-HTTPS`, así que hasta recargar la página se queda apagado.
-Aquí la regla se deriva del estado y por tanto SÍ se actualiza sola; es la única
-diferencia observable y va anotada en el informe de la fase.
+This is where upstream's inconsistency with `Enable DNS-over-HTTP/3` lives: on
+load, `loadDnsSettings` disables it if `enableDnsOverHttps` is off
+(main.js:1318), but no `click` handler ever re-evaluates it when `Enable
+DNS-over-HTTPS` gets checked, so until the page is reloaded it stays off. Here
+the rule is derived from state and therefore DOES update itself; it is the only
+observable difference and it is noted in the phase's report.
 */
 export function OptionalProtocols({ f, set, en }: PaneProps) {
   return (

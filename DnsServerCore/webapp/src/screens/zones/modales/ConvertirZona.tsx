@@ -10,15 +10,15 @@ import { avisoDeFallo } from '../../../lib/aviso'
 import { Avisador } from '../../../ui/Avisador'
 
 /*
-`modalConvertZone` (zone.js:1387 y 1443).
+`modalConvertZone` (zone.js:1387 and 1443).
 
-**Los destinos son tres, no siete**: Primary, Forwarder y Catalog. Y cuáles
-están habilitados y cuál sale marcado depende del tipo de origen, con una tabla
-que no se deduce de nada — por ejemplo, una Primary sólo puede ir a Forwarder,
-y una Secondary Catalog sólo a Catalog. Se copia entera.
+**There are three destinations, not seven**: Primary, Forwarder and Catalog. And
+which of them are enabled and which comes selected depends on the source type,
+through a table that follows from nothing — for example, a Primary can only go to
+Forwarder, and a Secondary Catalog only to Catalog. It is copied whole.
 
-El diseño de esta pantalla dibujaba «Secondary / Forwarder / Catalog»: Secondary
-no es un destino posible y Primary faltaba. Corregido contra el código.
+This screen's mockup drew "Secondary / Forwarder / Catalog": Secondary is not a
+possible destination and Primary was missing. Corrected against the code.
 */
 
 export type DestinoConversion = 'Primary' | 'Forwarder' | 'Catalog'

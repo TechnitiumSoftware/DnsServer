@@ -208,7 +208,7 @@ describe('edición — manda el valor viejo Y el nuevo', () => {
     })
     const f = form({ type: 'NAPTR', name: 'x', naptrOrder: '1', naptrPreference: '2' })
     expect(cuerpo(f, ctxDe(original)).naptrNewReplacement).toBe('.')
-    // Dando de alta, se manda vacío.
+    // When adding, it is sent empty.
     expect(cuerpo(f).naptrReplacement).toBe('')
   })
 

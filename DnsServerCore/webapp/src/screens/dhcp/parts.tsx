@@ -1,7 +1,7 @@
 /*
-Las piezas del formulario de scope son las del kit de formulario-de-panel,
-`ui/Ajustes`, las mismas que usa Settings. Estuvieron escritas dos veces —ver el
-comentario de `ui/Ajustes.module.css`— y la copia se notaba en la pantalla.
+The scope form's pieces are the panel-form kit's, `ui/Ajustes`, the same ones
+Settings uses. They were written twice —see the comment in
+`ui/Ajustes.module.css`— and the copy showed on screen.
 */
 export {
   AreaRow,

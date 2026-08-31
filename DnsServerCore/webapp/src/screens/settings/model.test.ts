@@ -281,7 +281,7 @@ describe('construirCuerpo — cuerpo de settings/set', () => {
 
   it('devuelve el saneado que upstream reescribe en los textareas', () => {
     const r = construirCuerpo({ ...base(), blockingBypassList: '10.0.0.1\n\n10.0.0.2\n' })
-    // Blocking añade salto final; los reenviadores no. Asimetría de upstream.
+    // Blocking adds a trailing newline; the forwarders do not. Upstream's asymmetry.
     expect(r.saneado?.blockingBypassList).toBe('10.0.0.1\n10.0.0.2\n')
     expect(r.saneado?.forwarders).toBe('1.1.1.1\n8.8.8.8')
   })

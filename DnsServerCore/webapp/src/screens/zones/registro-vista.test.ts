@@ -27,7 +27,7 @@ function reg(type: string, rData: Record<string, unknown>, extra: Partial<Regist
   }
 }
 
-/** Aplana las celdas a pares para poder afirmar sobre ellas sin montar nada. */
+/** Flattens the cells into pairs so they can be asserted on without mounting. */
 function pares(r: Registro): Record<string, string> {
   const out: Record<string, string> = {}
   for (const c of celdasDeRegistro(r)) {
@@ -197,8 +197,8 @@ describe('esconder los registros DNSSEC', () => {
     const lista = ['A', 'RRSIG', 'NSEC', 'DNSKEY', 'NSEC3', 'NSEC3PARAM', 'ZONEMD'].map((t) =>
       reg(t, {}),
     )
-    // ZONEMD no está en la lista de `zoneHideDnssecRecords` aunque sí en la de
-    // registros sin acciones. Son dos listas distintas de upstream.
+    // ZONEMD is not in the `zoneHideDnssecRecords` list although it is in the
+    // no-actions records one. They are two different lists in upstream.
     expect(ocultarDnssec(lista).map((r) => r.type)).toEqual(['A', 'ZONEMD'])
   })
 })

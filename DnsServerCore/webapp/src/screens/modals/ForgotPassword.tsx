@@ -2,16 +2,16 @@ import { Dialog } from '../../ui/Dialog'
 import styles from './ForgotPassword.module.css'
 
 /*
-`modalForgotPassword` (index.html:3864). No llama a ningún endpoint: es texto.
+`modalForgotPassword` (index.html:3864). It calls no endpoint: it is text.
 
-Y aun así hace falta, porque explica el ÚNICO procedimiento que existe para
-recuperar el acceso —renombrar `auth.config` a `resetadmin.config` y reiniciar—
-y sin él un administrador que pierda la contraseña se queda fuera sin saber que
-la salida existe. El texto se copia literal: son instrucciones de operación, no
-prosa nuestra.
+And it is needed all the same, because it explains the ONLY procedure that exists
+for recovering access —renaming `auth.config` to `resetadmin.config` and
+restarting— and without it an administrator who loses the password is locked out
+without knowing the way back exists. The text is copied literally: they are
+operating instructions, not prose of ours.
 
-Se detectó ausente en el barrido de inventario de la fase 10: era el único de
-los 40 modales de upstream que no tenía contraparte.
+It was found missing in the phase 10 inventory sweep: it was the only one of
+upstream's 40 modals with no counterpart.
 */
 
 export function ForgotPassword({
