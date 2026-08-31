@@ -309,20 +309,20 @@ describe('Settings — reglas de habilitado del resto de sub-pestañas', () => {
   it('la tabla TSIG añade y borra filas', async () => {
     servidor()
     await montar({ sub: 'TSIG' })
-    expect(screen.queryByLabelText('Key Name 1')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('TSIG Keys 1 Key Name')).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Add' }))
-    expect(screen.getByLabelText('Key Name 1')).toBeInTheDocument()
+    expect(screen.getByLabelText('TSIG Keys 1 Key Name')).toBeInTheDocument()
     // El algoritmo por defecto de una fila nueva es hmac-sha256.
-    expect(valorDe(screen.getByLabelText('Algorithm 1'))).toBe('HMAC-SHA256 (recommended)')
+    expect(valorDe(screen.getByLabelText('TSIG Keys 1 Algorithm'))).toBe('HMAC-SHA256 (recommended)')
     await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    expect(screen.queryByLabelText('Key Name 1')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('TSIG Keys 1 Key Name')).not.toBeInTheDocument()
   })
 
   it('la tabla QPM llega con las filas reales del servidor', async () => {
     servidor()
     await montar()
-    expect(screen.getByLabelText('IPv4 Prefix 1')).toHaveValue(32)
-    expect(screen.getByLabelText('IPv4 UDP Limit 2')).toHaveValue(6000)
-    expect(screen.getByLabelText('IPv6 Prefix 3')).toHaveValue(56)
+    expect(screen.getByLabelText('Queries Per Minute (QPM) Limits (IPv4) 1 IPv4 Prefix')).toHaveValue(32)
+    expect(screen.getByLabelText('Queries Per Minute (QPM) Limits (IPv4) 2 UDP Limit')).toHaveValue(6000)
+    expect(screen.getByLabelText('Queries Per Minute (QPM) Limits (IPv6) 3 IPv6 Prefix')).toHaveValue(56)
   })
 })

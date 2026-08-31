@@ -1,0 +1,112 @@
+/*
+El formulario-de-panel: bloques con título, fila etiqueta/control, listas
+editables y la barra pegajosa de guardar. Lo usan Settings y DHCP, que son los
+dos formularios grandes de la consola.
+
+Estaba escrito dos veces. El fichero de DHCP lo explicaba: «la fase 6 es de otro
+agente y acoplar dos pantallas por sus componentes de presentación convierte
+cualquier retoque de Settings en un cambio en DHCP». Eso resolvía un problema de
+coordinación mientras se construía, y su factura se pagó en la pantalla: la
+barra de acciones de Settings flotaba con sombra y la de DHCP no; el aviso
+«Note!» iba sangrado en DHCP y a ras en Settings; el `<code>` de la ayuda partía
+palabras largas en una y no en la otra. Ninguna de las tres cosas se decidió.
+
+Vive en `ui/` y no en una de las dos pantallas, que es lo que impide que volver a
+tocarlo signifique que una pantalla mande sobre la otra.
+*/
+
+/* La columna de bloques de una pantalla de ajustes.
+
+   El hueco bajo el título de sección es `--hueco-bloque` en toda la consola.
+   Aquí se llevaba 38 px en vez de 24 porque este contenedor es `flex` con `gap`
+   y en flex el hueco SE SUMA al margen del hijo: la cabecera aportaba sus 24 y
+   el contenedor otros 14. Se resta, y la resta se escribe una sola vez: el
+   hueco vive en `--hueco` y las dos reglas lo leen de ahí. */
+.wrap {
+  --hueco: var(--s-9);
+  display: flex;
+  flex-direction: column;
+  gap: var(--hueco);
+}
+
+/* La cabecera de sección, que siempre es el primer hijo. */
+.wrap > :first-child { margin-bottom: calc(var(--hueco-bloque) - var(--hueco)); }
+
+/* Lo propio del bloque: la caja la pinta `ui/Panel`. */
+.block {
+  margin: 0 0 var(--s-9) 0;
+  padding-bottom: var(--s-9);
+}
+
+/* Control y coletilla en la misma línea: «3600  seconds». */
+.enLinea {
+  display: flex;
+  align-items: center;
+  gap: var(--s-6);
+  flex-wrap: wrap;
+}
+
+/* Sólo lo propio del área: la caja la pone `ui/Field`. */
+.area {
+  width: 100%;
+  max-width: 560px;
+  resize: vertical;
+}
+
+/* La sangría del cuerpo del panel, para lo que va suelto entre filas. */
+.avisos {
+  margin: var(--s-3) var(--s-9) 0 var(--s-9);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.plain {
+  composes: ayudaPanel from './texto.module.css';
+  padding: 0 var(--s-9);
+}
+
+.link { font-size: var(--t-3); padding: var(--s-5) var(--s-9) 0 var(--s-9); }
+.link a { color: var(--acc); }
+
+.pre {
+  margin: 0 var(--s-9);
+  padding: var(--s-7) var(--s-8);
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  font-family: var(--font-mono);
+  font-size: var(--t-2);
+  color: var(--ink);
+  overflow-x: auto;
+}
+
+.editable { composes: tabla from './TablaEditable.module.css'; }
+.editable input { width: 100%; }
+.tdel { width: 74px; }
+
+/* La barra de guardar, pegada al fondo del área de contenido. Flota sobre el
+   formulario, así que lleva elevación: sin ella el contenido pasa por debajo
+   sin que nada diga que hay dos planos. */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  flex-wrap: wrap;
+  padding: var(--s-8) var(--s-9);
+  border: 1px solid var(--line);
+  border-radius: var(--r-4);
+  background: var(--pan);
+  position: sticky;
+  bottom: 0;
+  box-shadow: var(--e-2), var(--filo);
+}
+
+.spacer { flex: 1; }
+
+/* En estrecho la barra se apila y el separador elástico deja de tener sentido:
+   con él, «Backup Settings» se salía de la pantalla. */
+@media (max-width: 720px) {
+  .spacer { display: none; }
+  .bar { padding: var(--s-7) var(--s-8); }
+}

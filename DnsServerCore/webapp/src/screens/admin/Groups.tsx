@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
-import { Input, Select } from '../../ui/Field'
+import { Input, Select, Textarea } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Loading } from '../../ui/Empty'
 import {
@@ -265,7 +265,8 @@ function AnadirGrupo({
       </MRow>
       <MRow label="Description">
         {(id) => (
-          <textarea
+          <Textarea
+            mono
             id={id}
             className={styles.area}
             rows={5}
@@ -375,7 +376,8 @@ function DetalleGrupo({
           </MRow>
           <MRow label="Description">
             {(id) => (
-              <textarea
+              <Textarea
+                mono
                 id={id}
                 className={styles.area}
                 rows={3}
@@ -387,7 +389,8 @@ function DetalleGrupo({
           </MRow>
           <MRow label="Members">
             {(id) => (
-              <textarea
+              <Textarea
+                mono
                 id={id}
                 className={styles.area}
                 rows={7}

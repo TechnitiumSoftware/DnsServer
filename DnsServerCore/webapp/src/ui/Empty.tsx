@@ -10,7 +10,12 @@ Un vacío se pinta de dos maneras y no más:
   · `Empty compacto` — el vacío de DENTRO de un panel, una línea apagada que no
     compite con el panel que la contiene.
 
-Y `Loading` es el mismo hueco mientras el dato viaja: mismo sitio, mismo peso.
+Y `Loading` y `Fallo` son el mismo hueco antes del dato: uno mientras viaja y
+otro cuando no llegó. Mismo sitio y mismo peso que el vacío al que sustituyen,
+para que la pantalla no salte al resolverse.
+
+`Fallo` estaba escrito a mano en cuatro módulos —`.fail` en Settings, DHCP, Logs
+y Administration— con los mismos cuatro valores que ya tenía `.cargando` aquí.
 */
 
 export function Empty({
@@ -46,4 +51,9 @@ export function Loading({
   compacto?: boolean
 }) {
   return <div className={`${styles.cargando}${compacto ? ` ${styles.linea}` : ''}`}>{children}</div>
+}
+
+/** El dato no llegó. Ocupa el mismo hueco que el `Loading` al que sustituye. */
+export function Fallo({ children }: { children: ReactNode }) {
+  return <div className={styles.cargando}>{children}</div>
 }

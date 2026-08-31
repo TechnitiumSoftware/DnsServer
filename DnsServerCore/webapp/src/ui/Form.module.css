@@ -93,6 +93,7 @@ Administration— con los mismos valores copiados a mano. Es la misma historia q
 la tabla y el panel: lo que se repite acaba separándose.
 */
 .ayuda {
+  composes: conCodigo from './texto.module.css';
   font-size: var(--t-3);
   color: var(--mute);
   line-height: 1.55;
@@ -101,14 +102,6 @@ la tabla y el panel: lo que se repite acaba separándose.
 
 .ayuda a { color: var(--acc); }
 
-.ayuda code {
-  font-family: var(--font-mono);
-  font-size: var(--t-2);
-  background: var(--field);
-  border: 1px solid var(--line);
-  border-radius: var(--r-1);
-  padding: 0 var(--s-2);
-}
 
 /* Varias casillas o radios dentro de una misma fila. */
 .grupo {

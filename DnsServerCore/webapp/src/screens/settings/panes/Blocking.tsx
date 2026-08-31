@@ -5,6 +5,7 @@ import {
   Avisos,
   Block,
   Check,
+  Coletilla,
   GroupRow,
   Help,
   Note,
@@ -12,8 +13,10 @@ import {
   Row,
   TextRow,
   Warning,
+  ajustesStyles as ajustes,
   settingsStyles as styles,
 } from '../parts'
+import { Ayuda } from '../../../ui/Form'
 import type { PaneProps } from './tipos'
 
 /*
@@ -78,7 +81,7 @@ export function Blocking({ f, set, en, extra }: PaneProps & { extra: BlockingExt
                 ? 'Not Set'
                 : fechaLocal(extra.temporaryDisableBlockingTill)}
             </div>
-            <div className={styles.ctlLine}>
+            <div className={ajustes.enLinea}>
               <Input
                 id={id}
                 type="number"
@@ -88,7 +91,7 @@ export function Blocking({ f, set, en, extra }: PaneProps & { extra: BlockingExt
                 value={f.temporaryDisableBlockingMinutes}
                 onChange={(e) => set({ temporaryDisableBlockingMinutes: e.target.value })}
               />
-              <span className={styles.suffix}>minutes</span>
+              <Coletilla>minutes</Coletilla>
             </div>
             <div>
               <Button disabled={off || extra.ocupado} onClick={extra.onTemporaryDisable}>
@@ -210,10 +213,10 @@ export function Blocking({ f, set, en, extra }: PaneProps & { extra: BlockingExt
             Update Now
           </Button>
         </div>
-        <div className={styles.help}>
+        <Ayuda>
           Click the 'Update Now' button to reset the next update schedule and force download and
           update of the block lists.
-        </div>
+        </Ayuda>
       </GroupRow>
 
       <Avisos>

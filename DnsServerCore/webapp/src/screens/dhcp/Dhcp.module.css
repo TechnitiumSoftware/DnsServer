@@ -13,17 +13,9 @@ Se resta, y la resta se escribe una sola vez: el hueco del contenedor vive en
 `--hueco` y las dos reglas lo leen de ahí, así que cambiarlo no vuelve a
 descuadrar el título.
 */
-.wrap {
-  --hueco: var(--s-9);
-  display: flex;
-  flex-direction: column;
-  gap: var(--hueco);
-}
+.wrap { composes: wrap from '../../ui/Ajustes.module.css'; }
 
-/* La cabecera de sección, que siempre es el primer hijo. */
-.wrap > :first-child { margin-bottom: calc(var(--hueco-bloque) - var(--hueco)); }
-
-.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.mono { composes: mono from '../../ui/texto.module.css'; }
 .nombre { font-weight: 550; color: var(--ink); white-space: nowrap; }
 .fecha { white-space: nowrap; font-family: var(--font-mono); font-size: var(--t-3); }
 /* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
@@ -32,56 +24,12 @@ descuadrar el título.
 .kv dt { font-size: var(--t-3); color: var(--mute); white-space: nowrap; }
 .kv dd { margin: 0; font: var(--t-4)/1.45 var(--font-mono); color: var(--ink); min-width: 0; }
 
-.fail { padding: var(--s-12); text-align: center; color: var(--faint); font-size: var(--t-4); }
-.parrafo { margin: 0 0 var(--s-7); font-size: var(--t-4); color: var(--mute); line-height: 1.6; }
-.parrafo b { color: var(--ink); }
+.parrafo { composes: parrafo from '../../ui/texto.module.css'; }
 .lista { margin: 0 0 var(--s-7); padding-left: var(--s-10); font-size: var(--t-4); color: var(--mute); line-height: 1.6; }
 
-/* ---- Formulario de scope ---- */
+/* ---- Formulario de scope ----
 
-/*
-Lo propio del bloque de esta pantalla, y nada más: la caja la pone `ui/Panel`,
-que es quien la pinta en toda la consola. Antes esto redefinía el borde, el
-fondo, la sombra y la cabecera por su cuenta.
-*/
-.block {
-  margin: 0 0 var(--s-9) 0;
-  padding-bottom: var(--s-9);
-}
-.ctlLine { display: flex; align-items: center; gap: var(--s-6); flex-wrap: wrap; }
-.suffix { font-size: var(--t-3); color: var(--mute); }
-.help { composes: ayuda from '../../ui/Form.module.css'; }
-.help code {
-  font-family: var(--font-mono); font-size: var(--t-2); background: var(--field);
-  border: 1px solid var(--line); border-radius: var(--r-1); padding: 0 var(--s-2); word-break: break-all;
-}
-.area {
-  font-family: var(--font-mono); font-size: var(--t-3); padding: var(--s-4) var(--s-6);
-  border: 1px solid var(--line); border-radius: var(--r-2); background: var(--field);
-  color: var(--ink); resize: vertical; width: 100%; max-width: 560px; line-height: 1.5;
-}
-.area:focus { outline: 2px solid var(--acc); outline-offset: -1px; border-color: var(--acc); }
-.area:disabled { opacity: 0.5; }
-/* La fila de casilla y de radio la define `ui/Check.module.css`, que es donde
-   vive el `min-height` que la sube de 20 a 26 px. Esta copia no lo tenía. */
-.check { composes: check from '../../ui/Check.module.css'; }
-.check input { margin-top: var(--s-1); flex: none; }
-.check input:disabled { opacity: 0.5; }
-.checkHelp { font-size: var(--t-3); color: var(--mute); padding-left: var(--s-11); line-height: 1.55; max-width: 720px; }
-.checkHelp a { color: var(--acc); }
-.group { composes: grupo from '../../ui/Form.module.css'; }
-.note { margin: var(--s-3) var(--s-9) 0 var(--s-9); display: flex; flex-direction: column; gap: var(--s-4); }
+   El bloque, la fila, el área, los avisos y la lista editable son los de
+   `ui/Ajustes.module.css`, compartidos con Settings. */
 
-/*
-La tabla editable es la de `ui/TablaEditable.module.css`. Estaba escrita aquí y
-en otros dos módulos con los mismos valores copiados a mano.
-*/
-.editable { composes: tabla from '../../ui/TablaEditable.module.css'; }
-
-.editable input { width: 100%; }
-.tdel { width: 74px; }
-.bar {
-  display: flex; align-items: center; gap: var(--s-5); padding: var(--s-8) var(--s-9);
-  border: 1px solid var(--line); border-radius: var(--r-4); background: var(--pan);
-  position: sticky; bottom: 0;
-}
+.bar { composes: bar from '../../ui/Ajustes.module.css'; }

@@ -1,5 +1,5 @@
-import { Input, Select } from '../../../ui/Field'
-import { Avisos, Block, EditableTable, Note, settingsStyles as styles } from '../parts'
+import { Select } from '../../../ui/Field'
+import { Avisos, Block, EditableTable, Note } from '../parts'
 import type { PaneProps } from './tipos'
 
 /** Los ocho algoritmos del desplegable, con su etiqueta literal
@@ -25,37 +25,31 @@ export function Tsig({ f, set }: PaneProps) {
     <Block>
       <EditableTable
         label="TSIG Keys"
-        columns={['Key Name', 'Shared Secret', 'Algorithm']}
-        rows={f.tsigKeys}
-        onChange={(rows) => set({ tsigKeys: rows })}
-        nueva={() => ({ keyName: '', sharedSecret: '', algorithmName: 'hmac-sha256' })}
-        cell={(fila, i, setFila) => [
-          <Input
-            key="n"
-            aria-label={`Key Name ${i + 1}`}
-            value={fila.keyName}
-            onChange={(e) => setFila({ keyName: e.target.value })}
-          />,
-          <Input
-            key="s"
-            aria-label={`Shared Secret ${i + 1}`}
-            value={fila.sharedSecret}
-            onChange={(e) => setFila({ sharedSecret: e.target.value })}
-          />,
-          <Select
-            key="a"
-            className={styles.select}
-            aria-label={`Algorithm ${i + 1}`}
-            value={fila.algorithmName}
-            onChange={(e) => setFila({ algorithmName: e.target.value })}
-          >
-            {ALGORITMOS_TSIG.map((a) => (
-              <option key={a.value} value={a.value}>
-                {a.label}
-              </option>
-            ))}
-          </Select>,
+        columnas={[
+          { key: 'keyName', label: 'Key Name' },
+          { key: 'sharedSecret', label: 'Shared Secret' },
+          {
+            key: 'algorithmName',
+            label: 'Algorithm',
+            render: (fila, set, id, nombre) => (
+              <Select
+                id={id}
+                aria-label={nombre}
+                value={fila.algorithmName}
+                onChange={(e) => set({ algorithmName: e.target.value })}
+              >
+                {ALGORITMOS_TSIG.map((a) => (
+                  <option key={a.value} value={a.value}>
+                    {a.label}
+                  </option>
+                ))}
+              </Select>
+            ),
+          },
         ]}
+        filas={f.tsigKeys}
+        onChange={(filas) => set({ tsigKeys: filas })}
+        nueva={() => ({ keyName: '', sharedSecret: '', algorithmName: 'hmac-sha256' })}
         help="The shared secret can be a base64 string or a literal string. Keep the shared secret empty if you want to auto generate a strong key."
       />
       <Avisos>

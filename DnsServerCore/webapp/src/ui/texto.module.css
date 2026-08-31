@@ -1,0 +1,59 @@
+/*
+Las primitivas de texto de la consola.
+
+No son componentes: son tratamientos que aparecen dentro de la prosa de muchas
+pantallas —una coletilla apagada, un párrafo de entrada, un `<code>` en línea— y
+que por eso no tienen un elemento propio donde vivir. Antes cada pantalla los
+reescribía, y el copiado se notaba: el monoespaciado de «My Profile» había
+perdido las cifras tabulares y era un paso más pequeño que el del resto, y el
+párrafo de «Forgot Password» iba a 1,65 de interlínea contra 1,6 de los otros
+cuatro. Nadie decidió ninguna de las dos cosas; salieron de teclear lo mismo
+seis veces.
+*/
+
+/* Cifras y texto que se leen carácter a carácter: IPs, dominios, contadores.
+   `tabular-nums` es lo que hace que una columna de números no baile. */
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* El párrafo que abre una pantalla o un bloque y explica de qué va. */
+.parrafo {
+  margin: 0 0 var(--s-7);
+  font-size: var(--t-4);
+  color: var(--mute);
+  line-height: 1.6;
+}
+
+.parrafo b { color: var(--ink); }
+
+/* La coletilla que sigue a un control: «seconds», «MB», «(0 to disable)». */
+.coletilla {
+  font-size: var(--t-3);
+  color: var(--mute);
+}
+
+/*
+El `<code>` en línea. Va como `composes` en el bloque de texto que lo contenga,
+no en el `<code>`, porque quien lo escribe es la prosa: `{'…'} <code>x</code>`.
+*/
+.conCodigo code,
+.parrafo code,
+.ayudaPanel code {
+  font-family: var(--font-mono);
+  font-size: var(--t-2);
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  padding: 0 var(--s-2);
+}
+
+/* El párrafo de ayuda de dentro de un panel: más pequeño y con la sangría del
+   cuerpo, para que no compita con el ajuste al que acompaña. */
+.ayudaPanel {
+  font-size: var(--t-3);
+  color: var(--mute);
+  line-height: 1.55;
+  max-width: 860px;
+}

@@ -16,6 +16,7 @@
 .texto { min-width: 0; }
 
 .ayuda {
+  composes: conCodigo from './texto.module.css';
   font-size: var(--t-3);
   color: var(--mute);
   line-height: 1.55;

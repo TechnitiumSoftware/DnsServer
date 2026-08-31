@@ -69,7 +69,7 @@ pantallas va a 12,5 y peso normal.
 .limitada td { color: var(--warn); }
 .topNombre { display: block; font-family: var(--font-mono); word-break: break-all; }
 .topDominio { display: block; margin-top: var(--s-1); font: var(--t-2) var(--font-mono); color: var(--faint); word-break: break-all; }
-.topConteo { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.topConteo { composes: mono from '../../ui/texto.module.css'; }
 
 /* El raíl derecho era `310px` fijos: a 1024 px estrujaba la gráfica a 425 px y
    a 390 px la sacaba de la pantalla. */
@@ -78,7 +78,6 @@ pantallas va a 12,5 y peso normal.
 }
 
 @media (max-width: 720px) {
-  .seg { flex-wrap: wrap; }
 }
 
 /* La leyenda de una gráfica ya trae su propio hueco arriba. */

@@ -15,6 +15,12 @@ parece correcto.
 
     await firmas()        agrupa cada familia por aspecto y dice cuántas hay
 
+Las familias de CONTROL —campo de texto, área, lista, casilla, radio, aviso— se
+añadieron después, y son las que cazaron la última tanda: el área de texto se
+pintaba a mano en cuatro pantallas, con radio 6 en vez de 8 y sin la sombra
+interior que llevan todos los demás campos. Ninguna de las familias anteriores
+lo veía, porque un área, en su pantalla y sola, parece correcta.
+
 Lo que devuelve son GRUPOS, no un veredicto: dos firmas pueden estar bien
 —la tabla de datos y la editable son dos objetos a propósito— y una sola puede
 estar mal si es fea. Lo que no puede pasar es que haya cinco sin que nadie lo
@@ -91,6 +97,60 @@ function firmasDeLaPantalla() {
        distinta que no existía. */
     if (!/^(Total [A-Za-z ]+: ?\d|\d+ zones|\d+-\d+ \()/.test((n.textContent || '').trim())) continue
     anota('recuento', `${css(n).fontSize}/${css(n).fontWeight}/${css(n).color}`)
+  }
+
+  /*
+  Los controles de formulario. Esta familia no estaba, y era la que faltaba: el
+  área de texto se pintaba a mano en Settings, DHCP, Administration y Listas
+  —radio 6 en vez de 8, un punto menos de cuerpo, sin la sombra interior que
+  llevan todos los demás campos—, y ni las capturas ni las otras familias lo
+  decían, porque en cada pantalla, sola, el área parecía correcta.
+
+  La firma no incluye el ANCHO: eso sí es propio de cada campo (upstream fija
+  80-100 px a los numéricos y deja anchos los de texto). Incluye la caja.
+  */
+  const caja = (e) => {
+    const s = css(e)
+    return [
+      s.borderRadius,
+      s.padding,
+      s.fontSize,
+      s.borderWidth,
+      s.boxShadow === 'none' ? 'sin-hundido' : 'hundido',
+    ].join(' | ')
+  }
+  for (const e of raiz.querySelectorAll('input[type=text], input[type=number], input[type=password], input:not([type])')) {
+    anota('campo-texto', caja(e))
+  }
+  for (const e of raiz.querySelectorAll('textarea')) anota('campo-area', caja(e))
+  for (const e of raiz.querySelectorAll('[class*="_disparador_"], select')) anota('campo-lista', caja(e))
+
+  /*
+  La fila de casilla o de radio.
+
+  Un ajuste y una selección de fila NO son la misma familia, aunque los dos sean
+  un `input[type=checkbox]` dentro de un `label`: el ajuste cambia cómo se
+  comporta el servidor y se queda puesto, la selección dura un clic. Se miden
+  aparte porque si no, las dos excepciones legítimas de la casilla de tabla —40
+  px en la celda de datos, 0 en la de cabecera, las dos a propósito y
+  documentadas en `ui/Table.module.css`— salen como dos firmas más y entierran
+  cualquier deriva real de las casillas de ajuste bajo el ruido.
+  */
+  for (const e of raiz.querySelectorAll('input[type=checkbox], input[type=radio]')) {
+    const fila = e.closest('label')
+    if (!fila) continue
+    const s = css(fila)
+    const enTabla = fila.closest('td, th') != null
+    anota(
+      enTabla ? 'casilla-de-fila' : e.type === 'radio' ? 'radio' : 'casilla-de-ajuste',
+      `${s.minHeight} | ${s.gap} | ${s.fontSize} | ${s.color}`,
+    )
+  }
+
+  /* El aviso «Note!»/«Warning!»: mismo bloque, misma sangría. */
+  for (const e of raiz.querySelectorAll('[class*="_alerta_"], [role=note], [class*="_alert"]')) {
+    const p = e.parentElement
+    anota('aviso', `${css(e).borderRadius} | sangría ${p ? css(p).marginLeft : '-'}`)
   }
 
   /* El título de la pantalla. */

@@ -25,8 +25,9 @@ import { Blocking } from './panes/Blocking'
 import { ProxyForwarders } from './panes/ProxyForwarders'
 import { Logging } from './panes/Logging'
 import { BackupDialog, Confirm, RestoreDialog } from './dialogs'
-import { Loading } from '../../ui/Empty'
+import { Fallo, Loading } from '../../ui/Empty'
 import styles from './Settings.module.css'
+import formulario from '../../ui/Ajustes.module.css'
 
 /*
 Settings. La pantalla más grande de la consola: en upstream, sólo la sub-pestaña
@@ -127,7 +128,7 @@ export function Settings({
 
   if (cargando) return <Loading />
   if (form == null || ajustes == null) {
-    return <div className={styles.fail}>Unable to load the DNS Server settings.</div>
+    return <Fallo>Unable to load the DNS Server settings.</Fallo>
   }
 
   const en = habilitado(form)
@@ -314,7 +315,7 @@ export function Settings({
         {activa === 'Logging' && <Logging {...props} />}
       </div>
 
-      <div className={styles.bar}>
+      <div className={formulario.bar}>
         {canModify && (
           <Button variant="primary" disabled={ocupado} onClick={() => void guardar()}>
             Save Settings
@@ -325,7 +326,7 @@ export function Settings({
             Flush Cache
           </Button>
         )}
-        <div className={styles.spacer} />
+        <div className={formulario.spacer} />
         {canBackup && (
           <>
             <Button

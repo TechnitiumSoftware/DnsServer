@@ -1,4 +1,3 @@
-import { Input } from '../../../ui/Field'
 import {
   AreaRow,
   Avisos,
@@ -355,33 +354,14 @@ export function General({ f, set, en }: PaneProps) {
       <Block title="Rate Limiting">
         <EditableTable
           label="Queries Per Minute (QPM) Limits (IPv4)"
-          columns={['IPv4 Prefix', 'UDP Limit', 'TCP Limit']}
-          rows={f.qpmPrefixLimitsIPv4}
-          onChange={(rows) => set({ qpmPrefixLimitsIPv4: rows })}
-          nueva={() => ({ prefix: '', udpLimit: '', tcpLimit: '' })}
-          cell={(fila, i, setFila) => [
-            <Input
-              key="p"
-              type="number"
-              aria-label={`IPv4 Prefix ${i + 1}`}
-              value={fila.prefix}
-              onChange={(e) => setFila({ prefix: e.target.value })}
-            />,
-            <Input
-              key="u"
-              type="number"
-              aria-label={`IPv4 UDP Limit ${i + 1}`}
-              value={fila.udpLimit}
-              onChange={(e) => setFila({ udpLimit: e.target.value })}
-            />,
-            <Input
-              key="t"
-              type="number"
-              aria-label={`IPv4 TCP Limit ${i + 1}`}
-              value={fila.tcpLimit}
-              onChange={(e) => setFila({ tcpLimit: e.target.value })}
-            />,
+          columnas={[
+            { key: 'prefix', label: 'IPv4 Prefix', type: 'number' },
+            { key: 'udpLimit', label: 'UDP Limit', type: 'number' },
+            { key: 'tcpLimit', label: 'TCP Limit', type: 'number' },
           ]}
+          filas={f.qpmPrefixLimitsIPv4}
+          onChange={(filas) => set({ qpmPrefixLimitsIPv4: filas })}
+          nueva={() => ({ prefix: '', udpLimit: '', tcpLimit: '' })}
           help={
             <>
               The maximum queries an IPv4 client subnet can make to DNS-over-UDP and DNS-over-TCP
@@ -393,33 +373,14 @@ export function General({ f, set, en }: PaneProps) {
         />
         <EditableTable
           label="Queries Per Minute (QPM) Limits (IPv6)"
-          columns={['IPv6 Prefix', 'UDP Limit', 'TCP Limit']}
-          rows={f.qpmPrefixLimitsIPv6}
-          onChange={(rows) => set({ qpmPrefixLimitsIPv6: rows })}
-          nueva={() => ({ prefix: '', udpLimit: '', tcpLimit: '' })}
-          cell={(fila, i, setFila) => [
-            <Input
-              key="p"
-              type="number"
-              aria-label={`IPv6 Prefix ${i + 1}`}
-              value={fila.prefix}
-              onChange={(e) => setFila({ prefix: e.target.value })}
-            />,
-            <Input
-              key="u"
-              type="number"
-              aria-label={`IPv6 UDP Limit ${i + 1}`}
-              value={fila.udpLimit}
-              onChange={(e) => setFila({ udpLimit: e.target.value })}
-            />,
-            <Input
-              key="t"
-              type="number"
-              aria-label={`IPv6 TCP Limit ${i + 1}`}
-              value={fila.tcpLimit}
-              onChange={(e) => setFila({ tcpLimit: e.target.value })}
-            />,
+          columnas={[
+            { key: 'prefix', label: 'IPv6 Prefix', type: 'number' },
+            { key: 'udpLimit', label: 'UDP Limit', type: 'number' },
+            { key: 'tcpLimit', label: 'TCP Limit', type: 'number' },
           ]}
+          filas={f.qpmPrefixLimitsIPv6}
+          onChange={(filas) => set({ qpmPrefixLimitsIPv6: filas })}
+          nueva={() => ({ prefix: '', udpLimit: '', tcpLimit: '' })}
           help={
             <>
               The maximum queries an IPv6 client subnet can make to DNS-over-UDP and DNS-over-TCP

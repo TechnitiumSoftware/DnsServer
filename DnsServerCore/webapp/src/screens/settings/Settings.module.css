@@ -1,139 +1,19 @@
 /* Settings. La pantalla más grande de la consola: en upstream, la sub-pestaña
-   General mide 5.452 px de alto. El formulario se trocea en bloques con título;
-   la fila etiqueta + control vive en `ui/Form.module.css`, compartida con
-   Administration y DHCP. */
+   General mide 5.452 px de alto.
 
-/*
-El hueco bajo el título de sección es `--hueco-bloque` en toda la consola. Aquí
-se llevaba 38 px en vez de 24 porque este contenedor es `flex` con `gap` y en
-flex el hueco SE SUMA al margen del hijo: la cabecera aportaba sus 24 y el
-contenedor otros 14.
+   Casi todo lo que dibuja esta pantalla vive en `ui/Ajustes.module.css`: el
+   bloque, la fila, el área, los avisos, la lista editable y la barra de
+   guardar. Los comparte con DHCP, que es el otro formulario grande. Aquí queda
+   sólo lo que es de Settings y de nadie más. */
 
-Se resta, y la resta se escribe una sola vez: el hueco del contenedor vive en
-`--hueco` y las dos reglas lo leen de ahí, así que cambiarlo no vuelve a
-descuadrar el título.
-*/
-.wrap {
-  --hueco: var(--s-9);
-  display: flex;
-  flex-direction: column;
-  gap: var(--hueco);
-}
-
-/* La cabecera de sección, que siempre es el primer hijo. */
-.wrap > :first-child { margin-bottom: calc(var(--hueco-bloque) - var(--hueco)); }
-
-/*
-Lo propio del bloque de esta pantalla, y nada más: la caja la pone `ui/Panel`,
-que es quien la pinta en toda la consola. Antes esto redefinía el borde, el
-fondo, la sombra y la cabecera por su cuenta.
-*/
-.block {
-  margin: 0 0 var(--s-9) 0;
-  padding-bottom: var(--s-9);
-}
-
-/* Un bloque sin leyenda necesita recuperar arriba el aire que ponía la leyenda:
-   `.block` no lleva padding superior porque esa banda la ocupaba ella. */
-
-/*
-Cada fila lleva separador. Sin él, General es un muro de 5.400 px en el que la
-ayuda de un campo y la etiqueta del siguiente se leen como el mismo párrafo.
-Es lo que hacen el dibujo y la tabla de Logs; aquí se había perdido.
-*/
-.ctlLine { display: flex; align-items: center; gap: var(--s-6); flex-wrap: wrap; }
-.suffix { font-size: var(--t-3); color: var(--mute); }
-.help { composes: ayuda from '../../ui/Form.module.css'; }
-.help code, .note code {
-  font-family: var(--font-mono);
-  font-size: var(--t-2);
-  background: var(--field);
-  border: 1px solid var(--line);
-  border-radius: var(--r-1);
-  padding: 0 var(--s-2);
-}
-
-.area {
-  font-family: var(--font-mono);
-  font-size: var(--t-3);
-  padding: var(--s-4) var(--s-6);
-  border: 1px solid var(--line);
-  border-radius: var(--r-2);
-  background: var(--field);
-  color: var(--ink);
-  resize: vertical;
-  width: 100%;
-  max-width: 560px;
-  line-height: 1.5;
-}
-.area:focus { outline: 2px solid var(--acc); outline-offset: -1px; border-color: var(--acc); }
-.area:disabled { opacity: 0.5; }
-
-.select {
-  font-size: var(--t-4);
-  padding: var(--s-4) var(--s-6);
-  border: 1px solid var(--line);
-  border-radius: var(--r-2);
-  background: var(--field);
-  color: var(--ink);
-}
-.select:disabled { opacity: 0.5; }
-
-/* La fila de casilla y de radio la define `ui/Check.module.css`, que es donde
-   vive el `min-height` que la sube de 20 a 26 px. Esta copia no lo tenía. */
-.check { composes: check from '../../ui/Check.module.css'; }
-.check input { margin-top: var(--s-1); flex: none; }
-.check input:disabled { opacity: 0.5; }
-.checkHelp { font-size: var(--t-3); color: var(--mute); padding-left: var(--s-11); line-height: 1.55; max-width: 720px; }
-.checkHelp a { color: var(--acc); }
-.checkHelp code {
-  font-family: var(--font-mono); font-size: var(--t-2); background: var(--field);
-  border: 1px solid var(--line); border-radius: var(--r-1); padding: 0 var(--s-2);
-}
+.wrap { composes: wrap from '../../ui/Ajustes.module.css'; }
 .group { composes: grupo from '../../ui/Form.module.css'; }
 
-.note { margin: var(--s-3) var(--s-9) 0 var(--s-9); display: flex; flex-direction: column; gap: var(--s-4); }
-.plain { font-size: var(--t-3); color: var(--mute); line-height: 1.55; padding: 0 var(--s-9); max-width: 860px; }
-.link { font-size: var(--t-3); padding: var(--s-5) var(--s-9) 0 var(--s-9); }
-.link a { color: var(--acc); }
-.pre {
-  margin: 0 var(--s-9); padding: var(--s-7) var(--s-8); background: var(--field); border: 1px solid var(--line);
-  border-radius: var(--r-2); font-family: var(--font-mono); font-size: var(--t-2); color: var(--ink);
-  overflow-x: auto;
-}
-
-/* Listas editables: límites QPM y claves TSIG. Cabecera, una fila por entrada
-   con su botón «Delete», y un «Add» debajo. */
-/*
-La tabla editable es la de `ui/TablaEditable.module.css`. Estaba escrita aquí y
-en otros dos módulos con los mismos valores copiados a mano.
-*/
-.table { composes: tabla from '../../ui/TablaEditable.module.css'; }
-
-.table input, .table select { width: 100%; }
-.tdel { width: 74px; }
-.bar {
-  display: flex; align-items: center; gap: var(--s-5); flex-wrap: wrap;
-  padding: var(--s-8) var(--s-9); border: 1px solid var(--line); border-radius: var(--r-4);
-  background: var(--pan); position: sticky; bottom: 0;
-  box-shadow: var(--e-2), var(--filo);
-}
-.spacer { flex: 1; }
-
-.fail { padding: var(--s-12); text-align: center; color: var(--faint); font-size: var(--t-4); }
-.head { display: flex; align-items: baseline; gap: var(--s-7); margin-bottom: var(--s-2); }
-.head h1 { margin: 0; font-size: var(--t-5); font-weight: 550; color: var(--ink); }
-.head span { font-size: var(--t-3); color: var(--faint); }
-.stack { display: flex; flex-direction: column; gap: var(--s-6); }
+/* El resumen de listas de bloqueo: «N allowed, M blocked», con las cifras en
+   monoespaciado para que no bailen al recargar. */
+.stack { composes: grupo from '../../ui/Form.module.css'; }
 .inline { display: flex; align-items: center; gap: var(--s-7); flex-wrap: wrap; }
-.val { font-size: var(--t-4); color: var(--ink); font-family: var(--font-mono); }
-
-/* En estrecho la barra se apila y el separador elástico deja de tener sentido:
-   con él, «Backup Settings» se salía de la pantalla. */
-@media (max-width: 720px) {
-  .spacer { display: none; }
-  .bar { padding: var(--s-7) var(--s-8); }
-}
+.val { composes: mono from '../../ui/texto.module.css'; font-size: var(--t-4); color: var(--ink); }
 
 /* Dos avisos seguidos dentro de un modal: se agrupan más juntos que el resto
    del cuerpo, porque dicen lo mismo sobre lo mismo. */

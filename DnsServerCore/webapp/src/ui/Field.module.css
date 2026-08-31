@@ -50,7 +50,7 @@ es donde está el cursor.
 
 .input:disabled { opacity: 0.45; cursor: default; }
 
-.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.mono { composes: mono from './texto.module.css'; }
 
 @media (prefers-reduced-motion: reduce) {
   .input { transition: none; }

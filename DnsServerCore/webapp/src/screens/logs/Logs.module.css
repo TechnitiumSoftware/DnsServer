@@ -66,7 +66,7 @@ descuadrar el título.
 
 /* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
 .count { composes: barra from '../../ui/recuento.module.css'; margin-bottom: var(--hueco-pegado); }
-.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.mono { composes: mono from '../../ui/texto.module.css'; }
 .nowrap { white-space: nowrap; }
 .romper { word-break: break-all; }
 .rtt { font-size: var(--t-2); color: var(--faint); }
@@ -85,8 +85,7 @@ descuadrar el título.
 .check { display: flex; align-items: center; gap: var(--s-5); font-size: var(--t-4); cursor: pointer; min-height: 26px; padding: var(--s-2) 0; color: var(--ink); }
 .check input { flex: none; }
 
-.fail { padding: var(--s-12); text-align: center; color: var(--faint); font-size: var(--t-4); }
-.parrafo { margin: 0 0 var(--s-7); font-size: var(--t-4); color: var(--mute); line-height: 1.6; }
+.parrafo { composes: parrafo from '../../ui/texto.module.css'; }
 
 @media (max-width: 720px) {
   .frow { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }

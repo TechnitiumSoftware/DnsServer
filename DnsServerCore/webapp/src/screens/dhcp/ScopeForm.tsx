@@ -1,13 +1,24 @@
 import { useState } from 'react'
 import { Button } from '../../ui/Button'
-import { Input } from '../../ui/Field'
+import { Input, Textarea } from '../../ui/Field'
 import {
   construirCuerpo,
   idCelda,
   type ErrorScope,
   type ScopeForm as Form,
 } from './model'
-import { AreaRow, Block, Check, EditableTable, GroupRow, Note, Row, TextRow, Warning } from './parts'
+import {
+  AreaRow,
+  Avisos,
+  Block,
+  Check,
+  EditableTable,
+  GroupRow,
+  Note,
+  Row,
+  TextRow,
+  Warning,
+} from './parts'
 import { SectionHeader } from '../../ui/SectionHeader'
 import styles from './Dhcp.module.css'
 
@@ -175,14 +186,16 @@ export function ScopeForm({
           onChange={(v) => set({ pingCheckRetries: v })}
           help="The maximum number of ping requests to try."
         />
-        <Warning>
-          Ping check would work as expected only when you make sure that all the client devices with
-          manually configured IP addresses on the network respond to a ping request. Devices running
-          Microsoft Windows by default drop ping requests at host firewall and will cause this ping
-          check to fail to detect in use IP addresses. It is recommended to not rely on this option
-          and instead make sure that you exclude a range of addresses using Exclusions and manually
-          assign IP addresses to your devices only in the excluded range.
-        </Warning>
+        <Avisos>
+          <Warning>
+            Ping check would work as expected only when you make sure that all the client devices with
+            manually configured IP addresses on the network respond to a ping request. Devices running
+            Microsoft Windows by default drop ping requests at host firewall and will cause this ping
+            check to fail to detect in use IP addresses. It is recommended to not rely on this option
+            and instead make sure that you exclude a range of addresses using Exclusions and manually
+            assign IP addresses to your devices only in the excluded range.
+          </Warning>
+        </Avisos>
       </Block>
 
       <Block title="DNS">
@@ -248,7 +261,8 @@ export function ScopeForm({
                 onChange={(v) => set({ useThisDnsServer: v })}
                 help="Enable this option to automatically use this DNS Server."
               />
-              <textarea
+              <Textarea
+                mono
                 id={id}
                 className={styles.area}
                 rows={2}
@@ -282,9 +296,8 @@ export function ScopeForm({
 
       <Block title="Static Routes">
         <EditableTable
-          tabla="staticRoutes"
           label="Static Routes"
-          idCelda={idCelda}
+          idCelda={(fila, columna) => idCelda('staticRoutes', fila, columna)}
           columnas={[
             { key: 'destination', label: 'Destination' },
             { key: 'subnetMask', label: 'Subnet Mask' },
@@ -326,9 +339,8 @@ export function ScopeForm({
 
       <Block title="Vendor Specific Information">
         <EditableTable
-          tabla="vendorInfo"
           label="Vendor Specific Information"
-          idCelda={idCelda}
+          idCelda={(fila, columna) => idCelda('vendorInfo', fila, columna)}
           columnas={[
             { key: 'identifier', label: 'Vendor Class Identifier' },
             { key: 'information', label: 'Vendor Specific Information' },
@@ -373,9 +385,8 @@ export function ScopeForm({
 
       <Block title="Generic DHCP Options">
         <EditableTable
-          tabla="genericOptions"
           label="Generic DHCP Options"
-          idCelda={idCelda}
+          idCelda={(fila, columna) => idCelda('genericOptions', fila, columna)}
           columnas={[
             { key: 'code', label: 'Code', type: 'number', min: 0, max: 255 },
             { key: 'value', label: 'Hex Value' },
@@ -396,9 +407,8 @@ export function ScopeForm({
 
       <Block title="Exclusions">
         <EditableTable
-          tabla="exclusions"
           label="Exclusions"
-          idCelda={idCelda}
+          idCelda={(fila, columna) => idCelda('exclusions', fila, columna)}
           columnas={[
             { key: 'startingAddress', label: 'Starting Address' },
             { key: 'endingAddress', label: 'Ending Address' },
@@ -408,11 +418,13 @@ export function ScopeForm({
           nueva={() => ({ startingAddress: '', endingAddress: '' })}
           help="The IP address range that must be excluded or not assigned dynamically to any client by the DHCP server."
         />
-        <Note>
-          Make sure to exclude address ranges if you plan to manually assign IP addresses to some of
-          the devices or to assign reserved leases so that these IP addresses are not dynamically
-          allocated in the first place.
-        </Note>
+        <Avisos>
+          <Note>
+            Make sure to exclude address ranges if you plan to manually assign IP addresses to some of
+            the devices or to assign reserved leases so that these IP addresses are not dynamically
+            allocated in the first place.
+          </Note>
+        </Avisos>
       </Block>
 
       <Block title="Advanced Options">
@@ -458,9 +470,8 @@ export function ScopeForm({
 
       <Block title="Reserved Leases">
         <EditableTable
-          tabla="reservedLeases"
           label="Reserved Leases"
-          idCelda={idCelda}
+          idCelda={(fila, columna) => idCelda('reservedLeases', fila, columna)}
           columnas={[
             { key: 'hostName', label: 'Host Name' },
             { key: 'hardwareAddress', label: 'MAC Address' },

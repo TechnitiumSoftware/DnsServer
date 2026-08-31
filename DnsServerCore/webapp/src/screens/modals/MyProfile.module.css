@@ -1,5 +1,4 @@
 .caption { font-size: var(--t-2); color: var(--mute); font-weight: 550; margin-bottom: var(--s-3); }
-.table { width: 100%; border-collapse: collapse; font-size: var(--t-4); }
 
 /*
 La de «Member Of» es de UNA columna —el nombre del grupo— y se estiraba a 831 px
@@ -8,12 +7,7 @@ necesita; ésta no tiene por qué acompañarla. Upstream tampoco la estira: la m
 en un `col-sm-7`.
 */
 .estrecha { max-width: 420px; }
-.table th {
-  text-align: left; font-size: var(--t-1); text-transform: uppercase; letter-spacing: 0.05em;
-  color: var(--mute); font-weight: 600; padding: 0 var(--s-5) var(--s-3); border-bottom: 1px solid var(--line);
-}
-.table td { padding: var(--s-4) var(--s-5); border-bottom: 1px solid var(--line2); color: var(--ink); vertical-align: middle; }
-.mono { font-family: var(--font-mono); font-size: var(--t-3); }
+.mono { composes: mono from '../../ui/texto.module.css'; }
 /* Igual que en User Details y Sessions: la cadena es larga y se parte. */
 .ua { font-family: var(--font-mono); font-size: var(--t-2); color: var(--faint); word-break: break-all; }
 /* La antigüedad bajo la fecha, como en Sessions y User Details. */

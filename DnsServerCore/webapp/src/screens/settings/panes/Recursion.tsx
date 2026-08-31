@@ -8,8 +8,9 @@ import {
   Row,
   TextRow,
   Warning,
-  settingsStyles as styles,
+  ajustesStyles as ajustes,
 } from '../parts'
+import { Textarea } from '../../../ui/Field'
 import type { PaneProps } from './tipos'
 
 /*
@@ -67,9 +68,10 @@ export function Recursion({ f, set, en }: PaneProps) {
           }
         >
           {(id) => (
-            <textarea
+            <Textarea
+              mono
               id={id}
-              className={styles.area}
+              className={ajustes.area}
               rows={5}
               spellCheck={false}
               disabled={!en.recursionNetworkACL}

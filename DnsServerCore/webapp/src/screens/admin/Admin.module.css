@@ -4,14 +4,12 @@
    filas `210px 1fr` de Settings por el mismo motivo. */
 
 .avisoHueco { margin-bottom: var(--hueco-bloque); }
-.fail { padding: var(--s-12); text-align:center; color:var(--faint); font-size: var(--t-4); }
 
-.mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+.mono { composes: mono from '../../ui/texto.module.css'; }
 .meta { margin-top: var(--s-1); font-size: var(--t-2); color:var(--faint); }
 .ua { font-family:var(--font-mono); font-size: var(--t-2); color:var(--faint); word-break:break-all; }
 .nowrap { white-space:nowrap; }
 
-.vacia { text-align:center; color:var(--faint); }
 
 /* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
 .count { composes: barra from '../../ui/recuento.module.css'; margin-top: var(--s-8); }
@@ -59,10 +57,8 @@ fondo, la sombra y la cabecera por su cuenta.
 /* Un bloque sin leyenda necesita recuperar arriba el aire que ponía la leyenda:
    `.block` no lleva padding superior porque esa banda la ocupaba ella. */
 .ctlLine { display:flex; align-items:center; gap: var(--s-6); flex-wrap:wrap; }
-.suffix { font-size: var(--t-3); color:var(--mute); }
+.suffix { composes: coletilla from '../../ui/texto.module.css'; }
 .help { composes: ayuda from '../../ui/Form.module.css'; }
-.help code, .plain code { font-family:var(--font-mono); font-size: var(--t-2); background:var(--field); border:1px solid var(--line); border-radius: var(--r-1); padding: 0 var(--s-2); }
-.plain { font-size: var(--t-3); color:var(--mute); line-height:1.55; padding: 0 var(--s-9); max-width:860px; }
 .notas { margin: var(--s-3) var(--s-9) 0 var(--s-9); display:flex; flex-direction:column; gap: var(--s-4); }
 /* La fila de casilla y de radio la define `ui/Check.module.css`, que es donde
    vive el `min-height` que la sube de 20 a 26 px. Esta copia no lo tenía. */
@@ -70,11 +66,14 @@ fondo, la sombra y la cabecera por su cuenta.
 .check input { margin-top: var(--s-1); flex:none; }
 .checkHelp { font-size: var(--t-3); color:var(--mute); padding-left: var(--s-11); line-height:1.55; max-width:720px; }
 .group { composes: grupo from '../../ui/Form.module.css'; }
-.area { font-family:var(--font-mono); font-size: var(--t-3); padding: var(--s-4) var(--s-6); border:1px solid var(--line); border-radius: var(--r-2); background:var(--field); color:var(--ink); resize:vertical; width:100%; max-width:560px; line-height:1.5; }
-.area:focus { outline:2px solid var(--acc); outline-offset:-1px; border-color:var(--acc); }
-.area:disabled { opacity:.5; }
-.select { font-size: var(--t-4); padding: var(--s-4) var(--s-6); border:1px solid var(--line); border-radius: var(--r-2); background:var(--field); color:var(--ink); max-width:420px; }
-.select:disabled { opacity:.5; }
+/* Sólo lo que es propio de esta pantalla: la caja la pone `ui/Field`. */
+.area {
+  width: 100%;
+  max-width: 560px;
+  resize: vertical;
+}
+/* Sólo el ancho: la caja del disparador la pone `ui/Select`. */
+.select { max-width: 420px; }
 
 /* Tabla editable dentro de un formulario: scopes y mapa de grupos de SSO. */
 /*
@@ -89,8 +88,7 @@ en otros dos módulos con los mismos valores copiados a mano.
 
 /* Cuerpo de modal: mismas filas, pero con la etiqueta más estrecha. */
 .mval { font-size: var(--t-4); font-weight: 600; color:var(--ink); padding-top: var(--s-5); }
-.parrafo { margin: 0 0 var(--s-7); font-size: var(--t-4); color:var(--mute); line-height:1.6; }
-.parrafo code { font-family:var(--font-mono); font-size: var(--t-2); background:var(--field); border:1px solid var(--line); border-radius: var(--r-1); padding: 0 var(--s-2); }
+.parrafo { composes: parrafo from '../../ui/texto.module.css'; }
 .sub { margin: var(--s-10) 0 var(--s-5); font-size: var(--t-4); font-weight: 550; color:var(--ink); }
 .salida { display:flex; flex-direction:column; gap: var(--s-5); }
 .enlace { font-size: var(--t-3); }

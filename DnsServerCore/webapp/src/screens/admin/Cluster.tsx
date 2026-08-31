@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useState } from 'react'
 import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
-import { Input, Select } from '../../ui/Field'
+import { Input, Select, Textarea } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty, Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
@@ -647,7 +647,8 @@ function NuevoCluster({
           >
             {(id) => (
               <>
-                <textarea
+                <Textarea
+                  mono
                   id={id}
                   className={styles.area}
                   rows={3}
@@ -853,7 +854,8 @@ function UnirseCluster({
           >
             {(id) => (
               <>
-                <textarea
+                <Textarea
+                  mono
                   id={id}
                   className={styles.area}
                   rows={3}
@@ -1269,7 +1271,8 @@ function EditarNodoPropio({
         >
           {(id) => (
             <>
-              <textarea
+              <Textarea
+                mono
                 id={id}
                 className={styles.area}
                 rows={3}
@@ -1362,7 +1365,8 @@ function EditarNodoPrimario({
         help="The IP addresses of the Primary node in the Cluster. When unspecified, domain name in the Primary node URL will be resolved and used."
       >
         {(id) => (
-          <textarea
+          <Textarea
+            mono
             id={id}
             className={styles.area}
             rows={3}

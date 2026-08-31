@@ -14,7 +14,7 @@
 /* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
 .count { composes: barra from '../../ui/recuento.module.css'; margin-bottom: var(--hueco-pegado); }
 .countPie { margin-top: var(--hueco-grupo); margin-bottom: 0; }
-.mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+.mono { composes: mono from '../../ui/texto.module.css'; }
 
 /* Tabla */
 .num { color:var(--faint); font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
@@ -42,16 +42,16 @@
 /* Menú desplegable de acciones de fila y de cabecera */
 
 .avisoHueco { margin-bottom: var(--s-9); }
-.parrafo { margin: 0 0 var(--s-7); font-size: var(--t-4); color:var(--mute); line-height:1.6; }
+.parrafo { composes: parrafo from '../../ui/texto.module.css'; }
 .salida { margin: 0; padding: var(--s-8) var(--s-8); background:var(--field); border:1px solid var(--line); border-radius: var(--r-3); font:var(--t-3)/1.7 var(--font-mono); color:var(--mute); white-space:pre-wrap; word-break:break-all; max-height:320px; overflow:auto; }
 
 /* Formularios de modal */
 .campos { display:flex; flex-direction:column; gap: var(--s-8); }
 .enLinea { display:flex; gap: var(--s-6); align-items:center; flex-wrap:wrap; }
-.sufijo { font-size: var(--t-3); color:var(--faint); }
+.sufijo { composes: coletilla from '../../ui/texto.module.css'; }
 /* La misma fila que `ui/Check.module.css`, que es donde vive el alto mínimo:
    sin él, los radios de «Add Zone», «Import» y «Convert» medían 19 px. */
-.chk { composes: check from '../../ui/Check.module.css'; color: var(--mute); }
+.chk { composes: check from '../../ui/Check.module.css'; }
 /* Mismo papel que `.help` de Settings, DHCP y Administration: mismo color y
    mismo interlineado. Con `--faint` se leía a 4.64:1 y las otras a 5.90:1. */
 .ayuda { font-size: var(--t-3); color:var(--mute); line-height:1.55; }
