@@ -60,14 +60,7 @@ porque el lateral es un cajón cerrado y su disparador tiene que estar fuera.
 .pieEnlaces a:hover { color:var(--ink); text-decoration:underline; }
 .sep { color:var(--line); }
 .host { font-family:var(--font-mono); font-size: var(--t-3); color:var(--faint); word-break:break-all; }
-.menu { position:relative; }
-.menuBtn { display:flex; align-items:center; justify-content:space-between; width:100%; gap: var(--s-3); padding: var(--s-4) var(--s-5); border-radius: var(--r-2); background:none; border:0; color:var(--ink); font:inherit; font-size: var(--t-4); cursor:pointer; }
-.menuBtn:hover { color:var(--ink); }
 /* Se abre hacia arriba: está al pie de la ventana, no bajo un cabecero. */
-.menuList { position:absolute; left:0; bottom:calc(100% + var(--s-3)); min-width:190px; z-index: var(--capa-flotante); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); padding: var(--s-3); display:flex; flex-direction:column; box-shadow: var(--e-2), var(--filo); }
-.menuList button { background:none; border:0; color:var(--ink); font:inherit; font-size: var(--t-4); text-align:left; padding: var(--s-4) var(--s-6); border-radius: var(--r-2); cursor:pointer; }
-.menuList button:hover,
-.menuList button:focus-visible { background:var(--hover-fuerte); }
 .body { padding: var(--s-11) var(--s-11) var(--s-11); min-width:0; }
 
 /*

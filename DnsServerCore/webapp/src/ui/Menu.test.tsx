@@ -12,9 +12,9 @@ fallo que introdujo el volteo: el manejador que cierra el menú al rodar la
 página lo comparte el `resize`, y ahí el `target` es `window`, que no es un
 nodo.
 */
-function Ejemplo() {
+function Ejemplo({ comoFila = false }: { comoFila?: boolean } = {}) {
   return (
-    <Menu etiqueta="Opciones" rotulo="Opciones">
+    <Menu etiqueta="Opciones" rotulo="Opciones" comoFila={comoFila}>
       {(cerrar) => (
         <>
           <button role="menuitem" onClick={cerrar}>Uno</button>
@@ -56,5 +56,25 @@ describe('Menu', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     expect(document.activeElement).toBe(b)
+  })
+
+  /*
+  El disparador de fila es el de la cuenta, al pie de la barra lateral. Estaba
+  escrito aparte, con su propio estado, y se le habían olvidado justo las tres
+  cosas que no se ven mirándolo abierto: no cerraba al pulsar fuera, ni con
+  Escape, ni al rodar. Ahora es este mismo menú, así que las hereda; esta prueba
+  es lo que impide que vuelva a escribirse por su cuenta.
+  */
+  it('el disparador de fila cierra al pulsar fuera, igual que el de botón', async () => {
+    render(
+      <>
+        <Ejemplo comoFila />
+        <p>fuera</p>
+      </>,
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Opciones' }))
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    fireEvent.mouseDown(screen.getByText('fuera'))
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 })

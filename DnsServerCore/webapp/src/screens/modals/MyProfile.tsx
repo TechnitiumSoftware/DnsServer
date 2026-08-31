@@ -4,6 +4,7 @@ import { Alert, type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { LabeledInput } from '../../ui/Field'
+import { CeldaAgente, CeldaSesion, CeldaUltimaVez } from '../../ui/Sesion'
 import { deleteSession, type SessionRow } from '../../api/user'
 import styles from './MyProfile.module.css'
 import tbl from '../../ui/Table.module.css'
@@ -202,9 +203,9 @@ export function MyProfile({
         <Tabla
           cabecera={
             <>
-              <Th campo="type" orden={orden} onOrdenar={alternar}>Type</Th>
+              <Th campo="type" orden={orden} onOrdenar={alternar}>Session</Th>
               <Th campo="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
-              <Th campo="address" orden={orden} onOrdenar={alternar}>Address</Th>
+              <Th campo="address" orden={orden} onOrdenar={alternar}>Remote Address</Th>
               {/* Upstream la tiene (`index.html`, tabla de `tbodyMyProfileActiveSessions`:
                   Session · Last Seen · Remote Address · User Agent) y aquí se había
                   perdido: era la única de las tres tablas de sesiones de la consola
@@ -217,17 +218,14 @@ export function MyProfile({
           {sesionesVisibles.map((row) => (
             <tr key={row.partialToken}>
               <td>
-                {row.type}
-                {row.tokenName ? ` (${row.tokenName})` : ''}
-                {row.isCurrentSession && <span className={styles.current}>current</span>}
+                <CeldaSesion sesion={row} />
               </td>
               <td>
-                <div className={styles.mono}>{fechaHora(row.lastSeen)}</div>
-                <div className={styles.meta}>{`(${desdeAhora(row.lastSeen)})`}</div>
+                <CeldaUltimaVez fecha={fechaHora(row.lastSeen)} hace={desdeAhora(row.lastSeen)} />
               </td>
               <td className={styles.mono}>{row.lastSeenRemoteAddress}</td>
               <td>
-                <span className={styles.ua}>{row.lastSeenUserAgent}</span>
+                <CeldaAgente>{row.lastSeenUserAgent}</CeldaAgente>
               </td>
               <td>
                 <Button

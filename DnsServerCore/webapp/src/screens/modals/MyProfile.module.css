@@ -8,13 +8,5 @@ en un `col-sm-7`.
 */
 .estrecha { max-width: 420px; }
 .mono { composes: mono from '../../ui/texto.module.css'; }
-/* Igual que en User Details y Sessions: la cadena es larga y se parte. */
-.ua { font-family: var(--font-mono); font-size: var(--t-2); color: var(--faint); word-break: break-all; }
-/* La antigüedad bajo la fecha, como en Sessions y User Details. */
-.meta { margin-top: var(--s-1); font-size: var(--t-2); color: var(--faint); }
-.current {
-  margin-left: var(--s-3); font-size: var(--t-1); padding: 1px var(--s-3); border-radius: var(--r-full);
-  background: var(--pan2); color: var(--ok); border: 1px solid var(--ok);
-}
 /* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
 .total { composes: recuento from '../../ui/recuento.module.css'; margin-top: var(--s-5); }

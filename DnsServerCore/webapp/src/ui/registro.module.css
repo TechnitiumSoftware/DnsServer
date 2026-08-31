@@ -1,0 +1,49 @@
+/*
+Las celdas de una tabla de registros DNS. Las usan Zones —los registros de una
+zona— y Listas —las entradas de Allowed y Blocked—, que son la misma tabla
+mirando dos sitios distintos, y las tenían escritas dos veces cada una.
+
+Son celdas y no componentes porque el marcado cambia (un `<td>`, un `<dd>`, un
+`<span>` dentro de un valor compuesto); lo que no cambia, y no debe, es cómo se
+leen.
+*/
+
+/* El TTL: monoespaciado y sin partir, con su unidad más apagada al lado. */
+.ttl {
+  composes: mono from './texto.module.css';
+  white-space: nowrap;
+}
+
+.ttl small { color: var(--faint); }
+
+/* Una clave pública o un hexadecimal: se parte por caracteres, no por palabras,
+   porque no tiene ninguna. */
+.clave {
+  word-break: break-all;
+  color: var(--mute);
+}
+
+/*
+«show full», el botón que despliega esa clave. Iba dentro de una clave truncada
+y medía 62×17 en un sitio y 44×18 en otro: dos tamaños para el mismo control, y
+los dos por debajo del mínimo de 24. `.golpe` amplía el objetivo sin mover el
+dibujo. Y `nowrap`: la clave que lo precede se parte, el botón NO.
+*/
+.verlo {
+  composes: golpe from './interaccion.module.css';
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: var(--t-3);
+  color: var(--acc);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* La línea de detalle bajo el valor de un registro. */
+.meta {
+  margin-top: var(--s-4);
+  font-size: var(--t-2);
+  color: var(--faint);
+}

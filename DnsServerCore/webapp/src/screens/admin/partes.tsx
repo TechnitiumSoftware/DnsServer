@@ -2,7 +2,6 @@ import { type ReactNode } from 'react'
 import { Alert, type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
-import { Tag } from '../../ui/Tag'
 import type { ClusterState } from '../../api/admin-cluster'
 import styles from './Admin.module.css'
 import frm from '../../ui/Form.module.css'
@@ -137,33 +136,6 @@ export function SelectorNodo({
   )
 }
 
-/*
-La celda «Session», que sale idéntica en la pestaña Sessions y en el modal de
-detalles del usuario (auth.js:876-899 y 1310-1333): el nombre del token si lo
-tiene, el token parcial entre corchetes, «(current)» si es la sesión desde la
-que se mira, y una etiqueta de color por tipo. Un tipo desconocido NO se calla:
-sale como «Unknown» en ámbar.
-*/
-export function CeldaSesion({ sesion }: { sesion: { partialToken: string; tokenName: string | null; isCurrentSession: boolean; type: string } }) {
-  const etiqueta =
-    sesion.type === 'Standard' ? (
-      <Tag>Standard</Tag>
-    ) : sesion.type === 'ApiToken' ? (
-      <Tag tone="info">API Token</Tag>
-    ) : sesion.type === 'ClusterApiToken' ? (
-      <Tag tone="info">Cluster API Token</Tag>
-    ) : (
-      <Tag tone="warn">Unknown</Tag>
-    )
 
-  return (
-    <>
-      {sesion.tokenName != null && <div>{sesion.tokenName}</div>}
-      <div className={styles.mono}>{`[${sesion.partialToken}]`}</div>
-      {sesion.isCurrentSession && <div>(current)</div>}
-      <div className={styles.etiquetaSesion}>{etiqueta}</div>
-    </>
-  )
-}
-
+export { CeldaSesion } from '../../ui/Sesion'
 export { styles as adminStyles }

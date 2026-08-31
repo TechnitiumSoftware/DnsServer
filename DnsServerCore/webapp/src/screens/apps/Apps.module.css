@@ -1,6 +1,6 @@
 /* El hueco entre un aviso y lo que viene debajo. Estaba a mano en cada
    pantalla con un `style` en línea. */
-.aviso { margin-bottom: var(--hueco-bloque); }
+.aviso { composes: hueco from '../../ui/Alert.module.css'; }
 
 .apps { display:grid; grid-template-columns:repeat(2,1fr); gap: var(--s-8); list-style:none; margin: 0; padding: 0; }
 @media (max-width: 1040px) { .apps { grid-template-columns:1fr; } }
@@ -13,38 +13,7 @@
 .foot { display:flex; gap: var(--s-3); justify-content:flex-end; flex-wrap:wrap; margin-top: auto; }
 
 .detalles { margin: 0 0 var(--s-7); }
-/*
-El triángulo de un `<details>` lo pinta el navegador —y cada uno el suyo—, así
-que es otra superficie que no habíamos dibujado. Se sustituye por el chevron del
-juego de iconos, que gira al abrir.
-*/
-.detalles summary {
-  display: flex;
-  align-items: center;
-  gap: var(--s-4);
-  font-size: var(--t-3);
-  color: var(--acc);
-  cursor: pointer;
-  list-style: none;
-}
 
-.detalles summary::-webkit-details-marker { display: none; }
-
-.detalles summary::before {
-  content: '';
-  width: 12px;
-  height: 12px;
-  flex: none;
-  background: currentColor;
-  transition: transform var(--t-rapido);
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 6 6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat;
-}
-
-.detalles[open] summary::before { transform: rotate(90deg); }
-
-@media (prefers-reduced-motion: reduce) {
-  .detalles summary::before { transition: none; }
-}
 .clase { margin-top: var(--s-6); padding-top: var(--s-6); border-top:1px solid var(--line2); }
 .clase:first-of-type { border-top:0; }
 .clasePath { font-family:var(--font-mono); font-size: var(--t-3); color:var(--ink); }

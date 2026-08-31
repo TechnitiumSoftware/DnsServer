@@ -1,6 +1,25 @@
 /* El menú «⋮» de una fila. Estaba dentro de Zones; lo usan todas las tablas. */
 
 .menu { position:relative; display:inline-block; }
+
+/* El disparador que es una fila entera: el de la cuenta, al pie de la barra. */
+.menuAncho { position: relative; }
+.fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-5);
+  border: 0;
+  border-radius: var(--r-2);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--t-4);
+  cursor: pointer;
+}
+.fila:hover { background: var(--hover-fuerte); }
 .menuLista { position:fixed; overflow-y:auto; z-index: var(--capa-flotante); min-width:170px; padding: var(--s-3); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); box-shadow: var(--e-2), var(--filo); display:flex; flex-direction:column; }
 .sep { height:1px; margin: var(--s-2) var(--s-3); background:var(--line); }
 .menuLista button { text-align:left; border:0; background:transparent; color:var(--mute); /* Longhands y no el atajo `font:`: `inherit` no vale como componente de un

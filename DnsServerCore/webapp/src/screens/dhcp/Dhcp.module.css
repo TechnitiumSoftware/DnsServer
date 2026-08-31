@@ -13,16 +13,14 @@ Se resta, y la resta se escribe una sola vez: el hueco del contenedor vive en
 `--hueco` y las dos reglas lo leen de ahí, así que cambiarlo no vuelve a
 descuadrar el título.
 */
-.wrap { composes: wrap from '../../ui/Ajustes.module.css'; }
+.wrap { composes: pantalla from '../../ui/SectionHeader.module.css'; }
 
 .mono { composes: mono from '../../ui/texto.module.css'; }
 .nombre { font-weight: 550; color: var(--ink); white-space: nowrap; }
 .fecha { white-space: nowrap; font-family: var(--font-mono); font-size: var(--t-3); }
 /* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
 .total { composes: recuento from '../../ui/recuento.module.css'; margin-top: var(--hueco-grupo); }
-.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--s-1) var(--s-8); margin: 0; }
-.kv dt { font-size: var(--t-3); color: var(--mute); white-space: nowrap; }
-.kv dd { margin: 0; font: var(--t-4)/1.45 var(--font-mono); color: var(--ink); min-width: 0; }
+.kv { composes: kv from '../../ui/kv.module.css'; }
 
 .parrafo { composes: parrafo from '../../ui/texto.module.css'; }
 .lista { margin: 0 0 var(--s-7); padding-left: var(--s-10); font-size: var(--t-4); color: var(--mute); line-height: 1.6; }

@@ -17,10 +17,11 @@ misma píldora significaba una cosa en una pantalla y otra en la de al lado.
   white-space: nowrap;
 }
 
-.ok   { color: var(--ok);   border-color: var(--ok-bd);   background: var(--ok-bg); }
-.warn { color: var(--warn); border-color: var(--warn-bd); background: var(--warn-bg); }
-.dan  { color: var(--dan);  border-color: var(--dan-bd);  background: var(--dan-bg); }
-.info { color: var(--info); border-color: var(--info-bd); background: var(--info-bg); }
+/* Los tonos son los de `ui/tonos.module.css`, compartidos con el aviso. */
+.ok   { composes: ok from './tonos.module.css'; }
+.warn { composes: warn from './tonos.module.css'; }
+.dan  { composes: dan from './tonos.module.css'; }
+.info { composes: info from './tonos.module.css'; }
 
 /*
 El chip de código: un tipo de registro (`A`, `SOA`), la clase de un app. No es

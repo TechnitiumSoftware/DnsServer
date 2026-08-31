@@ -18,6 +18,7 @@ import { Admin } from '../screens/admin/Admin'
 import styles from './Shell.module.css'
 import { Icono, type NombreIcono } from '../ui/Icono'
 import { urlPublica } from './base'
+import { Menu } from '../ui/Menu'
 import { PIE } from './pie'
 
 type ModalId = 'profile' | 'password' | 'twofa' | 'token'
@@ -75,7 +76,6 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
      si no, de la primera visible. Ver `app/ruta.ts` para por qué va en el hash. */
   const rutaInicial = leerRuta(sections)
   const [active, setActive] = useState(() => rutaInicial?.seccion ?? sections[0]?.id ?? 'about')
-  const [menuOpen, setMenuOpen] = useState(false)
   const [cajon, setCajon] = useState(false)
   const [modal, setModal] = useState<ModalId | null>(null)
   const [sub, setSub] = useState<string | null>(rutaInicial?.sub ?? null)
@@ -83,7 +83,6 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
   const [totpEnabled, setTotpEnabled] = useState(session.totpEnabled ?? false)
 
   function abrir(id: ModalId) {
-    setMenuOpen(false)
     setModal(id)
   }
 
@@ -264,41 +263,32 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
             ))}
           </div>
           {session.info && <span className={styles.host}>{session.info.dnsServerDomain}</span>}
-          <div className={styles.menu}>
-            <button
-              className={styles.menuBtn}
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((v) => !v)}
-            >
-              {displayName}
-              <Icono nombre="chevronAbajo" tam={12} />
-            </button>
-            {menuOpen && (
-              <div className={styles.menuList} role="menu">
-                <button type="button" role="menuitem" onClick={() => abrir('profile')}>
+          <Menu etiqueta={displayName} rotulo={displayName} ancla="izquierda" comoFila>
+            {(cerrar) => (
+              <>
+                <button type="button" onClick={() => { cerrar(); abrir('profile') }}>
                   My Profile
                 </button>
                 {/* main.js:71-78 — a un usuario de SSO se le ocultan estas dos. */}
                 {!session.isSsoUser && (
-                  <button type="button" role="menuitem" onClick={() => abrir('password')}>
+                  <button type="button" onClick={() => { cerrar(); abrir('password') }}>
                     Change Password
                   </button>
                 )}
                 {!session.isSsoUser && (
-                  <button type="button" role="menuitem" onClick={() => abrir('twofa')}>
+                  <button type="button" onClick={() => { cerrar(); abrir('twofa') }}>
                     Configure 2FA
                   </button>
                 )}
-                <button type="button" role="menuitem" onClick={() => abrir('token')}>
+                <button type="button" onClick={() => { cerrar(); abrir('token') }}>
                   Create API Token
                 </button>
-                <button type="button" role="menuitem" onClick={onLogout}>
+                <button type="button" onClick={() => { cerrar(); onLogout() }}>
                   Logout
                 </button>
-              </div>
+              </>
             )}
-          </div>
+          </Menu>
         </div>
       </aside>
 

@@ -35,7 +35,17 @@ Gana el relleno, que es lo dibujado y lo que se ve a la primera pasada.
 
 .close:hover { opacity: 1; }
 
-.success { background: var(--ok-bg);   border-color: var(--ok-bd);   color: var(--ok); }
-.info    { background: var(--info-bg); border-color: var(--info-bd); color: var(--info); }
-.warning { background: var(--warn-bg); border-color: var(--warn-bd); color: var(--warn); }
-.danger  { background: var(--dan-bg);  border-color: var(--dan-bd);  color: var(--dan); }
+/* Los tonos son los de `ui/tonos.module.css`, compartidos con la píldora. */
+.success { composes: ok from './tonos.module.css'; }
+.info    { composes: info from './tonos.module.css'; }
+.warning { composes: warn from './tonos.module.css'; }
+.danger  { composes: dan from './tonos.module.css'; }
+
+/*
+El aire que deja un aviso debajo, cuando va suelto sobre el contenido de una
+pantalla. Estaba escrito en seis módulos con dos nombres —`.aviso` y
+`.avisoHueco`— y con dos distancias: 24 px en cinco pantallas y 14 en el
+Dashboard, sin que la diferencia significara nada. `--hueco-bloque` es el token
+que nombra esa distancia; el número suelto no nombraba nada.
+*/
+.hueco { margin-bottom: var(--hueco-bloque); }

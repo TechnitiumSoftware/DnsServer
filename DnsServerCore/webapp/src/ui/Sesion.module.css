@@ -1,0 +1,31 @@
+/*
+Las celdas de una tabla de sesiones. Hay tres tablas —todas las sesiones, las de
+un usuario y las mías— y las tres pintan lo mismo: qué sesión es, cuándo se vio
+por última vez, desde dónde y con qué.
+
+Dos de ellas compartían componente; la tercera, «My Profile», estaba escrita a
+mano, y se le notaba:
+
+  · La columna se llamaba «Type» y la de dirección «Address», cuando upstream
+    dice «Session» y «Remote Address» en las tres (`index.html:3603-3606`).
+  · La celda enseñaba el tipo como texto crudo, sin la etiqueta de color que
+    upstream sí pinta (`auth.js:703-719`), y con una píldora «current» propia
+    que no existe en ninguna de las otras dos.
+*/
+
+/* La antigüedad, bajo la fecha: «(2 hours ago)». */
+.antiguedad {
+  margin-top: var(--s-1);
+  font-size: var(--t-2);
+  color: var(--faint);
+}
+
+/* La cadena del agente es larga y no tiene por dónde partir: se parte igual. */
+.agente {
+  font-family: var(--font-mono);
+  font-size: var(--t-2);
+  color: var(--faint);
+  word-break: break-all;
+}
+
+.etiqueta { margin-top: var(--s-2); }

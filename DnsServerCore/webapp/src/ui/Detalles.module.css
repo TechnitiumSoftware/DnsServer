@@ -1,0 +1,36 @@
+/*
+El desplegable de «More Details» y de «Raw Responses».
+
+El triángulo de un `<details>` lo pinta el navegador —y cada uno el suyo—, así
+que es otra superficie que no habíamos dibujado. Estaba resuelto dos veces, en
+Apps y en DNS Client, y las dos con el chevron recodificado a mano como SVG en
+un `data:` URI: el mismo trazado que `chevronDerecha` de `ui/Icono`, pero con
+`stroke-width: 2.5` contra el 1,75 del juego entero. O sea, el único icono de la
+consola con otro grosor de trazo, y por duplicado. Ahora es el icono de verdad.
+*/
+
+.detalles > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  /* El objetivo se pulsa: sin relleno medía 17 px de alto en Apps, y en DNS
+     Client sí lo llevaba. Era la misma diferencia de siempre. */
+  padding: var(--s-3) 0;
+  font-size: var(--t-3);
+  color: var(--acc);
+  cursor: pointer;
+  list-style: none;
+}
+
+.detalles > summary::-webkit-details-marker { display: none; }
+
+.chevron {
+  flex: none;
+  transition: transform var(--t-rapido);
+}
+
+.detalles[open] > summary .chevron { transform: rotate(90deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron { transition: none; }
+}

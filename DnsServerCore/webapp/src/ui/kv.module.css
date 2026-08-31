@@ -1,0 +1,35 @@
+/*
+La lista de clave y valor: «Range / 10.0.1.10 - 10.0.1.200», «Key Tag / 42».
+
+Estaba escrita cinco veces —About, Zones, DHCP, Listas y el modal de DS— y de
+las cinco salieron cuatro objetos distintos: dos plantillas de columnas (`auto
+1fr` y `auto minmax(0,1fr)`, que no es lo mismo en cuanto el valor es largo), dos
+huecos de fila, y tres tratamientos del valor. Sólo uno de los cinco partía las
+cadenas largas, así que la misma lista se salía de su celda en DHCP y en Listas y
+no en Zones.
+
+`minmax(0,1fr)` y no `1fr`: una pista de rejilla `1fr` tiene mínimo `auto`, así
+que no baja del ancho de su contenido y un valor sin espacios —una clave DNSSEC,
+un hexadecimal— empuja la columna fuera de la tabla.
+*/
+
+.kv {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--s-1) var(--s-8);
+  margin: 0;
+}
+
+.kv dt {
+  font-size: var(--t-3);
+  color: var(--mute);
+  white-space: nowrap;
+}
+
+.kv dd {
+  margin: 0;
+  min-width: 0;
+  font: var(--t-4) / 1.45 var(--font-mono);
+  color: var(--ink);
+  word-break: break-word;
+}

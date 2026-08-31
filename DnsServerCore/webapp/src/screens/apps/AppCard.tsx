@@ -1,5 +1,6 @@
 import { etiquetasDnsApp, type InstalledApp } from '../../api/apps'
 import { Button } from '../../ui/Button'
+import { Detalles } from '../../ui/Detalles'
 import { Chip } from '../../ui/Tag'
 import styles from './Apps.module.css'
 
@@ -48,8 +49,7 @@ export function AppCard({
       {app.description && <p className={styles.desc}>{app.description}</p>}
 
       {app.dnsApps.length > 0 && (
-        <details className={styles.detalles}>
-          <summary>More Details</summary>
+        <Detalles className={styles.detalles} resumen="More Details">
           {app.dnsApps.map((d) => (
             <div key={d.classPath} className={styles.clase}>
               <div className={styles.clasePath}>{d.classPath}</div>
@@ -69,7 +69,7 @@ export function AppCard({
               )}
             </div>
           ))}
-        </details>
+        </Detalles>
       )}
 
       <div className={styles.foot}>

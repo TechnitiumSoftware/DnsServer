@@ -3,6 +3,7 @@ import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Input, Select, Textarea } from '../../ui/Field'
+import { Radios } from '../../ui/Ajustes'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty, Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
@@ -905,38 +906,23 @@ function UnirseCluster({
           {/* Iba con `frm.rowCtl` —la columna de una fila de PÁGINA— dentro de un
               modal, que es el mismo descuido que tenía `MRow`. */}
           <GroupRow modal label="Certificate Validation">
-            <div>
-              <label className={styles.check}>
-                <input
-                  type="radio"
-                  name="joinClusterCertificateValidation"
-                  value="false"
-                  checked={ignorar === 'false'}
-                  onChange={() => setIgnorar('false')}
-                />
-                <span>Validate Certificate With PKI and DANE (Recommended)</span>
-              </label>
-              <div className={styles.checkHelp}>
-                The Primary node Web Service TLS certificate will be validated using PKI and DANE
-                to ensure that your connection is secure.
-              </div>
-            </div>
-            <div>
-              <label className={styles.check}>
-                <input
-                  type="radio"
-                  name="joinClusterCertificateValidation"
-                  value="true"
-                  checked={ignorar === 'true'}
-                  onChange={() => setIgnorar('true')}
-                />
-                <span>Ignore Certificate Validation Errors</span>
-              </label>
-              <div className={styles.checkHelp}>
-                Use this options only when you know that the Primary node Web Service is using a
-                self-signed TLS certificate and is reachable on a private network.
-              </div>
-            </div>
+            <Radios
+              name="joinClusterCertificateValidation"
+              value={ignorar}
+              onChange={setIgnorar}
+              options={[
+                {
+                  value: 'false',
+                  label: 'Validate Certificate With PKI and DANE (Recommended)',
+                  help: 'The Primary node Web Service TLS certificate will be validated using PKI and DANE to ensure that your connection is secure.',
+                },
+                {
+                  value: 'true',
+                  label: 'Ignore Certificate Validation Errors',
+                  help: 'Use this options only when you know that the Primary node Web Service is using a self-signed TLS certificate and is reachable on a private network.',
+                },
+              ]}
+            />
           </GroupRow>
 
           <MRow

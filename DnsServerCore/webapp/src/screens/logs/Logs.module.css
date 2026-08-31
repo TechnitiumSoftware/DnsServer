@@ -2,25 +2,7 @@
    una tabla con quince filtros. Las clases de tabla son las mismas que en
    Cache, Allowed y Blocked. */
 
-/*
-El hueco bajo el título de sección es `--hueco-bloque` en toda la consola. Aquí
-se llevaba 38 px en vez de 24 porque este contenedor es `flex` con `gap` y en
-flex el hueco SE SUMA al margen del hijo: la cabecera aportaba sus 24 y el
-contenedor otros 14.
-
-Se resta, y la resta se escribe una sola vez: el hueco del contenedor vive en
-`--hueco` y las dos reglas lo leen de ahí, así que cambiarlo no vuelve a
-descuadrar el título.
-*/
-.wrap {
-  --hueco: var(--s-9);
-  display: flex;
-  flex-direction: column;
-  gap: var(--hueco);
-}
-
-/* La cabecera de sección, que siempre es el primer hijo. */
-.wrap > :first-child { margin-bottom: calc(var(--hueco-bloque) - var(--hueco)); }
+.wrap { composes: pantalla from '../../ui/SectionHeader.module.css'; }
 
 .acts { display: flex; gap: var(--s-4); flex-wrap: wrap; justify-content: flex-end; align-items: center; }
 
@@ -31,14 +13,7 @@ descuadrar el título.
 .pbLista { padding: var(--s-5); }
 
 .logfiles { display: flex; flex-direction: column; gap: var(--s-1); }
-.logfile {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--s-5);
-  padding: var(--s-5) var(--s-7); border: 0; border-radius: var(--r-2); background: transparent;
-  font: var(--t-4)/1.3 var(--font-ui); color: var(--mute); cursor: pointer;
-  text-align: left; width: 100%;
-}
-.logfile:hover { background: var(--hover-fuerte); color: var(--ink); }
-.logfile[aria-current='true'] { background: var(--pan2); color: var(--acc); font-weight: 550; }
+.logfile { composes: fila from '../../ui/lista.module.css'; justify-content: space-between; }
 .logfile .nombre { font-family: var(--font-mono); }
 .sz { font-family: var(--font-mono); font-size: var(--t-2); color: var(--faint); }
 .out {

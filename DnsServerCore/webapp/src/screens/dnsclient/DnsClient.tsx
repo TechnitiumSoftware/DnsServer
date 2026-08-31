@@ -5,6 +5,7 @@ import { Button } from '../../ui/Button'
 import { LabeledInput, LabeledSelect } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty } from '../../ui/Empty'
+import { Detalles } from '../../ui/Detalles'
 import styles from './DnsClient.module.css'
 import { Cuerpo, Panel } from '../../ui/Panel'
 
@@ -151,14 +152,13 @@ export function DnsClient({ token }: { token: string | null }) {
             <pre className={styles.out}>{salida}</pre>
 
             {crudas.length > 0 && (
-              <details className={styles.crudas}>
-                <summary>Raw Responses ({crudas.length})</summary>
+              <Detalles className={styles.crudas} resumen={`Raw Responses (${crudas.length})`}>
                 {crudas.map((c, i) => (
                   <pre key={i} className={styles.out}>
                     {JSON.stringify(c, null, 2)}
                   </pre>
                 ))}
-              </details>
+              </Detalles>
             )}
           </Cuerpo>
         </Panel>

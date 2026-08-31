@@ -23,25 +23,17 @@
   composes: golpe from '../../ui/interaccion.module.css'; border:0; background:transparent; padding: 0; font:inherit; font-weight: 600; font-family:var(--font-mono); color:var(--ink); cursor:pointer; text-align:left; word-break:break-word; }
 .enlaceZona:hover { color:var(--acc); }
 
-.ttl { white-space:nowrap; font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
-.ttl small { color:var(--faint); }
+.ttl { composes: ttl from '../../ui/registro.module.css'; }
 
-.kv { display:grid; grid-template-columns:auto minmax(0,1fr); gap: var(--s-1) var(--s-8); margin: 0; }
-.kv dt { font-size: var(--t-3); color:var(--mute); white-space:nowrap; }
-.kv dd { margin: 0; font:var(--t-4)/1.45 var(--font-mono); color:var(--ink); min-width:0; word-break:break-word; }
+.kv { composes: kv from '../../ui/kv.module.css'; }
 .val { font:var(--t-4)/1.45 var(--font-mono); color:var(--ink); word-break:break-word; }
-/* La clave pública larga rompe por caracteres; el botón que la sigue, NO. */
-.clave { word-break:break-all; color:var(--mute); }
-/* «show full»: 62×17 y 44×18 según dónde estuviera, o sea dos tamaños para el
-   mismo control y los dos por debajo del mínimo de 24. `.golpe` amplía el
-   objetivo sin mover el dibujo, que es justo lo que hace falta en un enlace
-   metido dentro de una clave truncada. */
-.verlo { composes: golpe from '../../ui/interaccion.module.css'; border:0; background:transparent; padding: 0; font:inherit; font-size: var(--t-3); color:var(--acc); cursor:pointer; white-space:nowrap; }
-.meta { margin-top: var(--s-4); font-size: var(--t-2); color:var(--faint); }
+.clave { composes: clave from '../../ui/registro.module.css'; }
+.verlo { composes: verlo from '../../ui/registro.module.css'; }
+.meta { composes: meta from '../../ui/registro.module.css'; }
 
 /* Menú desplegable de acciones de fila y de cabecera */
 
-.avisoHueco { margin-bottom: var(--s-9); }
+.avisoHueco { composes: hueco from '../../ui/Alert.module.css'; }
 .parrafo { composes: parrafo from '../../ui/texto.module.css'; }
 .salida { margin: 0; padding: var(--s-8) var(--s-8); background:var(--field); border:1px solid var(--line); border-radius: var(--r-3); font:var(--t-3)/1.7 var(--font-mono); color:var(--mute); white-space:pre-wrap; word-break:break-all; max-height:320px; overflow:auto; }
 

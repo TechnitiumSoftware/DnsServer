@@ -3,6 +3,7 @@ import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Input, Select } from '../../ui/Field'
+import { CeldaAgente, CeldaUltimaVez } from '../../ui/Sesion'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Loading } from '../../ui/Empty'
 import {
@@ -161,12 +162,11 @@ export function Sessions({ token, cluster, onAviso }: Props) {
                   <CeldaSesion sesion={s} />
                 </td>
                 <td className={styles.nowrap}>
-                  <div className={styles.mono}>{fechaHora(s.lastSeen)}</div>
-                  <div className={styles.meta}>{`(${desdeAhora(s.lastSeen)})`}</div>
+                  <CeldaUltimaVez fecha={fechaHora(s.lastSeen)} hace={desdeAhora(s.lastSeen)} />
                 </td>
                 <td className={styles.mono}>{s.lastSeenRemoteAddress}</td>
                 <td>
-                  <span className={styles.ua}>{s.lastSeenUserAgent}</span>
+                  <CeldaAgente>{s.lastSeenUserAgent}</CeldaAgente>
                 </td>
                 <td className={tbl.celdaAcciones}>
                   <div className={tbl.acciones}>

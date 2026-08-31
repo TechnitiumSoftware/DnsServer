@@ -84,7 +84,7 @@ pantallas va a 12,5 y peso normal.
 .pbAjustado { padding-top: var(--s-2); }
 
 /* El aviso de las acciones de la propia pantalla —hoy, el menú de bloqueo—. */
-.aviso { margin-bottom: var(--s-9); }
+.aviso { composes: hueco from '../../ui/Alert.module.css'; }
 /* La cabecera de un panel puede llevar más de un control. */
 .accionesPanel { display: flex; align-items: center; gap: var(--s-4); }
 

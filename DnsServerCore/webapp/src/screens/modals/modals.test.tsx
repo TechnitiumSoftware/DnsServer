@@ -201,7 +201,11 @@ describe('My Profile — sesiones activas', () => {
     render(<MyProfile open onOpenChange={() => {}} token="t" />)
     expect(await screen.findByText('Total Sessions: 2')).toBeInTheDocument()
     expect(screen.getByText('10.0.1.42')).toBeInTheDocument()
-    expect(screen.getByText('current')).toBeInTheDocument()
+    expect(screen.getByText('(current)')).toBeInTheDocument()
+    // La etiqueta de tipo la pinta upstream (`auth.js:703-719`) y esta tabla la
+    // había perdido al escribirse a mano en vez de con la celda compartida.
+    expect(screen.getByText('Standard')).toBeInTheDocument()
+    expect(screen.getByText('API Token')).toBeInTheDocument()
   })
 
   it('pide confirmación con el texto literal antes de borrar', async () => {

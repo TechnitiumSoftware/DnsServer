@@ -16,7 +16,7 @@ puesto a mano en cada botón, que es el síntoma de que la fila no alineaba.
   flex-wrap: wrap;
 }
 
-.aviso { margin-bottom: var(--hueco-bloque); }
+.aviso { composes: hueco from '../../ui/Alert.module.css'; }
 
 .ancho { flex: 1 1 240px; min-width: 240px; }
 .medio { flex: 1 1 200px; min-width: 200px; }
@@ -44,29 +44,5 @@ triángulo del `<details>` lo pinta cada navegador el suyo, así que se sustituy
 por el chevron del juego de iconos —mismo tratamiento que en Apps—.
 */
 .crudas { margin-top: var(--s-8); border-top: 1px solid var(--line); padding-top: var(--s-8); }
-.crudas summary {
-  display: flex;
-  align-items: center;
-  gap: var(--s-4);
-  padding: var(--s-3) 0;
-  font-size: var(--t-3);
-  color: var(--acc);
-  cursor: pointer;
-  list-style: none;
-}
-.crudas summary::-webkit-details-marker { display: none; }
-.crudas summary::before {
-  content: '';
-  width: 12px;
-  height: 12px;
-  flex: none;
-  background: currentColor;
-  transition: transform var(--t-rapido);
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 6 6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat;
-}
-.crudas[open] summary::before { transform: rotate(90deg); }
 .crudas pre { margin-top: var(--s-7); }
 
-@media (prefers-reduced-motion: reduce) {
-  .crudas summary::before { transition: none; }
-}

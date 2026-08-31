@@ -3,11 +3,9 @@
    cuatro tablas de la consola se lean igual; el formulario de SSO repite las
    filas `210px 1fr` de Settings por el mismo motivo. */
 
-.avisoHueco { margin-bottom: var(--hueco-bloque); }
+.avisoHueco { composes: hueco from '../../ui/Alert.module.css'; }
 
 .mono { composes: mono from '../../ui/texto.module.css'; }
-.meta { margin-top: var(--s-1); font-size: var(--t-2); color:var(--faint); }
-.ua { font-family:var(--font-mono); font-size: var(--t-2); color:var(--faint); word-break:break-all; }
 .nowrap { white-space:nowrap; }
 
 
@@ -44,34 +42,14 @@
 }
 
 /* SSO y los modales de Cluster: filas etiqueta + control, como en Settings. */
-/*
-Lo propio del bloque de esta pantalla, y nada más: la caja la pone `ui/Panel`,
-que es quien la pinta en toda la consola. Antes esto redefinía el borde, el
-fondo, la sombra y la cabecera por su cuenta.
-*/
-.block {
-  margin: 0 0 var(--s-9) 0;
-  padding-bottom: var(--s-9);
-}
+.block { composes: block from '../../ui/Ajustes.module.css'; }
 
-/* Un bloque sin leyenda necesita recuperar arriba el aire que ponía la leyenda:
-   `.block` no lleva padding superior porque esa banda la ocupaba ella. */
-.ctlLine { display:flex; align-items:center; gap: var(--s-6); flex-wrap:wrap; }
+.ctlLine { composes: enLinea from '../../ui/Ajustes.module.css'; }
 .suffix { composes: coletilla from '../../ui/texto.module.css'; }
 .help { composes: ayuda from '../../ui/Form.module.css'; }
-.notas { margin: var(--s-3) var(--s-9) 0 var(--s-9); display:flex; flex-direction:column; gap: var(--s-4); }
-/* La fila de casilla y de radio la define `ui/Check.module.css`, que es donde
-   vive el `min-height` que la sube de 20 a 26 px. Esta copia no lo tenía. */
-.check { composes: check from '../../ui/Check.module.css'; }
-.check input { margin-top: var(--s-1); flex:none; }
-.checkHelp { font-size: var(--t-3); color:var(--mute); padding-left: var(--s-11); line-height:1.55; max-width:720px; }
+.notas { composes: avisos from '../../ui/Ajustes.module.css'; }
 .group { composes: grupo from '../../ui/Form.module.css'; }
-/* Sólo lo que es propio de esta pantalla: la caja la pone `ui/Field`. */
-.area {
-  width: 100%;
-  max-width: 560px;
-  resize: vertical;
-}
+.area { composes: area from '../../ui/Ajustes.module.css'; }
 /* Sólo el ancho: la caja del disparador la pone `ui/Select`. */
 .select { max-width: 420px; }
 
@@ -98,4 +76,3 @@ en otros dos módulos con los mismos valores copiados a mano.
   .prow { grid-template-columns: minmax(0, 1fr) 40px 40px 40px; }
 }
 
-.etiquetaSesion { margin-top: var(--s-2); }

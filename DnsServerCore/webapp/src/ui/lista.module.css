@@ -1,0 +1,38 @@
+/*
+La fila de una lista lateral seleccionable: el árbol de zonas y listas, y los
+ficheros de Logs. Se pulsa, se resalta al pasar por encima y una de ellas es la
+que se está viendo.
+
+Estaba escrita dos veces. Los ESTADOS coincidían byte a byte —el mismo
+`--hover-fuerte` al pasar, el mismo `--pan2` y `--acc` en la actual—, así que
+sólo eran dos sitios donde tocar lo mismo. La densidad NO coincidía, y ésa sí es
+una decisión: el árbol es una jerarquía de muchos nodos y se lee mejor apretado;
+la lista de ficheros son cuatro entradas. Se separa en `.fila` y `.compacta`,
+que es nombrar la diferencia en vez de tenerla escondida en dos paddings.
+*/
+
+.fila {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  width: 100%;
+  padding: var(--s-5) var(--s-7);
+  border: 0;
+  border-radius: var(--r-2);
+  background: transparent;
+  color: var(--mute);
+  line-height: 1.3;
+  font-size: var(--t-4);
+  cursor: pointer;
+  text-align: left;
+}
+
+/* El árbol: misma fila, menos aire, porque hay muchas y van anidadas. */
+.compacta {
+  composes: fila;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+}
+
+.fila:hover { background: var(--hover-fuerte); color: var(--ink); }
+.fila[aria-current='true'] { background: var(--pan2); color: var(--acc); font-weight: 550; }

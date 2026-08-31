@@ -1,0 +1,13 @@
+/*
+Los cuatro tonos semánticos: fondo, borde y texto de cada uno.
+
+Los aplican dos componentes —el aviso (`ui/Alert`) y la píldora (`ui/Tag`)— y
+estaban escritos en los dos, con nombres distintos para lo mismo
+(`success/warning/danger` contra `ok/warn/dan`). Doce declaraciones para cuatro
+decisiones, y añadir un tono quinto obligaba a acordarse de los dos ficheros.
+*/
+
+.ok   { background: var(--ok-bg);   border-color: var(--ok-bd);   color: var(--ok); }
+.info { background: var(--info-bg); border-color: var(--info-bd); color: var(--info); }
+.warn { background: var(--warn-bg); border-color: var(--warn-bd); color: var(--warn); }
+.dan  { background: var(--dan-bg);  border-color: var(--dan-bd);  color: var(--dan); }

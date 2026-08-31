@@ -80,3 +80,23 @@ button.ctx:hover { color: var(--acc); }
     padding-top: 0;
   }
 }
+
+/*
+La columna de una pantalla cuya cabecera va dentro de un contenedor `flex` con
+`gap`. Vive aquí y no en las pantallas porque lo que corrige es esta cabecera.
+
+El hueco bajo el título es `--hueco-bloque` en toda la consola. En estas
+pantallas se llevaba 38 px en vez de 24 porque en flex el hueco SE SUMA al
+margen del hijo: la cabecera aportaba sus 24 y el contenedor otros 14. Se resta,
+y la resta se escribe UNA vez: el hueco del contenedor vive en `--hueco` y las
+dos reglas lo leen de ahí, así que cambiarlo no vuelve a descuadrar el título.
+*/
+.pantalla {
+  --hueco: var(--s-9);
+  display: flex;
+  flex-direction: column;
+  gap: var(--hueco);
+}
+
+/* La cabecera de sección, que siempre es el primer hijo. */
+.pantalla > :first-child { margin-bottom: calc(var(--hueco-bloque) - var(--hueco)); }

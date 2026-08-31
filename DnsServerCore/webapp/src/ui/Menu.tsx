@@ -17,12 +17,22 @@ sí va fuera: allí actúas sobre un objeto que estás mirando.
 No usa Radix a propósito: `DropdownMenu` traería una dependencia nueva a
 `package.json` para un componente de veinte líneas, y las primitivas del
 proyecto son deliberadamente pocas.
+
+Y es el ÚNICO menú. Había otro escrito a mano en la barra lateral —el de la
+cuenta— con su propia lista, sus propios estilos y su propio estado, y lo que se
+le había olvidado era todo lo que no se ve al mirarlo abierto: no se cerraba al
+pulsar fuera, ni con Escape, ni al rodar la página. Tres comportamientos que
+aquí ya estaban resueltos. La diferencia que sí era real —cuelga hacia arriba
+desde el pie de la barra, alineado a la izquierda, y su disparador es una fila
+ancha en vez de un botón— son los dos parámetros de abajo.
 */
 
 export function Menu({
   etiqueta,
   rotulo,
   onAbrir,
+  ancla = 'derecha',
+  comoFila = false,
   children,
 }: {
   /** Nombre accesible; es lo único que hay cuando no lleva rótulo visible. */
@@ -37,11 +47,15 @@ export function Menu({
    * pestaña.
    */
   onAbrir?: () => void
+  /** Por qué borde se alinea la lista con el disparador. */
+  ancla?: 'derecha' | 'izquierda'
+  /** El disparador ocupa el ancho de su columna, con el rótulo a la izquierda. */
+  comoFila?: boolean
   children: (cerrar: () => void) => ReactNode
 }) {
   const [abierto, setAbierto] = useState(false)
   const [caja, setCaja] = useState<
-    { right: number; top?: number; bottom?: number; maxHeight: number } | null
+    { right?: number; left?: number; top?: number; bottom?: number; maxHeight: number } | null
   >(null)
   const disparador = useRef<HTMLButtonElement>(null)
   const lista = useRef<HTMLDivElement>(null)
@@ -74,14 +88,14 @@ export function Menu({
     const MARGEN = 8
     const debajo = window.innerHeight - r.bottom - MARGEN
     const encima = r.top - MARGEN
-    const right = window.innerWidth - r.right
+    const borde = ancla === 'izquierda' ? { left: r.left } : { right: window.innerWidth - r.right }
 
     setCaja(
       debajo < encima && debajo < 240
-        ? { right, bottom: window.innerHeight - r.top + 4, maxHeight: encima }
-        : { right, top: r.bottom + 4, maxHeight: debajo },
+        ? { ...borde, bottom: window.innerHeight - r.top + 4, maxHeight: encima }
+        : { ...borde, top: r.bottom + 4, maxHeight: debajo },
     )
-  }, [abierto])
+  }, [abierto, ancla])
 
   useEffect(() => {
     if (!abierto) return
@@ -119,29 +133,45 @@ export function Menu({
     }
   }, [abierto])
 
+  const abrirOCerrar = () => {
+    if (!abierto) onAbrir?.()
+    setAbierto((v) => !v)
+  }
+
   return (
-    <div className={styles.menu}>
-      <Button
-        ref={disparador}
-        size="sm"
-        icono={rotulo == null}
-        aria-haspopup="menu"
-        aria-expanded={abierto}
-        aria-label={etiqueta}
-        onClick={() => {
-          if (!abierto) onAbrir?.()
-          setAbierto((v) => !v)
-        }}
-      >
-        {rotulo == null ? (
-          <Icono nombre="mas" tam={16} />
-        ) : (
-          <>
-            {rotulo}
-            <Icono nombre="chevronAbajo" tam={12} />
-          </>
-        )}
-      </Button>
+    <div className={comoFila ? styles.menuAncho : styles.menu}>
+      {comoFila ? (
+        <button
+          ref={disparador}
+          type="button"
+          className={styles.fila}
+          aria-haspopup="menu"
+          aria-expanded={abierto}
+          onClick={abrirOCerrar}
+        >
+          {rotulo}
+          <Icono nombre="chevronAbajo" tam={12} />
+        </button>
+      ) : (
+        <Button
+          ref={disparador}
+          size="sm"
+          icono={rotulo == null}
+          aria-haspopup="menu"
+          aria-expanded={abierto}
+          aria-label={etiqueta}
+          onClick={abrirOCerrar}
+        >
+          {rotulo == null ? (
+            <Icono nombre="mas" tam={16} />
+          ) : (
+            <>
+              {rotulo}
+              <Icono nombre="chevronAbajo" tam={12} />
+            </>
+          )}
+        </Button>
+      )}
       {abierto && caja && (
         <div className={styles.menuLista} role="menu" ref={lista} style={caja}>
           {children(() => setAbierto(false))}

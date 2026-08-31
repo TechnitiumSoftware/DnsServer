@@ -6,7 +6,7 @@
    guardar. Los comparte con DHCP, que es el otro formulario grande. Aquí queda
    sólo lo que es de Settings y de nadie más. */
 
-.wrap { composes: wrap from '../../ui/Ajustes.module.css'; }
+.wrap { composes: pantalla from '../../ui/SectionHeader.module.css'; }
 .group { composes: grupo from '../../ui/Form.module.css'; }
 
 /* El resumen de listas de bloqueo: «N allowed, M blocked», con las cifras en

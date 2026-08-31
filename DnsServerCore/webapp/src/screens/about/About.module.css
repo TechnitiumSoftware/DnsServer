@@ -24,9 +24,7 @@ ocupaban—.
 */
 .prose h4 a,
 .prose .destino { display:inline-block; padding: var(--s-4) 0; }
-.kv { display:grid; grid-template-columns:auto 1fr; gap: var(--s-2) var(--s-8); margin: 0; }
-.kv dt { font-size: var(--t-3); color:var(--mute); }
-.kv dd { margin: 0; font-size: var(--t-4); color:var(--ink); font-family:var(--font-mono); }
+.kv { composes: kv from '../../ui/kv.module.css'; }
 
 @media (max-width: 900px) {
   .grid { grid-template-columns: minmax(0, 1fr); }
