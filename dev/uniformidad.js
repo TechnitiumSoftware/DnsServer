@@ -84,6 +84,23 @@ function firmasDeLaPantalla() {
   const h1 = raiz.querySelector('h1')
   if (h1) anota('titulo', `${css(h1).fontSize}/${css(h1).fontWeight}/${css(h1).letterSpacing}`)
 
+  /*
+  Y el hueco bajo ese título, que también se había separado: seis pantallas lo
+  tenían a 38 px y doce a 24, porque las seis meten la cabecera en un contenedor
+  `flex` con `gap` y en flex el hueco SE SUMA al margen del hijo. Se mide contra
+  el hermano siguiente y no contra «la primera caja con borde», que es lo que se
+  intentó primero: ese `find()` cogía elementos distintos en cada pantalla y dio
+  dos medidas falsas seguidas.
+  */
+  const cabecera = h1?.closest('[class*="_hrow_"]')
+  const siguiente = cabecera?.nextElementSibling
+  if (cabecera && siguiente) {
+    anota(
+      'hueco-bajo-el-titulo',
+      `${Math.round(siguiente.getBoundingClientRect().top - cabecera.getBoundingClientRect().bottom)}px`,
+    )
+  }
+
   return Object.fromEntries(Object.entries(out).map(([k, v]) => [k, [...v]]))
 }
 
