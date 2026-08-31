@@ -1,5 +1,6 @@
 import type { OpcionesZona, PoliticaActualizacion } from '../../api/zones'
 import { limpiarLista } from '../../api/zonelists'
+import { serializarTabla } from '../../lib/tabla-serie'
 
 /*
 El formulario de `modalZoneOptions`: cinco pestañas, y **qué se ve y qué se
@@ -399,37 +400,31 @@ export interface ErrorOpciones {
 
 export type ResultadoOpciones = { error: ErrorOpciones } | { body: Record<string, string> }
 
-/** `serializeTableData` con 3 columnas para las políticas de actualización. */
+/*
+`serializeTableData` con 3 columnas para las políticas de actualización. El
+algoritmo vive en `lib/tabla-serie`, compartido por las cinco pantallas con
+tabla editable; aquí sólo se dice dónde está la celda que falla.
+*/
 function serializarPoliticas(
   filas: FilaPolitica[],
 ): { valor: string } | { error: ErrorOpciones } {
-  const salida: string[] = []
-  for (const fila of filas) {
-    for (const celda of [fila.tsigKeyName, fila.domain, fila.allowedTypes]) {
-      if (celda === '') {
-        return {
-          error: {
-            title: 'Missing!',
-            text: 'Please enter a valid value in the text field in focus.',
-            tab: 'Dynamic Updates',
-            campo: 'updateSecurityPolicies',
-          },
-        }
-      }
-      if (celda.includes('|')) {
-        return {
-          error: {
-            title: 'Invalid Character!',
-            text: "Please edit the value in the text field in focus to remove '|' character.",
-            tab: 'Dynamic Updates',
-            campo: 'updateSecurityPolicies',
-          },
-        }
-      }
-      salida.push(celda)
-    }
+  const r = serializarTabla(
+    filas.map((fila) =>
+      [fila.tsigKeyName, fila.domain, fila.allowedTypes].map((valor) => ({
+        tipo: 'texto' as const,
+        valor,
+      })),
+    ),
+  )
+  if (r.ok) return { valor: r.valor }
+  return {
+    error: {
+      title: r.fallo.title,
+      text: r.fallo.text,
+      tab: 'Dynamic Updates',
+      campo: 'updateSecurityPolicies',
+    },
   }
-  return { valor: salida.join('|') }
 }
 
 /**

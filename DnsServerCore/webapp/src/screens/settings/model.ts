@@ -1,4 +1,5 @@
 import type { DnsSettings } from '../../api/settings'
+import { serializarTabla, type Celda } from '../../lib/tabla-serie'
 
 /*
 El modelo del formulario de Settings.
@@ -464,40 +465,22 @@ export interface ResultadoCuerpo {
   saneado?: Partial<SettingsForm>
 }
 
-/** `serializeTableData` (common.js:282): todas las celdas unidas por `|`.
- *  Sólo `sharedSecret` lleva `data-optional`, así que sólo ella admite vacío. */
-function serializarTabla(
-  filas: { valor: string; opcional?: boolean }[][],
+/*
+El algoritmo es `serializeTableData` de upstream y vive en `lib/tabla-serie`,
+que lo comparten las cinco pantallas con tabla editable. Aquí sólo se traduce
+dónde está la celda que falla: en Settings, a la sub-pestaña y el campo.
+
+Sólo `sharedSecret` lleva `data-optional` en upstream, así que sólo ella admite
+vacío; eso lo dice cada celda con su `opcional`.
+*/
+function serializarConUbicacion(
+  filas: Celda[][],
   tab: string,
   campo: string,
 ): { valor: string } | { error: ErrorValidacion } {
-  const salida: string[] = []
-  for (const fila of filas) {
-    for (const celda of fila) {
-      if (celda.valor === '' && celda.opcional !== true) {
-        return {
-          error: {
-            title: 'Missing!',
-            text: 'Please enter a valid value in the text field in focus.',
-            tab,
-            campo,
-          },
-        }
-      }
-      if (celda.valor.includes('|')) {
-        return {
-          error: {
-            title: 'Invalid Character!',
-            text: "Please edit the value in the text field in focus to remove '|' character.",
-            tab,
-            campo,
-          },
-        }
-      }
-      salida.push(celda.valor)
-    }
-  }
-  return { valor: salida.join('|') }
+  const r = serializarTabla(filas)
+  if (r.ok) return { valor: r.valor }
+  return { error: { title: r.fallo.title, text: r.fallo.text, tab, campo } }
 }
 
 export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
@@ -571,22 +554,22 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   }
 
   // ── General: QPM
-  const qpm4 = serializarTabla(
+  const qpm4 = serializarConUbicacion(
     f.qpmPrefixLimitsIPv4.map((r) => [
-      { valor: r.prefix },
-      { valor: r.udpLimit },
-      { valor: r.tcpLimit },
+      { tipo: 'texto' as const, valor: r.prefix },
+      { tipo: 'texto' as const, valor: r.udpLimit },
+      { tipo: 'texto' as const, valor: r.tcpLimit },
     ]),
     'General',
     'qpmPrefixLimitsIPv4',
   )
   if ('error' in qpm4) return { error: qpm4.error }
 
-  const qpm6 = serializarTabla(
+  const qpm6 = serializarConUbicacion(
     f.qpmPrefixLimitsIPv6.map((r) => [
-      { valor: r.prefix },
-      { valor: r.udpLimit },
-      { valor: r.tcpLimit },
+      { tipo: 'texto' as const, valor: r.prefix },
+      { tipo: 'texto' as const, valor: r.udpLimit },
+      { tipo: 'texto' as const, valor: r.tcpLimit },
     ]),
     'General',
     'qpmPrefixLimitsIPv6',
@@ -719,11 +702,11 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   body.dnsTlsCertificatePassword = f.dnsTlsCertificatePassword
 
   // ── TSIG
-  const tsig = serializarTabla(
+  const tsig = serializarConUbicacion(
     f.tsigKeys.map((k) => [
-      { valor: k.keyName },
-      { valor: k.sharedSecret, opcional: true },
-      { valor: k.algorithmName },
+      { tipo: 'texto' as const, valor: k.keyName },
+      { tipo: 'texto' as const, valor: k.sharedSecret, opcional: true },
+      { tipo: 'texto' as const, valor: k.algorithmName },
     ]),
     'TSIG',
     'tsigKeys',

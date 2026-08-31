@@ -1,76 +1,13 @@
 /*
-`serializeTableData` (common.js:282), que es como upstream manda al servidor una
-tabla editable: Permissions manda dos, y SSO manda los scopes y el mapa de
-grupos.
+Los ayudantes de las tablas editables de Administration: el desplegable «Add
+…» que empuja a una lista o a una tabla.
 
-Tres detalles que parecen menores y no lo son:
-
-  · El separador `|` es el MISMO entre columnas y entre filas. El servidor
-    reconstruye la tabla por posición (`TryQueryOrFormArray(..., 2, ..., '|')`),
-    no por delimitadores distintos.
-  · Una casilla se serializa como `"true"` / `"false"`; un campo de texto, tal
-    cual. Un campo de texto vacío ABORTA el guardado entero con un aviso, y uno
-    que contenga `|` también: son las dos únicas validaciones de la función, y
-    son literales de interfaz.
-  · Una tabla sin filas produce la cadena VACÍA, no `"false"`. Quien llama
-    decide qué hacer con ella: SSO la convierte a `"false"` antes de enviarla
-    (auth.js:2265 y 2280) y Permissions la manda vacía.
+La serialización en sí NO está aquí: es `serializeTableData` de upstream
+(`common.js:282`) y la usan las cinco pantallas con tabla editable, así que vive
+en `lib/tabla-serie`. Se re-exporta para que las cuatro sub-pestañas de
+Administration la sigan pidiendo por esta puerta.
 */
-
-export type Celda = { tipo: 'texto'; valor: string } | { tipo: 'casilla'; valor: boolean }
-
-export interface FalloTabla {
-  title: string
-  text: string
-  /** Índice de la fila y de la columna del campo que hay que enfocar. */
-  fila: number
-  columna: number
-}
-
-export type ResultadoTabla = { ok: true; valor: string } | { ok: false; fallo: FalloTabla }
-
-export function serializarTabla(filas: readonly (readonly Celda[])[]): ResultadoTabla {
-  const salida: string[] = []
-
-  for (let i = 0; i < filas.length; i++) {
-    for (let j = 0; j < filas[i].length; j++) {
-      const celda = filas[i][j]
-
-      if (celda.tipo === 'casilla') {
-        salida.push(celda.valor ? 'true' : 'false')
-        continue
-      }
-
-      if (celda.valor === '') {
-        return {
-          ok: false,
-          fallo: {
-            title: 'Missing!',
-            text: 'Please enter a valid value in the text field in focus.',
-            fila: i,
-            columna: j,
-          },
-        }
-      }
-
-      if (celda.valor.includes('|')) {
-        return {
-          ok: false,
-          fallo: {
-            title: 'Invalid Character!',
-            text: "Please edit the value in the text field in focus to remove '|' character.",
-            fila: i,
-            columna: j,
-          },
-        }
-      }
-
-      salida.push(celda.valor)
-    }
-  }
-
-  return { ok: true, valor: salida.join('|') }
-}
+export { serializarTabla, type Celda, type FalloTabla, type ResultadoTabla } from '../../lib/tabla-serie'
 
 /*
 Los cuatro desplegables «Add User» / «Add Group» de Administration. Los cuatro

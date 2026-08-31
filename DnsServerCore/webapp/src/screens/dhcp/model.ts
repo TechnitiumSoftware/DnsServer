@@ -1,4 +1,5 @@
 import type { DhcpScope } from '../../api/dhcp'
+import { serializarTabla } from '../../lib/tabla-serie'
 
 /*
 El formulario de un scope DHCP: 36 campos, cinco de ellos tablas editables.
@@ -242,37 +243,30 @@ function serializar(
   filas: Record<string, string>[],
   columnas: { key: string; optional?: boolean }[],
 ): { valor: string } | { error: ErrorScope } {
-  const partes: string[] = []
-
-  for (let i = 0; i < filas.length; i++) {
-    for (const col of columnas) {
-      const valor = filas[i][col.key] ?? ''
-
-      if (valor === '' && col.optional !== true) {
-        return {
-          error: {
-            title: 'Missing!',
-            text: 'Please enter a valid value in the text field in focus.',
-            focus: idCelda(tabla, i, col.key),
-          },
-        }
-      }
-
-      if (valor.includes('|')) {
-        return {
-          error: {
-            title: 'Invalid Character!',
-            text: "Please edit the value in the text field in focus to remove '|' character.",
-            focus: idCelda(tabla, i, col.key),
-          },
-        }
-      }
-
-      partes.push(valor)
-    }
+  /*
+  El algoritmo es `serializeTableData` de upstream y vive en `lib/tabla-serie`,
+  compartido por las cinco pantallas con tabla editable. Aquí sólo se traduce
+  dónde está la celda que falla: en DHCP, al `id` determinista de esa celda,
+  porque el aviso dice literalmente «the text field in focus» y sin poder
+  enfocarla no se puede resolver.
+  */
+  const r = serializarTabla(
+    filas.map((fila) =>
+      columnas.map((col) => ({
+        tipo: 'texto' as const,
+        valor: fila[col.key] ?? '',
+        opcional: col.optional,
+      })),
+    ),
+  )
+  if (r.ok) return { valor: r.valor }
+  return {
+    error: {
+      title: r.fallo.title,
+      text: r.fallo.text,
+      focus: idCelda(tabla, r.fallo.fila, columnas[r.fallo.columna].key),
+    },
   }
-
-  return { valor: partes.join('|') }
 }
 
 /*

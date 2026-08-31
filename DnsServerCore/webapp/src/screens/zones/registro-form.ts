@@ -1,5 +1,6 @@
 import { dominioCompleto, identidadRegistro, type Registro } from '../../api/registros'
 import { limpiarLista } from '../../api/zonelists'
+import { serializarTabla } from '../../lib/tabla-serie'
 
 /*
 El formulario de «Add / Edit Record» y su validación: réplica de `addRecord`
@@ -316,36 +317,25 @@ export interface ContextoRegistro {
   updateSvcbHints: boolean
 }
 
-/** `serializeTableData` con 2 columnas para los parámetros de un SVCB. */
+/*
+`serializeTableData` con 2 columnas para los parámetros de un SVCB. El algoritmo
+vive en `lib/tabla-serie`, compartido por las cinco pantallas con tabla editable.
+
+Una lista vacía viaja como la cadena «false», no como cadena vacía, y eso sí es
+de aquí: la función compartida devuelve la vacía y quien llama decide.
+*/
 export function serializarSvcParams(
   filas: ParametroSvcb[],
 ): { valor: string } | { error: ErrorRegistro } {
-  const salida: string[] = []
-  for (const fila of filas) {
-    for (const celda of [fila.clave, fila.valor]) {
-      if (celda === '') {
-        return {
-          error: {
-            title: 'Missing!',
-            text: 'Please enter a valid value in the text field in focus.',
-            campo: 'svcbParams',
-          },
-        }
-      }
-      if (celda.includes('|')) {
-        return {
-          error: {
-            title: 'Invalid Character!',
-            text: "Please edit the value in the text field in focus to remove '|' character.",
-            campo: 'svcbParams',
-          },
-        }
-      }
-      salida.push(celda)
-    }
+  const r = serializarTabla(
+    filas.map((fila) =>
+      [fila.clave, fila.valor].map((valor) => ({ tipo: 'texto' as const, valor })),
+    ),
+  )
+  if (!r.ok) {
+    return { error: { title: r.fallo.title, text: r.fallo.text, campo: 'svcbParams' } }
   }
-  // Una lista vacía viaja como la cadena «false», no como cadena vacía.
-  return { valor: salida.length === 0 ? 'false' : salida.join('|') }
+  return { valor: r.valor.length === 0 ? 'false' : r.valor }
 }
 
 export function construirCuerpoRegistro(
