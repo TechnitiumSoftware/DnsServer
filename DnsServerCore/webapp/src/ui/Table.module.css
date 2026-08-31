@@ -36,6 +36,8 @@ que se le da cuerpo —panel, borde y esquinas— en vez de dejarla flotando.
   padding: var(--s-5) var(--s-7);
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
+  /* Una sola altura para todas las cabeceras; ver `--fila-cabecera`. */
+  height: var(--fila-cabecera);
 }
 
 .tabla td {
@@ -101,6 +103,16 @@ choca con nada.
 .orden {
   composes: golpe from '../ui/interaccion.module.css';
   display: inline-flex;
+  /*
+  Alineado al MEDIO del texto y no a su línea base.
+
+  Un `inline-flex` se apoya en la línea base, y cuando dentro sólo hay un icono
+  —la cabecera «Type» de DHCP Leases, cuyo rótulo es sólo para lectores de
+  pantalla— la caja de línea crece por debajo para dejar sitio al descendente
+  que no hay. Esa cabecera medía 33,77 px cuando las otras seis tablas medían
+  33: el hueco lo ponía un carácter que nunca se escribe.
+  */
+  vertical-align: middle;
   align-items: center;
   gap: var(--s-2);
   background: none;
@@ -245,3 +257,16 @@ borrar, así que ningún nombre vive sólo dentro de un dibujo.
   padding: 0 var(--s-7);
   cursor: pointer;
 }
+
+/*
+En la CABECERA la casilla va sola y no debe mandar sobre la altura de la fila.
+
+Los 40 px de arriba son para una fila de datos, donde el objetivo táctil ocupa
+toda la celda y coincide con el alto de la fila. Aplicados también a la
+cabecera, la de Zones medía 57 px mientras las otras seis tablas de la consola
+median 33: la misma cabecera, casi el doble de alta, y sin que ningún rótulo
+ocupara dos líneas. Aquí el objetivo es la celda entera igualmente, sólo que la
+celda mide lo que mide la cabecera.
+*/
+thead th.celdaCheck { padding: 0; }
+thead .celdaCheck label { min-height: 0; }

@@ -122,6 +122,19 @@ que no sea uno de estos tokens.** Un valor suelto es deriva futura.
   pasado: catorce sitios, tres tamaños y cuatro interletrados para la misma
   idea.
   */
+  /*
+  La fila de cabecera de una tabla mide lo mismo en toda la consola.
+
+  Se declara porque si no la fija el contenido, y entonces cada tabla sale de
+  una altura: la de Zones medía 57 px —su casilla de «seleccionar todo» arrastra
+  un objetivo táctil de 40— y la de DHCP Leases 34 frente a los 33 de las otras
+  cinco, sin que ningún rótulo ocupara dos líneas.
+
+  En una tabla, `height` sobre una celda es un MÍNIMO: una cabecera que de
+  verdad necesite dos líneas sigue creciendo.
+  */
+  --fila-cabecera: 33px;
+
   --rotulo-tam: 10.5px;
   --rotulo-peso: 600;
   --rotulo-interletrado: 0.05em;
