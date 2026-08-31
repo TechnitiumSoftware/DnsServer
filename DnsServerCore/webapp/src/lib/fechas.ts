@@ -1,22 +1,23 @@
 /*
-Las formas en que la consola escribe una fecha, replicadas de moment.js —que es
-lo que usa upstream y lo que la consola nueva ya no carga.
+The ways the console writes a date, replicated from moment.js —which is what
+upstream uses and what the new console no longer loads.
 
-  · `moment(x).local().format("YYYY-MM-DD HH:mm:ss")` en Sessions, Users, los
-    registros de una zona y las entradas de query log.
-  · `moment(x).local().format("YYYY-MM-DD HH:mm")` en Cluster, la lista de
-    zonas, las concesiones DHCP y las claves DNSSEC.
-  · `moment(x).fromNow()` detrás de la fecha, en varias de ellas.
+  · `moment(x).local().format("YYYY-MM-DD HH:mm:ss")` in Sessions, Users, a
+    zone's records and the query log entries.
+  · `moment(x).local().format("YYYY-MM-DD HH:mm")` in Cluster, the zone list, the
+    DHCP leases and the DNSSEC keys.
+  · `moment(x).fromNow()` after the date, in several of them.
 
-Las fases 4, 8 y 9 se escribieron en paralelo y cada una hizo su copia; al
-integrarlas se quedó ésta, que es la única que replica los umbrales de moment
-en vez de aproximarlos.
+Phases 4, 8 and 9 were written in parallel and each made its own copy; on
+integrating them this one stayed, which is the only one that replicates moment's
+thresholds instead of approximating them.
 
-`fromNow` no es «un texto relativo cualquiera»: son cadenas literales de la
-interfaz («a few seconds ago», «2 hours ago») con unos umbrales muy concretos.
-Se replican los de la locale `en` de moment tal cual, incluida la rareza de que
-con los valores por omisión la forma «%d seconds» NUNCA sale: el umbral `ss` es
-44 y el `s` es 45, así que todo lo que baja de 45 s cae en «a few seconds».
+`fromNow` is not "some relative text or other": they are literal interface
+strings ("a few seconds ago", "2 hours ago") with very specific thresholds. The
+ones of moment's `en` locale are replicated as they are, including the oddity
+that with the default values the form "%d seconds" NEVER comes out: the `ss`
+threshold is 44 and the `s` one is 45, so everything under 45 s falls into "a few
+seconds".
 */
 
 function dosDigitos(n: number): string {
@@ -24,10 +25,10 @@ function dosDigitos(n: number): string {
 }
 
 /*
-El año va a CUATRO dígitos. No es cosmética: `0001-01-01T00:00:00` es el
-`default(DateTime)` de .NET y aparece de verdad en cada registro que no se ha
-usado nunca. Sin rellenar sale «1-01-01», que no es lo que escribe moment ni se
-parece a una fecha.
+The year goes to FOUR digits. It is not cosmetic: `0001-01-01T00:00:00` is
+.NET's `default(DateTime)` and really does appear on every record that has never
+been used. Without padding it comes out as "1-01-01", which is neither what
+moment writes nor anything like a date.
 */
 function cuatroDigitos(n: number): string {
   return String(n).padStart(4, '0')
@@ -49,7 +50,7 @@ export function fechaHora(iso: string | null | undefined): string {
   )
 }
 
-/** `format("YYYY-MM-DD HH:mm")` en hora local. Lo usa la tabla de Cluster. */
+/** `format("YYYY-MM-DD HH:mm")` in local time. The Cluster table uses it. */
 export function fechaMinuto(iso: string | null | undefined): string {
   if (iso == null) return ''
   const d = partes(iso)
@@ -63,16 +64,16 @@ export function fechaMinuto(iso: string | null | undefined): string {
 const UMBRAL = { ss: 44, s: 45, m: 45, h: 22, d: 26, M: 11 }
 
 /*
-`Duration.as(unidad)` de moment para una duración hecha sólo de milisegundos.
-Los meses NO se cuentan por calendario: `daysToMonths` divide entre
-146097/4800 = 30,436875 días, que es el mes medio del calendario gregoriano.
+moment's `Duration.as(unit)` for a duration made only of milliseconds. Months are
+NOT counted by calendar: `daysToMonths` divides by 146097/4800 = 30.436875 days,
+which is the mean month of the Gregorian calendar.
 */
 function comoMeses(dias: number): number {
   return (dias * 4800) / 146097
 }
 
-/** `moment(x).fromNow()` con la locale `en`. `ahora` se inyecta para poder
- *  probarlo sin depender del reloj. */
+/** `moment(x).fromNow()` with the `en` locale. `ahora` is injected so it can be
+ *  tested without depending on the clock. */
 export function desdeAhora(iso: string | null | undefined, ahora: number = Date.now()): string {
   if (iso == null) return ''
   const d = partes(iso)
@@ -106,7 +107,7 @@ export function desdeAhora(iso: string | null | undefined, ahora: number = Date.
   return futuro ? `in ${texto}` : `${texto} ago`
 }
 
-/** `fecha (hace tanto)`, que es como upstream compone las que llevan las dos. */
+/** `date (time ago)`, which is how upstream composes the ones carrying both. */
 export function fechaConAntiguedad(iso: string, ahora?: number): string {
   return `${fechaHora(iso)} (${desdeAhora(iso, ahora)})`
 }

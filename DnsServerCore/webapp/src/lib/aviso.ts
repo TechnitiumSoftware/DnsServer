@@ -1,12 +1,12 @@
 import type { AlertType } from '../ui/Alert'
 
 /*
-Un `showAlert` de upstream: tipo, título en negrita y texto. Los tres son
-literales de upstream y no se componen con plantillas.
+An upstream `showAlert`: a type, a bold title and text. All three are upstream
+literals and are not composed with templates.
 
-Este tipo estaba declarado OCHO veces —en Administration, DHCP, Zones, Listas,
-las dos pantallas de Logs, y con otro nombre en Settings y en Apps— con las
-mismas tres propiedades.
+This type was declared EIGHT times —in Administration, DHCP, Zones, Lists, the
+two Logs screens, and under another name in Settings and in Apps— with the same
+three properties.
 */
 export interface Aviso {
   type: AlertType
@@ -15,16 +15,16 @@ export interface Aviso {
 }
 
 /*
-`showAlert("danger", "Error!", …)`: upstream lo saca SIEMPRE que la respuesta no
-es `ok`, con el mensaje que manda el servidor.
+`showAlert("danger", "Error!", …)`: upstream shows it WHENEVER the response is
+not `ok`, with the message the server sends.
 
-La traducción estaba escrita treinta y seis veces, y con tres reservas distintas
-para cuando el servidor no manda mensaje: «Unknown error.» en Administration,
-cadena vacía en DHCP y en Apps, y NADA en las otras treinta —o sea, un recuadro
-rojo con su título y el cuerpo en blanco—. `message` es opcional en
-`ApiOutcome`, así que las tres eran alcanzables.
+The translation was written thirty-six times, with three different fallbacks for
+when the server sends no message: "Unknown error." in Administration, an empty
+string in DHCP and in Apps, and NOTHING in the other thirty —that is, a red box
+with its title and a blank body. `message` is optional in `ApiOutcome`, so all
+three were reachable.
 
-Se queda «Unknown error.», que es la única de las tres que dice algo.
+"Unknown error." stays, which is the only one of the three that says anything.
 */
 export function avisoDeFallo(outcome: { kind: string; message?: string }): Aviso {
   return {

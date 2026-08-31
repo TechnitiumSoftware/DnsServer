@@ -1,40 +1,40 @@
 /*
-`serializeTableData` (common.js:282), que es como upstream manda al servidor una
-tabla editable: Permissions manda dos, y SSO manda los scopes y el mapa de
-grupos.
+`serializeTableData` (common.js:282), which is how upstream sends an editable
+table to the server: Permissions sends two, and SSO sends the scopes and the
+group map.
 
-Tres detalles que parecen menores y no lo son:
+Three details that look minor and are not:
 
-  · El separador `|` es el MISMO entre columnas y entre filas. El servidor
-    reconstruye la tabla por posición (`TryQueryOrFormArray(..., 2, ..., '|')`),
-    no por delimitadores distintos.
-  · Una casilla se serializa como `"true"` / `"false"`; un campo de texto, tal
-    cual. Un campo de texto vacío ABORTA el guardado entero con un aviso, y uno
-    que contenga `|` también: son las dos únicas validaciones de la función, y
-    son literales de interfaz.
-  · Una tabla sin filas produce la cadena VACÍA, no `"false"`. Quien llama
-    decide qué hacer con ella: SSO la convierte a `"false"` antes de enviarla
-    (auth.js:2265 y 2280) y Permissions la manda vacía.
+  · The `|` separator is the SAME between columns and between rows. The server
+    rebuilds the table by position (`TryQueryOrFormArray(..., 2, ..., '|')`), not
+    by different delimiters.
+  · A checkbox serialises as `"true"` / `"false"`; a text field, as it is. An
+    empty text field ABORTS the whole save with an alert, and one containing `|`
+    does too: they are the function's only two validations, and they are
+    interface literals.
+  · A table with no rows produces the EMPTY string, not `"false"`. The caller
+    decides what to do with it: SSO turns it into `"false"` before sending it
+    (auth.js:2265 and 2280) and Permissions sends it empty.
 
-Vive en `lib/` porque lo usan las CINCO pantallas con tabla editable, y estaba
-escrito una vez por pantalla. De las cinco copias salieron cuatro
-comportamientos: dos admitían celda opcional, ésta admite casilla booleana y las
-dos de Zones no admitían ninguna de las dos cosas. El algoritmo y los dos
-literales de aviso son de upstream y son uno solo; lo que sí es de cada pantalla
-es cómo LOCALIZA la celda que falla —una fila y una columna aquí, un `id` de
-campo en DHCP, una sub-pestaña en Settings—, y por eso el fallo devuelve el
-índice y quien llama lo traduce.
+It lives in `lib/` because the FIVE screens with an editable table use it, and it
+was written once per screen. Out of the five copies came four behaviours: two
+allowed an optional cell, this one allows a boolean checkbox and the two in Zones
+allowed neither. The algorithm and the two alert literals belong to upstream and
+are one single thing; what does belong to each screen is how it LOCATES the
+failing cell —a row and a column here, a field `id` in DHCP, a sub-tab in
+Settings— and that is why the failure returns the index and the caller translates
+it.
 */
 
 export type Celda =
-  /** `data-optional` en upstream: la celda que sí puede ir vacía. */
+  /** `data-optional` in upstream: the cell that is allowed to be empty. */
   | { tipo: 'texto'; valor: string; opcional?: boolean }
   | { tipo: 'casilla'; valor: boolean }
 
 export interface FalloTabla {
   title: string
   text: string
-  /** Índice de la fila y de la columna del campo que hay que enfocar. */
+  /** Index of the row and of the column of the field that has to be focused. */
   fila: number
   columna: number
 }

@@ -200,7 +200,7 @@ not one of these tokens.** A loose value is future drift.
   --capa-velo: 20;      /* the side drawer's veil, on narrow screens */
   --capa-cajon: 30;     /* and the drawer, over its veil */
   --capa-flotante: 40;  /* dropdowns: row menu, Select, account menu */
-  --capa-dialogo: 50;   /* el modal y su velo, sobre absolutamente todo */
+  --capa-dialogo: 50;   /* the modal and its veil, above absolutely everything */
 
   --r-1: 4px;   /* muestra de color, chip diminuto            (4,5) */
   --r-2: 6px;   /* row button, menu item                        (6,7) */
@@ -231,7 +231,7 @@ not one of these tokens.** A loose value is future drift.
   --e-2: 0 2px 6px rgba(0, 0, 0, 0.4), 0 12px 30px rgba(0, 0, 0, 0.45);
   --e-3: 0 4px 12px rgba(0, 0, 0, 0.45), 0 24px 64px rgba(0, 0, 0, 0.6);
 
-  /* Los dos nombres viejos siguen valiendo: son la altura 2 y la 3. */
+  /* The two old names still hold: they are height 2 and height 3. */
   --shadow-menu: var(--e-2);
   --shadow-modal: var(--e-3);
 

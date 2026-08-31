@@ -4,16 +4,17 @@ import App from './App'
 import { urlPublica } from './app/base'
 
 /*
-El icono se ancla antes de nada.
+The icon is anchored before anything else.
 
-En el HTML va como `./favicon.ico` —relativo, porque la consola puede colgar de
-cualquier prefijo (ver `app/ruta.ts`)—, y el navegador lo resuelve TARDE, contra
-la dirección que haya en ese momento. Como la aplicación normaliza la ruta nada
-más arrancar (`/settings/` → `/settings/general/`), la resolución caía un nivel
-por debajo y pedía `/settings/favicon.ico`: 404 en toda ruta que no sea la raíz.
+In the HTML it goes as `./favicon.ico` —relative, because the console can hang off
+any prefix (see `app/ruta.ts`)— and the browser resolves it LATE, against
+whatever address is current at that moment. Since the application normalises the
+route as soon as it starts (`/settings/` → `/settings/general/`), the resolution
+landed one level below and asked for `/settings/favicon.ico`: a 404 on every
+route that is not the root.
 
-Fijarlo aquí lo convierte en absoluto una sola vez, con la raíz ya deducida, y
-deja de depender de lo que diga la barra de direcciones después.
+Pinning it here makes it absolute once, with the root already deduced, and it
+stops depending on what the address bar says afterwards.
 */
 document.querySelector<HTMLLinkElement>('link[rel="icon"]')?.setAttribute('href', urlPublica('favicon.ico'))
 

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { desdeAhora, fechaHora, fechaMinuto } from './fechas'
 
-/* El formato es el de moment: `YYYY-MM-DD HH:mm:ss` en hora LOCAL. Las pruebas
-   construyen la fecha con `new Date(y, m, d, …)`, que ya es local, para no
-   depender de la zona horaria de quien las ejecute. */
+/* The format is moment's: `YYYY-MM-DD HH:mm:ss` in LOCAL time. The tests build
+   the date with `new Date(y, m, d, …)`, which is already local, so as not to
+   depend on the time zone of whoever runs them. */
 
 describe('fechaHora / fechaMinuto', () => {
   const d = new Date(2026, 7, 25, 16, 41, 12).toISOString()

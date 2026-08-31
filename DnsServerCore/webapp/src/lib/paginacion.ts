@@ -1,17 +1,17 @@
 /*
-Vive en `lib/` y no bajo `screens/zones/` porque la usan tres pantallas: la lista
-de zonas, los registros de una zona y Query Logs. Esta última llevaba su propia
-copia —`rangoPaginas`, con la misma aritmética letra por letra y sus propias
-pruebas—, citando `logs.js:571-586` donde la otra cita `zone.js:880-905`: dos
-sitios de upstream que hacen exactamente lo mismo.
+It lives in `lib/` and not under `screens/zones/` because three screens use it:
+the zone list, a zone's records and Query Logs. That last one carried its own
+copy —`rangoPaginas`, with the same arithmetic letter for letter and tests of its
+own— citing `logs.js:571-586` where the other cites `zone.js:880-905`: two places
+in upstream doing exactly the same thing.
 
-La ventana de páginas de upstream (`refreshZones`, zone.js:880-905) y el texto
-de estado que la acompaña. Se extrae aquí porque es aritmética con dos casos
-borde y merece prueba propia.
+Upstream's page window (`refreshZones`, zone.js:880-905) and the status text that
+goes with it. It is pulled out here because it is arithmetic with two edge cases
+and deserves a test of its own.
 
-La ventana es de DIEZ páginas centradas cinco antes de la actual, y **se
-desplaza hacia atrás** cuando toca el final: en la última página se ven las diez
-últimas, no una sola. Con menos de diez páginas se ven todas.
+The window is TEN pages centred five before the current one, and it **slides
+backwards** when it reaches the end: on the last page the last ten are visible,
+not just one. With fewer than ten pages they are all visible.
 */
 
 export interface Paginacion {
@@ -46,8 +46,8 @@ export function ventanaDePaginas(pageNumber: number, totalPages: number): Pagina
 }
 
 /**
- * `statusHtml` de upstream, literal. Con cero elementos la frase entera cambia
- * a «0 zones», no dice «0-0 of 0».
+ * Upstream's `statusHtml`, literal. With zero items the whole phrase changes to
+ * "0 zones", it does not say "0-0 of 0".
  */
 export function textoDeEstado(
   primeraFila: number,

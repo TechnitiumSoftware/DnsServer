@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { avisoDeFallo } from './aviso'
 
 /*
-La traducción de un fallo de la API a un aviso estaba escrita treinta y seis
-veces, con tres reservas distintas para cuando el servidor no manda mensaje:
-«Unknown error.» en Administration, cadena vacía en DHCP y en Apps, y NADA en
-las otras treinta —o sea, un recuadro rojo con su título y el cuerpo en blanco—.
-`message` es opcional en `ApiOutcome`, así que las tres eran alcanzables.
+The translation of an API failure into an alert was written thirty-six times,
+with three different fallbacks for when the server sends no message: "Unknown
+error." in Administration, an empty string in DHCP and in Apps, and NOTHING in
+the other thirty —that is, a red box with its title and a blank body. `message`
+is optional in `ApiOutcome`, so all three were reachable.
 */
 describe('avisoDeFallo', () => {
   it('usa el mensaje del servidor cuando lo hay', () => {

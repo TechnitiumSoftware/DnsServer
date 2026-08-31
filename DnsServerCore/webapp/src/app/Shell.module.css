@@ -1,25 +1,26 @@
-/* Panel lateral con sub-items anidados. Decidido midiendo (ver el documento de
-   diseño 09-navegacion): 72 px de cromo frente a 163 con pestañas arriba, y
-   desaparece la segunda fila de pestañas apiladas. */
+/* Side panel with nested sub-items. Decided by measuring (see design document
+   09-navegacion): 72 px of chrome against 163 with tabs on top, and the second
+   row of stacked tabs disappears. */
 .shell { min-height:100vh; background:var(--bg); color:var(--ink); display:grid; grid-template-columns:216px 1fr; align-items:start; }
 .side { background:var(--pan); border-right:1px solid var(--line); align-self:stretch; position:sticky; top:0; height:100vh; overflow:auto; display:flex; flex-direction:column; }
 .sbrand { display:flex; align-items:center; gap: var(--s-6); padding: 0 var(--s-10); height:52px; border-bottom:1px solid var(--line); font-weight: 600; letter-spacing:-.01em; color:var(--ink); }
 /*
-El logo de Technitium, no una «T» en un cuadrado ámbar.
+Technitium's logo, not a "T" in an amber square.
 
-La inicial era invención nuestra: el logo existe, viaja en `public/img/logo.png`
-desde el andamiaje y upstream lo usa. Sustituir la marca de un producto ajeno por
-una letra propia es justo lo que un fork no debe hacer.
+The initial was our own invention: the logo exists, it travels in
+`public/img/logo.png` since the scaffolding and upstream uses it. Replacing
+someone else's product's mark with a letter of our own is exactly what a fork
+must not do.
 */
 .mark { width:22px; height:22px; flex:none; }
 /*
-Los elementos estaban a 1 px unos de otros y con 7 px de padding vertical: la
-lista se leía como un bloque de texto, no como doce destinos. Y no había ninguna
-separación entre grupos, así que «About» pesaba lo mismo que «Zones».
+The items sat 1 px from each other with 7 px of vertical padding: the list read
+as a block of text, not as twelve destinations. And there was no separation
+between groups at all, so "About" weighed the same as "Zones".
 
-Ahora hay tres grupos, separados por hueco y no por línea: lo que se opera a
-diario (Dashboard … DNS Client), lo que se configura (Settings, DHCP,
-Administration) y lo que se consulta (Logs, About).
+Now there are three groups, separated by space and not by a line: what gets
+operated daily (Dashboard … DNS Client), what gets configured (Settings, DHCP,
+Administration) and what gets consulted (Logs, About).
 */
 .slist { padding: var(--s-9) var(--s-6); display:flex; flex-direction:column; gap: var(--s-1); }
 .grupo { display:flex; flex-direction:column; gap: var(--s-1); }
@@ -35,44 +36,45 @@ Administration) y lo que se consulta (Logs, About).
 .s2[aria-current='page'] { color:var(--acc); font-weight: 550; background:var(--pan2); box-shadow: var(--filo); }
 .main { min-width:0; }
 /*
-El cabecero SÓLO existe en pantalla estrecha.
+The header ONLY exists on a narrow screen.
 
-Llevaba el dominio del servidor y el menú de cuenta, los dos pegados al borde
-derecho: 1224×52 con el 78 % del ancho vacío —952 px de 1224— y empujando el
-título de cada sección hasta `y=76`. Sus dos inquilinos viven ahora al pie del
-lateral, que tenía 377 px libres (el 42 % de su alto). En estrecho sí hace falta,
-porque el lateral es un cajón cerrado y su disparador tiene que estar fuera.
+It carried the server's domain and the account menu, both stuck to the right
+edge: 1224×52 with 78 % of the width empty —952 px out of 1224— and pushing every
+section's title down to `y=76`. Its two tenants now live at the foot of the side
+panel, which had 377 px free (42 % of its height). On narrow screens it is
+needed, because the side panel is a closed drawer and its trigger has to be
+outside it.
 */
 .rtop { display:none; }
-/* Al pie del lateral, y por eso `margin-top:auto`: es lo que lo empuja abajo
-   por mucho que la lista de secciones sea corta. */
+/* At the foot of the side panel, hence `margin-top:auto`: that is what pushes it
+   down however short the list of sections is. */
 .pieLateral { margin-top:auto; padding: var(--s-8) var(--s-9); border-top:1px solid var(--line); display:flex; flex-direction:column; gap: var(--s-4); }
-/* Los enlaces del pie: lo bastante pequeños para no competir con la
-   navegación y lo bastante altos para poder pulsarlos. */
+/* The footer links: small enough not to compete with the navigation and tall
+   enough to be pressable. */
 .pieEnlaces { font-size: var(--t-2); line-height: 1.9; margin-bottom: var(--s-4); }
 .host { composes: anotacion from '../ui/texto.module.css'; word-break: break-all; }
-/* Se abre hacia arriba: está al pie de la ventana, no bajo un cabecero. */
+/* It opens upwards: it sits at the foot of the window, not under a header. */
 .body { padding: var(--s-11) var(--s-11) var(--s-11); min-width:0; }
 
 /*
-Por debajo de 900 px el lateral deja de ocupar columna y pasa a cajón.
+Below 900 px the side panel stops taking a column and becomes a drawer.
 
-Esto NO es paridad con upstream: upstream no declara `viewport`, así que en un
-móvil se pinta a ~980 px virtuales y se resuelve con zoom. Nosotros sí lo
-declaramos, o sea que prometemos adaptarnos; sin esto la promesa era falsa y las
-doce secciones desbordaban. Y el caso de uso más frecuente de un DNS de casa es
-mirarlo desde el móvil cuando algo ha dejado de resolver.
+This is NOT parity with upstream: upstream does not declare a `viewport`, so on a
+phone it draws at ~980 virtual px and is dealt with by zooming. We do declare it,
+which means we promise to adapt; without this the promise was false and the
+twelve sections overflowed. And the most frequent use case for a home DNS is
+looking at it from a phone when something has stopped resolving.
 */
 
-/* El disparador del cajón y la marca del cabecero sólo existen en pantalla
-   estrecha; en ancha el lateral ya está a la vista. */
+/* The drawer's trigger and the header's mark only exist on a narrow screen; on a
+   wide one the side panel is already in sight. */
 .hamburguesa,
 .marcaTop {
   display: none;
 }
 
-/* El padding va aquí y no dentro de la media query: sin declararlo, el navegador
-   pone el suyo —1px 6px— y ése es un valor que no hemos elegido nosotros. */
+/* The padding goes here and not inside the media query: without declaring it,
+   the browser puts in its own —1px 6px— and that is a value we did not choose. */
 .hamburguesa { padding: 0; }
 
 @media (max-width: 900px) {

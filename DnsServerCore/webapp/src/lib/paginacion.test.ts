@@ -11,8 +11,8 @@ describe('ventana de páginas', () => {
   })
 
   it('en la última página SE DESPLAZA HACIA ATRÁS y enseña las diez últimas', () => {
-    // El caso que se pierde al «simplificar» la aritmética: sin el ajuste,
-    // la última página enseñaría una sola.
+    // The case that gets lost when "simplifying" the arithmetic: without the
+    // adjustment, the last page would show a single one.
     expect(ventanaDePaginas(50, 50).paginas).toEqual([41, 42, 43, 44, 45, 46, 47, 48, 49, 50])
   })
 

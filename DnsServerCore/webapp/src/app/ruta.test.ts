@@ -2,7 +2,7 @@ import { describe, expect, it, afterEach } from 'vitest'
 import { SECTIONS } from './sections'
 import { aCamino, aSlug, escribirRuta, leerRuta, olvidarRaiz, raizDeLaApp } from './ruta'
 
-/** Sirve el documento como lo serviría el servidor: en su carpeta y con su meta. */
+/** Serves the document as the server would: in its folder and with its meta. */
 function servidoEn(camino: string, ruta: string | null = null) {
   document.head.querySelector('meta[name="ruta"]')?.remove()
   if (ruta != null) {
@@ -24,7 +24,7 @@ describe('aSlug', () => {
     expect(aSlug('Leases')).toBe('leases')
     expect(aSlug('Web Service')).toBe('web-service')
     expect(aSlug('View Logs')).toBe('view-logs')
-    // El `&` desaparece en vez de convertirse en guion, para no dejar `proxy--forwarders`
+    // The `&` disappears instead of becoming a dash, so as not to leave `proxy--forwarders`
     expect(aSlug('Proxy & Forwarders')).toBe('proxy-forwarders')
     expect(aSlug('Optional Protocols')).toBe('optional-protocols')
   })
@@ -39,9 +39,9 @@ describe('aSlug', () => {
 })
 
 /*
-La consola puede colgar de cualquier prefijo: el servidor honra
-`X-Forwarded-Prefix` montando un `PathBase`. La raíz se deduce restando al
-`pathname` los segmentos que el propio documento declara en su `<meta>`.
+The console can hang off any prefix: the server honours `X-Forwarded-Prefix` by
+mounting a `PathBase`. The root is deduced by subtracting from the `pathname` the
+segments the document itself declares in its `<meta>`.
 */
 describe('raizDeLaApp', () => {
   it('en la portada, la raíz es la portada', () => {

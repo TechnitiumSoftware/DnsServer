@@ -5,7 +5,7 @@ import { SessionProvider } from './SessionProvider'
 import { ThemeProvider } from '../theme/ThemeProvider'
 import * as client from '../api/client'
 
-// El Shell consume el tema, así que se monta como lo hará App.tsx.
+// The Shell consumes the theme, so it is mounted the way App.tsx will.
 function montar() {
   return render(
     <ThemeProvider>
@@ -37,9 +37,9 @@ function sesion(extra: Record<string, unknown> = {}, permOverrides = {}) {
         dnsServerDomain: 'dns.shlab.app',
         permissions: permisos(permOverrides),
       },
-      /* Las pantallas que se montan al recorrer las secciones piden lo suyo con
-         el mismo simulador; sin un `response` vacío, `listZones` y compañía
-         revientan con un rechazo no capturado que ensucia la salida. */
+      /* The screens mounted while walking the sections ask for their own things
+         through the same mock; without an empty `response`, `listZones` and
+         friends blow up with an uncaught rejection that dirties the output. */
       response: {},
       ...extra,
     },
@@ -111,14 +111,14 @@ describe('SessionProvider', () => {
   })
 
   /*
-  El panel lateral se declaraba `tablist` y no lo era.
+  The side panel declared itself a `tablist` and was not one.
 
-  Venía de cuando la consola no tenía direcciones: doce `role="tab"` sobre un
-  único panel. Con rutas reales eso dejó de ser cierto —la guía de ARIA dice que
-  si activar el elemento lleva a otra URL es un enlace—, y encima las
-  sub-secciones colgaban dentro del `tablist` como botones sueltos, que es un
-  hijo que ese rol no admite. Estos dos casos fijan lo contrario: enlaces con
-  destino de verdad, todos alcanzables con el tabulador, y un único
+  It came from when the console had no addresses: twelve `role="tab"` over a
+  single panel. With real routes that stopped being true —the ARIA guidance says
+  that if activating the element leads to another URL it is a link— and on top of
+  that the sub-sections hung inside the `tablist` as loose buttons, a child that
+  role does not allow. These two cases pin the opposite: links with a real
+  destination, all of them reachable with the tab key, and a single
   `aria-current="page"`.
   */
   it('el panel lateral son enlaces de verdad, no pestañas', async () => {
@@ -131,10 +131,10 @@ describe('SessionProvider', () => {
     expect(screen.queryAllByRole('tab')).toHaveLength(0)
     expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument()
 
-    // Destino copiable y abrible en otra pestaña, no un `href="#"`.
+    // A destination that can be copied and opened in another tab, not an `href="#"`.
     expect(screen.getByRole('link', { name: 'Zones' })).toHaveAttribute('href', '/zones/')
 
-    // Nadie fuera del orden de tabulación: en un menú, `Tab` los recorre todos.
+    // Nobody outside the tab order: in a menu, `Tab` walks through them all.
     for (const enlace of screen.getAllByRole('link')) {
       expect(enlace).not.toHaveAttribute('tabindex', '-1')
     }
@@ -147,7 +147,7 @@ describe('SessionProvider', () => {
     await screen.findByRole('navigation')
 
     fireEvent.click(screen.getByRole('link', { name: 'Logs' }))
-    // La sección abre por su primera sub, y es ELLA la página, no la sección.
+    // The section opens on its first sub, and IT is the page, not the section.
     await waitFor(() =>
       expect(screen.getByRole('link', { name: 'View Logs' })).toHaveAttribute('aria-current', 'page'),
     )
@@ -169,17 +169,17 @@ describe('SessionProvider', () => {
     montar()
     await screen.findByRole('navigation')
 
-    // Estar «en Settings» sin más es media página: la dirección se completa.
+    // Being "in Settings" and nothing more is half a page: the address is completed.
     await waitFor(() => expect(window.location.pathname).toBe('/settings/general/'))
     expect(screen.getByRole('link', { name: 'General' })).toHaveAttribute('aria-current', 'page')
 
     /*
-    Y volver atrás a `/settings/` la vuelve a completar REEMPLAZANDO. Si
-    empujara, la entrada nueva sería otra vez `/settings/general/` y el botón
-    «atrás» quedaría atrapado: cada pulsación volvería al mismo sitio.
+    And going back to `/settings/` completes it again by REPLACING. If it
+    pushed, the new entry would be `/settings/general/` all over again and the
+    "back" button would be trapped: every press would return to the same place.
 
-    Se espía el método y no `history.length`, que en jsdom no se mueve ni con
-    `pushState` —contarla daba un verde con el fallo dentro—.
+    The method is spied on and not `history.length`, which in jsdom does not
+    budge even with `pushState` —counting it gave a green with the bug inside.
     */
     const empujar = vi.spyOn(window.history, 'pushState')
     window.history.replaceState(null, '', '/settings/')
@@ -193,30 +193,30 @@ describe('SessionProvider', () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
     montar()
     await screen.findByRole('navigation')
-    // En upstream el pie cuelga del `body`: se ve en TODAS las pantallas.
+    // In upstream the footer hangs off the `body`: it shows on EVERY screen.
     expect(screen.getByRole('link', { name: 'Donate' })).toHaveAttribute(
       'href', 'https://go.technitium.com/?id=35',
     )
-    /* «DNS Client» es también una sección del panel, así que aquí se busca por
-       el nombre desambiguado; ver `app/pie.ts`. */
+    /* "DNS Client" is also a section of the panel, so here it is found by the
+       disambiguated name; see `app/pie.ts`. */
     expect(screen.getByRole('link', { name: 'DNS Client at dnsclient.net' })).toHaveAttribute(
       'href', 'https://dnsclient.net/',
     )
   })
 
   /*
-  La sesión caducada termina la sesión, como en upstream.
+  An expired session ends the session, as in upstream.
 
-  Antes no lo hacía nadie: cada pantalla enseñaba «Invalid token or session
-  expired.» y la consola se quedaba en pie, con todas las acciones fallando una
-  tras otra y sin forma de volver a entrar salvo recargar a ciegas. Upstream
-  llama a `showPageLogin()` —borra el token y enseña el login— en las sesenta y
-  cuatro llamadas que declaran el manejador, y en las que no, cae al
-  `window.location = "/"` de `common.js:147`.
+  Before, nobody did: every screen showed "Invalid token or session expired." and
+  the console stayed standing, with every action failing one after another and no
+  way back in short of reloading blindly. Upstream calls `showPageLogin()` —it
+  clears the token and shows the login— in the sixty-four calls that declare the
+  handler, and in the ones that do not, it falls through to the
+  `window.location = "/"` of `common.js:147`.
 
-  Se prueba por el camino de verdad: `apiRequest` sin simular, con el `fetch`
-  contestando lo que contestaría el servidor. Simulando `apiRequest` no se
-  probaría nada, porque el aviso lo emite él.
+  It is tested along the real path: `apiRequest` unmocked, with `fetch` answering
+  what the server would answer. Mocking `apiRequest` would test nothing, because
+  it is the one that emits the notice.
   */
   it('si el servidor rechaza la sesión, se acaba la sesión y se vuelve al login', async () => {
     localStorage.setItem('token', 'tok')
@@ -224,7 +224,7 @@ describe('SessionProvider', () => {
     montar()
     await screen.findByRole('navigation')
 
-    // A partir de aquí, el servidor dice que el token ya no vale.
+    // From here on, the server says the token is no longer valid.
     vi.restoreAllMocks()
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ status: 'invalid-token' }), {
