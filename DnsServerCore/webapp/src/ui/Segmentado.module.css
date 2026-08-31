@@ -1,0 +1,42 @@
+/*
+El control segmentado: elegir UNO de un puñado de valores, con todos a la vista.
+
+Vivía sólo en el Dashboard, para el periodo. Las pestañas del diálogo de
+opciones de una zona hacían lo mismo —elegir una de cinco— pero tomaban prestada
+la clase del BOTÓN DE PAGINACIÓN, así que una pestaña y un número de página se
+veían igual: dos significados con un mismo aspecto, y cualquier cambio en la
+paginación se llevaba las pestañas por delante.
+*/
+.seg {
+  display: inline-flex;
+  padding: var(--s-1);
+  gap: var(--s-1);
+  background: var(--pan2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+}
+
+/* Longhands y no el atajo `font:`: `inherit` no vale como componente de un
+   atajo, y con él la declaración entera se caía. */
+.opcion {
+  font-family: inherit;
+  font-size: var(--t-4);
+  font-weight: 500;
+  line-height: 1;
+  padding: var(--s-4) var(--s-8);
+  border: 0;
+  border-radius: var(--r-2);
+  background: transparent;
+  color: var(--mute);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.opcion:hover { color: var(--ink); }
+
+.opcion[aria-pressed='true'],
+.opcion[aria-selected='true'] {
+  background: var(--acc);
+  color: var(--on-acc);
+  font-weight: 550;
+}

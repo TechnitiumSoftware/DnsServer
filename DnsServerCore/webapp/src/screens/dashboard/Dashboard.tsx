@@ -14,6 +14,7 @@ import { Button } from '../../ui/Button'
 import { Alert, type AlertType } from '../../ui/Alert'
 import { MenuBloqueo } from './MenuBloqueo'
 import { instantesDelRango, loQueFalta } from './rango-personalizado'
+import { Segmentado } from '../../ui/Segmentado'
 
 /*
 Las once métricas, en el orden de upstream y con sus etiquetas literales.
@@ -213,18 +214,15 @@ export function Dashboard({ token }: { token: string | null }) {
       <SectionHeader
         titulo="Dashboard"
         acciones={
-          <div className={styles.seg} role="group" aria-label="Period">
-        {RANGOS.map((r) => (
-          <button
-            key={r}
-            type="button"
-            aria-pressed={r === rango}
-            onClick={() => { setRango(r); if (r !== 'Custom') setPedido(null) }}
-          >
-            {ETIQUETA_RANGO[r]}
-          </button>
-        ))}
-          </div>
+          <Segmentado
+            etiqueta="Period"
+            opciones={RANGOS.map((r) => ({ id: r, etiqueta: ETIQUETA_RANGO[r] }))}
+            activa={rango}
+            onElegir={(r) => {
+              setRango(r)
+              if (r !== 'Custom') setPedido(null)
+            }}
+          />
         }
       />
 

@@ -22,12 +22,12 @@ import {
   type PestanaOpciones,
 } from '../opciones'
 import type { Aviso } from '../tipos'
-import pag from '../../../ui/Pagination.module.css'
 import styles from '../Zones.module.css'
 import { Externo } from '../../../ui/Externo'
 import { RFC_ZONEMD } from '../referencias'
 import frm from '../../../ui/Form.module.css'
 import { GroupRow } from '../../../ui/Form'
+import { Segmentado } from '../../../ui/Segmentado'
 
 /*
 `modalZoneOptions` (zone.js:1524 y 2380). Cinco pestañas y una matriz de
@@ -142,21 +142,18 @@ export function OpcionesZona({
         <Loading>Loading zone options…</Loading>
       ) : (
         <>
-          <div className={styles.filt} role="tablist">
-            {PESTANAS.filter((t) => e.pestanas.includes(t.id)).map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                role="tab"
-                className={pag.pgb}
-                aria-selected={pestana === t.id}
-                aria-current={pestana === t.id}
-                onClick={() => setPestana(t.id)}
-              >
-                {t.etiqueta}
-              </button>
-            ))}
-          </div>
+          {/* Un control segmentado, no la clase del botón de paginación: una
+              pestaña y un número de página no son lo mismo. */}
+          <Segmentado
+            comoPestanas
+            etiqueta="Zone options"
+            opciones={PESTANAS.filter((t) => e.pestanas.includes(t.id)).map((t) => ({
+              id: t.id,
+              etiqueta: t.etiqueta,
+            }))}
+            activa={pestana}
+            onElegir={setPestana}
+          />
 
           <div className={styles.campos}>
             {pestana === 'General' && (

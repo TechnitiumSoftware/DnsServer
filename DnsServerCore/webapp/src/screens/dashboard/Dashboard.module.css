@@ -3,14 +3,6 @@ El panel lo pinta `ui/Panel`. Aquí sólo quedan los ajustes propios de esta
 pantalla, si los hay: replicar su marcado con `composes:` era lo que había, y
 así fue como una cabecera acabó midiendo 21 px menos que su tarjeta.
 */
-.seg { display:inline-flex; padding: var(--s-1); background:var(--pan2); border:1px solid var(--line); border-radius: var(--r-3); gap: var(--s-1); }
-.seg button { /* Ver `ui/Menu.module.css`: el atajo con `inherit` dentro es inválido y el
-     segmentado se pintaba a 13 px, el tamaño del cuerpo. */
-  font-family: inherit;
-  font-size: var(--t-4);
-  font-weight: 500;
-  line-height: 1; padding: var(--s-4) var(--s-8); border:0; border-radius: var(--r-2); background:transparent; color:var(--mute); cursor:pointer; }
-.seg button[aria-pressed='true'] { background:var(--acc); color:var(--on-acc); font-weight: 550; }
 .tiles { display:grid; grid-template-columns:repeat(auto-fill, minmax(148px, 1fr)); gap: var(--s-7); margin-bottom: var(--hueco-bloque); }
 /*
 El color de la métrica es el de SU SERIE en la gráfica de abajo: la relación es
